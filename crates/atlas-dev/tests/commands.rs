@@ -34,15 +34,20 @@ impl Fixture {
     }
     fn artifact(&self) -> PathBuf {
         let index = self.0.join("artifact.sqlite");
-        build_artifact(BuildArtifactOptions {
-            source_root: self.0.clone(),
-            output_path: index.clone(),
-            manifest_path: None,
-            locale: "en".into(),
-            search_profiles: vec![],
-            reuse_embeddings: false,
-            embedding_batch_size: 16,
-        })
+        let workspace = atlas_runtime::initialize_workspace(&index).unwrap();
+        build_artifact(
+            &workspace,
+            atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+            BuildArtifactOptions {
+                source_root: self.0.clone(),
+                output_path: index.clone(),
+                manifest_path: None,
+                locale: "en".into(),
+                search_profiles: vec![],
+                reuse_embeddings: false,
+                embedding_batch_size: 16,
+            },
+        )
         .unwrap();
         index
     }

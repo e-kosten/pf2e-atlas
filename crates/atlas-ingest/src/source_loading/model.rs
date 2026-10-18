@@ -12,7 +12,7 @@ pub struct SourceFileProvenance {
     pub source_path: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct LoadedFoundryDocument {
     pub provenance: SourceFileProvenance,
     /// SHA-256 of the original bytes, before parsing.
@@ -20,6 +20,7 @@ pub struct LoadedFoundryDocument {
     /// Exact file contents, including whitespace, duplicate names and numbers.
     pub bytes: Vec<u8>,
     pub admission: SourceAdmission<FoundryDocumentSource>,
+    pub(crate) reused_preparation: Option<ReusedPreparation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -46,7 +47,7 @@ pub struct QuarantinedSourceFile {
     pub content_hash: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct LoadedFoundryPack {
     pub metadata: SourcePackMetadata,
     pub documents: Vec<LoadedFoundryDocument>,
@@ -55,9 +56,16 @@ pub struct LoadedFoundryPack {
     pub discovery_failure: Option<SourceLoadFailure>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct LoadedFoundrySource {
     pub metadata: SourceMetadata,
     /// Manifest order; document outcomes within each pack use sorted paths.
     pub packs: Vec<LoadedFoundryPack>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct ReusedPreparation {
+    pub context_hash: String,
+    pub content: Vec<atlas_record::source_record::SourceContentOutcome>,
+    pub relationships: Vec<atlas_record::source_record::SourceRelationshipOccurrence>,
 }

@@ -62,6 +62,7 @@ fn admitted_abandoned_job_is_skipped_and_later_live_fixture_read_completes() {
     execution.abandon();
     let live = executor.enqueue(ReadExecutionContext::tracked(), |retrieval| {
         Ok(retrieval
+            .retrieval()
             .list_records(ListRecordsRequest::new(None, SearchPage::new(1, 10)?))?
             .records
             .len())
@@ -97,6 +98,8 @@ fn preadmission_abandonment_does_not_consume_even_a_full_queue() {
     let (sender, _receiver) = mpsc::sync_channel(0);
     let executor = RetrievalExecutor {
         sender,
+        runtime: None,
+        last_read_metrics: Default::default(),
         worker_count: 1,
         submission_budget: Arc::new(Mutex::new(None)),
         queue_capacity: 0,
@@ -125,8 +128,9 @@ fn completed_fixture_retrieval_can_skip_projection_at_safe_checkpoint() {
     let (completed, completion) = mpsc::channel();
     let result = executor
         .enqueue(execution.clone(), move |retrieval| {
-            let records =
-                retrieval.list_records(ListRecordsRequest::new(None, SearchPage::new(1, 10)?))?;
+            let records = retrieval
+                .retrieval()
+                .list_records(ListRecordsRequest::new(None, SearchPage::new(1, 10)?))?;
             let _ = completed.send(records.records.len());
             callback_gate.wait()?;
             callback_execution.check()?;

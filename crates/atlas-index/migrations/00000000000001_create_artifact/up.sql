@@ -4,6 +4,16 @@
 PRAGMA foreign_keys=ON;
 CREATE TABLE packs(pack_id TEXT PRIMARY KEY,label TEXT NOT NULL) STRICT;
 
+-- Compact identities survive removal of current source content. Saved state
+-- references key; projections reference id. Neither identity changes on reappearance.
+CREATE TABLE record_identity(
+ id INTEGER PRIMARY KEY,
+ key TEXT NOT NULL UNIQUE,
+ last_known_name TEXT,
+ availability TEXT NOT NULL CHECK(availability IN ('available','unavailable')),
+ UNIQUE(id,key)
+) STRICT;
+
 CREATE TABLE records(
  record_id INTEGER PRIMARY KEY,
  key TEXT NOT NULL UNIQUE,
@@ -29,6 +39,7 @@ CREATE TABLE records(
  level ANY,
  size_state TEXT NOT NULL,
  size TEXT,
+ FOREIGN KEY(record_id,key) REFERENCES record_identity(id,key),
  CHECK(name_state IN ('value','missing','null','invalid','not_applicable')),
  CHECK((name_state='value' AND name IS NOT NULL) OR (name_state<>'value' AND name IS NULL)),
  CHECK((name_state='value' AND name_lookup_key IS NOT NULL)
@@ -50,10 +61,10 @@ CREATE TABLE records(
  CHECK((size_state='value' AND size IS NOT NULL) OR (size_state<>'value' AND size IS NULL))
 ) STRICT;
 
-CREATE TABLE record_traits(record_id INTEGER NOT NULL REFERENCES records,value TEXT NOT NULL,PRIMARY KEY(record_id,value)) WITHOUT ROWID,STRICT;
+CREATE TABLE record_traits(record_id INTEGER NOT NULL REFERENCES records ON DELETE CASCADE,value TEXT NOT NULL,PRIMARY KEY(record_id,value)) WITHOUT ROWID,STRICT;
 
 CREATE TABLE actor_projection(
- record_id INTEGER PRIMARY KEY REFERENCES records,
+ record_id INTEGER PRIMARY KEY REFERENCES records ON DELETE CASCADE,
  armor_class_state TEXT NOT NULL,
  armor_class ANY,
  hp_maximum_state TEXT NOT NULL,
@@ -110,7 +121,7 @@ CREATE TABLE actor_projection(
 
 CREATE TABLE actor_items(
  id INTEGER PRIMARY KEY,
- record_id INTEGER NOT NULL REFERENCES actor_projection,
+ record_id INTEGER NOT NULL REFERENCES actor_projection ON DELETE CASCADE,
  original_index INTEGER NOT NULL CHECK(original_index>=0),
  owner_selector_json TEXT NOT NULL CHECK(json_valid(owner_selector_json)),
  authored_id_state TEXT NOT NULL,
@@ -146,12 +157,12 @@ CREATE TABLE actor_items(
  CHECK((publication_remaster_state='value' AND publication_remaster IS NOT NULL AND publication_remaster IN (0,1)) OR (publication_remaster_state<>'value' AND publication_remaster IS NULL))
 ) STRICT;
 
-CREATE TABLE actor_item_traits(item_id INTEGER NOT NULL REFERENCES actor_items,value TEXT NOT NULL,PRIMARY KEY(item_id,value)) WITHOUT ROWID,STRICT;
+CREATE TABLE actor_item_traits(item_id INTEGER NOT NULL REFERENCES actor_items ON DELETE CASCADE,value TEXT NOT NULL,PRIMARY KEY(item_id,value)) WITHOUT ROWID,STRICT;
 
 
 -- IWR is authored entry scope, not a flattened effective damage model.
 CREATE TABLE actor_iwr_entries(
- entry_id INTEGER PRIMARY KEY,record_id INTEGER NOT NULL REFERENCES actor_projection,
+ entry_id INTEGER PRIMARY KEY,record_id INTEGER NOT NULL REFERENCES actor_projection ON DELETE CASCADE,
  kind TEXT NOT NULL CHECK(kind IN ('immunity','weakness','resistance')),
  original_index INTEGER NOT NULL CHECK(original_index>=0),
  type_state TEXT NOT NULL,type TEXT,
@@ -167,11 +178,11 @@ CREATE TABLE actor_iwr_entries(
    OR (kind<>'immunity' AND value_state<>'not_applicable'))
 ) STRICT;
 
-CREATE TABLE actor_languages(record_id INTEGER NOT NULL REFERENCES actor_projection,value TEXT NOT NULL,PRIMARY KEY(record_id,value)) WITHOUT ROWID,STRICT;
+CREATE TABLE actor_languages(record_id INTEGER NOT NULL REFERENCES actor_projection ON DELETE CASCADE,value TEXT NOT NULL,PRIMARY KEY(record_id,value)) WITHOUT ROWID,STRICT;
 
 CREATE TABLE actor_speeds(
  id INTEGER PRIMARY KEY,
- record_id INTEGER NOT NULL REFERENCES actor_projection,
+ record_id INTEGER NOT NULL REFERENCES actor_projection ON DELETE CASCADE,
  original_index INTEGER NOT NULL CHECK(original_index>=0),
  type_state TEXT NOT NULL,
  type TEXT,
@@ -186,7 +197,7 @@ CREATE TABLE actor_speeds(
 
 CREATE TABLE actor_senses(
  id INTEGER PRIMARY KEY,
- record_id INTEGER NOT NULL REFERENCES actor_projection,
+ record_id INTEGER NOT NULL REFERENCES actor_projection ON DELETE CASCADE,
  original_index INTEGER NOT NULL CHECK(original_index>=0),
  type_state TEXT NOT NULL,
  type TEXT,
@@ -197,8 +208,8 @@ CREATE TABLE actor_senses(
 
 CREATE TABLE spell_projection(
  id INTEGER PRIMARY KEY,
- root_record_id INTEGER UNIQUE REFERENCES records,
- actor_item_id INTEGER UNIQUE REFERENCES actor_items,
+ root_record_id INTEGER UNIQUE REFERENCES records ON DELETE CASCADE,
+ actor_item_id INTEGER UNIQUE REFERENCES actor_items ON DELETE CASCADE,
  rank_state TEXT NOT NULL,
  rank ANY,
  traditions_state TEXT NOT NULL,
@@ -254,11 +265,11 @@ CREATE TABLE spell_projection(
  CHECK((root_record_id IS NOT NULL) <> (actor_item_id IS NOT NULL))
 ) STRICT;
 
-CREATE TABLE spell_traditions(spell_id INTEGER NOT NULL REFERENCES spell_projection,value TEXT NOT NULL,PRIMARY KEY(spell_id,value)) WITHOUT ROWID,STRICT;
+CREATE TABLE spell_traditions(spell_id INTEGER NOT NULL REFERENCES spell_projection ON DELETE CASCADE,value TEXT NOT NULL,PRIMARY KEY(spell_id,value)) WITHOUT ROWID,STRICT;
 
 CREATE TABLE spell_damage_entries(
  id INTEGER PRIMARY KEY,
- spell_id INTEGER NOT NULL REFERENCES spell_projection,
+ spell_id INTEGER NOT NULL REFERENCES spell_projection ON DELETE CASCADE,
  original_index INTEGER NOT NULL CHECK(original_index>=0),
  type_state TEXT NOT NULL,
  type TEXT,
@@ -271,12 +282,12 @@ CREATE TABLE spell_damage_entries(
  UNIQUE(spell_id,original_key)
 ) STRICT;
 
-CREATE TABLE spell_damage_kinds(entry_id INTEGER NOT NULL REFERENCES spell_damage_entries,value TEXT NOT NULL,PRIMARY KEY(entry_id,value)) WITHOUT ROWID,STRICT;
+CREATE TABLE spell_damage_kinds(entry_id INTEGER NOT NULL REFERENCES spell_damage_entries ON DELETE CASCADE,value TEXT NOT NULL,PRIMARY KEY(entry_id,value)) WITHOUT ROWID,STRICT;
 
 CREATE TABLE physical_projection(
  id INTEGER PRIMARY KEY,
- root_record_id INTEGER UNIQUE REFERENCES records,
- actor_item_id INTEGER UNIQUE REFERENCES actor_items,
+ root_record_id INTEGER UNIQUE REFERENCES records ON DELETE CASCADE,
+ actor_item_id INTEGER UNIQUE REFERENCES actor_items ON DELETE CASCADE,
  price_per_item_cp_state TEXT NOT NULL,
  price_per_item_cp ANY,
  bulk_state TEXT NOT NULL,
@@ -297,7 +308,7 @@ CREATE TABLE physical_projection(
 ) STRICT;
 
 CREATE TABLE weapon_projection(
- physical_id INTEGER PRIMARY KEY REFERENCES physical_projection,
+ physical_id INTEGER PRIMARY KEY REFERENCES physical_projection ON DELETE CASCADE,
  category_state TEXT NOT NULL,
  category TEXT,
  weapon_group_state TEXT NOT NULL,
@@ -321,7 +332,7 @@ CREATE TABLE weapon_projection(
 ) STRICT;
 
 CREATE TABLE armor_projection(
- physical_id INTEGER PRIMARY KEY REFERENCES physical_projection,
+ physical_id INTEGER PRIMARY KEY REFERENCES physical_projection ON DELETE CASCADE,
  category_state TEXT NOT NULL,
  category TEXT,
  ac_bonus_state TEXT NOT NULL,
@@ -337,7 +348,7 @@ CREATE TABLE armor_projection(
 ) STRICT;
 
 CREATE TABLE shield_projection(
- physical_id INTEGER PRIMARY KEY REFERENCES physical_projection,
+ physical_id INTEGER PRIMARY KEY REFERENCES physical_projection ON DELETE CASCADE,
  hardness_state TEXT NOT NULL,
  hardness ANY,
  hp_maximum_state TEXT NOT NULL,
@@ -350,8 +361,8 @@ CREATE TABLE shield_projection(
 
 CREATE TABLE ability_projection(
  id INTEGER PRIMARY KEY,
- root_record_id INTEGER UNIQUE REFERENCES records,
- actor_item_id INTEGER UNIQUE REFERENCES actor_items,
+ root_record_id INTEGER UNIQUE REFERENCES records ON DELETE CASCADE,
+ actor_item_id INTEGER UNIQUE REFERENCES actor_items ON DELETE CASCADE,
  action_type_state TEXT NOT NULL,
  action_type TEXT,
  action_count_state TEXT NOT NULL,
@@ -369,8 +380,8 @@ CREATE TABLE ability_projection(
 
 CREATE TABLE heritage_projection(
  id INTEGER PRIMARY KEY,
- root_record_id INTEGER UNIQUE REFERENCES records,
- actor_item_id INTEGER UNIQUE REFERENCES actor_items,
+ root_record_id INTEGER UNIQUE REFERENCES records ON DELETE CASCADE,
+ actor_item_id INTEGER UNIQUE REFERENCES actor_items ON DELETE CASCADE,
  ancestry_uuid_state TEXT NOT NULL,
  ancestry_uuid TEXT,
  ancestry_slug_state TEXT NOT NULL,
@@ -388,8 +399,8 @@ CREATE TABLE heritage_projection(
 
 CREATE TABLE effect_projection(
  id INTEGER PRIMARY KEY,
- root_record_id INTEGER UNIQUE REFERENCES records,
- actor_item_id INTEGER UNIQUE REFERENCES actor_items,
+ root_record_id INTEGER UNIQUE REFERENCES records ON DELETE CASCADE,
+ actor_item_id INTEGER UNIQUE REFERENCES actor_items ON DELETE CASCADE,
  duration_unit_state TEXT NOT NULL,
  duration_unit TEXT,
  duration_value_state TEXT NOT NULL,
@@ -405,8 +416,8 @@ CREATE TABLE effect_projection(
 
 CREATE TABLE condition_projection(
  id INTEGER PRIMARY KEY,
- root_record_id INTEGER UNIQUE REFERENCES records,
- actor_item_id INTEGER UNIQUE REFERENCES actor_items,
+ root_record_id INTEGER UNIQUE REFERENCES records ON DELETE CASCADE,
+ actor_item_id INTEGER UNIQUE REFERENCES actor_items ON DELETE CASCADE,
  is_valued_state TEXT NOT NULL,
  is_valued INTEGER,
  CHECK(is_valued_state IN ('value','missing','null','invalid','not_applicable')),
@@ -416,8 +427,8 @@ CREATE TABLE condition_projection(
 
 CREATE TABLE deity_projection(
  id INTEGER PRIMARY KEY,
- root_record_id INTEGER UNIQUE REFERENCES records,
- actor_item_id INTEGER UNIQUE REFERENCES actor_items,
+ root_record_id INTEGER UNIQUE REFERENCES records ON DELETE CASCADE,
+ actor_item_id INTEGER UNIQUE REFERENCES actor_items ON DELETE CASCADE,
  primary_domains_state TEXT NOT NULL,
  alternate_domains_state TEXT NOT NULL,
  fonts_state TEXT NOT NULL,
@@ -427,9 +438,9 @@ CREATE TABLE deity_projection(
  CHECK((root_record_id IS NOT NULL) <> (actor_item_id IS NOT NULL))
 ) STRICT;
 
-CREATE TABLE deity_domains(deity_id INTEGER NOT NULL REFERENCES deity_projection,kind TEXT NOT NULL CHECK(kind IN ('primary','alternate')),value TEXT NOT NULL,PRIMARY KEY(deity_id,kind,value)) WITHOUT ROWID,STRICT;
+CREATE TABLE deity_domains(deity_id INTEGER NOT NULL REFERENCES deity_projection ON DELETE CASCADE,kind TEXT NOT NULL CHECK(kind IN ('primary','alternate')),value TEXT NOT NULL,PRIMARY KEY(deity_id,kind,value)) WITHOUT ROWID,STRICT;
 
-CREATE TABLE deity_fonts(deity_id INTEGER NOT NULL REFERENCES deity_projection,value TEXT NOT NULL,PRIMARY KEY(deity_id,value)) WITHOUT ROWID,STRICT;
+CREATE TABLE deity_fonts(deity_id INTEGER NOT NULL REFERENCES deity_projection ON DELETE CASCADE,value TEXT NOT NULL,PRIMARY KEY(deity_id,value)) WITHOUT ROWID,STRICT;
 
 CREATE INDEX spell_rank ON spell_projection(rank) WHERE rank_state='value';
 
@@ -467,14 +478,16 @@ CREATE TABLE artifact_context(
 ) STRICT;
 
 CREATE TABLE record_bodies(
- record_id INTEGER PRIMARY KEY REFERENCES records,
+ record_id INTEGER PRIMARY KEY REFERENCES records ON DELETE CASCADE,
  codec_version INTEGER NOT NULL, encoding TEXT NOT NULL CHECK(encoding='gzip6'),
  snapshot BLOB NOT NULL
 ) STRICT;
 
 CREATE TABLE prepared_content(
+ published INTEGER NOT NULL CHECK(published IN (0,1)),
+ metadata_json TEXT NOT NULL CHECK(json_valid(metadata_json)),
  content_id INTEGER PRIMARY KEY,
- record_id INTEGER NOT NULL REFERENCES records,
+ record_id INTEGER NOT NULL REFERENCES records ON DELETE CASCADE,
  owners_json TEXT NOT NULL CHECK(json_valid(owners_json)),
  field_path TEXT NOT NULL, role TEXT NOT NULL, visibility TEXT NOT NULL,
  authored_markup_sha256 TEXT NOT NULL CHECK(length(authored_markup_sha256)=64),
@@ -492,7 +505,7 @@ CREATE TABLE prepared_content(
 
 CREATE TABLE developer_diagnostics(
  diagnostic_id INTEGER PRIMARY KEY,
- record_id INTEGER NOT NULL REFERENCES records,
+ record_id INTEGER NOT NULL REFERENCES records ON DELETE CASCADE,
  owners_json TEXT CHECK(owners_json IS NULL OR json_valid(owners_json)),
  field_path TEXT,
  stage TEXT NOT NULL CHECK(stage IN ('admission','preparation','resolution','projection')),
@@ -501,7 +514,7 @@ CREATE TABLE developer_diagnostics(
 
 CREATE TABLE relationship_occurrences(
  occurrence_id INTEGER PRIMARY KEY,
- record_id INTEGER NOT NULL REFERENCES records,
+ record_id INTEGER NOT NULL REFERENCES records ON DELETE CASCADE,
  owners_json TEXT NOT NULL CHECK(json_valid(owners_json)),
  field_path TEXT NOT NULL, ordinal INTEGER NOT NULL CHECK(ordinal>=0),
  origin TEXT NOT NULL CHECK(origin IN ('structured','content')),
@@ -509,7 +522,7 @@ CREATE TABLE relationship_occurrences(
  occurrence_path TEXT, details_json TEXT CHECK(details_json IS NULL OR json_valid(details_json)),
  resolution TEXT NOT NULL CHECK(resolution IN
    ('resolved_record','resolved_owned','resolved_url','unverified_url','unresolved','blocked')),
- target_record_id INTEGER REFERENCES records,
+ target_record_id INTEGER REFERENCES records DEFERRABLE INITIALLY DEFERRED,
  target_owners_json TEXT CHECK(target_owners_json IS NULL OR json_valid(target_owners_json)),
  target_url TEXT,
  CHECK((resolution IN ('resolved_record','resolved_owned') AND target_record_id IS NOT NULL)
@@ -522,15 +535,15 @@ CREATE TABLE relationship_occurrences(
 
 -- Excluded content occurrences remain developer/source evidence, not graph edges.
 CREATE TABLE verified_aliases(
- record_id INTEGER NOT NULL REFERENCES records, alias TEXT NOT NULL,
+ record_id INTEGER NOT NULL REFERENCES records ON DELETE CASCADE, alias TEXT NOT NULL,
  alias_lookup_key TEXT NOT NULL,
  evidence_json TEXT NOT NULL CHECK(json_valid(evidence_json)),
  PRIMARY KEY(record_id,alias)
 ) WITHOUT ROWID,STRICT;
 
 CREATE TABLE remaster_pairs(
- legacy_record_id INTEGER PRIMARY KEY REFERENCES records,
- remaster_record_id INTEGER NOT NULL REFERENCES records,
+ legacy_record_id INTEGER PRIMARY KEY REFERENCES records ON DELETE CASCADE,
+ remaster_record_id INTEGER NOT NULL REFERENCES records ON DELETE CASCADE,
  evidence_json TEXT NOT NULL CHECK(json_valid(evidence_json)),
  CHECK(legacy_record_id<>remaster_record_id)
 ) STRICT;
@@ -541,7 +554,8 @@ CREATE TABLE query_field_catalog(
 ) WITHOUT ROWID,STRICT;
 
 CREATE TABLE lexical_units(
- unit_id INTEGER PRIMARY KEY, record_id INTEGER NOT NULL REFERENCES records,
+ input_hash TEXT NOT NULL UNIQUE,
+ unit_id INTEGER PRIMARY KEY, record_id INTEGER NOT NULL REFERENCES records ON DELETE CASCADE,
  owners_json TEXT NOT NULL CHECK(json_valid(owners_json)),
  field_path TEXT, section_json TEXT CHECK(section_json IS NULL OR json_valid(section_json)),
  unit_kind TEXT NOT NULL CHECK(unit_kind IN ('root_name','owned_name','heading','definition_label')),
@@ -557,11 +571,11 @@ CREATE VIRTUAL TABLE lexical_fts USING fts5(
 
 CREATE TABLE search_profiles(
  profile_id TEXT PRIMARY KEY, identity_json TEXT NOT NULL CHECK(json_valid(identity_json)),
- dimensions INTEGER NOT NULL CHECK(dimensions=768)
+ dimensions INTEGER NOT NULL CHECK(dimensions>0)
 ) STRICT;
 
 CREATE TABLE semantic_units(
- unit_id INTEGER PRIMARY KEY, record_id INTEGER NOT NULL REFERENCES records,
+ unit_id INTEGER PRIMARY KEY, record_id INTEGER NOT NULL REFERENCES records DEFERRABLE INITIALLY DEFERRED,
  profile_id TEXT NOT NULL REFERENCES search_profiles,
  owners_json TEXT NOT NULL CHECK(json_valid(owners_json)),
  unit_kind TEXT NOT NULL CHECK(unit_kind IN ('identity','passage')),
@@ -607,3 +621,28 @@ CREATE INDEX developer_diagnostics_root ON developer_diagnostics(record_id,diagn
 -- vector rowids before top-k; vectors repeat no filter metadata or content body.
 -- Composite row/collection/catalog invariants additionally require typed writer
 -- and whole-artifact validation; SQL CHECKs alone do not establish DTO coherence.
+
+-- Allocation ranges remain stable across unrelated root insertion/removal.
+CREATE TABLE projection_allocations(
+ record_id INTEGER PRIMARY KEY REFERENCES record_identity(id),
+ seed INTEGER NOT NULL CHECK(seed>=0),
+ end_id INTEGER NOT NULL CHECK(end_id>=seed),
+ input_hash TEXT NOT NULL CHECK(length(input_hash)=64)
+) STRICT;
+CREATE INDEX semantic_reuse_input ON semantic_units(profile_id,input_hash,input_token_count);
+
+CREATE TRIGGER lexical_insert AFTER INSERT ON lexical_units BEGIN
+ INSERT INTO lexical_fts(rowid,identity_terms,alias_terms,structured_terms,definition_terms) VALUES(new.unit_id,new.identity_terms,new.alias_terms,new.structured_terms,new.definition_terms);
+END;
+CREATE TRIGGER lexical_delete AFTER DELETE ON lexical_units BEGIN
+ INSERT INTO lexical_fts(lexical_fts,rowid,identity_terms,alias_terms,structured_terms,definition_terms) VALUES('delete',old.unit_id,old.identity_terms,old.alias_terms,old.structured_terms,old.definition_terms);
+END;
+CREATE TRIGGER lexical_update AFTER UPDATE ON lexical_units BEGIN
+ INSERT INTO lexical_fts(lexical_fts,rowid,identity_terms,alias_terms,structured_terms,definition_terms) VALUES('delete',old.unit_id,old.identity_terms,old.alias_terms,old.structured_terms,old.definition_terms);
+ INSERT INTO lexical_fts(rowid,identity_terms,alias_terms,structured_terms,definition_terms) VALUES(new.unit_id,new.identity_terms,new.alias_terms,new.structured_terms,new.definition_terms);
+END;
+
+CREATE TABLE embedding_checkpoints(reuse_key TEXT PRIMARY KEY, model_identity TEXT NOT NULL CHECK(json_valid(model_identity)), input_hash TEXT NOT NULL, token_count INTEGER NOT NULL CHECK(token_count>0), dimensions INTEGER NOT NULL CHECK(dimensions>0), vector BLOB NOT NULL, vector_hash TEXT NOT NULL, touched_job TEXT NOT NULL) STRICT;
+CREATE TABLE reference_update_jobs(job_key TEXT PRIMARY KEY, expected_revision INTEGER NOT NULL, target_hash TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('preparing','published')), updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP) STRICT;
+
+CREATE TABLE requested_reference_config(id INTEGER PRIMARY KEY CHECK(id=1), config_json TEXT NOT NULL CHECK(json_valid(config_json))) STRICT;

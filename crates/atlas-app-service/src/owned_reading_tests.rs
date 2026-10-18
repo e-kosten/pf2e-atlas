@@ -48,12 +48,6 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
     let last = actor.activities.value.as_ref().unwrap()[599]
         .navigation
         .clone();
-    f.worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            r.reset_read_metrics();
-            Ok(())
-        })
-        .unwrap();
     let first = f
         .worker
         .owned_reading(request(
@@ -64,12 +58,7 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
             },
         ))
         .unwrap();
-    let metrics = f
-        .worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            Ok(r.read_metrics())
-        })
-        .unwrap();
+    let metrics = f.worker.last_read_metrics();
     assert_eq!(
         (
             metrics.source_body_decodes,
@@ -96,12 +85,6 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
             entry.navigation.owners
         );
     }
-    f.worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            r.reset_read_metrics();
-            Ok(())
-        })
-        .unwrap();
     let late = f
         .worker
         .owned_reading(request(
@@ -112,12 +95,7 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
             },
         ))
         .unwrap();
-    let metrics = f
-        .worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            Ok(r.read_metrics())
-        })
-        .unwrap();
+    let metrics = f.worker.last_read_metrics();
     assert_eq!(
         (
             metrics.source_body_decodes,
@@ -349,13 +327,6 @@ fn table_reading_batches_complete_text_and_checked_result_links() {
         .worker
         .record_detail("tables:table00000000000")
         .unwrap();
-    fixture
-        .worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            r.reset_read_metrics();
-            Ok(())
-        })
-        .unwrap();
     let mut request = OwnedReadingRequest {
         parent: detail.selected,
         artifact_generation: detail.artifact_generation,
@@ -372,12 +343,7 @@ fn table_reading_batches_complete_text_and_checked_result_links() {
                 .as_ref()
                 .is_some_and(|target| target.record_key == "items:item000000000000")
     }));
-    let metrics = fixture
-        .worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            Ok(r.read_metrics())
-        })
-        .unwrap();
+    let metrics = fixture.worker.last_read_metrics();
     assert_eq!(
         (
             metrics.source_body_decodes,

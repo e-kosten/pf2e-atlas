@@ -7,9 +7,10 @@ PF2e Atlas is a Rust workspace. Core application code lives under `crates/`.
 - `crates/atlas-cli`: product command parsing, presentation, exit codes, and agent skill installation.
 - `crates/atlas-dev`: local Rust developer commands for source analysis, path auditing, and artifact inspection; excluded from releases.
 - `crates/atlas-cli-support`: shared path/progress argument vocabulary, JSON envelopes, and progress rendering for both Rust CLIs.
-- `crates/atlas-runtime`: path resolution, setup readiness, source-fetch policy, and runtime handle construction.
+- `crates/atlas-runtime`: paths, setup/source-fetch policy, requested configuration, shared migration composition, and bounded typed workspace operations.
+- `crates/atlas-storage`: connection admission, bounded sessions, maintenance ownership, migration execution, and backups; no domain schema ownership.
 - `crates/atlas-search`: product-facing retrieval orchestration.
-- `crates/atlas-index`: SQLite artifact schema/migrations, validation, row readers, artifact writing, filter discovery, filter compilation, and vector SQL.
+- `crates/atlas-index`: reference schema, incremental publication, embedding checkpoints, validation, row readers, filter discovery, filter compilation, and vector SQL.
 - `crates/atlas-foundry-model`: generated authored DTOs, ordered source primitives, strict parsing/admission, pure document dispatch and typed snapshot codec.
 - `crates/atlas-ingest`: typed Foundry loading, content/reference preparation, attributed indexing inputs, embedding execution and artifact-build composition.
 - `crates/atlas-embedding`: the two pinned search-profile contracts, shared baseline segmentation, native budgets, retained query sessions and FastEmbed inference.
@@ -17,7 +18,7 @@ PF2e Atlas is a Rust workspace. Core application code lives under `crates/`.
 - `crates/atlas-domain`: shared typed query, source address, lightweight summary and canonical record-key vocabulary.
 - `crates/atlas-app-service`: product workflows, local overlays and consumer presentation projections.
 - `crates/atlas-app-model`: generated frontend contracts for workflows and presentation.
-- `crates/atlas-local-state`: saved lists and encounters in their separate writable database.
+- `crates/atlas-local-state`: saved-domain schema, lists, encounters and versioned receipts on caller-owned workspace sessions.
 - `crates/atlas-web`: web transport and embedded frontend hosting.
 - `crates/atlas-sqlite-vec`: sqlite-vec registration and capability probing.
 
@@ -91,9 +92,10 @@ This codebase is Rust. Keep modules single-purpose and put helpers beside the co
 
 Prefer descriptive module names and explicit ownership:
 
-- artifact schema, migrations, validation, and storage metadata belong in `atlas-index`
-- runtime path/setup policy belongs in `atlas-runtime`
-- SQLite reading and validation belong in `atlas-index`
+- reference schema, validation, checkpoints and query SQL belong in `atlas-index`
+- saved-domain schema and atomic domain actions belong in `atlas-local-state`
+- runtime path/setup policy and the composed migration ledger belong in `atlas-runtime`
+- connection/session admission, migration execution and backups belong in `atlas-storage`
 - retrieval orchestration belongs in `atlas-search`
 - typed source loading, preparation and artifact-build composition belong in `atlas-ingest`
 - source-backed record/content policies and borrowed authored views belong in `atlas-record`
@@ -186,4 +188,4 @@ Do not merge PRs, push directly to shared integration branches or `main`, publis
 
 ## Configuration & Data Notes
 
-Default repo-local data paths are `vendor/pf2e`, `.cache/hf-models`, and `.cache/pf2e-index.sqlite` when `--path-mode repo` is selected. The default global path mode uses platform cache paths under `pf2e-atlas`. If the PF2E checkout, embedding model, or artifact schema changes, run `atlas setup` or the relevant `atlas index` command.
+Default repo-local paths are `vendor/pf2e`, `.cache/hf-models`, and `.atlas/workspace.sqlite` with `--path-mode repo`. Global mode stores the workspace under platform application data and source/model caches under platform cache storage, both beneath `pf2e-atlas`. Normal setup updates the existing workspace and preserves saved state. Never replace or delete that database as cache cleanup. Use bounded sessions: shared reference/state reads use one snapshot, inference runs before the consuming session, and the caller owns final commit. See ADR0051 for update ownership, maintenance and recovery.

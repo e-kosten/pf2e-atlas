@@ -142,6 +142,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let enriched = enrich_loaded_source(
         loaded,
         SourceEnrichmentContext {
+            preparation_context_hash: None,
             audience,
             localization: Some(&locale),
         },
@@ -254,17 +255,17 @@ fn main() -> Result<(), Box<dyn Error>> {
                     raw.pointer("/system/traits/rarity"),
                 )?;
                 projections += compare(
-                    "actor.level",
+                    "level",
                     query.actor().level(),
                     raw.pointer("/system/details/level/value"),
                 )?;
                 projections += compare(
-                    "actor.armor_class",
+                    "defenses.armor_class",
                     query.actor().armor_class(),
                     raw.pointer("/system/attributes/ac/value"),
                 )?;
                 projections += compare(
-                    "actor.hp.maximum",
+                    "defenses.hp.maximum",
                     query.actor().hp_maximum(),
                     raw.pointer("/system/attributes/hp/max"),
                 )?;

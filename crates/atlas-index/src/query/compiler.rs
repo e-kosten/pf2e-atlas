@@ -27,7 +27,7 @@ fn family_field(table: &str, column: &str, physical_child: bool, scope: Option<&
             "(SELECT p.{column} FROM actor_projection p WHERE p.record_id=r.record_id)"
         );
     }
-    let owner = if scope == Some("actor.items") {
+    let owner = if super::catalog::is_embedded_scope(scope) {
         "actor_item_id=c.id"
     } else {
         "root_record_id=r.record_id"
@@ -89,6 +89,48 @@ pub(crate) fn bound_field(d: &Descriptor, scope: Option<&str>) -> BoundField {
             },
             Binding::Set { parent, .. } | Binding::Collection { parent, .. } => {
                 binding(parent, scope)
+            }
+            Binding::Embedded { .. } => binding(
+                &Binding::Family {
+                    table: "actor_projection",
+                    column: "items",
+                    physical_child: false,
+                },
+                None,
+            ),
+            Binding::EmbeddedKind { members } => {
+                let cases = members
+                    .iter()
+                    .filter_map(|m| {
+                        atlas_record::source_record::source_family_record_kind(m)
+                            .map(|k| format!("WHEN '{m}' THEN '{}'", k.as_str()))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let value = if cases.is_empty() {
+                    "NULL".to_owned()
+                } else {
+                    format!("CASE c.source_type {cases} ELSE NULL END")
+                };
+                BoundField {
+                    state: format!(
+                        "CASE WHEN c.source_type_state!='value' THEN c.source_type_state WHEN ({value}) IS NULL THEN 'not_applicable' ELSE 'value' END"
+                    ),
+                    value,
+                    owner_id: "c.id".to_owned(),
+                }
+            }
+            Binding::UnitPriceGp => {
+                let mut result = binding(
+                    &Binding::Family {
+                        table: "physical_projection",
+                        column: "price_per_item_cp",
+                        physical_child: false,
+                    },
+                    scope,
+                );
+                result.value = format!("({} / 100.0)", result.value);
+                result
             }
             Binding::Member { column } => BoundField {
                 value: format!("c.{column}"),
@@ -170,6 +212,16 @@ pub(crate) fn member_relation(
     scope: Option<&str>,
     alias: &str,
 ) -> Result<String, crate::IndexError> {
+    if let Binding::Embedded { members } = &d.binding {
+        let types = members
+            .iter()
+            .map(|s| format!("'{s}'"))
+            .collect::<Vec<_>>()
+            .join(",");
+        return Ok(format!(
+            "actor_items {alias} WHERE {alias}.record_id=r.record_id AND ({alias}.source_type_state!='value' OR {alias}.source_type IN ({types}))"
+        ));
+    }
     let (parent, table, owner, kind) = match &d.binding {
         Binding::Set {
             parent,
@@ -300,6 +352,11 @@ pub(crate) fn compile_node(
             let state = bound_field(d, None).state;
             let relation = member_relation(d, None, "c")?;
             let child = compile_node(predicate, Some(collection), parameters)?;
+            let child = if matches!(d.binding, Binding::Embedded { .. }) {
+                format!("CASE WHEN c.source_type_state='value' THEN ({child}) ELSE NULL END")
+            } else {
+                child
+            };
             // The true witness wins regardless of child order or other unknown
             // witnesses, matching CEL specification rather than cel's interpreter.
             format!(

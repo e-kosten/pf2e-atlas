@@ -202,7 +202,7 @@ it.each(["search", "list", "reader"])(
       ...DEFAULT_SEARCH_STATE,
       similarSeed: "spells:seed",
       mode: "similar_records",
-      filter: { kind: "in", field: "record.kind", values: ["creature"] },
+      filter: { kind: "in", field: "kind", values: ["creature"] },
     });
     const original =
       kind === "search"

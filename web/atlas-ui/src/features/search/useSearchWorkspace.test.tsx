@@ -50,7 +50,7 @@ describe("useSearchWorkspace", () => {
       message: "Ready",
     });
     apiMocks.discoverFilterEditor.mockResolvedValue({ ...editorFixture(), groups: [] });
-    apiMocks.discoverFilterValues.mockResolvedValue(valuesFixture("record.kind"));
+    apiMocks.discoverFilterValues.mockResolvedValue(valuesFixture("kind"));
     apiMocks.discoverFilterCounts.mockResolvedValue({
       counts: { status: "unavailable", reason: "non_conjunctive_context" },
     });
@@ -103,7 +103,7 @@ describe("useSearchWorkspace", () => {
       KIND_PREFERENCE_KEY,
       JSON.stringify({ include: ["creature"], exclude: [] }),
     );
-    const filter = { kind: "in" as const, field: "record.kind", values: ["spell"] };
+    const filter = { kind: "in" as const, field: "kind", values: ["spell"] };
     const state = {
       ...DEFAULT_SEARCH_STATE,
       similarSeed: "items:seed",
@@ -177,7 +177,7 @@ describe("useSearchWorkspace", () => {
           ...DEFAULT_SEARCH_STATE,
           query: "dirge",
           mode: "text_search",
-          filter: { kind: "in", field: "record.kind", values: ["spell"] },
+          filter: { kind: "in", field: "kind", values: ["spell"] },
         }),
     );
     const oldPage = deferred<SearchResultsPage>();
@@ -536,7 +536,7 @@ describe("useSearchWorkspace", () => {
     act(() =>
       result.current.setSearch({
         ...result.current.search,
-        filter: { kind: "in", field: "record.kind", values: ["spell"] },
+        filter: { kind: "in", field: "kind", values: ["spell"] },
       }),
     );
     expect(JSON.parse(localStorage.getItem(KIND_PREFERENCE_KEY)!)).toEqual({
@@ -658,7 +658,7 @@ describe("useSearchWorkspace", () => {
             {
               kind: "in",
               clause_id: "kind-include_any",
-              field: "record.kind",
+              field: "kind",
               values: ["affliction", "character"],
             },
             {
@@ -666,7 +666,7 @@ describe("useSearchWorkspace", () => {
               predicate: {
                 kind: "in",
                 clause_id: "kind-exclude_any",
-                field: "record.kind",
+                field: "kind",
                 values: ["character_option"],
               },
             },
@@ -683,7 +683,7 @@ describe("useSearchWorkspace", () => {
 
   it("does not query collection states as scalar values", async () => {
     apiMocks.discoverFilterEditor.mockResolvedValue(
-      editorFixture([fieldFixture("actor.items", "collection")]),
+      editorFixture([fieldFixture("embedded.equipment", "collection")]),
     );
 
     renderHook(() => useSearchWorkspace({ searchProfile: "bge-base" }), {
@@ -694,7 +694,7 @@ describe("useSearchWorkspace", () => {
     await delay(50);
 
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalledWith(
-      expect.objectContaining({ field_id: "actor.items" }),
+      expect.objectContaining({ field_id: "embedded.equipment" }),
       expect.any(AbortSignal),
     );
   });
@@ -719,7 +719,7 @@ describe("useSearchWorkspace", () => {
             {
               kind: "in",
               clause_id: "kind-include_any",
-              field: "record.kind",
+              field: "kind",
               values: ["creature"],
             },
           ],
@@ -959,10 +959,10 @@ function searchResultsPage(
 
 function filterEditor(): FilterEditorView {
   const editor = editorFixture([
-    fieldFixture("record.kind", "string", "Kind"),
+    fieldFixture("kind", "string", "Kind"),
     fieldFixture("common.traits", "set", "Traits"),
     fieldFixture("source.pack"),
-    fieldFixture("actor.level", "number"),
+    fieldFixture("level", "number"),
     fieldFixture("spell.basic_save"),
   ]);
   editor.groups[0].fields[4].placement = "addable";

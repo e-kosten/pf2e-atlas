@@ -6,7 +6,7 @@ use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas search --kind spell --trait healing\n  atlas search 'Ghoul Fever' --retrieval fts --json\n  atlas search --where 'actor.hp.maximum >= 80 && \"undead\" in traits'\n  atlas filters fields"
+    after_help = "Examples:\n  atlas search --kind spell --trait healing\n  atlas search 'Ghoul Fever' --retrieval fts --json\n  atlas search --where 'defenses.hp.maximum >= 80 && \"undead\" in traits'\n  atlas filters fields"
 )]
 pub(crate) struct SearchOptions {
     #[arg(long,value_parser=crate::cli::args::parse_search_profile,help="Search profile: bge-base or embeddinggemma")]

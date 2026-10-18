@@ -56,6 +56,11 @@ fn text(s: &str) -> Value {
     Value::Text(s.to_owned())
 }
 fn root(db: &Connection, id: i64, family: &str, rarity: &str) {
+    db.execute(
+        "INSERT INTO record_identity(id,key,availability) VALUES(?,?,'available')",
+        rusqlite::params![id, format!("test:{id:016}")],
+    )
+    .unwrap();
     row(
         db,
         "records",
@@ -98,12 +103,12 @@ fn result(db: &Connection, expression: &str) -> Vec<i64> {
 }
 #[test]
 fn serde_request_shape_and_shared_ts_match() {
-    let input = json!({"clause_id":"parent","kind":"exists","collection":"actor.items","scope_id":"spell-group","predicate":{"clause_id":"rank","kind":"compare","field":"spell.rank","op":"gte","value":3}});
+    let input = json!({"clause_id":"parent","kind":"exists","collection":"embedded.spells","scope_id":"spell-group","predicate":{"clause_id":"rank","kind":"compare","field":"spell.rank","op":"gte","value":3}});
     let p: QueryPredicate = serde_json::from_value(input.clone()).unwrap();
     assert_eq!(serde_json::to_value(p).unwrap(), input);
     for invalid in [
         json!({"kind":"metric","key":"hp.max","value":3}),
-        json!({"kind":"compare","field":"actor.level","op":"eq","value":3,"old_metric":"x"}),
+        json!({"kind":"compare","field":"level","op":"eq","value":3,"old_metric":"x"}),
     ] {
         assert!(serde_json::from_value::<QueryPredicate>(invalid).is_err());
     }
@@ -111,17 +116,17 @@ fn serde_request_shape_and_shared_ts_match() {
 #[test]
 fn cel_supported_examples_and_fail_closed_limits() {
     for expression in [
-        "actor.hp.maximum>=80",
+        "defenses.hp.maximum>=80",
         "source.pack.id in ['spells-srd','equipment-srd']",
         "'fire' in traits && rarity != 'common'",
         "hazard.complexity==false && hazard.hardness>=10",
         "spell.rank >= 3 && 'arcane' in spell.traditions",
-        "actor.items.exists(i, i.source.type=='spell' && i.spell.rank>=3 && 'arcane' in i.spell.traditions)",
-        "!actor.items.exists(i,i.availability['spell.rank']=='invalid')",
-        "availability['actor.hp.maximum']=='null'",
-        "actor.level >= -1",
-        "actor.level >= -9223372036854775808",
-        "1 <= actor.level",
+        "embedded.spells.exists(i, i.source.type=='spell' && i.spell.rank>=3 && 'arcane' in i.spell.traditions)",
+        "!embedded.spells.exists(i,i.availability['spell.rank']=='invalid')",
+        "availability['defenses.hp.maximum']=='null'",
+        "level >= -1",
+        "level >= -9223372036854775808",
+        "1 <= level",
     ] {
         assert!(
             parse_where(expression).is_ok(),
@@ -130,20 +135,20 @@ fn cel_supported_examples_and_fail_closed_limits() {
         );
     }
     for expression in [
-        "actor.items[0].spell.rank>=3",
-        "actor.items.all(i,i.spell.rank>=3)",
-        "actor.items.exists(i,i.spell.damage.exists(d,d.type=='fire'))",
-        "actor.level==spell.rank",
-        "actor.level+1>=3",
+        "embedded.spells[0].spell.rank>=3",
+        "embedded.spells.all(i,i.spell.rank>=3)",
+        "embedded.spells.exists(i,i.spell.damage.exists(d,d.type=='fire'))",
+        "level==spell.rank",
+        "level+1>=3",
         "traits.matches('x')",
-        "has(actor.hp.maximum)",
-        "actor.hp.maximum==null",
+        "has(defenses.hp.maximum)",
+        "defenses.hp.maximum==null",
         "availability[source.type]=='value'",
         "unknown_field==1",
         "rarity=='made-up'",
         "spell.traditions=='arcane'",
-        "actor.items.exists(i,actor.level>1)",
-        "actor.level==18446744073709551615u",
+        "embedded.spells.exists(i,level>1)",
+        "level==18446744073709551615u",
     ] {
         assert!(parse_where(expression).is_err(), "{expression}");
     }
@@ -214,7 +219,7 @@ fn structured_limits_and_scope_attribution_reject_unsafe_requests() {
     );
     let group = || {
         QueryPredicate::new(QueryExpression::Exists {
-            collection: "actor.items".to_owned(),
+            collection: "embedded.spells".to_owned(),
             scope_id: "same".to_owned(),
             predicate: Box::new(QueryPredicate::boolean(true)),
         })
@@ -271,22 +276,21 @@ fn catalog_is_complete_unique_and_uses_generated_absent_choices() {
         }
     }
     for id in [
-        "actor.level",
-        "item.level",
-        "actor.size",
+        "level",
+        "body.size",
         "physical.size",
-        "ancestry.size",
-        "actor.speeds[].value",
-        "actor.resistances[].type",
+        "ancestry.default_size",
+        "movement.speeds[].feet",
+        "defenses.resistances[].type",
         "spell.damage[].kinds",
-        "actor.items[].spell.rank",
-        "actor.items[].condition.is_valued",
-        "actor.items[].deity.domains.alternate",
+        "embedded.spells[].spell.rank",
+        "embedded.conditions[].condition.is_valued",
+        "embedded.deities[].deity.domains.alternate",
         "effect.duration.hours",
     ] {
         assert!(ids.contains(&id.to_owned()), "{id}");
     }
-    assert!(!ids.contains(&"actor.items[].spell.damage".to_owned()));
+    assert!(!ids.contains(&"embedded.spells[].spell.damage".to_owned()));
     assert!(
         catalog
             .fields
@@ -378,7 +382,7 @@ fn scalar_unknown_truth_table_and_explicit_states() {
             [state],
         )
         .unwrap();
-        for expression in ["actor.level>=3", "!(actor.level<3)", "actor.level!=2"] {
+        for expression in ["level>=3", "!(level<3)", "level!=2"] {
             assert_eq!(
                 result(&db, expression),
                 if state == "value" { vec![1] } else { vec![] },
@@ -386,23 +390,23 @@ fn scalar_unknown_truth_table_and_explicit_states() {
             );
         }
         assert_eq!(
-            result(&db, &format!("availability['actor.level']=='{state}'")),
+            result(&db, &format!("availability['level']=='{state}'")),
             vec![1]
         );
-        assert_eq!(result(&db, "actor.level>=3 || true"), vec![1]);
-        assert_eq!(result(&db, "actor.level>=3 && false"), Vec::<i64>::new());
+        assert_eq!(result(&db, "level>=3 || true"), vec![1]);
+        assert_eq!(result(&db, "level>=3 && false"), Vec::<i64>::new());
     }
     db.execute("UPDATE records SET level_state='invalid',level=NULL", [])
         .unwrap();
     for (a, av) in [
         ("true", Some(true)),
         ("false", Some(false)),
-        ("actor.level>=3", None),
+        ("level>=3", None),
     ] {
         for (b, bv) in [
             ("true", Some(true)),
             ("false", Some(false)),
-            ("actor.level>=3", None),
+            ("level>=3", None),
         ] {
             for op in ["&&", "||"] {
                 let expression = format!("({a}) {op} ({b})");
@@ -464,7 +468,7 @@ fn sql_exists_true_overrides_unknown_in_either_order_and_never_splits_children()
             ("value", 5.into()),
         ],
     );
-    let yes = "actor.resistances.exists(r,r.type=='fire' && r.value>=5)";
+    let yes = "defenses.resistances.exists(r,r.type=='fire' && r.value>=5)";
     assert_eq!(result(&db, yes), vec![1]);
     db.execute(
         "UPDATE actor_iwr_entries SET original_index=original_index+2",
@@ -491,12 +495,12 @@ fn sql_exists_true_overrides_unknown_in_either_order_and_never_splits_children()
     .unwrap();
     assert_eq!(result(&db, &format!("!({yes})")), vec![1]);
     db.execute("DELETE FROM actor_iwr_entries", []).unwrap();
-    assert_eq!(result(&db, "!actor.resistances.exists(r,true)"), vec![1]);
+    assert_eq!(result(&db, "!defenses.resistances.exists(r,true)"), vec![1]);
     for state in ["missing", "null", "invalid", "not_applicable"] {
         db.execute("UPDATE actor_projection SET resistances_state=?1", [state])
             .unwrap();
-        assert!(result(&db, "actor.resistances.exists(r,true)").is_empty());
-        assert!(result(&db, "!actor.resistances.exists(r,true)").is_empty());
+        assert!(result(&db, "defenses.resistances.exists(r,true)").is_empty());
+        assert!(result(&db, "!defenses.resistances.exists(r,true)").is_empty());
     }
 }
 #[test]
@@ -505,8 +509,8 @@ fn numeric_boundaries_and_unit_gates_preserve_exact_domains() {
     root(&db, 1, "npc", "common");
     db.execute("UPDATE records SET level=9223372036854775807", [])
         .unwrap();
-    assert_eq!(result(&db, "actor.level == 9223372036854775807"), vec![1]);
-    assert!(parse_where("actor.level==18446744073709551615u").is_err());
+    assert_eq!(result(&db, "level == 9223372036854775807"), vec![1]);
+    assert!(parse_where("level==18446744073709551615u").is_err());
     root(&db, 2, "effect", "common");
     row(
         &db,
@@ -815,11 +819,11 @@ fn child_facets_preserve_remaining_same_child_conditions_and_count_roots_once() 
         )
         .unwrap();
     }
-    let input = json!({"kind":"exists","collection":"actor.items","scope_id":"spell-scope","predicate":{"kind":"all_of","children":[{"clause_id":"rank-choice","kind":"compare","field":"spell.rank","op":"gte","value":3},{"clause_id":"tradition-choice","kind":"set_match","field":"spell.traditions","op":"includes","values":["arcane"]}]}});
+    let input = json!({"kind":"exists","collection":"embedded.spells","scope_id":"spell-scope","predicate":{"kind":"all_of","children":[{"clause_id":"rank-choice","kind":"compare","field":"spell.rank","op":"gte","value":3},{"clause_id":"tradition-choice","kind":"set_match","field":"spell.traditions","op":"includes","values":["arcane"]}]}});
     let query = validate_query(&serde_json::from_value(input).unwrap()).unwrap();
     let request = QueryValuesRequest {
         only_matching: false,
-        field: "actor.items[].spell.traditions".to_owned(),
+        field: "embedded.spells[].spell.traditions".to_owned(),
         clause_id: Some("tradition-choice".to_owned()),
         query,
         context: QueryFacetContext::default(),
@@ -857,7 +861,7 @@ fn child_facets_preserve_remaining_same_child_conditions_and_count_roots_once() 
         crate::discovery::field_counts(
             &db,
             &crate::discovery::QueryCountsRequest {
-                field: "actor.items[].spell.rank".to_owned(),
+                field: "embedded.spells[].spell.rank".to_owned(),
                 clause_id: Some("rank-choice".to_owned()),
                 query: request.query.clone(),
                 context: request.context.clone(),
@@ -880,7 +884,7 @@ fn child_facets_preserve_remaining_same_child_conditions_and_count_roots_once() 
             count
         );
     }
-    let other: QueryPredicate = serde_json::from_value(json!({"kind":"exists","collection":"actor.items","scope_id":"another-spell-scope","predicate":{"kind":"compare","field":"spell.rank","op":"lte","value":1}})).unwrap();
+    let other: QueryPredicate = serde_json::from_value(json!({"kind":"exists","collection":"embedded.spells","scope_id":"another-spell-scope","predicate":{"kind":"compare","field":"spell.rank","op":"lte","value":1}})).unwrap();
     let mut independent = request.clone();
     independent.query = validate_query(&QueryPredicate::new(QueryExpression::AllOf {
         children: vec![request.query.predicate().clone(), other],
@@ -981,7 +985,7 @@ fn state_discovery_partitions_roots_and_labels_child_occurrences() {
         field_counts(
             &db,
             &QueryCountsRequest {
-                field: "actor.level".to_owned(),
+                field: "level".to_owned(),
                 clause_id: None,
                 query: parse_where("true").unwrap(),
                 context: QueryFacetContext::default(),
@@ -1025,10 +1029,10 @@ fn common_level_or_rank_preserves_spell_rank_and_all_unavailable_states() {
         );
     }
     root(&db, 8, "action", "common");
-    assert_eq!(result(&db, "record.level_or_rank == 3"), vec![1, 2]);
-    assert_eq!(result(&db, "record.level_or_rank == 7"), vec![3]);
-    assert_eq!(result(&db, "record.level_or_rank == 0"), vec![7]);
-    assert_eq!(result(&db, "!(record.level_or_rank == 3)"), vec![3, 7]);
+    assert_eq!(result(&db, "level_or_rank == 3"), vec![1, 2]);
+    assert_eq!(result(&db, "level_or_rank == 7"), vec![3]);
+    assert_eq!(result(&db, "level_or_rank == 0"), vec![7]);
+    assert_eq!(result(&db, "!(level_or_rank == 3)"), vec![3, 7]);
     for (state, ids) in [
         ("missing", vec![4]),
         ("null", vec![5]),
@@ -1038,21 +1042,20 @@ fn common_level_or_rank_preserves_spell_rank_and_all_unavailable_states() {
         assert_eq!(
             result(
                 &db,
-                &format!("availability[\"record.level_or_rank\"] == \"{state}\"")
+                &format!("availability[\"level_or_rank\"] == \"{state}\"")
             ),
             ids
         );
     }
-    assert_eq!(result(&db, "actor.level == 3"), vec![1]);
-    assert_eq!(result(&db, "item.level == 3"), vec![2]);
+    assert_eq!(result(&db, "level == 3"), vec![1, 2]);
     assert_eq!(result(&db, "spell.rank == 7"), vec![3]);
-    assert_eq!(query_capabilities().unwrap().version, 3);
+    assert_eq!(query_capabilities().unwrap().version, 4);
     let catalog = query_capabilities().unwrap();
     assert_eq!(
         catalog
             .fields
             .iter()
-            .filter(|f| f.id == "record.level_or_rank")
+            .filter(|f| f.id == "level_or_rank")
             .count(),
         1
     );
@@ -1060,7 +1063,7 @@ fn common_level_or_rank_preserves_spell_rank_and_all_unavailable_states() {
         !catalog
             .fields
             .iter()
-            .any(|f| f.id == "actor.items[].record.level_or_rank")
+            .any(|f| f.id == "embedded.spells[].level_or_rank")
     );
 }
 
@@ -1090,7 +1093,7 @@ fn unsupported_facet_ancestry_does_not_hide_malformed_targets_or_limits() {
     assert!(
         matches!(field_values(&db,&request), Err(crate::IndexError::Query(e)) if e.code == "facet_target_field")
     );
-    request.field = "actor.items[].rarity".into();
+    request.field = "embedded.spells[].rarity".into();
     assert!(
         matches!(field_values(&db,&request), Err(crate::IndexError::Query(e)) if e.code == "facet_target_scope")
     );
@@ -1105,7 +1108,7 @@ fn unsupported_facet_ancestry_does_not_hide_malformed_targets_or_limits() {
         matches!(field_values(&db,&request), Err(crate::IndexError::Query(e)) if e.code == "discovery_limit")
     );
     request.limit = 10;
-    request.field = "record.level_or_rank".into();
+    request.field = "level_or_rank".into();
     assert!(
         matches!(field_values(&db,&request), Err(crate::IndexError::Query(e)) if e.code == "discovery_type")
     );
@@ -1230,4 +1233,230 @@ fn root_facets_ignore_inclusions_and_exclusions_of_the_edited_field() {
             vec![1, 1]
         );
     }
+}
+
+#[test]
+fn embedded_collection_membership_is_independent_of_parent_kind_and_traits() {
+    let db = database();
+    root(&db, 1, "npc", "common");
+    root(&db, 2, "spell", "common");
+    root(&db, 3, "npc", "common");
+    root(&db, 4, "npc", "common");
+    for id in [1, 3, 4] {
+        row(
+            &db,
+            "actor_projection",
+            &[
+                ("record_id", id.into()),
+                (
+                    "items_state",
+                    text(if id == 4 { "invalid" } else { "value" }),
+                ),
+            ],
+        );
+    }
+    row(
+        &db,
+        "record_traits",
+        &[("record_id", 2.into()), ("value", text("fire"))],
+    );
+    for (id, family, trait_value) in [(10, "spell", "fire"), (11, "weapon", "agile")] {
+        row(
+            &db,
+            "actor_items",
+            &[
+                ("id", id.into()),
+                ("record_id", 1.into()),
+                ("original_index", id.into()),
+                ("owner_selector_json", text("{}")),
+                ("source_type_state", text("value")),
+                ("source_type", text(family)),
+                ("traits_state", text("value")),
+            ],
+        );
+        row(
+            &db,
+            "actor_item_traits",
+            &[("item_id", id.into()), ("value", text(trait_value))],
+        );
+    }
+    db.execute("UPDATE records SET record_kind_state='value',record_kind=CASE WHEN source_type='npc' THEN 'creature' ELSE 'spell' END", []).unwrap();
+    assert_eq!(
+        result(
+            &db,
+            "kind == 'creature' && embedded.spells.exists(s, 'fire' in s.traits)"
+        ),
+        vec![1]
+    );
+    assert!(
+        result(
+            &db,
+            "kind == 'spell' && embedded.spells.exists(s, 'fire' in s.traits)"
+        )
+        .is_empty()
+    );
+    assert_eq!(result(&db, "'fire' in traits"), vec![2]);
+    assert_eq!(
+        result(&db, "embedded.spells.exists(s, 'fire' in s.traits)"),
+        vec![1]
+    );
+    assert!(result(&db, "embedded.equipment.exists(e, 'fire' in e.traits)").is_empty());
+    assert_eq!(
+        result(
+            &db,
+            "embedded.equipment.exists(e, e.kind == 'equipment' && e.source.type == 'weapon' && 'agile' in e.traits)"
+        ),
+        vec![1]
+    );
+    assert!(
+        result(
+            &db,
+            "embedded.equipment.exists(e, 'agile' in e.traits && 'fire' in e.traits)"
+        )
+        .is_empty()
+    );
+    assert_eq!(result(&db, "!embedded.spells.exists(s, true)"), vec![3]);
+    assert_eq!(
+        result(&db, "availability['embedded.spells'] == 'invalid'"),
+        vec![4]
+    );
+    assert_eq!(
+        result(&db, "availability['embedded.spells'] == 'not_applicable'"),
+        vec![2]
+    );
+}
+
+#[test]
+fn unit_price_gp_converts_fractional_copper_for_root_and_embedded_items() {
+    let db = database();
+    root(&db, 1, "equipment", "common");
+    root(&db, 2, "npc", "common");
+    row(
+        &db,
+        "actor_projection",
+        &[("record_id", 2.into()), ("items_state", text("value"))],
+    );
+    row(
+        &db,
+        "actor_items",
+        &[
+            ("id", 10.into()),
+            ("record_id", 2.into()),
+            ("original_index", 0.into()),
+            ("owner_selector_json", text("{}")),
+            ("source_type_state", text("value")),
+            ("source_type", text("equipment")),
+        ],
+    );
+    for (id, root_id, item_id) in [
+        (1, Value::Integer(1), Value::Null),
+        (2, Value::Null, Value::Integer(10)),
+    ] {
+        row(
+            &db,
+            "physical_projection",
+            &[
+                ("id", id.into()),
+                ("root_record_id", root_id),
+                ("actor_item_id", item_id),
+                ("price_per_item_cp_state", text("value")),
+                ("price_per_item_cp", Value::Real(0.5)),
+            ],
+        );
+    }
+    assert_eq!(result(&db, "physical.unit_price_gp == 0.005"), vec![1]);
+    assert_eq!(
+        result(
+            &db,
+            "embedded.equipment.exists(e, e.physical.unit_price_gp == 0.005)"
+        ),
+        vec![2]
+    );
+    assert!(result(&db, "physical.unit_price_gp > 0.005").is_empty());
+    db.execute(
+        "UPDATE physical_projection SET price_per_item_cp_state='invalid',price_per_item_cp=NULL",
+        [],
+    )
+    .unwrap();
+    assert!(result(&db, "!(physical.unit_price_gp > 10)").is_empty());
+}
+
+#[test]
+fn retired_filter_names_are_rejected_without_aliases() {
+    for expression in [
+        "actor.items.exists(i,true)",
+        "actor.level > 1",
+        "item.level > 1",
+        "record.kind == 'spell'",
+        "actor.speeds.exists(s,s.value>20)",
+        "physical.price.per_item_cp > 100",
+    ] {
+        assert!(parse_where(expression).is_err(), "{expression}");
+    }
+    let catalog = query_capabilities().unwrap();
+    let scopes = catalog
+        .fields
+        .iter()
+        .filter(|f| f.scope.is_none() && f.path.starts_with("embedded."))
+        .collect::<Vec<_>>();
+    assert_eq!(scopes.len(), 17);
+    assert!(
+        catalog
+            .fields
+            .iter()
+            .any(|f| f.id == "embedded.equipment[].kind")
+    );
+    assert!(
+        !catalog
+            .fields
+            .iter()
+            .any(|f| f.id == "embedded.spells[].level")
+    );
+    assert_eq!(
+        catalog
+            .fields
+            .iter()
+            .find(|f| f.id == "physical.unit_price_gp")
+            .unwrap()
+            .units
+            .as_deref(),
+        Some("gp")
+    );
+}
+
+#[test]
+fn unavailable_embedded_membership_does_not_become_empty() {
+    let db = database();
+    root(&db, 1, "npc", "common");
+    row(
+        &db,
+        "actor_projection",
+        &[("record_id", 1.into()), ("items_state", text("value"))],
+    );
+    row(
+        &db,
+        "actor_items",
+        &[
+            ("id", 10.into()),
+            ("record_id", 1.into()),
+            ("original_index", 0.into()),
+            ("owner_selector_json", text("{}")),
+            ("source_type_state", text("invalid")),
+        ],
+    );
+    assert!(result(&db, "embedded.spells.exists(s,true)").is_empty());
+    assert!(result(&db, "!embedded.spells.exists(s,true)").is_empty());
+    row(
+        &db,
+        "actor_items",
+        &[
+            ("id", 11.into()),
+            ("record_id", 1.into()),
+            ("original_index", 1.into()),
+            ("owner_selector_json", text("{}")),
+            ("source_type_state", text("value")),
+            ("source_type", text("spell")),
+        ],
+    );
+    assert_eq!(result(&db, "embedded.spells.exists(s,true)"), vec![1]);
 }

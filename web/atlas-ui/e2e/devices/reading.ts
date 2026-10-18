@@ -14,7 +14,7 @@ export const creatureFilter = encodeURIComponent(
   encodeFilterUrl({
     kind: "in",
     clause_id: "kind",
-    field: "record.kind",
+    field: "kind",
     values: ["creature"],
   }),
 );

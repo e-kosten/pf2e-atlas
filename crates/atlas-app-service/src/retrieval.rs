@@ -34,18 +34,31 @@ impl AtlasAppService {
         search_profile: Option<atlas_domain::SearchProfileId>,
     ) -> AppServiceResult<atlas_app_model::SearchResultsView> {
         let page = SearchPage::new(page.number, page.size)?;
+        let checked_filter = filter.clone();
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
-            let result = r.search_text(TextSearchRequest {
-                search_profile: search_profile.as_ref(),
-                query: &query,
-                mode: retrieval_mode(mode),
-                filter: filter.as_ref(),
-                scope: atlas_search::RecordScope::All,
-                page,
-                prefer_remaster: true,
-            })?;
-            Ok(crate::projection::search_results_view(result, r))
-        })
+            if let Some(filter) = checked_filter {
+                r.validate_filter(&filter)?;
+            }
+            Ok(())
+        })?;
+        let prepared = self.prepare_query(search_profile.as_ref(), &query, retrieval_mode(mode))?;
+        self.with_prepared_workspace(
+            &crate::ReadExecutionContext::uncancellable(),
+            prepared,
+            move |workspace| {
+                let r = workspace.retrieval_mut();
+                let result = r.search_text(TextSearchRequest {
+                    search_profile: search_profile.as_ref(),
+                    query: &query,
+                    mode: retrieval_mode(mode),
+                    filter: filter.as_ref(),
+                    scope: atlas_search::RecordScope::All,
+                    page,
+                    prefer_remaster: true,
+                })?;
+                Ok(crate::projection::search_results_view(result, r))
+            },
+        )
     }
     pub fn similar_records(
         &self,

@@ -23,24 +23,33 @@ pub(super) fn encounter_fixture_worker() -> FixtureWorker {
     fixture_worker()
 }
 pub(super) fn fixture_worker_with_executor(executor: RetrievalExecutor) -> FixtureWorker {
+    let path = executor
+        .runtime
+        .as_ref()
+        .expect("fixture runtime")
+        .index_path()
+        .to_path_buf();
     FixtureWorker {
         worker: AtlasAppService::new(
             RetrievalBackend::Pooled(executor),
             AtlasRuntimeOptions {
                 default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
                 path_mode: AtlasPathMode::Global,
-                overrides: AtlasPathOverrides::default(),
+                overrides: AtlasPathOverrides {
+                    index_path: Some(path),
+                    ..Default::default()
+                },
             },
-            fixture_local_state_path(),
         )
         .unwrap(),
     }
 }
+
 fn fixture_creation_lock() -> &'static Mutex<()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
 }
-pub(super) fn fixture_local_state_path() -> std::path::PathBuf {
+pub(super) fn fixture_workspace_path() -> std::path::PathBuf {
     std::env::temp_dir().join(format!(
         "atlas-app-source-state-{}-{}.sqlite",
         std::process::id(),

@@ -13,7 +13,7 @@ pub(crate) struct IndexArgs {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum IndexCommand {
-    #[command(about = "Manually build a Rust SQLite artifact from Foundry source files")]
+    #[command(about = "Update workspace reference data from Foundry source files")]
     Build(BuildIndexOptions),
     #[command(about = "Run a fast artifact readiness check")]
     Check(CheckIndexOptions),
@@ -25,12 +25,12 @@ pub(crate) enum IndexCommand {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Advanced manual artifact build. Standard users should run `atlas setup` instead.\n\nExamples:\n  atlas index build --no-embeddings\n  atlas index build --source vendor/pf2e --output .cache/pf2e-index.sqlite --json"
+    after_help = "Advanced manual reference update. Standard users should run `atlas setup` instead. Saved lists and encounters are retained.\n\nExamples:\n  atlas index build --no-embeddings\n  atlas index build --source vendor/pf2e --output .atlas/workspace.sqlite --json"
 )]
 pub(crate) struct BuildIndexOptions {
     #[arg(long, help = "Override the PF2E source checkout path")]
     pub(crate) source: Option<PathBuf>,
-    #[arg(long, help = "SQLite artifact path to write")]
+    #[arg(long, help = "SQLite workspace path to initialize or update")]
     pub(crate) output: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     pub(crate) path_mode: CliPathMode,
@@ -38,11 +38,10 @@ pub(crate) struct BuildIndexOptions {
     pub(crate) manifest: Option<PathBuf>,
     #[arg(
         long,
-        default_value = "en",
-        help = "Locale used to prepare display and search text; changing it requires rebuilding"
+        help = "Indexing locale; omission preserves configured locale (fresh default: en)"
     )]
-    pub(crate) locale: String,
-    #[arg(long="search-profile",value_parser=crate::cli::args::parse_search_profile,conflicts_with="no_embeddings",help="Stored search profile; repeat to build both (default: bge-base)")]
+    pub(crate) locale: Option<String>,
+    #[arg(long="search-profile",value_parser=crate::cli::args::parse_search_profile,conflicts_with="no_embeddings",help="Add a stored search profile; omission preserves configured models (fresh default: bge-base)")]
     pub(crate) search_profiles: Vec<SearchProfileId>,
     #[arg(long, help = "Override the embedding model cache root")]
     pub(crate) embedding_cache_path: Option<PathBuf>,
@@ -55,7 +54,7 @@ pub(crate) struct BuildIndexOptions {
     pub(crate) no_reuse_embeddings: bool,
     #[arg(
         long,
-        help = "Build a record/resolve-ready artifact without semantic embeddings"
+        help = "Build without requesting additional embedding models; existing models are preserved"
     )]
     pub(crate) no_embeddings: bool,
     #[arg(long, help = "Emit the standard JSON envelope")]
@@ -65,7 +64,7 @@ pub(crate) struct BuildIndexOptions {
 #[derive(Debug, Args)]
 #[command(after_help = "Examples:\n  atlas index validate\n  atlas index validate --no-embeddings")]
 pub(crate) struct ValidateIndexOptions {
-    #[arg(long, help = "Override the SQLite artifact path")]
+    #[arg(long, help = "Override the SQLite workspace path")]
     pub(crate) index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     pub(crate) path_mode: CliPathMode,
@@ -80,7 +79,7 @@ pub(crate) struct ValidateIndexOptions {
     after_help = "Examples:\n  atlas index check\n  atlas index check --no-embeddings\n  atlas index check --json"
 )]
 pub(crate) struct CheckIndexOptions {
-    #[arg(long, help = "Override the SQLite artifact path")]
+    #[arg(long, help = "Override the SQLite workspace path")]
     pub(crate) index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     pub(crate) path_mode: CliPathMode,

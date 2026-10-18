@@ -35,6 +35,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0048-atomic-mutable-workflows.md`](./0048-atomic-mutable-workflows.md): local-state transaction boundaries, revision-checked participant replacements and durable mutation receipts independent of reference hydration.
 - [`0049-search-lifetimes-and-pages.md`](./0049-search-lifetimes-and-pages.md): coherent worker/command artifact lifetimes, stateless generation-checked pages, deliberate browser recovery, cooperative read abandonment and typed query-input errors.
 - [`0050-selectable-search-profiles.md`](./0050-selectable-search-profiles.md): two pinned baseline profiles, one shared artifact, profile-scoped KNN/reuse and shared retained inference sessions.
+- [`0051-persistent-workspace.md`](./0051-persistent-workspace.md): accepted persistent workspace, shared bounded sessions, one migration ledger and state-preserving incremental publication; implementation in progress.
 
 ## Historical ADRs
 

@@ -12,22 +12,35 @@ use atlas_local_state::{
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
-use crate::service::AtlasAppService;
 
 use super::hydration::hydrate_participant_records;
 use super::mechanics::{participant_runtime_block, participant_stat_block};
 
 pub(super) fn encounter_detail_view(
-    service: &AtlasAppService,
+    retrieval: &mut atlas_search::AtlasRetrievalService,
     encounter: Encounter,
     participants: Vec<EncounterParticipant>,
 ) -> AppServiceResult<EncounterDetailView> {
     let (artifact_generation, records_by_key) =
-        hydrate_participant_records(service, &participants)?;
+        hydrate_participant_records(retrieval, &participants)?;
+    Ok(encounter_detail_from_records(
+        encounter,
+        participants,
+        artifact_generation,
+        records_by_key,
+    ))
+}
+
+pub(super) fn encounter_detail_from_records(
+    encounter: Encounter,
+    participants: Vec<EncounterParticipant>,
+    artifact_generation: Option<String>,
+    records_by_key: BTreeMap<String, super::hydration::HydratedParticipantRecord>,
+) -> EncounterDetailView {
     let participant_count = participants.len() as u32;
     let current_turn_participant_key = encounter.current_turn_participant_key.clone();
     let note = encounter.note.clone();
-    Ok(EncounterDetailView {
+    EncounterDetailView {
         revision: encounter.revision,
         artifact_generation,
         encounter: encounter_summary(encounter, participant_count),
@@ -37,7 +50,7 @@ pub(super) fn encounter_detail_view(
             .into_iter()
             .map(|participant| participant_view(participant, &records_by_key))
             .collect(),
-    })
+    }
 }
 
 pub(super) fn encounter_summary(

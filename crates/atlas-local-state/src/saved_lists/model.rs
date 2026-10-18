@@ -3,6 +3,7 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SavedList {
+    pub revision: i64,
     pub list_key: String,
     pub slug: String,
     pub name: String,

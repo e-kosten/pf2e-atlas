@@ -1,6 +1,6 @@
 # Runtime architecture
 
-Runtime reads use a source-backed generated artifact. Build-time admission,
+Runtime reads use the source-backed reference portion of a persistent workspace. Build-time admission,
 filesystem discovery and developer reports remain separate from product retrieval.
 See the [overview](./overview.md) for crate ownership and the
 [artifact contract](./artifact-contract.md) for storage/validation.
@@ -12,10 +12,10 @@ flowchart TD
     record[atlas-record: borrowed facts and content policies] --> ingest
     embedding[atlas-embedding: pinned model and inputs] --> ingest
     ingest --> index[atlas-index: checked writer and read APIs]
-    index --> artifact[Generated SQLite artifact]
+    index --> artifact[Persistent SQLite workspace]
     runtime[atlas-runtime: paths and readiness] --> search[atlas-search: retrieval]
     search --> index
-    search --> embedding
+    runtime --> embedding
     cli[atlas-cli] --> runtime
     cli --> search
     cli --> app[atlas-app-service]
@@ -23,7 +23,9 @@ flowchart TD
     app --> runtime
     app --> search
     app --> local[atlas-local-state]
-    local --> state[Separate mutable SQLite database]
+    local --> artifact
+    runtime --> storage[atlas-storage: sessions and migration execution]
+    storage --> artifact
     browser[React and Ant UI] --> web
 ```
 
@@ -74,7 +76,7 @@ The build prepares shared source content once, then checks native inputs and run
 inference/reuse sequentially per selected profile. It produces index-owned inputs: checked
 records, named typed projections, selected content, verified identity evidence and
 attributed lexical/semantic units. The index writer owns physical encoding and
-publication. Failures preserve the previous artifact.
+publication. A failed publication rolls back reference changes and preserves saved state.
 
 The aggregate source fingerprint hashes the ordered actual relevant inputs,
 including manifest/pack definitions and excluded records. A Git revision alone
@@ -84,10 +86,18 @@ policies; it excludes profile model assets and passage recipes. Each profile's
 execution/reuse identity binds its complete selected model/native-tokenizer assets,
 the full shared BGE segmentation-tokenizer digest and its passage recipe. The full
 artifact generation binds shared preparation plus the complete profile manifest.
-Before accepting cached vectors, ingest reconstructs old selected inputs using the
-shared BGE tokenizer, checks them with the selected native tokenizer and verifies
-exact identity, raw hash, token count and source attribution. Index validates the
-persisted contract without loading tokenizer/model assets.
+Embedding checkpoints persist exact model/input identities, input hashes, token
+counts, vector checksums and dimensions independently of the active reference.
+Ingest prepares current inputs with the pinned tokenizers and accepts only exact
+checkpoint matches. Each inferred batch commits separately after computation;
+no SQLite write transaction remains open during inference. Final publication
+activates complete profile coverage and prunes checkpoints not used by active
+profiles. A failed preparation retains reusable batches for a retry.
+
+Unchanged admitted sources reuse checked DTOs and prepared content when the source
+and preparation identities agree. References are resolved again against the current
+identity catalog, including previously unresolved targets, so dependency changes
+can invalidate a dependent record without changing its own source bytes.
 
 The content interpreter produces sanitized HTML and narrow marker/control facts
 using the shared HTML parser and sanitizer.
@@ -109,22 +119,34 @@ the selected native tokenizer checks every officially prefixed final input.
 
 ## Runtime paths and setup
 
-`AtlasRuntime` resolves global platform-cache paths by default. Explicit repo mode
-requires an authenticated Atlas Git root and uses `vendor/pf2e`, `.cache/hf-models`
-and `.cache/pf2e-index.sqlite`. Command-local path overrides do not persist global
-configuration. The local-state path is separate from the generated artifact.
+The workspace lives in platform application-data storage; source checkouts and
+model assets remain in platform cache storage. Explicit repo mode uses
+`vendor/pf2e`, `.cache/hf-models` and `.atlas/workspace.sqlite`. Source path,
+manifest, locale and requested profiles are durable configuration independent of
+active reference output. Explicit setup overrides update that intent; omitted
+options preserve it. Adding a profile retains already requested profiles.
 
-Setup owns source-fetch/offline policy, pinned model preparation, repair/rebuild
-and readiness reporting. Records-only mode does not require query embeddings;
-full mode does. A missing or unsupported artifact produces an actionable rebuild
-result. An existing indexing locale is preserved unless explicitly overridden;
-a fresh artifact defaults to English. The embedding crate owns checksum/cache
-readiness through `validate_embedding_model_cache`, with no model load required.
-Omitted setup profile flags preserve the readable current-format stored set
-before asset checks; fresh setup selects BGE Base. Explicit flags define the whole
-desired set. Cache packages use model-ID/revision directories and selected
-missing/checksum-mismatched files are repaired through verified temporary download
-and rename. Old revisions remain untouched; no old-layout bridge is provided.
+Runtime composes reference and saved-domain SQL into one ordered migration ledger.
+Storage verifies ledger checksums, backs up existing workspaces before structural
+upgrades, and commits migrations, backfills and validation atomically. Supported
+query-catalog changes rebuild typed projections from retained DTOs without source
+admission or inference. Other component changes require their corresponding
+preparation work; physical schema version alone is not an inference invalidation.
+
+One update owner serializes configuration/source publication. Maintenance drains
+cooperating sessions and records durable admission closure. Publication validates
+inside its final transaction before advancing the reference revision. Interrupted
+maintenance is recovered only after validating committed data; failed validation
+keeps admission closed. The workspace file and saved tables are never replaced by
+normal setup. Existing pre-release formats are rejected explicitly; the new
+baseline establishes the migration path for subsequent upgrades.
+
+Setup owns source-fetch/offline policy, pinned model preparation and readiness.
+Records-only operation needs no query embeddings. English is the fresh indexing
+default. The embedding crate owns checksum/cache readiness without loading models.
+Fresh semantic setup selects BGE Base. Cache packages use model-ID/revision
+directories; missing or corrupt files are repaired through verified temporary
+download and rename. Old package revisions remain untouched.
 
 Explicit setup freshness may compare the source fingerprint. Ordinary lookup,
 search, lists and encounters do not scan the source checkout. Cheap index checks
@@ -134,21 +156,20 @@ vector workflows remain deliberate modes rather than implicit web fallbacks.
 
 ## Retrieval and application workflows
 
-Short-lived CLI workflows lazily open one retrieval service and retain it across
-all reference operations until the command ends. Semantic mode warms the selected
-default query profile; any other requested profile loads lazily into the shared
-retained inference owner. Lexical and stored-vector commands remain model-free. Source-free
-local-state operations require no artifact open.
+CLI and web operations use bounded read sessions rather than retaining database
+snapshots between requests. A composed reference/state read shares one connection
+and transaction. Source-free lists and encounters can operate before reference
+publication. App-service receives typed `WorkspaceRead`, `StateRead` and
+`WorkspaceWrite` capabilities; it does not open databases or coordinate raw SQL.
 
-The long-running web service retains two independent retrieval workers. Startup
-compares the index-owned physical instance and complete artifact generation of
-every opened reader; publication during construction fails clearly when workers
-opened different instances. Failed startup closes the queue and joins started
-workers before returning. A running service retains its artifact until restart,
-preserving bounded parallel reads while later artifacts are published.
+Web retains a bounded worker queue and runtime/inference owners. Idle workers hold
+no reader. Each operation observes one coherent reference revision; later
+operations can see a completed publication without restarting the service.
+Semantic queries prepare their embedding before opening the consuming session,
+then recheck the profile contract. Default query-profile warming and retained
+model sessions are independent of database lifetimes. Lexical/reference reads and
+stored-vector Similar remain model-free.
 
-Runtime composes one shared inference owner across those readers. Its default
-profile warms at startup; other selected profiles load once and remain retained.
 One global native mutex serializes model loading/inference, with four inference
 threads and the existing bounded worker queue. It releases before SQL ranking.
 Stored-vector Similar and lexical/reference operations do not require query assets.
@@ -186,7 +207,7 @@ receipts and their reference reads use the normal uncancellable path under
 [ADR0048](./decisions/0048-atomic-mutable-workflows.md).
 
 `AtlasRetrievalService` is a concrete service over index, an explicit default
-profile and an optional shared query-inference owner. Narrow inherent methods own strict name/key lookup, browse, text search,
+profile and an optional prepared query embedding. Narrow inherent methods own strict name/key lookup, browse, text search,
 similar, graph, remaster links, Suggested variants and catalog discovery. The
 service uses the concrete index reader defined by the artifact contract.
 
@@ -322,7 +343,7 @@ locator SQL and complete relationship attribution for each delivered field.
 Fields exceeding the 1024 occurrence response budget have an explicit bounded
 outcome; valid rich content is never delivered with silently disabled links.
 Separate non-content relationship discovery remains bounded. Reading continuations
-and browser caches bind the immutable artifact generation; partial content never
+and browser caches bind the checked reference generation; partial content never
 seeds selected-detail caches. Direct late-owner landing loads its bounded range
 without predecessor reads and retains explicit backward/forward continuation.
 

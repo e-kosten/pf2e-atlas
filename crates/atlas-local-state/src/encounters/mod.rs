@@ -1,5 +1,11 @@
-mod participant_rolls;
-pub use participant_rolls::ParticipantRollGuard;
+mod strike_receipt;
+pub use strike_receipt::{
+    StoredStrikeDamage, StoredStrikeDamageTotal, StoredStrikeOutcome, StoredStrikeReceipt,
+    StoredStrikeRoll,
+};
+mod receipt_codec;
+mod strike_rolls;
+pub use strike_rolls::ParticipantRollGuard;
 mod initiative_rolls;
 mod model;
 pub use initiative_rolls::{
@@ -17,7 +23,7 @@ pub use model::{
     SpellResource, UpdateEncounter, UpdateEncounterParticipant,
     UpdateEncounterParticipantCondition,
 };
-pub use service::Encounters;
+pub use service::{EncountersRead, EncountersWrite};
 
 #[cfg(test)]
 mod tests;

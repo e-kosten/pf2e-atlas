@@ -74,6 +74,12 @@ impl std::error::Error for RuntimeError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeErrorKind {
+    Workspace,
+    WorkspaceBusy,
+    WorkspaceMaintenance,
+    WorkspaceIncompatible,
+    ReferenceChanged { expected: u64, actual: u64 },
+    Search(atlas_search::SearchErrorKind),
     UnsupportedSearchProfile,
     CurrentDirectoryUnavailable,
     RepoModeOutsideCheckout,
@@ -105,6 +111,39 @@ pub enum RuntimePathTarget {
     SourceRoot,
     EmbeddingCacheRoot,
     IndexPath,
+}
+
+impl From<atlas_storage::StorageError> for RuntimeError {
+    fn from(error: atlas_storage::StorageError) -> Self {
+        let kind = match &error {
+            atlas_storage::StorageError::Busy => RuntimeErrorKind::WorkspaceBusy,
+            atlas_storage::StorageError::Maintenance(_) => RuntimeErrorKind::WorkspaceMaintenance,
+            atlas_storage::StorageError::Schema { .. }
+            | atlas_storage::StorageError::Unsupported(_) => {
+                RuntimeErrorKind::WorkspaceIncompatible
+            }
+            _ => RuntimeErrorKind::Workspace,
+        };
+        Self::new(kind, error.to_string())
+    }
+}
+impl From<atlas_search::SearchError> for RuntimeError {
+    fn from(error: atlas_search::SearchError) -> Self {
+        Self::new(RuntimeErrorKind::Search(error.kind()), error.to_string())
+    }
+}
+impl From<atlas_index::IndexError> for RuntimeError {
+    fn from(error: atlas_index::IndexError) -> Self {
+        Self::from(atlas_search::SearchError::from(error))
+    }
+}
+impl RuntimeError {
+    pub(crate) fn stale_reference(expected: u64, actual: u64) -> Self {
+        Self::new(
+            RuntimeErrorKind::ReferenceChanged { expected, actual },
+            format!("reference data changed ({expected} to {actual}); refresh before continuing"),
+        )
+    }
 }
 
 #[cfg(test)]

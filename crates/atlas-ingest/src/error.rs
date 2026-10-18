@@ -2,6 +2,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum IngestError {
+    #[error(transparent)]
+    Storage(#[from] atlas_storage::StorageError),
     #[error("source root is unavailable: {0}")]
     SourceUnavailable(String),
     #[error("source manifest failed to parse: {0}")]

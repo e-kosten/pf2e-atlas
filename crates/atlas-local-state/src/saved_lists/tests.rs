@@ -5,11 +5,11 @@ use atlas_domain::RecordKey;
 use time::OffsetDateTime;
 
 use super::*;
-use crate::{LocalStateError, LocalStateStore};
+use crate::{LocalStateError, TestStore};
 
 #[test]
 fn saved_lists_preserve_order_and_noop_duplicate_adds() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("saved-lists-order"))?;
+    let store = TestStore::open(temp_path("saved-lists-order"))?;
     let lists = store.saved_lists();
     lists.create(NewSavedList {
         slug: "undead-research".to_string(),
@@ -58,7 +58,7 @@ fn saved_lists_preserve_order_and_noop_duplicate_adds() -> Result<(), Box<dyn st
 #[test]
 fn failed_tag_insert_rolls_back_creation_and_metadata_replacement()
 -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("tags-rollback"))?;
+    let store = TestStore::open(temp_path("tags-rollback"))?;
     let lists = store.saved_lists();
     let original = lists.create(NewSavedList {
         slug: "original".into(),
@@ -99,7 +99,7 @@ fn failed_tag_insert_rolls_back_creation_and_metadata_replacement()
 
 #[test]
 fn list_key_can_identify_saved_lists() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("saved-lists-key"))?;
+    let store = TestStore::open(temp_path("saved-lists-key"))?;
     let lists = store.saved_lists();
     let list = lists.create(NewSavedList {
         slug: "keyed-list".to_string(),
@@ -125,7 +125,7 @@ fn list_key_can_identify_saved_lists() -> Result<(), Box<dyn std::error::Error>>
 
 #[test]
 fn update_list_renames_and_edits_description_by_key() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("saved-lists-update"))?;
+    let store = TestStore::open(temp_path("saved-lists-update"))?;
     let lists = store.saved_lists();
     let list = lists.create(NewSavedList {
         slug: "old-name".to_string(),
@@ -166,7 +166,7 @@ fn update_list_renames_and_edits_description_by_key() -> Result<(), Box<dyn std:
 
 #[test]
 fn update_list_rejects_duplicate_slug() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("saved-lists-update-conflict"))?;
+    let store = TestStore::open(temp_path("saved-lists-update-conflict"))?;
     let lists = store.saved_lists();
     let first = lists.create(NewSavedList {
         slug: "first".to_string(),
@@ -194,7 +194,7 @@ fn update_list_rejects_duplicate_slug() -> Result<(), Box<dyn std::error::Error>
 
 #[test]
 fn import_creates_saved_list_with_dense_positions() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("saved-lists-import-create"))?;
+    let store = TestStore::open(temp_path("saved-lists-import-create"))?;
     let imported = store.saved_lists().import(ImportSavedList {
         slug: "imported-prep".to_string(),
         name: "Imported Prep".to_string(),
@@ -225,7 +225,7 @@ fn import_creates_saved_list_with_dense_positions() -> Result<(), Box<dyn std::e
 
 #[test]
 fn import_requires_replace_for_existing_slug() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("saved-lists-import-conflict"))?;
+    let store = TestStore::open(temp_path("saved-lists-import-conflict"))?;
     let lists = store.saved_lists();
     lists.create(NewSavedList {
         slug: "existing".to_string(),
@@ -249,7 +249,7 @@ fn import_requires_replace_for_existing_slug() -> Result<(), Box<dyn std::error:
 
 #[test]
 fn import_replace_updates_metadata_and_items() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("saved-lists-import-replace"))?;
+    let store = TestStore::open(temp_path("saved-lists-import-replace"))?;
     let lists = store.saved_lists();
     let existing = lists.create(NewSavedList {
         slug: "existing".to_string(),
@@ -289,7 +289,7 @@ fn import_replace_updates_metadata_and_items() -> Result<(), Box<dyn std::error:
 
 #[test]
 fn import_rejects_duplicate_record_keys() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("saved-lists-import-duplicates"))?;
+    let store = TestStore::open(temp_path("saved-lists-import-duplicates"))?;
     let result = store.saved_lists().import(ImportSavedList {
         slug: "duplicates".to_string(),
         name: "Duplicates".to_string(),
@@ -308,7 +308,7 @@ fn import_rejects_duplicate_record_keys() -> Result<(), Box<dyn std::error::Erro
 
 #[test]
 fn remove_item_compacts_positions() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("saved-lists-remove"))?;
+    let store = TestStore::open(temp_path("saved-lists-remove"))?;
     let lists = store.saved_lists();
     lists.create(NewSavedList {
         slug: "test-list".to_string(),
@@ -333,7 +333,7 @@ fn remove_item_compacts_positions() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn invalid_slugs_are_rejected() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("saved-lists-slug"))?;
+    let store = TestStore::open(temp_path("saved-lists-slug"))?;
     let result = store.saved_lists().create(NewSavedList {
         slug: "Bad Slug".to_string(),
         name: "Bad".to_string(),
@@ -346,7 +346,7 @@ fn invalid_slugs_are_rejected() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn invalid_record_keys_are_rejected_on_remove() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("saved-lists-record-key"))?;
+    let store = TestStore::open(temp_path("saved-lists-record-key"))?;
     let lists = store.saved_lists();
     lists.create(NewSavedList {
         slug: "test-list".to_string(),

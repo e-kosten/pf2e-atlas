@@ -123,38 +123,12 @@ impl<'a> SourceQueryView<'a> {
     pub fn record_kind(self) -> SourceFieldView<'a, RecordKind> {
         use RecordKind::*;
         match self.source {
-            SourceNodeView::Actor(a) => self.source.source_type().and_then(|_| match a {
-                ActorSourcePF2e::NPCSource(_) => SourceFieldView::Value(Creature),
-                ActorSourcePF2e::CharacterSource(_) => SourceFieldView::Value(Character),
-                ActorSourcePF2e::FamiliarSource(_) => SourceFieldView::Value(Companion),
-                ActorSourcePF2e::ArmySource(_) => SourceFieldView::Value(Army),
-                ActorSourcePF2e::HazardSource(_) => SourceFieldView::Value(Hazard),
-                ActorSourcePF2e::VehicleSource(_) => SourceFieldView::Value(Vehicle),
-                _ => SourceFieldView::NotApplicable,
-            }),
-            SourceNodeView::Item(i) => self.source.source_type().and_then(|_| match i {
-                ItemSourceView::AbilitySource(_)
-                | ItemSourceView::ConditionSource(_)
-                | ItemSourceView::EffectSource(_) => SourceFieldView::Value(Rule),
-                ItemSourceView::AfflictionSource(_) => SourceFieldView::Value(Affliction),
-                ItemSourceView::FeatSource(_) => SourceFieldView::Value(Feat),
-                ItemSourceView::SpellSource(_) => SourceFieldView::Value(Spell),
-                ItemSourceView::DeitySource(_) => SourceFieldView::Value(Lore),
-                ItemSourceView::CampaignFeatureSource(_) => SourceFieldView::Value(CampaignFeature),
-                ItemSourceView::AncestrySource(_)
-                | ItemSourceView::BackgroundSource(_)
-                | ItemSourceView::ClassSource(_)
-                | ItemSourceView::HeritageSource(_) => SourceFieldView::Value(CharacterOption),
-                ItemSourceView::ArmorSource(_)
-                | ItemSourceView::ContainerSource(_)
-                | ItemSourceView::ConsumableSource(_)
-                | ItemSourceView::EquipmentSource(_)
-                | ItemSourceView::KitSource(_)
-                | ItemSourceView::ShieldSource(_)
-                | ItemSourceView::TreasureSource(_)
-                | ItemSourceView::WeaponSource(_) => SourceFieldView::Value(Equipment),
-                _ => SourceFieldView::NotApplicable,
-            }),
+            SourceNodeView::Actor(_) | SourceNodeView::Item(_) => {
+                self.source.source_type().and_then(|family| {
+                    source_family_record_kind(family)
+                        .map_or(SourceFieldView::NotApplicable, SourceFieldView::Value)
+                })
+            }
             SourceNodeView::Journal(_) | SourceNodeView::JournalPage(_) => {
                 SourceFieldView::Value(Lore)
             }
@@ -279,4 +253,28 @@ impl<'a> ItemSourceView<'a> {
             _ => SourceFieldView::NotApplicable,
         }
     }
+}
+
+/// Product classification shared by standalone and embedded Actor/Item records.
+/// Unclassified families stay not applicable; collection membership is separate.
+pub fn source_family_record_kind(family: &str) -> Option<RecordKind> {
+    use RecordKind::*;
+    Some(match family {
+        "npc" => Creature,
+        "character" => Character,
+        "familiar" => Companion,
+        "army" => Army,
+        "hazard" => Hazard,
+        "vehicle" => Vehicle,
+        "action" | "condition" | "effect" => Rule,
+        "affliction" => Affliction,
+        "feat" => Feat,
+        "spell" => Spell,
+        "deity" => Lore,
+        "campaignFeature" => CampaignFeature,
+        "ancestry" | "background" | "class" | "heritage" => CharacterOption,
+        "armor" | "backpack" | "consumable" | "equipment" | "kit" | "shield" | "treasure"
+        | "weapon" => Equipment,
+        _ => return None,
+    })
 }

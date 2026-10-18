@@ -172,7 +172,7 @@ describe("AtlasApp routing", () => {
       };
       const filter = encodeFilterUrl({
         kind: "in",
-        field: "record.kind",
+        field: "kind",
         values: ["spell"],
       });
       const params = new URLSearchParams({
@@ -248,7 +248,7 @@ describe("AtlasApp routing", () => {
           search_profile: "bge-base",
           criteria: {
             query: "frost",
-            filter: { field: "record.kind", values: ["spell"] },
+            filter: { field: "kind", values: ["spell"] },
           },
         });
         expect(
@@ -374,7 +374,7 @@ describe("AtlasApp routing", () => {
     const breakpoint = vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
     history.replaceState(null, "", "/search/records/spell:heal?q=heal");
     apiMocks.discoverFilterEditor.mockResolvedValue(
-      editorFixture([fieldFixture("actor.hp.maximum", "number", "Maximum HP")]),
+      editorFixture([fieldFixture("defenses.hp.maximum", "number", "Maximum HP")]),
     );
     apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>
       Promise.resolve({
@@ -438,7 +438,7 @@ describe("AtlasApp routing", () => {
     apiMocks.getReadiness.mockResolvedValue(readiness);
     const filter = encodeFilterUrl({
       kind: "in",
-      field: "record.kind",
+      field: "kind",
       values: ["spell"],
     });
     history.replaceState(
@@ -465,7 +465,7 @@ describe("AtlasApp routing", () => {
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     expect(apiMocks.searchPage.mock.calls[0][0]).toMatchObject({
       search_profile: "bge-base",
-      criteria: { query: "heal", filter: { field: "record.kind", values: ["spell"] } },
+      criteria: { query: "heal", filter: { field: "kind", values: ["spell"] } },
     });
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Search model" })).toBeNull();

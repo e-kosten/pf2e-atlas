@@ -6,16 +6,6 @@ pub(crate) fn parse_search_profile(value: &str) -> Result<atlas_domain::SearchPr
     })?;
     Ok(id)
 }
-pub(crate) fn selected_search_profiles(
-    mut ids: Vec<atlas_domain::SearchProfileId>,
-) -> Vec<atlas_domain::SearchProfileId> {
-    if ids.is_empty() {
-        ids.push(atlas_domain::SearchProfileId::new(
-            atlas_embedding::DEFAULT_SEARCH_PROFILE,
-        ));
-    }
-    ids
-}
 #[derive(Debug, Clone, Default, Args)]
 pub(crate) struct FilterOptions {
     #[arg(

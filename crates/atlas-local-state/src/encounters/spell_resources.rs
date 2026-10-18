@@ -1,7 +1,7 @@
 //! Resource replacements are independent of HP/settings and guarded by participant revision.
-use super::{Encounters, SpellResource};
+use super::{EncountersWrite, SpellResource};
 use crate::{LocalStateError, LocalStateResult};
-use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
+use rusqlite::{Connection, OptionalExtension, params};
 
 pub(super) fn read(
     connection: &Connection,
@@ -20,34 +20,35 @@ pub(super) fn read(
         .collect::<Result<Vec<_>, _>>()?)
 }
 
-impl Encounters<'_> {
+impl EncountersWrite<'_> {
     pub fn replace_spell_resources(
         &self,
         participant: &str,
         expected_revision: i64,
         resources: &[SpellResource],
     ) -> LocalStateResult<()> {
-        let mut connection = self.store.connection()?;
-        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let (id, encounter, revision): (i64,i64,i64) = tx.query_row("SELECT id,encounter_id,revision FROM encounter_participants WHERE participant_key=?1", [participant], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).optional()?.ok_or_else(|| LocalStateError::ParticipantNotFound(participant.into()))?;
-        if revision != expected_revision {
-            return Err(LocalStateError::StaleParticipantRevision {
-                participant_key: participant.into(),
-                expected_revision,
-                actual_revision: revision,
-            });
-        }
-        tx.execute(
-            "DELETE FROM encounter_spell_resources WHERE participant_id=?1",
-            [id],
-        )?;
-        for resource in resources {
-            tx.execute("INSERT INTO encounter_spell_resources(participant_id,resource_key,capacity,remaining,undo_remaining) VALUES(?1,?2,?3,?4,?5)", params![id, resource.key, resource.capacity, resource.remaining, resource.undo_remaining])?;
-        }
-        tx.execute("UPDATE encounter_participants SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?1", [id])?;
-        tx.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?1", [encounter])?;
-        tx.commit()?;
-        Ok(())
+        crate::atomic_action::run(self.connection, || {
+            let tx = self.connection;
+            let (id, encounter, revision): (i64,i64,i64) = tx.query_row("SELECT id,encounter_id,revision FROM encounter_participants WHERE participant_key=?1", [participant], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).optional()?.ok_or_else(|| LocalStateError::ParticipantNotFound(participant.into()))?;
+            if revision != expected_revision {
+                return Err(LocalStateError::StaleParticipantRevision {
+                    participant_key: participant.into(),
+                    expected_revision,
+                    actual_revision: revision,
+                });
+            }
+            tx.execute(
+                "DELETE FROM encounter_spell_resources WHERE participant_id=?1",
+                [id],
+            )?;
+            for resource in resources {
+                tx.execute("INSERT INTO encounter_spell_resources(participant_id,resource_key,capacity,remaining,undo_remaining) VALUES(?1,?2,?3,?4,?5)", params![id, resource.key, resource.capacity, resource.remaining, resource.undo_remaining])?;
+            }
+            tx.execute("UPDATE encounter_participants SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?1", [id])?;
+            tx.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?1", [encounter])?;
+
+            Ok(())
+        })
     }
 }
 
@@ -61,7 +62,7 @@ pub(super) fn read_expended(
         .collect::<Result<Vec<_>, _>>()?)
 }
 
-impl Encounters<'_> {
+impl EncountersWrite<'_> {
     pub fn set_spell_expended(
         &self,
         participant: &str,
@@ -69,27 +70,28 @@ impl Encounters<'_> {
         spell: &str,
         expended: bool,
     ) -> LocalStateResult<()> {
-        let mut connection = self.store.connection()?;
-        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let (id,encounter,revision):(i64,i64,i64)=tx.query_row("SELECT id,encounter_id,revision FROM encounter_participants WHERE participant_key=?1",[participant],|row|Ok((row.get(0)?,row.get(1)?,row.get(2)?))).optional()?.ok_or_else(||LocalStateError::ParticipantNotFound(participant.into()))?;
-        if revision != expected_revision {
-            return Err(LocalStateError::StaleParticipantRevision {
-                participant_key: participant.into(),
-                expected_revision,
-                actual_revision: revision,
-            });
-        }
-        if expended {
-            tx.execute("INSERT OR IGNORE INTO encounter_expended_spells(participant_id,spell_id) VALUES(?1,?2)",params![id,spell])?;
-        } else {
-            tx.execute(
-                "DELETE FROM encounter_expended_spells WHERE participant_id=?1 AND spell_id=?2",
-                params![id, spell],
-            )?;
-        }
-        tx.execute("UPDATE encounter_participants SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?1",[id])?;
-        tx.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?1",[encounter])?;
-        tx.commit()?;
-        Ok(())
+        crate::atomic_action::run(self.connection, || {
+            let tx = self.connection;
+            let (id,encounter,revision):(i64,i64,i64)=tx.query_row("SELECT id,encounter_id,revision FROM encounter_participants WHERE participant_key=?1",[participant],|row|Ok((row.get(0)?,row.get(1)?,row.get(2)?))).optional()?.ok_or_else(||LocalStateError::ParticipantNotFound(participant.into()))?;
+            if revision != expected_revision {
+                return Err(LocalStateError::StaleParticipantRevision {
+                    participant_key: participant.into(),
+                    expected_revision,
+                    actual_revision: revision,
+                });
+            }
+            if expended {
+                tx.execute("INSERT OR IGNORE INTO encounter_expended_spells(participant_id,spell_id) VALUES(?1,?2)",params![id,spell])?;
+            } else {
+                tx.execute(
+                    "DELETE FROM encounter_expended_spells WHERE participant_id=?1 AND spell_id=?2",
+                    params![id, spell],
+                )?;
+            }
+            tx.execute("UPDATE encounter_participants SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?1",[id])?;
+            tx.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?1",[encounter])?;
+
+            Ok(())
+        })
     }
 }

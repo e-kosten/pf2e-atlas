@@ -5,7 +5,7 @@ use atlas_domain::RecordKey;
 use time::OffsetDateTime;
 
 use super::*;
-use crate::LocalStateStore;
+use crate::TestStore;
 
 #[test]
 fn concurrent_initiative_retries_commit_one_receipt() -> Result<(), Box<dyn std::error::Error>> {
@@ -104,7 +104,7 @@ fn initiative_receipts_recover_without_reroll_and_conflict_on_changed_intent()
     assert_eq!(saved.encounter.round_number, before.encounter.round_number);
     // Reopen to prove persistence; the old revision and even absent source inputs
     // cannot force another roll once this request has committed.
-    let reopened = LocalStateStore::open(store.path())?;
+    let reopened = TestStore::open(store.path())?;
     assert_eq!(
         reopened
             .encounters()
@@ -213,7 +213,7 @@ fn initiative_batch_and_receipt_rollback_together() -> Result<(), Box<dyn std::e
 
 #[test]
 fn encounters_allow_duplicate_record_participants() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("encounter-duplicates"))?;
+    let store = TestStore::open(temp_path("encounter-duplicates"))?;
     let encounters = store.encounters();
     encounters.create(NewEncounter {
         slug: "crypt-fight".to_string(),
@@ -238,7 +238,7 @@ fn encounters_allow_duplicate_record_participants() -> Result<(), Box<dyn std::e
 
 #[test]
 fn encounters_support_manual_pc_participants() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("encounter-pcs"))?;
+    let store = TestStore::open(temp_path("encounter-pcs"))?;
     let encounters = store.encounters();
     encounters.create(NewEncounter {
         slug: "boss-fight".to_string(),
@@ -278,7 +278,7 @@ fn encounters_support_manual_pc_participants() -> Result<(), Box<dyn std::error:
 #[test]
 fn encounters_order_set_initiative_before_unset_and_preserve_tie_order()
 -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("encounter-initiative"))?;
+    let store = TestStore::open(temp_path("encounter-initiative"))?;
     let encounters = store.encounters();
     encounters.create(NewEncounter {
         slug: "initiative".to_string(),
@@ -309,7 +309,7 @@ fn encounters_order_set_initiative_before_unset_and_preserve_tie_order()
 
 #[test]
 fn deleting_encounter_cascades_participants() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("encounter-delete"))?;
+    let store = TestStore::open(temp_path("encounter-delete"))?;
     let encounters = store.encounters();
     encounters.create(NewEncounter {
         slug: "delete-me".to_string(),
@@ -327,7 +327,7 @@ fn deleting_encounter_cascades_participants() -> Result<(), Box<dyn std::error::
 #[test]
 fn encounters_reorder_participants_across_initiative_buckets()
 -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("encounter-reorder"))?;
+    let store = TestStore::open(temp_path("encounter-reorder"))?;
     let encounters = store.encounters();
     encounters.create(NewEncounter {
         slug: "reorder".to_string(),
@@ -369,7 +369,7 @@ fn encounters_reorder_participants_across_initiative_buckets()
 #[test]
 fn encounter_conditions_are_added_updated_removed_and_cascade()
 -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("encounter-conditions"))?;
+    let store = TestStore::open(temp_path("encounter-conditions"))?;
     let encounters = store.encounters();
     encounters.create(NewEncounter {
         slug: "conditions".to_string(),
@@ -442,7 +442,7 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
 
 #[test]
 fn participant_variant_defaults_and_updates() -> Result<(), Box<dyn std::error::Error>> {
-    let store = LocalStateStore::open(temp_path("participant-variant"))?;
+    let store = TestStore::open(temp_path("participant-variant"))?;
     let encounters = store.encounters();
     encounters.create(NewEncounter {
         slug: "variants".to_string(),
@@ -487,7 +487,7 @@ fn participant_variant_defaults_and_updates() -> Result<(), Box<dyn std::error::
 fn stale_complete_edits_preserve_disjoint_fields_hp_and_provenance()
 -> Result<(), Box<dyn std::error::Error>> {
     let store = fixture("stale-edits")?;
-    let second_caller = LocalStateStore::open(store.path())?;
+    let second_caller = TestStore::open(store.path())?;
     let initial = store
         .encounters()
         .add_participant("test", creature("One", Some(12), 60))?;
@@ -868,8 +868,8 @@ fn aggregate_reads_keep_encounter_and_participant_rows_in_one_snapshot()
     Ok(())
 }
 
-fn fixture(name: &str) -> crate::LocalStateResult<LocalStateStore> {
-    let store = LocalStateStore::open(temp_path(name))?;
+fn fixture(name: &str) -> crate::LocalStateResult<TestStore> {
+    let store = TestStore::open(temp_path(name))?;
     store.encounters().create(NewEncounter {
         slug: "test".into(),
         name: "Test".into(),
@@ -1119,7 +1119,7 @@ fn condition_update_checks_encounter_revision_inside_write_transaction()
 fn spell_resource_writes_roll_back_and_survive_reopening() -> Result<(), Box<dyn std::error::Error>>
 {
     let path = temp_path("spell-resources");
-    let store = LocalStateStore::open(&path)?;
+    let store = TestStore::open(&path)?;
     let encounters = store.encounters();
     encounters.create(NewEncounter {
         slug: "casting".into(),
@@ -1158,7 +1158,7 @@ fn spell_resource_writes_roll_back_and_survive_reopening() -> Result<(), Box<dyn
             )
             .is_err()
     );
-    let reopened = LocalStateStore::open(&path)?
+    let reopened = TestStore::open(&path)?
         .encounters()
         .get_with_participants("casting")?
         .unwrap();
@@ -1175,7 +1175,7 @@ fn spell_resource_writes_roll_back_and_survive_reopening() -> Result<(), Box<dyn
 fn spell_expenditure_marker_survives_reopen_and_rejects_stale_restore()
 -> Result<(), Box<dyn std::error::Error>> {
     let path = temp_path("spell-markers");
-    let store = LocalStateStore::open(&path)?;
+    let store = TestStore::open(&path)?;
     store.encounters().create(NewEncounter {
         slug: "markers".into(),
         name: "Markers".into(),
@@ -1191,7 +1191,7 @@ fn spell_expenditure_marker_survives_reopen_and_rejects_stale_restore()
         "spell",
         true,
     )?;
-    let reopened = LocalStateStore::open(&path)?;
+    let reopened = TestStore::open(&path)?;
     let marked = reopened
         .encounters()
         .get_with_participants("markers")?
@@ -1227,7 +1227,7 @@ fn spell_expenditure_marker_survives_reopen_and_rejects_stale_restore()
 }
 
 #[test]
-fn participant_roll_receipt_does_not_mutate_gameplay_and_recovers_before_guards()
+fn strike_roll_receipt_does_not_mutate_gameplay_and_recovers_before_guards()
 -> Result<(), Box<dyn std::error::Error>> {
     let store = fixture("participant-roll")?;
     store
@@ -1237,7 +1237,7 @@ fn participant_roll_receipt_does_not_mutate_gameplay_and_recovers_before_guards(
     let key = &before.encounter.encounter_key;
     let p = &before.participants[0];
     let intent = serde_json::json!({"action":"strike"});
-    let first: i32 = store.encounters().roll_participant(
+    let first = store.encounters().roll_strike(
         key,
         "strike-one",
         &intent,
@@ -1246,9 +1246,16 @@ fn participant_roll_receipt_does_not_mutate_gameplay_and_recovers_before_guards(
             participant_key: &p.participant_key,
             expected_participant_revision: p.revision,
         },
-        || Ok(17),
+        || {
+            Ok(StoredStrikeRoll {
+                title: "Claw".into(),
+                outcome: StoredStrikeOutcome::Attack {
+                    outcome: atlas_dice::prepare("17")?.roll()?,
+                },
+            })
+        },
     )?;
-    let recovered: i32 = store.encounters().roll_participant(
+    let recovered = store.encounters().roll_strike(
         key,
         "strike-one",
         &intent,
@@ -1265,7 +1272,7 @@ fn participant_roll_receipt_does_not_mutate_gameplay_and_recovers_before_guards(
         serde_json::to_value(&before)?,
         serde_json::to_value(&after)?
     );
-    let failed: crate::LocalStateResult<i32> = store.encounters().roll_participant(
+    let failed: crate::LocalStateResult<StoredStrikeReceipt> = store.encounters().roll_strike(
         key,
         "strike-two",
         &intent,
@@ -1280,8 +1287,8 @@ fn participant_roll_receipt_does_not_mutate_gameplay_and_recovers_before_guards(
         failed,
         Err(crate::LocalStateError::StaleParticipantRevision { .. })
     ));
-    let conflict: crate::LocalStateResult<Option<i32>> =
-        store.encounters().participant_roll_receipt(
+    let conflict: crate::LocalStateResult<Option<StoredStrikeReceipt>> =
+        store.encounters().strike_roll_receipt(
             key,
             "strike-one",
             &serde_json::json!({"action":"initiative"}),
@@ -1290,5 +1297,133 @@ fn participant_roll_receipt_does_not_mutate_gameplay_and_recovers_before_guards(
         conflict,
         Err(crate::LocalStateError::RollRequestConflict)
     ));
+    Ok(())
+}
+
+#[test]
+fn caught_resource_replacement_error_cannot_commit_partial_replacement()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("resource-savepoint")?;
+    let mut input = creature("Caster", None, 20);
+    input.spell_resources = vec![SpellResource {
+        key: "rank1".into(),
+        capacity: 3,
+        remaining: 3,
+        undo_remaining: None,
+    }];
+    let participant = store.encounters().add_participant("test", input)?;
+    let before = store.encounters().get_with_participants("test")?.unwrap();
+    let mut connection = store.connection()?;
+    let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    let result = EncountersWrite::from_connection(&tx).replace_spell_resources(
+        &participant.participant_key,
+        participant.revision,
+        &[
+            SpellResource {
+                key: "rank1".into(),
+                capacity: 3,
+                remaining: 1,
+                undo_remaining: None,
+            },
+            SpellResource {
+                key: "invalid".into(),
+                capacity: 2,
+                remaining: 9,
+                undo_remaining: None,
+            },
+        ],
+    );
+    assert!(result.is_err());
+    tx.commit()?;
+    assert_eq!(
+        store.encounters().get_with_participants("test")?.unwrap(),
+        before
+    );
+    Ok(())
+}
+
+#[test]
+fn caught_batch_add_error_cannot_commit_earlier_participants_or_identities()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("batch-savepoint")?;
+    let before = store.encounters().get_with_participants("test")?.unwrap();
+    let mut bad = creature("Bad", None, 20);
+    bad.spell_resources = vec![SpellResource {
+        key: "invalid".into(),
+        capacity: -1,
+        remaining: 0,
+        undo_remaining: None,
+    }];
+    let mut connection = store.connection()?;
+    let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    tx.execute("INSERT INTO principals VALUES(2,'retained','Retained')", [])?;
+    let result = EncountersWrite::from_connection(&tx)
+        .add_participants("test", vec![creature("Good", None, 20), bad]);
+    assert!(result.is_err());
+    tx.commit()?;
+    assert_eq!(
+        store.encounters().get_with_participants("test")?.unwrap(),
+        before
+    );
+    assert_eq!(
+        connection.query_row("SELECT count(*) FROM record_identity", [], |r| r
+            .get::<_, i64>(0))?,
+        0
+    );
+    assert_eq!(
+        connection.query_row("SELECT name FROM principals WHERE id=2", [], |r| r
+            .get::<_, String>(0))?,
+        "Retained"
+    );
+    Ok(())
+}
+
+#[test]
+fn caught_receipt_insert_error_cannot_commit_initiative_changes()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("receipt-savepoint")?;
+    store
+        .encounters()
+        .add_participant("test", creature("One", Some(10), 20))?;
+    store
+        .encounters()
+        .add_participant("test", creature("Two", Some(10), 20))?;
+    let before = store.encounters().get_with_participants("test")?.unwrap();
+    let mut connection = store.connection()?;
+    connection.execute_batch("CREATE TRIGGER reject_receipt BEFORE INSERT ON encounter_roll_receipts BEGIN SELECT RAISE(ABORT,'receipt rejected'); END;")?;
+    let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    let domain = EncountersWrite::from_connection(&tx);
+    let result = domain.roll_initiative(
+        &before.encounter.encounter_key,
+        "failed-request",
+        &serde_json::json!({"roll":true}),
+        before.encounter.revision,
+        &before
+            .participants
+            .iter()
+            .map(|p| ResolvedInitiativeRoll {
+                participant_key: p.participant_key.clone(),
+                expected_revision: p.revision,
+                basis: "Perception".into(),
+                formula: "1d20+4".into(),
+            })
+            .collect::<Vec<_>>(),
+    );
+    assert!(result.is_err());
+    tx.commit()?;
+    assert_eq!(
+        store.encounters().get_with_participants("test")?.unwrap(),
+        before
+    );
+    assert!(
+        store
+            .encounters()
+            .initiative_roll_receipt(
+                &before.encounter.encounter_key,
+                "failed-request",
+                &serde_json::json!({"roll":true})
+            )?
+            .is_none()
+    );
     Ok(())
 }

@@ -755,7 +755,7 @@ describe("encounter views", () => {
     );
   });
 
-  it("opens and dismisses linked record previews inside the encounter record pane", async () => {
+  it("dismisses linked previews on participant changes and allows reopening", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
@@ -810,6 +810,22 @@ describe("encounter views", () => {
         expect.any(AbortSignal),
       ),
     );
+
+    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+  });
+
+  it("dismisses a linked record preview with Escape", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Participant settings" }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Original record" }));
+    const linkedRule = (await screen.findByText("Linked Rule")).closest("a[href]");
+    if (!linkedRule) throw new Error("Linked Rule native link was not rendered");
+    fireEvent.click(linkedRule);
+    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
 
     const closePreview = screen.getByRole("button", {
       name: "Close reference preview",
@@ -1040,7 +1056,7 @@ describe("encounter views", () => {
     ).toHaveClass("encounter-hp-meter__current--critical");
   });
 
-  it("passes raw formulas and signed Enter healing to Rust", async () => {
+  it("passes raw HP settings formulas to Rust", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
@@ -1069,7 +1085,14 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Edit HP" })).not.toBeInTheDocument(),
     );
-    const amount = screen.getByLabelText("HP change");
+    expect(apiMocks.updateEncounterParticipant).not.toHaveBeenCalled();
+  });
+
+  it("passes raw HP changes and Enter healing to Rust", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const amount = await screen.findByLabelText("HP change");
     fireEvent.change(amount, { target: { value: "8 + 2" } });
     fireEvent.keyDown(amount, { key: "Enter" });
     await waitFor(() =>

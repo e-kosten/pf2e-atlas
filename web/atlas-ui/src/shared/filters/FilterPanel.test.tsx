@@ -54,7 +54,7 @@ describe("shared common and maintained advanced filters", () => {
   afterEach(() => vi.restoreAllMocks());
   it("does not announce pending changes for an empty filter draft", () => {
     renderControls(
-      editorFixture([fieldFixture("actor.hp.maximum", "number", "Maximum HP")]),
+      editorFixture([fieldFixture("defenses.hp.maximum", "number", "Maximum HP")]),
     );
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
     fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
@@ -62,12 +62,12 @@ describe("shared common and maintained advanced filters", () => {
   });
   it("composes inline search and the same common/advanced controls once while preserving the predicate on submit", () => {
     const field = {
-      ...fieldFixture("record.kind", "string", "Kind"),
+      ...fieldFixture("kind", "string", "Kind"),
       choices: ["creature"],
     };
     const predicate = {
       kind: "in" as const,
-      field: "record.kind",
+      field: "kind",
       values: ["creature"],
     };
     const change = renderControls(editorFixture([field]), predicate, null, {
@@ -96,7 +96,7 @@ describe("shared common and maintained advanced filters", () => {
 
   it("keeps individual exclusion reversible after successful edits", () => {
     const kind = {
-      ...fieldFixture("record.kind", "string", "Kind"),
+      ...fieldFixture("kind", "string", "Kind"),
       choices: ["companion"],
     };
     const change = renderControls(editorFixture([kind]), {
@@ -118,7 +118,7 @@ describe("shared common and maintained advanced filters", () => {
   });
   it("converts a selected singleton when changing In to Is not", () => {
     const kind = {
-      ...fieldFixture("record.kind", "string", "Kind"),
+      ...fieldFixture("kind", "string", "Kind"),
       choices: ["companion"],
     };
     const change = renderControls(editorFixture([kind]), {
@@ -162,10 +162,10 @@ describe("shared common and maintained advanced filters", () => {
   });
   it("keeps a newly added empty group available for its first condition", () => {
     renderControls(
-      editorFixture([fieldFixture("actor.hp.maximum", "number", "Maximum HP")]),
+      editorFixture([fieldFixture("defenses.hp.maximum", "number", "Maximum HP")]),
       {
         kind: "compare",
-        field: "actor.hp.maximum",
+        field: "defenses.hp.maximum",
         op: "gte",
         value: 80,
       },
@@ -177,7 +177,7 @@ describe("shared common and maintained advanced filters", () => {
     expect(screen.getAllByRole("combobox", { name: "Filter field" })).toHaveLength(2);
   });
   it("shares unfinished common numeric input with Advanced and corrects it there", () => {
-    const level = fieldFixture("record.level_or_rank", "number", "Level / rank");
+    const level = fieldFixture("level_or_rank", "number", "Level / rank");
     const change = renderControls(editorFixture([level]), {
       kind: "compare",
       field: level.path,
@@ -200,10 +200,10 @@ describe("shared common and maintained advanced filters", () => {
   });
   it("shows the current Kind draft while an unrelated numeric condition is unfinished", async () => {
     const kind = {
-      ...fieldFixture("record.kind", "string", "Kind"),
+      ...fieldFixture("kind", "string", "Kind"),
       choices: ["creature", "spell"],
     };
-    const hp = fieldFixture("actor.hp.maximum", "number", "Maximum HP");
+    const hp = fieldFixture("defenses.hp.maximum", "number", "Maximum HP");
     const change = renderControls(editorFixture([kind, hp]), {
       kind: "all_of",
       children: [
@@ -230,7 +230,7 @@ describe("shared common and maintained advanced filters", () => {
   });
   it("explains a malformed URL with the drawer closed and lets Clear recover", () => {
     const onChange = renderControls(
-      editorFixture([fieldFixture("record.kind")]),
+      editorFixture([fieldFixture("kind")]),
       null,
       "Invalid structured filter URL",
     );
@@ -243,13 +243,13 @@ describe("shared common and maintained advanced filters", () => {
   });
   it("uses ordered backend common labels and keeps invalid ranges local", async () => {
     const editor = editorFixture([
-      fieldFixture("record.level_or_rank", "number", "Level / rank"),
+      fieldFixture("level_or_rank", "number", "Level / rank"),
       fieldFixture("rarity"),
     ]);
     const onChange = renderControls(editor, {
       kind: "compare",
       clause_id: "level",
-      field: "record.level_or_rank",
+      field: "level_or_rank",
       op: "gte",
       value: 1,
     });
@@ -280,12 +280,12 @@ describe("shared common and maintained advanced filters", () => {
   it("retains invalid range input while the catalog reloads and adopts new definitions", async () => {
     const onChange = vi.fn();
     const editor = editorFixture([
-      fieldFixture("record.level_or_rank", "number", "Level / rank"),
+      fieldFixture("level_or_rank", "number", "Level / rank"),
     ]);
     function Harness({ catalog }: { catalog?: FilterEditorView }) {
       const [search, setSearch] = useState<SearchFormState>({
         ...DEFAULT_SEARCH_STATE,
-        filter: { kind: "compare", field: "record.level_or_rank", op: "gte", value: 1 },
+        filter: { kind: "compare", field: "level_or_rank", op: "gte", value: 1 },
       });
       return (
         <FilterControls
@@ -318,7 +318,7 @@ describe("shared common and maintained advanced filters", () => {
     rerender(view());
     expect(screen.queryByRole("textbox", { name: "Level / rank minimum" })).toBeNull();
     const updated = editorFixture([
-      fieldFixture("record.level_or_rank", "number", "Updated level"),
+      fieldFixture("level_or_rank", "number", "Updated level"),
     ]);
     rerender(view(updated));
     expect(screen.getByRole("textbox", { name: "Updated level minimum" })).toHaveValue(
@@ -330,7 +330,7 @@ describe("shared common and maintained advanced filters", () => {
   });
   it("retains a complex expression and offers the advanced editor instead of flattening it", () => {
     const kind = {
-      ...fieldFixture("record.kind", "string", "Kind"),
+      ...fieldFixture("kind", "string", "Kind"),
       choices: ["creature", "spell"],
     };
     const predicate: QueryPredicate = {
@@ -350,7 +350,7 @@ describe("shared common and maintained advanced filters", () => {
   });
   it("keeps negative filters editable without unavailable-count notices", () => {
     const kind = {
-      ...fieldFixture("record.kind", "string", "Kind"),
+      ...fieldFixture("kind", "string", "Kind"),
       choices: ["creature"],
     };
     renderControls(editorFixture([kind]), {
@@ -375,11 +375,11 @@ describe("shared common and maintained advanced filters", () => {
   });
   it("keeps unsafe advanced numeric drafts visible without changing committed criteria", async () => {
     const change = renderControls(
-      editorFixture([fieldFixture("actor.level", "number", "Creature level")]),
+      editorFixture([fieldFixture("level", "number", "Creature level")]),
       {
         kind: "compare",
         clause_id: "level",
-        field: "actor.level",
+        field: "level",
         op: "gte",
         value: 1,
       },
@@ -425,22 +425,26 @@ describe("shared common and maintained advanced filters", () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
   it("offers scoped fields without another collection inside an Exists condition", async () => {
-    const collection = fieldFixture("actor.items", "collection", "Embedded items");
+    const collection = fieldFixture(
+      "embedded.equipment",
+      "collection",
+      "Embedded items",
+    );
     const child = {
       ...fieldFixture("owned.name", "string", "Embedded item name"),
       path: "name",
-      scope: "actor.items",
+      scope: "embedded.equipment",
       choices: ["Jaws"],
     };
     const nested = {
       ...fieldFixture("nested", "collection", "Nested collection"),
-      scope: "actor.items",
+      scope: "embedded.equipment",
     };
     renderControls(editorFixture([collection, child, nested]), {
       kind: "exists",
       clause_id: "owned",
       scope_id: "scope",
-      collection: "actor.items",
+      collection: "embedded.equipment",
       predicate: {
         kind: "compare",
         field: "name",
@@ -474,7 +478,7 @@ describe("per-value states and the complete query", () => {
   }
   it("includes and excludes individual Kind values without a field-wide mode", async () => {
     const kind = {
-      ...fieldFixture("record.kind", "string", "Kind"),
+      ...fieldFixture("kind", "string", "Kind"),
       choices: ["creature", "spell"],
     };
     const change = renderControls(editorFixture([kind]));
@@ -536,10 +540,10 @@ describe("per-value states and the complete query", () => {
   });
   it("shows common clauses in Advanced and adds exactly one additional condition", async () => {
     const kind = {
-      ...fieldFixture("record.kind", "string", "Kind"),
+      ...fieldFixture("kind", "string", "Kind"),
       choices: ["creature", "spell"],
     };
-    const hp = fieldFixture("actor.hp.maximum", "number", "Maximum HP");
+    const hp = fieldFixture("defenses.hp.maximum", "number", "Maximum HP");
     const common: QueryPredicate = {
       kind: "in",
       clause_id: "kind",
@@ -599,7 +603,7 @@ describe("per-value states and the complete query", () => {
   });
   it("shows the original Kind immediately and never introduces a hidden duplicate while adding Kind", async () => {
     const kind = {
-      ...fieldFixture("record.kind", "string", "Kind"),
+      ...fieldFixture("kind", "string", "Kind"),
       choices: ["creature", "spell"],
     };
     const original: QueryPredicate = {
@@ -659,10 +663,10 @@ describe("per-value states and the complete query", () => {
   });
   it("updates the shared Kind row while preserving an unfinished advanced number", async () => {
     const kind = {
-      ...fieldFixture("record.kind", "string", "Kind"),
+      ...fieldFixture("kind", "string", "Kind"),
       choices: ["creature", "spell"],
     };
-    const hp = fieldFixture("actor.hp.maximum", "number", "Maximum HP");
+    const hp = fieldFixture("defenses.hp.maximum", "number", "Maximum HP");
     const original: QueryPredicate = {
       kind: "all_of",
       children: [
@@ -713,13 +717,13 @@ describe("field applicability while editing Boolean groups", () => {
     "keeps fields available when %s can broaden the current result",
     (match) => {
       const editor = editorFixture([
-        { ...fieldFixture("record.kind", "string", "Kind"), choices: ["creature"] },
+        { ...fieldFixture("kind", "string", "Kind"), choices: ["creature"] },
         fieldFixture("hazard.hardness", "number", "Hardness"),
       ]);
       editor.groups[0].fields[1].applicable = false;
       renderControls(editor, {
         kind: "in",
-        field: "record.kind",
+        field: "kind",
         values: ["creature"],
       });
       fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));

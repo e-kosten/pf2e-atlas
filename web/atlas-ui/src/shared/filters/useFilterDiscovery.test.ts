@@ -77,23 +77,23 @@ it("addresses root and child clauses separately without semantic eligibility gue
   const predicate: QueryPredicate = {
     kind: "all_of",
     children: [
-      { kind: "compare", clause_id: "root", field: "item.level", op: "eq", value: 4 },
+      { kind: "compare", clause_id: "root", field: "level", op: "eq", value: 4 },
       {
         kind: "exists",
-        collection: "actor.items",
+        collection: "embedded.equipment",
         scope_id: "items",
         predicate: {
           kind: "compare",
           clause_id: "child",
-          field: "item.level",
+          field: "level",
           op: "eq",
           value: 2,
         },
       },
     ],
   };
-  expect(findClauseIds(predicate, "item.level")).toEqual(["root"]);
-  expect(findClauseIds(predicate, "item.level", "actor.items")).toEqual(["child"]);
+  expect(findClauseIds(predicate, "level")).toEqual(["root"]);
+  expect(findClauseIds(predicate, "level", "embedded.equipment")).toEqual(["child"]);
 });
 it("loads catalog without page-load count fanout", async () => {
   const { result } = renderHook(
@@ -218,7 +218,7 @@ it("isolates late context/profile/generation/page completions and aborts abandon
       ...context,
       search_profile: "embeddinggemma",
       expected_artifact_generation: "generation-b",
-      filter: { kind: "in", field: "record.kind", values: ["spell"] },
+      filter: { kind: "in", field: "kind", values: ["spell"] },
     },
     values: ["fire", "zero"],
   });
@@ -318,7 +318,7 @@ it("keeps displayed counts during a filter refresh and replaces them in place", 
   rerender({
     activeContext: {
       ...context,
-      filter: { kind: "in", field: "record.kind", values: ["spell"] },
+      filter: { kind: "in", field: "kind", values: ["spell"] },
     },
   });
   await waitFor(() => expect(api.discoverFilterCounts).toHaveBeenCalledTimes(2));

@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 
 pub const ARTIFACT_FORMAT_VERSION: u32 = 3;
 pub const ARTIFACT_CONTRACT_VERSION: &str = "pf2e-atlas-source-artifact/v3";
-pub const ARTIFACT_SCHEMA_VERSION: &str = "3";
 pub const EXPECTED_SOURCE_KIND: &str = "foundry-pf2e";
 pub const SOURCE_PROJECTION_VERSION: &str = "authored-query/v1";
 pub const SOURCE_LOOKUP_VERSION: &str = "nfc-lowercase-whitespace/v1";
@@ -82,6 +81,8 @@ pub struct SourceArtifactBuildContext {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceArtifactDiagnostic {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_diagnostic: Option<atlas_foundry_model::SourceDiagnostic>,
     pub owners: Option<Vec<OwnedContentLocator>>,
     pub field: Option<String>,
     pub stage: String,
@@ -222,13 +223,22 @@ impl SourceArtifactBuildContext {
         canonical.search_profiles = self.canonical_profiles()?;
         Ok(crate::codec::sha256(&serde_json::to_vec(&canonical)?))
     }
-    /// Shared authored content preparation is independent of model/input recipe.
+    /// Only dependencies of prepared content belong here. Corpus inventory,
+    /// query projections and embedding recipes have separate invalidation keys.
     pub fn preparation_sha256(&self) -> Result<String, crate::IndexError> {
-        let mut shared = serde_json::to_value(self)?;
-        shared
-            .as_object_mut()
-            .ok_or_else(|| crate::IndexError::Invalid("build context object".into()))?
-            .remove("search_profiles");
+        let shared = serde_json::json!({
+            "snapshot_version": self.snapshot_version,
+            "source_contract": self.source_contract,
+            "indexing_locale": self.indexing_locale,
+            "locale_catalog_sha256": self.locale_catalog_sha256,
+            "english_catalog_sha256": self.english_catalog_sha256,
+            "localization_policy": self.localization_policy,
+            "audience": self.audience,
+            "content_interpretation_version": self.content_interpretation_version,
+            "content_selection_version": self.content_selection_version,
+            "asset_policy": self.asset_policy,
+            "relationship_policy": self.relationship_policy,
+        });
         Ok(crate::codec::sha256(&serde_json::to_vec(&shared)?))
     }
     pub fn search_profile(
@@ -236,6 +246,34 @@ impl SourceArtifactBuildContext {
         id: &SearchProfileId,
     ) -> Result<&SourceSearchProfileIdentity, crate::IndexError> {
         self.search_profiles.iter().find(|profile|&profile.profile_id == id).ok_or_else(||crate::IndexError::Unavailable(format!("search profile `{id}` is not stored in this artifact; rebuild with --search-profile {id}")))
+    }
+}
+
+#[cfg(test)]
+mod preparation_tests {
+    #[test]
+    fn corpus_and_query_changes_do_not_invalidate_prepared_content() {
+        let original = crate::foundation_tests::fixture(false).context;
+        let mut changed = original.clone();
+        changed.source_revision = Some("new revision".into());
+        changed.source_fingerprint = "new inventory".into();
+        changed.source_file_count += 1;
+        changed.format_version += 1;
+        changed.query_catalog_version += 1;
+        changed.query_projection_version.push_str("-next");
+        changed.lookup_version.push_str("-next");
+        changed.lexical_selection_version.push_str("-next");
+        changed.fts_tokenizer.push_str(" changed");
+        assert_eq!(
+            original.preparation_sha256().unwrap(),
+            changed.preparation_sha256().unwrap()
+        );
+        assert_ne!(original.sha256().unwrap(), changed.sha256().unwrap());
+        changed.content_interpretation_version.push_str("-next");
+        assert_ne!(
+            original.preparation_sha256().unwrap(),
+            changed.preparation_sha256().unwrap()
+        );
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

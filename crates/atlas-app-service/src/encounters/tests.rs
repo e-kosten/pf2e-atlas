@@ -3,6 +3,8 @@ use atlas_app_model::*;
 
 #[test]
 fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
+    let path = crate::test_support::fixture_workspace_path();
+    atlas_runtime::initialize_workspace(&path).unwrap();
     let worker = crate::AtlasAppService::new(
         crate::service::RetrievalBackend::command(
             crate::service::CommandRetrievalMode::NoEmbeddings,
@@ -11,14 +13,10 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
             default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
             path_mode: atlas_runtime::AtlasPathMode::Global,
             overrides: atlas_runtime::AtlasPathOverrides {
-                index_path: Some(
-                    crate::test_support::fixture_local_state_path()
-                        .with_extension("missing-artifact"),
-                ),
+                index_path: Some(path),
                 ..Default::default()
             },
         },
-        crate::test_support::fixture_local_state_path(),
     )
     .unwrap();
     assert!(worker.record_detail("actors:testCreature1000").is_err());
@@ -47,29 +45,33 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
     );
     assert_eq!(detail.participants[0].current_hp, Some(0));
     let mut invalid = worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(&encounter.encounter_key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&encounter.encounter_key)?)
+        })
         .unwrap()
         .unwrap()
         .participants
         .remove(0);
     invalid.participant_kind = atlas_local_state::ParticipantKind::Creature;
     invalid.record_key = Some("invalid source address".into());
-    let projected = super::projection::encounter_detail_view(
-        &worker,
+    let projected = super::projection::encounter_detail_from_records(
         worker
-            .local_state_store()
-            .unwrap()
-            .encounters()
-            .get_with_participants(&encounter.encounter_key)
+            .with_state(|session| {
+                Ok(session
+                    .local_state()
+                    .encounters()
+                    .get_with_participants(&encounter.encounter_key)?)
+            })
             .unwrap()
             .unwrap()
             .encounter,
         vec![invalid],
-    )
-    .unwrap();
+        None,
+        Default::default(),
+    );
     assert!(projected.artifact_generation.is_none());
     assert_eq!(
         projected.participants[0].status,
@@ -105,10 +107,12 @@ fn quantity_add_returns_receipt_when_any_postcommit_retrieval_would_fail() {
     assert_eq!(receipt.encounter_key, encounter.encounter_key);
     let persisted = f
         .worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(&receipt.encounter_key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&receipt.encounter_key)?)
+        })
         .unwrap()
         .unwrap();
     assert_eq!(persisted.participants.len(), 3);
@@ -167,10 +171,12 @@ fn derived_edit_receipt_and_stale_guard_do_not_run_postcommit_hydration() {
     assert_eq!(receipt.encounter_key, encounter.encounter_key);
     let before = f
         .worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(&encounter.encounter_key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&encounter.encounter_key)?)
+        })
         .unwrap()
         .unwrap();
     assert_eq!(before.participants[0].max_hp, Some(80));
@@ -196,10 +202,10 @@ fn derived_edit_receipt_and_stale_guard_do_not_run_postcommit_hydration() {
     );
     assert_eq!(
         f.worker
-            .local_state_store()
-            .unwrap()
-            .encounters()
-            .get_with_participants(&encounter.encounter_key)
+            .with_state(|session| Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&encounter.encounter_key)?))
             .unwrap()
             .unwrap(),
         before
@@ -221,10 +227,12 @@ fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
         .encounter;
     let before = f
         .worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(&encounter.encounter_key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&encounter.encounter_key)?)
+        })
         .unwrap()
         .unwrap();
     assert!(
@@ -239,10 +247,10 @@ fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
     );
     assert_eq!(
         f.worker
-            .local_state_store()
-            .unwrap()
-            .encounters()
-            .get_with_participants(&encounter.encounter_key)
+            .with_state(|session| Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&encounter.encounter_key)?))
             .unwrap()
             .unwrap(),
         before
@@ -263,10 +271,12 @@ fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
         .remove(0);
     let before = f
         .worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(&encounter.encounter_key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&encounter.encounter_key)?)
+        })
         .unwrap()
         .unwrap();
     let mut request = update(&participant);
@@ -282,10 +292,10 @@ fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
     );
     assert_eq!(
         f.worker
-            .local_state_store()
-            .unwrap()
-            .encounters()
-            .get_with_participants(&encounter.encounter_key)
+            .with_state(|session| Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&encounter.encounter_key)?))
             .unwrap()
             .unwrap(),
         before
@@ -318,24 +328,8 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
         .unwrap()
         .participants
         .remove(0);
-    let worker = crate::AtlasAppService::new(
-        crate::service::RetrievalBackend::command(
-            crate::service::CommandRetrievalMode::NoEmbeddings,
-        ),
-        atlas_runtime::AtlasRuntimeOptions {
-            default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
-            path_mode: atlas_runtime::AtlasPathMode::Global,
-            overrides: atlas_runtime::AtlasPathOverrides {
-                index_path: Some(
-                    crate::test_support::fixture_local_state_path()
-                        .with_extension("missing-artifact"),
-                ),
-                ..Default::default()
-            },
-        },
-        f.worker.local_state_path.clone(),
-    )
-    .unwrap();
+    atlas_search::test_support::invalidate_reference(f.worker.workspace_path()).unwrap();
+    let worker = &f.worker;
     assert!(worker.encounter(&encounter.encounter_key).is_err());
     let key = encounter.encounter_key.clone();
     let assert_receipt = |receipt: EncounterMutationView| assert_eq!(receipt.encounter_key, key);
@@ -383,10 +377,12 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
             .unwrap(),
     );
     let local = worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(&key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&key)?)
+        })
         .unwrap()
         .unwrap();
     let condition_id = local.participants[0].conditions[0].condition_id;
@@ -440,10 +436,12 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
             .unwrap(),
     );
     let persisted = worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(&key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&key)?)
+        })
         .unwrap()
         .unwrap();
     assert_eq!(persisted.participants.len(), 1);
@@ -453,6 +451,39 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
         Some(initial.participant_key)
     );
     assert!(worker.encounter(&key).is_err());
+}
+
+#[test]
+fn empty_list_import_remains_available_without_reference() {
+    let f = crate::test_support::fixture_worker();
+    atlas_search::test_support::invalidate_reference(f.worker.workspace_path()).unwrap();
+    let imported = f
+        .worker
+        .import_saved_list(ImportSavedListRequest {
+            document: SavedListExportDocumentView {
+                format: "pf2e-atlas.saved-list".into(),
+                version: 1,
+                exported_at: "now".into(),
+                list: SavedListExportListView {
+                    id: "empty-import".into(),
+                    name: "Empty import".into(),
+                    description: None,
+                    tags: vec![],
+                },
+                items: vec![],
+            },
+            id: None,
+            replace: false,
+        })
+        .unwrap();
+    assert_eq!((imported.active_count, imported.unresolved_count), (0, 0));
+    assert!(
+        f.worker
+            .saved_list("empty-import")
+            .unwrap()
+            .items
+            .is_empty()
+    );
 }
 
 #[test]
@@ -497,10 +528,12 @@ fn list_import_reuses_precommit_summaries_when_further_retrieval_fails() {
     assert_eq!((imported.active_count, imported.unresolved_count), (1, 1));
     let persisted = f
         .worker
-        .local_state_store()
-        .unwrap()
-        .saved_lists()
-        .get_with_items("imported")
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .saved_lists()
+                .get_with_items("imported")?)
+        })
         .unwrap()
         .unwrap();
     assert_eq!(persisted.items[0].record_title_snapshot, "Test Creature 1");
@@ -634,26 +667,35 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
         })
         .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
-    f.worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            r.reset_read_metrics();
-            crate::presentation::actor::authored_projection_count(true);
-            super::mechanics::baseline_count(true);
-            Ok(())
-        })
-        .unwrap();
-    let detail = f.worker.encounter(&e.encounter_key).unwrap();
-    assert!(detail.artifact_generation.is_some());
-    let (metrics, authored, baselines) = f
+    let lookup = e.encounter_key.clone();
+    let (detail, metrics, authored, baselines) = f
         .worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            Ok((
-                r.read_metrics(),
-                crate::presentation::actor::authored_projection_count(false),
-                super::mechanics::baseline_count(false),
-            ))
-        })
+        .with_workspace(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |workspace| {
+                workspace.retrieval().reset_read_metrics();
+                crate::presentation::actor::authored_projection_count(true);
+                super::mechanics::baseline_count(true);
+                let snapshot = workspace
+                    .local_state()
+                    .encounters()
+                    .get_with_participants(&lookup)?
+                    .unwrap();
+                let detail = super::projection::encounter_detail_view(
+                    workspace.retrieval_mut(),
+                    snapshot.encounter,
+                    snapshot.participants,
+                )?;
+                Ok((
+                    detail,
+                    workspace.retrieval().read_metrics(),
+                    crate::presentation::actor::authored_projection_count(false),
+                    super::mechanics::baseline_count(false),
+                ))
+            },
+        )
         .unwrap();
+    assert!(detail.artifact_generation.is_some());
     assert_eq!(metrics.source_body_decodes, 2);
     assert_eq!(metrics.prepared_content_batches, 0);
     assert_eq!((authored, baselines), (2, 2));
@@ -683,28 +725,25 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
         hazard(&detail.participants[3]).hardness.value,
         Some(8.into())
     );
-    f.worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            r.reset_read_metrics();
-            Ok(())
-        })
-        .unwrap();
-    let source = f
+    let source_request = RecordDetailRequest {
+        spell_rank: None,
+        record_key: detail.participants[0].record_key.clone().unwrap(),
+        owners: vec![],
+        fields: vec!["/system/details/publicNotes".into()],
+        passage: None,
+        source_fingerprint: None,
+    };
+    let (source, metrics) = f
         .worker
-        .record_detail_at(RecordDetailRequest {
-            spell_rank: None,
-            record_key: detail.participants[0].record_key.clone().unwrap(),
-            owners: vec![],
-            fields: vec!["/system/details/publicNotes".into()],
-            passage: None,
-            source_fingerprint: None,
-        })
-        .unwrap();
-    let metrics = f
-        .worker
-        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
-            Ok(r.read_metrics())
-        })
+        .with_workspace(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |workspace| {
+                workspace.retrieval().reset_read_metrics();
+                let (_, source) =
+                    crate::records::read_record_detail(workspace.retrieval_mut(), source_request)?;
+                Ok((source, workspace.retrieval().read_metrics()))
+            },
+        )
         .unwrap();
     assert_eq!(metrics.source_body_decodes, 1);
     assert_eq!(metrics.prepared_content_batches, 1);
@@ -1639,8 +1678,7 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
 
 #[test]
 fn artifact_rebuild_does_not_reinitialize_capacity_or_current_hp() {
-    use crate::{executor::RetrievalExecutor, test_support::fixture_worker_with_executor};
-    use atlas_search::test_support::{open_source_fixture, record};
+    use atlas_search::test_support::{input, publish_input, record};
     use serde_json::json;
     let before = encounter_fixture_worker();
     let e = before
@@ -1681,19 +1719,16 @@ fn artifact_rebuild_does_not_reinitialize_capacity_or_current_hp() {
             })
     }
     .unwrap();
-    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
-        Ok(open_source_fixture(
-            vec![record(
-                "actors",
-                "Actor",
-                json!({"_id":"testCreature1000","type":"npc","name":"Updated creature","system":{"details":{"level":{"value":6}},"attributes":{"adjustment":null,"hp":{"max":120},"ac":{"value":24}}}}),
-            )],
-            false,
-        )?)
-    });
-    let mut after = fixture_worker_with_executor(executor);
-    after.worker.local_state_path = before.worker.local_state_path.clone();
-    let d = after.worker.encounter(&e.encounter_key).unwrap();
+    let updated = input(
+        vec![record(
+            "actors",
+            "Actor",
+            json!({"_id":"testCreature1000","type":"npc","name":"Updated creature","system":{"details":{"level":{"value":6}},"attributes":{"adjustment":null,"hp":{"max":120},"ac":{"value":24}}}}),
+        )],
+        false,
+    );
+    publish_input(before.worker.workspace_path(), &updated).unwrap();
+    let d = before.worker.encounter(&e.encounter_key).unwrap();
     let p = &d.participants[0];
     assert_eq!(
         (p.max_hp, p.current_hp, p.temporary_hp),
@@ -2195,10 +2230,12 @@ fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
     let mut baseline = super::mechanics::arithmetic_baseline(&original).unwrap();
     let local = f
         .worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(&encounter.encounter_key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&encounter.encounter_key)?)
+        })
         .unwrap()
         .unwrap()
         .participants
@@ -2253,10 +2290,12 @@ fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
         request_id: "damage-one".into(),
         expected_revision: f
             .worker
-            .local_state_store()
-            .unwrap()
-            .encounters()
-            .get(&encounter.encounter_key)
+            .with_state(|session| {
+                Ok(session
+                    .local_state()
+                    .encounters()
+                    .get(&encounter.encounter_key)?)
+            })
             .unwrap()
             .unwrap()
             .revision,

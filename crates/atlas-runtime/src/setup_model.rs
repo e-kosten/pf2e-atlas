@@ -6,10 +6,10 @@ pub struct RuntimeSetupOptions {
     pub check: bool,
     pub offline: bool,
     pub force_rebuild: bool,
-    /// Empty preserves a readable artifact's stored set; a fresh setup uses BGE Base.
+    /// Add to the persisted requested model set; a fresh full setup uses BGE Base.
     pub search_profiles: Vec<SearchProfileId>,
     pub embedding_batch_size: usize,
-    /// None preserves an existing indexing locale, or uses English for a new artifact.
+    /// None preserves the requested indexing locale, or uses English for a new workspace.
     pub locale: Option<String>,
 }
 
@@ -17,7 +17,6 @@ pub struct RuntimeSetupOptions {
 pub struct RuntimeSetupCleanOptions {
     pub source: bool,
     pub embedding_cache: bool,
-    pub artifact: bool,
     pub check: bool,
 }
 
@@ -76,7 +75,6 @@ pub enum SetupActionStatus {
 pub enum SetupCleanTargetKind {
     Source,
     EmbeddingCache,
-    Artifact,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -11,11 +11,8 @@ pub enum IndexError {
     Operation(String),
     #[error(transparent)]
     Query(#[from] atlas_domain::query::QueryError),
-}
-impl From<diesel::result::Error> for IndexError {
-    fn from(e: diesel::result::Error) -> Self {
-        Self::Operation(e.to_string())
-    }
+    #[error(transparent)]
+    Storage(#[from] atlas_storage::StorageError),
 }
 impl From<rusqlite::Error> for IndexError {
     fn from(e: rusqlite::Error) -> Self {

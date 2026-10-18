@@ -84,6 +84,12 @@ pub(crate) struct ProjectionIds {
     next: i64,
 }
 impl ProjectionIds {
+    pub(crate) fn seeded(seed: i64) -> Self {
+        Self { next: seed }
+    }
+    pub(crate) fn end(&self) -> i64 {
+        self.next
+    }
     fn take(&mut self) -> Result<i64, IndexError> {
         self.next = self
             .next
@@ -536,6 +542,7 @@ pub(crate) fn projection_diagnostics(
         } = view
         {
             out.push(crate::SourceArtifactDiagnostic {
+                source_diagnostic: None,
                 owners: Some(chain.to_vec()),
                 field: Some(source_path.into()),
                 stage: "projection".into(),
