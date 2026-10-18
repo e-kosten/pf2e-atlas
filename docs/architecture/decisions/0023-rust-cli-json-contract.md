@@ -35,19 +35,57 @@ Command failures use the error envelope:
 }
 ```
 
-Successful payloads live under `data`. Errors live under `error`. Commands do not emit a `command` field because the caller already knows the invoked command. Optional fields are omitted when absent or empty. CLI JSON field names are `snake_case`.
+Whole-command failures use `error`. Data-bearing responses use `data`; record batches retain it even when some or all inputs fail. Commands do not emit a `command` field because the caller already knows the invoked command. Optional fields are omitted when absent or empty. CLI JSON field names are `snake_case`.
 
 JSON payloads are written to stdout. Routine progress is not part of the JSON contract and is controlled separately from payload output. By default, progress renders only for human terminal sessions and is suppressed for JSON or non-terminal automation; users can force or suppress progress with the global `--progress` option or the `ATLAS_PROGRESS` environment variable.
 
-Record-facing commands use `summary`, `preview`, `description`, `standard`, and `full` detail levels. `summary` carries identity and summary facts. `preview` carries summary facts, compact kind-specific scan sections such as creature defense or movement when the presentation recipe has them, and a truncated description; it still excludes the full description and details/source-heavy sections. `description` adds the full description section without the extra standard-detail sections, `standard` carries the normal section breakdown, and `full` adds full source metadata. All detail levels keep the same record JSON schema and vary only by hydration depth. The Rust CLI does not accept `minimal`, `compact`, or TypeScript-specific detail values. Raw source JSON is exposed only by explicit opt-in flags and appears as top-level `source_json` in the relevant command payload.
+### Current record batch contract
 
-The shared record DTO is a projection of the renderer-neutral presentation record. Result DTOs wrap records with search or resolution metadata. Batch record commands return per-item results with per-item errors when some keys or queries miss.
+`record get` and `record resolve` emit exactly one JSON document, including for a
+single input. The top-level `status` summarizes the batch: `ok` means every input
+succeeded, `partial` means some succeeded and some failed or were unprocessed,
+and `error` means none succeeded. `data.results` preserves input order and
+duplicates. There are no aggregate counts or redundant partial flag.
 
-Record sections use stable section and block kinds. Rich content is exposed through structured presentation-content blocks and inline spans rather than raw `RichDocument` nodes or markdown-like strings. Terminal output renders that DTO directly, while future web output should use a web-specific projection rather than parsing terminal text. Original Foundry rich-text output is not part of the CLI contract. Batch record payloads include `data.partial` alongside per-item errors so automation can distinguish complete success from partial domain misses without relying only on the process exit code.
+Each result contains the original `input` and a `status` discriminator:
 
-Ambiguous strict record-reference errors should include structured alternatives when the command has resolved candidate records. `record resolve`, graph seed resolution, and similar-record seed resolution report `error.code: "record_resolution_ambiguous"` and place parseable candidate records under `error.data.result.alternatives`; callers should not need to scrape candidate names or keys from the human-readable `message`.
+- `ok`: `value` contains the source-backed CLI reading response or strict
+  resolution result (`total` and bounded `alternatives`).
+- `error`: `error` contains `code`, `message`, and optional `details`, `retryable`
+  and `recoverable_action`, preserving the app error contract.
+- `unprocessed`: `reason: "prior_runtime_failure"` indicates that execution
+  stopped after an earlier runtime failure; it does not mean the input was missing.
 
-Readiness and validation commands are successful command executions when checks run, even when the artifact is invalid. `atlas index check --json` and `atlas index validate --json` return `status: "ok"` with `data.valid: false` for invalid artifacts and exit with code `3`. Top-level `status: "error"` is reserved for cases where the command cannot run.
+Malformed keys, missing records and ambiguous names are per-input failures;
+other inputs still run. Runtime failures stop the batch and retain prior results.
+Command grammar/filter errors and workspace admission failures use the top-level
+error envelope before batch work starts. Each read retains its own checked
+artifact generation; the CLI does not hold one transaction across the batch.
+
+The process exit is the highest failure class encountered: runtime (3), invalid
+input (2), domain miss/ambiguity (1), success (0). Terminal and JSON modes use the
+same classification. The JSON status describes completeness, not the exit class.
+Top-level and per-input app errors use the same `details` field; graph ambiguity
+provides `details.candidates`, while resolution provides `details.total` and
+`details.alternatives`. Recovery hints are preserved when supplied by app-service.
+
+CLI record values reuse app-service semantic facts with an explicit reading layout:
+`identity` describes the selected content (including effective rank-preview facts),
+`parent` is included only for embedded selections, and `selected` retains the
+exact navigation address. `content` holds `classification`, prepared `fields`,
+structured `body`, and `owned` navigation. Root identity is serialized once;
+there are no `record` or `presentation` aliases. Artifact generation and
+relationship evidence remain alongside these sections. This is CLI serialization
+policy, not a second source model; the web's internal reading DTO is unchanged.
+The `owned`/`owners` terminology is tracked separately under CF-04.
+
+JSON record values are complete selected reference responses from app-service;
+explicit terminal `--detail` conflicts with `--json`. Human reading supports
+summary, standard and full. Source inspection uses `record source`; it is separate
+from the batch detail payload. ADR 0046 supersedes the historical normalized
+record and rich-content projection contracts.
+
+Readiness and validation commands are successful command executions when checks run, even when the artifact is invalid. `atlas index check --json` and `atlas index validate --json` return `status: "ok"` with `data.valid: false` for invalid artifacts and exit with code `3`. These diagnostic reports describe successful check execution; record batch statuses instead summarize their per-input outcomes.
 
 Setup reports separate read-only diagnostics from mutating or planned repair work. `data.checks` contains read-only work such as source analysis and artifact readiness checks. `data.actions` contains mutating operations and repair decisions such as source fetch, embedding model preparation, and index build. `atlas setup --check` may still perform entries in `checks`, but it must not perform mutating `actions`.
 
@@ -66,4 +104,4 @@ The standard process exit classes are:
 
 Search, record retrieval, record resolution, graph, and future discovery commands should reuse the shared record/result DTOs instead of defining command-specific record fragments.
 
-Future work that adds structured content output should extend the content block format deliberately and preserve the current markdown projection as a stable default.
+Batch presentation and exit policy belong to atlas-cli; shared envelope serialization belongs to atlas-cli-support. App-service retains ownership of record values and typed service errors.

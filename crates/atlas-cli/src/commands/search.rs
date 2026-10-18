@@ -35,7 +35,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         size: o.limit,
     };
     let mode: RetrievalModeView = o.retrieval.into();
-    let s = connect(ClientOptions {
+    let s = match connect(ClientOptions {
         search_profile: o.search_profile.clone(),
         path_mode: o.path_mode.into(),
         index: o.index,
@@ -45,15 +45,17 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         } else {
             atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings
         },
-    })
-    .map_err(|e| e.message)?;
+    }) {
+        Ok(service) => service,
+        Err(error) => return crate::commands::product::report_app_error(error, o.json),
+    };
     if let Some(query) = o.query {
-        let Some(result) = app_result(
+        let result = match app_result(
             s.search_text(query, filter, page, mode, o.search_profile.clone()),
             o.json,
-        )?
-        else {
-            return Ok(ExitCode::from(3));
+        )? {
+            std::ops::ControlFlow::Continue(value) => value,
+            std::ops::ControlFlow::Break(exit) => return Ok(exit),
         };
         if o.json {
             write_json_data(search_json(&result))?;
@@ -83,7 +85,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
             }
         }
     } else {
-        let Some(result) = app_result(
+        let result = match app_result(
             s.search_page(
                 atlas_app_model::SearchResultsRequest {
                     search_profile: o.search_profile,
@@ -94,9 +96,9 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
                 &atlas_app_service::ReadExecutionContext::uncancellable(),
             ),
             o.json,
-        )?
-        else {
-            return Ok(ExitCode::from(3));
+        )? {
+            std::ops::ControlFlow::Continue(value) => value,
+            std::ops::ControlFlow::Break(exit) => return Ok(exit),
         };
         if o.json {
             write_json_data(

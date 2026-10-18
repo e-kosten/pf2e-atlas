@@ -6,16 +6,19 @@ use atlas_cli_support::write_json_data;
 use std::process::ExitCode;
 
 pub(crate) fn run_record_source(options: RecordSourceOptions) -> Result<ExitCode, String> {
-    let service = connect(ClientOptions {
+    let service = match connect(ClientOptions {
         search_profile: None,
         path_mode: options.path_mode.into(),
         index: options.index,
         embedding_cache: None,
         retrieval_mode: AppServiceRetrievalMode::OnDemandNoEmbeddings,
-    })
-    .map_err(|error| error.message)?;
-    let Some(source) = app_result(service.record_source(&options.key), options.json)? else {
-        return Ok(ExitCode::from(3));
+    }) {
+        Ok(service) => service,
+        Err(error) => return crate::commands::product::report_app_error(error, options.json),
+    };
+    let source = match app_result(service.record_source(&options.key), options.json)? {
+        std::ops::ControlFlow::Continue(value) => value,
+        std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
     if options.json {
         write_json_data(source)?;
