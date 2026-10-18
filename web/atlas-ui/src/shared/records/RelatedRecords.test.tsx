@@ -47,6 +47,7 @@ function graphFixture(): GraphContextView {
     field: "/system/description/value",
   };
   const incoming: RecordRelationshipView = {
+    effect_label: null,
     source,
     source_navigation: {
       ...navigation(source.record),

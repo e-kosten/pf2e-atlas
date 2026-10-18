@@ -71,6 +71,12 @@ pub struct RecordRelationshipView {
     pub status: String,
     pub target: Option<RecordNavigationView>,
     pub url: Option<String>,
+    pub effect_label: Option<EffectReferenceLabelView>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct EffectReferenceLabelView {
+    pub text: String,
+    pub title: String,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordResolutionAmbiguousView {

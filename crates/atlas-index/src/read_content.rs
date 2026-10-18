@@ -58,6 +58,10 @@ pub(crate) fn content_reference(
         resolution: edge.resolution,
         visible: true,
         audiences: edge.details.audiences,
+        label: edge
+            .details
+            .label
+            .ok_or_else(|| IndexError::Invalid("content reference lacks label facts".into()))?,
     })
 }
 pub(crate) fn content_references_for_record(

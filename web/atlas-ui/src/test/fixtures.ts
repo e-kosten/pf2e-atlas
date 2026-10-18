@@ -176,6 +176,7 @@ export function detailFixture(
       ? [
           {
             source: locator,
+            effect_label: null,
             source_navigation: {
               record_key,
               owners: [],

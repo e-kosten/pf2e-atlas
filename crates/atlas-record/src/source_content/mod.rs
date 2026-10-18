@@ -23,9 +23,9 @@ pub use marker_validation::{
 pub use model::{
     CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentDiagnosticCode, ContentInteraction,
     ContentInteractionKind, ContentInterpretationDiagnostic, ContentReferenceKind,
-    ContentReferenceOccurrence, ContentReferenceResolution, ContentReferenceResolver,
-    ContentReferenceTarget, ContentVisibilityRule, OwnedContentIdentity, OwnedContentLocator,
-    PreparedSourceContent, ResolvedContentReference, SourceContentLocator,
+    ContentReferenceLabel, ContentReferenceOccurrence, ContentReferenceResolution,
+    ContentReferenceResolver, ContentReferenceTarget, ContentVisibilityRule, OwnedContentIdentity,
+    OwnedContentLocator, PreparedSourceContent, ResolvedContentReference, SourceContentLocator,
 };
 pub use parse_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
 pub use parser::LocalizationResolver;

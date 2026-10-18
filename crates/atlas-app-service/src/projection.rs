@@ -206,7 +206,74 @@ pub(crate) fn relationship_view(
         status: status.into(),
         target,
         url,
+        effect_label: None,
     }
+}
+
+/// Compact labels are presentation only. Explicit source labels always win.
+/// Choices are distinct resolved destinations within the nearest parsed block
+/// (and exact field), never inferred from prose, names, or screen proximity.
+pub(crate) fn relationship_views(
+    occurrences: Vec<atlas_search::SourceStoredRelationship>,
+    fingerprint: &str,
+) -> Vec<atlas_app_model::RecordRelationshipView> {
+    use atlas_record::source_content::{ContentReferenceResolution, ContentReferenceTarget};
+    let eligible = |o: &atlas_search::SourceStoredRelationship| {
+        o.details.label.as_ref().is_some_and(|label| {
+            !label.explicit
+                && label.item_family.as_deref() == Some("effect")
+                && label
+                    .target_name
+                    .as_ref()
+                    .is_some_and(|name| !name.is_empty())
+        }) && matches!(
+            o.resolution,
+            ContentReferenceResolution::Resolved(
+                ContentReferenceTarget::Record { .. } | ContentReferenceTarget::OwnedNode { .. }
+            )
+        )
+    };
+    occurrences
+        .iter()
+        .map(|o| {
+            let mut view = relationship_view(o.clone(), fingerprint);
+            if eligible(o)
+                && let Some(label) = &o.details.label
+            {
+                let multiple = occurrences.iter().any(|other| {
+                    eligible(other)
+                        && other.locator == o.locator
+                        && other
+                            .details
+                            .label
+                            .as_ref()
+                            .is_some_and(|l| l.block == label.block)
+                        && other.resolution != o.resolution
+                });
+                if let Some(title) = &label.target_name {
+                    // This removes only a display prefix after typed classification;
+                    // it is never used to decide whether a destination is an effect.
+                    let short = title
+                        .strip_prefix("Spell Effect: ")
+                        .or_else(|| title.strip_prefix("Effect: "))
+                        .unwrap_or(title);
+                    view.effect_label = Some(atlas_app_model::EffectReferenceLabelView {
+                        text: if multiple {
+                            if short.is_empty() {
+                                title.clone()
+                            } else {
+                                short.into()
+                            }
+                        } else {
+                            "Effect".into()
+                        },
+                        title: title.clone(),
+                    });
+                }
+            }
+            view
+        })
+        .collect()
 }
 pub(crate) fn field_state(
     state: atlas_record::source_record::FieldAvailability,
@@ -277,6 +344,96 @@ mod tests {
         ContentReferenceResolution, ContentReferenceTarget, OwnedContentIdentity,
         OwnedContentLocator, SourceContentLocator,
     };
+
+    fn effect_occurrence(id: &str, title: &str) -> atlas_search::SourceStoredRelationship {
+        let mut occurrence = atlas_search::SourceStoredRelationship {
+            locator: SourceContentLocator {
+                record: "spells:aaaaaaaaaaaaaaaa".parse().unwrap(),
+                owners: vec![],
+                field: "/system/description/value".into(),
+            },
+            ordinal: 0,
+            origin: "content".into(),
+            kind: "uuid".into(),
+            authored_target: Some(format!("Compendium.pf2e.effects.Item.{id}")),
+            occurrence_path: Some("/0/0".into()),
+            resolution: ContentReferenceResolution::Resolved(ContentReferenceTarget::Record {
+                key: format!("effects:{id}").parse().unwrap(),
+            }),
+            details: Default::default(),
+        };
+        occurrence.details.label = Some(atlas_record::source_content::ContentReferenceLabel {
+            explicit: false,
+            block: "/0".into(),
+            target_name: Some(title.into()),
+            item_family: Some("effect".into()),
+        });
+        occurrence
+    }
+
+    #[test]
+    fn compact_effects_distinguish_destinations_only_within_the_same_field_block() {
+        let first = effect_occurrence("bbbbbbbbbbbbbbbb", "Spell Effect: Enlarge");
+        let mut repeated = first.clone();
+        repeated.ordinal = 1;
+        let single = relationship_views(vec![first.clone(), repeated.clone()], "snapshot");
+        assert!(
+            single
+                .iter()
+                .all(|v| v.effect_label.as_ref().unwrap().text == "Effect")
+        );
+
+        let second =
+            effect_occurrence("cccccccccccccccc", "Spell Effect: Enlarge (Heightened 4th)");
+        let distinct =
+            relationship_views(vec![first.clone(), repeated, second.clone()], "snapshot");
+        assert_eq!(distinct[0].effect_label.as_ref().unwrap().text, "Enlarge");
+        assert_eq!(
+            distinct[2].effect_label.as_ref().unwrap().text,
+            "Enlarge (Heightened 4th)"
+        );
+        assert_eq!(
+            distinct[0].effect_label.as_ref().unwrap().title,
+            "Spell Effect: Enlarge"
+        );
+        assert_eq!(distinct[0].target, single[0].target);
+
+        for change in 0..3 {
+            let mut separate = second.clone();
+            match change {
+                0 => separate.details.label.as_mut().unwrap().block = "/1".into(),
+                1 => separate.locator.field = "/system/details/publicNotes".into(),
+                _ => separate.locator.owners.push(OwnedContentLocator {
+                    collection: "/items".into(),
+                    identity: OwnedContentIdentity::Stable("dddddddddddddddd".into()),
+                }),
+            }
+            let views = relationship_views(vec![first.clone(), separate], "snapshot");
+            assert!(
+                views
+                    .iter()
+                    .all(|v| v.effect_label.as_ref().unwrap().text == "Effect")
+            );
+        }
+    }
+
+    #[test]
+    fn explicit_unresolved_and_non_effect_references_keep_their_source_labels() {
+        let first = effect_occurrence("bbbbbbbbbbbbbbbb", "Spell Effect: Enlarge");
+        for change in 0..5 {
+            let mut other = effect_occurrence("cccccccccccccccc", "Effect: Not proof of a family");
+            match change {
+                0 => other.details.label.as_mut().unwrap().explicit = true,
+                1 => other.details.label.as_mut().unwrap().item_family = Some("spell".into()),
+                2 => other.resolution = ContentReferenceResolution::Unresolved,
+                3 => other.details.label.as_mut().unwrap().target_name = None,
+                _ => other.details.label = None,
+            }
+            let views = relationship_views(vec![first.clone(), other], "snapshot");
+            assert_eq!(views[0].effect_label.as_ref().unwrap().text, "Effect");
+            assert!(views[1].effect_label.is_none());
+        }
+    }
 
     #[test]
     fn relationship_source_navigation_preserves_actual_occurrence_not_incoming_seed() {

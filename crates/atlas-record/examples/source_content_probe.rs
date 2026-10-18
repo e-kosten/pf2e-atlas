@@ -52,6 +52,7 @@ impl ContentReferenceResolver for Context {
         Some(ResolvedContentReference {
             target: ContentReferenceTarget::Record { key: key.clone() },
             display_name: Some(name.clone()),
+            item_family: None,
         })
     }
 }

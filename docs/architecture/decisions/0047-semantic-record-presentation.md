@@ -36,6 +36,20 @@ availability and typed values; app-service owns labels and semantic composition.
 Renderers format those values independently, including signs and units. Neither
 renderer parses source DTOs or prose to recover mechanics.
 
+Effect-reference formatting uses exact source facts. Content preparation retains
+explicit-label presence, the nearest parsed block path, and resolved destination
+name/item family. App-service supplies compact labels for unlabeled effect
+references: “Effect” for one distinct destination in a field/block, shortened
+names for multiple destinations. Repeated references to the same destination
+remain compact. Explicit labels (including HTML anchor contents) are untouched.
+Names are never used to classify a destination, and no semantic role, redundancy,
+or application behavior is inferred. No reference is removed or relocated.
+The browser renders shared in-place previews with full-name hover/focus tooltips
+and native destinations; terminal prose retains full reference names. Stored
+HTML and search text retain their complete labels. Interpretation version 7
+binds label facts alongside each reference's identity; old prepared artifacts
+require regeneration rather than guessing missing facts from rendered text.
+
 Authored action and casting costs carry a readable label and an optional typed
 glyph for one, two or three actions, reaction and free action. Variable, timed
 and passive costs retain text; unavailable costs retain their fact state. Physical

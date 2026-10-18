@@ -39,7 +39,7 @@ pub(super) fn reference_binding(
         }
     }
     let mut hash = Sha256::new();
-    text(&mut hash, "atlas-reference-binding/v1");
+    text(&mut hash, "atlas-reference-binding/v2");
     text(&mut hash, &locator.record.to_string());
     owners(&mut hash, &locator.owners);
     text(&mut hash, &locator.field);
@@ -60,6 +60,21 @@ pub(super) fn reference_binding(
         }
     }
     text(&mut hash, &reference.authored_target);
+    text(
+        &mut hash,
+        if reference.label.explicit {
+            "explicit"
+        } else {
+            "default"
+        },
+    );
+    text(&mut hash, &reference.label.block);
+    for value in [&reference.label.target_name, &reference.label.item_family] {
+        text(&mut hash, if value.is_some() { "some" } else { "none" });
+        if let Some(value) = value {
+            text(&mut hash, value);
+        }
+    }
     match &reference.resolution {
         ContentReferenceResolution::Resolved(ContentReferenceTarget::Record { key }) => {
             text(&mut hash, "record");
