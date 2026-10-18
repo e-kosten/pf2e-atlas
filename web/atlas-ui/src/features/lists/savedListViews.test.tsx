@@ -1123,9 +1123,9 @@ function savedListDetailFixture(): SavedListDetailView {
 
 function filterEditorFixture() {
   return editorFixture([
-    fieldFixture("actor.level", "number", "Level"),
+    fieldFixture("level", "number", "Level"),
     fieldFixture("common.rarity", "string", "Rarity"),
-    fieldFixture("record.kind", "string", "Kind"),
+    fieldFixture("kind", "string", "Kind"),
     fieldFixture("common.traits", "set", "Traits"),
     fieldFixture("source.pack", "string", "Pack"),
   ]);

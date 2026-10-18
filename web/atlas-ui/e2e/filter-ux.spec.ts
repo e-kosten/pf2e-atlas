@@ -9,7 +9,7 @@ test("single-condition exclusion stays reversible and singleton operands follow 
       encodeURIComponent(
         encodeFilterUrl({
           kind: "not",
-          predicate: { kind: "in", field: "record.kind", values: ["companion"] },
+          predicate: { kind: "in", field: "kind", values: ["companion"] },
         }),
       ),
   );
@@ -35,7 +35,7 @@ test("single-condition exclusion stays reversible and singleton operands follow 
     .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
     .toMatchObject({
       kind: "compare",
-      field: "record.kind",
+      field: "kind",
       op: "neq",
       value: "companion",
     });
@@ -55,7 +55,7 @@ test("collection availability becomes a safe nested editor and can switch back",
       encodeURIComponent(
         encodeFilterUrl({
           kind: "state_match",
-          field: "actor.items",
+          field: "embedded.equipment",
           state: "missing",
         }),
       ),
@@ -78,7 +78,7 @@ test("collection availability becomes a safe nested editor and can switch back",
     .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
     .toMatchObject({
       kind: "state_match",
-      field: "actor.items",
+      field: "embedded.equipment",
       state: "missing",
     });
   expect(errors).toEqual([]);
@@ -95,7 +95,7 @@ test("wrapped values and validation retain the advanced control grid", async ({
           children: [
             {
               kind: "in",
-              field: "record.kind",
+              field: "kind",
               values: [
                 "creature",
                 "character",
@@ -107,7 +107,7 @@ test("wrapped values and validation retain the advanced control grid", async ({
                 "affliction",
               ],
             },
-            { kind: "compare", field: "actor.hp.maximum", op: "gte", value: 80 },
+            { kind: "compare", field: "defenses.hp.maximum", op: "gte", value: 80 },
           ],
         }),
       ),
@@ -142,7 +142,7 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
   const common = {
     kind: "in",
     clause_id: "kind",
-    field: "record.kind",
+    field: "kind",
     values: ["creature"],
   };
   const group = {
@@ -152,14 +152,14 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
       {
         kind: "compare",
         clause_id: "hp-min",
-        field: "actor.hp.maximum",
+        field: "defenses.hp.maximum",
         op: "gte",
         value: 80,
       },
       {
         kind: "compare",
         clause_id: "hp-max",
-        field: "actor.hp.maximum",
+        field: "defenses.hp.maximum",
         op: "lte",
         value: 200,
       },
@@ -216,7 +216,7 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
     await expect.poll(() => read().children[1].kind).toBe("all_of");
     expect(read().children[0]).toMatchObject({
       kind: "in",
-      field: "record.kind",
+      field: "kind",
       values: ["creature"],
     });
   }
@@ -307,7 +307,7 @@ test("complex conditions remain advanced with searchable fields and no unavailab
       {
         kind: "in",
         clause_id: "kind",
-        field: "record.kind",
+        field: "kind",
         values: ["creature", "spell"],
       },
     ],
@@ -377,8 +377,8 @@ test("Advanced starts with the existing Kind and adding Kind creates exactly one
     .toMatchObject({
       kind: "all_of",
       children: [
-        { kind: "in", field: "record.kind", values: ["creature"] },
-        { kind: "compare", field: "record.kind", op: "eq", value: "creature" },
+        { kind: "in", field: "kind", values: ["creature"] },
+        { kind: "compare", field: "kind", op: "eq", value: "creature" },
       ],
     });
   await drawer.getByRole("button", { name: "Remove", exact: true }).nth(1).click();

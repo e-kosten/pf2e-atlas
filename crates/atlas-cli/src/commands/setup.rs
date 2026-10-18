@@ -100,14 +100,13 @@ fn run_setup_clean(
 ) -> Result<ExitCode, String> {
     let source = options.all || options.source_checkout;
     let embedding_cache = options.all || options.embeddings;
-    let artifact = options.all || options.artifact;
-    if !source && !embedding_cache && !artifact {
+    if !source && !embedding_cache {
         return invalid_setup_clean_input(
             json,
-            "setup clean requires at least one of --artifact, --embeddings, --source-checkout, or --all",
+            "setup clean requires at least one of --embeddings, --source-checkout, or --all",
         );
     }
-    if source && embedding_cache && artifact && !options.check && !options.yes {
+    if source && embedding_cache && !options.check && !options.yes {
         if json || !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
             return invalid_setup_clean_input(
                 json,
@@ -122,7 +121,6 @@ fn run_setup_clean(
     let report = runtime.clean_setup(RuntimeSetupCleanOptions {
         source,
         embedding_cache,
-        artifact,
         check: options.check,
     });
     let exit_class = report.exit_code_class();
@@ -144,7 +142,7 @@ fn invalid_setup_clean_input(json: bool, message: &'static str) -> Result<ExitCo
 }
 
 fn confirm_setup_clean_all() -> Result<bool, String> {
-    inquire::Confirm::new("Remove Atlas source, embedding cache, and artifact files?")
+    inquire::Confirm::new("Remove Atlas source and embedding caches? Saved data will be preserved.")
         .with_default(false)
         .prompt()
         .map_err(|error| format!("setup clean cancelled: {error}"))
@@ -555,7 +553,6 @@ fn clean_target_kind_label(kind: &SetupCleanTargetKind) -> &'static str {
     match kind {
         SetupCleanTargetKind::Source => "source",
         SetupCleanTargetKind::EmbeddingCache => "embedding_cache",
-        SetupCleanTargetKind::Artifact => "artifact",
     }
 }
 

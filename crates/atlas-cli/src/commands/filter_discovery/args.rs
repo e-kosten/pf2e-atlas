@@ -39,7 +39,7 @@ pub(crate) struct FiltersFieldsOptions {
 }
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Values retain all supplied filters; they do not replace a condition on the requested field.\nClosed fields include allowed choices with zero matches; open fields enumerate observed values.\nUse filters fields --field ID for the declared choices and CEL examples.\n\nExamples:\n  atlas filters values --field traits --kind spell\n  atlas filters values --field actor.languages --kind creature --text common\n  atlas filters values --field 'actor.speeds[].type' --kind creature\n  atlas filters values --field actor.hp.maximum --kind creature --json"
+    after_help = "Values retain all supplied filters; they do not replace a condition on the requested field.\nClosed fields include allowed choices with zero matches; open fields enumerate observed values.\nUse filters fields --field ID for the declared choices and CEL examples.\n\nExamples:\n  atlas filters values --field traits --kind spell\n  atlas filters values --field languages --kind creature --text common\n  atlas filters values --field 'movement.speeds[].type' --kind creature\n  atlas filters values --field defenses.hp.maximum --kind creature --json"
 )]
 pub(crate) struct FiltersValuesOptions {
     #[arg(long)]

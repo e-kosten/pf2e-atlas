@@ -2,6 +2,10 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum LocalStateError {
+    #[error("Local-state mutations require a caller-owned write transaction")]
+    ActionRequiresTransaction,
+    #[error("Unsupported stored roll receipt version {0}")]
+    UnsupportedReceiptVersion(u32),
     #[error("This roll request ID was already used for a different request")]
     RollRequestConflict,
     #[error("Invalid roll request: {0}")]

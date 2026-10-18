@@ -8,17 +8,17 @@ import { DEFAULT_SEARCH_STATE } from "./searchState";
 
 it("shows local errors for a malformed optional amount and clears them on correction", async () => {
   const editor = editorFixture([
-    fieldFixture("actor.speeds", "collection", "Movement Speeds"),
+    fieldFixture("movement.speeds", "collection", "Movement Speeds"),
     {
-      ...fieldFixture("actor.speeds[].type", "string", "Movement type"),
+      ...fieldFixture("movement.speeds[].type", "string", "Movement type"),
       choices: ["fly"],
     },
-    fieldFixture("actor.speeds[].value", "number", "Speed"),
+    fieldFixture("movement.speeds[].feet", "number", "Speed"),
   ]);
   const field = editor.groups[0].fields[0];
   field.collection_control = {
-    category_field_id: "actor.speeds[].type",
-    amount_field_id: "actor.speeds[].value",
+    category_field_id: "movement.speeds[].type",
+    amount_field_id: "movement.speeds[].feet",
   };
   function Harness() {
     const [query, setQuery] = useState<RuleGroupType>({ combinator: "and", rules: [] });

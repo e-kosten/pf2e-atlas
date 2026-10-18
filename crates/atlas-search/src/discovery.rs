@@ -46,6 +46,20 @@ pub struct DiscoverFilterVocabularyRequest<'a> {
     pub selected_values: &'a [QueryLiteral],
 }
 impl AtlasRetrievalService {
+    /// Preflight contextual eligibility before the caller performs query inference.
+    pub fn discovery_supports_ranking(
+        &self,
+        field: &str,
+        clause: Option<&str>,
+        filter: Option<&QueryPredicate>,
+    ) -> Result<bool, SearchError> {
+        let query = self.predicate(filter)?;
+        Ok(matches!(
+            atlas_index::facet_base_query(field, clause, &query)?,
+            QueryFacetOutcome::Available { .. }
+        ))
+    }
+
     pub fn discover_filter_value_counts(
         &mut self,
         request: DiscoverFilterValueCountsRequest<'_>,

@@ -259,6 +259,7 @@ impl SqliteIndexReader {
             ));
         }
         let model = self.context().search_profile(profile)?;
+        let table = crate::schema::vector_table(model)?;
         crate::validation::check_vector(vector, model.dimensions)?;
         self.require_vectors()?;
         let (mut eligible, mut params) = eligible_sql(query, keys)?;
@@ -274,7 +275,7 @@ impl SqliteIndexReader {
         let limit_param = all.len() + 1;
         all.push(Value::Integer(limit as i64));
         let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT su.unit_id,r.key,su.owners_json,su.field_path,su.section_json,knn.distance FROM (SELECT unit_id,distance FROM semantic_vectors WHERE embedding MATCH ?{vector_param} AND k=?{limit_param} AND unit_id IN (SELECT su.unit_id FROM semantic_units su WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible))) knn JOIN semantic_units su ON su.unit_id=knn.unit_id JOIN records r ON r.record_id=su.record_id ORDER BY knn.distance,su.unit_id"
+            "WITH eligible AS ({eligible}) SELECT su.unit_id,r.key,su.owners_json,su.field_path,su.section_json,knn.distance FROM (SELECT unit_id,distance FROM {table} WHERE embedding MATCH ?{vector_param} AND k=?{limit_param} AND unit_id IN (SELECT su.unit_id FROM semantic_units su WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible))) knn JOIN semantic_units su ON su.unit_id=knn.unit_id JOIN records r ON r.record_id=su.record_id ORDER BY knn.distance,su.unit_id"
         );
         let c = self.native()?;
         self.count_statement();
@@ -294,10 +295,11 @@ impl SqliteIndexReader {
         key: &RecordKey,
     ) -> Result<Option<SourceIdentityVector>, IndexError> {
         let model = self.context().search_profile(profile)?;
+        let table = crate::schema::vector_table(model)?;
         self.require_vectors()?;
         let c = self.native()?;
         self.count_statement();
-        let bytes:Option<Vec<u8>>=c.query_row("SELECT sv.embedding FROM semantic_vectors sv JOIN semantic_units su ON su.unit_id=sv.unit_id JOIN records r ON r.record_id=su.record_id WHERE r.key=? AND su.profile_id=? AND r.document_kind<>'Macro' AND su.unit_kind='identity'",rusqlite::params![key.to_string(),profile.as_str()],|r|r.get(0)).optional()?;
+        let bytes:Option<Vec<u8>>=c.query_row(&format!("SELECT sv.embedding FROM {table} sv JOIN semantic_units su ON su.unit_id=sv.unit_id JOIN records r ON r.record_id=su.record_id WHERE r.key=? AND su.profile_id=? AND r.document_kind<>'Macro' AND su.unit_kind='identity'"),rusqlite::params![key.to_string(),profile.as_str()],|r|r.get(0)).optional()?;
         bytes
             .map(|b| {
                 let vector = decode_vector(&b)?;
@@ -448,70 +450,6 @@ fn literal_fts_query(text: &str) -> Result<String, IndexError> {
         .join(" AND "))
 }
 
-#[derive(Debug, Clone)]
-pub struct SourceReuseCandidate {
-    pub location: SourceUnitLocation,
-    pub chunk_ordinal: usize,
-    pub input_token_count: usize,
-    pub input_hash: String,
-    pub vector: Vec<f32>,
-}
-impl SqliteIndexReader {
-    /// Untrusted reuse candidates. Ingest must reconstruct each old input with
-    /// the pinned tokenizer and verify its complete metadata before accepting it.
-    pub fn read_reuse_candidates(
-        &self,
-        hashes: &[String],
-        model: &crate::SourceSearchProfileIdentity,
-        after_unit_id: i64,
-        limit: usize,
-    ) -> Result<Vec<SourceReuseCandidate>, IndexError> {
-        if hashes.len() > 1024 || !(1..=1024).contains(&limit) || after_unit_id < 0 {
-            return Err(IndexError::Invalid(
-                "vector reuse batch exceeds 1024 hashes".into(),
-            ));
-        }
-        if hashes.is_empty()
-            || self
-                .context()
-                .search_profiles
-                .iter()
-                .find(|p| p.profile_id == model.profile_id)
-                != Some(model)
-        {
-            return Ok(vec![]);
-        }
-        self.require_vectors()?;
-        let c = self.native()?;
-        let sql = format!(
-            "SELECT su.unit_id,r.key,su.owners_json,su.field_path,su.section_json,su.chunk_ordinal,su.input_token_count,su.input_hash,sv.embedding FROM semantic_units su JOIN semantic_vectors sv USING(unit_id) JOIN records r USING(record_id) WHERE su.profile_id=? AND su.unit_id>? AND su.input_hash IN ({}) ORDER BY su.unit_id LIMIT ?",
-            vec!["?"; hashes.len()].join(",")
-        );
-        self.count_statement();
-        let mut s = c.prepare(&sql)?;
-        let mut parameters = vec![
-            Value::Text(model.profile_id.to_string()),
-            Value::Integer(after_unit_id),
-        ];
-        parameters.extend(hashes.iter().cloned().map(Value::Text));
-        parameters.push(Value::Integer(limit as i64));
-        let mut output = vec![];
-        let mut rows = s.query(params_from_iter(parameters))?;
-        while let Some(row) = rows.next()? {
-            let bytes: Vec<u8> = row.get(8)?;
-            let vector = decode_vector(&bytes)?;
-            crate::validation::check_vector(&vector, model.dimensions)?;
-            output.push(SourceReuseCandidate {
-                location: location(row)?,
-                chunk_ordinal: row.get(5)?,
-                input_token_count: row.get(6)?,
-                input_hash: row.get(7)?,
-                vector,
-            });
-        }
-        Ok(output)
-    }
-}
 fn lexical_hit(row: &rusqlite::Row<'_>, text: &str) -> rusqlite::Result<SourceLexicalHit> {
     let location = location(row)?;
     let kind: String = row.get(6)?;

@@ -2,8 +2,8 @@ import type { RuleGroupType } from "react-querybuilder";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
 import { normalizeBuilderEdit } from "./builderEdits";
 
-const kind = fieldFixture("record.kind");
-const collection = fieldFixture("actor.items", "collection");
+const kind = fieldFixture("kind");
+const collection = fieldFixture("embedded.equipment", "collection");
 const child = { ...fieldFixture("item.name"), scope: collection.path };
 const fields = editorFixture([kind, collection, child]).groups[0].fields;
 

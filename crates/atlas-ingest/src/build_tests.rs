@@ -5,6 +5,11 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 struct Fixture(PathBuf);
+fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {
+    let workspace = atlas_index::test_support::initialize_workspace(&options.output_path)
+        .map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
+    crate::build_artifact(&workspace, 2, options)
+}
 impl Fixture {
     fn new() -> Self {
         static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -68,7 +73,7 @@ fn missing_null_and_invalid_names_preserve_root_and_nameless_owned_prose() {
         )
         .unwrap();
         let report = build_artifact(fixture.options()).unwrap();
-        let reader = atlas_index::SqliteIndexReader::open_read_only(&report.output_path).unwrap();
+        let reader = atlas_index::test_support::open_reader(&report.output_path).unwrap();
         let key = "items:aaaaaaaaaaaaaaaa".parse().unwrap();
         assert!(
             reader
@@ -159,7 +164,7 @@ fn actual_tokenizer_prepares_identity_for_unavailable_authored_names() {
             serde_json::to_vec(&source).unwrap(),
         )
         .unwrap();
-        let prepared = crate::build::prepare_build(&options).unwrap();
+        let prepared = crate::build::prepare_build(&options, Vec::new()).unwrap();
         let identity = prepared
             .prepared
             .pending
@@ -197,7 +202,7 @@ fn verified_trait_labels_use_selected_locale_and_english_fallback_without_guessi
     let mut options = fixture.options();
     options.locale = "fr".into();
     build_artifact(options.clone()).unwrap();
-    let reader = atlas_index::SqliteIndexReader::open_read_only(&options.output_path).unwrap();
+    let reader = atlas_index::test_support::open_reader(&options.output_path).unwrap();
     assert_eq!(
         reader.context().used_trait_labels,
         std::collections::BTreeMap::from([
@@ -319,11 +324,16 @@ fn indexing_locale_falls_back_to_english_and_missing_catalog_preserves_artifact(
     );
     assert_ne!(catalog.locale_sha256, catalog.english_sha256);
     let first = build_artifact(fixture.options()).unwrap();
-    let bytes = fs::read(&first.output_path).unwrap();
+    let before = atlas_index::validate_artifact(&first.output_path).unwrap();
     let mut options = fixture.options();
     options.locale = "unknown".into();
-    assert!(build_artifact(options).is_err());
-    assert_eq!(fs::read(first.output_path).unwrap(), bytes);
+    request_test_configuration(&options);
+    let error = build_artifact(options).unwrap_err().to_string();
+    assert!(error.contains("unknown.json"), "{error}");
+    assert_eq!(
+        atlas_index::validate_artifact(first.output_path).unwrap(),
+        before
+    );
     assert!(crate::source::localization::LocalizationCatalog::load(&fixture.0, "../en").is_err());
 }
 #[test]
@@ -355,7 +365,7 @@ fn actual_complete_source_build_has_typed_projection_content_and_navigation_cove
     assert!(report.source_report.identity_unavailable.is_empty());
     let validation = atlas_index::validate_artifact(&report.output_path).unwrap();
     assert_eq!(validation.checked_snapshots, 25641);
-    let reader = atlas_index::SqliteIndexReader::open_read_only(&report.output_path).unwrap();
+    let reader = atlas_index::test_support::open_reader(&report.output_path).unwrap();
     fs::write(evidence.join("full-lexical-census.json"),serde_json::to_vec_pretty(&serde_json::json!({"records":report.record_count,"product_records":report.product_record_count,"source_report":report.source_report,"validation":validation,"duration_ms":report.build_duration_ms,"source_fingerprint":report.source_fingerprint,"context":reader.context()})).unwrap()).unwrap();
     eprintln!(
         "full source artifact validated at {}",
@@ -375,8 +385,7 @@ fn complete_artifact_snapshots_equal_independently_reloaded_source_models() {
     let evidence =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../scratch/ingest-validation");
     let reader =
-        atlas_index::SqliteIndexReader::open_read_only(evidence.join("full-lexical.sqlite"))
-            .unwrap();
+        atlas_index::test_support::open_reader(evidence.join("full-lexical.sqlite")).unwrap();
     let fingerprint = compute_source_fingerprint(&source_root, None).unwrap();
     assert_eq!(reader.context().source_fingerprint, fingerprint.value);
     let loaded = load_foundry_documents(&source_root, None).unwrap();
@@ -491,7 +500,7 @@ fn actual_profile_builds_share_preparation_isolate_reuse_and_publish_atomically(
     )];
     let base = build_artifact(options.clone()).unwrap();
     assert_eq!(base.profiles.len(), 1);
-    let first = atlas_index::SqliteIndexReader::open_read_only(&options.output_path).unwrap();
+    let first = atlas_index::test_support::open_reader(&options.output_path).unwrap();
     let prep = first.context().preparation_sha256().unwrap();
     let generation = first.context().sha256().unwrap();
     drop(first);
@@ -499,23 +508,28 @@ fn actual_profile_builds_share_preparation_isolate_reuse_and_publish_atomically(
         EmbeddingModelId::EmbeddingGemma300M,
         &cache,
     ));
+    request_test_configuration(&options);
     let both = build_artifact(options.clone()).unwrap();
     assert_eq!(both.profiles[0].inferred_inputs, 0);
     assert!(both.profiles[0].reused_inputs > 0);
     assert!(both.profiles[1].inferred_inputs > 0);
     assert_eq!(both.semantic_unit_count, base.semantic_unit_count * 2);
-    let reader = atlas_index::SqliteIndexReader::open_read_only(&options.output_path).unwrap();
+    let reader = atlas_index::test_support::open_reader(&options.output_path).unwrap();
     assert_eq!(reader.context().preparation_sha256().unwrap(), prep);
     assert_ne!(reader.context().sha256().unwrap(), generation);
     assert_eq!(reader.statistics().unwrap().prepared_fields, 1);
     drop(reader);
-    let before = fs::read(&options.output_path).unwrap();
+    let before = atlas_index::validate_artifact(&options.output_path).unwrap();
     options.search_profiles[1].cache_root = fixture.0.join("missing-gemma-cache");
     assert!(build_artifact(options.clone()).is_err());
-    assert_eq!(fs::read(&options.output_path).unwrap(), before);
+    assert_eq!(
+        atlas_index::validate_artifact(&options.output_path).unwrap(),
+        before
+    );
     // Gemma-only needs the small shared BGE tokenizer dependency, not BGE weights.
     let gemma_target = gemma_only_cache(&cache, &fixture.0);
     options.search_profiles = vec![gemma_target];
+    request_test_configuration(&options);
     let gemma = build_artifact(options).unwrap();
     assert_eq!(gemma.profiles.len(), 1);
     assert_eq!(gemma.profiles[0].profile_id.as_str(), "embeddinggemma");
@@ -524,8 +538,30 @@ fn actual_profile_builds_share_preparation_isolate_reuse_and_publish_atomically(
     assert_eq!(gemma.semantic_unit_count, base.semantic_unit_count);
     atlas_index::validate_artifact(&gemma.output_path).unwrap();
     eprintln!(
-        "tiny native builds: Base-only -> both (Base reused) -> missing Gemma failure preserves bytes -> Gemma-only without BGE weights (Gemma reused)"
+        "tiny native builds: Base-only -> both (Base reused) -> missing Gemma failure preserves published reference -> Gemma-only without BGE weights (Gemma reused)"
     );
+}
+
+// Requested configuration is committed before a build, just as runtime setup does.
+fn request_test_configuration(options: &BuildArtifactOptions) {
+    let workspace = atlas_index::test_support::initialize_workspace(&options.output_path).unwrap();
+    let _owner = workspace.update_owner().unwrap();
+    let session = workspace.write(2).unwrap();
+    atlas_index::write_requested_reference_config(
+        &session,
+        &atlas_index::RequestedReferenceConfig {
+            source_root: options.source_root.clone(),
+            manifest_path: options.manifest_path.clone(),
+            indexing_locale: options.locale.clone(),
+            search_profiles: options
+                .search_profiles
+                .iter()
+                .map(|config| atlas_embedding::profile_for_model(config.model).profile_id())
+                .collect(),
+        },
+    )
+    .unwrap();
+    session.commit().unwrap();
 }
 
 fn gemma_only_cache(cache: &Path, fixture_root: &Path) -> atlas_embedding::EmbeddingRuntimeConfig {
@@ -588,7 +624,7 @@ fn actual_gemma_only_fresh_build_needs_baseline_tokenizer_but_no_base_weights() 
     assert_eq!(report.profiles[0].profile_id.as_str(), "embeddinggemma");
     assert!(report.inferred_inputs > 0);
     assert_eq!(report.reused_inputs, 0);
-    let reader = atlas_index::SqliteIndexReader::open_read_only(&report.output_path).unwrap();
+    let reader = atlas_index::test_support::open_reader(&report.output_path).unwrap();
     assert_eq!(reader.context().search_profiles.len(), 1);
     assert_eq!(
         reader.context().search_profiles[0].profile_id.as_str(),
@@ -602,7 +638,7 @@ fn actual_gemma_only_fresh_build_needs_baseline_tokenizer_but_no_base_weights() 
 }
 #[test]
 #[ignore = "requires verified local BGE assets; run explicitly"]
-fn actual_model_reuse_rejects_forged_input_associations_and_token_counts() {
+fn actual_model_reuse_rejects_corrupted_exact_checkpoints() {
     let fixture = Fixture::new();
     let cache = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
@@ -626,57 +662,24 @@ fn actual_model_reuse_rejects_forged_input_associations_and_token_counts() {
         cache,
     )];
     build_artifact(options.clone()).unwrap();
-    let source = fixture.0.join("packs/items/useful.json");
-    let original = fs::read_to_string(&source).unwrap();
-    fs::write(
-        &source,
-        original.replace("Full prose", "A completely different explanatory paragraph"),
-    )
-    .unwrap();
-    let current = crate::build::prepare_build(&options).unwrap();
-    let new_input = current
-        .prepared
-        .pending
-        .iter()
-        .find(|p| p.unit.field.is_some())
+    let before = atlas_index::validate_artifact(&options.output_path).unwrap();
+    let db = rusqlite::Connection::open(&options.output_path).unwrap();
+    let changed = db
+        .execute(
+            "UPDATE embedding_checkpoints SET token_count=token_count+1",
+            [],
+        )
         .unwrap();
-    let db = rusqlite::Connection::open(&options.output_path).unwrap();
-    let (id,old_hash,old_count):(i64,String,usize)=db.query_row(
-        "SELECT unit_id,input_hash,input_token_count FROM semantic_units WHERE field_path IS NOT NULL LIMIT 1",[],
-        |row|Ok((row.get(0)?,row.get(1)?,row.get(2)?))).unwrap();
-    assert_ne!(old_hash, new_input.unit.input_hash);
-    // The old, valid normalized vector is wrong for this newly requested text.
-    // Hash syntax, token budget, addresses and offline structural checks pass.
-    db.execute(
-        "UPDATE semantic_units SET input_hash=?,input_token_count=? WHERE unit_id=?",
-        rusqlite::params![
-            new_input.unit.input_hash,
-            new_input.unit.input_token_count,
-            id
-        ],
-    )
-    .unwrap();
+    assert!(changed > 0);
     drop(db);
-    atlas_index::validate_artifact(&options.output_path).unwrap();
-    let corrupted = fs::read(&options.output_path).unwrap();
     let error = build_artifact(options.clone()).unwrap_err().to_string();
-    assert!(error.contains("input association mismatch"), "{error}");
-    assert_eq!(fs::read(&options.output_path).unwrap(), corrupted);
-    let db = rusqlite::Connection::open(&options.output_path).unwrap();
-    db.execute(
-        "UPDATE semantic_units SET input_hash=?,input_token_count=? WHERE unit_id=?",
-        rusqlite::params![old_hash, old_count, id],
-    )
-    .unwrap();
-    db.execute("UPDATE semantic_units SET input_token_count=input_token_count+1 WHERE unit_kind='identity'",[]).unwrap();
-    drop(db);
-    atlas_index::validate_artifact(&options.output_path).unwrap();
-    let corrupted = fs::read(&options.output_path).unwrap();
-    let error = build_artifact(options).unwrap_err().to_string();
-    assert!(error.contains("input association mismatch"), "{error}");
+    assert!(
+        error.contains("checkpoint identity or checksum mismatch"),
+        "{error}"
+    );
     assert_eq!(
-        fs::read(fixture.0.join("artifact.sqlite")).unwrap(),
-        corrupted
+        atlas_index::validate_artifact(&options.output_path).unwrap(),
+        before
     );
 }
 #[test]
@@ -800,7 +803,7 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
         reuse_embeddings: false,
         embedding_batch_size: 16,
     };
-    let prepared = crate::build::prepare_build(&options).unwrap();
+    let prepared = crate::build::prepare_build(&options, Vec::new()).unwrap();
     assert_eq!(prepared.prepared.index.records.len(), 25641);
     let mut identities = std::collections::BTreeSet::new();
     let mut bytes = 0;
@@ -895,4 +898,181 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../scratch/ingest-validation");
     fs::create_dir_all(&evidence).unwrap();
     fs::write(evidence.join("full-semantic-preparation-census.json"),serde_json::to_vec_pretty(&serde_json::json!({"records":prepared.prepared.index.records.len(),"identity_units":identities.len(),"selected_fields":selected_fields,"selected_sections":selected_sections,"selected_body_bytes":selected_bytes,"prepared_inputs":prepared.prepared.pending.len(),"exact_input_tokens":tokens,"maximum_input_tokens":max_tokens,"context_shortened":prepared.prepared.context_shortened,"policy_version":atlas_embedding::EMBEDDING_UNIT_POLICY_VERSION,"source_fingerprint":prepared.fingerprint.value,"context_sha256":prepared.prepared.index.context.sha256().unwrap(),"content_interpretation_version":prepared.prepared.index.context.content_interpretation_version,"content_selection_version":prepared.prepared.index.context.content_selection_version,"relationship_policy":prepared.prepared.index.context.relationship_policy,"duration_ms":started.elapsed().as_millis(),"inference_performed":false})).unwrap()).unwrap();
+}
+
+#[test]
+fn incremental_preparation_reuses_admission_and_replays_missing_and_renamed_targets() {
+    let fixture = Fixture::new();
+    let path = fixture.0.join("packs/items/useful.json");
+    let mut source: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    source["system"]["description"]["value"] = serde_json::json!(
+        "<p>@UUID[Compendium.pf2e.items.Item.cccccccccccccccc] @UUID[Compendium.pf2e.items.Item.Target]</p>"
+    );
+    fs::write(&path, serde_json::to_vec(&source).unwrap()).unwrap();
+    let first = build_artifact(fixture.options()).unwrap();
+    assert_eq!(first.source_report.reused_admissions, 0);
+    let unchanged = build_artifact(fixture.options()).unwrap();
+    assert_eq!(unchanged.source_report.reused_admissions, 2);
+    assert_eq!(unchanged.source_report.reused_preparations, 2);
+    assert_eq!(
+        unchanged.source_report.admission_diagnostics,
+        first.source_report.admission_diagnostics
+    );
+    let target = fixture.0.join("packs/items/target.json");
+    fs::write(&target,r#"{"_id":"cccccccccccccccc","name":"Target","type":"effect","system":{"description":{"value":"<p>Target prose</p>"}}}"#).unwrap();
+    let added = build_artifact(fixture.options()).unwrap();
+    assert_eq!(added.source_report.reused_admissions, 2);
+    // The referencing source is byte-identical, but its previously unresolved targets changed.
+    assert_eq!(added.source_report.reused_preparations, 1);
+    let all_unchanged = build_artifact(fixture.options()).unwrap();
+    assert_eq!(all_unchanged.source_report.reused_preparations, 3);
+    let duplicate = fixture.0.join("packs/items/duplicate-name.json");
+    fs::write(&duplicate,r#"{"_id":"dddddddddddddddd","name":"Target","type":"effect","system":{"description":{"value":"<p>Another target</p>"}}}"#).unwrap();
+    let ambiguous = build_artifact(fixture.options()).unwrap();
+    assert_eq!(ambiguous.source_report.reused_admissions, 3);
+    assert_eq!(ambiguous.source_report.reused_preparations, 2);
+    fs::remove_file(duplicate).unwrap();
+    let unique_again = build_artifact(fixture.options()).unwrap();
+    assert_eq!(unique_again.source_report.reused_preparations, 2);
+    fs::write(&target,r#"{"_id":"cccccccccccccccc","name":"Renamed target","type":"effect","system":{"description":{"value":"<p>Target prose</p>"}}}"#).unwrap();
+    let renamed = build_artifact(fixture.options()).unwrap();
+    assert_eq!(renamed.source_report.reused_admissions, 2);
+    // Stable-key display name changed, and the authored name lookup became unresolved.
+    assert_eq!(renamed.source_report.reused_preparations, 1);
+}
+
+#[test]
+fn captured_document_change_is_fatal_even_when_original_bytes_return() {
+    let fixture = Fixture::new();
+    let capture = crate::source_fingerprint::SourceCapture::capture(&fixture.0, None).unwrap();
+    let path = fixture.0.join("packs/items/useful.json");
+    let original = fs::read(&path).unwrap();
+    fs::write(
+        &path,
+        r#"{"_id":"aaaaaaaaaaaaaaaa","name":"Transient","type":"effect"}"#,
+    )
+    .unwrap();
+    let result = crate::source_loading::load_captured_source(
+        &fixture.0,
+        Some(&capture.manifest_path),
+        vec![],
+        Some(&capture),
+    );
+    fs::write(&path, original).unwrap();
+    assert_eq!(
+        capture.fingerprint,
+        compute_source_fingerprint(&fixture.0, None).unwrap()
+    );
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("captured source read failed")
+    );
+}
+
+#[test]
+fn captured_discovery_cannot_silently_omit_temporarily_missing_document() {
+    let fixture = Fixture::new();
+    let capture = crate::source_fingerprint::SourceCapture::capture(&fixture.0, None).unwrap();
+    let path = fixture.0.join("packs/items/useful.json");
+    let original = fs::read(&path).unwrap();
+    fs::remove_file(&path).unwrap();
+    let result = crate::source_loading::load_captured_source(
+        &fixture.0,
+        Some(&capture.manifest_path),
+        vec![],
+        Some(&capture),
+    );
+    fs::write(&path, original).unwrap();
+    assert_eq!(
+        capture.fingerprint,
+        compute_source_fingerprint(&fixture.0, None).unwrap()
+    );
+    assert!(result.is_err());
+}
+
+#[test]
+fn captured_manifest_localization_and_alias_inputs_reject_transient_changes() {
+    let fixture = Fixture::new();
+    let migration = fixture.0.join("src/module/migration/migrations");
+    fs::create_dir_all(&migration).unwrap();
+    let alias_path = migration.join("test.ts");
+    fs::write(&alias_path, "// original").unwrap();
+    for path in [
+        fixture.0.join("module.json"),
+        fixture.0.join("static/lang/en.json"),
+        alias_path,
+    ] {
+        let capture = crate::source_fingerprint::SourceCapture::capture(&fixture.0, None).unwrap();
+        let original = fs::read(&path).unwrap();
+        fs::write(&path, "{}").unwrap();
+        let result = if path.ends_with("module.json") {
+            crate::source_loading::load_captured_source(
+                &fixture.0,
+                Some(&capture.manifest_path),
+                vec![],
+                Some(&capture),
+            )
+            .map(|_| ())
+        } else if path.ends_with("en.json") {
+            crate::source::localization::LocalizationCatalog::load_captured(
+                &fixture.0,
+                "en",
+                Some(&capture),
+            )
+            .map(|_| ())
+        } else {
+            let mut input = crate::build::prepare_build(&fixture.options(), vec![])
+                .unwrap()
+                .prepared
+                .index;
+            crate::source_aliases::extract_source_aliases(&mut input, &fixture.0, &capture)
+        };
+        fs::write(&path, original).unwrap();
+        assert_eq!(
+            capture.fingerprint,
+            compute_source_fingerprint(&fixture.0, None).unwrap()
+        );
+        assert!(
+            result.is_err(),
+            "{} must be checked against capture",
+            path.display()
+        );
+    }
+}
+
+#[test]
+fn aliased_pack_paths_consume_previous_preparation_once_in_manifest_order() {
+    let fixture = Fixture::new();
+    let previous = crate::build::prepare_build(&fixture.options(), vec![])
+        .unwrap()
+        .prepared
+        .index
+        .records;
+    fs::write(fixture.0.join("module.json"), r#"{"packs":[{"name":"items","label":"Items","type":"Item","path":"packs/items"},{"name":"alias","label":"Alias","type":"Item","path":"packs/items"}]}"#).unwrap();
+    let loaded = load_foundry_documents_with_reuse(&fixture.0, None, previous).unwrap();
+    assert_eq!(loaded.packs.len(), 2);
+    assert_eq!(
+        loaded.packs[0].documents.len(),
+        loaded.packs[1].documents.len()
+    );
+    assert!(
+        loaded.packs[0]
+            .documents
+            .iter()
+            .any(|d| d.reused_preparation.is_some())
+    );
+    assert!(
+        loaded.packs[1]
+            .documents
+            .iter()
+            .all(|d| d.reused_preparation.is_none())
+    );
+    assert!(
+        loaded.packs[1]
+            .documents
+            .iter()
+            .all(|d| d.provenance.pack_name == "alias")
+    );
 }

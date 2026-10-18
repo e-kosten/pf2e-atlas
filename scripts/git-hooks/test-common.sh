@@ -72,7 +72,7 @@ grep -q 'npm --prefix web/atlas-ui run verify' "$log" || {
 # and frontend command still resolves to the logging stubs above.
 fixture="$tmp/repo"
 mkdir -p "$fixture/.githooks" "$fixture/scripts/git-hooks" "$fixture/crates/example/src" "$fixture/web/atlas-ui/src"
-[ ! -e "$repo_root/.githooks/pre-push" ] || { echo "automatic pre-push gate was restored" >&2; exit 1; }
+sh "$repo_root/scripts/git-hooks/test-pre-push.sh"
 cp "$repo_root/.githooks/pre-commit" "$repo_root/.githooks/pre-merge-commit" "$fixture/.githooks/"
 cp "$repo_root/scripts/git-hooks/common.sh" "$fixture/scripts/git-hooks/common.sh"
 cp "$repo_root/scripts/verify-changed.sh" "$repo_root/scripts/verify.sh" "$fixture/scripts/"

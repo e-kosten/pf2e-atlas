@@ -12,11 +12,13 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: ApplyEncounterHpActionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        let detail = self
-            .local_state_store()?
-            .encounters()
-            .get_with_participants(encounter_ref)?
-            .ok_or_else(|| encounter_not_found(encounter_ref))?;
+        let detail = self.with_state(|session| {
+            session
+                .local_state()
+                .encounters()
+                .get_with_participants(encounter_ref)?
+                .ok_or_else(|| encounter_not_found(encounter_ref))
+        })?;
         let existing = detail
             .participants
             .iter()

@@ -3,6 +3,8 @@ use atlas_domain::{SourceByteRange, SourcePassageAddress};
 use atlas_foundry_model::{
     SNAPSHOT_VERSION, SOURCE_CONTRACT_ID, SourceContext, admit_document_source,
 };
+pub use atlas_index::SourceReadMetrics;
+pub use atlas_index::test_support::publish_input;
 use atlas_index::*;
 use atlas_record::{
     source_content::{CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentVisibilityRule},
@@ -14,6 +16,23 @@ use atlas_record::{
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+
+/// Deliberately break only reference readiness to exercise saved-state recovery.
+pub fn invalidate_reference(path: impl AsRef<std::path::Path>) -> Result<(), crate::SearchError> {
+    let workspace = atlas_storage::Workspace::at(path)
+        .map_err(|e| crate::SearchError::query_failed(e.to_string()))?;
+    let owner = workspace
+        .update_owner()
+        .map_err(|e| crate::SearchError::query_failed(e.to_string()))?;
+    let maintenance = owner
+        .maintenance(2, "invalid reference test fixture")
+        .map_err(|e| crate::SearchError::query_failed(e.to_string()))?;
+    maintenance.publish(|c| {
+        c.execute("DELETE FROM artifact_context", [])?;
+        Ok::<_, atlas_index::IndexError>(())
+    })?;
+    Ok(())
+}
 /// Owns the source artifact for the lifetime of a fixture service.
 pub struct FixtureArtifact {
     directory: tempfile::TempDir,
@@ -37,17 +56,17 @@ pub fn open_input_fixture(
         directory: tempfile::tempdir()
             .map_err(|e| crate::SearchError::query_failed(e.to_string()))?,
     };
-    SqliteIndexWriter::new(artifact.path()).write(&input)?;
-    let reader = if !input.context.search_profiles.is_empty() {
-        SqliteIndexReader::open_read_only_with_vectors(artifact.path())?
-    } else {
-        SqliteIndexReader::open_read_only(artifact.path())?
-    };
+    publish_input(artifact.path(), &input)?;
+    let reader = atlas_index::test_support::open_reader(artifact.path())?;
+    if !input.context.search_profiles.is_empty() {
+        reader.require_vectors()?;
+    }
     Ok((
-        crate::AtlasRetrievalService::from_prepared_index_without_embeddings(
+        crate::AtlasRetrievalService::from_index(
             reader,
             atlas_domain::SearchProfileId::new("bge-base"),
-        ),
+            None,
+        )?,
         artifact,
     ))
 }

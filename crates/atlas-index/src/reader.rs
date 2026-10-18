@@ -1,9 +1,6 @@
 //! Read-only artifact handles. Summary queries never decode source bodies.
 use crate::{
-    ArtifactInstance, IndexError, SourceArtifactBuildContext,
-    codec::gunzip,
-    numeric::{SourceNumber, SourceNumberSql},
-    schema,
+    ArtifactInstance, IndexError, SourceArtifactBuildContext, codec::gunzip, numeric::SourceNumber,
 };
 use atlas_domain::{
     RecordKey, RecordKind, SourceLevelBasis, SourceQueryFact, SourceRecordSummary,
@@ -11,23 +8,13 @@ use atlas_domain::{
 };
 use atlas_foundry_model::{SNAPSHOT_VERSION, decode_snapshot};
 use atlas_record::source_record::SourceBackedRecord;
-use diesel::{
-    Connection, ExpressionMethods, JoinOnDsl, OptionalExtension, QueryDsl, RunQueryDsl,
-    SqliteConnection,
-    sql_types::{BigInt, Nullable, Text},
-};
-use rusqlite::{Connection as NativeConnection, OpenFlags};
-use std::{
-    cell::RefCell,
-    path::{Path, PathBuf},
-};
+use rusqlite::{Connection as NativeConnection, OptionalExtension};
+use std::path::Path;
 
 pub struct SqliteIndexReader {
-    path: PathBuf,
-    diesel: RefCell<SqliteConnection>,
     context: SourceArtifactBuildContext,
     instance: ArtifactInstance,
-    native: NativeConnection,
+    session: atlas_storage::ReadSession,
     vector_error: Option<String>,
     #[cfg(any(test, feature = "test-support"))]
     read_metrics: std::cell::Cell<SourceReadMetrics>,
@@ -75,18 +62,6 @@ pub struct SourceSummaryBatch {
 }
 
 impl SqliteIndexReader {
-    pub(crate) fn count_source_decode(&self) {
-        #[cfg(any(test, feature = "test-support"))]
-        {
-            let mut m = self.read_metrics.get();
-            m.source_body_decodes += 1;
-            self.read_metrics.set(m);
-        }
-    }
-    pub(crate) fn count_reuse_content_batch(&self) {
-        #[cfg(any(test, feature = "test-support"))]
-        self.count_content_batch();
-    }
     #[cfg(any(test, feature = "test-support"))]
     pub fn read_metrics(&self) -> SourceReadMetrics {
         self.read_metrics.get()
@@ -109,56 +84,32 @@ impl SqliteIndexReader {
             self.read_metrics.set(m);
         }
     }
-    pub fn open_read_only(path: impl AsRef<Path>) -> Result<Self, IndexError> {
-        let path = path.as_ref().to_path_buf();
-        let before = same_file::Handle::from_path(&path)
-            .map_err(|e| IndexError::Unavailable(e.to_string()))?;
+    pub fn from_session(session: atlas_storage::ReadSession) -> Result<Self, IndexError> {
         let vector_error = atlas_sqlite_vec::register_sqlite_vec_auto_extension()
             .err()
             .map(|e| e.to_string());
-        let c = NativeConnection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
-            .map_err(|e| IndexError::Unavailable(e.to_string()))?;
-        let context = crate::validation::validate_open(&c)?;
-        let url = read_only_uri(&path)?;
-        let diesel = SqliteConnection::establish(&url)
-            .map_err(|e| IndexError::Unavailable(e.to_string()))?;
-        let after = same_file::Handle::from_path(&path)
-            .map_err(|e| IndexError::Unavailable(e.to_string()))?;
-        if before != after {
-            return Err(IndexError::Unavailable(
-                "artifact replaced while reader opened; retry".into(),
-            ));
-        }
-        let instance = ArtifactInstance::new(before, context.sha256()?);
+        let context = crate::validation::validate_open(session.connection())?;
+        let instance =
+            ArtifactInstance::new(session.workspace_key()?, session.reference_revision()?);
         Ok(Self {
-            path,
-            diesel: RefCell::new(diesel),
             context,
             instance,
-            native: c,
+            session,
             vector_error,
             #[cfg(any(test, feature = "test-support"))]
             read_metrics: std::cell::Cell::new(SourceReadMetrics::default()),
         })
     }
-    pub fn open_read_only_with_vectors(path: impl AsRef<Path>) -> Result<Self, IndexError> {
-        atlas_sqlite_vec::register_sqlite_vec_auto_extension()
-            .map_err(|e| IndexError::Unavailable(e.to_string()))?;
-        let reader = Self::open_read_only(path)?;
-        if reader.context.search_profiles.is_empty() {
-            return Err(IndexError::Unavailable(
-                "artifact has no semantic vectors; rebuild with embeddings".into(),
-            ));
-        }
-        Ok(reader)
+    pub fn workspace_session(&self) -> &atlas_storage::ReadSession {
+        &self.session
     }
     pub fn path(&self) -> &Path {
-        &self.path
+        self.session.path()
     }
     pub fn context(&self) -> &SourceArtifactBuildContext {
         &self.context
     }
-    /// Identity of the actual open file, independent of subsequent publication.
+    /// Identity of the workspace revision visible to this bounded operation.
     pub fn artifact_instance(&self) -> &ArtifactInstance {
         &self.instance
     }
@@ -180,7 +131,7 @@ impl SqliteIndexReader {
             vector_unavailable_reason: reason,
         }
     }
-    pub(crate) fn require_vectors(&self) -> Result<(), IndexError> {
+    pub fn require_vectors(&self) -> Result<(), IndexError> {
         let capabilities = self.capabilities();
         if let Some(reason) = capabilities.vector_unavailable_reason {
             return Err(IndexError::Unavailable(reason));
@@ -214,7 +165,7 @@ impl SqliteIndexReader {
         Ok(stats)
     }
     pub(crate) fn native(&self) -> Result<&NativeConnection, IndexError> {
-        Ok(&self.native)
+        Ok(self.session.connection())
     }
     pub fn read_summary(&self, key: &RecordKey) -> Result<Option<SourceRecordSummary>, IndexError> {
         Ok(self
@@ -262,11 +213,13 @@ impl SqliteIndexReader {
             },
             vec!["?"; keys.len()].join(",")
         );
-        let mut query = diesel::sql_query(sql).into_boxed::<diesel::sqlite::Sqlite>();
-        for key in keys {
-            query = query.bind::<Text, _>(key.to_string());
-        }
-        let rows = query.load::<SummaryRow>(&mut *self.diesel.borrow_mut())?;
+        let parameters = keys.iter().map(ToString::to_string).collect::<Vec<_>>();
+        let rows = self
+            .session
+            .connection()
+            .prepare(&sql)?
+            .query_map(rusqlite::params_from_iter(&parameters), SummaryRow::read)?
+            .collect::<Result<Vec<_>, _>>()?;
         self.count_statement();
         #[cfg(any(test, feature = "test-support"))]
         {
@@ -312,22 +265,11 @@ impl SqliteIndexReader {
         developer: bool,
     ) -> Result<Option<SourceBackedRecord>, IndexError> {
         self.count_statement();
-        let row = schema::records::table
-            .inner_join(
-                schema::record_bodies::table
-                    .on(schema::record_bodies::record_id.eq(schema::records::record_id)),
-            )
-            .filter(schema::records::key.eq(key.to_string()))
-            .filter(schema::records::document_kind.ne(if developer { "" } else { "Macro" }))
-            .select((
-                schema::records::pack_id,
-                schema::records::key,
-                schema::record_bodies::codec_version,
-                schema::record_bodies::encoding,
-                schema::record_bodies::snapshot,
-            ))
-            .first::<(String, String, i64, String, Vec<u8>)>(&mut *self.diesel.borrow_mut())
-            .optional()?;
+        let row = self.session.connection().query_row(
+            "SELECT r.pack_id,r.key,b.codec_version,b.encoding,b.snapshot FROM records r JOIN record_bodies b ON b.record_id=r.record_id WHERE r.key=? AND (? OR r.document_kind<>'Macro')",
+            rusqlite::params![key.to_string(), developer],
+            |r| Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,i64>(2)?,r.get::<_,String>(3)?,r.get::<_,Vec<u8>>(4)?)),
+        ).optional()?;
         row.map(|(pack, stored, version, encoding, bytes)| {
             if version != i64::from(SNAPSHOT_VERSION) || encoding != "gzip6" {
                 return Err(IndexError::Unsupported(
@@ -353,66 +295,30 @@ impl SqliteIndexReader {
         .transpose()
     }
 }
-fn read_only_uri(path: &Path) -> Result<String, IndexError> {
-    let path = path
-        .to_str()
-        .ok_or_else(|| IndexError::Unavailable("artifact path is not UTF-8".into()))?;
-    Ok(format!(
-        "file:{}?mode=ro",
-        path.replace('%', "%25")
-            .replace('?', "%3f")
-            .replace('#', "%23")
-    ))
-}
-
 const SUMMARY_SELECT: &str = "SELECT r.key,p.label AS pack_label,r.document_kind,r.source_path,r.content_hash,r.name_state,r.name,r.source_type_state,r.source_type,r.record_kind_state,r.record_kind,r.rarity_state,r.rarity,r.traits_state,(SELECT json_group_array(value) FROM (SELECT value FROM record_traits rt WHERE rt.record_id=r.record_id ORDER BY value)) AS traits_json,CASE WHEN r.source_type='spell' THEN sp.rank_state ELSE r.level_state END AS level_state,CASE WHEN r.source_type='spell' THEN sp.rank ELSE r.level END AS level,r.size_state,r.size,r.publication_title_state,r.publication_title,r.publication_remaster_state,r.publication_remaster FROM records r JOIN packs p ON p.pack_id=r.pack_id LEFT JOIN spell_projection sp ON sp.root_record_id=r.record_id";
-#[derive(diesel::QueryableByName)]
 struct SummaryRow {
-    #[diesel(sql_type=Text)]
     key: String,
-    #[diesel(sql_type=Text)]
     pack_label: String,
-    #[diesel(sql_type=Text)]
     document_kind: String,
-    #[diesel(sql_type=Text)]
     source_path: String,
-    #[diesel(sql_type=Text)]
     content_hash: String,
-    #[diesel(sql_type=Text)]
     name_state: String,
-    #[diesel(sql_type=Nullable<Text>)]
     name: Option<String>,
-    #[diesel(sql_type=Text)]
     source_type_state: String,
-    #[diesel(sql_type=Nullable<Text>)]
     source_type: Option<String>,
-    #[diesel(sql_type=Text)]
     record_kind_state: String,
-    #[diesel(sql_type=Nullable<Text>)]
     record_kind: Option<String>,
-    #[diesel(sql_type=Text)]
     rarity_state: String,
-    #[diesel(sql_type=Nullable<Text>)]
     rarity: Option<String>,
-    #[diesel(sql_type=Text)]
     traits_state: String,
-    #[diesel(sql_type=Text)]
     traits_json: String,
-    #[diesel(sql_type=Text)]
     level_state: String,
-    #[diesel(sql_type=Nullable<SourceNumberSql>)]
     level: Option<SourceNumber>,
-    #[diesel(sql_type=Text)]
     size_state: String,
-    #[diesel(sql_type=Nullable<Text>)]
     size: Option<String>,
-    #[diesel(sql_type=Text)]
     publication_title_state: String,
-    #[diesel(sql_type=Nullable<Text>)]
     publication_title: Option<String>,
-    #[diesel(sql_type=Text)]
     publication_remaster_state: String,
-    #[diesel(sql_type=Nullable<BigInt>)]
     publication_remaster: Option<i64>,
 }
 pub(crate) fn field_state(value: &str) -> Result<QueryFieldState, IndexError> {
@@ -438,6 +344,33 @@ fn fact<T>(state: &str, value: Option<T>) -> Result<SourceQueryFact<T>, IndexErr
     Ok(fact)
 }
 impl SummaryRow {
+    fn read(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            key: row.get("key")?,
+            pack_label: row.get("pack_label")?,
+            document_kind: row.get("document_kind")?,
+            source_path: row.get("source_path")?,
+            content_hash: row.get("content_hash")?,
+            name_state: row.get("name_state")?,
+            name: row.get("name")?,
+            source_type_state: row.get("source_type_state")?,
+            source_type: row.get("source_type")?,
+            record_kind_state: row.get("record_kind_state")?,
+            record_kind: row.get("record_kind")?,
+            rarity_state: row.get("rarity_state")?,
+            rarity: row.get("rarity")?,
+            traits_state: row.get("traits_state")?,
+            traits_json: row.get("traits_json")?,
+            level_state: row.get("level_state")?,
+            level: row.get("level")?,
+            size_state: row.get("size_state")?,
+            size: row.get("size")?,
+            publication_title_state: row.get("publication_title_state")?,
+            publication_title: row.get("publication_title")?,
+            publication_remaster_state: row.get("publication_remaster_state")?,
+            publication_remaster: row.get("publication_remaster")?,
+        })
+    }
     fn summary(self) -> Result<SourceRecordSummary, IndexError> {
         let level_basis = if self.source_type.as_deref() == Some("spell") {
             Some(SourceLevelBasis::SpellRank)

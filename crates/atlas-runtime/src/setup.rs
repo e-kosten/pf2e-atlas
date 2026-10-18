@@ -1,39 +1,70 @@
 //! Explicit setup is the sole runtime path allowed to inspect/fetch the source clone.
 use crate::setup_freshness::source_is_fresh;
+use crate::workspace::open_workspace_index;
 use crate::{ResolvedAtlasPaths, setup_model::*};
 use atlas_embedding::{
     EmbeddingRuntimeConfig, prepare_embedding_model_cache, required_embedding_model_cache_files,
 };
-use atlas_index::SqliteIndexReader;
 use atlas_ingest::{BuildArtifactOptions, BuildArtifactReport, build_artifact};
 use std::{path::Path, process::Command};
 fn progress(phase: &str, message: &str) {
     tracing::info!(target:"atlas_progress",phase,"{message}");
 }
+fn configuration_failure(
+    paths: &ResolvedAtlasPaths,
+    options: &RuntimeSetupOptions,
+    error: String,
+) -> RuntimeSetupReport {
+    RuntimeSetupReport {
+        target: options.target,
+        ready: false,
+        path_mode: paths.mode.as_str(),
+        repo_root: paths.repo_root.as_ref().map(|p| p.display().to_string()),
+        offline: options.offline,
+        check: options.check,
+        force_rebuild: options.force_rebuild,
+        checks: vec![SetupAction::with_reason(
+            SetupActionKind::ValidateIndex,
+            SetupActionStatus::Failed,
+            &error,
+        )],
+        actions: vec![],
+        readiness: SetupReadiness {
+            source: SetupReadinessItem::not_ready(false, &error),
+            embedding_model: SetupReadinessItem::not_ready(
+                options.target.requires_embeddings(),
+                &error,
+            ),
+            records: SetupReadinessItem::not_ready(true, &error),
+            semantic_search: SetupReadinessItem::not_ready(
+                options.target.requires_embeddings(),
+                &error,
+            ),
+        },
+        paths: SetupPathsReport {
+            source: paths.source_root.display().to_string(),
+            embedding_cache: paths.embedding_cache_root.display().to_string(),
+            index: paths.index_path.display().to_string(),
+        },
+        search_profiles: vec![],
+        build: None,
+    }
+}
 pub(crate) fn ensure_setup(
     paths: &ResolvedAtlasPaths,
     mut options: RuntimeSetupOptions,
 ) -> RuntimeSetupReport {
-    let old = SqliteIndexReader::open_read_only(&paths.index_path);
-    if options.search_profiles.is_empty() && options.target.requires_embeddings() {
-        options.search_profiles = old
-            .as_ref()
-            .ok()
-            .map(|reader| {
-                reader
-                    .context()
-                    .search_profiles
-                    .iter()
-                    .map(|p| p.profile_id.clone())
-                    .collect()
-            })
-            .filter(|profiles: &Vec<_>| !profiles.is_empty())
-            .unwrap_or_else(|| {
-                vec![atlas_domain::SearchProfileId::new(
-                    atlas_embedding::DEFAULT_SEARCH_PROFILE,
-                )]
-            });
-    }
+    let configuration =
+        match crate::source_configuration::resolve_configuration(paths, &options, None) {
+            Ok(configuration) => configuration,
+            Err(error) => return configuration_failure(paths, &options, error),
+        };
+    let mut effective_paths = paths.clone();
+    effective_paths.source_root = configuration.source_root.clone();
+    let paths = &effective_paths;
+    options.search_profiles = configuration.search_profiles.clone();
+    let prepare_embeddings = !options.search_profiles.is_empty();
+    let old = open_workspace_index(&paths.index_path).map(|reader| reader.context().clone());
     let mut checks = Vec::new();
     let mut actions = Vec::new();
     let mut source_ready = paths.source_root.is_dir();
@@ -59,7 +90,7 @@ pub(crate) fn ensure_setup(
             reason,
         ));
     }
-    let mut model_ready = options.target.requires_embeddings()
+    let mut model_ready = prepare_embeddings
         && profile_error.is_none()
         && configurations
             .iter()
@@ -101,7 +132,7 @@ pub(crate) fn ensure_setup(
             }
         }
     }
-    if options.target.requires_embeddings() && !model_ready && profile_error.is_none() {
+    if prepare_embeddings && !model_ready && profile_error.is_none() {
         if options.check || options.offline {
             actions.push(SetupAction::with_reason(
                 SetupActionKind::PrepareEmbeddingModel,
@@ -139,18 +170,10 @@ pub(crate) fn ensure_setup(
             }
         }
     }
-    let locale = options
-        .locale
-        .clone()
-        .or_else(|| {
-            old.as_ref()
-                .ok()
-                .map(|i| i.context().indexing_locale.clone())
-        })
-        .unwrap_or_else(|| "en".into());
+    let locale = configuration.indexing_locale.clone();
     let freshness = if source_ready {
         match old.as_ref() {
-            Ok(i) => source_is_fresh(paths, i.context()),
+            Ok(i) => source_is_fresh(paths, configuration.manifest_path.as_deref(), i),
             Err(_) => Ok(false),
         }
     } else {
@@ -172,17 +195,22 @@ pub(crate) fn ensure_setup(
             e,
         )),
     }
-    let old_semantic = if options.target.requires_embeddings() {
-        SqliteIndexReader::open_read_only_with_vectors(&paths.index_path).is_ok_and(|index| {
-            index.context().search_profiles.len() == options.search_profiles.len()
-                && options.search_profiles.iter().all(|id| {
-                    atlas_embedding::search_profile(id).is_ok_and(|spec| {
-                        index.context().search_profile(id).is_ok_and(|stored| {
-                            stored == &atlas_index::SourceSearchProfileIdentity::from_spec(spec)
+    let old_semantic = if prepare_embeddings {
+        open_workspace_index(&paths.index_path)
+            .and_then(|index| {
+                index.require_vectors()?;
+                Ok(index)
+            })
+            .is_ok_and(|index| {
+                index.context().search_profiles.len() == options.search_profiles.len()
+                    && options.search_profiles.iter().all(|id| {
+                        atlas_embedding::search_profile(id).is_ok_and(|spec| {
+                            index.context().search_profile(id).is_ok_and(|stored| {
+                                stored == &atlas_index::SourceSearchProfileIdentity::from_spec(spec)
+                            })
                         })
                     })
-                })
-        })
+            })
     } else {
         true
     };
@@ -192,9 +220,7 @@ pub(crate) fn ensure_setup(
         || !old_semantic
         || freshness.as_ref().is_ok_and(|f| !*f)
         || (source_ready && freshness.is_err())
-        || old
-            .as_ref()
-            .is_ok_and(|i| i.context().indexing_locale != locale);
+        || old.as_ref().is_ok_and(|i| i.indexing_locale != locale);
     let mut build = None;
     let mut build_failed = false;
     if needs_build {
@@ -204,10 +230,7 @@ pub(crate) fn ensure_setup(
                 SetupActionStatus::Planned,
                 "artifact requires rebuild",
             ));
-        } else if profile_error.is_some()
-            || !source_ready
-            || (options.target.requires_embeddings() && !model_ready)
-        {
+        } else if profile_error.is_some() || !source_ready || (prepare_embeddings && !model_ready) {
             actions.push(SetupAction::with_reason(
                 SetupActionKind::BuildIndex,
                 SetupActionStatus::Blocked,
@@ -215,19 +238,24 @@ pub(crate) fn ensure_setup(
             ));
         } else {
             progress("build_index", "Building source-backed artifact");
-            let result = build_artifact(BuildArtifactOptions {
-                source_root: paths.source_root.clone(),
-                output_path: paths.index_path.clone(),
-                manifest_path: None,
-                locale,
-                search_profiles: if options.target.requires_embeddings() {
-                    configurations.clone()
-                } else {
-                    vec![]
-                },
-                reuse_embeddings: true,
-                embedding_batch_size: options.embedding_batch_size,
-            });
+            let result = (|| -> Result<BuildArtifactReport, String> {
+                let workspace =
+                    crate::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
+                build_artifact(
+                    &workspace,
+                    crate::WORKSPACE_SCHEMA_VERSION,
+                    BuildArtifactOptions {
+                        source_root: paths.source_root.clone(),
+                        output_path: paths.index_path.clone(),
+                        manifest_path: configuration.manifest_path.clone(),
+                        locale,
+                        search_profiles: configurations.clone(),
+                        reuse_embeddings: true,
+                        embedding_batch_size: options.embedding_batch_size,
+                    },
+                )
+                .map_err(|e| e.to_string())
+            })();
             match result {
                 Ok(r) => {
                     build = Some(r.into());
@@ -252,17 +280,22 @@ pub(crate) fn ensure_setup(
             SetupActionStatus::Skipped,
         ));
     }
-    // Publication owns atomic replacement; setup never deletes the prior artifact.
-    let current = SqliteIndexReader::open_read_only(&paths.index_path);
+    // Publication updates reference rows transactionally, preserving saved domains.
+    let current = open_workspace_index(&paths.index_path);
     let records_ready = current.is_ok() && !build_failed && (!needs_build || build.is_some());
     let semantic_ready = records_ready
         && model_ready
-        && SqliteIndexReader::open_read_only_with_vectors(&paths.index_path).is_ok_and(|index| {
-            options
-                .search_profiles
-                .iter()
-                .all(|id| index.context().search_profile(id).is_ok())
-        });
+        && open_workspace_index(&paths.index_path)
+            .and_then(|index| {
+                index.require_vectors()?;
+                Ok(index)
+            })
+            .is_ok_and(|index| {
+                options
+                    .search_profiles
+                    .iter()
+                    .all(|id| index.context().search_profile(id).is_ok())
+            });
     checks.push(match &current{Ok(_)=>SetupAction::with_reason(SetupActionKind::ValidateIndex,SetupActionStatus::Done,"cheap executable schema/catalog check; full snapshot validation is a separate operation"),Err(e)=>SetupAction::with_reason(SetupActionKind::ValidateIndex,SetupActionStatus::Blocked,e.to_string())});
     let readiness = |ready: bool, required: bool, reason: &str| {
         if ready {

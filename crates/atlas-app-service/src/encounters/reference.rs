@@ -12,70 +12,84 @@ impl AtlasAppService {
         participant_key: &str,
         request: EncounterReferenceRequest,
     ) -> AppServiceResult<RecordDetailView> {
-        let encounter = self
-            .local_state_store()?
-            .encounters()
-            .get_with_participants(encounter_ref)?
-            .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
-        let participant = encounter
-            .participants
-            .into_iter()
-            .find(|p| p.participant_key == participant_key)
-            .ok_or_else(|| {
-                AppServiceError::new(
-                    AppErrorCode::EncounterParticipantNotFound,
-                    "participant is no longer in this encounter",
-                )
-            })?;
-        if participant.record_key.as_deref() != Some(request.selection.record_key.as_str()) {
-            return Err(AppServiceError::invalid_request(
-                "selected reference does not belong to this participant",
-            ));
-        }
-        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
-            let generation = r.artifact_generation()?;
-            if generation != request.artifact_generation {
-                return Err(AppServiceError::artifact_generation_changed(
-                    &request.artifact_generation,
-                    &generation,
-                    AppRecoverableAction::ReloadRecord,
-                ));
-            }
-            let (source, mut selected) = crate::records::read_record_detail(r, request.selection)?;
-            let root_node = source.source.node_at(&[]).ok_or_else(|| {
-                AppServiceError::invalid_request("participant source is unavailable")
-            })?;
-            let root = crate::presentation::record_presentation(
-                &source.source,
-                root_node,
-                &selected.record,
-                &[],
-                vec![],
-                r,
-            );
-            let baseline = super::mechanics::arithmetic_baseline(&root).ok_or_else(|| {
-                AppServiceError::invalid_request("this participant has no actor runtime context")
-            })?;
-            let adjustment_applicable = !matches!(
-                SourceQueryView::new(
-                    source.source.source(),
-                    source.source.key().pack().as_str(),
-                    ""
-                )
-                .actor()
-                .authored_adjustment(),
-                SourceFieldView::NotApplicable
-            );
-            let block = super::mechanics::participant_stat_block(
-                &participant,
-                &baseline,
-                adjustment_applicable,
-            );
-            let current = crate::presentation::compose_participant(root, &block);
-            compose_selected(&mut selected, current)?;
-            Ok(selected)
-        })
+        let encounter_ref = encounter_ref.to_owned();
+        let participant_key = participant_key.to_owned();
+        self.with_workspace(
+            &crate::ReadExecutionContext::uncancellable(),
+            move |workspace| {
+                read_encounter_reference(workspace, &encounter_ref, &participant_key, request)
+            },
+        )
     }
+}
+
+pub(super) fn read_encounter_reference(
+    workspace: &mut atlas_runtime::WorkspaceRead,
+    encounter_ref: &str,
+    participant_key: &str,
+    request: EncounterReferenceRequest,
+) -> AppServiceResult<RecordDetailView> {
+    let encounter = workspace
+        .local_state()
+        .encounters()
+        .get_with_participants(encounter_ref)?
+        .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
+    let participant = encounter
+        .participants
+        .into_iter()
+        .find(|p| p.participant_key == participant_key)
+        .ok_or_else(|| {
+            AppServiceError::new(
+                AppErrorCode::EncounterParticipantNotFound,
+                "participant is no longer in this encounter",
+            )
+        })?;
+    if participant.record_key.as_deref() != Some(request.selection.record_key.as_str()) {
+        return Err(AppServiceError::invalid_request(
+            "selected reference does not belong to this participant",
+        ));
+    }
+    let r = workspace.retrieval_mut();
+
+    let generation = r.artifact_generation()?;
+    if generation != request.artifact_generation {
+        return Err(AppServiceError::artifact_generation_changed(
+            &request.artifact_generation,
+            &generation,
+            AppRecoverableAction::ReloadRecord,
+        ));
+    }
+    let (source, mut selected) = crate::records::read_record_detail(r, request.selection)?;
+    let root_node = source
+        .source
+        .node_at(&[])
+        .ok_or_else(|| AppServiceError::invalid_request("participant source is unavailable"))?;
+    let root = crate::presentation::record_presentation(
+        &source.source,
+        root_node,
+        &selected.record,
+        &[],
+        vec![],
+        r,
+    );
+    let baseline = super::mechanics::arithmetic_baseline(&root).ok_or_else(|| {
+        AppServiceError::invalid_request("this participant has no actor runtime context")
+    })?;
+    let adjustment_applicable = !matches!(
+        SourceQueryView::new(
+            source.source.source(),
+            source.source.key().pack().as_str(),
+            ""
+        )
+        .actor()
+        .authored_adjustment(),
+        SourceFieldView::NotApplicable
+    );
+    let block =
+        super::mechanics::participant_stat_block(&participant, &baseline, adjustment_applicable);
+    let current = crate::presentation::compose_participant(root, &block);
+    compose_selected(&mut selected, current)?;
+    Ok(selected)
 }
 
 fn compose_selected(

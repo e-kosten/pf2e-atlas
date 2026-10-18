@@ -331,7 +331,7 @@ export function useSearchWorkspace({
       next = { ...next, filterError: null };
     const kind = filterDiscovery.filterEditor?.groups
       .flatMap((group) => group.fields)
-      .find((field) => field.definition.path === "record.kind");
+      .find((field) => field.definition.path === "kind");
     if (
       kind &&
       JSON.stringify(commonCondition(search.filter, kind.definition)) !==

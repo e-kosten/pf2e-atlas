@@ -1,21 +1,18 @@
-use std::sync::Arc;
-
-/// Process-local identity of a successfully opened immutable artifact.
-///
-/// Equality requires both the same open file and complete preparation context.
-/// Retaining the handle keeps its filesystem identity alive; it is not a
-/// transport identifier or a stronger guarantee than `same_file` provides.
+/// Durable workspace identity and the reference revision visible in one snapshot.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArtifactInstance {
-    file: Arc<same_file::Handle>,
-    context_hash: String,
+    workspace_key: String,
+    reference_revision: u64,
 }
 
 impl ArtifactInstance {
-    pub(crate) fn new(file: same_file::Handle, context_hash: String) -> Self {
+    pub(crate) fn new(workspace_key: String, reference_revision: u64) -> Self {
         Self {
-            file: Arc::new(file),
-            context_hash,
+            workspace_key,
+            reference_revision,
         }
+    }
+    pub fn generation(&self) -> String {
+        format!("{}:{}", self.workspace_key, self.reference_revision)
     }
 }

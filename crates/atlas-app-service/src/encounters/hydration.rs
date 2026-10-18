@@ -1,4 +1,4 @@
-use crate::{AppServiceError, AppServiceResult, AtlasAppService};
+use crate::{AppServiceError, AppServiceResult};
 use atlas_app_model::AppErrorCode;
 use atlas_domain::RecordKey;
 use atlas_local_state::EncounterParticipant;
@@ -8,7 +8,7 @@ use atlas_search::{
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(super) fn hydrate_participant_records(
-    service: &AtlasAppService,
+    r: &mut atlas_search::AtlasRetrievalService,
     participants: &[EncounterParticipant],
 ) -> AppServiceResult<(Option<String>, BTreeMap<String, HydratedParticipantRecord>)> {
     let keys = participants
@@ -22,88 +22,86 @@ pub(super) fn hydrate_participant_records(
     if keys.is_empty() {
         return Ok((None, BTreeMap::new()));
     }
-    service.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
-        let mut records = BTreeMap::new();
-        for key in keys {
-            if let Some(detail) = r.get_record(GetRecordRequest {
-                record_key: &key,
-                selected_content: &[],
-            })? {
-                let view = crate::projection::localized_summary_view(&detail.summary, r);
-                let node = atlas_record::source_record::SourceQueryView::new(
+
+    let mut records = BTreeMap::new();
+    for key in keys {
+        if let Some(detail) = r.get_record(GetRecordRequest {
+            record_key: &key,
+            selected_content: &[],
+        })? {
+            let view = crate::projection::localized_summary_view(&detail.summary, r);
+            let node = atlas_record::source_record::SourceQueryView::new(
+                detail.source.source(),
+                key.pack().as_str(),
+                "",
+            )
+            .source;
+            let presentation = crate::presentation::record_presentation(
+                &detail.source,
+                node,
+                &view,
+                &[],
+                vec![],
+                r,
+            );
+            let arithmetic_baseline = super::mechanics::arithmetic_baseline(&presentation);
+            let adjustment_applicable = !matches!(
+                atlas_record::source_record::SourceQueryView::new(
                     detail.source.source(),
                     key.pack().as_str(),
                     "",
                 )
-                .source;
-                let presentation = crate::presentation::record_presentation(
-                    &detail.source,
-                    node,
-                    &view,
-                    &[],
-                    vec![],
-                    r,
-                );
-                let arithmetic_baseline = super::mechanics::arithmetic_baseline(&presentation);
-                let adjustment_applicable = !matches!(
-                    atlas_record::source_record::SourceQueryView::new(
-                        detail.source.source(),
-                        key.pack().as_str(),
-                        "",
-                    )
-                    .actor()
-                    .authored_adjustment(),
-                    atlas_record::source_record::SourceFieldView::NotApplicable
-                );
-                records.insert(
-                    key.to_string(),
-                    HydratedParticipantRecord {
-                        view,
-                        presentation,
-                        arithmetic_baseline,
-                        adjustment_applicable,
-                        detail,
-                    },
-                );
-            }
+                .actor()
+                .authored_adjustment(),
+                atlas_record::source_record::SourceFieldView::NotApplicable
+            );
+            records.insert(
+                key.to_string(),
+                HydratedParticipantRecord {
+                    view,
+                    presentation,
+                    arithmetic_baseline,
+                    adjustment_applicable,
+                    detail,
+                },
+            );
         }
-        Ok((Some(r.artifact_generation()?), records))
-    })
+    }
+    Ok((Some(r.artifact_generation()?), records))
 }
 pub(super) fn resolve_record_ref(
-    service: &AtlasAppService,
+    r: &mut atlas_search::AtlasRetrievalService,
     record_ref: &str,
 ) -> AppServiceResult<SourceRecordDetail> {
     let reference = record_ref.to_owned();
-    service.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
-        let key = match r.resolve_record_ref(ResolveRecordRefRequest {
-            record_ref: &reference,
-            filter: None,
-        })? {
-            RecordRefResolutionResult::Key(k) => k,
-            RecordRefResolutionResult::Miss => {
-                return Err(AppServiceError::new(
-                    AppErrorCode::RecordResolutionMiss,
-                    format!("record `{reference}` was not found"),
-                ));
-            }
-            RecordRefResolutionResult::Ambiguous(_) => {
-                return Err(AppServiceError::new(
-                    AppErrorCode::RecordResolutionAmbiguous,
-                    format!("record `{reference}` is ambiguous"),
-                ));
-            }
-        };
-        r.get_record(GetRecordRequest {
-            record_key: &key,
-            selected_content: &[],
-        })?
-        .ok_or_else(|| {
-            AppServiceError::new(
-                AppErrorCode::RecordNotFound,
-                format!("record `{key}` was not found"),
-            )
-        })
+
+    let key = match r.resolve_record_ref(ResolveRecordRefRequest {
+        record_ref: &reference,
+        filter: None,
+    })? {
+        RecordRefResolutionResult::Key(k) => k,
+        RecordRefResolutionResult::Miss => {
+            return Err(AppServiceError::new(
+                AppErrorCode::RecordResolutionMiss,
+                format!("record `{reference}` was not found"),
+            ));
+        }
+        RecordRefResolutionResult::Ambiguous(_) => {
+            return Err(AppServiceError::new(
+                AppErrorCode::RecordResolutionAmbiguous,
+                format!("record `{reference}` is ambiguous"),
+            ));
+        }
+    };
+    r.get_record(GetRecordRequest {
+        record_key: &key,
+        selected_content: &[],
+    })?
+    .ok_or_else(|| {
+        AppServiceError::new(
+            AppErrorCode::RecordNotFound,
+            format!("record `{key}` was not found"),
+        )
     })
 }
 

@@ -354,10 +354,7 @@ async fn record_and_filter_routes_use_real_router_wiring() {
         route_json(Method::POST, "/api/filters/editor", Some(editor_request)).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["groups"][0]["id"], "standard");
-    assert_eq!(
-        body["groups"][0]["fields"][0]["definition"]["id"],
-        "record.kind"
-    );
+    assert_eq!(body["groups"][0]["fields"][0]["definition"]["id"], "kind");
 
     let values_request = json!({
         "kind":"contextual",
@@ -384,12 +381,12 @@ async fn record_and_filter_routes_use_real_router_wiring() {
         Method::POST,
         "/api/filters/validate",
         Some(json!({
-            "kind":"compare","field":"record.kind","op":"eq","value":"rule"
+            "kind":"compare","field":"kind","op":"eq","value":"rule"
         })),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["predicate"]["field"], "record.kind");
+    assert_eq!(body["predicate"]["field"], "kind");
     let (status, body) = route_json(Method::POST, "/api/records/detail", Some(json!({
         "record_key":"actions:testAction1","owners":[],"fields":[],"passage":null,"source_fingerprint":null
     }))).await;
@@ -429,7 +426,7 @@ async fn saved_list_routes_use_real_router_wiring() {
         "/api/lists/list_research/filter",
         Some(json!({
             "list_ref": "ignored",
-            "filter":{"kind":"in","clause_id":"kind","field":"record.kind","values":["rule"]}
+            "filter":{"kind":"in","clause_id":"kind","field":"kind","values":["rule"]}
         })),
     )
     .await;
@@ -910,7 +907,7 @@ impl AtlasWebService for MockService {
         &self,
         _request: DiscoverFilterEditorRequest,
     ) -> Result<FilterEditorView, AppServiceError> {
-        Ok(serde_json::from_value(json!({"catalog_version":2,"common_field_ids":["record.kind"],"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"record.kind","path":"record.kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","short_choices":true,"applicable":true,"unit_fields":[],"collection_control":null,"placement":"initially_visible","label":"Kind","help":null,"choices":[{"value":"rule","label":"Rule"}],"operators":[{"operator":"eq","label":"is","operand":"scalar"},{"operator":"in","label":"is any of","operand":"list"},{"operator":"state","label":"availability is","operand":"state"}]}]}]})).expect("typed catalog fixture"))
+        Ok(serde_json::from_value(json!({"catalog_version":2,"common_field_ids":["kind"],"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"kind","path":"kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","short_choices":true,"applicable":true,"unit_fields":[],"collection_control":null,"placement":"initially_visible","label":"Kind","help":null,"choices":[{"value":"rule","label":"Rule"}],"operators":[{"operator":"eq","label":"is","operand":"scalar"},{"operator":"in","label":"is any of","operand":"list"},{"operator":"state","label":"availability is","operand":"state"}]}]}]})).expect("typed catalog fixture"))
     }
     fn discover_filter_values(
         &self,

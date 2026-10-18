@@ -1,18 +1,216 @@
 use crate::*;
 use atlas_embedding::{EmbeddingRuntimeConfig, required_embedding_model_cache_files};
-use atlas_index::{IndexArtifactWriter, SqliteIndexReader, SqliteIndexWriter};
+use atlas_index::test_support::{open_reader, publish_input};
 
 use serde_json::json;
 use std::fs;
 fn paths(dir: &std::path::Path) -> ResolvedAtlasPaths {
     ResolvedAtlasPaths {
+        source_root_explicit: true,
         mode: ResolvedPathMode::Global,
         repo_root: None,
         source_root: dir.join("source"),
         embedding_cache_root: dir.join("models"),
         index_path: dir.join("atlas.sqlite"),
-        local_state_path: dir.join("state.sqlite"),
     }
+}
+
+#[test]
+fn startup_backfills_filter_catalog_without_source_or_inference() {
+    use atlas_local_state::*;
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    let record = atlas_search::test_support::record(
+        "actors",
+        "Actor",
+        json!({"_id":"testCreature1000","type":"npc","name":"Test Creature"}),
+    );
+    let input = atlas_search::test_support::input(vec![record], true);
+    publish_input(&paths.index_path, &input).unwrap();
+    let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+    let write = workspace.write(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
+    let state = LocalStateWrite::new(&write);
+    let list = state
+        .saved_lists()
+        .create(NewSavedList {
+            slug: "kept-list".into(),
+            name: "Kept list".into(),
+            description: Some("Personal notes".into()),
+            tags: vec!["campaign".into()],
+        })
+        .unwrap();
+    let key = input.records[0].record.key().clone();
+    state
+        .saved_lists()
+        .add_resolved_item(
+            &list.list_key,
+            ResolvedSavedListItem {
+                record_key: key.clone(),
+                title_snapshot: "Test Creature".into(),
+                kind_snapshot: Some("creature".into()),
+                note: Some("Use next session".into()),
+            },
+        )
+        .unwrap();
+    let encounter = state
+        .encounters()
+        .create(NewEncounter {
+            slug: "kept-encounter".into(),
+            name: "Kept encounter".into(),
+            description: None,
+            note: Some("In progress".into()),
+        })
+        .unwrap();
+    state
+        .encounters()
+        .add_participant(
+            &encounter.encounter_key,
+            AddEncounterParticipant {
+                record_key: Some(key),
+                participant_kind: ParticipantKind::Creature,
+                display_name: "Wounded creature".into(),
+                record_title_snapshot: Some("Test Creature".into()),
+                record_kind_snapshot: Some("creature".into()),
+                side: ParticipantSide::Enemy,
+                participant_variant: ParticipantVariant::Elite,
+                hp_origin: ParticipantHpOrigin::Explicit,
+                variant_origin: ParticipantVariantOrigin::Explicit,
+                initiative: Some(21),
+                max_hp: Some(40),
+                current_hp: Some(13),
+                temporary_hp: 5,
+                note: Some("Do not reset HP".into()),
+                spell_resources: vec![],
+            },
+        )
+        .unwrap();
+    let saved_list = state
+        .saved_lists()
+        .get_with_items(&list.list_key)
+        .unwrap()
+        .unwrap();
+    let saved_encounter = state
+        .encounters()
+        .get_with_participants(&encounter.encounter_key)
+        .unwrap()
+        .unwrap();
+    let model = &input.context.search_profiles[0];
+    let unit = &input.semantic_units[0];
+    let checkpoint = atlas_embedding::PreparedEmbeddingInput {
+        address: unit.address.clone(),
+        input: String::new(),
+        input_sha256: unit.input_hash.clone(),
+        reuse_key: "backfill-preservation".into(),
+        token_count: unit.input_token_count,
+        body_token_count: unit.input_token_count,
+        overlap_token_count: 0,
+        context_shortened: false,
+    };
+    let job = atlas_index::start_reference_job(&write, "next-preparation").unwrap();
+    atlas_index::save_embedding_checkpoints(&write, &job, model, &[(&checkpoint, &unit.vector)])
+        .unwrap();
+    // Inspect stored vector bytes, not a retrieval score that could hide replacement.
+    let vector_table: String = write.connection().query_row(
+        "SELECT name FROM sqlite_schema WHERE type='table' AND sql LIKE 'CREATE VIRTUAL TABLE%USING vec0%'", [], |r| r.get(0),
+    ).unwrap();
+    let stored_vectors = |connection: &rusqlite::Connection| {
+        connection
+            .prepare(&format!(
+                "SELECT unit_id,embedding FROM {vector_table} ORDER BY unit_id"
+            ))
+            .unwrap()
+            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?)))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+    };
+    let vectors_before = stored_vectors(write.connection());
+    assert!(!vectors_before.is_empty());
+    let before = write.reference_revision().unwrap();
+    write
+        .connection()
+        .execute("DELETE FROM query_field_catalog WHERE field='kind'", [])
+        .unwrap();
+    let json: String = write
+        .connection()
+        .query_row("SELECT context_json FROM artifact_context", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    let mut context: atlas_index::SourceArtifactBuildContext = serde_json::from_str(&json).unwrap();
+    context.query_catalog_version = 3;
+    let json = serde_json::to_string(&context).unwrap();
+    write
+        .connection()
+        .execute(
+            "UPDATE artifact_context SET context_hash=?1,context_json=?2",
+            [atlas_search::test_support::hash(json.as_bytes()), json],
+        )
+        .unwrap();
+
+    write.commit().unwrap();
+    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        overrides: AtlasPathOverrides {
+            source_root: Some(paths.source_root.clone()),
+            embedding_cache_root: Some(paths.embedding_cache_root.clone()),
+            index_path: Some(paths.index_path.clone()),
+        },
+        ..Default::default()
+    })
+    .unwrap();
+    assert!(runtime.upgrade_workspace_if_present().unwrap());
+    {
+        let read = runtime.read_workspace(None).unwrap();
+        assert_eq!(read.reference_revision().unwrap(), before + 1);
+    }
+    assert!(!runtime.upgrade_workspace_if_present().unwrap());
+    {
+        let read = workspace.read(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
+        let state = LocalStateRead::new(&read);
+        assert_eq!(
+            state
+                .saved_lists()
+                .get_with_items(&list.list_key)
+                .unwrap()
+                .unwrap(),
+            saved_list
+        );
+        assert_eq!(
+            state
+                .encounters()
+                .get_with_participants(&encounter.encounter_key)
+                .unwrap()
+                .unwrap(),
+            saved_encounter
+        );
+        assert_eq!(stored_vectors(read.connection()), vectors_before);
+        let checkpoints = atlas_index::read_embedding_checkpoints(
+            &read,
+            model,
+            std::slice::from_ref(&checkpoint),
+        )
+        .unwrap();
+        assert_eq!(checkpoints[&checkpoint.reuse_key], unit.vector);
+    }
+    assert!(!paths.source_root.exists());
+    assert!(!paths.embedding_cache_root.exists());
+    assert!(runtime.inference.loaded_profiles().is_empty());
+    // A current-version catalog with missing rows is corruption, not an upgrade.
+    let write = workspace.write(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
+    write
+        .connection()
+        .execute("DELETE FROM query_field_catalog WHERE field='kind'", [])
+        .unwrap();
+    write.commit().unwrap();
+    assert!(runtime.upgrade_workspace_if_present().is_err());
+    assert_eq!(
+        workspace
+            .read(crate::WORKSPACE_SCHEMA_VERSION)
+            .unwrap()
+            .reference_revision()
+            .unwrap(),
+        before + 1
+    );
 }
 fn source(paths: &ResolvedAtlasPaths) {
     fs::create_dir_all(paths.source_root.join("packs/items")).unwrap();
@@ -33,6 +231,92 @@ fn options(check: bool) -> RuntimeSetupOptions {
         ..Default::default()
     }
 }
+
+#[test]
+fn setup_reprepares_known_old_content_policy_but_readers_remain_blocked_until_publication() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    source(&paths);
+    assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
+    let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+    let before = workspace
+        .read(crate::WORKSPACE_SCHEMA_VERSION)
+        .unwrap()
+        .reference_revision()
+        .unwrap();
+    atlas_index::test_support::set_content_interpretation_version(
+        &paths.index_path,
+        "foundry-content/v6",
+    )
+    .unwrap();
+    assert!(
+        !atlas_index::ensure_query_projections(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
+            .unwrap()
+    );
+    assert!(open_reader(&paths.index_path).is_err());
+    let check = crate::setup::ensure_setup(&paths, options(true));
+    assert!(!check.ready);
+    assert!(open_reader(&paths.index_path).is_err());
+    let rebuilt = crate::setup::ensure_setup(&paths, options(false));
+    assert!(rebuilt.ready, "{:?}", rebuilt.actions);
+    assert!(rebuilt.build.is_some());
+    let reader = open_reader(&paths.index_path).unwrap();
+    assert_eq!(
+        reader.workspace_session().reference_revision().unwrap(),
+        before + 1
+    );
+    assert_eq!(
+        reader.context().content_interpretation_version,
+        "foundry-content/v7"
+    );
+    assert!(!paths.embedding_cache_root.exists());
+}
+
+#[test]
+fn stale_build_configuration_is_rejected_before_reading_source() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    let original =
+        crate::source_configuration::resolve_configuration(&paths, &options(false), None).unwrap();
+    let newer = crate::source_configuration::resolve_configuration(
+        &paths,
+        &RuntimeSetupOptions {
+            locale: Some("fr".into()),
+            ..options(false)
+        },
+        None,
+    )
+    .unwrap();
+    let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+    let error = atlas_ingest::build_artifact(
+        &workspace,
+        crate::WORKSPACE_SCHEMA_VERSION,
+        atlas_ingest::BuildArtifactOptions {
+            source_root: original.source_root,
+            output_path: paths.index_path.clone(),
+            manifest_path: original.manifest_path,
+            locale: original.indexing_locale,
+            search_profiles: vec![],
+            reuse_embeddings: true,
+            embedding_batch_size: 32,
+        },
+    )
+    .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("configuration changed before the build started"),
+        "{error}"
+    );
+    let read = workspace.read(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(
+        atlas_index::read_requested_reference_config(&read).unwrap(),
+        Some(newer)
+    );
+    assert_eq!(read.reference_revision().unwrap(), 0);
+    assert!(!paths.source_root.exists());
+    assert!(!paths.embedding_cache_root.exists());
+}
 #[test]
 fn explicit_setup_freshness_tracks_actual_bytes_and_preserves_locale() {
     let dir = tempfile::tempdir().unwrap();
@@ -49,7 +333,7 @@ fn explicit_setup_freshness_tracks_actual_bytes_and_preserves_locale() {
     assert!(report.ready, "{:?}", report.actions);
     assert!(report.build.is_some());
     assert_eq!(
-        SqliteIndexReader::open_read_only(&paths.index_path)
+        open_reader(&paths.index_path)
             .unwrap()
             .context()
             .indexing_locale,
@@ -74,7 +358,7 @@ fn explicit_setup_freshness_tracks_actual_bytes_and_preserves_locale() {
     assert!(report.ready);
     assert!(report.build.is_some());
     assert_eq!(
-        SqliteIndexReader::open_read_only(&paths.index_path)
+        open_reader(&paths.index_path)
             .unwrap()
             .context()
             .indexing_locale,
@@ -93,7 +377,16 @@ fn failed_rebuild_preserves_prior_artifact_and_product_reads_need_no_source() {
     let paths = paths(dir.path());
     source(&paths);
     assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
-    let bytes = fs::read(&paths.index_path).unwrap();
+    let (generation, context, record) = {
+        let reader = open_reader(&paths.index_path).unwrap();
+        (
+            reader.artifact_instance().generation(),
+            reader.context().clone(),
+            reader
+                .read_source_record(&"items:aaaaaaaaaaaaaaaa".parse().unwrap())
+                .unwrap(),
+        )
+    };
     fs::write(paths.source_root.join("module.json"), "invalid").unwrap();
     let report = crate::setup::ensure_setup(
         &paths,
@@ -103,7 +396,17 @@ fn failed_rebuild_preserves_prior_artifact_and_product_reads_need_no_source() {
         },
     );
     assert_eq!(report.exit_code_class(), SetupExitClass::RuntimeFailure);
-    assert_eq!(fs::read(&paths.index_path).unwrap(), bytes);
+    {
+        let reader = open_reader(&paths.index_path).unwrap();
+        assert_eq!(reader.artifact_instance().generation(), generation);
+        assert_eq!(reader.context(), &context);
+        assert_eq!(
+            reader
+                .read_source_record(&"items:aaaaaaaaaaaaaaaa".parse().unwrap())
+                .unwrap(),
+            record
+        );
+    }
     fs::remove_dir_all(&paths.source_root).unwrap();
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         default_search_profile: None,
@@ -115,16 +418,17 @@ fn failed_rebuild_preserves_prior_artifact_and_product_reads_need_no_source() {
         },
     })
     .unwrap();
-    let service = runtime.open_retrieval_service_no_embeddings().unwrap();
+    let service = runtime.read_workspace(None).unwrap();
     let result = service
+        .retrieval()
         .list_records(atlas_search::ListRecordsRequest::new(
             None,
             atlas_search::SearchPage::default(),
         ))
         .unwrap();
     assert_eq!(result.total, 1);
-    assert!(runtime.open_retrieval_service_for_stored_vectors().is_err());
-    assert!(runtime.open_retrieval_service().is_err());
+    assert!(runtime.open_search_index().is_err());
+    assert!(runtime.prepare_query(None, "test query").is_err());
 }
 #[test]
 fn all_required_model_assets_are_verified_without_inference_or_download() {
@@ -175,9 +479,11 @@ fn stored_vector_runtime_needs_no_query_model_but_full_mode_does() {
         "Item",
         json!({"_id":"aaaaaaaaaaaaaaaa","name":"One","type":"effect"}),
     );
-    SqliteIndexWriter::new(&paths.index_path)
-        .write(&atlas_search::test_support::input(vec![record], true))
-        .unwrap();
+    publish_input(
+        &paths.index_path,
+        &atlas_search::test_support::input(vec![record], true),
+    )
+    .unwrap();
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
         path_mode: AtlasPathMode::Global,
@@ -188,8 +494,8 @@ fn stored_vector_runtime_needs_no_query_model_but_full_mode_does() {
         },
     })
     .unwrap();
-    assert!(runtime.open_retrieval_service_for_stored_vectors().is_ok());
-    assert!(runtime.open_retrieval_service().is_err());
+    assert!(runtime.open_search_index().is_ok());
+    assert!(runtime.prepare_query(None, "test query").is_err());
     assert!(runtime.validate_index_report(SetupTarget::Full).is_ok());
     assert!(runtime.check_index_report(SetupTarget::Records).is_ok());
     let reader = runtime.open_index().unwrap();
@@ -201,7 +507,7 @@ fn stored_vector_runtime_needs_no_query_model_but_full_mode_does() {
     assert!(runtime.inference.loaded_profiles().is_empty());
 }
 #[test]
-fn old_artifact_requires_rebuild() {
+fn incompatible_database_is_not_replaced_by_setup() {
     let dir = tempfile::tempdir().unwrap();
     let paths = paths(dir.path());
     source(&paths);
@@ -209,8 +515,12 @@ fn old_artifact_requires_rebuild() {
     let report = crate::setup::ensure_setup(&paths, options(true));
     assert!(!report.ready);
     let report = crate::setup::ensure_setup(&paths, options(false));
-    assert!(report.ready);
-    assert!(report.build.is_some());
+    assert!(!report.ready);
+    assert!(report.build.is_none());
+    assert_eq!(
+        fs::read(&paths.index_path).unwrap(),
+        b"old incompatible artifact"
+    );
 }
 
 #[test]
@@ -241,6 +551,7 @@ fn invalid_profile_selection_cannot_fetch_assets_or_replace_the_artifact() {
             report
                 .actions
                 .iter()
+                .chain(report.checks.iter())
                 .any(|action| action.status == SetupActionStatus::Failed)
         );
         assert!(
@@ -303,7 +614,7 @@ fn omitted_default_resolves_stored_manifest_and_explicit_missing_still_errors() 
 }
 
 #[test]
-fn omitted_setup_preserves_readable_single_or_both_profiles_before_asset_work() {
+fn omitted_setup_preserves_requested_single_or_both_profiles_before_asset_work() {
     for gemma_only in [false, true] {
         let directory = tempfile::tempdir().unwrap();
         let paths = paths(directory.path());
@@ -322,15 +633,26 @@ fn omitted_setup_preserves_readable_single_or_both_profiles_before_asset_work() 
                 .semantic_units
                 .retain(|p| p.profile_id.as_str() == "embeddinggemma");
         }
-        SqliteIndexWriter::new(&paths.index_path)
-            .write(&input)
-            .unwrap();
+        publish_input(&paths.index_path, &input).unwrap();
         let expected = input
             .context
             .search_profiles
             .iter()
             .map(|p| p.profile_id.clone())
             .collect::<Vec<_>>();
+        let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+        let write = workspace.write(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
+        atlas_index::write_requested_reference_config(
+            &write,
+            &atlas_index::RequestedReferenceConfig {
+                source_root: paths.source_root.clone(),
+                manifest_path: None,
+                indexing_locale: "en".into(),
+                search_profiles: expected.clone(),
+            },
+        )
+        .unwrap();
+        write.commit().unwrap();
         let report = crate::setup::ensure_setup(
             &paths,
             RuntimeSetupOptions {
@@ -348,7 +670,7 @@ fn omitted_setup_preserves_readable_single_or_both_profiles_before_asset_work() 
             expected
         );
         assert!(!paths.embedding_cache_root.exists());
-        let reader = SqliteIndexReader::open_read_only(&paths.index_path).unwrap();
+        let reader = open_reader(&paths.index_path).unwrap();
         assert_eq!(
             reader.context().search_profiles,
             input.context.search_profiles
@@ -395,9 +717,7 @@ fn actual_gemma_only_implicit_default_retains_query_usability_after_disk_assets_
     input
         .semantic_units
         .retain(|p| p.profile_id.as_str() == "embeddinggemma");
-    SqliteIndexWriter::new(&paths.index_path)
-        .write(&input)
-        .unwrap();
+    publish_input(&paths.index_path, &input).unwrap();
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         overrides: AtlasPathOverrides {
             index_path: Some(paths.index_path),
@@ -407,7 +727,9 @@ fn actual_gemma_only_implicit_default_retains_query_usability_after_disk_assets_
         ..Default::default()
     })
     .unwrap();
-    let retrieval = runtime.open_retrieval_service().unwrap();
+    let prepared = runtime.prepare_query(None, "forest guardian").unwrap();
+    let operation = runtime.read_workspace(Some(prepared)).unwrap();
+    let retrieval = operation.retrieval();
     assert_eq!(
         retrieval.default_search_profile().as_str(),
         "embeddinggemma"
@@ -458,4 +780,45 @@ fn fresh_omitted_setup_selects_base_without_installing_during_check() {
     assert_eq!(report.search_profiles.len(), 1);
     assert_eq!(report.search_profiles[0].profile_id.as_str(), "bge-base");
     assert!(!paths.embedding_cache_root.exists());
+}
+
+#[test]
+fn current_reference_startup_and_reading_continue_during_publisher_preparation() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    let record = atlas_search::test_support::record(
+        "actors",
+        "Actor",
+        json!({"_id":"testCreature1000","type":"npc","name":"Test Creature"}),
+    );
+    publish_input(
+        &paths.index_path,
+        &atlas_search::test_support::input(vec![record], true),
+    )
+    .unwrap();
+    let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+    let before = workspace
+        .read(crate::WORKSPACE_SCHEMA_VERSION)
+        .unwrap()
+        .reference_revision()
+        .unwrap();
+    let _publisher = workspace.update_owner().unwrap();
+    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        overrides: AtlasPathOverrides {
+            source_root: Some(paths.source_root),
+            embedding_cache_root: Some(paths.embedding_cache_root),
+            index_path: Some(paths.index_path),
+        },
+        ..Default::default()
+    })
+    .unwrap();
+    assert!(!runtime.upgrade_workspace_if_present().unwrap());
+    assert_eq!(
+        runtime
+            .read_workspace(None)
+            .unwrap()
+            .reference_revision()
+            .unwrap(),
+        before
+    );
 }

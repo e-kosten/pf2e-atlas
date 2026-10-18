@@ -10,14 +10,14 @@ describe("self-contained filter URLs", () => {
       {
         kind: "in",
         clause_id: "original-kind",
-        field: "record.kind",
+        field: "kind",
         values: ["creature", "hazard"],
       },
       {
         kind: "any_of",
         clause_id: "original-or",
         children: [
-          { kind: "compare", field: "record.level_or_rank", op: "eq", value: 0 },
+          { kind: "compare", field: "level_or_rank", op: "eq", value: 0 },
           {
             kind: "not",
             predicate: {
@@ -29,12 +29,12 @@ describe("self-contained filter URLs", () => {
           },
         ],
       },
-      { kind: "state_match", field: "actor.hp.maximum", state: "missing" },
+      { kind: "state_match", field: "defenses.hp.maximum", state: "missing" },
       {
         kind: "exists",
         clause_id: "first-exists",
         scope_id: "first-scope",
-        collection: "actor.items",
+        collection: "embedded.equipment",
         predicate: {
           kind: "compare",
           field: "name",
@@ -46,7 +46,7 @@ describe("self-contained filter URLs", () => {
         kind: "exists",
         clause_id: "second-exists",
         scope_id: "second-scope",
-        collection: "actor.items",
+        collection: "embedded.equipment",
         predicate: {
           kind: "boolean_constant",
           value: false,
@@ -95,7 +95,7 @@ describe("self-contained filter URLs", () => {
     }).toString();
     expect(packed.length).toBeLessThan(original.length / 2);
   });
-  it.each(["bad", "2.unknown", "1.", JSON.stringify(predicate)])(
+  it.each(["bad", "3.unknown", "2.", JSON.stringify(predicate)])(
     "rejects unsupported or malformed encodings: %s",
     (input) => {
       expect(() => decodeFilterUrl(input)).toThrow();
@@ -109,10 +109,24 @@ describe("self-contained filter URLs", () => {
       collection: 42,
       predicate: { kind: "boolean_constant", value: true },
     },
-    { kind: "in", field: "record.kind", values: {} },
+    { kind: "in", field: "kind", values: {} },
   ])("rejects malformed decoded structure instead of dropping conditions", (value) => {
     expect(() =>
-      decodeFilterUrl("1." + compressToEncodedURIComponent(JSON.stringify(value))),
+      decodeFilterUrl("2." + compressToEncodedURIComponent(JSON.stringify(value))),
     ).toThrow();
   });
+});
+
+it("rejects an otherwise valid old vocabulary link explicitly", () => {
+  const old =
+    "1." +
+    compressToEncodedURIComponent(
+      JSON.stringify({
+        kind: "compare",
+        field: "record.kind",
+        op: "eq",
+        value: "spell",
+      }),
+    );
+  expect(() => decodeFilterUrl(old)).toThrow("unsupported filter version");
 });

@@ -304,7 +304,7 @@ mod tests {
         let hp = catalog
             .fields
             .iter()
-            .find(|f| f.id == "actor.hp.maximum")
+            .find(|f| f.id == "defenses.hp.maximum")
             .unwrap();
         assert_eq!(hp.label, "Maximum HP");
         assert!(matches_field(hp, None, Some("maximum hp")));
@@ -314,7 +314,7 @@ mod tests {
             catalog
                 .fields
                 .iter()
-                .filter(|f| matches_field(f, Some("actor.hp.maximum"), None))
+                .filter(|f| matches_field(f, Some("defenses.hp.maximum"), None))
                 .count(),
             1
         );

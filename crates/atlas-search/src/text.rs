@@ -19,7 +19,7 @@ impl RetrievalMode {
     pub(crate) fn uses_fts(self) -> bool {
         matches!(self, Self::Fts | Self::Hybrid)
     }
-    pub(crate) fn uses_vector(self) -> bool {
+    pub fn uses_vector(self) -> bool {
         matches!(self, Self::Vector | Self::Hybrid)
     }
 }
@@ -183,10 +183,6 @@ impl AtlasRetrievalService {
             self.resolve_search_profile(request.search_profile, request.mode.uses_vector())?;
         let predicate = self.predicate(request.filter)?;
         let vector = if request.mode.uses_vector() {
-            #[cfg(test)]
-            if self.inference.is_some() {
-                self.text_query_embedding_invocations += 1;
-            }
             Some(self.embed_query(&search_profile, request.query)?)
         } else {
             None

@@ -143,7 +143,7 @@ it("inherits lazy contextual counts in Add pickers and leaves text searches coun
   vi.mocked(discoverFilterEditor).mockResolvedValue(
     editorFixture([
       {
-        ...fieldFixture("record.kind", "string", "Kind"),
+        ...fieldFixture("kind", "string", "Kind"),
         choices: ["creature", "spell"],
       },
     ]),
@@ -154,7 +154,7 @@ it("inherits lazy contextual counts in Add pickers and leaves text searches coun
     counts: {
       status: "available",
       value: {
-        field: "record.kind",
+        field: "kind",
         options: [
           { value: "creature", distinct_roots: 4n, selected: false },
           { value: "spell", distinct_roots: 0n, selected: false },

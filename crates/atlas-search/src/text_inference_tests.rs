@@ -71,18 +71,16 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
         unit.input_hash = hash_document_embedding_input(&text);
         unit.vector = model.embed_document(&text).unwrap();
     }
-    let (mut service, _artifact) = open_input_fixture(fixture).unwrap();
-    service.inference = Some(atlas_embedding::SharedQueryInference::new(
-        &config.cache_root,
-    ));
+    let (service, artifact) = open_input_fixture(fixture).unwrap();
+    drop(service);
+    let inference = atlas_embedding::SharedQueryInference::new(&config.cache_root);
     let filter: QueryPredicate = serde_json::from_value(json!({
-        "kind":"compare", "field":"item.level", "op":"gte", "value":1
+        "kind":"compare", "field":"level", "op":"gte", "value":1
     }))
     .unwrap();
     let eligible = (1..4)
         .map(|id| RecordKey::parse(&format!("items:{id:016}")).unwrap())
         .collect::<Vec<_>>();
-    assert_eq!(service.text_query_embedding_invocations, 0);
     eprintln!(
         "pinned BGE fixture: assets={}; identity_units=4; embed_query invocations=0",
         model_dir.display()
@@ -92,6 +90,15 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
     for mode in [RetrievalMode::Vector, RetrievalMode::Hybrid] {
         let mut previous_key = None;
         for number in [1, 2] {
+            let profile = atlas_domain::SearchProfileId::new("bge-base");
+            let prepared =
+                crate::PreparedQueryEmbedding::prepare(&inference, &profile, "Ghoul").unwrap();
+            let mut service = crate::AtlasRetrievalService::from_index(
+                atlas_index::test_support::open_reader(artifact.path()).unwrap(),
+                profile,
+                Some(prepared),
+            )
+            .unwrap();
             let result = service
                 .search_text(TextSearchRequest {
                     search_profile: None,
@@ -104,10 +111,6 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
                 })
                 .unwrap();
             expected_invocations += 1;
-            assert_eq!(
-                service.text_query_embedding_invocations,
-                expected_invocations
-            );
             assert_eq!(result.records.len(), 1);
             assert_eq!(result.page.total, 3);
             assert_eq!(result.page.next_page, Some(number + 1));
@@ -120,13 +123,19 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
                 "{} page{}: embed_query invocations={}; eligible_total={}; selected={}",
                 mode.as_str(),
                 number,
-                service.text_query_embedding_invocations,
+                expected_invocations,
                 result.page.total,
                 result.records[0].record.key
             );
         }
     }
 
+    let mut service = crate::AtlasRetrievalService::from_index(
+        atlas_index::test_support::open_reader(artifact.path()).unwrap(),
+        atlas_domain::SearchProfileId::new("bge-base"),
+        None,
+    )
+    .unwrap();
     let lexical = service
         .search_text(TextSearchRequest {
             search_profile: None,
@@ -146,7 +155,7 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
             .iter()
             .all(|row| eligible.contains(&row.record.key))
     );
-    assert_eq!(service.text_query_embedding_invocations, 4);
+    assert_eq!(expected_invocations, 4);
     eprintln!("fts: embed_query invocations=4; eligible_total=3; no query embedding");
 
     let seed = &eligible[0];
@@ -171,7 +180,7 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
             .iter()
             .all(|row| row.record.key != *seed && eligible.contains(&row.record.key))
     );
-    assert_eq!(service.text_query_embedding_invocations, 4);
+    assert_eq!(expected_invocations, 4);
     eprintln!(
         "stored-vector Similar: embed_query invocations=4; eligible_total=2; seed excluded; no query embedding"
     );

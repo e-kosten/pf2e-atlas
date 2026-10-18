@@ -87,22 +87,25 @@ fn collection_discovery_lists_members_and_suggests_the_collection_path() {
             .as_array()
             .unwrap()
             .iter()
-            .any(|field| field["definition"]["id"] == "actor.speeds")
+            .any(|field| field["definition"]["id"] == "movement.speeds")
     );
-    let output = f.command(&["filters", "fields", "--field", "actor.speeds"], false);
+    let output = f.command(&["filters", "fields", "--field", "movement.speeds"], false);
     assert!(output.status.success());
     let text = String::from_utf8(output.stdout).unwrap();
-    assert!(text.contains("actor.speeds[].type"), "{text}");
-    assert!(text.contains("actor.speeds[].value"), "{text}");
-    assert!(!text.contains("actor.senses[].type"), "{text}");
-    let json = f.data(&["filters", "fields", "--field", "actor.speeds", "--json"]);
+    assert!(text.contains("movement.speeds[].type"), "{text}");
+    assert!(text.contains("movement.speeds[].feet"), "{text}");
+    assert!(!text.contains("senses[].type"), "{text}");
+    let json = f.data(&["filters", "fields", "--field", "movement.speeds", "--json"]);
     assert_eq!(json["fields"].as_array().unwrap().len(), 1);
-    let invalid = f.command(&["filters", "fields", "--field", "actor.speeds[]"], false);
+    let invalid = f.command(
+        &["filters", "fields", "--field", "movement.speeds[]"],
+        false,
+    );
     assert!(!invalid.status.success());
     assert!(
         String::from_utf8(invalid.stderr)
             .unwrap()
-            .contains("--field actor.speeds")
+            .contains("--field movement.speeds")
     );
     let unknown = f.command(&["filters", "fields", "--field", "missing[]"], false);
     assert!(!unknown.status.success());
@@ -154,7 +157,7 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
             .as_array()
             .unwrap()
             .iter()
-            .any(|x| x["path"] == "actor.hp.maximum")
+            .any(|x| x["path"] == "defenses.hp.maximum")
     );
     let values = f.data(&["filters", "values", "--field", "traits", "--json"]);
     assert_eq!(values["values"]["options"][0]["value"], "healing");
@@ -588,8 +591,9 @@ fn saved_lists_retain_unresolved_snapshots_across_an_artifact_rebuild() {
     assert!(v["items"][0]["record"].is_null());
 }
 #[test]
-fn setup_check_and_cleanup_preview_do_not_mutate_existing_artifact() {
+fn setup_check_and_cache_cleanup_preserve_workspace_and_saved_state() {
     let f = Fixture::new();
+    f.data(&["lists", "create", "keep", "--name", "Keep", "--json"]);
     let before = fs::read(&f.index).unwrap();
     let check = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -610,27 +614,82 @@ fn setup_check_and_cleanup_preview_do_not_mutate_existing_artifact() {
     let check: Value = serde_json::from_slice(&check.stdout).unwrap();
     assert_eq!(check["status"], "ok");
     assert_eq!(check["data"]["check"], true);
-    assert_eq!(fs::read(&f.index).unwrap(), before);
-    let clean = Command::new(env!("CARGO_BIN_EXE_atlas"))
-        .args(["setup", "--index"])
-        .arg(&f.index)
-        .args(["clean", "--artifact", "--check", "--json"])
-        .output()
-        .unwrap();
     assert!(
-        clean.status.success(),
-        "{}",
-        String::from_utf8_lossy(&clean.stderr)
+        fs::read(&f.index).unwrap() == before,
+        "check changed workspace bytes"
     );
-    let clean: Value = serde_json::from_slice(&clean.stdout).unwrap();
-    assert_eq!(clean["status"], "ok");
-    assert_eq!(fs::read(&f.index).unwrap(), before);
+    let models = f.root.join("models");
+    fs::create_dir_all(&models).unwrap();
+    fs::write(models.join("cached-model"), "cache").unwrap();
+    for preview in [true, false] {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
+        command
+            .args(["setup", "--index"])
+            .arg(&f.index)
+            .arg("--source")
+            .arg(&f.root)
+            .arg("--embedding-cache-path")
+            .arg(&models)
+            .args(["clean", "--embeddings", "--json"]);
+        if preview {
+            command.arg("--check");
+        }
+        let clean = command.output().unwrap();
+        assert!(
+            clean.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&clean.stdout),
+            String::from_utf8_lossy(&clean.stderr)
+        );
+        let clean: Value = serde_json::from_slice(&clean.stdout).unwrap();
+        assert_eq!(
+            clean["data"]["targets"][0]["status"],
+            if preview { "planned" } else { "removed" }
+        );
+        assert_eq!(models.exists(), preview);
+        assert!(
+            fs::read(&f.index).unwrap() == before,
+            "cache cleanup changed workspace bytes"
+        );
+    }
+    // A source checkout containing the workspace must never be removed, even
+    // when the caller explicitly confirms all-target cleanup.
+    for preview in [true, false] {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
+        command
+            .args(["setup", "--index"])
+            .arg(&f.index)
+            .arg("--source")
+            .arg(&f.root)
+            .arg("--embedding-cache-path")
+            .arg(&models)
+            .args(["clean", "--all", "--yes", "--json"]);
+        if preview {
+            command.arg("--check");
+        }
+        let clean = command.output().unwrap();
+        assert!(!clean.status.success());
+        let clean: Value = serde_json::from_slice(&clean.stdout).unwrap();
+        assert_eq!(clean["data"]["targets"][0]["status"], "failed");
+        assert!(
+            clean["data"]["targets"][0]["reason"]
+                .as_str()
+                .unwrap()
+                .contains("workspace")
+        );
+        assert!(f.index.exists());
+        assert!(f.root.join("packs/actions/heal.json").exists());
+        assert_eq!(
+            f.data(&["lists", "show", "keep", "--json"])["list"]["name"],
+            "Keep"
+        );
+    }
 }
 #[test]
-fn unsupported_cel_and_legacy_artifacts_fail_with_rebuild_guidance() {
+fn unsupported_cel_and_inconsistent_workspace_schema_fail_closed() {
     let f = Fixture::new();
     let o = f.command(
-        &["search", "--where", "actor.hp.maximum + 1 > 2", "--json"],
+        &["search", "--where", "defenses.hp.maximum + 1 > 2", "--json"],
         false,
     );
     assert!(!o.status.success());
@@ -644,9 +703,32 @@ fn unsupported_cel_and_legacy_artifacts_fail_with_rebuild_guidance() {
     drop(db);
     let o = f.command(&["index", "check", "--no-embeddings", "--json"], false);
     assert!(!o.status.success());
+    let output = format!(
+        "{} {}",
+        String::from_utf8_lossy(&o.stderr),
+        String::from_utf8_lossy(&o.stdout)
+    );
+    assert!(output.contains("schema"), "{output}");
     assert!(
-        String::from_utf8_lossy(&o.stderr).contains("rebuild")
-            || String::from_utf8_lossy(&o.stdout).contains("rebuild")
+        !output.contains("rebuild"),
+        "corruption must not suggest destructive rebuild: {output}"
+    );
+    let db = rusqlite::Connection::open(&f.index).unwrap();
+    assert_eq!(
+        db.query_row("PRAGMA user_version", [], |r| r.get::<_, u32>(0))
+            .unwrap(),
+        0
+    );
+    assert!(
+        db.query_row("SELECT count(*) FROM records", [], |r| r.get::<_, u64>(0))
+            .unwrap()
+            > 0
+    );
+    assert_eq!(
+        db.query_row("SELECT count(*) FROM schema_migrations", [], |r| r
+            .get::<_, u64>(0))
+            .unwrap(),
+        2
     );
 }
 

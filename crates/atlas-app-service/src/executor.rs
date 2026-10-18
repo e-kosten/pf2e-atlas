@@ -6,7 +6,10 @@ use atlas_app_model::AppErrorCode;
 use atlas_runtime::AtlasRuntime;
 #[cfg(test)]
 use atlas_runtime::AtlasRuntimeOptions;
-use atlas_search::{ArtifactInstance, AtlasRetrievalService};
+use atlas_runtime::WorkspaceRead;
+#[cfg(test)]
+use atlas_search::AtlasRetrievalService;
+use atlas_search::PreparedQueryEmbedding;
 
 use crate::ReadExecutionContext;
 use crate::error::{AppServiceError, AppServiceResult};
@@ -14,11 +17,15 @@ use crate::error::{AppServiceError, AppServiceResult};
 const DEFAULT_RETRIEVAL_WORKERS: usize = 2;
 const DEFAULT_RETRIEVAL_QUEUE_CAPACITY: usize = 64;
 
-type RetrievalJob = Box<dyn FnOnce(&mut AtlasRetrievalService) + Send + 'static>;
+type RetrievalJob = Box<dyn FnOnce(&AtlasRuntime) + Send + 'static>;
 
 #[derive(Clone)]
 pub(super) struct RetrievalExecutor {
     sender: SyncSender<RetrievalJob>,
+    #[cfg(test)]
+    pub(super) last_read_metrics: Arc<Mutex<atlas_search::test_support::SourceReadMetrics>>,
+    #[cfg(test)]
+    pub(super) runtime: Option<Arc<AtlasRuntime>>,
     #[cfg(test)]
     worker_count: usize,
     #[cfg(test)]
@@ -31,20 +38,21 @@ impl RetrievalExecutor {
         Self::start_with_factory(
             DEFAULT_RETRIEVAL_WORKERS,
             DEFAULT_RETRIEVAL_QUEUE_CAPACITY,
-            move |_| Ok(runtime.open_retrieval_service()?),
+            move |_| Ok(Arc::clone(&runtime)),
         )
     }
 
     fn start_with_factory(
         worker_count: usize,
         queue_capacity: usize,
-        open: impl Fn(usize) -> AppServiceResult<AtlasRetrievalService> + Clone + Send + 'static,
+        open: impl Fn(usize) -> AppServiceResult<Arc<AtlasRuntime>> + Clone + Send + 'static,
     ) -> AppServiceResult<Self> {
         let worker_count = worker_count.max(1);
         let (sender, receiver) = mpsc::sync_channel(queue_capacity);
         let receiver = Arc::new(Mutex::new(receiver));
         let mut workers = Vec::with_capacity(worker_count);
-        let mut expected_instance = None;
+        #[cfg(test)]
+        let mut retained_runtime = None;
 
         for index in 0..worker_count {
             let receiver = Arc::clone(&receiver);
@@ -61,32 +69,34 @@ impl RetrievalExecutor {
                 }
                 Err(error) => return Err(close_started_workers(sender, workers, error)),
             };
-            let instance = match startup.recv() {
-                Ok(Ok(instance)) => instance,
+            match startup.recv() {
+                Ok(Ok(runtime)) => {
+                    #[cfg(test)]
+                    {
+                        retained_runtime.get_or_insert(runtime);
+                    }
+                    #[cfg(not(test))]
+                    {
+                        drop(runtime);
+                    }
+                }
                 Ok(Err(error)) => return Err(close_started_workers(sender, workers, error)),
                 Err(error) => {
-                    let error = AppServiceError::new(
-                        AppErrorCode::InternalError,
-                        format!("retrieval worker failed to report startup: {error}"),
-                    );
-                    return Err(close_started_workers(sender, workers, error));
+                    return Err(close_started_workers(
+                        sender,
+                        workers,
+                        AppServiceError::new(AppErrorCode::InternalError, error.to_string()),
+                    ));
                 }
-            };
-            match &expected_instance {
-                Some(expected) if expected != &instance => {
-                    let error = AppServiceError::new(
-                        AppErrorCode::IndexUnavailable,
-                        "artifact replaced during retrieval pool startup; restart after publication completes",
-                    );
-                    return Err(close_started_workers(sender, workers, error));
-                }
-                None => expected_instance = Some(instance),
-                Some(_) => {}
             }
         }
 
         Ok(Self {
             sender,
+            #[cfg(test)]
+            last_read_metrics: Default::default(),
+            #[cfg(test)]
+            runtime: retained_runtime,
             #[cfg(test)]
             worker_count,
             #[cfg(test)]
@@ -95,26 +105,54 @@ impl RetrievalExecutor {
         })
     }
 
+    #[cfg(test)]
     pub(super) fn submit<T>(
         &self,
         execution: ReadExecutionContext,
-        task: impl FnOnce(&mut AtlasRetrievalService) -> AppServiceResult<T> + Send + 'static,
+        task: impl FnOnce(&mut WorkspaceRead) -> AppServiceResult<T> + Send + 'static,
     ) -> AppServiceResult<T>
     where
         T: Send + 'static,
     {
-        self.enqueue(execution, task)?.recv().map_err(|error| {
-            AppServiceError::new(
-                AppErrorCode::InternalError,
-                format!("retrieval worker dropped response: {error}"),
-            )
-        })?
+        self.submit_prepared(execution, None, task)
     }
 
+    pub(super) fn submit_prepared<T>(
+        &self,
+        execution: ReadExecutionContext,
+        prepared: Option<PreparedQueryEmbedding>,
+        task: impl FnOnce(&mut WorkspaceRead) -> AppServiceResult<T> + Send + 'static,
+    ) -> AppServiceResult<T>
+    where
+        T: Send + 'static,
+    {
+        self.enqueue_prepared(execution, prepared, task)?
+            .recv()
+            .map_err(|error| {
+                AppServiceError::new(
+                    AppErrorCode::InternalError,
+                    format!("retrieval worker dropped response: {error}"),
+                )
+            })?
+    }
+
+    #[cfg(test)]
     fn enqueue<T>(
         &self,
         execution: ReadExecutionContext,
-        task: impl FnOnce(&mut AtlasRetrievalService) -> AppServiceResult<T> + Send + 'static,
+        task: impl FnOnce(&mut WorkspaceRead) -> AppServiceResult<T> + Send + 'static,
+    ) -> AppServiceResult<Receiver<AppServiceResult<T>>>
+    where
+        T: Send + 'static,
+    {
+        self.enqueue_prepared(execution, None, task)
+    }
+
+    fn enqueue_prepared<T>(
+        &self,
+        execution: ReadExecutionContext,
+        prepared: Option<PreparedQueryEmbedding>,
+        task: impl FnOnce(&mut WorkspaceRead) -> AppServiceResult<T> + Send + 'static,
     ) -> AppServiceResult<Receiver<AppServiceResult<T>>>
     where
         T: Send + 'static,
@@ -137,8 +175,20 @@ impl RetrievalExecutor {
             }
         }
         let (reply, receiver) = mpsc::channel();
-        let job = Box::new(move |retrieval: &mut AtlasRetrievalService| {
-            let result = execution.check().and_then(|()| task(retrieval));
+        #[cfg(test)]
+        let metrics = Arc::clone(&self.last_read_metrics);
+        let job = Box::new(move |runtime: &AtlasRuntime| {
+            let result = execution.check().and_then(|()| {
+                let mut workspace = runtime.read_workspace(prepared)?;
+                execution.check()?;
+                let result = task(&mut workspace);
+                #[cfg(test)]
+                {
+                    *metrics.lock().expect("operation read metrics") =
+                        workspace.retrieval().read_metrics();
+                }
+                result
+            });
             let _ = reply.send(result);
         });
 
@@ -202,7 +252,7 @@ impl RetrievalExecutor {
                 },
                 ..Default::default()
             };
-            open_retrieval_service_no_embeddings(options)
+            Ok(Arc::new(AtlasRuntime::resolve(options)?))
         })
         .expect("fixture workers should open the same retained artifact")
     }
@@ -210,21 +260,21 @@ impl RetrievalExecutor {
 
 type WorkerStartup = (
     thread::JoinHandle<()>,
-    Receiver<AppServiceResult<ArtifactInstance>>,
+    Receiver<AppServiceResult<Arc<AtlasRuntime>>>,
 );
 
 fn spawn_retrieval_worker(
     name: String,
     receiver: Arc<Mutex<Receiver<RetrievalJob>>>,
-    open: impl Fn() -> AppServiceResult<AtlasRetrievalService> + Send + 'static,
+    open: impl Fn() -> AppServiceResult<Arc<AtlasRuntime>> + Send + 'static,
 ) -> AppServiceResult<WorkerStartup> {
     let (startup_sender, startup_receiver) = mpsc::channel();
     let worker = thread::Builder::new()
         .name(name)
         .spawn(move || match open() {
-            Ok(mut retrieval) => {
-                let _ = startup_sender.send(Ok(retrieval.artifact_instance().clone()));
-                retrieval_worker(&mut retrieval, receiver);
+            Ok(runtime) => {
+                let _ = startup_sender.send(Ok(Arc::clone(&runtime)));
+                retrieval_worker(&runtime, receiver);
             }
             Err(error) => {
                 let _ = startup_sender.send(Err(error));
@@ -254,18 +304,7 @@ fn close_started_workers(
     error
 }
 
-#[cfg(test)]
-pub(super) fn open_retrieval_service_no_embeddings(
-    options: AtlasRuntimeOptions,
-) -> AppServiceResult<AtlasRetrievalService> {
-    let runtime = AtlasRuntime::resolve(options)?;
-    Ok(runtime.open_retrieval_service_no_embeddings()?)
-}
-
-fn retrieval_worker(
-    retrieval: &mut AtlasRetrievalService,
-    receiver: Arc<Mutex<Receiver<RetrievalJob>>>,
-) {
+fn retrieval_worker(runtime: &AtlasRuntime, receiver: Arc<Mutex<Receiver<RetrievalJob>>>) {
     loop {
         let job = {
             let Ok(guard) = receiver.lock() else {
@@ -276,7 +315,7 @@ fn retrieval_worker(
                 Err(_) => break,
             }
         };
-        job(retrieval);
+        job(runtime);
     }
 }
 
@@ -302,6 +341,8 @@ mod tests {
         let (sender, _receiver) = mpsc::sync_channel(1);
         let executor = RetrievalExecutor {
             sender,
+            runtime: None,
+            last_read_metrics: Default::default(),
             submission_budget: Arc::new(Mutex::new(None)),
             worker_count: DEFAULT_RETRIEVAL_WORKERS,
             queue_capacity: DEFAULT_RETRIEVAL_QUEUE_CAPACITY,
@@ -315,6 +356,8 @@ mod tests {
         let (sender, _receiver) = mpsc::sync_channel(0);
         let executor = RetrievalExecutor {
             sender,
+            runtime: None,
+            last_read_metrics: Default::default(),
             submission_budget: Arc::new(Mutex::new(None)),
             worker_count: 1,
             queue_capacity: 0,

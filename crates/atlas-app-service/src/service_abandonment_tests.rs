@@ -1,7 +1,4 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc;
-use std::thread;
-use std::time::Duration;
 
 use super::*;
 use atlas_app_model::{
@@ -28,7 +25,6 @@ fn abandoned_public_read_never_opens_lazy_command_reader() {
     let service = AtlasAppService::new(
         RetrievalBackend::command(CommandRetrievalMode::NoEmbeddings),
         missing_artifact_options(),
-        std::env::temp_dir().join("unused-abandonment-state.sqlite"),
     )
     .unwrap();
     let execution = ReadExecutionContext::tracked();
@@ -49,10 +45,7 @@ fn abandoned_public_read_never_opens_lazy_command_reader() {
         .unwrap_err()
         .into_app_error();
     assert_eq!(error.code, AppErrorCode::OperationCancelled);
-    let RetrievalBackend::Command { retrieval, .. } = &service.retrieval else {
-        panic!("expected command")
-    };
-    assert!(retrieval.lock().unwrap().is_none());
+    assert!(!service.workspace_path().exists());
 }
 
 #[test]
@@ -60,7 +53,6 @@ fn abandoned_submission_never_enters_callback_or_opens_reader() {
     let service = AtlasAppService::new(
         RetrievalBackend::command(CommandRetrievalMode::NoEmbeddings),
         missing_artifact_options(),
-        std::env::temp_dir().join("unused-abandonment-state.sqlite"),
     )
     .unwrap();
     let called = Arc::new(AtomicBool::new(false));
@@ -83,14 +75,6 @@ fn abandoned_discovery_checks_before_saved_list_scope_reads_or_lazy_open() {
     let service = AtlasAppService::new(
         RetrievalBackend::command(CommandRetrievalMode::NoEmbeddings),
         missing_artifact_options(),
-        missing_artifact_options()
-            .overrides
-            .index_path
-            .unwrap()
-            .with_file_name(format!(
-                "unused-abandoned-scope-{}.sqlite",
-                std::process::id()
-            )),
     )
     .unwrap();
     let execution = ReadExecutionContext::tracked();
@@ -144,50 +128,7 @@ fn abandoned_discovery_checks_before_saved_list_scope_reads_or_lazy_open() {
         assert_eq!(values.code, AppErrorCode::OperationCancelled);
     }
     assert!(
-        !service.local_state_path.exists(),
-        "abandoned scope should not initialize local state"
+        !service.workspace_path().exists(),
+        "abandoned read must not initialize a workspace"
     );
-    let RetrievalBackend::Command { retrieval, .. } = &service.retrieval else {
-        panic!("expected command")
-    };
-    assert!(retrieval.lock().unwrap().is_none());
-}
-
-#[test]
-fn command_branch_checks_abandonment_after_retained_reader_lock() {
-    let retained = Arc::new(Mutex::new(None));
-    let held = retained.lock().unwrap();
-    let execution = ReadExecutionContext::tracked();
-    let waiting_execution = execution.clone();
-    let waiting_retained = Arc::clone(&retained);
-    let called = Arc::new(AtomicBool::new(false));
-    let callback_called = Arc::clone(&called);
-    let (entered, entry) = mpsc::channel();
-    let worker = thread::spawn(move || {
-        waiting_execution.check().unwrap();
-        entered.send(()).unwrap();
-        // This is the actual private command branch, whose first checkpoint is
-        // after taking the lock. No timing assumption about lock admission.
-        with_command_reader(
-            CommandRetrievalMode::NoEmbeddings,
-            &waiting_retained,
-            &AtlasRuntime::resolve(missing_artifact_options()).unwrap(),
-            &waiting_execution,
-            |_| {
-                callback_called.store(true, Ordering::Release);
-                Ok(())
-            },
-        )
-    });
-    let entered = entry.recv_timeout(Duration::from_secs(2));
-    execution.abandon();
-    drop(held);
-    let result = worker.join().unwrap();
-    entered.unwrap();
-    assert_eq!(
-        result.unwrap_err().into_app_error().code,
-        AppErrorCode::OperationCancelled
-    );
-    assert!(retained.lock().unwrap().is_none());
-    assert!(!called.load(Ordering::Acquire));
 }

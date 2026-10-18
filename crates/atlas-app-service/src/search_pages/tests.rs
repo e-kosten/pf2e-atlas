@@ -112,7 +112,7 @@ fn selected_contextual_facets_reject_stale_generation_before_query_inference() {
                     text: Some("query needing unavailable native session".into()),
                     mode: RetrievalModeView::Semantic,
                 },
-                field_id: "record.kind".into(),
+                field_id: "kind".into(),
                 clause_id: None,
                 values: vec![],
             },
@@ -126,8 +126,7 @@ fn selected_contextual_facets_reject_stale_generation_before_query_inference() {
 }
 
 fn levels_at_least_two() -> atlas_domain::QueryPredicate {
-    serde_json::from_value(json!({"kind":"compare","field":"item.level","op":"gte","value":2}))
-        .unwrap()
+    serde_json::from_value(json!({"kind":"compare","field":"level","op":"gte","value":2})).unwrap()
 }
 
 #[test]

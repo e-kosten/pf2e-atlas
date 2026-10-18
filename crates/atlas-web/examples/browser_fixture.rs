@@ -13,7 +13,6 @@ use std::{error::Error, fs, io, net::SocketAddr, path::PathBuf};
 use atlas_app_model::AppReadinessStatus;
 use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
 use atlas_domain::SearchProfileId;
-use atlas_index::{IndexArtifactWriter, SqliteIndexWriter};
 use atlas_runtime::AtlasPathMode;
 use atlas_search::test_support::input;
 use tokio::net::TcpListener;
@@ -49,7 +48,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     };
     let index_path = run_directory.join("artifact.sqlite");
-    SqliteIndexWriter::new(&index_path).write(&input(corpus::records(), true))?;
+    atlas_search::test_support::publish_input(&index_path, &input(corpus::records(), true))?;
     let service = AtlasAppService::start(AtlasAppServiceOptions {
         default_search_profile: Some(SearchProfileId::new("bge-base")),
         path_mode: AtlasPathMode::Global,

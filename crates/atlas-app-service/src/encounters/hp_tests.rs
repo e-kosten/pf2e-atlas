@@ -27,10 +27,12 @@ fn manual(max: Option<i64>, current: Option<i64>) -> (FixtureWorker, String, Str
         .unwrap();
     let participant = f
         .worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(&key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&key)?)
+        })
         .unwrap()
         .unwrap()
         .participants
@@ -41,10 +43,12 @@ fn manual(max: Option<i64>, current: Option<i64>) -> (FixtureWorker, String, Str
 
 fn saved(worker: &AtlasAppService, key: &str) -> EncounterParticipant {
     worker
-        .local_state_store()
-        .unwrap()
-        .encounters()
-        .get_with_participants(key)
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(key)?)
+        })
         .unwrap()
         .unwrap()
         .participants

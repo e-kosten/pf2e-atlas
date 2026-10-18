@@ -1,6 +1,5 @@
 //! Explicit local evidence through the real producer and checked public readers.
 use atlas_domain::RecordKey;
-use atlas_index::SqliteIndexReader;
 use atlas_ingest::{BuildArtifactOptions, build_artifact, load_foundry_documents};
 use atlas_search::{
     AtlasRetrievalService, RecordScope, RetrievalMode, SearchPage, TextSearchRequest,
@@ -83,30 +82,32 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
     assert_eq!(copied, 220);
     let cache = primary.join(".cache/hf-models");
     let output = evidence.join("judged-current.sqlite");
-    let report = build_artifact(BuildArtifactOptions {
-        source_root: source,
-        output_path: output.clone(),
-        manifest_path: None,
-        locale: "en".into(),
-        search_profiles: vec![atlas_embedding::EmbeddingRuntimeConfig::new(
-            atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
-            &cache,
-        )],
-        reuse_embeddings: true,
-        embedding_batch_size: 32,
-    })
+    let durable_workspace = atlas_runtime::initialize_workspace(&output).unwrap();
+    let report = build_artifact(
+        &durable_workspace,
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+        BuildArtifactOptions {
+            source_root: source,
+            output_path: output.clone(),
+            manifest_path: None,
+            locale: "en".into(),
+            search_profiles: vec![atlas_embedding::EmbeddingRuntimeConfig::new(
+                atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
+                &cache,
+            )],
+            reuse_embeddings: true,
+            embedding_batch_size: 32,
+        },
+    )
     .unwrap();
     assert_eq!(report.record_count, 220);
     let validation = atlas_index::validate_artifact(&output).unwrap();
-    let reader = SqliteIndexReader::open_read_only(&output).unwrap();
+    let reader = atlas_index::test_support::open_reader(&output).unwrap();
     let context = reader.context().clone();
     let statistics = reader.statistics().unwrap();
-    let mut service = AtlasRetrievalService::from_prepared_index(
-        reader,
-        atlas_domain::SearchProfileId::new("bge-base"),
-        atlas_embedding::SharedQueryInference::new(&cache),
-    )
-    .unwrap();
+    drop(reader);
+    let inference = atlas_embedding::SharedQueryInference::new(&cache);
+    let profile = atlas_domain::SearchProfileId::new("bge-base");
     let queries: Value = serde_json::from_slice(
         &fs::read(primary.join("scratch/search-projection/queries.json")).unwrap(),
     )
@@ -134,7 +135,7 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
             clauses.push(format!("source.document_kind == '{kind}'"));
         }
         if let Some(level) = q["scope"]["maxLevel"].as_i64() {
-            clauses.push(format!("actor.level <= {level}"));
+            clauses.push(format!("level <= {level}"));
         }
         let filter = if clauses.is_empty() {
             None
@@ -147,6 +148,24 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
             RetrievalMode::Hybrid,
         ] {
             let started = Instant::now();
+            let prepared = if mode == RetrievalMode::Fts {
+                None
+            } else {
+                Some(
+                    atlas_search::PreparedQueryEmbedding::prepare(
+                        &inference,
+                        &profile,
+                        q["text"].as_str().unwrap(),
+                    )
+                    .unwrap(),
+                )
+            };
+            let mut service = AtlasRetrievalService::from_index(
+                atlas_index::test_support::open_reader(&output).unwrap(),
+                profile.clone(),
+                prepared,
+            )
+            .unwrap();
             let result = service
                 .search_text(TextSearchRequest {
                     search_profile: None,
@@ -163,6 +182,7 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
                 })
                 .unwrap();
             let elapsed = started.elapsed().as_millis();
+            drop(service);
             let expected = q["expected"][0].as_str().unwrap();
             let rank = result
                 .records
@@ -179,7 +199,7 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
                     rank
                 );
             }
-            let reader = SqliteIndexReader::open_read_only(&output).unwrap();
+            let reader = atlas_index::test_support::open_reader(&output).unwrap();
             let mut rows = vec![];
             for row in result.records.iter().take(3).chain(
                 result

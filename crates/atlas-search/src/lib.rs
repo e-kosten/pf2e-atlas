@@ -33,7 +33,7 @@ pub use records::{
     RecordRefResolutionResult, RecordResolutionMatchKind, RecordResolutionResult, RecordScope,
     ResolveRecordRefRequest, ResolveRecordRequest, SourceRecordDetail,
 };
-pub use service::AtlasRetrievalService;
+pub use service::{AtlasRetrievalService, PreparedQueryEmbedding};
 pub use similar::{SimilarRecordRequest, SimilarRecordResult};
 pub use text::{
     RetrievalMode, SearchCoverage, SearchLane, SearchWitness, TextSearchRecord, TextSearchRequest,

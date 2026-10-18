@@ -339,6 +339,11 @@ fn pinned_corpus_item_and_common_projection_oracle() {
             // root per family, including the source-authoritative child rows.
             let family = format!("{kind}:{}", raw["type"].as_str().unwrap_or(""));
             if let std::collections::btree_map::Entry::Vacant(entry) = families.entry(family) {
+                db.execute(
+                    "INSERT INTO record_identity(id,key,availability) VALUES(?,?,'available')",
+                    rusqlite::params![roots as i64, input.record.key().to_string()],
+                )
+                .unwrap();
                 for row in &rows {
                     let slots = (1..=row.values.len())
                         .map(|n| format!("?{n}"))
