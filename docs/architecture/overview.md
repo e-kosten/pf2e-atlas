@@ -21,6 +21,7 @@ and [ADR index](./decisions/README.md) for the relevant owner.
 | `atlas-search` | Concrete retrieval service, strict lookup, browse, lexical/semantic/hybrid root ordering, attributable witnesses, graph, verified edition preference and Suggested variants. |
 | `atlas-runtime` | Paths, setup/source-fetch/cache policy, artifact readiness and retrieval service construction. |
 | `atlas-local-state` | Durable mutable saved lists and encounters in a separate SQLite database, with independent migrations. |
+| `atlas-dice` | Bounded library-backed dice evaluation and structured outcomes; no source, persistence or UI policy. |
 | `atlas-app-model` | Intentional app DTOs and generated TypeScript contracts for filters, search pages, record content, lists and encounters. |
 | `atlas-app-service` | Cross-layer app workflows, bounded retrieval execution, catalog editor presentation, source-based product projections and local-state hydration. |
 | `atlas-web` | Thin Axum transport over app-service and static frontend serving. |

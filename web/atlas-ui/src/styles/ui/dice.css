@@ -1,0 +1,61 @@
+.atlas-die {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  color: var(--accent-text);
+  font-variant-numeric: tabular-nums;
+}
+.atlas-die__drawing,
+.atlas-die svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.atlas-die svg {
+  fill: var(--active-bg);
+  stroke: var(--active-border);
+  stroke-width: 1.2;
+}
+.atlas-die__shade {
+  fill: var(--accent-text);
+  stroke: none;
+}
+.atlas-die__edge {
+  fill: none;
+  stroke-width: 0.9;
+  opacity: 0.8;
+}
+.atlas-die__value {
+  fill: var(--text);
+  stroke: none;
+  font-size: 13px;
+  font-weight: 650;
+}
+.atlas-die--discarded {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.atlas-die--nonstandard {
+  position: relative;
+  margin-bottom: 14px;
+}
+.atlas-die__sides {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 10px;
+  line-height: 14px;
+}
+.atlas-roll {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.atlas-roll__total {
+  min-width: 4ch;
+}

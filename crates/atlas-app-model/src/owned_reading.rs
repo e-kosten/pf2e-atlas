@@ -13,6 +13,9 @@ pub struct OwnedReadingRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum OwnedReadingSelection {
+    TableResults {
+        cursor: Option<OwnedReadingCursor>,
+    },
     Abilities {
         cursor: Option<OwnedReadingCursor>,
         target: Option<RecordNavigationView>,

@@ -40,6 +40,7 @@ pub struct MechanicActivityView {
     pub activity_id: String,
     pub label: String,
     pub kind: MechanicActivityKindView,
+    pub traits: Vec<String>,
     pub navigation: RecordNavigationView,
     pub notes: Vec<RuntimeEffectNoteView>,
     pub rolls: Vec<ActivityRollView>,
@@ -76,6 +77,7 @@ pub struct DamageExpressionView {
     pub formula: String,
     pub adjusted_formula: Option<String>,
     pub damage_type: Option<String>,
+    pub category: Option<String>,
     pub effect_kind: DamageEffectKindView,
     pub modifiers: Vec<StatModifierView>,
 }

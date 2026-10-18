@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Play, Trash2 } from "lucide-react";
+import { Dice5, GripVertical, Play, Trash2 } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type {
   AddEncounterManualParticipantRequest,
@@ -25,9 +25,10 @@ import type {
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
-import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
+import { InitiativeValueField } from "./InitiativeValueField";
+import { participantUpdate } from "./participantEdits";
+import { InitiativePopover } from "./InitiativeRollModal";
 import { SearchPickerModal } from "../../shared/ui/pickers/SearchPickerModal";
-import { optionalBigIntInput, participantUpdate } from "./participantEdits";
 
 type AddRecordForm = {
   quantity?: number | null;
@@ -49,11 +50,13 @@ export function EncounterRosterPane({
   error,
   recovery,
   onAdvanceTurn,
+  onRollInitiative,
   onRemove,
   onReorder,
   onSelect,
   onSetTurn,
   onUpdate,
+  onRoll,
   participants,
   selectedParticipantKey,
   slug,
@@ -66,6 +69,7 @@ export function EncounterRosterPane({
   error?: string;
   recovery?: React.ReactNode;
   onAdvanceTurn: () => void;
+  onRollInitiative?: (participantKey?: string) => void;
   onRemove: (participant: EncounterParticipantView) => void;
   onReorder: (
     participantKey: string,
@@ -75,6 +79,9 @@ export function EncounterRosterPane({
   onSelect: (participantKey: string) => void;
   onSetTurn: (participant: EncounterParticipantView) => void;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>;
+  onRoll: (
+    request: import("../../generated/atlas").RollInitiativeRequest,
+  ) => Promise<import("../../generated/atlas").InitiativeRollView>;
   participants: EncounterParticipantView[];
   selectedParticipantKey: string | null;
   slug: string;
@@ -191,16 +198,29 @@ export function EncounterRosterPane({
               title="Drag to reorder. With a keyboard, press Space then use the arrow keys."
               icon={<GripVertical size={16} aria-hidden="true" />}
             />
-            <EditableCommitField
-              disabled={disabled}
-              ariaLabel={`${participant.display_name} initiative`}
-              className="encounter-roster__initiative-input"
-              inputMode="numeric"
-              placeholder="—"
-              size="small"
-              onCommit={(value) => commitRosterInitiative(participant, value, onUpdate)}
-              value={inputNumberValue(participant.initiative)}
-            />
+            {participant.participant_kind === "pc" ? (
+              <InitiativeValueField
+                name={participant.display_name}
+                value={participant.initiative}
+                disabled={disabled}
+                compact
+                onSave={(value) =>
+                  onUpdate(
+                    participantUpdate(participant, {
+                      initiative: value === undefined ? undefined : BigInt(value),
+                    }),
+                  )
+                }
+              />
+            ) : (
+              <InitiativePopover
+                participant={participant}
+                encounterKey={slug}
+                disabled={disabled}
+                onRoll={onRoll}
+                onUpdate={onUpdate}
+              />
+            )}
             <Button
               type="text"
               className="encounter-roster__select"
@@ -222,11 +242,9 @@ export function EncounterRosterPane({
               className="encounter-roster__hp"
               aria-label={`${participant.display_name} HP`}
             >
-              {inputNumberValue(participant.current_hp) || "—"}/
-              {inputNumberValue(participant.max_hp) || "—"}
-              {participant.temporary_hp > 0n && (
-                <small>+{participant.temporary_hp.toString()} temp</small>
-              )}
+              {participant.current_hp == null
+                ? "—"
+                : (participant.current_hp + participant.temporary_hp).toString()}
             </span>
             <div className="encounter-roster__row-actions">
               <Button
@@ -259,6 +277,17 @@ export function EncounterRosterPane({
     <section className="encounter-pane encounter-roster">
       <header className="encounter-pane__header">
         <PrimaryToolbar className="encounter-actions">
+          {onRollInitiative && (
+            <Button
+              disabled={
+                disabled || participants.every((p) => p.participant_kind === "pc")
+              }
+              icon={<Dice5 size={14} />}
+              onClick={() => onRollInitiative()}
+            >
+              Initiative
+            </Button>
+          )}
           <Button
             disabled={disabled}
             icon={<Play size={14} />}
@@ -352,8 +381,11 @@ export function EncounterRosterPane({
                   {draggedParticipant.display_name}
                 </span>
                 <span className="encounter-roster__hp">
-                  {inputNumberValue(draggedParticipant.current_hp) || "—"}/
-                  {inputNumberValue(draggedParticipant.max_hp) || "—"}
+                  {draggedParticipant.current_hp == null
+                    ? "—"
+                    : (
+                        draggedParticipant.current_hp + draggedParticipant.temporary_hp
+                      ).toString()}
                 </span>
                 <span className="encounter-roster__row-actions">
                   <Play size={14} />
@@ -539,17 +571,6 @@ function encounterRecordPickerRequest(query: string): SearchResultsRequest {
   };
 }
 
-function commitRosterInitiative(
-  participant: EncounterParticipantView,
-  value: string,
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>,
-) {
-  const initiative = optionalBigIntInput(value);
-  if (initiative === null) {
-    return;
-  }
-  return onUpdate(participantUpdate(participant, { initiative }));
-}
 function inputNumberValue(value: bigint | undefined): string {
   return value === undefined ? "" : value.toString();
 }

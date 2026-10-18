@@ -269,5 +269,5 @@ attribution within a 1024 occurrence response budget. A whole field exceeding th
 remaining budget has an explicit bounded outcome; readers do not display its HTML
 with silently missing links. Non-content relationship discovery stays a separate
 bounded operation. App-service owned-reading batches check one parent, select at
-most 32 immediate Ability-class activities and reuse this prepared batch without
+most 32 immediate Ability-class activities or table results and reuse this prepared batch without
 recursive detail projection or a second fact authority.

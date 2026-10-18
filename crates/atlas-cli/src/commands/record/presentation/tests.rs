@@ -574,6 +574,7 @@ fn actor() -> ActorPresentationView {
             }),
             traits: vec![],
             attack: numeric(15),
+            attack_options: vec![],
             lore_modifier: absent_number(),
             difficulty_class: absent_number(),
             casting_tradition: missing(),

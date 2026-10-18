@@ -134,9 +134,15 @@ pub(super) fn render_record(
             RecordBodyView::Creature(_) | RecordBodyView::Hazard(_)
         )
     {
-        let owned = match &presentation.body {
-            RecordBodyView::RollTable(table) => table.results.value.as_deref().unwrap_or_default(),
-            _ => &presentation.owned,
+        let owned: Vec<_> = match &presentation.body {
+            RecordBodyView::RollTable(table) => table
+                .results
+                .value
+                .iter()
+                .flatten()
+                .map(|row| &row.link)
+                .collect(),
+            _ => presentation.owned.iter().collect(),
         };
         for owned in owned {
             line(

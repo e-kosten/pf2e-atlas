@@ -13,9 +13,23 @@ With `atlas`, you can:
 - resolve names (including by pre-remaster aliases)
 - find records similar to a known seed record
 - inspect nearby references around a known record
+- roll dice with individual faces and kept/dropped results, without runtime setup
 - install a PF2e Atlas skill that guides local agents through lookup and discovery
 
 ## Quick Start
+
+General dice rolls need no index or embedding model:
+
+```bash
+atlas roll '1d20+12'
+atlas roll '2d20kh1+12' # Keep the higher die
+atlas roll '(2d6+4)*2' --json
+```
+
+Use `kl` to keep the lowest dice. Quote expressions containing spaces or shell
+operators; use `atlas roll -- '-1d6+10'` for a leading minus sign. Human output
+shows the total and arithmetic breakdown; JSON retains every die, its sides and
+kept state, and intermediate totals. These rolls do not change encounter state.
 
 Install the latest release:
 

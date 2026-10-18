@@ -314,7 +314,10 @@ known zero AC and maximum HP suppress the primary block while original facts and
 valid zero saves remain retained. Shared reference layouts put prose first;
 encounter layouts prioritize combat state. Immediate Ability-class actions, effects and feats read inline by default through
 bounded owned-reading batches: one checked parent decode and one attributed
-prepared-content batch, up to 32 activities and 256 fields. Index owns exact
+prepared-content batch, up to 32 entries and 256 fields. Roll-table result reading
+uses the same bounded owner with range facts retained in the parent presentation.
+Table reference rolls remain non-consuming; matched results are shown even when
+their reading page is not loaded. Index owns exact
 locator SQL and complete relationship attribution for each delivered field.
 Fields exceeding the 1024 occurrence response budget have an explicit bounded
 outcome; valid rich content is never delivered with silently disabled links.

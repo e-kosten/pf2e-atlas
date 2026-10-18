@@ -45,17 +45,17 @@ fn table_results_preserve_collection_states_and_have_one_authoritative_list() {
             && let Some(link) = links.first()
         {
             assert_eq!(links.len(), 1);
-            assert_eq!(link.title, "Result 0");
-            assert_eq!(link.navigation.owners.len(), 1);
+            assert_eq!(link.link.title, "Result 0");
+            assert_eq!(link.link.navigation.owners.len(), 1);
             let selected = f
                 .worker
                 .record_detail_at(RecordDetailRequest {
                     spell_rank: None,
-                    record_key: link.navigation.record_key.clone(),
-                    owners: link.navigation.owners.clone(),
+                    record_key: link.link.navigation.record_key.clone(),
+                    owners: link.link.navigation.owners.clone(),
                     fields: vec![],
                     passage: None,
-                    source_fingerprint: link.navigation.source_fingerprint.clone(),
+                    source_fingerprint: link.link.navigation.source_fingerprint.clone(),
                 })
                 .unwrap();
             assert_eq!(selected.presentation.identity.title, "Result 0");
@@ -226,16 +226,16 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
     assert_eq!(table_body.formula.value.as_deref(), Some("1d4"));
     assert!(table.presentation.owned.is_empty());
     let result = &table_body.results.value.as_ref().unwrap()[0];
-    assert_eq!(result.title, "Result 1–2");
+    assert_eq!(result.link.title, "Result 1–2");
     let detail = f
         .worker
         .record_detail_at(RecordDetailRequest {
             spell_rank: None,
-            record_key: result.navigation.record_key.clone(),
-            owners: result.navigation.owners.clone(),
+            record_key: result.link.navigation.record_key.clone(),
+            owners: result.link.navigation.owners.clone(),
             fields: vec![],
             passage: None,
-            source_fingerprint: result.navigation.source_fingerprint.clone(),
+            source_fingerprint: result.link.navigation.source_fingerprint.clone(),
         })
         .unwrap();
     assert_eq!(detail.presentation.identity.title, "Result 1–2");
@@ -255,11 +255,11 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
         .worker
         .record_detail_at(RecordDetailRequest {
             spell_rank: None,
-            record_key: result.navigation.record_key.clone(),
-            owners: result.navigation.owners.clone(),
+            record_key: result.link.navigation.record_key.clone(),
+            owners: result.link.navigation.owners.clone(),
             fields: vec![],
             passage: None,
-            source_fingerprint: result.navigation.source_fingerprint.clone(),
+            source_fingerprint: result.link.navigation.source_fingerprint.clone(),
         })
         .unwrap();
     assert!(detail.relationships.is_empty());

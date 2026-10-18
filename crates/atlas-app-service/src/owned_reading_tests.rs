@@ -312,3 +312,84 @@ fn attributed_content_refuses_more_than_256_fields_and_missing_cache_has_no_pros
     .unwrap_err();
     assert!(error.to_string().contains("no prepared outcome"));
 }
+
+#[test]
+fn table_reading_batches_complete_text_and_checked_result_links() {
+    let rows: Vec<_> = (0..34)
+        .map(|i| {
+            json!({
+                "_id":format!("result{i:010}"), "type":"pack", "range":[i+1,i+1],
+                "text":format!("<p>Complete result {i}</p>"),
+                "documentCollection":"pf2e.items", "documentId":"item000000000000"
+            })
+        })
+        .collect();
+    let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        move || {
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "tables",
+                        "RollTable",
+                        json!({"_id":"table00000000000","name":"Table","formula":"1d100","results":rows}),
+                    ),
+                    record(
+                        "items",
+                        "Item",
+                        json!({"_id":"item000000000000","name":"Target","type":"equipment"}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let detail = fixture
+        .worker
+        .record_detail("tables:table00000000000")
+        .unwrap();
+    fixture
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            r.reset_read_metrics();
+            Ok(())
+        })
+        .unwrap();
+    let mut request = OwnedReadingRequest {
+        parent: detail.selected,
+        artifact_generation: detail.artifact_generation,
+        selection: OwnedReadingSelection::TableResults { cursor: None },
+    };
+    let first = fixture.worker.owned_reading(request.clone()).unwrap();
+    assert_eq!(first.entries.len(), 32);
+    assert_eq!(first.total, 34);
+    assert!(!first.entries[0].content.is_empty());
+    assert!(first.entries[0].relationships.iter().any(|edge| {
+        edge.kind == "TableResult"
+            && edge
+                .target
+                .as_ref()
+                .is_some_and(|target| target.record_key == "items:item000000000000")
+    }));
+    let metrics = fixture
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            Ok(r.read_metrics())
+        })
+        .unwrap();
+    assert_eq!(
+        (
+            metrics.source_body_decodes,
+            metrics.prepared_content_batches
+        ),
+        (1, 1)
+    );
+    request.selection = OwnedReadingSelection::TableResults { cursor: first.next };
+    let next = fixture.worker.owned_reading(request.clone()).unwrap();
+    assert_eq!(next.entries.len(), 2);
+    assert!(next.next.is_none());
+    assert_ne!(first.entries[0].navigation, next.entries[0].navigation);
+    request.artifact_generation = "stale".into();
+    assert!(fixture.worker.owned_reading(request).is_err());
+}

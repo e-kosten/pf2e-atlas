@@ -1121,7 +1121,7 @@ fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capaci
             .value
             .as_deref()
             .unwrap(),
-        "1d6+4"
+        "(1d6+4)+2"
     );
     assert!(
         block
@@ -2017,29 +2017,33 @@ fn condition_manual_notes_bind_exact_rows_and_keep_other_diagnostics_unbound() {
         .unwrap()
         .unapplied_effects;
     let expected = [
-        "Strength-based attack and damage penalties need manual adjustment.",
-        "Strength-based attack and damage penalties need manual adjustment.",
-        "Dexterity-based attack penalties need manual adjustment.",
-        "Effects need manual handling.",
-        "Effects need manual handling.",
+        None,
+        None,
+        None,
+        Some("Effects need manual handling."),
+        Some("Effects need manual handling."),
     ];
     for (condition, reason) in participant.conditions.iter().zip(expected) {
-        let note = notes
+        let matching = notes
             .iter()
             .filter(|note| note.condition_id == Some(condition.condition_id))
             .collect::<Vec<_>>();
-        assert_eq!(note.len(), 1);
-        assert_eq!(
-            (note[0].label.as_str(), note[0].reason.as_str()),
-            (condition.name.as_str(), reason)
-        );
+        if let Some(reason) = reason {
+            assert_eq!(matching.len(), 1);
+            assert_eq!(
+                (matching[0].label.as_str(), matching[0].reason.as_str()),
+                (condition.name.as_str(), reason)
+            );
+        } else {
+            assert!(matching.is_empty());
+        }
     }
     assert_eq!(
         notes
             .iter()
             .filter(|note| note.condition_id.is_some())
             .count(),
-        5
+        2
     );
     assert!(
         notes
@@ -2113,5 +2117,191 @@ fn manual_participants_keep_exact_condition_notes_without_authored_statistics() 
             "Custom condition",
             "Effects need manual handling."
         )
+    );
+}
+
+#[test]
+fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
+    let f = encounter_fixture_worker();
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Strike rolls".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    let current = f.worker.encounter(&encounter.encounter_key).unwrap();
+    let p = &current.participants[0];
+    let mut elite = update(p);
+    elite.participant_variant = EncounterParticipantVariantView::Elite;
+    elite.variant_edit = true;
+    f.worker
+        .update_encounter_participant(&encounter.encounter_key, elite)
+        .unwrap();
+    f.worker
+        .add_encounter_participant_condition(
+            &encounter.encounter_key,
+            AddEncounterParticipantConditionRequest {
+                participant_key: p.participant_key.clone(),
+                condition_ref: Some("conditionitems:MIRkyAjyBeXivMa7".into()),
+                name: None,
+                value: Some(3),
+                source_participant_key: None,
+                duration: None,
+                note: None,
+            },
+        )
+        .unwrap();
+    let current = f.worker.encounter(&encounter.encounter_key).unwrap();
+    let p = &current.participants[0];
+    let activity = actor(p)
+        .activities
+        .value
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|a| a.title == "Claw")
+        .unwrap();
+    assert_eq!(
+        activity.damage.value.as_ref().unwrap()[0]
+            .formula
+            .value
+            .as_deref(),
+        Some("(1d6+4)-1")
+    );
+    assert_eq!(
+        activity
+            .attack_options
+            .iter()
+            .map(|a| a.modifier)
+            .collect::<Vec<_>>(),
+        [11, 6, 1]
+    );
+    let original = f
+        .worker
+        .record_detail("actors:testCreature1000")
+        .unwrap()
+        .presentation;
+    let mut baseline = super::mechanics::arithmetic_baseline(&original).unwrap();
+    let local = f
+        .worker
+        .local_state_store()
+        .unwrap()
+        .encounters()
+        .get_with_participants(&encounter.encounter_key)
+        .unwrap()
+        .unwrap()
+        .participants
+        .remove(0);
+    let strike = baseline
+        .activities
+        .iter_mut()
+        .find(|a| a.label == "Claw")
+        .unwrap();
+    let mut secondary = strike.damage[0].clone();
+    secondary.damage_id = "fire".into();
+    secondary.formula = "1d4".into();
+    secondary.damage_type = Some("fire".into());
+    strike.damage.push(secondary);
+    for (traits, attack, damage) in [
+        (vec![], 11, Some("(1d6+4)-1")),
+        (vec!["finesse"], 14, Some("(1d6+4)-1")),
+        (vec!["range-60"], 14, Some("(1d6+4)+2")),
+        (vec!["range-60", "brutal"], 11, Some("(1d6+4)+2")),
+        (vec!["thrown-20"], 14, Some("(1d6+4)-1")),
+    ] {
+        baseline
+            .activities
+            .iter_mut()
+            .find(|a| a.label == "Claw")
+            .unwrap()
+            .traits = traits.into_iter().map(str::to_owned).collect();
+        let effective = super::mechanics::participant_stat_block(&local, &baseline, true);
+        let strike = effective
+            .activities
+            .iter()
+            .find(|a| a.label == "Claw")
+            .unwrap();
+        assert_eq!(strike.rolls[0].adjusted_value.as_i64(), Some(attack));
+        assert_eq!(strike.damage[0].adjusted_formula.as_deref(), damage);
+        assert_eq!(strike.damage[1].adjusted_formula, None);
+    }
+    let no_damage = authored_arithmetic_baseline(
+        serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[{"_id":"bbbbbbbbbbbbbbbb","type":"melee","name":"Tongue","system":{"bonus":{"value":27},"traits":{"value":["reach-15"]},"damageRolls":{"empty":{"damage":"","damageType":"bludgeoning"}}}}]}),
+    );
+    for variant in [
+        atlas_local_state::ParticipantVariant::Normal,
+        atlas_local_state::ParticipantVariant::Elite,
+        atlas_local_state::ParticipantVariant::Weak,
+    ] {
+        let mut local = local.clone();
+        local.participant_variant = variant;
+        let effective = super::mechanics::participant_stat_block(&local, &no_damage, true);
+        assert!(effective.activities[0].damage.is_empty());
+    }
+    let request = RollEncounterStrikeRequest {
+        request_id: "damage-one".into(),
+        expected_revision: f
+            .worker
+            .local_state_store()
+            .unwrap()
+            .encounters()
+            .get(&encounter.encounter_key)
+            .unwrap()
+            .unwrap()
+            .revision,
+        participant_key: p.participant_key.clone(),
+        expected_participant_revision: p.revision,
+        reference: EncounterReferenceRequest {
+            artifact_generation: current.artifact_generation.clone().unwrap(),
+            selection: RecordDetailRequest {
+                spell_rank: None,
+                record_key: activity.navigation.record_key.clone(),
+                owners: activity.navigation.owners.clone(),
+                fields: vec![],
+                passage: None,
+                source_fingerprint: None,
+            },
+        },
+        attack_number: 1,
+        mode: RollMode::Normal,
+        modifier_override: None,
+        roll_kind: StrikeRollKind::Damage,
+    };
+    let rolled = f
+        .worker
+        .roll_encounter_strike(&encounter.encounter_key, request.clone())
+        .unwrap();
+    assert!(rolled.attack.is_none());
+    assert_eq!(rolled.damage.len(), 1);
+    assert_eq!(rolled.damage[0].formula.as_deref(), Some("(1d6+4)-1"));
+    assert!((4..=9).contains(&rolled.damage[0].outcome.as_ref().unwrap().total));
+    let mut edit = update(p);
+    edit.note = Some("Changed after rolling".into());
+    f.worker
+        .update_encounter_participant(&encounter.encounter_key, edit)
+        .unwrap();
+    assert_eq!(
+        f.worker
+            .roll_encounter_strike(&encounter.encounter_key, request.clone())
+            .unwrap(),
+        rolled
+    );
+    let mut stale = request;
+    stale.request_id = "new-request".into();
+    assert!(
+        f.worker
+            .roll_encounter_strike(&encounter.encounter_key, stale)
+            .is_err()
     );
 }

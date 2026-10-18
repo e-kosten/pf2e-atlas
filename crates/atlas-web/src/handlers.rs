@@ -17,6 +17,34 @@ use axum::response::IntoResponse;
 use crate::error::WebError;
 use crate::service::{AtlasWebState, call_read_service, call_service};
 
+pub(crate) async fn initiative_options(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.encounter_initiative_options(&encounter_ref)
+        })
+        .await?,
+    ))
+}
+
+pub(crate) async fn roll_initiative(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+    payload: Result<Json<atlas_app_model::RollInitiativeRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.roll_encounter_initiative(&encounter_ref, request)
+        })
+        .await?,
+    ))
+}
+
 pub(crate) async fn readiness(
     State(state): State<AtlasWebState>,
 ) -> Result<impl IntoResponse, WebError> {
@@ -493,5 +521,46 @@ pub(crate) async fn related_records(
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || service.related_records(request)).await?,
+    ))
+}
+
+pub(crate) async fn roll_table(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::RollTableRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.roll_table(request)).await?,
+    ))
+}
+
+pub(crate) async fn encounter_strike_options(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+    payload: Result<Json<atlas_app_model::EncounterStrikeOptionsRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.encounter_strike_options(&encounter_ref, request)
+        })
+        .await?,
+    ))
+}
+
+pub(crate) async fn roll_encounter_strike(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+    payload: Result<Json<atlas_app_model::RollEncounterStrikeRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.roll_encounter_strike(&encounter_ref, request)
+        })
+        .await?,
     ))
 }

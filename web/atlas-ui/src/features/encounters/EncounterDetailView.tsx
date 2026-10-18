@@ -9,6 +9,8 @@ import { EditEncounterModal } from "./EncounterModals";
 import { EncounterTurnReview } from "./EncounterTurnReview";
 import { useEncounterTurnReview } from "./useEncounterTurnReview";
 import { EncounterRosterPane } from "./EncounterRosterPane";
+import { InitiativeRollModal } from "./InitiativeRollModal";
+import { participantUpdate } from "./participantEdits";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
 import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
@@ -55,6 +57,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     null,
   );
   const [editEncounterOpen, setEditEncounterOpen] = useState(false);
+  const [initiativeOpen, setInitiativeOpen] = useState<{ participant?: string } | null>(
+    null,
+  );
   const encounter = useQuery({
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
@@ -241,6 +246,12 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
       <WorkspaceLayout
         filter={
           <EncounterRosterPane
+            onRoll={async (request) => {
+              const result = await mutations.run({ kind: "initiative", request });
+              if (!("rolls" in result.receipt)) throw new Error("Missing roll receipt");
+              return result.receipt;
+            }}
+            onRollInitiative={(participant) => setInitiativeOpen({ participant })}
             recovery={recovery}
             disabled={disabled}
             error={mutations.errorKind === "spell" ? undefined : mutations.errorMessage}
@@ -300,6 +311,8 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
         }
         results={
           <EncounterInspectorPane
+            encounterKey={encounter.data?.encounter.encounter_key ?? route.slug}
+            artifactGeneration={encounter.data?.artifact_generation ?? null}
             encounterRevision={encounter.data?.revision ?? 0n}
             pending={mutations.pending}
             recovery={recovery}
@@ -449,6 +462,34 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           onSave={async (request) => {
             await mutations.run({ kind: "metadata", request });
             setEditEncounterOpen(false);
+          }}
+        />
+      )}
+      {initiativeOpen && encounter.data && (
+        <InitiativeRollModal
+          onSetTotal={async (key, value) => {
+            const participant = encounter.data?.participants.find(
+              (p) => p.participant_key === key,
+            );
+            if (!participant) throw new Error("Participant unavailable");
+            await mutations.run({
+              kind: "participant",
+              request: participantUpdate(participant, {
+                initiative: value === undefined ? undefined : BigInt(value),
+              }),
+            });
+          }}
+          encounterKey={encounter.data.encounter.encounter_key}
+          participants={encounter.data.participants}
+          initialParticipant={initiativeOpen.participant}
+          disabled={disabled}
+          onClose={() => {
+            if (!mutations.pending) setInitiativeOpen(null);
+          }}
+          onRoll={async (request) => {
+            const result = await mutations.run({ kind: "initiative", request });
+            if (!("rolls" in result.receipt)) throw new Error("Missing roll receipt");
+            return result.receipt;
           }}
         />
       )}

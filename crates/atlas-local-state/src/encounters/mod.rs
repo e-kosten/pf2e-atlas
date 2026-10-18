@@ -1,4 +1,10 @@
+mod participant_rolls;
+pub use participant_rolls::ParticipantRollGuard;
+mod initiative_rolls;
 mod model;
+pub use initiative_rolls::{
+    InitiativeRollReceipt, ParticipantInitiativeRoll, ResolvedInitiativeRoll,
+};
 mod service;
 mod storage;
 
