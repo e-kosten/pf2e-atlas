@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { ConfigProvider, Grid } from "antd";
 import { useRecordPreview } from "./useRecordPreview";
+import { EffectReferenceLink } from "./EffectReferenceLink";
 import { detailFixture } from "../../test/fixtures";
 import { RecordPreviewPopover } from "./RecordPreviewPopover";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -57,18 +58,57 @@ function PreviewFlow() {
   );
 }
 
+it("suppresses effect tooltips while reading and restores them after closing", async () => {
+  function EffectFlow() {
+    const preview = useRecordPreview();
+    return (
+      <>
+        <EffectReferenceLink
+          label={{ text: "Effect", title: "Spell Effect: Success" }}
+          target={detailFixture("effects:success").selected}
+          onReference={preview.open}
+        />
+        {preview.recordKey && <button onClick={preview.close}>Close preview</button>}
+      </>
+    );
+  }
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EffectFlow />
+    </ConfigProvider>,
+    { wrapper: queryWrapper },
+  );
+  const link = screen.getByRole("link", { name: "Preview Spell Effect: Success" });
+  fireEvent.mouseEnter(link);
+  await screen.findByRole("tooltip");
+  fireEvent.click(link);
+  expect(link).toHaveAttribute("aria-expanded", "true");
+  fireEvent.mouseLeave(link);
+  fireEvent.mouseEnter(link);
+  // Let Ant's delayed hover and dismissal finish before checking re-entry.
+  await act(() => new Promise((resolve) => setTimeout(resolve, 400)));
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Close preview" }));
+  fireEvent.mouseLeave(link);
+  fireEvent.mouseEnter(link);
+  await screen.findByRole("tooltip");
+});
+
 it("returns focus to the original live trigger after following nested references", () => {
   render(<PreviewFlow />, { wrapper: queryWrapper });
   const original = screen.getByRole("button", { name: "Original reference" });
   act(() => original.focus());
   fireEvent.click(original);
+  expect(original).toHaveAttribute("aria-expanded", "true");
   const follow = screen.getByRole("button", { name: "Follow reference" });
   act(() => follow.focus());
   fireEvent.click(follow);
+  expect(original).toHaveAttribute("aria-expanded", "true");
   const close = screen.getByRole("button", { name: "Close preview" });
   act(() => close.focus());
   fireEvent.click(close);
   expect(original).toHaveFocus();
+  expect(original).not.toHaveAttribute("aria-expanded");
   expect(
     screen.queryByRole("button", { name: "Close preview" }),
   ).not.toBeInTheDocument();

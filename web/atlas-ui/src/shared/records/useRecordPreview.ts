@@ -1,5 +1,5 @@
 import { recordReadingIdentity, useRetainedRecord } from "./useRetainedRecord";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { RecordPreviewAnchor } from "./recordPreviewTypes";
 import type {
   RecordNavigationView,
@@ -39,6 +39,18 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   });
   const [restoringHistory, setRestoringHistory] = useState(false);
   const opener = useRef<HTMLElement | null>(null);
+  // Openers include prepared HTML links outside React's prop ownership. Keep
+  // their expanded state with the preview owner, including nested navigation.
+  useLayoutEffect(() => {
+    const element = opener.current;
+    if (!recordKey || !element) return;
+    const previous = element.getAttribute("aria-expanded");
+    element.setAttribute("aria-expanded", "true");
+    return () => {
+      if (previous === null) element.removeAttribute("aria-expanded");
+      else element.setAttribute("aria-expanded", previous);
+    };
+  }, [recordKey]);
   const session = useRef(0);
   const [reloadState, setReloadState] = useState<
     { kind: "loading" } | { kind: "finished" } | { kind: "failed"; error: Error } | null

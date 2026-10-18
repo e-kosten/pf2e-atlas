@@ -6,6 +6,10 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Effect reference presentation](items/effect-reference-presentation.md)
+  Compact unlabeled effect links preserve explicit source labels, distinct
+  choices, native destinations and shared previews. Status: done.
+
 - [Responsive UI validation](./items/responsive-ui-validation.md)
   Shared responsive guidance, real-app device acceptance in CI and short-height
   picker repairs landed in PR59. Human previews use the full corpus. Status: done.

@@ -1,5 +1,5 @@
 //! One checked parent and one attributed prepared batch per bounded reading request.
-use crate::projection::relationship_view;
+use crate::projection::relationship_views;
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::*;
 use atlas_domain::RecordKey;
@@ -230,14 +230,16 @@ impl AtlasAppService {
                         r.artifact_context().audience,
                         r.source_fingerprint(),
                     )?,
-                    relationships: content
-                        .relationships
-                        .iter()
-                        .filter(|edge| edge.locator.owners == navigation.owners)
-                        .cloned()
-                        .chain(table_links)
-                        .map(|edge| relationship_view(edge, r.source_fingerprint()))
-                        .collect(),
+                    relationships: relationship_views(
+                        content
+                            .relationships
+                            .iter()
+                            .filter(|edge| edge.locator.owners == navigation.owners)
+                            .cloned()
+                            .chain(table_links)
+                            .collect(),
+                        r.source_fingerprint(),
+                    ),
                 });
             }
             let end = start + entries.len();
