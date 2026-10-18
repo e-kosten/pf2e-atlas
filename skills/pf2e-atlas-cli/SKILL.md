@@ -32,8 +32,15 @@ does not require model weights. Search responses report the resolved profile and
 complete artifact generation. These operational choices do not establish a
 quality winner between models.
 
-Prefer JSON output: commands emit `{ "status": "ok", "data": ... }` or an error
-envelope. A nonzero exit means the requested action did not complete successfully.
+Prefer JSON output. `record get` and `record resolve` return ordered
+`data.results`, including for one input. Outer `status` is `ok`, `partial`, or
+`error`; each input has `status: ok` with `value`, `status: error` with `error`,
+or `status: unprocessed` with `reason: prior_runtime_failure`. Preserve successful
+siblings when a batch fails. Whole-command failures use a top-level `error`.
+Errors expose `code`, `message`, and optional `details` and recovery hints.
+Exit classes are 0 success, 1 miss/ambiguity, 2 invalid input, 3 runtime failure;
+mixed failures use the highest class. Other data commands use the usual
+`{ "status": "ok", "data": ... }` envelope. A nonzero exit means the requested action did not complete successfully.
 Do not treat a failure, ambiguity or bounded candidate count as a complete answer.
 
 Resolve identities before relying on a guessed key:
@@ -48,17 +55,22 @@ normalized names and verified aliases, preserving their evidence. Ambiguous
 resolution requires choosing the intended record; use its returned key in later
 commands. Name similarity and Suggested variants do not establish identity.
 
-Record JSON keeps the root summary in `record` and the exact selected address in
-`selected`. `presentation.identity` describes the selected child when an owner
-chain is supplied; `presentation.body` contains semantic creature, hazard, spell,
-activity, physical, table, or content facts. Read each fact's availability before using its
-value. Spell heightening and forms describe authored changes; Atlas does not
-calculate a selected rank or execute a form. Embedded spells retain their local
-casting context and customizations.
+`content.body` contains semantic creature, hazard, spell, activity, physical,
+table, or content facts. Read each fact's availability before using its value.
+Spell heightening and forms describe authored changes; `record get --rank` previews
+supported rank changes but does not execute a form or spend resources. Embedded
+spells retain their local casting context and customizations.
 Form and fixed-heightening changes are sparse authored overrides of the base;
 an omitted member is not an unavailable full form. Explicit null clears remain
 distinct from omitted members. Read casting-entry attack/DC and Lore modifiers
 from their typed activity facts rather than reconstructing them from prose.
+
+In a successful `record get` result, read `value.identity` for the selected
+content's identity, `value.selected` for its exact navigation, and `value.content`
+for text `fields`, structured `body`, classification and embedded navigation.
+`value.parent` appears only for embedded selections and identifies the containing
+record. Do not mistake the parent for the selected spell or ability. Rank previews
+use effective identity/facts. There are no `record` or `presentation` aliases.
 
 For a compact root heading, use `atlas record get PACK:ID --detail summary`.
 This terminal path reads body-free summaries. Selected-child summaries identify

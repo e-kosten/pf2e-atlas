@@ -7,24 +7,26 @@ use std::process::ExitCode;
 pub(crate) mod args;
 use args::{FiltersFieldsOptions, FiltersValuesOptions};
 pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, String> {
-    let s = connect(ClientOptions {
+    let s = match connect(ClientOptions {
         search_profile: None,
         path_mode: o.path_mode.into(),
         index: o.index,
         embedding_cache: None,
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
-    })
-    .map_err(|e| e.message)?;
+    }) {
+        Ok(service) => service,
+        Err(error) => return crate::commands::product::report_app_error(error, o.json),
+    };
     if o.field.is_none() && !o.all && o.text.is_none() {
-        let Some(mut editor) = app_result(
+        let mut editor = match app_result(
             s.discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
                 filter: None,
                 selected_field_ids: vec![],
             }),
             o.json,
-        )?
-        else {
-            return Ok(ExitCode::from(3));
+        )? {
+            std::ops::ControlFlow::Continue(value) => value,
+            std::ops::ControlFlow::Break(exit) => return Ok(exit),
         };
         if let Some(id) = &o.group {
             if !editor.groups.iter().any(|group| &group.id == id) {
@@ -61,8 +63,9 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
         }
         return Ok(ExitCode::SUCCESS);
     }
-    let Some(mut c) = app_result(s.discover_filter_fields(), o.json)? else {
-        return Ok(ExitCode::from(3));
+    let mut c = match app_result(s.discover_filter_fields(), o.json)? {
+        std::ops::ControlFlow::Continue(value) => value,
+        std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
     if let Some(id) = &o.field
         && !c.fields.iter().any(|field| &field.id == id)
@@ -148,27 +151,30 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
 }
 pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, String> {
     let (filter, _) = build_filter(&o.filter_options).map_err(|e| e.message)?;
-    let s = connect(ClientOptions {
+    let s = match connect(ClientOptions {
         search_profile: None,
         path_mode: o.path_mode.into(),
         index: o.index,
         embedding_cache: None,
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
-    })
-    .map_err(|e| e.message)?;
-    let Some(counts) = app_result(
+    }) {
+        Ok(service) => service,
+        Err(error) => return crate::commands::product::report_app_error(error, o.json),
+    };
+    let counts = match app_result(
         s.discover_raw_filter_counts(RawFilterCountsRequest {
             field: o.field.clone(),
             filter: filter.clone(),
             clause_id: None,
         }),
         o.json,
-    )?
-    else {
-        return Ok(ExitCode::from(3));
+    )? {
+        std::ops::ControlFlow::Continue(value) => value,
+        std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
-    let Some(catalog) = app_result(s.discover_filter_fields(), o.json)? else {
-        return Ok(ExitCode::from(3));
+    let catalog = match app_result(s.discover_filter_fields(), o.json)? {
+        std::ops::ControlFlow::Continue(value) => value,
+        std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
     let definition = catalog
         .fields
@@ -185,7 +191,7 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
     let values = if statistics_only {
         None
     } else {
-        let Some(values) = app_result(
+        let values = match app_result(
             s.discover_raw_filter_values(RawFilterValuesRequest {
                 field: o.field,
                 filter,
@@ -195,9 +201,9 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
                 limit: o.limit,
             }),
             o.json,
-        )?
-        else {
-            return Ok(ExitCode::from(3));
+        )? {
+            std::ops::ControlFlow::Continue(value) => value,
+            std::ops::ControlFlow::Break(exit) => return Ok(exit),
         };
         Some(values)
     };

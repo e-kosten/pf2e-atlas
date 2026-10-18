@@ -1,12 +1,14 @@
-use super::{filters::build_filter, product::app_result};
+use super::{filters::build_filter, product::report_app_error};
 use crate::client::{ClientOptions, connect};
 use atlas_app_model::{
     OwnedReadingEntryView, OwnedReadingRequest, OwnedReadingSelection, RecordBodyView,
     RecordDetailRequest, RecordDetailView,
 };
-use atlas_cli_support::write_json_data;
+use atlas_cli_support::write_json_response;
 use std::process::ExitCode;
 pub(crate) mod args;
+mod batch;
+mod json;
 mod presentation;
 pub(crate) mod source;
 mod terminal;
@@ -14,108 +16,150 @@ use args::{RecordGetOptions, RecordResolveOptions, TerminalDetail};
 #[cfg(test)]
 use terminal::render_html;
 pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
-    let s = connect(ClientOptions {
+    let connection = connect(ClientOptions {
         search_profile: None,
         path_mode: o.path_mode.into(),
         index: o.index,
         embedding_cache: None,
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
-    })
-    .map_err(|e| e.message)?;
-    if o.detail == TerminalDetail::Summary
+    });
+    let s = match connection {
+        Ok(service) => service,
+        Err(error) => return super::product::report_app_error(error, o.json),
+    };
+    // A zero-key summary read admits the workspace without decoding source bodies.
+    // Admission failures belong to the command, before any per-input work starts.
+    if let Err(error) = s.get_records(Vec::new()) {
+        return report_app_error(error.into_app_error(), o.json);
+    }
+    let summary = o.detail == TerminalDetail::Summary
         && !o.json
         && o.owners.as_ref().is_none_or(|owners| owners.0.is_empty())
         && o.field.is_none()
         && o.passage.is_none()
-        && o.rank.is_none()
-    {
-        for key in o.keys {
-            let key = atlas_domain::RecordKey::parse(&key).map_err(|e| e.to_string())?;
-            let Some(record) = s
+        && o.rank.is_none();
+    let batch = batch::Batch::run(o.keys, |key| {
+        if summary {
+            let key = atlas_domain::RecordKey::parse(key).map_err(|e| {
+                atlas_app_model::AppError::new(
+                    atlas_app_model::AppErrorCode::InvalidRecordKey,
+                    e.to_string(),
+                )
+            })?;
+            let record = s
                 .get_records(vec![key.clone()])
-                .map_err(|e| e.into_app_error().message)?
+                .map_err(|e| e.into_app_error())?
                 .into_iter()
                 .next()
-            else {
-                return Err(format!("record `{key}` was not found"));
-            };
+                .ok_or_else(|| {
+                    atlas_app_model::AppError::new(
+                        atlas_app_model::AppErrorCode::RecordNotFound,
+                        format!("record `{key}` was not found"),
+                    )
+                })?;
             print_header(&record);
+            return Ok(None);
         }
-        return Ok(ExitCode::SUCCESS);
-    }
-    let mut records = Vec::new();
-    let mut failed = false;
-    for key in o.keys {
-        let result = s.record_detail_at(RecordDetailRequest {
-            spell_rank: o.rank,
-            record_key: key,
-            owners: o
-                .owners
-                .as_ref()
-                .map(|owners| owners.0.clone())
-                .unwrap_or_default(),
-            fields: o.field.clone().into_iter().collect(),
-            passage: o.passage.clone(),
-            source_fingerprint: o.source_fingerprint.clone(),
-        });
-        match app_result(result, o.json)? {
-            Some(v) => records.push(v),
-            None => failed = true,
+        let record = s
+            .record_detail_at(RecordDetailRequest {
+                spell_rank: o.rank,
+                record_key: key.to_owned(),
+                owners: o
+                    .owners
+                    .as_ref()
+                    .map(|owners| owners.0.clone())
+                    .unwrap_or_default(),
+                fields: o.field.clone().into_iter().collect(),
+                passage: o.passage.clone(),
+                source_fingerprint: o.source_fingerprint.clone(),
+            })
+            .map_err(|e| e.into_app_error())?;
+        if !o.json {
+            print!("{}", render_selected_record(&s, &record, o.detail)?);
+            return Ok(None);
         }
-    }
+        Ok(Some(record))
+    });
     if o.json {
-        if !failed {
-            write_json_data(serde_json::json!({"records":records}))?;
-        }
+        let response = batch.map_values(|record| record.as_ref().map(json::RecordResponse::from));
+        write_json_response(batch.status(), &response)?;
     } else {
-        for r in records {
-            print_record(&s, &r, o.detail)?;
+        for outcome in &batch.results {
+            match outcome {
+                batch::Outcome::Ok { .. } => {}
+                batch::Outcome::Error { input, error } => eprintln!("{input}: {}", error.message),
+                batch::Outcome::Unprocessed { input, .. } => {
+                    eprintln!("{input}: not processed after runtime failure")
+                }
+            }
         }
     }
-    Ok(if failed {
-        ExitCode::from(3)
-    } else {
-        ExitCode::SUCCESS
-    })
+    Ok(ExitCode::from(batch.exit))
 }
+
 pub(crate) fn run_record_resolve(o: RecordResolveOptions) -> Result<ExitCode, String> {
-    let (filter, _) = build_filter(&o.filter_options).map_err(|e| e.message)?;
-    let s = connect(ClientOptions {
+    let (filter, _) = match build_filter(&o.filter_options) {
+        Ok(filter) => filter,
+        Err(error) => {
+            return report_app_error(
+                atlas_app_model::AppError::new(
+                    atlas_app_model::AppErrorCode::FilterInvalid,
+                    error.message,
+                ),
+                o.json,
+            );
+        }
+    };
+    let s = match connect(ClientOptions {
         search_profile: None,
         path_mode: o.path_mode.into(),
         index: o.index,
         embedding_cache: None,
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
-    })
-    .map_err(|e| e.message)?;
-    let mut rows = Vec::new();
-    let mut unresolved = false;
-    for query in o.queries {
-        let Some(matches) = app_result(s.resolve_record(query.clone(), filter.clone()), o.json)?
-        else {
-            return Ok(ExitCode::from(3));
-        };
-        let count = matches.len();
-        unresolved |= count != 1;
-        let alternatives = matches.iter().take(o.alternatives).collect::<Vec<_>>();
-        rows.push(serde_json::json!({"query":query,"status":match count{0=>"miss",1=>"resolved",_=>"ambiguous"},"total":count,"alternatives":alternatives}));
+    }) {
+        Ok(service) => service,
+        Err(error) => return report_app_error(error, o.json),
+    };
+    if let Err(error) = s.get_records(Vec::new()) {
+        return report_app_error(error.into_app_error(), o.json);
     }
+    let batch = batch::Batch::run(o.queries, |query| {
+        let matches = s
+            .resolve_record(query.to_owned(), filter.clone())
+            .map_err(|e| e.into_app_error())?;
+        let count = matches.len();
+        let alternatives = matches.iter().take(o.alternatives).collect::<Vec<_>>();
+        let value = serde_json::json!({"total":count,"alternatives":alternatives});
+        match count {
+            1 => Ok(value),
+            _ => Err(atlas_app_model::AppError::new(
+                if count == 0 {
+                    atlas_app_model::AppErrorCode::RecordResolutionMiss
+                } else {
+                    atlas_app_model::AppErrorCode::RecordResolutionAmbiguous
+                },
+                if count == 0 {
+                    "no strict name or verified alias matched"
+                } else {
+                    "ambiguous reference; specify a Foundry key"
+                },
+            )
+            .with_details(value)),
+        }
+    });
     if o.json {
-        write_json_data(serde_json::json!({"resolutions":rows}))?;
+        write_json_response(batch.status(), &batch)?;
     } else {
-        for row in rows {
+        for outcome in &batch.results {
             println!(
                 "{}",
-                serde_json::to_string_pretty(&row).map_err(|e| e.to_string())?
+                serde_json::to_string_pretty(outcome).map_err(|e| e.to_string())?
             );
         }
     }
-    Ok(if unresolved {
-        ExitCode::from(1)
-    } else {
-        ExitCode::SUCCESS
-    })
+    Ok(ExitCode::from(batch.exit))
 }
+
 fn width() -> usize {
     std::env::var("COLUMNS")
         .ok()
@@ -123,20 +167,11 @@ fn width() -> usize {
         .filter(|v| *v >= 20)
         .unwrap_or(80)
 }
-fn print_record(
-    service: &atlas_app_service::AtlasAppService,
-    record: &RecordDetailView,
-    detail: TerminalDetail,
-) -> Result<(), String> {
-    print!("{}", render_selected_record(service, record, detail)?);
-    Ok(())
-}
-
 fn render_selected_record(
     service: &atlas_app_service::AtlasAppService,
     record: &RecordDetailView,
     detail: TerminalDetail,
-) -> Result<String, String> {
+) -> Result<String, atlas_app_model::AppError> {
     let mut reading: Vec<OwnedReadingEntryView> = vec![];
     if detail != TerminalDetail::Summary
         && record.selected.owners.is_empty()
@@ -157,7 +192,7 @@ fn render_selected_record(
                         target: None,
                     },
                 })
-                .map_err(|e| e.into_app_error().message)?;
+                .map_err(|e| e.into_app_error())?;
             reading.extend(batch.entries);
             cursor = batch.next;
             if cursor.is_none() {
@@ -170,7 +205,10 @@ fn render_selected_record(
         detail,
         terminal::TerminalLayout::current(width()),
         &reading,
-    )?;
+    )
+    .map_err(|error| {
+        atlas_app_model::AppError::new(atlas_app_model::AppErrorCode::InternalError, error)
+    })?;
     if detail == TerminalDetail::Full && record.selected.field.is_none() {
         let activities = match &record.presentation.body {
             RecordBodyView::Creature(actor) => actor.activities.value.as_deref(),
@@ -213,7 +251,7 @@ fn render_selected_record(
                     passage: None,
                     source_fingerprint: navigation.source_fingerprint.clone(),
                 })
-                .map_err(|error| error.into_app_error().message)?;
+                .map_err(|error| error.into_app_error())?;
             output.push_str("\n────────────────────────────────────────\n");
             output.push_str(&render_selected_record(service, &child, detail)?);
         }

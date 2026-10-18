@@ -14,7 +14,7 @@ use std::{
 };
 pub(crate) mod args;
 use args::*;
-fn client(paths: ListsPathOptions) -> Result<AtlasAppService, String> {
+fn client(paths: ListsPathOptions) -> Result<AtlasAppService, atlas_app_model::AppError> {
     connect(ClientOptions {
         search_profile: None,
         path_mode: paths.path_mode.into(),
@@ -22,10 +22,12 @@ fn client(paths: ListsPathOptions) -> Result<AtlasAppService, String> {
         embedding_cache: None,
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
     })
-    .map_err(|e| e.message)
 }
 pub(crate) fn run_lists_create(o: ListCreateOptions) -> Result<ExitCode, String> {
-    let s = client(o.paths)?;
+    let s = match client(o.paths) {
+        Ok(service) => service,
+        Err(error) => return super::product::report_app_error(error, o.json),
+    };
     emit(
         app_result(
             s.create_saved_list(CreateSavedListRequest {
@@ -40,13 +42,20 @@ pub(crate) fn run_lists_create(o: ListCreateOptions) -> Result<ExitCode, String>
     )
 }
 pub(crate) fn run_lists_ls(o: ListLsOptions) -> Result<ExitCode, String> {
-    let s = client(o.paths)?;
+    let s = match client(o.paths) {
+        Ok(service) => service,
+        Err(error) => return super::product::report_app_error(error, o.json),
+    };
     emit(app_result(s.saved_lists(), o.json)?, o.json)
 }
 pub(crate) fn run_lists_show(o: ListShowOptions) -> Result<ExitCode, String> {
-    let s = client(o.paths)?;
-    let Some(mut view) = app_result(s.saved_list(&o.slug), o.json)? else {
-        return Ok(ExitCode::from(3));
+    let s = match client(o.paths) {
+        Ok(service) => service,
+        Err(error) => return super::product::report_app_error(error, o.json),
+    };
+    let mut view = match app_result(s.saved_list(&o.slug), o.json)? {
+        std::ops::ControlFlow::Continue(value) => value,
+        std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
     if o.keys_only {
         if o.json {
@@ -102,7 +111,10 @@ pub(crate) fn run_lists_add(mut o: ListAddOptions) -> Result<ExitCode, String> {
     if o.record_refs.is_empty() {
         return Err("provide record references or --stdin".into());
     }
-    let s = client(o.paths)?;
+    let s = match client(o.paths) {
+        Ok(service) => service,
+        Err(error) => return super::product::report_app_error(error, o.json),
+    };
     let items = o
         .record_refs
         .into_iter()
@@ -123,7 +135,10 @@ pub(crate) fn run_lists_add(mut o: ListAddOptions) -> Result<ExitCode, String> {
     )
 }
 pub(crate) fn run_lists_remove(o: ListRemoveOptions) -> Result<ExitCode, String> {
-    let s = client(o.paths)?;
+    let s = match client(o.paths) {
+        Ok(service) => service,
+        Err(error) => return super::product::report_app_error(error, o.json),
+    };
     emit(
         app_result(
             s.remove_saved_list_item(RemoveSavedListItemRequest {
@@ -136,7 +151,10 @@ pub(crate) fn run_lists_remove(o: ListRemoveOptions) -> Result<ExitCode, String>
     )
 }
 pub(crate) fn run_lists_delete(o: ListDeleteOptions) -> Result<ExitCode, String> {
-    let s = client(o.paths)?;
+    let s = match client(o.paths) {
+        Ok(service) => service,
+        Err(error) => return super::product::report_app_error(error, o.json),
+    };
     emit(app_result(s.delete_saved_list(&o.slug), o.json)?, o.json)
 }
 pub(crate) fn run_lists_edit(o: ListEditOptions) -> Result<ExitCode, String> {
@@ -146,9 +164,13 @@ pub(crate) fn run_lists_edit(o: ListEditOptions) -> Result<ExitCode, String> {
     if o.clear_tags && !o.tags.is_empty() {
         return Err("--tag conflicts with --clear-tags".into());
     }
-    let s = client(o.paths)?;
-    let Some(v) = app_result(s.saved_list(&o.list_ref), o.json)? else {
-        return Ok(ExitCode::from(3));
+    let s = match client(o.paths) {
+        Ok(service) => service,
+        Err(error) => return super::product::report_app_error(error, o.json),
+    };
+    let v = match app_result(s.saved_list(&o.list_ref), o.json)? {
+        std::ops::ControlFlow::Continue(value) => value,
+        std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
     let request = UpdateSavedListRequest {
         list_key: v.list.list_key,
@@ -170,8 +192,14 @@ pub(crate) fn run_lists_edit(o: ListEditOptions) -> Result<ExitCode, String> {
     emit(app_result(s.update_saved_list(request), o.json)?, o.json)
 }
 pub(crate) fn run_lists_export(o: ListExportOptions) -> Result<ExitCode, String> {
-    let s = client(o.paths)?;
-    let document = s.export_saved_list(&o.slug).map_err(|e| e.to_string())?;
+    let s = match client(o.paths) {
+        Ok(service) => service,
+        Err(error) => return super::product::report_app_error(error, false),
+    };
+    let document = match s.export_saved_list(&o.slug) {
+        Ok(value) => value,
+        Err(error) => return super::product::report_app_error(error.into_app_error(), false),
+    };
     let json = serde_json::to_string_pretty(&document).map_err(|e| e.to_string())?;
     if let Some(p) = o.output {
         fs::write(p, json).map_err(|e| e.to_string())?;
@@ -183,7 +211,10 @@ pub(crate) fn run_lists_export(o: ListExportOptions) -> Result<ExitCode, String>
 pub(crate) fn run_lists_import(o: ListImportOptions) -> Result<ExitCode, String> {
     let document = serde_json::from_slice(&fs::read(o.input).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
-    let s = client(o.paths)?;
+    let s = match client(o.paths) {
+        Ok(service) => service,
+        Err(error) => return super::product::report_app_error(error, o.json),
+    };
     emit(
         app_result(
             s.import_saved_list(ImportSavedListRequest {
