@@ -3,7 +3,7 @@
 Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-13
+Last reviewed: 2026-10-17
 
 ## Current Baseline
 
@@ -25,6 +25,24 @@ production. The [dated evaluation notes](../../research/source-backed-search-eva
 preserve findings, sample sizes, evidence limits and local artifact references.
 
 ## Next Evaluation
+
+Evaluate FTS independently, then evaluate its fusion with semantic retrieval.
+Lexical retrieval has not received the same depth of evaluation as the semantic
+models. Separate candidate recall from ordering: inspect tokenization, partial
+primary-title matching, verified aliases, embedded-title matches, specificity
+tiers and candidate limits before attributing poor hybrid ranking to fusion.
+Compare FTS-only, semantic-only and hybrid results over the same full corpus and
+query/filter conditions, including both available semantic profiles. Preserve
+natural-language discovery while improving short name and partial-name searches.
+
+User observation (2026-10-17): searching `harrowkin` placed **Fabled Harrowkin**
+on the first page, but below the first few results despite the primary-title
+match. Record this as an exposed development case, not an established root cause
+or a requirement that this particular record always rank first. Capture the
+profile, filters, competing results, lexical/semantic ranks and contributing
+evidence when reproducing it. Add fresh comparable partial-name queries across
+record kinds so changes are not tuned to this one example. Evaluate primary-name
+relevance against embedded matches and semantic relevance explicitly.
 
 Compare the distinct roles of primary identity, the root's own explanation,
 intrinsic local mechanics and associated content. Preserve useful exact embedded
