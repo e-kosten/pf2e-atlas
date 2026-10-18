@@ -9,7 +9,7 @@ use atlas_record::source_record::{
 };
 use atlas_search::GetRecordRequest;
 
-const ABILITY_LIMIT: usize = 32;
+const ENTRY_LIMIT: usize = 32;
 const FIELD_LIMIT: usize = 256;
 
 impl AtlasAppService {
@@ -23,7 +23,7 @@ impl AtlasAppService {
             || request.parent.passage.is_some()
         {
             return Err(AppServiceError::invalid_request(
-                "owned reading requires the parent actor address",
+                "owned reading requires the parent record address",
             ));
         }
         let key = RecordKey::parse(&request.parent.record_key)
@@ -49,9 +49,15 @@ impl AtlasAppService {
                 .source
                 .node_at(&[])
                 .ok_or_else(|| AppServiceError::invalid_request("parent record unavailable"))?;
-            if !matches!(node, SourceNodeView::Actor(_)) {
+            let table_reading = matches!(
+                &request.selection,
+                OwnedReadingSelection::TableResults { .. }
+            );
+            if !(matches!(node, SourceNodeView::Actor(_)) && !table_reading
+                || matches!(node, SourceNodeView::Table(_)) && table_reading)
+            {
                 return Err(AppServiceError::invalid_request(
-                    "owned reading requires an actor parent",
+                    "reading selection does not match the parent record",
                 ));
             }
             let activities = crate::presentation::actor::authored_activities(
@@ -59,8 +65,41 @@ impl AtlasAppService {
                 node,
                 r.source_fingerprint(),
             );
-            let availability = activities.state;
+            let availability = if let SourceNodeView::Table(table) = node {
+                crate::projection::field_state(SourceFieldView::from(&table.results).availability())
+            } else {
+                activities.state
+            };
             let (candidates, start, single) = match &request.selection {
+                OwnedReadingSelection::TableResults { cursor } => {
+                    let candidates: Vec<_> = crate::presentation::owned_links(
+                        &detail.source,
+                        node,
+                        &[],
+                        r.source_fingerprint(),
+                    )
+                    .into_iter()
+                    .map(|link| link.navigation)
+                    .collect();
+                    let start = if let Some(cursor) = cursor {
+                        if cursor.artifact_generation != generation {
+                            return Err(AppServiceError::artifact_generation_changed(
+                                &cursor.artifact_generation,
+                                &generation,
+                                AppRecoverableAction::ReloadRecord,
+                            ));
+                        }
+                        cursor.offset
+                    } else {
+                        0
+                    };
+                    if start > candidates.len() || (start == candidates.len() && start != 0) {
+                        return Err(AppServiceError::invalid_request(
+                            "reading cursor is outside the owned collection",
+                        ));
+                    }
+                    (candidates, start, false)
+                }
                 OwnedReadingSelection::Abilities { cursor, target } => {
                     if cursor.is_some() && target.is_some() {
                         return Err(AppServiceError::invalid_request(
@@ -84,7 +123,7 @@ impl AtlasAppService {
                                     "target ability does not exist in this source snapshot",
                                 )
                             })?;
-                        index / ABILITY_LIMIT * ABILITY_LIMIT
+                        index / ENTRY_LIMIT * ENTRY_LIMIT
                     } else if let Some(cursor) = cursor {
                         if cursor.artifact_generation != generation {
                             return Err(AppServiceError::artifact_generation_changed(
@@ -126,7 +165,7 @@ impl AtlasAppService {
                 candidates
                     .iter()
                     .skip(start)
-                    .take(if single { 1 } else { ABILITY_LIMIT })
+                    .take(if single { 1 } else { ENTRY_LIMIT })
             {
                 let child = detail.source.node_at(&navigation.owners).ok_or_else(|| {
                     AppServiceError::invalid_request("owned activity unavailable")
@@ -168,6 +207,18 @@ impl AtlasAppService {
             let content = r.read_attributed_content(&locators)?;
             let mut entries = vec![];
             for (navigation, fields) in &selected {
+                let table_links = if table_reading {
+                    r.read_non_content_relationships(&atlas_search::SourceRelationshipRequest {
+                        record: key.clone(),
+                        owners: Some(navigation.owners.clone()),
+                        field: None,
+                        direction: atlas_search::SourceRelationshipDirection::Outgoing,
+                        limit: 1024,
+                    })?
+                    .occurrences
+                } else {
+                    vec![]
+                };
                 entries.push(OwnedReadingEntryView {
                     navigation: (*navigation).clone(),
                     content: crate::prepared_content::prepared_fields(
@@ -184,6 +235,7 @@ impl AtlasAppService {
                         .iter()
                         .filter(|edge| edge.locator.owners == navigation.owners)
                         .cloned()
+                        .chain(table_links)
                         .map(|edge| relationship_view(edge, r.source_fingerprint()))
                         .collect(),
                 });
@@ -207,8 +259,7 @@ impl AtlasAppService {
                 total,
                 start,
                 end,
-                previous: (!single && start > 0)
-                    .then(|| cursor(start.saturating_sub(ABILITY_LIMIT))),
+                previous: (!single && start > 0).then(|| cursor(start.saturating_sub(ENTRY_LIMIT))),
                 next: (!single && end < total).then(|| cursor(end)),
                 entries,
             })

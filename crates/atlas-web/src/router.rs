@@ -55,6 +55,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             post(crate::handlers::encounter_reference),
         )
         .route("/api/encounters/{encounter_ref}/participants/{participant_key}/spells", post(crate::handlers::apply_encounter_spell_action))
+        .route("/api/encounters/{encounter_ref}/initiative", get(crate::handlers::initiative_options).post(crate::handlers::roll_initiative))
         .route(
             "/api/encounters/{encounter_ref}/participants/{participant_key}/hp",
             post(crate::handlers::apply_encounter_hp_action),
@@ -92,6 +93,9 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/filters/validate", post(crate::handlers::validate_filter))
         .route("/api/search/page", post(search_page))
         .route("/api/records/{record_key}", get(record_detail))
+        .route("/api/encounters/{encounter_ref}/strike-options", post(crate::handlers::encounter_strike_options))
+        .route("/api/encounters/{encounter_ref}/strike-rolls", post(crate::handlers::roll_encounter_strike))
+        .route("/api/rolls/table", post(crate::handlers::roll_table))
         .route("/api/records/detail", post(crate::handlers::record_detail_at))
         .route("/api/records/owned-reading", post(crate::handlers::owned_reading))
         .fallback(get(static_asset))

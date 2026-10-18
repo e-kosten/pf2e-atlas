@@ -1,3 +1,4 @@
+import { EncounterStrikeControl } from "./EncounterStrikeControl";
 import { Alert, Button } from "antd";
 import type { getRecordDetail } from "../../api/atlasApi";
 import type {
@@ -24,6 +25,8 @@ import { atlasRoutePath } from "../../app/routes";
 export function EncounterInspectorPane({
   disabled,
   encounterRevision,
+  encounterKey,
+  artifactGeneration,
   pending,
   recovery,
   conditionsDisabled,
@@ -59,6 +62,8 @@ export function EncounterInspectorPane({
 }: {
   disabled: boolean;
   encounterRevision: bigint;
+  encounterKey: string;
+  artifactGeneration: string | null;
   pending: boolean;
   recovery?: React.ReactNode;
   conditionsDisabled: boolean;
@@ -120,6 +125,8 @@ export function EncounterInspectorPane({
           key={`participant-${participant.participant_key}`}
           disabled={disabled}
           encounterRevision={encounterRevision}
+          encounterKey={encounterKey}
+          artifactGeneration={artifactGeneration}
           pending={pending}
           recovery={recovery}
           conditionsDisabled={conditionsDisabled}
@@ -187,6 +194,8 @@ export function EncounterInspectorPane({
 function EncounterParticipantSurface({
   disabled,
   encounterRevision,
+  encounterKey,
+  artifactGeneration,
   pending,
   recovery,
   conditionsDisabled,
@@ -207,6 +216,8 @@ function EncounterParticipantSurface({
 }: {
   disabled: boolean;
   encounterRevision: bigint;
+  encounterKey: string;
+  artifactGeneration: string | null;
   pending: boolean;
   recovery?: React.ReactNode;
   conditionsDisabled: boolean;
@@ -326,6 +337,23 @@ function EncounterParticipantSurface({
       </div>
       {presentation && (
         <RecordPresentation
+          activityRolls={(activity) =>
+            activity.kind === "strike" && artifactGeneration ? (
+              <EncounterStrikeControl
+                key={JSON.stringify([
+                  activity.navigation,
+                  participant.participant_key,
+                  participant.revision.toString(),
+                  artifactGeneration,
+                ])}
+                encounterKey={encounterKey}
+                generation={artifactGeneration}
+                participant={participant}
+                activity={activity}
+                disabled={disabled}
+              />
+            ) : null
+          }
           castingAnnotations={encounterCastingAnnotations({
             participant,
             disabled,

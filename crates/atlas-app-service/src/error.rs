@@ -67,6 +67,9 @@ impl From<LocalStateError> for AppServiceError {
     fn from(error: LocalStateError) -> Self {
         let code = match &error {
             LocalStateError::InvalidSlug { .. }
+            | LocalStateError::InvalidRollRequest(_)
+            | LocalStateError::RollRequestConflict
+            | LocalStateError::Dice(_)
             | LocalStateError::InvalidListRef { .. }
             | LocalStateError::InvalidEncounterRef { .. }
             | LocalStateError::InvalidRecordKey { .. }
@@ -86,6 +89,7 @@ impl From<LocalStateError> for AppServiceError {
             | LocalStateError::EncounterKeyAllocationFailed
             | LocalStateError::ParticipantKeyAllocationFailed
             | LocalStateError::Database(_)
+            | LocalStateError::RollReceipt(_)
             | LocalStateError::Filesystem(_)
             | LocalStateError::Timestamp(_)
             | LocalStateError::NonUtf8Path(_) => AppErrorCode::InternalError,

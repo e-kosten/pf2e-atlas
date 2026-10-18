@@ -511,6 +511,7 @@ export function ActorActivity({
   onReference,
   selected = false,
   headingActions,
+  rollControls,
   hideCost = false,
   inline = false,
   permalink = true,
@@ -520,6 +521,7 @@ export function ActorActivity({
   onReference: RecordReferenceHandler;
   selected?: boolean;
   headingActions?: React.ReactNode;
+  rollControls?: React.ReactNode;
   hideCost?: boolean;
   inline?: boolean;
   permalink?: boolean;
@@ -602,12 +604,16 @@ export function ActorActivity({
           ))}
         </div>
       )}
-      {activity.attack.state !== "not_applicable" && (
-        <FactRow label="Attack">
-          <NumberFact fact={activity.attack} signed />
-        </FactRow>
+      {rollControls ?? (
+        <>
+          {activity.attack.state !== "not_applicable" && (
+            <FactRow label="Attack">
+              <NumberFact fact={activity.attack} signed />
+            </FactRow>
+          )}
+          <DamageComponents damage={activity.damage} />
+        </>
       )}
-      <DamageComponents damage={activity.damage} />
       <FactLine label="Tradition" fact={activity.casting_tradition} />
       <FactLine label="Preparation" fact={activity.preparation} />
       {activity.difficulty_class.state !== "not_applicable" && (
@@ -662,12 +668,14 @@ export function ActorActivities({
   encounter = false,
   reading,
   castingAnnotations,
+  activityRolls,
 }: {
   actor: ActorPresentationView;
   onReference: RecordReferenceHandler;
   encounter?: boolean;
   reading?: OwnedReadingContext;
   castingAnnotations?: CastingAnnotations;
+  activityRolls?: (activity: ActorActivityView) => React.ReactNode;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const target = reading?.landing;
@@ -745,6 +753,7 @@ export function ActorActivities({
                   <ActorActivity
                     key={index}
                     activity={activity}
+                    rollControls={activityRolls?.(activity)}
                     onReference={onReference}
                     interactive={!encounter || activity.has_reference_details}
                   />

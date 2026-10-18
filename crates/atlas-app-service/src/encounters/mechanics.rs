@@ -176,8 +176,24 @@ pub(super) fn participant_stat_block(
                     }
                 }
             }
-            if delta != 0 && !activity.damage.is_empty() {
-                activity.notes.push(RuntimeEffectNoteView{source:"npc-adjustment".into(),label:format!("{variant:?}"),reason:"Damage adjustment requires authored usage context; the original formulas remain available.".into()});
+            // PF2e 6.12.4 MeleePF2e.prepareActorData adjusts the first stored
+            // damage component, preserving source order, once for an NPC variant.
+            if delta != 0
+                && activity.kind == MechanicActivityKindView::Strike
+                && let Some(damage) = activity.damage.first_mut()
+            {
+                damage.modifiers.push(StatModifierView {
+                    source: "npc-adjustment".into(),
+                    label: format!("{variant:?}"),
+                    modifier_type: StatModifierTypeView::Adjustment,
+                    value: delta,
+                });
+            } else if delta != 0 && !activity.damage.is_empty() {
+                activity.notes.push(RuntimeEffectNoteView {
+                    source: "npc-adjustment".into(),
+                    label: format!("{variant:?}"),
+                    reason: "Spell damage adjustment requires usage context.".into(),
+                });
             }
         }
     } else if adjustment_applicable {
@@ -275,9 +291,33 @@ pub(super) fn participant_stat_block(
                 applied = true;
             }
         }
-        if matches!(rule, ConditionRule::Frightened | ConditionRule::Sickened) {
-            for a in &mut block.activities {
-                for roll in &mut a.rolls {
+        // Pinned PF2e 6.12.4: MeleePF2e.defaultAttribute and
+        // getAttackDamageDomains define these selectors from typed strike traits.
+        for activity in &mut block.activities {
+            let ranged = activity
+                .traits
+                .iter()
+                .any(|t| t.starts_with("range-") || t.starts_with("thrown-"));
+            let dexterity_attack = if ranged {
+                !activity.traits.iter().any(|t| t == "brutal")
+            } else {
+                activity.traits.iter().any(|t| t == "finesse")
+            };
+            let penalty = match rule {
+                ConditionRule::Frightened | ConditionRule::Sickened => {
+                    Some((-amount, StatModifierTypeView::Status))
+                }
+                ConditionRule::Enfeebled if !dexterity_attack => {
+                    Some((-amount, StatModifierTypeView::Status))
+                }
+                ConditionRule::Clumsy if dexterity_attack => {
+                    Some((-amount, StatModifierTypeView::Status))
+                }
+                ConditionRule::Prone => Some((-2, StatModifierTypeView::Circumstance)),
+                _ => None,
+            };
+            if let Some((value, modifier_type)) = penalty {
+                for roll in &mut activity.rolls {
                     apply_modifier(
                         &mut roll.adjusted_value,
                         &mut roll.modifiers,
@@ -285,10 +325,46 @@ pub(super) fn participant_stat_block(
                         StatModifierView {
                             source: c.name.clone(),
                             label: c.name.clone(),
-                            modifier_type: StatModifierTypeView::Status,
-                            value: -amount,
+                            modifier_type,
+                            value,
                         },
                     );
+                    applied = true;
+                }
+            }
+            let strength_damage = !ranged
+                || activity.traits.iter().any(|t| t == "propulsive")
+                || (activity.traits.iter().any(|t| t.starts_with("thrown-"))
+                    && !activity.traits.iter().any(|t| t == "splash"));
+            if rule == ConditionRule::Enfeebled
+                && strength_damage
+                && activity.kind == MechanicActivityKindView::Strike
+            {
+                let index = activity
+                    .damage
+                    .iter()
+                    .position(|d| d.category.is_none())
+                    .unwrap_or(0);
+                if let Some(damage) = activity.damage.get_mut(index) {
+                    // Same status penalties do not stack; preserve the strongest enfeebled value.
+                    let existing = damage
+                        .modifiers
+                        .iter()
+                        .filter(|m| m.modifier_type == StatModifierTypeView::Status)
+                        .map(|m| m.value)
+                        .min()
+                        .unwrap_or(0);
+                    if -amount < existing {
+                        damage
+                            .modifiers
+                            .retain(|m| m.modifier_type != StatModifierTypeView::Status);
+                        damage.modifiers.push(StatModifierView {
+                            source: c.name.clone(),
+                            label: c.name.clone(),
+                            modifier_type: StatModifierTypeView::Status,
+                            value: -amount,
+                        });
+                    }
                     applied = true;
                 }
             }
@@ -335,6 +411,13 @@ pub(super) fn participant_stat_block(
             }
         }
     }
+    for activity in &mut block.activities {
+        for damage in &mut activity.damage {
+            let delta: i64 = damage.modifiers.iter().map(|m| m.value).sum();
+            damage.adjusted_formula =
+                (delta != 0).then(|| format!("({}){delta:+}", damage.formula));
+        }
+    }
     block.action_budget = Some(action_budget(participant));
     block
 }
@@ -352,16 +435,14 @@ fn condition_note(
 
 fn condition_manual_reason(rule: ConditionRule, applied: bool) -> Option<&'static str> {
     match rule {
-        ConditionRule::Enfeebled => {
-            Some("Strength-based attack and damage penalties need manual adjustment.")
+        ConditionRule::Enfeebled | ConditionRule::Clumsy if applied => None,
+        ConditionRule::Enfeebled | ConditionRule::Clumsy => {
+            Some("Ability-based effects need a supported statistic.")
         }
-        ConditionRule::Clumsy => Some("Dexterity-based attack penalties need manual adjustment."),
         ConditionRule::Stupefied => {
             Some("Spell attack/DC penalties and the spellcasting flat check need manual handling.")
         }
-        ConditionRule::Prone => {
-            Some("Attack penalties and restrictions on movement/actions need manual handling.")
-        }
+        ConditionRule::Prone => Some("Restrictions on movement/actions need manual handling."),
         ConditionRule::Quickened => {
             Some("The additional action's permitted uses need manual handling.")
         }
@@ -512,6 +593,7 @@ pub(super) fn arithmetic_baseline(presentation: &RecordPresentationView) -> Opti
                 ActorActivityKindView::Spell => MechanicActivityKindView::Spell,
                 _ => MechanicActivityKindView::Other,
             },
+            traits: a.traits.into_iter().map(|t| t.value).collect(),
             navigation: a.navigation,
             rolls: a
                 .attack
@@ -534,12 +616,14 @@ pub(super) fn arithmetic_baseline(presentation: &RecordPresentationView) -> Opti
                 .unwrap_or_default()
                 .into_iter()
                 .filter_map(|d| {
+                    let formula = d.formula.value.filter(|f| !f.trim().is_empty())?;
                     Some(DamageExpressionView {
                         damage_id: d.id,
                         label: None,
-                        formula: d.formula.value?,
+                        formula,
                         adjusted_formula: None,
                         damage_type: d.damage_type.value,
+                        category: d.category.value,
                         effect_kind: DamageEffectKindView::Unknown,
                         modifiers: vec![],
                     })

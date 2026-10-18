@@ -183,13 +183,21 @@ fn render_selected_record(
                 .map(|activity| &activity.navigation)
                 .collect()
         } else {
-            let owned = match &record.presentation.body {
-                RecordBodyView::RollTable(table) => {
-                    table.results.value.as_deref().unwrap_or_default()
-                }
-                _ => &record.presentation.owned,
-            };
-            owned.iter().map(|owned| &owned.navigation).collect()
+            match &record.presentation.body {
+                RecordBodyView::RollTable(table) => table
+                    .results
+                    .value
+                    .iter()
+                    .flatten()
+                    .map(|row| &row.link.navigation)
+                    .collect(),
+                _ => record
+                    .presentation
+                    .owned
+                    .iter()
+                    .map(|owned| &owned.navigation)
+                    .collect(),
+            }
         };
         for navigation in navigation {
             // Actor abilities are already read inline from the checked parent.

@@ -18,7 +18,7 @@
 .encounter-roster__columns,
 .encounter-roster__row {
   display: grid;
-  grid-template-columns: 24px 36px minmax(0, 1fr) 48px 52px;
+  grid-template-columns: 24px 36px minmax(0, 1fr) 44px 52px;
   align-items: center;
   gap: 4px;
   padding: 4px;
@@ -68,6 +68,7 @@
 
 .encounter-roster__initiative-input,
 .encounter-roster__hp {
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 

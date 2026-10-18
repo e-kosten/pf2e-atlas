@@ -1,6 +1,20 @@
 #![deny(unsafe_code)]
+mod table_roll;
+pub use table_roll::{RollTableRequest, TableRollView};
+mod strike_roll;
+pub use strike_roll::{
+    EncounterStrikeOptionsRequest, EncounterStrikeOptionsView, EncounterStrikeRollView,
+    RollEncounterStrikeRequest, StrikeAttackOptionView, StrikeDamageRollView,
+    StrikeDamageTotalView, StrikeRollKind,
+};
 
+mod dice;
 mod encounter;
+pub use dice::{
+    InitiativeOptionsView, InitiativeParticipantOptionsView, InitiativeParticipantRequest,
+    InitiativeRollView, InitiativeStatisticView, ParticipantRollView, RollInitiativeRequest,
+    RollMode,
+};
 mod error;
 mod filter;
 mod graph;
@@ -70,8 +84,8 @@ pub use presentation::{
     ActorSkillView, CastingEntryContextView, ConditionalSkillView, DamageComponentView, FactView,
     HazardPresentationView, HeighteningDamageView, IwrEntryView, NumberAdjustmentView,
     NumberFactView, OwnedRecordLinkView, PhysicalPresentationView, PhysicalPriceView,
-    RecordBodyView, RecordPresentationView, RollTablePresentationView, SpellAreaView,
-    SpellChangeView, SpellDefenseView, SpellFixedLevelView, SpellFormView,
+    RecordBodyView, RecordPresentationView, RollTablePresentationView, RollTableRowView,
+    SpellAreaView, SpellChangeView, SpellDefenseView, SpellFixedLevelView, SpellFormView,
     SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView,
     TableResultPresentationView,
 };
@@ -127,6 +141,15 @@ mod tests {
     }
 
     fn export_bindings_to(path: &Path) {
+        InitiativeOptionsView::export_all_to(path).expect("initiative options bindings");
+        RollInitiativeRequest::export_all_to(path).expect("initiative request bindings");
+        InitiativeRollView::export_all_to(path).expect("initiative receipt bindings");
+        RollTableRequest::export_all_to(path).expect("table roll request bindings");
+        TableRollView::export_all_to(path).expect("table roll result bindings");
+        EncounterStrikeOptionsRequest::export_all_to(path).expect("strike options request");
+        EncounterStrikeOptionsView::export_all_to(path).expect("strike options view");
+        RollEncounterStrikeRequest::export_all_to(path).expect("strike request");
+        EncounterStrikeRollView::export_all_to(path).expect("strike result");
         fs::create_dir_all(path).expect("binding export directory should be creatable");
         EncounterTurnReviewView::export_all_to(path).expect("turn review bindings");
         AdvanceEncounterTurnRequest::export_all_to(path).expect("turn advance bindings");

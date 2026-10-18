@@ -23,6 +23,7 @@ atlas-app-service.workspace = true
 atlas-app-model.workspace = true
 atlas-web.workspace = true
 atlas-domain.workspace = true
+atlas-dice.workspace = true
 atlas-embedding.workspace = true
 atlas-ingest.workspace = true
 atlas-index.workspace = true
