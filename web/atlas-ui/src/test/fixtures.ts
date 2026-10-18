@@ -89,6 +89,11 @@ export function activityFixture(
     action_cost: knownFact({ glyph: "one_action", label: "1 action" }),
     traits: [],
     attack: numberFact(9),
+    attack_options: [
+      { attack_number: 1, label: "Attack", modifier: 9 },
+      { attack_number: 2, label: "Second attack", modifier: 4 },
+      { attack_number: 3, label: "Third attack", modifier: -1 },
+    ],
     lore_modifier: na,
     difficulty_class: na,
     casting_tradition: unavailableFact("not_applicable"),

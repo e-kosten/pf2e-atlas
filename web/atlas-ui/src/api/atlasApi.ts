@@ -270,6 +270,31 @@ export async function advanceEncounterTurn(
   });
 }
 
+export async function getInitiativeOptions(
+  encounterRef: string,
+): Promise<import("../generated/atlas").InitiativeOptionsView> {
+  const result = await atlasFetch<import("../generated/atlas").InitiativeOptionsView>(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/initiative`,
+  );
+  return {
+    ...result,
+    expected_revision: toBigInt(result.expected_revision),
+    participants: result.participants.map((p) => ({
+      ...p,
+      expected_revision: toBigInt(p.expected_revision),
+    })),
+  };
+}
+export function rollInitiative(
+  encounterRef: string,
+  request: import("../generated/atlas").RollInitiativeRequest,
+): Promise<import("../generated/atlas").InitiativeRollView> {
+  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}/initiative`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
+}
+
 export async function setEncounterTurn(
   request: SetEncounterTurnRequest,
 ): Promise<EncounterMutationView> {
@@ -699,4 +724,36 @@ export async function discoverFilterCounts(
       },
     },
   };
+}
+
+export async function rollTable(
+  request: import("../generated/atlas").RollTableRequest,
+): Promise<import("../generated/atlas").TableRollView> {
+  return atlasFetch("/api/rolls/table", { method: "POST", body: jsonBody(request) });
+}
+
+export async function getEncounterStrikeOptions(
+  encounter: string,
+  request: import("../generated/atlas").EncounterStrikeOptionsRequest,
+): Promise<import("../generated/atlas").EncounterStrikeOptionsView> {
+  const result = await atlasFetch<
+    import("../generated/atlas").EncounterStrikeOptionsView
+  >(`/api/encounters/${encodeURIComponent(encounter)}/strike-options`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
+  return {
+    ...result,
+    expected_revision: toBigInt(result.expected_revision),
+    expected_participant_revision: toBigInt(result.expected_participant_revision),
+  };
+}
+export async function rollEncounterStrike(
+  encounter: string,
+  request: import("../generated/atlas").RollEncounterStrikeRequest,
+): Promise<import("../generated/atlas").EncounterStrikeRollView> {
+  return atlasFetch(`/api/encounters/${encodeURIComponent(encounter)}/strike-rolls`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
 }

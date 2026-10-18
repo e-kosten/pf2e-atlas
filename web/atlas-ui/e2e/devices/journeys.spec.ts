@@ -293,7 +293,12 @@ test("encounter references retain their owner, scroll and native destination", a
       const opened = page.context().waitForEvent("page", { timeout: 5000 });
       await full.click({ button: "middle" });
       const other = await opened;
-      await expect(other).toHaveURL(/\/records\/browser-actors:/);
+      // A native background tab can render while Chromium still reports a
+      // pending navigation. Check the destination and usable content directly.
+      await expect.poll(() => other.url()).toMatch(/\/records\/browser-actors:/);
+      await expect(
+        other.getByRole("heading", { name: /^Signal Pulse\b/ }),
+      ).toBeVisible();
       expect(new URL(other.url()).searchParams.get("selection")).toBe(
         JSON.stringify(landing),
       );

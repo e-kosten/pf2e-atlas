@@ -470,7 +470,7 @@ describe("encounter views", () => {
     fireEvent.click(select);
     expect(await screen.findByLabelText("HP summary")).toHaveTextContent("24/24");
     expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
-    const initiative = within(kyra).getByLabelText("Kyra initiative");
+    const initiative = within(kyra).getByLabelText("Kyra initiative total");
     fireEvent.change(initiative, { target: { value: "18" } });
     fireEvent.keyDown(initiative, { key: "Enter" });
     await waitFor(() =>
@@ -488,7 +488,7 @@ describe("encounter views", () => {
     expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
   });
 
-  it("marks the current roster row and shows current and maximum HP", async () => {
+  it("marks the current roster row and shows current plus temporary HP", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
@@ -497,7 +497,7 @@ describe("encounter views", () => {
     const goblinRow = rosterRow("Goblin");
     expect(goblinRow).toHaveClass("encounter-roster__row--current");
     expect(within(goblinRow).queryByText("Current turn")).not.toBeInTheDocument();
-    expect(within(goblinRow).getByLabelText("Goblin HP")).toHaveTextContent("10/12");
+    expect(within(goblinRow).getByLabelText("Goblin HP")).toHaveTextContent(/^15$/);
   });
 
   it("renders runtime action budget and speed projections", async () => {
@@ -535,7 +535,9 @@ describe("encounter views", () => {
       throw new Error("Activities section was not rendered");
     }
     expect(within(activitiesSection).getByText("Claw")).toBeInTheDocument();
-    expect(within(activitiesSection).getByText("1d6+2")).toBeInTheDocument();
+    expect(
+      within(activitiesSection).getByRole("button", { name: "Roll Claw damage" }),
+    ).toHaveTextContent("1d6+2");
     expect(within(activitiesSection).getByText(/slashing/)).toBeInTheDocument();
   });
 
@@ -714,7 +716,7 @@ describe("encounter views", () => {
     expect(await screen.findByLabelText("HP summary")).toHaveTextContent("8/12");
     expect(apiMocks.applyEncounterHpAction).not.toHaveBeenCalled();
     expect(within(rosterRow("Goblin")).getByLabelText("Goblin HP")).toHaveTextContent(
-      "8/12",
+      /^13$/,
     );
   });
 
@@ -1230,7 +1232,7 @@ describe("encounter views", () => {
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
     await waitFor(() => expect(dialog).not.toBeVisible());
-    const initiative = screen.getByLabelText("Kyra initiative");
+    const initiative = screen.getByLabelText("Kyra initiative total");
     fireEvent.change(initiative, { target: { value: "17" } });
     fireEvent.keyDown(initiative, { key: "Enter" });
     await waitFor(() =>
@@ -1717,7 +1719,7 @@ describe("encounter views", () => {
     });
     await screen.findByLabelText("HP summary");
     fireEvent.click(
-      within(rosterRow("Goblin")).getByRole("button", { name: /^Goblin/ }),
+      within(rosterRow("Goblin")).getByRole("button", { name: "Goblin" }),
     );
     fireEvent.click(screen.getAllByRole("button", { name: "Next turn" })[0]);
     const dialog = await screen.findByRole("dialog", { name: "Review turn" });
@@ -2029,7 +2031,9 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(hp).toBeDisabled());
     expect(screen.getByLabelText("HP summary")).toBeInTheDocument();
-    expect(screen.getByLabelText("Goblin initiative")).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Goblin initiative: 18" }),
+    ).toBeDisabled();
     expect(screen.getByRole("button", { name: "Next turn" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Set turn to Goblin" })).toBeDisabled();
     fireEvent.click(

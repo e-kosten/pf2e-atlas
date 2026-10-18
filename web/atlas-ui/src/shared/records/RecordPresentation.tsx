@@ -1,3 +1,4 @@
+import { RollTableReading } from "./RollTableReading";
 import { SpellRankControl } from "./SpellRankControl";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import type { ReactNode } from "react";
@@ -218,6 +219,7 @@ export function RecordPresentation({
   compact = false,
   encounter = false,
   castingAnnotations,
+  activityRolls,
   hideIdentity = false,
   hideTitle = false,
   showOwnerReturn = true,
@@ -234,6 +236,9 @@ export function RecordPresentation({
   compact?: boolean;
   encounter?: boolean;
   castingAnnotations?: import("./ActorReference").CastingAnnotations;
+  activityRolls?: (
+    activity: import("../../generated/atlas").ActorActivityView,
+  ) => ReactNode;
   hideIdentity?: boolean;
   hideTitle?: boolean;
   showOwnerReturn?: boolean;
@@ -412,9 +417,18 @@ export function RecordPresentation({
           <FactLine label="Bulk" fact={body.value.bulk} />
         </div>
       )}
-      {body.kind === "roll_table" && (
-        <FactLine label="Formula" fact={body.value.formula} required />
-      )}
+      {body.kind === "roll_table" &&
+        (selection && reading?.generation ? (
+          <RollTableReading
+            key={JSON.stringify([selection, reading.generation])}
+            table={body.value}
+            selection={selection}
+            context={reading}
+            onReference={onReference}
+          />
+        ) : (
+          <FactLine label="Formula" fact={body.value.formula} required />
+        ))}
       {body.kind === "table_result" && (
         <div className="record-fact-list">
           <FactLine label="Range" fact={body.value.range} required />
@@ -429,6 +443,7 @@ export function RecordPresentation({
         <ActorActivities
           castingAnnotations={castingAnnotations}
           actor={actor}
+          activityRolls={activityRolls}
           onReference={onReference}
           encounter={encounter}
           reading={reading}
@@ -453,18 +468,23 @@ export function RecordPresentation({
       {body.kind === "roll_table" && body.value.results.state !== "value" && (
         <FactLine label="Results" fact={body.value.results} />
       )}
-      {(body.kind === "roll_table" ? (body.value.results.value ?? []) : owned).length >
-        0 && (
-        <section className="record-reference__owned">
-          <h3>
-            {body.kind === "roll_table"
-              ? "Results"
-              : presentation.identity.kind === "journal"
-                ? "Pages"
-                : "Owned records"}
-          </h3>
-          {(body.kind === "roll_table" ? (body.value.results.value ?? []) : owned).map(
-            (link, index) => (
+      {!(body.kind === "roll_table" && selection && reading?.generation) &&
+        (body.kind === "roll_table"
+          ? (body.value.results.value ?? []).map((row) => row.link)
+          : owned
+        ).length > 0 && (
+          <section className="record-reference__owned">
+            <h3>
+              {body.kind === "roll_table"
+                ? "Results"
+                : presentation.identity.kind === "journal"
+                  ? "Pages"
+                  : "Owned records"}
+            </h3>
+            {(body.kind === "roll_table"
+              ? (body.value.results.value ?? []).map((row) => row.link)
+              : owned
+            ).map((link, index) => (
               <div key={index}>
                 <Button
                   type="link"
@@ -490,10 +510,9 @@ export function RecordPresentation({
                   <span className="muted"> {link.usage}</span>
                 )}
               </div>
-            ),
-          )}
-        </section>
-      )}
+            ))}
+          </section>
+        )}
     </article>
   );
 }

@@ -3,6 +3,7 @@ import { App } from "antd";
 import { useEffect, useRef, useState } from "react";
 import {
   applyEncounterHpAction,
+  rollInitiative,
   applyEncounterSpellAction,
   advanceEncounterTurn,
   addEncounterManualParticipant,
@@ -32,6 +33,10 @@ import type {
 } from "../../generated/atlas";
 
 export type EncounterMutationCommand =
+  | {
+      kind: "initiative";
+      request: import("../../generated/atlas").RollInitiativeRequest;
+    }
   | {
       kind: "spell";
       request: import("../../generated/atlas").ApplyEncounterSpellActionRequest;
@@ -106,8 +111,15 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
   };
   const mutation = useMutation({
     retry: false,
-    mutationFn: (command: EncounterMutationCommand) => {
+    mutationFn: (
+      command: EncounterMutationCommand,
+    ): Promise<
+      | import("../../generated/atlas").EncounterMutationView
+      | import("../../generated/atlas").InitiativeRollView
+    > => {
       switch (command.kind) {
+        case "initiative":
+          return rollInitiative(currentRef, command.request);
         case "spell":
           return applyEncounterSpellAction(currentRef, command.request);
         case "hp":
