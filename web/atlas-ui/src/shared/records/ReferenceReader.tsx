@@ -1,3 +1,4 @@
+import { recordReadingIdentity } from "./useRetainedRecord";
 import { Button, Space, Typography } from "antd";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
@@ -7,6 +8,8 @@ import {
   navigateToAtlasRoute,
   shouldHandleAtlasRouteClick,
 } from "../../app/routes";
+import { useRecordPreview } from "./useRecordPreview";
+import { RecordPreviewPopover } from "./RecordPreviewPopover";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
 import { activityAnchor } from "./ownedNavigation";
@@ -29,12 +32,20 @@ export function ReferenceReader({
   onResults?: () => void;
   active?: boolean;
 }) {
+  const preview = useRecordPreview();
   const localPositions = useBrowsePositions();
   const saved = positions ?? localPositions;
   const readerRef = useRef<HTMLElement>(null);
   const contentFocus = usePreviewContentFocus(active, readerRef);
   const backRef = useRef<HTMLButtonElement>(null);
-  const address = JSON.stringify(reading.request);
+  const address = JSON.stringify([
+    recordReadingIdentity(
+      reading.request?.navigation.record_key ?? null,
+      reading.request?.navigation,
+    ),
+    reading.request?.match,
+    reading.request?.landing,
+  ]);
   const activeRef = useRef(active);
   const readyLanding = useRef<ReferenceReading["request"] | undefined>(undefined);
   useLayoutEffect(() => {
@@ -198,6 +209,7 @@ export function ReferenceReader({
           fullNavigation.owners.length ||
           fullNavigation.field ||
           fullNavigation.passage ||
+          fullNavigation.spell_rank ||
           fullNavigation.source_fingerprint
             ? fullNavigation
             : undefined,
@@ -228,8 +240,10 @@ export function ReferenceReader({
           )}
           {selectedRecordKey &&
             reading.request &&
-            (JSON.stringify(reading.request.navigation) !==
-              JSON.stringify(rootNavigation(selectedRecordKey)) ||
+            (recordReadingIdentity(
+              reading.request.navigation.record_key,
+              reading.request.navigation,
+            ) !== recordReadingIdentity(selectedRecordKey) ||
               reading.request.match ||
               reading.request.landing) && (
               <Button
@@ -272,7 +286,13 @@ export function ReferenceReader({
           onLandingReady={onLandingReady}
           onReference={(recordKey, anchor, selection) => {
             rememberPosition(anchor);
-            reading.inspect({ navigation: selection ?? rootNavigation(recordKey) });
+            preview.open(recordKey, anchor, selection);
+          }}
+          onRankChange={(spell_rank) => {
+            if (detail) {
+              rememberPosition();
+              reading.changeRank({ ...detail.selected, spell_rank });
+            }
           }}
           onOwnerReturn={(recordKey, landing, anchor) => {
             rememberPosition(anchor);
@@ -280,6 +300,32 @@ export function ReferenceReader({
           }}
         />
       </section>
+      {preview.recordKey && (
+        <RecordPreviewPopover
+          anchor={preview.anchor}
+          visibleOwnerRecordKey={
+            detail?.selected.owners.length === 0 ? detail.record.record_key : undefined
+          }
+          detail={preview.detail}
+          loading={preview.loading}
+          error={preview.error}
+          onRetry={preview.retry}
+          onClose={preview.close}
+          onReference={preview.open}
+          onRankChange={preview.changeRank}
+          readingHistory={preview.readingHistory}
+          landing={preview.landing}
+          onOpenFullPage={() => {
+            navigateToAtlasRoute({
+              kind: "record",
+              recordKey: preview.recordKey!,
+              selection: preview.selection,
+              landing: preview.landing,
+            });
+            preview.close();
+          }}
+        />
+      )}
     </section>
   );
 }

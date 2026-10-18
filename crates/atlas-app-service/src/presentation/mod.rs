@@ -3,6 +3,8 @@ mod action_cost;
 pub(crate) mod actor;
 mod facts;
 mod spell;
+pub(crate) mod spell_context;
+mod spell_rank;
 use crate::projection::{field_state, navigation_fingerprint};
 use action_cost::{casting_cost, item_action_cost};
 pub(crate) use actor::compose_participant;
@@ -13,6 +15,80 @@ use atlas_record::source_record::{
     ItemSourceView, SourceBackedRecord, SourceFieldView, SourceNodeView, SourceQueryView,
 };
 use facts::*;
+
+pub(crate) fn apply_spell_rank(
+    record: &SourceBackedRecord,
+    node: SourceNodeView<'_>,
+    requested: Option<u8>,
+    presentation: &mut RecordPresentationView,
+    retrieval: &atlas_search::AtlasRetrievalService,
+) -> crate::AppServiceResult<Option<u8>> {
+    let SourceNodeView::Item(ItemSourceView::SpellSource(source)) = node else {
+        if requested.is_some() {
+            return Err(crate::AppServiceError::invalid_request(
+                "Rank preview requires a spell.",
+            ));
+        }
+        return Ok(None);
+    };
+    let ranks = spell_context::ranks(record, source);
+    if let Some(rank) = requested
+        && (!(1..=10).contains(&rank)
+            || spell_context::base_rank(source).is_some_and(|base| rank < base))
+    {
+        return Err(crate::AppServiceError::invalid_request(
+            "Choose a spell rank from its original rank through 10.",
+        ));
+    }
+    let rank = requested.or_else(|| (ranks.len() == 1).then(|| ranks[0]));
+    let Some(rank) = rank else {
+        if ranks.len() > 1
+            && let RecordBodyView::Spell(view) = &mut presentation.body
+        {
+            view.rank_note =
+                Some("Prepared at multiple ranks. Choose a rank to preview its mechanics.".into());
+        }
+        return Ok(None);
+    };
+    let effective = match spell_rank::heighten(source, rank) {
+        Ok(effective) => effective,
+        Err(reason) => {
+            if let RecordBodyView::Spell(view) = &mut presentation.body {
+                view.rank_note = Some(format!(
+                    "Showing original mechanics; rank {rank} preview is unavailable. {reason}"
+                ));
+            }
+            return Ok(None);
+        }
+    };
+    let mut view = spell::authored_spell(&effective);
+    view.rank = NumberFactView {
+        state: QueryFieldState::Value,
+        value: Some(rank.into()),
+        adjustment: None,
+    };
+    presentation.classification = format!("Spell {rank}");
+    presentation.identity.level_label = Some(format!("Rank {rank}"));
+    let query = SourceQueryView {
+        source: SourceNodeView::Item(ItemSourceView::SpellSource(&effective)),
+        pack_id: record.key().pack().as_str(),
+        pack_label: "",
+    };
+    presentation.identity.rarity = identifier(query.rarity()).value;
+    presentation.identity.traits = query
+        .traits()
+        .value()
+        .into_iter()
+        .flatten()
+        .map(|t| RecordBadgeView {
+            kind: "trait".into(),
+            value: t.clone(),
+            label: retrieval.trait_label(t).unwrap_or(t).into(),
+        })
+        .collect();
+    presentation.body = RecordBodyView::Spell(Box::new(view));
+    Ok(Some(rank))
+}
 
 /// One dispatch policy for selected item bodies and summary link usefulness.
 #[derive(Clone, Copy)]
@@ -103,6 +179,7 @@ pub(crate) fn record_presentation(
                 RecordBodyView::Activity(Box::new(actor::authored_activity(
                     item,
                     RecordNavigationView {
+                        spell_rank: None,
                         record_key: record.key().to_string(),
                         owners: owners.to_vec(),
                         field: None,
@@ -181,6 +258,7 @@ pub(crate) fn record_presentation(
                 });
                 activity.casting_context = Some(CastingEntryContextView {
                     parent: RecordNavigationView {
+                        spell_rank: None,
                         record_key: record.key().to_string(),
                         owners: vec![],
                         field: None,
@@ -358,6 +436,7 @@ fn owned_links(
         let owners = vec![owner.clone()];
         links.push(OwnedRecordLinkView {
             navigation: RecordNavigationView {
+                spell_rank: None,
                 record_key: record.key().to_string(),
                 source_fingerprint: navigation_fingerprint(&owners, fingerprint),
                 owners,

@@ -194,3 +194,10 @@ export type { ConditionTimingView } from "../../../../crates/atlas-app-model/bin
 export type { ConditionTurnEvent } from "../../../../crates/atlas-app-model/bindings/ConditionTurnEvent";
 export type { EncounterTurnReviewView } from "../../../../crates/atlas-app-model/bindings/EncounterTurnReviewView";
 export type { EncounterTurnReminderView } from "../../../../crates/atlas-app-model/bindings/EncounterTurnReminderView";
+
+export type { ApplyEncounterSpellActionRequest } from "../../../../crates/atlas-app-model/bindings/ApplyEncounterSpellActionRequest";
+export type { EncounterSpellAction } from "../../../../crates/atlas-app-model/bindings/EncounterSpellAction";
+export type { EncounterSpellcastingView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellcastingView";
+export type { EncounterSpellResourceView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellResourceView";
+export type { EncounterSpellView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellView";
+export type { EncounterSpellRankView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellRankView";

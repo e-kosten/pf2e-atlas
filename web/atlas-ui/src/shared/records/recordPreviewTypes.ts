@@ -4,6 +4,7 @@ import type { RecordReferenceHandler } from "./PreparedContent";
 export type RecordPreviewAnchor = HTMLElement;
 
 export type RecordPreviewContentProps = {
+  actions?: import("react").ReactNode;
   context?: "reference" | "encounter";
   visibleOwnerRecordKey?: string;
   readingHistory?: {
@@ -30,4 +31,5 @@ export type RecordPreviewContentProps = {
   onClose: () => void;
   onOpenFullPage: () => void;
   onReference: RecordReferenceHandler;
+  onRankChange?: (rank: number | undefined) => void;
 };

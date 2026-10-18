@@ -69,6 +69,7 @@ pub(crate) fn search_page_view(page: SearchPageInfo) -> SearchPageView {
 pub(crate) fn search_witness_view(witness: SearchWitness, fingerprint: &str) -> SearchWitnessView {
     SearchWitnessView {
         navigation: RecordNavigationView {
+            spell_rank: None,
             record_key: witness.location.record.to_string(),
             owners: witness.location.owners.clone(),
             field: witness.location.field,
@@ -159,6 +160,7 @@ pub(crate) fn relationship_view(
         Resolution::Resolved(Target::Record { key }) => (
             "resolved_record",
             Some(RecordNavigationView {
+                spell_rank: None,
                 record_key: key.to_string(),
                 owners: vec![],
                 field: None,
@@ -170,6 +172,7 @@ pub(crate) fn relationship_view(
         Resolution::Resolved(Target::OwnedNode { key, owners }) => (
             "resolved_owned",
             Some(RecordNavigationView {
+                spell_rank: None,
                 record_key: key.to_string(),
                 source_fingerprint: navigation_fingerprint(&owners, fingerprint),
                 owners,
@@ -185,6 +188,7 @@ pub(crate) fn relationship_view(
     };
     atlas_app_model::RecordRelationshipView {
         source_navigation: RecordNavigationView {
+            spell_rank: None,
             record_key: o.locator.record.to_string(),
             source_fingerprint: navigation_fingerprint(&o.locator.owners, fingerprint),
             owners: o.locator.owners.clone(),

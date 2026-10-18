@@ -59,10 +59,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Prioritize combat state and actions, improve roster readability, and reuse
   shared family layouts with compact editing controls. Status: in_progress.
 
-- [Rust spell rank preview](items/rust-spell-rank-preview.md)
-  Render actor-owned spells at their authored casting rank, preserving local
-  customizations and explicit limits; design rank/form preview over checked
-  source as a dedicated follow-up. Status: planned.
+- [Spell form preview](items/rust-spell-rank-preview.md)
+  Add interactive alternate-form selection over checked source, composing with
+  rank preview and preserving embedded customizations. Status: deferred.
 
 - [Rust localization-backed rules terms](items/rust-localization-backed-rules-terms.md)
   Persist selected localization-backed rules vocabulary such as traits and NPC ability glossary entries as canonical hoverable/linkable terms. Status: proposed.

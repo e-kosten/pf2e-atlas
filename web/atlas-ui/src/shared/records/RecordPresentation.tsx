@@ -1,3 +1,6 @@
+import { SpellRankControl } from "./SpellRankControl";
+import { recordReadingIdentity } from "./useRetainedRecord";
+import type { ReactNode } from "react";
 import { sentenceCase } from "../ui/labels";
 import { Button, Collapse, Tag } from "antd";
 import type {
@@ -99,13 +102,13 @@ export function contentFieldVisible(field: PreparedContentFieldView) {
 export function RecordIdentity({
   identity,
   classification,
+  rankControl,
   actionCost,
   root,
   selection,
   onOwnerReturn,
   visibleOwnerRecordKey,
   originalRecord,
-  onReference,
   hideTitle = false,
   showOwnerReturn = true,
 }: {
@@ -113,11 +116,11 @@ export function RecordIdentity({
   hideTitle?: boolean;
   showOwnerReturn?: boolean;
   classification: string;
+  rankControl?: ReactNode;
   actionCost?: FactView<ActionCostView>;
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
   originalRecord?: RecordNavigationView;
-  onReference?: RecordReferenceHandler;
   visibleOwnerRecordKey?: string;
   onOwnerReturn?: (
     parent: string,
@@ -127,59 +130,68 @@ export function RecordIdentity({
 }) {
   return (
     <header className="record-reference__header">
-      {showOwnerReturn &&
-      root &&
-      root.record_key !== visibleOwnerRecordKey &&
-      selection?.owners.length ? (
-        <Button
-          type="link"
-          size="small"
-          className="record-reference__owner"
-          icon={<ChevronLeft size={14} aria-hidden="true" />}
-          aria-label={`Return to ${root.title}`}
-          href={ownerReturnPath(root.record_key, activityAddress(selection))}
-          onClick={(event) => {
-            if (!shouldHandleAtlasRouteClick(event)) return;
-            event.preventDefault();
-            if (onOwnerReturn)
-              onOwnerReturn(
-                root.record_key,
-                activityAddress(selection),
-                event.currentTarget,
-              );
-            else
-              navigateToAtlasPath(
-                ownerReturnPath(root.record_key, activityAddress(selection)),
-              );
-          }}
-        >
-          {root.title}
-        </Button>
-      ) : null}
-      {originalRecord && (
-        <Button
-          type="link"
-          size="small"
-          href={atlasRoutePath({
-            kind: "record",
-            recordKey: originalRecord.record_key,
-          })}
-          onClick={(event) => {
-            if (!onReference || !shouldHandleAtlasRouteClick(event)) return;
-            event.preventDefault();
-            onReference(originalRecord.record_key, event.currentTarget, originalRecord);
-          }}
-        >
-          Original record
-        </Button>
-      )}
+      <div className="record-reference__navigation">
+        {showOwnerReturn &&
+        root &&
+        root.record_key !== visibleOwnerRecordKey &&
+        selection?.owners.length ? (
+          <Button
+            type="link"
+            size="small"
+            className="record-reference__owner"
+            icon={<ChevronLeft size={14} aria-hidden="true" />}
+            aria-label={`Return to ${root.title}`}
+            href={ownerReturnPath(root.record_key, activityAddress(selection))}
+            onClick={(event) => {
+              if (!shouldHandleAtlasRouteClick(event)) return;
+              event.preventDefault();
+              if (onOwnerReturn)
+                onOwnerReturn(
+                  root.record_key,
+                  activityAddress(selection),
+                  event.currentTarget,
+                );
+              else
+                navigateToAtlasPath(
+                  ownerReturnPath(root.record_key, activityAddress(selection)),
+                );
+            }}
+          >
+            {root.title}
+          </Button>
+        ) : null}
+      </div>
       <div className="record-reference__title">
-        {!hideTitle && (
-          <h2>
-            {identity.title} {actionCost && <ActionCost fact={actionCost} />}
-          </h2>
-        )}
-        <p className="record-reference__kind">{classification}</p>
+        <div className="record-reference__identity">
+          {!hideTitle && (
+            <h2>
+              {identity.title} {actionCost && <ActionCost fact={actionCost} />}
+            </h2>
+          )}
+          {originalRecord && (
+            <Button
+              className="record-reference__original"
+              type="link"
+              size="small"
+              href={atlasRoutePath({
+                kind: "record",
+                recordKey: originalRecord.record_key,
+                selection: originalRecord,
+              })}
+              onClick={(event) => {
+                if (!shouldHandleAtlasRouteClick(event)) return;
+                event.preventDefault();
+                navigateToAtlasPath(event.currentTarget.getAttribute("href")!);
+              }}
+            >
+              View original
+            </Button>
+          )}
+        </div>
+        <div className="record-reference__classification">
+          <p className="record-reference__kind">{classification}</p>
+          {rankControl}
+        </div>
       </div>
       <div className="badge-row">
         {identity.rarity?.trim() && identity.rarity !== "common" && (
@@ -202,8 +214,10 @@ export function RecordPresentation({
   selection,
   relationships = [],
   onReference,
+  onRankChange,
   compact = false,
   encounter = false,
+  castingAnnotations,
   hideIdentity = false,
   hideTitle = false,
   showOwnerReturn = true,
@@ -216,8 +230,10 @@ export function RecordPresentation({
   selection?: RecordNavigationView;
   relationships?: RecordRelationshipView[];
   onReference: RecordReferenceHandler;
+  onRankChange?: (rank: number | undefined) => void;
   compact?: boolean;
   encounter?: boolean;
+  castingAnnotations?: import("./ActorReference").CastingAnnotations;
   hideIdentity?: boolean;
   hideTitle?: boolean;
   showOwnerReturn?: boolean;
@@ -262,7 +278,23 @@ export function RecordPresentation({
           hideTitle={hideTitle}
           showOwnerReturn={showOwnerReturn}
           identity={presentation.identity}
-          classification={presentation.classification}
+          classification={
+            body.kind === "spell" && onRankChange
+              ? "Spell"
+              : presentation.classification
+          }
+          rankControl={
+            body.kind === "spell" &&
+            onRankChange &&
+            body.value.base_rank.value != null ? (
+              <SpellRankControl
+                key={recordReadingIdentity(selection?.record_key ?? null, selection)}
+                spell={body.value}
+                owned={Boolean(selection?.owners.length)}
+                onChange={onRankChange}
+              />
+            ) : undefined
+          }
           actionCost={body.kind === "activity" ? body.value.action_cost : undefined}
           visibleOwnerRecordKey={visibleOwnerRecordKey}
           root={root}
@@ -278,7 +310,6 @@ export function RecordPresentation({
                 )?.target ?? undefined)
               : undefined
           }
-          onReference={onReference}
         />
       )}
       {!encounter && (
@@ -396,6 +427,7 @@ export function RecordPresentation({
       )}
       {actor && (
         <ActorActivities
+          castingAnnotations={castingAnnotations}
           actor={actor}
           onReference={onReference}
           encounter={encounter}

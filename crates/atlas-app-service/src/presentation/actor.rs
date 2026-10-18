@@ -133,6 +133,7 @@ pub(crate) fn authored_activities(
         {
             let owners = vec![owner.clone()];
             let n = RecordNavigationView {
+                spell_rank: None,
                 record_key: record.key().to_string(),
                 source_fingerprint: navigation_fingerprint(&owners, fingerprint),
                 owners,
@@ -149,6 +150,7 @@ pub(crate) fn authored_activities(
     record.visit_immediate_actor_items(|_, o, i| {
         let owners = vec![o.clone()];
         let navigation = RecordNavigationView {
+            spell_rank: None,
             record_key: record.key().to_string(),
             source_fingerprint: navigation_fingerprint(&owners, fingerprint),
             owners,
@@ -157,6 +159,10 @@ pub(crate) fn authored_activities(
         };
         let mut activity = authored_activity(i, navigation);
         if let ItemSourceView::SpellSource(s) = i {
+            activity.casting_ranks = spell_context::ranks(record, s);
+            if activity.casting_ranks.len() == 1 {
+                activity.navigation.spell_rank = activity.casting_ranks.first().copied();
+            }
             let entry = SourceFieldView::from(&s.system)
                 .and_then(|s| (&s.location).into())
                 .and_then(|l| (&l.value).into());
@@ -341,6 +347,7 @@ pub(super) fn authored_activity(
         ),
     };
     ActorActivityView {
+        casting_ranks: vec![],
         has_reference_details: has_reference_details(item),
         title: node_title(SourceNodeView::Item(item)),
         family: family.into(),

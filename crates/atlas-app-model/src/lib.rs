@@ -15,15 +15,17 @@ mod search;
 pub use encounter::{
     ActionBudgetView, AddEncounterManualParticipantRequest,
     AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
-    AdvanceEncounterTurnRequest, ApplyEncounterHpActionRequest, ConditionDurationUnit,
-    ConditionDurationView, ConditionTimingView, ConditionTurnEvent, CreateEncounterRequest,
-    DeleteEncounterView, EncounterConditionApplicabilityView,
+    AdvanceEncounterTurnRequest, ApplyEncounterHpActionRequest, ApplyEncounterSpellActionRequest,
+    ConditionDurationUnit, ConditionDurationView, ConditionTimingView, ConditionTurnEvent,
+    CreateEncounterRequest, DeleteEncounterView, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
     EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
     EncounterDetailView, EncounterHpAction, EncounterHpValueInput, EncounterIndexView,
     EncounterMutationView, EncounterParticipantConditionView, EncounterParticipantKindView,
     EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
-    EncounterParticipantView, EncounterReferenceRequest, EncounterStatusView, EncounterSummaryView,
+    EncounterParticipantView, EncounterReferenceRequest, EncounterSpellAction,
+    EncounterSpellRankView, EncounterSpellResourceScope, EncounterSpellResourceView,
+    EncounterSpellView, EncounterSpellcastingView, EncounterStatusView, EncounterSummaryView,
     EncounterTurnReminderView, EncounterTurnReviewView, ReorderEncounterParticipantPlacementView,
     ReorderEncounterParticipantRequest, RuntimeAdjustmentView, RuntimeCapabilityView,
     RuntimeCountSegmentView, RuntimeCountView, RuntimeEffectNoteView, SetEncounterTurnRequest,
@@ -128,6 +130,7 @@ mod tests {
         fs::create_dir_all(path).expect("binding export directory should be creatable");
         EncounterTurnReviewView::export_all_to(path).expect("turn review bindings");
         AdvanceEncounterTurnRequest::export_all_to(path).expect("turn advance bindings");
+        ApplyEncounterSpellActionRequest::export_all_to(path).expect("spell action bindings");
         ApplyEncounterHpActionRequest::export_all_to(path).expect("HP action bindings");
         OwnedReadingRequest::export_all_to(path).expect("owned reading request bindings");
         OwnedReadingBatchView::export_all_to(path).expect("owned reading response bindings");

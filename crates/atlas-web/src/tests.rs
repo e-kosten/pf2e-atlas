@@ -1100,6 +1100,15 @@ impl AtlasWebService for MockService {
         })
     }
 
+    fn apply_encounter_spell_action(
+        &self,
+        encounter_ref: &str,
+        _request: atlas_app_model::ApplyEncounterSpellActionRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
+        })
+    }
     fn apply_encounter_hp_action(
         &self,
         encounter_ref: &str,
@@ -1381,6 +1390,7 @@ fn encounter_participant(
     include_condition: bool,
 ) -> EncounterParticipantView {
     EncounterParticipantView {
+        spellcasting: None,
         revision: 7,
         hp_origin: "explicit".into(),
         variant_origin: "explicit".into(),

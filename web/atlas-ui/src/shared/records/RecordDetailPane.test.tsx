@@ -41,7 +41,7 @@ describe("RecordDetailPane", () => {
     const props = { detail: recordDetailFixture(), onReference: vi.fn(), onRetry };
     const view = render(<RecordDetailPane {...props} loading />);
     expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent("Updating record…");
+    expect(screen.getByLabelText("Updating record")).toBeInTheDocument();
     view.rerender(
       <RecordDetailPane
         {...props}

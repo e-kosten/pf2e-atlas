@@ -6,6 +6,7 @@
 }
 
 .record-preview-popover__header {
+  padding-block-end: 8px;
   align-items: center;
   display: flex;
   font-weight: 600;
@@ -13,11 +14,18 @@
 }
 
 .record-preview-popover__body {
+  position: relative;
   width: min(560px, calc(100vw - 48px));
   max-height: min(560px, calc(100vh - 96px));
   min-height: 0;
   overscroll-behavior: contain;
   overflow: auto;
+}
+
+/* The scroll host anchors refresh feedback. A positioned nested panel can
+   intercept toolbar clicks above the native popover's scrolled viewport. */
+.record-preview-popover__body > .detail-panel {
+  position: static;
 }
 
 .record-preview-drawer__header {
@@ -45,4 +53,17 @@
 .related-records__item {
   padding-block: 8px;
   border-bottom: 1px solid var(--line);
+}
+
+.record-preview-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+  gap: 8px;
+  font-weight: normal;
+}
+.record-preview-toolbar__navigation {
+  margin-inline-start: auto;
+  flex-shrink: 0;
 }

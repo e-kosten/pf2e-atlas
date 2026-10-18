@@ -496,10 +496,21 @@ export function ActorSecondaryFacts({
   );
 }
 
+export type CastingAnnotations = {
+  entry: (entry: ActorActivityView) => React.ReactNode;
+  rank: (entry: ActorActivityView, rank: number) => React.ReactNode;
+  spell: (spell: ActorActivityView) => {
+    muted: boolean;
+    status?: string;
+    suffix?: React.ReactNode;
+  };
+};
+
 export function ActorActivity({
   activity,
   onReference,
   selected = false,
+  headingActions,
   hideCost = false,
   inline = false,
   permalink = true,
@@ -508,6 +519,7 @@ export function ActorActivity({
   activity: ActorActivityView;
   onReference: RecordReferenceHandler;
   selected?: boolean;
+  headingActions?: React.ReactNode;
   hideCost?: boolean;
   inline?: boolean;
   permalink?: boolean;
@@ -572,6 +584,7 @@ export function ActorActivity({
         ) : (
           <strong>{activity.title}</strong>
         ))}
+      {headingActions}
       {activity.lore_modifier.state !== "not_applicable" && (
         <span className="actor-activity__modifier">
           {" "}
@@ -648,11 +661,13 @@ export function ActorActivities({
   onReference,
   encounter = false,
   reading,
+  castingAnnotations,
 }: {
   actor: ActorPresentationView;
   onReference: RecordReferenceHandler;
   encounter?: boolean;
   reading?: OwnedReadingContext;
+  castingAnnotations?: CastingAnnotations;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const target = reading?.landing;
@@ -740,6 +755,7 @@ export function ActorActivities({
         })}
       </div>
       <CastingRoster
+        annotations={castingAnnotations}
         activities={actor.activities.value ?? []}
         onReference={onReference}
       />
@@ -799,9 +815,11 @@ function RuntimeCount({ count }: { count: RuntimeCountView }) {
 
 function CastingRoster({
   activities,
+  annotations,
   onReference,
 }: {
   activities: ActorActivityView[];
+  annotations?: CastingAnnotations;
   onReference: RecordReferenceHandler;
 }) {
   const entries = activities.filter((activity) => activity.kind === "casting_entry");
@@ -818,9 +836,15 @@ function CastingRoster({
       <h3>Spellcasting</h3>
       {entries.map((entry, index) => (
         <div key={index}>
-          <ActorActivity activity={entry} onReference={onReference} />
+          <ActorActivity
+            activity={entry}
+            onReference={onReference}
+            headingActions={annotations?.entry(entry)}
+          />
           <div className="actor-casting__spells">
             <CastingSpells
+              annotations={annotations}
+              entry={entry}
               spells={spells.filter((spell) => belongs(spell, entry))}
               onReference={onReference}
             />
@@ -830,7 +854,11 @@ function CastingRoster({
       {unassociated.length ? (
         <div>
           <h4>Other spells</h4>
-          <CastingSpells spells={unassociated} onReference={onReference} />
+          <CastingSpells
+            annotations={annotations}
+            spells={unassociated}
+            onReference={onReference}
+          />
         </div>
       ) : null}
     </section>
@@ -838,58 +866,98 @@ function CastingRoster({
 }
 
 function CastingSpells({
+  annotations,
+  entry,
   spells,
   onReference,
 }: {
   spells: ActorActivityView[];
+  entry?: ActorActivityView;
+  annotations?: CastingAnnotations;
   onReference: RecordReferenceHandler;
 }) {
+  const groups = new Map<string, { rank: number; spells: ActorActivityView[] }>();
+  for (const spell of spells) {
+    const ranks: (number | undefined)[] = spell.casting_ranks.length
+      ? spell.casting_ranks
+      : [undefined];
+    for (const rank of ranks) {
+      const cantrip = spell.traits.some((trait) => trait.value === "cantrip");
+      const label =
+        rank === undefined
+          ? "Rank unavailable"
+          : cantrip
+            ? `Cantrips (rank ${rank})`
+            : `Rank ${rank}`;
+      const group = groups.get(label) ?? {
+        rank: cantrip ? 0 : (rank ?? 11),
+        spells: [],
+      };
+      group.spells.push({
+        ...spell,
+        navigation: { ...spell.navigation, spell_rank: rank },
+      });
+      groups.set(label, group);
+    }
+  }
   return (
     <div className="actor-casting__rows">
-      {spells.length ? (
-        spells.map((spell) => (
-          <div
-            className="actor-casting__row"
-            key={JSON.stringify(spell.navigation)}
-            data-atlas-activity-anchor={activityAnchor(spell.navigation)}
-          >
-            <Button
-              type="link"
-              size="small"
-              style={{
-                paddingInline: 0,
-                height: "auto",
-                whiteSpace: "normal",
-                textAlign: "left",
-              }}
-              href={atlasRoutePath({
-                kind: "record",
-                recordKey: spell.navigation.record_key,
-                selection: spell.navigation,
-              })}
-              onClick={(event) => {
-                if (!shouldHandleAtlasRouteClick(event)) return;
-                event.preventDefault();
-                onReference(
-                  spell.navigation.record_key,
-                  event.currentTarget,
-                  spell.navigation,
+      {[...groups]
+        .sort((a, b) => a[1].rank - b[1].rank)
+        .map(([label, group]) => (
+          <div className="actor-casting__row" key={label}>
+            <strong>
+              {label} {entry && annotations?.rank(entry, group.rank)}
+            </strong>
+            <span>
+              {group.spells.map((spell, index) => {
+                const annotation = annotations?.spell(spell);
+                return (
+                  <span key={JSON.stringify(spell.navigation)}>
+                    {index > 0 && ", "}
+                    <Button
+                      type="link"
+                      className={
+                        annotation?.muted ? "actor-casting__spell--expended" : undefined
+                      }
+                      aria-label={
+                        annotation?.status
+                          ? `${spell.title}: ${annotation.status}`
+                          : undefined
+                      }
+                      size="small"
+                      style={{
+                        color: annotation?.muted ? "var(--muted)" : undefined,
+                        paddingInline: 0,
+                        height: "auto",
+                        whiteSpace: "normal",
+                        textAlign: "left",
+                      }}
+                      href={atlasRoutePath({
+                        kind: "record",
+                        recordKey: spell.navigation.record_key,
+                        selection: spell.navigation,
+                      })}
+                      onClick={(event) => {
+                        if (!shouldHandleAtlasRouteClick(event)) return;
+                        event.preventDefault();
+                        onReference(
+                          spell.navigation.record_key,
+                          event.currentTarget,
+                          spell.navigation,
+                        );
+                      }}
+                    >
+                      {spell.title}
+                    </Button>
+                    {annotation?.suffix && <> {annotation.suffix}</>}
+                  </span>
                 );
-              }}
-            >
-              {spell.title}
-            </Button>
-            {spell.authored_cast_rank.state === "value" ? (
-              <span>Cast rank {factText(spell.authored_cast_rank)}</span>
-            ) : (
-              <span className="muted">Casting rank unavailable</span>
-            )}
-            {spell.casting_entry === null && (
-              <span className="muted">Casting entry unavailable</span>
-            )}
+              })}
+            </span>
           </div>
-        ))
-      ) : (
+        ))}
+      {!spells.length && (
         <p className="muted">No spells could be matched to this entry.</p>
       )}
     </div>

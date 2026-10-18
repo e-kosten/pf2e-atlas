@@ -50,8 +50,20 @@
   flex-wrap: wrap;
   gap: 8px 16px;
 }
-.record-reference__title h2 {
+.record-reference__classification {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+.record-reference__rank {
+  width: 100px;
+}
+.record-reference__identity {
   flex: 1 1 12ch;
+  min-width: 0;
+}
+.record-reference__title h2 {
   margin: 0;
   font-size: 1.5rem;
   line-height: 1.2;
@@ -290,4 +302,97 @@
   .actor-reference__facts--combat {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.record-reference__navigation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.record-reference__navigation:empty {
+  display: none;
+}
+
+.spell-rank-control {
+  width: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.spell-rank-control__row {
+  display: flex;
+  align-items: center;
+}
+.spell-rank-control__base {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.detail-panel {
+  position: relative;
+}
+.detail-refresh {
+  position: absolute;
+  inset-block-start: 4px;
+  inset-inline-end: 4px;
+  pointer-events: none;
+}
+
+.spell-rank-control__secondary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  width: max-content;
+  white-space: nowrap;
+}
+.record-reference__classification > .record-reference__kind {
+  line-height: 24px;
+}
+
+.encounter-casting__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.encounter-casting__resource-group {
+  margin-block-end: 16px;
+}
+.encounter-casting__resource-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 12px;
+}
+
+.encounter-casting__count {
+  font-weight: normal;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.encounter-casting__entry-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: 8px;
+}
+
+.encounter-casting__editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.record-reference__original {
+  align-self: flex-start;
+  padding-inline: 0;
 }

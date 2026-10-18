@@ -117,3 +117,36 @@ it("bounds local history and restores complete owner, field, passage, fingerprin
   expect(result.current.restoringHistory).toBe(false);
   expect(result.current.canGoBack).toBe(false);
 });
+
+it("changes a matched spell's rank without re-reading its old match or adding history", async () => {
+  const match = activityFixture("Spell", "actors:caster").navigation;
+  const selected = { ...detailFixture("actors:caster"), selected: match };
+  api
+    .mockResolvedValueOnce(detailFixture("actors:caster"))
+    .mockResolvedValueOnce(selected);
+  const { result } = renderHook(
+    () => useReferenceReading({ navigation: rootNavigation("actors:caster"), match }),
+    { wrapper },
+  );
+  await waitFor(() => expect(result.current.detail).toEqual(selected));
+  let finish!: (detail: typeof selected) => void;
+  api.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const ranked = { ...match, spell_rank: 5 };
+  act(() => result.current.changeRank(ranked));
+  await waitFor(() => expect(api).toHaveBeenCalledTimes(3));
+  expect(result.current.detail).toEqual(selected);
+  expect(result.current.canGoBack).toBe(false);
+  expect(api).toHaveBeenLastCalledWith(
+    "actors:caster",
+    { ...ranked, fields: [] },
+    expect.any(AbortSignal),
+  );
+  await act(async () => finish({ ...selected, selected: ranked }));
+  await waitFor(() => expect(result.current.detail?.selected.spell_rank).toBe(5));
+  expect(api).toHaveBeenCalledTimes(3);
+});

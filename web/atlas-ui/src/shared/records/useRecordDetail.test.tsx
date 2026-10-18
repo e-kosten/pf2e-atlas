@@ -1,4 +1,13 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { retireImmutableReferenceQueries } from "../queries/immutableReferenceQueries";
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { RecordDetailView, RecordNavigationView } from "../../generated/atlas";
 import { detailFixture } from "../../test/fixtures";
@@ -64,7 +73,7 @@ describe("address-safe detail refresh", () => {
     await act(async () => {
       void queryClient.invalidateQueries({ queryKey: ["record-detail"] });
     });
-    expect(await screen.findByRole("status")).toHaveTextContent("Updating record…");
+    expect(await screen.findByLabelText("Updating record")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Heal" })).toBeVisible();
     await act(async () => refresh.reject(new Error("Temporary service failure")));
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -137,4 +146,22 @@ describe("address-safe detail refresh", () => {
       ]);
     },
   );
+});
+
+it("discards retained preview content when its reference query is retired", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const old = detailFixture("spells:one");
+  api.getRecordDetail.mockResolvedValueOnce(old);
+  const { result } = renderHook(() => useRecordDetail("spells:one"), {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+  await waitFor(() => expect(result.current.data).toEqual(old));
+  api.getRecordDetail.mockRejectedValue(new Error("New collection offline"));
+  await act(async () => retireImmutableReferenceQueries(client));
+  await waitFor(() =>
+    expect(result.current.error?.message).toBe("New collection offline"),
+  );
+  expect(result.current.data).toBeUndefined();
 });

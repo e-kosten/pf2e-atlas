@@ -93,6 +93,7 @@ impl AtlasAppService {
     }
     pub fn record_detail(&self, key: &str) -> AppServiceResult<RecordDetailView> {
         self.record_detail_at(RecordDetailRequest {
+            spell_rank: None,
             record_key: key.into(),
             owners: vec![],
             fields: vec![],
@@ -224,7 +225,7 @@ pub(crate) fn read_record_detail(
         }
     }
     let summary = crate::projection::localized_summary_view(&detail.summary, r);
-    let presentation = crate::presentation::record_presentation(
+    let mut presentation = crate::presentation::record_presentation(
         &detail.source,
         node,
         &summary,
@@ -232,6 +233,13 @@ pub(crate) fn read_record_detail(
         fields,
         r,
     );
+    let spell_rank = crate::presentation::apply_spell_rank(
+        &detail.source,
+        node,
+        request.spell_rank,
+        &mut presentation,
+        r,
+    )?;
     let relationships = r.read_non_content_relationships(&SourceRelationshipRequest {
         record: key.clone(),
         owners: Some(request.owners.clone()),
@@ -248,6 +256,7 @@ pub(crate) fn read_record_detail(
         record: summary,
         presentation,
         selected: RecordNavigationView {
+            spell_rank,
             record_key: key.to_string(),
             source_fingerprint: navigation_fingerprint(&request.owners, r.source_fingerprint()),
             owners: request.owners,
@@ -262,7 +271,16 @@ pub(crate) fn read_record_detail(
             .relationships
             .into_iter()
             .chain(relationships.occurrences)
-            .map(|o| relationship_view(o, r.source_fingerprint()))
+            .map(|o| {
+                let mut relationship = relationship_view(o, r.source_fingerprint());
+                if relationship.kind == "CompendiumProvenance"
+                    && relationship.status == "resolved_record"
+                    && let Some(target) = &mut relationship.target
+                {
+                    target.spell_rank = spell_rank;
+                }
+                relationship
+            })
             .collect(),
         relationships_truncated: relationships.truncated || !content.bounded.is_empty(),
     };
