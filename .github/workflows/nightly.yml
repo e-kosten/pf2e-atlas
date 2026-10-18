@@ -1,0 +1,88 @@
+name: nightly
+
+on:
+  schedule:
+    - cron: '23 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-publication
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    outputs:
+      build: ${{ steps.plan.outputs.build }}
+      sha: ${{ steps.plan.outputs.sha }}
+      tag: ${{ steps.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dev-tools/release/package-lock.json
+      - name: Build private release tools
+        run: |
+          npm --prefix dev-tools/release ci --ignore-scripts
+          npm --prefix dev-tools/release run build
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          args=()
+          if [[ "$EVENT_NAME" == schedule ]]; then args+=(--scheduled); fi
+          node dev-tools/release/dist/src/cli/nightly.js plan "${args[@]}" >> "$GITHUB_OUTPUT"
+
+  verify:
+    needs: plan
+    if: ${{ needs.plan.outputs.build == 'true' }}
+    uses: ./.github/workflows/ci.yml
+    with:
+      source-ref: ${{ needs.plan.outputs.sha }}
+
+  package:
+    needs: [plan, verify]
+    uses: ./.github/workflows/release-build-check.yml
+    with:
+      tag: ${{ needs.plan.outputs.tag }}
+      source-ref: ${{ needs.plan.outputs.sha }}
+      nightly: true
+
+  publish:
+    needs: [plan, package]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dev-tools/release/package-lock.json
+      - name: Build private release tools
+        run: |
+          npm --prefix dev-tools/release ci --ignore-scripts
+          npm --prefix dev-tools/release run build
+      - uses: actions/download-artifact@v7
+        with:
+          name: release-build-check-${{ needs.plan.outputs.tag }}
+          path: target/nightly
+      - name: Publish and smoke-test dated release, then update channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NIGHTLY_TAG: ${{ needs.plan.outputs.tag }}
+          SOURCE_SHA: ${{ needs.plan.outputs.sha }}
+          ATLAS_REPO: ${{ github.repository }}
+        run: node dev-tools/release/dist/src/cli/nightly.js publish --tag "$NIGHTLY_TAG" --sha "$SOURCE_SHA" --dist target/nightly
