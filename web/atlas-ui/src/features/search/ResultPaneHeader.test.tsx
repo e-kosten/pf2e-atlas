@@ -161,6 +161,29 @@ describe("search pane composition", () => {
 });
 
 describe("ResultPaneHeader", () => {
+  it("distinguishes bounded search matches from exhaustive record totals", () => {
+    const page = searchResultsPage();
+    const { rerender } = render(
+      <ResultPaneHeader
+        workspace={workspace({
+          resultPage: {
+            ...page,
+            coverage: {
+              exhaustive: false,
+              semantic_unit_window: 1024,
+              candidate_roots: 664,
+              count_basis: "bounded candidates",
+            },
+            page: { ...page.page, total: 664n },
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("Top 664 matches")).toBeVisible();
+    expect(screen.queryByText(/candidate records|1024 units/)).toBeNull();
+    rerender(<ResultPaneHeader workspace={workspace()} />);
+    expect(screen.getByText("14,736 records")).toBeVisible();
+  });
   it.each([
     undefined,
     {

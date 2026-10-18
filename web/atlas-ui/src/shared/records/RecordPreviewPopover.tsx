@@ -205,7 +205,7 @@ export function RecordPreviewPopover({
           <section {...contentFocus} className="record-preview-popover__body">
             <RecordDetailPane
               compact
-              showRelated={context !== "encounter"}
+              showRelated={false}
               showOwnerReturn={context !== "encounter"}
               visibleOwnerRecordKey={visibleOwnerRecordKey}
               detail={detail}

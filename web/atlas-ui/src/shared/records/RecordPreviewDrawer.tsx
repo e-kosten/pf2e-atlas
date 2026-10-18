@@ -84,7 +84,7 @@ export function RecordPreviewDrawer({
         <RecordDetailPane
           hideTitle
           visibleOwnerRecordKey={visibleOwnerRecordKey}
-          showRelated={context !== "encounter"}
+          showRelated={false}
           showOwnerReturn={context !== "encounter"}
           detail={detail}
           loading={loading}

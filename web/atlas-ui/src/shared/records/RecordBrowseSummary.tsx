@@ -6,6 +6,7 @@ import {
   shouldHandleAtlasRouteClick,
 } from "../../app/routes";
 import { sentenceCase } from "../ui/labels";
+import { RecordRarity } from "./RecordRarity";
 
 export function RecordBrowseSummary({
   record,
@@ -24,8 +25,6 @@ export function RecordBrowseSummary({
   ]
     .filter(Boolean)
     .join(" ");
-  const rarity =
-    record.rarity && record.rarity !== "common" ? sentenceCase(record.rarity) : null;
   return (
     <Button
       className="reference-result__summary"
@@ -95,7 +94,7 @@ export function RecordBrowseSummary({
         <span>{classification}</span>
       </div>
       <div className="reference-result__metadata">
-        {rarity && <span>{rarity}</span>}
+        <RecordRarity rarity={record.rarity} />
         <span>{record.publication ?? record.pack}</span>
       </div>
       {!!record.traits.length && (
