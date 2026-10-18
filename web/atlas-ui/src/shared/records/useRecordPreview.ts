@@ -1,3 +1,4 @@
+import { recordReadingIdentity, useRetainedRecord } from "./useRetainedRecord";
 import { useCallback, useRef, useState } from "react";
 import type { RecordPreviewAnchor } from "./recordPreviewTypes";
 import type {
@@ -82,6 +83,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
           artifact_generation: requestedContext!.generation!,
           selection: {
             record_key: recordKey!,
+            spell_rank: selection!.spell_rank,
             owners: selection!.owners,
             fields: selection!.field ? [selection!.field] : [],
             passage: selection!.passage,
@@ -94,6 +96,19 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     gcTime: 0,
     retry: false,
   });
+  const retainedContextual = useRetainedRecord(
+    JSON.stringify(
+      [
+        encounterContext?.encounterRef,
+        requestedContext,
+        encounterContext?.presentation,
+        recordReadingIdentity(recordKey, selection),
+      ],
+      (_key, value) => (typeof value === "bigint" ? value.toString() : value),
+    ),
+    contextual.data,
+    contextual.error,
+  );
   const detail = useRecordDetail(requestedContext ? null : recordKey, selection);
 
   const reloadOwner = async () => {
@@ -191,7 +206,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     detail: requestedContext
       ? contextualError || reloadState
         ? undefined
-        : contextual.data
+        : retainedContextual
       : detail.data,
     error: requestedContext
       ? reloadState?.kind === "loading"
@@ -238,11 +253,17 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         ? "Reload encounter"
         : "Retry",
     open,
+    changeRank: (spell_rank: number | undefined) => {
+      const current =
+        selection ??
+        (requestedContext ? contextual.data?.selected : detail.data?.selected);
+      if (current) setSelection({ ...current, spell_rank });
+    },
     recordKey,
     selection,
     landing,
     readingHistory: {
-      address: JSON.stringify([recordKey, selection, landing]),
+      address: JSON.stringify([recordReadingIdentity(recordKey, selection), landing]),
       restoringHistory,
       restore,
       canGoBack: history.length > 0,

@@ -8,9 +8,12 @@ pub use model::{
     EncounterParticipantCondition, EncounterStatus, EncounterTurnState, EncounterTurnUpdate,
     EncounterWithParticipants, NewEncounter, ParticipantHpOrigin, ParticipantKind, ParticipantSide,
     ParticipantVariant, ParticipantVariantOrigin, ReorderEncounterParticipant, ReorderPlacement,
-    UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
+    SpellResource, UpdateEncounter, UpdateEncounterParticipant,
+    UpdateEncounterParticipantCondition,
 };
 pub use service::Encounters;
 
 #[cfg(test)]
 mod tests;
+
+mod spell_resources;

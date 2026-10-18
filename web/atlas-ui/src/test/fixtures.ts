@@ -73,6 +73,7 @@ export function activityFixture(
 ): ActorActivityView {
   const na: NumberFactView = { state: "not_applicable", value: null, adjustment: null };
   return {
+    casting_ranks: [],
     title,
     family: "melee",
     kind: "strike",
@@ -103,6 +104,7 @@ export function activityFixture(
 }
 export function spellFixture(): SpellPresentationView {
   return {
+    base_rank: numberFact(1),
     rank: numberFact(3),
     traditions: knownFact(["arcane", "primal"]),
     cast: knownFact({ glyph: "two_actions", label: "2 actions" }),

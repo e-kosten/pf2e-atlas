@@ -34,6 +34,9 @@ fn initialize_in_transaction(connection: &Connection) -> LocalStateResult<()> {
         validate_v7_tables(connection)?;
         validate_v8_tables(connection)?;
         validate_v9_tables(connection)?;
+        connection
+            .prepare("SELECT participant_id,spell_id FROM encounter_expended_spells LIMIT 0")?;
+        connection.prepare("SELECT participant_id,resource_key,capacity,remaining,undo_remaining FROM encounter_spell_resources LIMIT 0")?;
         return Ok(());
     }
     if table_exists(connection, SAVED_LISTS_TABLE)?
@@ -47,6 +50,8 @@ fn initialize_in_transaction(connection: &Connection) -> LocalStateResult<()> {
     add_v7_columns(connection)?;
     add_v8_columns(connection)?;
     add_v9_columns(connection)?;
+    add_v10_tables(connection)?;
+    add_v11_tables(connection)?;
     write_current_metadata(connection)?;
     Ok(())
 }
@@ -215,6 +220,31 @@ fn migrate_to_current_schema(connection: &Connection) -> LocalStateResult<()> {
             [],
         )?;
     }
+    if metadata_value(connection, METADATA_SCHEMA_VERSION)?.as_deref() == Some("9") {
+        add_v10_tables(connection)?;
+        connection.execute(
+            "UPDATE local_state_metadata SET value='10' WHERE key='schema_version'",
+            [],
+        )?;
+    }
+    if metadata_value(connection, METADATA_SCHEMA_VERSION)?.as_deref() == Some("10") {
+        add_v11_tables(connection)?;
+        connection.execute(
+            "UPDATE local_state_metadata SET value='11' WHERE key='schema_version'",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+fn add_v11_tables(connection: &Connection) -> LocalStateResult<()> {
+    connection.execute_batch(
+        "CREATE TABLE encounter_expended_spells (
+        participant_id INTEGER NOT NULL REFERENCES encounter_participants(id) ON DELETE CASCADE,
+        spell_id TEXT NOT NULL,
+        PRIMARY KEY(participant_id,spell_id)
+    )",
+    )?;
     Ok(())
 }
 
@@ -225,7 +255,7 @@ fn migrate_through_v6(connection: &Connection) -> LocalStateResult<()> {
         ));
     };
     match schema_version.as_str() {
-        "6" | "7" | "8" => Ok(()),
+        "6" | "7" | "8" | "9" | "10" => Ok(()),
         LOCAL_STATE_SCHEMA_VERSION => Ok(()),
         "1" => {
             migrate_v1_to_v2(connection)?;
@@ -601,6 +631,18 @@ fn add_v9_columns(connection: &Connection) -> LocalStateResult<()> {
 fn validate_v9_tables(connection: &Connection) -> LocalStateResult<()> {
     connection.prepare("SELECT revision FROM encounters LIMIT 0")?;
     connection.prepare("SELECT duration_amount,duration_unit,duration_anchor_key,duration_event FROM encounter_participant_conditions LIMIT 0")?;
+    Ok(())
+}
+
+fn add_v10_tables(connection: &Connection) -> LocalStateResult<()> {
+    connection.execute_batch("CREATE TABLE encounter_spell_resources (
+      participant_id INTEGER NOT NULL REFERENCES encounter_participants(id) ON DELETE CASCADE,
+      resource_key TEXT NOT NULL,
+      capacity INTEGER NOT NULL CHECK(typeof(capacity)='integer' AND capacity>=0),
+      remaining INTEGER NOT NULL CHECK(typeof(remaining)='integer' AND remaining BETWEEN 0 AND capacity),
+      undo_remaining INTEGER CHECK(undo_remaining IS NULL OR (typeof(undo_remaining)='integer' AND undo_remaining BETWEEN 0 AND capacity)),
+      PRIMARY KEY(participant_id, resource_key)
+    );")?;
     Ok(())
 }
 

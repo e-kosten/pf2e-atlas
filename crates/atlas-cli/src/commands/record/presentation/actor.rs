@@ -261,26 +261,24 @@ fn spellcasting(out: &mut String, activities: &[ActorActivityView]) {
 fn spell_roster<'a>(out: &mut String, spells: impl Iterator<Item = &'a ActorActivityView>) {
     let mut ranks = std::collections::BTreeMap::<(i64, String), Vec<&str>>::new();
     for spell in spells {
-        let rank = if spell.traits.iter().any(|t| t.value == "cantrip") {
-            (0, "Cantrips".into())
-        } else {
-            let rank = if matches!(
-                spell.authored_cast_rank.state,
-                QueryFieldState::Missing | QueryFieldState::NotApplicable
-            ) {
-                &spell.base_rank
+        if spell.casting_ranks.is_empty() {
+            ranks
+                .entry((i64::MAX, "Rank unavailable".into()))
+                .or_default()
+                .push(&spell.title);
+        }
+        for rank in &spell.casting_ranks {
+            let cantrip = spell.traits.iter().any(|t| t.value == "cantrip");
+            let label = if cantrip {
+                format!("Cantrips (rank {rank})")
             } else {
-                &spell.authored_cast_rank
+                format!("Rank {rank}")
             };
-            (
-                rank.value
-                    .as_ref()
-                    .and_then(serde_json::Number::as_i64)
-                    .unwrap_or(i64::MAX),
-                format!("Rank {}", number_text(rank, false, "")),
-            )
-        };
-        ranks.entry(rank).or_default().push(&spell.title);
+            ranks
+                .entry((if cantrip { 0 } else { i64::from(*rank) }, label))
+                .or_default()
+                .push(&spell.title);
+        }
     }
     for ((_, rank), titles) in ranks {
         line(out, format!("  {rank}: {}", titles.join(", ")));

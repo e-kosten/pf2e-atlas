@@ -8,7 +8,7 @@ import {
   sentinel,
 } from "./reading";
 
-test("filters, exact late activity, Back and Results remain usable", async ({
+test("filters, exact late activity, preview dismissal and Results remain usable", async ({
   page,
 }, info) => {
   const ready = await page.request.get("/api/readiness");
@@ -35,7 +35,7 @@ test("filters, exact late activity, Back and Results remain usable", async ({
   await expect(host.getByRole("heading", { name: /^Signal Pulse\b/ })).toBeVisible();
   expect(await host.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
   const outer = await page.evaluate(() => scrollY);
-  await readThenBack(page, host, info);
+  await readThenBack(page, host, info, "Off-Guard", "close");
   expect(await page.evaluate(() => scrollY)).toBe(outer);
   const full = page.getByRole("link", { name: "Open full page", exact: true });
   expect(
@@ -275,7 +275,19 @@ test("encounter references retain their owner, scroll and native destination", a
       ),
     ).toBe(JSON.stringify(landing));
     await expect(full).toBeInViewport();
+    await page.screenshot({ path: info.outputPath("preview-toolbar.png") });
     if (!info.project.use.hasTouch) {
+      // Scrolled record content must not intercept the toolbar above its viewport.
+      await expect
+        .poll(() =>
+          full.evaluate((node) => {
+            const box = node.getBoundingClientRect();
+            return node.contains(
+              document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2),
+            );
+          }),
+        )
+        .toBe(true);
       // Middle activation exercises the native link destination independently
       // of the host OS's Cmd/Ctrl convention. Component tests guard both modifiers.
       const opened = page.context().waitForEvent("page", { timeout: 5000 });

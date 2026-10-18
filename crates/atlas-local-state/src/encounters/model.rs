@@ -47,6 +47,8 @@ impl EncounterStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct EncounterParticipant {
+    pub spell_resources: Vec<SpellResource>,
+    pub expended_spells: Vec<String>,
     pub revision: i64,
     pub hp_origin: ParticipantHpOrigin,
     pub variant_origin: ParticipantVariantOrigin,
@@ -203,6 +205,7 @@ pub struct UpdateEncounter {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AddEncounterParticipant {
+    pub spell_resources: Vec<SpellResource>,
     pub participant_variant: ParticipantVariant,
     pub hp_origin: ParticipantHpOrigin,
     pub variant_origin: ParticipantVariantOrigin,
@@ -376,4 +379,12 @@ pub struct ConditionDuration {
 pub struct EncounterTurnUpdate {
     pub turn: EncounterTurnState,
     pub durations: Vec<(i64, i64)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SpellResource {
+    pub key: String,
+    pub capacity: i64,
+    pub remaining: i64,
+    pub undo_remaining: Option<i64>,
 }

@@ -220,6 +220,7 @@ function Heightening({ fact }: { fact: FactView<SpellHeighteningView> }) {
 export function SpellReference({ spell }: { spell: SpellPresentationView }) {
   return (
     <div className="spell-reference">
+      {spell.rank_note && <p>{spell.rank_note}</p>}
       {spell.runtime_notes?.map((note, index) => (
         <p key={index}>
           {note.label}: {note.reason}
@@ -245,11 +246,6 @@ export function SpellReference({ spell }: { spell: SpellPresentationView }) {
           spell.sustained.value && <FactRow label="Sustained">Yes</FactRow>
         ) : (
           <FactLine label="Sustained" fact={spell.sustained} />
-        )}
-        {!["missing", "not_applicable"].includes(spell.authored_cast_rank.state) && (
-          <FactRow label="Cast rank">
-            <NumberFact fact={spell.authored_cast_rank} />
-          </FactRow>
         )}
       </div>
       <DamageComponents damage={spell.damage} />

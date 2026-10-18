@@ -181,6 +181,10 @@ pub(crate) fn add_participant(
         );
         match result {
             Ok(_) => {
+                let id = connection.last_insert_rowid();
+                for resource in &participant.spell_resources {
+                    connection.execute("INSERT INTO encounter_spell_resources(participant_id,resource_key,capacity,remaining,undo_remaining) VALUES(?1,?2,?3,?3,NULL)", params![id, resource.key, resource.capacity])?;
+                }
                 touch_encounter(connection, encounter_id)?;
                 return Ok(participant_key);
             }
@@ -542,6 +546,10 @@ fn participants(
     let mut participants = rows.collect::<Result<Vec<_>, _>>()?;
     for participant in &mut participants {
         participant.conditions = participant_conditions(connection, &participant.participant_key)?;
+        participant.expended_spells =
+            super::spell_resources::read_expended(connection, &participant.participant_key)?;
+        participant.spell_resources =
+            super::spell_resources::read(connection, &participant.participant_key)?;
     }
     Ok(participants)
 }
@@ -568,6 +576,8 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
     let participant_variant: String = row.get(3)?;
     let side: String = row.get(8)?;
     Ok(EncounterParticipant {
+        spell_resources: Vec::new(),
+        expended_spells: Vec::new(),
         revision: row.get(21)?,
         participant_key: row.get(0)?,
         record_key: row.get(1)?,
@@ -615,6 +625,9 @@ pub(crate) fn participant(
         return Ok(None);
     };
     participant.conditions = participant_conditions(connection, participant_key)?;
+    participant.expended_spells =
+        super::spell_resources::read_expended(connection, participant_key)?;
+    participant.spell_resources = super::spell_resources::read(connection, participant_key)?;
     Ok(Some(participant))
 }
 

@@ -4,6 +4,11 @@ use atlas_foundry_model::generated::*;
 pub(super) fn authored_spell(source: &SpellSource) -> SpellPresentationView {
     let s = SourceFieldView::from(&source.system);
     SpellPresentationView {
+        rank_note: None,
+        base_rank: number(
+            s.and_then(|s| (&s.level).into())
+                .and_then(|v| (&v.value).into()),
+        ),
         runtime_notes: None,
         rank: number(
             s.and_then(|s| (&s.level).into())

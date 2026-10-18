@@ -386,15 +386,13 @@ a pinned reader would be a separate product feature.
 
 ### In-place reference reading
 
-Use the current reader for references in search, saved-list browsing, record
-selection and the explicit Reader view. Following a reference changes reading
-position, not the selected result, Add candidate, list membership or encounter
-participant. Local Back restores the previous exact document and reading
-position. Return to selection restores the feature-selected record. Keep this
-history bounded and local to the reading session, separate from browser history.
-
-Where no reader is present, use the shared reference preview: native Ant Popover
-at `md` and above, native Ant Drawer below `md` (768px).
+Use the current reader for selected search results, saved-list members and Add
+candidates. Inline document references open the shared reference preview while
+preserving that reader and its scroll position: native Ant Popover at `md` and
+above, native Ant Drawer below `md` (768px). Use the same quick-lookup interaction
+in reference pages and encounters. Explicit Reader view retains its dedicated
+secondary reading pane. Following a reference does not change the selected result,
+Add candidate, list membership or encounter participant.
 Both hosts use `RecordDetailPane` and the same family renderer. Long records
 scroll inside their host; do not switch hosts after loading based on record
 length or family. Inline owned abilities follow their existing reading policy;
@@ -409,9 +407,12 @@ for short noninteractive hints, not documents; small fact explanations can use
 accessible Popovers without becoming document-reading sessions.
 
 Preserve complete backend navigation, including embedded owners, field/passage,
-fingerprint and landing. Full-page links open the exact selected copy. Original
+fingerprint, selected spell rank and landing. Rank changes update the current
+document through a separate rank-change callback; they are not reference-link
+activations. Full-page links open the exact selected copy. Original
 record is a separate action offered only for a resolved structured
-`CompendiumProvenance` relationship. Encounter preview detail remains composed
+`CompendiumProvenance` relationship and opens its page at the selected rank.
+Encounter preview detail remains composed
 by Rust from participant state, with separate presentation/address cache identity;
 never substitute baseline detail or add a second activity-only renderer.
 Unavailable references remain visible inert labels, without guessed destinations.
@@ -512,9 +513,23 @@ complete selection identity intact.
 `RecordDetailPane` owns shared detail loading, unavailable-record, refresh-error,
 retry and back states. Keep query errors with their affected pane and feature
 mutation errors with their action; do not add detail errors to the global banner.
-React Query may retain a valid result during refresh of the same complete address;
-never borrow previous detail across a root, owner, field, passage or fingerprint
-change. `RelatedRecords` is the shared secondary disclosure inside that pane.
+Same-document view updates retain the last successful content through loading and
+failure, preserving layout, scroll and focus. The shared `useRetainedRecord` owner
+retains display data only, without seeding another query's cache. Rank changes do
+not create reading-history entries. Show loading feedback after 500 ms without
+inserting a row that shifts the content; errors explicitly label retained content
+and offer Retry. Never borrow previous detail across a root, owner, field, passage,
+fingerprint, artifact refresh epoch or encounter-context change. An explicit
+generation mismatch invalidates retained content. `RelatedRecords` is the shared
+secondary disclosure inside that pane.
+
+Spell headers show classification once, a compact rank selector and a
+Base rank caption below it when the selected rank differs from base. Reset rank
+sits beside that caption, leaving classification adjacent to the selector. Reset rank restores the opening casting rank for an
+owned spell or the base rank for a standalone spell. Its reserved space prevents
+header movement. Selecting a rank is permitted for prose-only heightening too;
+do not claim that unstructured rules have been calculated. Annotating prose as
+applicable requires reliable source semantics, not just an ordinal heading.
 
 Reference composition puts prose first and groups facts/mechanics according to
 pane width. Encounter composition puts current HP, conditions and actions first;

@@ -166,6 +166,7 @@ pub enum ActorActivityKindView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorActivityView {
+    pub casting_ranks: Vec<u8>,
     // Whether opening the selected document can add details beyond this summary.
     pub has_reference_details: bool,
     pub navigation: RecordNavigationView,
@@ -206,6 +207,11 @@ pub struct DamageComponentView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SpellPresentationView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub rank_note: Option<String>,
+    // Original rank, before the selected read-time heightening.
+    pub base_rank: NumberFactView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub runtime_notes: Option<Vec<crate::RuntimeEffectNoteView>>,

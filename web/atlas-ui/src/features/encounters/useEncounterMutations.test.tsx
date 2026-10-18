@@ -6,11 +6,14 @@ import type { UpdateEncounterParticipantRequest } from "../../generated/atlas";
 import { useEncounterMutations } from "./useEncounterMutations";
 
 const api = vi.hoisted(() => ({
+  applyEncounterSpellAction: vi.fn(),
   getEncounter: vi.fn(),
   updateEncounterParticipant: vi.fn(),
   updateEncounter: vi.fn(),
   deleteEncounter: vi.fn(),
 }));
+const feedback = vi.hoisted(() => ({ info: vi.fn(), error: vi.fn() }));
+vi.mock("antd", () => ({ App: { useApp: () => ({ message: feedback }) } }));
 vi.mock("../../api/atlasApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/atlasApi")>()),
   ...api,
@@ -159,5 +162,82 @@ it("does not treat an unrelated metadata 409 as a participant conflict", async (
     ).rejects.toBe(error);
   });
   await waitFor(() => expect(result.current.errorMessage).toBe("Slug already exists"));
+  expect(api.getEncounter).not.toHaveBeenCalled();
+});
+
+it.each([false, true])(
+  "refreshes spell conflicts without replay and suppresses feedback when already restored (%s)",
+  async (alreadyRestored) => {
+    const selection = {
+      record_key: "actors:caster",
+      owners: [],
+      field: null,
+      passage: null,
+      source_fingerprint: null,
+    };
+    const conflict = new AtlasApiError(409, "Long technical conflict", {
+      code: "encounter_participant_conflict",
+      message: "Long technical conflict",
+      retryable: false,
+    });
+    api.applyEncounterSpellAction.mockRejectedValue(conflict);
+    api.getEncounter.mockResolvedValue({
+      participants: [
+        {
+          participant_key: "pc",
+          spellcasting: {
+            spells: [{ navigation: selection, expended: !alreadyRestored }],
+          },
+        },
+      ],
+    });
+    const { result } = mount();
+    await act(async () => {
+      await expect(
+        result.current.run({
+          kind: "spell",
+          request: {
+            participant_key: "pc",
+            expected_revision: 3n,
+            action: { kind: "set_expended", selection, expended: false },
+          },
+        }),
+      ).rejects.toBe(conflict);
+    });
+    expect(api.applyEncounterSpellAction).toHaveBeenCalledOnce();
+    expect(api.getEncounter).toHaveBeenCalledOnce();
+    expect(feedback.error).not.toHaveBeenCalled();
+    if (alreadyRestored) expect(feedback.info).not.toHaveBeenCalled();
+    else expect(feedback.info).toHaveBeenCalledWith("Encounter updated. Try again.", 4);
+  },
+);
+
+it("shows concise action feedback for failed casts without exposing server details", async () => {
+  api.applyEncounterSpellAction.mockRejectedValue(
+    new Error("Internal database details"),
+  );
+  const { result } = mount();
+  await act(async () => {
+    await expect(
+      result.current.run({
+        kind: "spell",
+        request: {
+          participant_key: "pc",
+          expected_revision: 3n,
+          action: {
+            kind: "cast",
+            selection: {
+              record_key: "actors:caster",
+              owners: [],
+              field: null,
+              passage: null,
+              source_fingerprint: null,
+            },
+          },
+        },
+      }),
+    ).rejects.toThrow();
+  });
+  expect(feedback.error).toHaveBeenCalledWith("Couldn’t cast. Try again.", 4);
   expect(api.getEncounter).not.toHaveBeenCalled();
 });

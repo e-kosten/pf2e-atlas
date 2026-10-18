@@ -214,7 +214,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             }
           />
         )}
-        {mutations.error && (
+        {mutations.error && mutations.errorKind !== "spell" && (
           <Alert
             type="error"
             title="Encounter action failed"
@@ -243,7 +243,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           <EncounterRosterPane
             recovery={recovery}
             disabled={disabled}
-            error={mutations.errorMessage}
+            error={mutations.errorKind === "spell" ? undefined : mutations.errorMessage}
             currentTurnParticipantKey={
               encounter.data?.current_turn_participant_key ?? null
             }
@@ -303,6 +303,24 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             encounterRevision={encounter.data?.revision ?? 0n}
             pending={mutations.pending}
             recovery={recovery}
+            spellError={
+              mutations.errorKind === "spell" ? mutations.errorMessage : undefined
+            }
+            onSpellAction={async (participant, action, expectedRevision) => {
+              try {
+                const result = await mutations.run({
+                  kind: "spell",
+                  request: {
+                    participant_key: participant.participant_key,
+                    expected_revision: expectedRevision ?? participant.revision,
+                    action,
+                  },
+                });
+                return result.active && result.refreshed;
+              } catch {
+                return false;
+              }
+            }}
             onHpAction={async (participant, action) => {
               const result = await mutations.run({
                 kind: "hp",
@@ -320,7 +338,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             }
             conditionError={conditionDefinitions.error}
             onRetryConditions={() => void conditionDefinitions.refetch()}
-            error={mutations.errorMessage}
+            error={mutations.errorKind === "spell" ? undefined : mutations.errorMessage}
             onAddCondition={async (request) => {
               const result = await mutations.run({ kind: "add-condition", request });
               return result.active && result.refreshed;
@@ -334,6 +352,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               })
             }
             onReference={recordPreview.open}
+            onPreviewRankChange={recordPreview.changeRank}
             onRemoveCondition={async (participantKey, conditionId) => {
               const result = await mutations.run({
                 kind: "remove-condition",
@@ -419,7 +438,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           encounter={encounterSummary}
           disabled={disabled}
           pending={mutations.pending}
-          error={mutations.errorMessage}
+          error={mutations.errorKind === "spell" ? undefined : mutations.errorMessage}
           encounterNote={encounter.data?.note}
           open={editEncounterOpen}
           onCancel={() => setEditEncounterOpen(false)}

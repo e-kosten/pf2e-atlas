@@ -52,6 +52,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
     let request = |id: &str| EncounterReferenceRequest {
         artifact_generation: generation.clone(),
         selection: RecordDetailRequest {
+            spell_rank: None,
             record_key: "actors:aaaaaaaaaaaaaaaa".into(),
             owners: vec![atlas_record::source_content::OwnedContentLocator {
                 collection: "/items".into(),
@@ -233,6 +234,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             EncounterReferenceRequest {
                 artifact_generation: generation,
                 selection: RecordDetailRequest {
+                    spell_rank: None,
                     record_key: "actors:aaaaaaaaaaaaaaaa".into(),
                     owners: vec![],
                     fields: vec![],
@@ -297,6 +299,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
     let request_a = EncounterReferenceRequest {
         artifact_generation: generation_a.clone(),
         selection: RecordDetailRequest {
+            spell_rank: None,
             record_key: "actors:aaaaaaaaaaaaaaaa".into(),
             owners: vec![atlas_record::source_content::OwnedContentLocator {
                 collection: "/items".into(),

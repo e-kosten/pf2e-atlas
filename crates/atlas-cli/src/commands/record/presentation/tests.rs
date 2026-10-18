@@ -285,6 +285,7 @@ fn summary(title: &str, family: &str) -> RecordSummaryView {
 }
 fn address() -> RecordNavigationView {
     RecordNavigationView {
+        spell_rank: None,
         record_key: "creatures:caster".into(),
         owners: vec![OwnedContentLocator {
             collection: "/items".into(),
@@ -324,6 +325,8 @@ fn damage_component() -> DamageComponentView {
 }
 fn spell() -> SpellPresentationView {
     SpellPresentationView {
+        rank_note: None,
+        base_rank: numeric(1),
         runtime_notes: None,
         rank: numeric(2),
         traditions: known(vec!["arcane".into(), "primal".into()]),
@@ -381,7 +384,6 @@ fn selected_spell_preserves_parent_casting_damage_and_authored_heightening() {
         "Sustained: false",
         "2d6+1; fire",
         "category: persistent",
-        "Cast rank: 4",
         "Heightening (+1)",
         "Damage increase: 1d6",
     ] {
@@ -393,6 +395,7 @@ fn selected_spell_preserves_parent_casting_damage_and_authored_heightening() {
     let summary = render_record(&record, TerminalDetail::Summary, 80).unwrap();
     assert!(!rendered.contains("atlas record get"));
     assert!(!rendered.contains("Casting entry:"));
+    assert!(!rendered.contains("Cast rank:"));
     assert!(!rendered.contains("apply modifier: false"));
     assert!(!rendered.contains("materials: none"));
     assert!(summary.contains("Custom Fireball"));
@@ -558,6 +561,7 @@ fn actor() -> ActorPresentationView {
         languages: known(vec!["common".into()]),
         language_details: missing(),
         activities: known(vec![ActorActivityView {
+            casting_ranks: vec![],
             has_reference_details: false,
             navigation: address(),
             title: "Jaws".into(),

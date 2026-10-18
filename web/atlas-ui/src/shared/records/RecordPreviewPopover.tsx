@@ -15,6 +15,7 @@ type RecordPreviewPopoverProps = RecordPreviewContentProps & {
 };
 export function RecordPreviewPopover({
   context = "reference",
+  actions: recordActions,
   anchor,
   visibleOwnerRecordKey,
   detail,
@@ -27,6 +28,7 @@ export function RecordPreviewPopover({
   onClose,
   onOpenFullPage,
   onReference,
+  onRankChange,
   fullPageHref,
   readingHistory,
   landing,
@@ -137,6 +139,7 @@ export function RecordPreviewPopover({
   if (narrow || closingDrawer) {
     return (
       <RecordPreviewDrawer
+        actions={recordActions}
         context={context}
         visibleOwnerRecordKey={visibleOwnerRecordKey}
         readingHistory={readingHistory}
@@ -151,6 +154,7 @@ export function RecordPreviewPopover({
         onAfterClose={onClose}
         onOpenFullPage={openFullPage}
         onReference={onReference}
+        onRankChange={onRankChange}
         landing={landing}
         onOwnerReturn={returnToOwner}
         fullPageHref={href}
@@ -186,42 +190,40 @@ export function RecordPreviewPopover({
         )
           onClose();
       }}
-      title={
-        <div className="record-preview-popover__header">
-          <RecordPreviewActions
-            readingHistory={readingHistory}
-            onClose={onClose}
-            onOpenFullPage={openFullPage}
-            fullPageHref={href}
-          />
-        </div>
-      }
       content={
-        <section
-          {...contentFocus}
-          aria-label="Reference preview"
-          className="record-preview-popover__body"
-          role="dialog"
-        >
-          <RecordDetailPane
-            compact
-            showRelated={context !== "encounter"}
-            showOwnerReturn={context !== "encounter"}
-            visibleOwnerRecordKey={visibleOwnerRecordKey}
-            detail={detail}
-            loading={loading}
-            error={error}
-            onRetry={onRetry}
-            onReload={onReload}
-            reloadLabel={reloadLabel}
-            retryLabel={retryLabel}
-            onBack={onClose}
-            backLabel="Close preview"
-            onReference={onReference}
-            landing={landing}
-            onLandingReady={readingRef.onLandingReady}
-            onOwnerReturn={returnToOwner}
-          />
+        <section role="dialog" aria-label="Reference preview">
+          <div className="record-preview-popover__header">
+            <RecordPreviewActions
+              actions={recordActions}
+              readingHistory={readingHistory}
+              onClose={onClose}
+              onOpenFullPage={openFullPage}
+              fullPageHref={href}
+            />
+          </div>
+
+          <section {...contentFocus} className="record-preview-popover__body">
+            <RecordDetailPane
+              compact
+              showRelated={context !== "encounter"}
+              showOwnerReturn={context !== "encounter"}
+              visibleOwnerRecordKey={visibleOwnerRecordKey}
+              detail={detail}
+              loading={loading}
+              error={error}
+              onRetry={onRetry}
+              onReload={onReload}
+              reloadLabel={reloadLabel}
+              retryLabel={retryLabel}
+              onBack={onClose}
+              backLabel="Close preview"
+              onReference={onReference}
+              onRankChange={onRankChange}
+              landing={landing}
+              onLandingReady={readingRef.onLandingReady}
+              onOwnerReturn={returnToOwner}
+            />
+          </section>
         </section>
       }
     >

@@ -27,6 +27,7 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
         && o.owners.as_ref().is_none_or(|owners| owners.0.is_empty())
         && o.field.is_none()
         && o.passage.is_none()
+        && o.rank.is_none()
     {
         for key in o.keys {
             let key = atlas_domain::RecordKey::parse(&key).map_err(|e| e.to_string())?;
@@ -46,6 +47,7 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
     let mut failed = false;
     for key in o.keys {
         let result = s.record_detail_at(RecordDetailRequest {
+            spell_rank: o.rank,
             record_key: key,
             owners: o
                 .owners
@@ -196,6 +198,7 @@ fn render_selected_record(
             }
             let child = service
                 .record_detail_at(RecordDetailRequest {
+                    spell_rank: navigation.spell_rank,
                     record_key: navigation.record_key.clone(),
                     owners: navigation.owners.clone(),
                     fields: vec![],

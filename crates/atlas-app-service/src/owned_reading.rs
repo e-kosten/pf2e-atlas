@@ -196,6 +196,7 @@ impl AtlasAppService {
             Ok(OwnedReadingBatchView {
                 artifact_generation: generation.clone(),
                 parent: RecordNavigationView {
+                    spell_rank: None,
                     record_key: key.to_string(),
                     owners: vec![],
                     field: None,
@@ -217,6 +218,7 @@ impl AtlasAppService {
 
 fn validate_navigation(navigation: &RecordNavigationView) -> AppServiceResult<()> {
     crate::records::validate_request(&RecordDetailRequest {
+        spell_rank: None,
         record_key: navigation.record_key.clone(),
         owners: navigation.owners.clone(),
         fields: navigation.field.iter().cloned().collect(),

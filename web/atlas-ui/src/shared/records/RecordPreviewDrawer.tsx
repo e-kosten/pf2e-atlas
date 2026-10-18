@@ -9,6 +9,7 @@ import { ActionCost } from "./ActionCost";
 
 export function RecordPreviewDrawer({
   context = "reference",
+  actions: recordActions,
   detail,
   loading,
   error,
@@ -20,6 +21,7 @@ export function RecordPreviewDrawer({
   onAfterClose,
   onOpenFullPage,
   onReference,
+  onRankChange,
   open,
   fullPageHref,
   landing,
@@ -67,6 +69,7 @@ export function RecordPreviewDrawer({
       extra={
         <div ref={actions}>
           <RecordPreviewActions
+            actions={recordActions}
             showClose={false}
             readingHistory={readingHistory}
             onClose={onClose}
@@ -93,6 +96,7 @@ export function RecordPreviewDrawer({
           onBack={onClose}
           backLabel="Close preview"
           onReference={onReference}
+          onRankChange={onRankChange}
           landing={landing}
           onLandingReady={readingRef.onLandingReady}
           onOwnerReturn={onOwnerReturn}

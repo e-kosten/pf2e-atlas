@@ -703,6 +703,7 @@ fn selected_local_spell_and_casting_entry_keep_customization_and_typed_associati
     let selected = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            spell_rank: None,
             record_key: local.navigation.record_key.clone(),
             owners: local.navigation.owners.clone(),
             fields: vec![],
@@ -712,7 +713,7 @@ fn selected_local_spell_and_casting_entry_keep_customization_and_typed_associati
         .unwrap();
     assert_eq!(selected.record.title, "Caster");
     assert_eq!(selected.presentation.identity.title, "Local Fireball");
-    assert_eq!(selected.presentation.classification, "spell 3");
+    assert_eq!(selected.presentation.classification, "Spell 6");
     let RecordBodyView::Spell(s) = selected.presentation.body else {
         panic!("owned spell");
     };
@@ -725,6 +726,7 @@ fn selected_local_spell_and_casting_entry_keep_customization_and_typed_associati
     let selected = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            spell_rank: None,
             record_key: entry.navigation.record_key.clone(),
             owners: entry.navigation.owners.clone(),
             fields: vec![],
@@ -934,6 +936,7 @@ fn selected_duplicate_casting_entry_does_not_guess_members_and_rejects_stale_own
     assert!(activities[2].casting_entry.is_none());
     let navigation = &activities[0].navigation;
     let request = RecordDetailRequest {
+        spell_rank: None,
         record_key: navigation.record_key.clone(),
         owners: navigation.owners.clone(),
         fields: vec![],
@@ -955,6 +958,7 @@ fn selected_duplicate_casting_entry_does_not_guess_members_and_rejects_stale_own
             .is_empty()
     );
     let stale = RecordDetailRequest {
+        spell_rank: None,
         source_fingerprint: Some("previous-snapshot".into()),
         ..request
     };
@@ -1025,6 +1029,7 @@ fn reference_details_flag_agrees_with_actual_selected_spell_and_physical_dispatc
         let selected = f
             .worker
             .record_detail_at(RecordDetailRequest {
+                spell_rank: None,
                 record_key: activity.navigation.record_key.clone(),
                 owners: activity.navigation.owners.clone(),
                 fields: vec![],
@@ -1042,5 +1047,95 @@ fn reference_details_flag_agrees_with_actual_selected_spell_and_physical_dispatc
             }
             _ => panic!("selected body diverged from reference-details policy"),
         }
+    }
+}
+
+#[test]
+fn heightened_identity_uses_effective_traits_without_rewriting_source() {
+    let source = json!({"_id":"aaaaaaaaaaaaaaaa","name":"Local spell","type":"spell","system":{
+        "level":{"value":1},"traits":{"value":["fire"],"rarity":"common"},
+        "range":{"value":"30 feet"},"heightening":{"type":"fixed","levels":{
+            "3":{"traits":{"value":["cold"],"rarity":"rare"},"range":{"value":"60 feet"}}
+        }}
+    }});
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        move || {
+            Ok(open_source_fixture(
+                vec![record("spells", "Item", source.clone())],
+                false,
+            )?)
+        },
+    ));
+    let projected = f
+        .worker
+        .record_detail_at(RecordDetailRequest {
+            record_key: "spells:aaaaaaaaaaaaaaaa".into(),
+            spell_rank: Some(3),
+            owners: vec![],
+            fields: vec![],
+            passage: None,
+            source_fingerprint: None,
+        })
+        .unwrap();
+    assert_eq!(
+        projected.presentation.identity.rarity.as_deref(),
+        Some("rare")
+    );
+    assert_eq!(
+        projected
+            .presentation
+            .identity
+            .traits
+            .iter()
+            .map(|t| t.value.as_str())
+            .collect::<Vec<_>>(),
+        vec!["cold"]
+    );
+    let original = f.worker.record_detail("spells:aaaaaaaaaaaaaaaa").unwrap();
+    assert_eq!(
+        original.presentation.identity.rarity.as_deref(),
+        Some("common")
+    );
+    assert_eq!(original.presentation.identity.traits[0].value, "fire");
+}
+
+#[test]
+fn unsupported_heightening_is_visible_and_does_not_claim_effective_rank() {
+    for heightening in [
+        json!({"type":"interval","interval":1,"area":2.5}),
+        json!({"type":"fixed","levels":{"3":{"description":{"value":"Changed description"}}}}),
+    ] {
+        let source = json!({"_id":"aaaaaaaaaaaaaaaa","type":"spell","name":"Spell","system":{
+            "level":{"value":1},"area":{"type":"burst","value":10},"heightening":heightening
+        }});
+        let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+            1,
+            16,
+            move || {
+                Ok(open_source_fixture(
+                    vec![record("spells", "Item", source.clone())],
+                    false,
+                )?)
+            },
+        ));
+        let projected = f
+            .worker
+            .record_detail_at(RecordDetailRequest {
+                record_key: "spells:aaaaaaaaaaaaaaaa".into(),
+                spell_rank: Some(3),
+                owners: vec![],
+                fields: vec![],
+                passage: None,
+                source_fingerprint: None,
+            })
+            .unwrap();
+        assert_eq!(projected.selected.spell_rank, None);
+        let RecordBodyView::Spell(spell) = projected.presentation.body else {
+            panic!("spell")
+        };
+        assert_eq!(spell.rank.value, Some(1.into()));
+        assert!(spell.rank_note.unwrap().contains("preview is unavailable"));
     }
 }
