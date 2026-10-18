@@ -37,7 +37,7 @@ fn signed_formula_after_option_separator_has_readable_output() {
     assert!(output.status.success());
     assert_eq!(
         String::from_utf8(output.stdout).unwrap(),
-        "-4+10 = 6\n  (-(4) = -4) + (10) = 6\n"
+        "-4+10 = 6\n  -4 + 10\n"
     );
 }
 
