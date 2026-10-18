@@ -36,14 +36,14 @@ fn render_roll(outcome: &RollOutcome) -> String {
         "{} = {}\n  {}",
         outcome.formula,
         outcome.total,
-        render_expression(&outcome.expression)
+        render_expression(&outcome.expression, 0)
     )
 }
 
-fn render_expression(expression: &RollExpression) -> String {
-    match expression {
-        RollExpression::Number { value } => value.to_string(),
-        RollExpression::Dice { dice, total } => {
+fn render_expression(expression: &RollExpression, minimum_precedence: u8) -> String {
+    let (text, precedence) = match expression {
+        RollExpression::Number { value } => (value.to_string(), 4),
+        RollExpression::Dice { dice, .. } => {
             let faces = dice
                 .iter()
                 .map(|die| {
@@ -52,29 +52,35 @@ fn render_expression(expression: &RollExpression) -> String {
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
-            format!("[{faces}] = {total}")
+            (format!("[{faces}]"), 4)
         }
         RollExpression::Binary {
             operator,
             left,
             right,
-            total,
+            ..
         } => {
-            let symbol = match operator {
-                RollOperator::Add => "+",
-                RollOperator::Subtract => "-",
-                RollOperator::Multiply => "*",
-                RollOperator::Divide => "/",
+            let (symbol, precedence, right_precedence) = match operator {
+                RollOperator::Add => ("+", 1, 1),
+                RollOperator::Subtract => ("-", 1, 2),
+                RollOperator::Multiply => ("*", 2, 3),
+                RollOperator::Divide => ("/", 2, 3),
             };
-            format!(
-                "({}) {symbol} ({}) = {total}",
-                render_expression(left),
-                render_expression(right)
+            (
+                format!(
+                    "{} {symbol} {}",
+                    render_expression(left, precedence),
+                    render_expression(right, right_precedence)
+                ),
+                precedence,
             )
         }
-        RollExpression::Negate { inner, total } => {
-            format!("-({}) = {total}", render_expression(inner))
-        }
+        RollExpression::Negate { inner, .. } => (format!("-{}", render_expression(inner, 4)), 3),
+    };
+    if precedence < minimum_precedence {
+        format!("({text})")
+    } else {
+        text
     }
 }
 
@@ -111,7 +117,26 @@ mod tests {
         };
         assert_eq!(
             render_roll(&outcome),
-            "2d20kh1+12 = 29\n  ([d20: 3 dropped, d20: 17] = 17) + (12) = 29"
+            "2d20kh1+12 = 29\n  [d20: 3 dropped, d20: 17] + 12"
         );
+    }
+
+    #[test]
+    fn breakdown_preserves_grouping_without_nested_subtotals() {
+        for (formula, expected) in [
+            ("(3+5+4)*2+4", "(3 + 5 + 4) * 2 + 4"),
+            ("10-(3-1)", "10 - (3 - 1)"),
+            ("12/(6/2)", "12 / (6 / 2)"),
+            ("3*(5/2)", "3 * (5 / 2)"),
+            ("-(3+4)", "-(3 + 4)"),
+            ("-(-4)", "-(-4)"),
+        ] {
+            let outcome = atlas_dice::roll(formula).unwrap();
+            assert_eq!(
+                render_expression(&outcome.expression, 0),
+                expected,
+                "{formula}"
+            );
+        }
     }
 }
