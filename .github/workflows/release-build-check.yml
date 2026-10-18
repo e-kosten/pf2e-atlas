@@ -1,6 +1,17 @@
 name: release build check
 
 on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      source-ref:
+        required: true
+        type: string
+      nightly:
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       tag:
@@ -16,7 +27,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-build-check-${{ github.ref }}
+  group: release-build-check-${{ inputs.nightly && 'nightly' || 'check' }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -32,6 +43,8 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -48,6 +61,12 @@ jobs:
           scripts/release/validate-release-tooling.sh
           scripts/release/test-release-tools.sh
           scripts/release/test-prepare-release.sh
+      - name: Prepare nightly version
+        if: ${{ inputs.nightly }}
+        shell: bash
+        env:
+          NIGHTLY_TAG: ${{ inputs.tag }}
+        run: node dev-tools/release/dist/src/cli/nightly.js prepare --tag "$NIGHTLY_TAG"
       - id: version
         shell: bash
         env:
@@ -90,6 +109,8 @@ jobs:
             os: windows-2022
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -102,6 +123,12 @@ jobs:
         run: |
           npm --prefix dev-tools/release ci --ignore-scripts
           npm --prefix dev-tools/release run build
+      - name: Prepare nightly version
+        if: ${{ inputs.nightly }}
+        shell: bash
+        env:
+          NIGHTLY_TAG: ${{ inputs.tag }}
+        run: node dev-tools/release/dist/src/cli/nightly.js prepare --tag "$NIGHTLY_TAG"
       - name: Install cargo-dist
         if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash
@@ -120,20 +147,58 @@ jobs:
         run: node dev-tools/release/dist/src/cli/generate-notices.js
       - name: Validate PowerShell installer
         if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
-        shell: pwsh
+        # Git Bash supplies XZ-capable tar for the installer archive fixtures.
+        shell: bash
         run: |
-          ./scripts/install/atlas-installer.ps1 -DryRun
-          ./scripts/release/test-installer.ps1
+          pwsh -NoProfile -File scripts/install/atlas-installer.ps1 -DryRun
+          pwsh -NoProfile -File scripts/release/test-installer.ps1
       - name: Build archives with cargo-dist
         if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash
-        run: dist build --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.prepare.outputs.tag }}" --print linkage
+        env:
+          NIGHTLY_BUILD: ${{ inputs.nightly }}
+        run: |
+          dirty=()
+          if [[ "$NIGHTLY_BUILD" == true ]]; then dirty+=(--allow-dirty); fi
+          dist build "${dirty[@]}" --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.prepare.outputs.tag }}" --print linkage
       - name: Build archives with cargo-dist on Windows
         if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
         shell: pwsh
         env:
           RUSTFLAGS: "-C target-feature=-crt-static -C link-arg=/NODEFAULTLIB:libcmt -C link-arg=msvcprt.lib -C link-arg=legacy_stdio_definitions.lib"
-        run: dist build --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.prepare.outputs.tag }}" --print linkage
+          NIGHTLY_BUILD: ${{ inputs.nightly }}
+        run: |
+          $dirty = @()
+          if ($env:NIGHTLY_BUILD -eq "true") { $dirty = @("--allow-dirty") }
+          dist build @dirty --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.prepare.outputs.tag }}" --print linkage
+      - name: Check packaged binary on Unix
+        if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
+        shell: bash
+        env:
+          EXPECTED_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          mkdir -p target/package-smoke
+          tar -xJf "target/distrib/atlas-cli-${{ matrix.target }}.tar.xz" -C target/package-smoke
+          binary=$(find target/package-smoke -type f -name atlas -print -quit)
+          test -n "$binary"
+          test "$("$binary" --version)" = "atlas $EXPECTED_VERSION"
+          "$binary" --help > /dev/null
+          node dev-tools/release/dist/src/cli/smoke-packaged-web.js "$binary" web/atlas-ui/dist
+      - name: Check packaged binary on Windows
+        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
+        shell: pwsh
+        env:
+          EXPECTED_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          Expand-Archive "target/distrib/atlas-cli-${{ matrix.target }}.zip" target/package-smoke
+          $binary = Get-ChildItem target/package-smoke -Filter atlas.exe -Recurse | Select-Object -First 1
+          if (-not $binary) { throw "packaged atlas.exe is missing" }
+          $version = & $binary.FullName --version
+          if ($LASTEXITCODE -ne 0 -or $version -ne "atlas $env:EXPECTED_VERSION") { throw "packaged version mismatch" }
+          & $binary.FullName --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "packaged help failed" }
+          node dev-tools/release/dist/src/cli/smoke-packaged-web.js $binary.FullName web/atlas-ui/dist
+          if ($LASTEXITCODE -ne 0) { throw "packaged web smoke test failed" }
       - name: Upload cargo-dist artifacts
         uses: actions/upload-artifact@v6
         with:
@@ -150,6 +215,8 @@ jobs:
       TAG: ${{ needs.prepare.outputs.tag }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -166,6 +233,12 @@ jobs:
           pattern: package-*
           path: target/distrib
           merge-multiple: true
+      - name: Prepare nightly version
+        if: ${{ inputs.nightly }}
+        shell: bash
+        env:
+          NIGHTLY_TAG: ${{ inputs.tag }}
+        run: node dev-tools/release/dist/src/cli/nightly.js prepare --tag "$NIGHTLY_TAG"
       - name: Install cargo-dist
         shell: bash
         run: curl --proto '=https' --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh

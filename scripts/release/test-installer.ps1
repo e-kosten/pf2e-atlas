@@ -95,6 +95,7 @@ param(
   [string]$Uri,
   [string]$OutFile
 )
+if ($env:ATLAS_URL_LOG) { Add-Content -Path $env:ATLAS_URL_LOG -Value $Uri }
 $name = Split-Path ([System.Uri]$Uri).AbsolutePath -Leaf
 Copy-Item (Join-Path $env:ATLAS_FAKE_RELEASE_DIR $name) $OutFile
 '@ | Set-Content -Path (Join-Path $fakeBin "Invoke-WebRequest.ps1")
@@ -143,6 +144,25 @@ function Invoke-WebRequest {
   if (-not $failed) {
     throw "PowerShell installer replaced existing binary without -Yes"
   }
+
+  $nightlyTag = "v9.9.9-nightly.20261018092300.gabcdef123456"
+  Set-Content -Path (Join-Path $dist "nightly-version.txt") -Value $nightlyTag
+  $env:ATLAS_URL_LOG = Join-Path $tmp "nightly-urls"
+  (Get-Content (Join-Path $fakeBin "run-install.ps1") -Raw).Replace("-Version v9.9.9", "-Version nightly") |
+    Set-Content (Join-Path $fakeBin "run-nightly.ps1")
+  pwsh -NoProfile -File (Join-Path $fakeBin "run-nightly.ps1") | Out-Null
+  $urls = @(Get-Content $env:ATLAS_URL_LOG)
+  if ($urls[0] -ne "https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt") {
+    throw "nightly installer did not fetch the channel pointer"
+  }
+  if (@($urls | Select-Object -Skip 1 | Where-Object { $_ -like "*/download/$nightlyTag/*" }).Count -ne 3) {
+    throw "nightly installer did not pin all downloads to the resolved release"
+  }
+  Set-Content -Path (Join-Path $dist "nightly-version.txt") -Value "v9.9.9"
+  $failed = $false
+  try { pwsh -NoProfile -File (Join-Path $fakeBin "run-nightly.ps1") | Out-Null } catch { $failed = $true }
+  if (-not $failed) { throw "nightly installer accepted a stable channel pointer" }
+  Remove-Item Env:ATLAS_URL_LOG
 
   $rollbackDist = Join-Path $tmp "rollback-dist"
   Copy-Item $dist $rollbackDist -Recurse
