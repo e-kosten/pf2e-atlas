@@ -1,30 +1,28 @@
 //! Product presentation and error handling; app-service owns product projections.
 use atlas_app_service::AppServiceResult;
-use atlas_cli_support::{write_json_data, write_json_error_data};
+use atlas_cli_support::{write_json_data, write_json_failure};
 use serde::Serialize;
 use std::process::ExitCode;
-pub(crate) fn app_result<T>(result: AppServiceResult<T>, json: bool) -> Result<Option<T>, String> {
+/// Present a service failure once and propagate its classified exit to the command.
+pub(crate) fn app_result<T>(
+    result: AppServiceResult<T>,
+    json: bool,
+) -> Result<std::ops::ControlFlow<ExitCode, T>, String> {
     match result {
-        Ok(v) => Ok(Some(v)),
-        Err(e) => {
-            let e = e.into_app_error();
-            if json {
-                let code = serde_json::to_value(e.code).map_err(|e| e.to_string())?;
-                write_json_error_data(
-                    code.as_str().ok_or("app error code was not a string")?,
-                    e.message,
-                    e.details.unwrap_or(serde_json::Value::Null),
-                )?;
-                Ok(None)
-            } else {
-                Err(e.message)
-            }
-        }
+        Ok(value) => Ok(std::ops::ControlFlow::Continue(value)),
+        Err(error) => Ok(std::ops::ControlFlow::Break(report_app_error(
+            error.into_app_error(),
+            json,
+        )?)),
     }
 }
-pub(crate) fn emit<T: Serialize>(value: Option<T>, json: bool) -> Result<ExitCode, String> {
-    let Some(value) = value else {
-        return Ok(ExitCode::from(3));
+pub(crate) fn emit<T: Serialize>(
+    value: std::ops::ControlFlow<ExitCode, T>,
+    json: bool,
+) -> Result<ExitCode, String> {
+    let value = match value {
+        std::ops::ControlFlow::Continue(value) => value,
+        std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
     if json {
         write_json_data(&value)?;
@@ -79,4 +77,60 @@ pub(crate) fn print_search_matches(records: &[atlas_app_model::SearchResultRow])
 }
 pub(crate) fn search_json(result: &atlas_app_model::SearchResultsView) -> serde_json::Value {
     serde_json::json!({"search_profile":result.search_profile,"artifact_generation":result.artifact_generation,"pagination":result.page,"coverage":result.coverage,"results":result.rows})
+}
+
+/// Emit a whole-command failure with the same exit policy as batch items.
+pub(crate) fn report_app_error(
+    error: atlas_app_model::AppError,
+    json: bool,
+) -> Result<ExitCode, String> {
+    let exit = exit_class(error.code);
+    if json {
+        write_json_failure(&error)?;
+    } else {
+        eprintln!("{}", error.message);
+        if let Some(details) = &error.details {
+            eprintln!(
+                "{}",
+                serde_json::to_string_pretty(details).map_err(|e| e.to_string())?
+            );
+        }
+    }
+    Ok(ExitCode::from(exit))
+}
+
+pub(crate) fn exit_class(code: atlas_app_model::AppErrorCode) -> u8 {
+    use atlas_app_model::AppErrorCode::*;
+    match code {
+        RecordNotFound
+        | RecordResolutionMiss
+        | RecordResolutionAmbiguous
+        | SavedListNotFound
+        | EncounterNotFound
+        | EncounterParticipantNotFound => 1,
+        InvalidRequest
+        | InvalidRecordKey
+        | FilterInvalid
+        | FilterFieldInvalid
+        | FilterOptionInvalid
+        | FilterFieldNotApplicable
+        | SavedListAlreadyExists
+        | EncounterAlreadyExists
+        | EncounterParticipantConflict
+        | EncounterTurnConflict
+        | FilterEditorConflict => 2,
+        ArtifactGenerationChanged
+        | QueryFailed
+        | IndexUnavailable
+        | ArtifactNotReady
+        | ArtifactIncompatible
+        | VectorReadinessRequired
+        | EmbeddingModelUnavailable
+        | SetupRequired
+        | SetupInProgress
+        | ServiceBusy
+        | OperationCancelled
+        | OperationTimeout
+        | InternalError => 3,
+    }
 }

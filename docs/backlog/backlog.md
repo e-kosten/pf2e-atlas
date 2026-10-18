@@ -18,9 +18,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Restore accurate categorical option counts using shared discovery contracts,
   with useful count-free vocabulary in unsupported contexts. Status: in_progress.
 
-- [Selective integration feature review](items/rust-integration-recovery.md)
-  Review useful earlier integration features against current source-backed
-  capabilities and product requirements. Status: planned.
+- [Source-modeling capability follow-through](items/rust-integration-recovery.md)
+  Track the agreed ten-item sequence for CLI contracts, reference completeness,
+  encounter policy and discovery. CF-01 has an accepted CLI layout and passes local validation; remaining scopes await approval.
+  Status: in_progress.
 
 - [Rust CLI and skill capability follow-through](items/rust-cli-skill-capability-follow-through.md)
   Preserve useful product-surface ideas as CLI command, JSON contract, setup, discovery, graph, and skill-guidance improvements. Status: proposed.

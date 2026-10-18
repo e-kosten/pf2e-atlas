@@ -193,7 +193,7 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
         &passage,
         "--json",
     ]);
-    assert_eq!(selected["records"][0]["selected"], *navigation);
+    assert_eq!(selected["results"][0]["value"]["selected"], *navigation);
     let selected_text = f.command(
         &[
             "record",
@@ -237,7 +237,7 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
     assert!(detailtext.contains("data-atlas-interaction"));
     assert!(!detailtext.contains("source_json"));
     let resolved = f.data(&["record", "resolve", "Treat Wounds", "--json"]);
-    assert_eq!(resolved["resolutions"][0]["total"], 1);
+    assert_eq!(resolved["results"][0]["value"]["total"], 1);
     for command in ["links", "uses", "remaster", "variants"] {
         f.data(&["graph", command, "actions:aaaaaaaaaaaaaaaa", "--json"]);
     }
@@ -364,6 +364,12 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         assert!(!actor.contains(internal), "{internal}: {actor}");
     }
     let root = f.data(&["record", "get", "creatures:dddddddddddddddd", "--json"]);
+    let root_value = &root["results"][0]["value"];
+    assert_eq!(root_value["identity"]["title"], "Local Caster");
+    assert!(root_value.get("parent").is_none());
+    assert!(root_value.get("record").is_none());
+    assert!(root_value.get("presentation").is_none());
+    assert!(root_value["content"].get("identity").is_none());
     let expanded = f.command(
         &[
             "record",
@@ -390,7 +396,7 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         1
     );
     assert!(!actor.contains("This customized spell uses local damage"));
-    let spell = root["records"][0]["presentation"]["body"]["value"]["activities"]["value"]
+    let spell = root["results"][0]["value"]["content"]["body"]["value"]["activities"]["value"]
         .as_array()
         .unwrap()
         .iter()
@@ -449,15 +455,37 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         &owners,
         "--json",
     ]);
-    assert_eq!(json["records"][0]["record"]["title"], "Local Caster");
     assert_eq!(
-        json["records"][0]["presentation"]["identity"]["title"],
+        json["results"][0]["value"]["parent"]["title"],
+        "Local Caster"
+    );
+    assert_eq!(
+        json["results"][0]["value"]["identity"]["title"],
         "Local Fireball"
     );
-    assert_eq!(json["records"][0]["presentation"]["body"]["kind"], "spell");
-    assert!(json["records"][0].get("surface").is_none());
-    assert!(json["records"][0].get("source_json").is_none());
-    let entry = root["records"][0]["presentation"]["body"]["value"]["activities"]["value"]
+    assert_eq!(
+        json["results"][0]["value"]["content"]["body"]["kind"],
+        "spell"
+    );
+    assert!(json["results"][0]["value"].get("surface").is_none());
+    assert!(json["results"][0]["value"].get("source_json").is_none());
+    let heightened = f.data(&[
+        "record",
+        "get",
+        "creatures:dddddddddddddddd",
+        "--owners",
+        &owners,
+        "--rank",
+        "5",
+        "--json",
+    ]);
+    let heightened = &heightened["results"][0]["value"];
+    assert_eq!(heightened["identity"]["title"], "Local Fireball");
+    assert_eq!(heightened["identity"]["level_label"], "Rank 5");
+    assert_eq!(heightened["parent"]["title"], "Local Caster");
+    assert_eq!(heightened["selected"]["spell_rank"], 5);
+    assert_eq!(heightened["content"]["body"]["value"]["rank"]["value"], 5);
+    let entry = root["results"][0]["value"]["content"]["body"]["value"]["activities"]["value"]
         .as_array()
         .unwrap()
         .iter()
@@ -558,14 +586,21 @@ fn ambiguous_names_require_keys_and_graph_errors_keep_candidate_details() {
     let resolve = f.command(&["record", "resolve", "Treat Wounds", "--json"], false);
     assert!(!resolve.status.success());
     let resolve: Value = serde_json::from_slice(&resolve.stdout).unwrap();
-    assert_eq!(resolve["data"]["resolutions"][0]["status"], "ambiguous");
-    assert_eq!(resolve["data"]["resolutions"][0]["total"], 2);
+    assert_eq!(resolve["status"], "error");
+    assert_eq!(
+        resolve["data"]["results"][0]["error"]["code"],
+        "record_resolution_ambiguous"
+    );
+    assert_eq!(
+        resolve["data"]["results"][0]["error"]["details"]["total"],
+        2
+    );
     let graph = f.command(&["graph", "links", "Treat Wounds", "--json"], false);
     assert!(!graph.status.success());
     let graph: Value = serde_json::from_slice(&graph.stdout).unwrap();
     assert_eq!(graph["error"]["code"], "record_resolution_ambiguous");
     assert_eq!(
-        graph["error"]["data"]["candidates"]
+        graph["error"]["details"]["candidates"]
             .as_array()
             .unwrap()
             .len(),
@@ -905,4 +940,178 @@ fn actual_profile_setup_preserves_manifest_defaults_and_reports_cache_heavy_prog
         "--json",
     ]);
     assert_eq!(implicit["search_profile"], "bge-base");
+}
+
+#[test]
+fn cli_batch_contract_preserves_inputs_and_classifies_failures() {
+    let f = Fixture::new();
+    let output = f.command(
+        &[
+            "record",
+            "get",
+            "actions:aaaaaaaaaaaaaaaa",
+            "actions:missing000000001",
+            "not-a-key",
+            "actions:aaaaaaaaaaaaaaaa",
+            "--json",
+        ],
+        false,
+    );
+    assert_eq!(output.status.code(), Some(2));
+    let envelope: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let data = &envelope["data"];
+    assert_eq!(envelope["status"], "partial");
+    assert!(data.get("counts").is_none());
+    assert!(data.get("partial").is_none());
+    assert_eq!(data["results"].as_array().unwrap().len(), 4);
+    assert_eq!(data["results"][0]["status"], "ok");
+    assert_eq!(data["results"][1]["error"]["code"], "record_not_found");
+    assert_eq!(data["results"][2]["error"]["code"], "invalid_record_key");
+    assert_eq!(data["results"][0], data["results"][3]);
+    let misses = f.command(
+        &[
+            "record",
+            "get",
+            "actions:missing000000001",
+            "actions:missing000000002",
+            "--json",
+        ],
+        false,
+    );
+    assert_eq!(misses.status.code(), Some(1));
+    let misses: Value = serde_json::from_slice(&misses.stdout).unwrap();
+    assert_eq!(misses["status"], "error");
+    assert_eq!(misses["data"]["results"].as_array().unwrap().len(), 2);
+    assert!(
+        misses["data"]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|r| r["error"]["code"] == "record_not_found")
+    );
+    for json in [false, true] {
+        let mut args = vec!["graph", "links", "No Such Record"];
+        if json {
+            args.push("--json");
+        }
+        assert_eq!(f.command(&args, false).status.code(), Some(1));
+    }
+}
+
+#[test]
+fn record_batch_success_and_resolution_misses_have_honest_envelopes() {
+    let f = Fixture::new();
+    let success = f.data(&["record", "get", "actions:aaaaaaaaaaaaaaaa", "--json"]);
+    assert_eq!(success["results"][0]["input"], "actions:aaaaaaaaaaaaaaaa");
+    assert_eq!(
+        success["results"][0]["value"]["identity"]["title"],
+        "Treat Wounds"
+    );
+    let value = &success["results"][0]["value"];
+    assert!(value.get("record").is_none());
+    assert!(value.get("presentation").is_none());
+    assert!(value.get("parent").is_none());
+    assert!(value["content"].get("identity").is_none());
+    assert!(
+        value["content"]["fields"][0]["body"]["html"]
+            .as_str()
+            .unwrap()
+            .contains("unique explanatory prose")
+    );
+    let output = f.command(
+        &[
+            "record",
+            "resolve",
+            "Treat Wounds",
+            "No Such Record",
+            "Treat Wounds",
+            "--json",
+        ],
+        false,
+    );
+    assert_eq!(output.status.code(), Some(1));
+    let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(response["status"], "partial");
+    let results = response["data"]["results"].as_array().unwrap();
+    assert_eq!(results.len(), 3);
+    assert_eq!(results[0], results[2]);
+    assert_eq!(results[1]["error"]["code"], "record_resolution_miss");
+    assert_eq!(results[1]["error"]["details"]["total"], 0);
+}
+
+#[test]
+fn record_batch_terminal_continues_after_misses_and_invalid_inputs() {
+    let f = Fixture::new();
+    for detail in ["summary", "standard", "full"] {
+        let output = f.command(
+            &[
+                "record",
+                "get",
+                "actions:missing000000001",
+                "not-a-key",
+                "actions:aaaaaaaaaaaaaaaa",
+                "--detail",
+                detail,
+            ],
+            false,
+        );
+        assert_eq!(output.status.code(), Some(2));
+        assert!(String::from_utf8_lossy(&output.stdout).contains("Treat Wounds"));
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("actions:missing000000001"));
+        assert!(stderr.contains("not-a-key"));
+    }
+}
+
+#[test]
+fn unavailable_workspace_is_one_whole_command_error() {
+    let mut f = Fixture::new();
+    f.index = f.root.join("unavailable.sqlite");
+    for args in [
+        vec![
+            "record",
+            "get",
+            "actions:aaaaaaaaaaaaaaaa",
+            "actions:bbbbbbbbbbbbbbbb",
+        ],
+        vec!["record", "resolve", "Treat Wounds", "Other"],
+        vec!["graph", "links", "Treat Wounds"],
+    ] {
+        for json in [false, true] {
+            let mut args = args.clone();
+            if json {
+                args.push("--json");
+            }
+            let output = f.command(&args, false);
+            assert_eq!(output.status.code(), Some(3));
+            if json {
+                let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+                assert_eq!(response["status"], "error");
+                assert_eq!(response["error"]["code"], "setup_required");
+                assert!(response.get("data").is_none());
+            }
+        }
+    }
+}
+
+#[test]
+fn record_source_errors_keep_the_same_class_in_json_and_terminal_modes() {
+    let f = Fixture::new();
+    for (key, exit, code) in [
+        ("not-a-key", 2, "invalid_record_key"),
+        ("actions:missing000000001", 1, "record_not_found"),
+    ] {
+        for json in [false, true] {
+            let mut args = vec!["record", "source", key];
+            if json {
+                args.push("--json");
+            }
+            let output = f.command(&args, false);
+            assert_eq!(output.status.code(), Some(exit));
+            if json {
+                let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+                assert_eq!(response["error"]["code"], code);
+            }
+        }
+    }
 }
