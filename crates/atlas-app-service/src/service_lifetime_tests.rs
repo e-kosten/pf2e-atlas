@@ -258,6 +258,7 @@ fn command_clones_keep_root_owned_reading_and_stable_children_on_one_artifact() 
     assert_content_contains(&batch.entries[0].content, "Original ability prose");
     let child = clone
         .record_detail_at(RecordDetailRequest {
+            spell_rank: None,
             record_key: activity.record_key,
             owners: activity.owners,
             fields: vec![],

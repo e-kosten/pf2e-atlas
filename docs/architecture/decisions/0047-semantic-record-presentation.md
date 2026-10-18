@@ -111,7 +111,7 @@ Selected immediate Actor casting entries carry checked parent context and their
 associated local spell roster. Association uses the actual typed source location
 and unique checked owner identity; duplicate or unavailable associations are not
 guessed. Spell activities expose base rank and explicit authored cast rank,
-without deriving cantrip rank or executing casting. Root activities already carry
+with source-context casting ranks, including automatic cantrip/focus rank. Root activities already carry
 the roster and do not duplicate it inside each casting entry. Browser layouts
 reuse this meaning in compact spellcasting groups and selected entry pages.
 
@@ -134,10 +134,22 @@ owner chain and field. Incoming occurrences navigate the referring source, not
 the graph seed. Snapshot-local owners carry the current artifact fingerprint;
 stable owners do not need one. Repeated occurrence ordinals remain distinct.
 
-Authored spell damage, heightening, and form changes are reference facts. Their
-display does not execute selected-rank casting, form application, resource use,
-or arbitrary Foundry rules. Parent-owned copies retain local customizations and
-exact navigation rather than resolving to a canonical replacement.
+Spell rank is an optional part of checked reading navigation. The app-service
+projects supported fixed and interval heightening onto a transient copy, retaining
+original source data and reporting unsupported calculations. Prose-only spells
+remain readable at any valid selected rank; prose headings alone do not establish
+which paragraphs cease to apply. Form selection and arbitrary Foundry rules are
+not executed. Parent-owned copies retain local customizations and exact navigation
+rather than resolving to a canonical replacement. Original-record navigation
+carries the selected rank to the catalog record. Rank preview does not spend
+resources; encounter casting is a separate mutable workflow under ADR 0048.
+
+Effective fixed-rank traits and rarity drive the displayed identity as well as
+mechanics. Rejected rank overrides do not silently fall back to inferred ranks.
+Unsupported area increments, changed description patches and patches changing
+heightening rules return an explicit preview limitation; cached baseline prose
+is never advertised as an executed replacement description. Supporting these
+patches requires the same prepared-content and relationship contract.
 
 Prepared sanitized HTML and its field-local marker facts remain the content
 contract. CLI uses html2text at read time; the browser uses DOMPurify and native

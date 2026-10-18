@@ -185,9 +185,10 @@ describe("RecordPreviewPopover", () => {
       expect(trigger).toHaveFocus();
       rerender(preview(false));
       expect(trigger).not.toBeInTheDocument();
-      const content = screen.getByLabelText(
-        viewport === "desktop" ? "Reference preview" : "Reference content",
-      );
+      const content =
+        viewport === "desktop"
+          ? document.querySelector(".record-preview-popover__body")!
+          : screen.getByLabelText("Reference content");
       expect(content).toHaveFocus();
       rerender(preview(true));
       act(() =>

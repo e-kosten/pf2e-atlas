@@ -11,7 +11,7 @@ use crate::{LocalStateError, LocalStateResult, LocalStateStore};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Encounters<'a> {
-    store: &'a LocalStateStore,
+    pub(super) store: &'a LocalStateStore,
 }
 
 impl<'a> Encounters<'a> {

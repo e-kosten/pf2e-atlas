@@ -1,3 +1,4 @@
+import { recordReadingIdentity, useRetainedRecord } from "./useRetainedRecord";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useReducer } from "react";
 import { getRecordDetail } from "../../api/atlasApi";
@@ -59,7 +60,7 @@ export function useReferenceReading(
         restoringHistory: boolean;
       },
       action:
-        | { kind: "select" | "inspect"; request: ReadingRequest | null }
+        | { kind: "select" | "inspect" | "rank"; request: ReadingRequest | null }
         | { kind: "back" },
     ) => {
       if (action.kind === "back")
@@ -77,7 +78,7 @@ export function useReferenceReading(
         history:
           action.kind === "select" || !action.request
             ? []
-            : same
+            : same || action.kind === "rank"
               ? state.history
               : [...state.history, ...(state.request ? [state.request] : [])].slice(
                   -24,
@@ -104,6 +105,7 @@ export function useReferenceReading(
         navigation.owners.length ||
         navigation.field ||
         navigation.passage ||
+        navigation.spell_rank ||
         navigation.source_fingerprint;
       const parent = await getRecordDetail(
         navigation.record_key,
@@ -125,15 +127,29 @@ export function useReferenceReading(
       return { detail: parent, landing: match ?? request!.landing };
     },
   });
+  const retained = useRetainedRecord(
+    JSON.stringify([
+      recordReadingIdentity(
+        (request?.match ?? request?.navigation)?.record_key ?? null,
+        request?.match ?? request?.navigation,
+      ),
+      request?.landing,
+      epoch,
+    ]),
+    query.data,
+    query.error,
+  );
   return {
+    changeRank: (navigation: RecordNavigationView) =>
+      dispatch({ kind: "rank", request: { navigation, landing: request?.landing } }),
     request,
     restoringHistory: session.restoringHistory,
     inspect,
     select,
     canGoBack: session.history.length > 0,
     back: () => dispatch({ kind: "back" }),
-    detail: query.data?.detail,
-    landing: query.data?.landing,
+    detail: retained?.detail,
+    landing: retained?.landing,
     loading: query.isFetching,
     error: query.error,
     retry: () => {

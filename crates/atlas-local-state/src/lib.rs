@@ -7,7 +7,7 @@ mod schema;
 mod slug;
 mod store;
 
-pub const LOCAL_STATE_SCHEMA_VERSION: &str = "9";
+pub const LOCAL_STATE_SCHEMA_VERSION: &str = "11";
 pub const LOCAL_STATE_CONTRACT_VERSION: &str = "pf2e-atlas-local-state/v1";
 
 pub use encounters::{
@@ -16,7 +16,7 @@ pub use encounters::{
     EncounterParticipantCondition, EncounterStatus, EncounterTurnState, EncounterTurnUpdate,
     EncounterWithParticipants, Encounters, NewEncounter, ParticipantHpOrigin, ParticipantKind,
     ParticipantSide, ParticipantVariant, ParticipantVariantOrigin, ReorderEncounterParticipant,
-    ReorderPlacement, UpdateEncounter, UpdateEncounterParticipant,
+    ReorderPlacement, SpellResource, UpdateEncounter, UpdateEncounterParticipant,
     UpdateEncounterParticipantCondition,
 };
 pub use error::{LocalStateError, LocalStateResult};

@@ -16,3 +16,9 @@ mod timing;
 mod timing_tests;
 mod turns;
 mod workflow;
+
+mod spell_catalog;
+
+#[cfg(test)]
+mod spell_tests;
+mod spells;

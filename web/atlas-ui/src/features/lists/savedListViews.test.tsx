@@ -588,7 +588,7 @@ describe("list views", () => {
     expect(apiMocks.discoverFilterCounts).not.toHaveBeenCalled();
   });
 
-  it("follows references in the existing list reader while retaining selection and exact full-page links", async () => {
+  it("previews references beside the list reader while retaining selection and exact full-page links", async () => {
     history.replaceState(null, "", "/lists/research/actions%3AtestAction1");
     render(
       <ListDetailView
@@ -613,21 +613,31 @@ describe("list views", () => {
     expect(
       await screen.findByRole("heading", { name: "Nested Rule" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Reference preview" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
       "aria-current",
       "true",
     );
-    expect(screen.getByRole("link", { name: "Open full page" })).toHaveAttribute(
-      "href",
-      "/records/rules:nested",
+    const fullPage = new URL(
+      screen
+        .getByRole("link", { name: "Open reference full page" })
+        .getAttribute("href")!,
+      location.origin,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(fullPage.pathname).toBe("/records/rules:nested");
+    expect(JSON.parse(fullPage.searchParams.get("selection")!)).toEqual(
+      detailFixture("rules:nested").selected,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
     expect(
       await screen.findByRole("heading", { name: "Test Action 1" }),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("link", { name: "Nested Rule" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Return to selection" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Close reference preview" }),
+    );
     expect(
       await screen.findByRole("heading", { name: "Test Action 1" }),
     ).toBeInTheDocument();
@@ -717,7 +727,7 @@ describe("list views", () => {
       await screen.findByText("No saved records match these filters"),
     ).toBeVisible();
     expect(screen.getByRole("heading", { name: "Nested Rule" })).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Return to selection" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
     expect(await screen.findByRole("heading", { name: "Test Action 1" })).toBeVisible();
     expect(apiMocks.removeSavedListItem).not.toHaveBeenCalled();
   });

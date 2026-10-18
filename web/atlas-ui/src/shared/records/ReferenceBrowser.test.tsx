@@ -89,7 +89,7 @@ it.each([
   "delayed ability",
   "retry ability",
 ] as const)(
-  "restores landed history after %s content is ready, while a fresh selection lands again",
+  "retains landed reading while an inline preview opens after %s content is ready",
   async (scenario) => {
     const mobile = scenario === "mobile strike";
     const delayed = scenario.startsWith("delayed") || scenario.startsWith("retry");
@@ -151,70 +151,54 @@ it.each([
         const choices = document.querySelector<HTMLElement>(".reference-match-list")!;
         fireEvent.click(await within(choices).findByRole("link", { name: "Jaws" }));
       }
-      await chooseMatch();
+      let finish: (() => void) | undefined;
+      if (delayed) {
+        const pending = () =>
+          new Promise<OwnedReadingBatchView>((resolve) => {
+            finish = () => resolve(batch);
+          });
+        if (ability) {
+          if (scenario === "retry ability")
+            getAbilities.mockRejectedValue(new Error("Ability read rejected"));
+          else getAbilities.mockImplementationOnce(pending);
+        } else {
+          getDetail.mockImplementationOnce(
+            () =>
+              new Promise((resolve) => {
+                finish = () => resolve(parent);
+              }),
+          );
+        }
+        await chooseMatch();
+        if (scenario === "retry ability") {
+          await screen.findByText("Ability read rejected");
+          getAbilities.mockImplementation(pending);
+          fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+        }
+        await waitFor(() => expect(finish).toBeDefined());
+        await act(async () => finish!());
+      } else await chooseMatch();
       const nested = await screen.findByRole("link", { name: "Nested Rule" });
       await waitFor(() => expect(reader.scrollTop).toBe(100));
-      expect(document.documentElement.scrollTop).toBe(0);
       reader.scrollTop = 425;
       fireEvent.scroll(reader);
       nested.focus();
+      const parentReads = getDetail.mock.calls.filter(
+        ([key]) => key === "actors:ghoul",
+      ).length;
+      const abilityReads = getAbilities.mock.calls.length;
       fireEvent.click(nested);
       await screen.findByRole("heading", { name: "Linked rule" });
-      let finish: (() => void) | undefined;
-      if (ability) {
-        client.removeQueries({ queryKey: ["owned-reading"] });
-        if (scenario === "retry ability")
-          getAbilities.mockRejectedValue(new Error("Ability read rejected"));
-        else
-          getAbilities.mockImplementationOnce(
-            () =>
-              new Promise((resolve) => {
-                finish = () => resolve(batch);
-              }),
-          );
-      } else if (scenario === "delayed strike") {
-        client.removeQueries({
-          queryKey: ["record-detail"],
-          predicate: (query) => JSON.stringify(query.queryKey).includes("actors:ghoul"),
-        });
-        getDetail.mockImplementationOnce(
-          () =>
-            new Promise((resolve) => {
-              finish = () => resolve(parent);
-            }),
-        );
-      }
-      fireEvent.click(screen.getByRole("button", { name: "Back" }));
-      if (scenario === "retry ability") {
-        await screen.findByText("Ability read rejected");
-        getAbilities.mockImplementationOnce(
-          () =>
-            new Promise((resolve) => {
-              finish = () => resolve(batch);
-            }),
-        );
-        fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-      }
-      if (delayed) {
-        await waitFor(() => expect(finish).toBeDefined());
-        // Emulate the browser clamping a loading reader and delivering its
-        // queued scroll event before delayed target content has arrived.
-        reader.scrollTop = 0;
-        fireEvent.scroll(reader);
-        expect(screen.queryByRole("link", { name: "Nested Rule" })).toBeNull();
-        await act(async () => finish!());
-      }
-      const returned = await screen.findByRole("link", { name: "Nested Rule" });
-      await waitFor(() => expect(reader.scrollTop).toBe(425));
-      expect(returned).toHaveFocus();
+      expect(reader.scrollTop).toBe(425);
+      expect(nested).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
+      await waitFor(() => expect(nested).toHaveFocus());
+      expect(reader.scrollTop).toBe(425);
+      expect(
+        getDetail.mock.calls.filter(([key]) => key === "actors:ghoul"),
+      ).toHaveLength(parentReads);
+      expect(getAbilities).toHaveBeenCalledTimes(abilityReads);
       expect(document.documentElement.scrollTop).toBe(0);
-      if (ability)
-        expect(getAbilities).toHaveBeenLastCalledWith(
-          expect.objectContaining({
-            selection: { kind: "abilities", cursor: null, target: activity.navigation },
-          }),
-          expect.any(AbortSignal),
-        );
       if (mobile) {
         fireEvent.click(screen.getByRole("button", { name: "Results" }));
         await waitFor(() =>
@@ -222,33 +206,10 @@ it.each([
             screen.getByRole("button", { name: "1 matches in Ghoul" }),
           ).toHaveFocus(),
         );
-        expect(reader.scrollTop).toBe(425);
       }
-      // Re-selecting an already visited match is a deliberate landing, not Back.
+      // A fresh match selection still lands at its exact activity.
       await chooseMatch();
       await waitFor(() => expect(reader.scrollTop).toBe(100));
-      if (scenario === "delayed ability") {
-        fireEvent.click(screen.getByRole("link", { name: "Nested Rule" }));
-        await screen.findByRole("heading", { name: "Linked rule" });
-        client.removeQueries({ queryKey: ["owned-reading"] });
-        finish = undefined;
-        getAbilities.mockImplementationOnce(
-          () =>
-            new Promise((resolve) => {
-              finish = () => resolve(batch);
-            }),
-        );
-        fireEvent.click(screen.getByRole("button", { name: "Back" }));
-        await waitFor(() => expect(finish).toBeDefined());
-        const heal = screen.getByRole("link", { name: /Heal/ });
-        fireEvent.click(heal);
-        await screen.findByRole("heading", { name: "Heal" });
-        heal.focus();
-        await act(async () => finish!());
-        expect(screen.getByRole("heading", { name: "Heal" })).toBeVisible();
-        expect(heal).toHaveFocus();
-        expect(reader.scrollTop).toBe(0);
-      }
     } finally {
       geometry?.restore();
       cleanup();
@@ -346,7 +307,7 @@ it.each([true, false])(
 );
 
 it.each([true, false])(
-  "restores prior reader scroll/focus and mobile result focus without changing the selected row (desktop=%s)",
+  "preserves reader scroll and returns preview focus without changing the selected row (desktop=%s)",
   async (desktop) => {
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: desktop });
     getDetail.mockImplementation((key) =>
@@ -372,8 +333,8 @@ it.each([true, false])(
     fireEvent.click(nested);
     await screen.findByRole("heading", { name: "Linked rule" });
     expect(summary).toHaveAttribute("aria-current", "true");
-    expect(reader.scrollTop).toBe(0);
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(reader.scrollTop).toBe(425);
+    fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
     const returned = await screen.findByRole("link", { name: "Nested Rule" });
     await waitFor(() => expect(reader.scrollTop).toBe(425));
     expect(returned).toHaveFocus();

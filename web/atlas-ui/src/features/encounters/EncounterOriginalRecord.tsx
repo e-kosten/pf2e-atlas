@@ -43,6 +43,7 @@ export function EncounterOriginalRecord({ recordKey }: { recordKey: string }) {
             onRetry={preview.retry}
             onClose={preview.close}
             onReference={preview.open}
+            onRankChange={preview.changeRank}
             readingHistory={preview.readingHistory}
             landing={preview.landing}
             onOpenFullPage={() => {

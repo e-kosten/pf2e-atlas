@@ -24,6 +24,7 @@ export function RecordDetailPane({
   onBack,
   backLabel = "Back to search",
   onReference,
+  onRankChange,
   compact = false,
   showRelated = true,
   landing,
@@ -48,6 +49,7 @@ export function RecordDetailPane({
   onBack?: () => void;
   backLabel?: string;
   onReference: RecordReferenceHandler;
+  onRankChange?: (rank: number | undefined) => void;
   compact?: boolean;
   showRelated?: boolean;
   landing?: import("../../generated/atlas").RecordNavigationView;
@@ -72,8 +74,8 @@ export function RecordDetailPane({
       aria-busy={loading}
     >
       {detail && loading && (
-        <div className="detail-status" role="status">
-          <Spin size="small" /> Updating record…
+        <div className="detail-refresh" aria-label="Updating record">
+          <Spin size="small" delay={500} />
         </div>
       )}
       {error && (
@@ -152,6 +154,7 @@ export function RecordDetailPane({
               reloadParentLabel: reloadLabel,
             }}
             onReference={onReference}
+            onRankChange={onRankChange}
             onOwnerReturn={onOwnerReturn}
           />
           {showRelated && (

@@ -99,6 +99,13 @@ pub(super) fn participant_view(
                 .map(|block| crate::presentation::actor::manual_presentation(&participant, block))
         });
     EncounterParticipantView {
+        spellcasting: record_detail.map(|r| {
+            super::spell_catalog::catalog(
+                &r.detail.source,
+                &participant.spell_resources,
+                &participant.expended_spells,
+            )
+        }),
         revision: participant.revision,
         hp_origin: match participant.hp_origin {
             atlas_local_state::ParticipantHpOrigin::DerivedPristine => "derived_pristine",

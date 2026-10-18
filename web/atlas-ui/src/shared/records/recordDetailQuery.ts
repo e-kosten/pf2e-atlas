@@ -12,6 +12,7 @@ export function recordDetailQueryOptions(
     (selection.owners.length ||
       selection.field ||
       selection.passage ||
+      selection.spell_rank ||
       selection.source_fingerprint)
       ? { ...selection, fields: selection.field ? [selection.field] : [] }
       : undefined;

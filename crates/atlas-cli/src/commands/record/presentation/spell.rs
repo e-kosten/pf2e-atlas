@@ -9,6 +9,9 @@ use atlas_app_model::{
 use atlas_domain::QueryFieldState;
 
 pub(super) fn render(out: &mut String, spell: &SpellPresentationView) {
+    if let Some(note) = &spell.rank_note {
+        line(out, note);
+    }
     fact(out, "Traditions", &spell.traditions, |v| list_text(v));
     fact(out, "Casting", &spell.cast, |v| v.label.clone());
     for (label, value) in [("Requirements", &spell.requirements), ("Cost", &spell.cost)] {
@@ -16,7 +19,6 @@ pub(super) fn render(out: &mut String, spell: &SpellPresentationView) {
             text(out, label, value);
         }
     }
-    optional_number(out, "Cast rank", &spell.authored_cast_rank, false, "");
     text(out, "Range", &spell.range);
     optional_text(out, "Target", &spell.target);
     if let Some(value) = &spell.area {

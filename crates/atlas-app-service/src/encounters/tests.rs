@@ -692,6 +692,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
     let source = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            spell_rank: None,
             record_key: detail.participants[0].record_key.clone().unwrap(),
             owners: vec![],
             fields: vec!["/system/details/publicNotes".into()],

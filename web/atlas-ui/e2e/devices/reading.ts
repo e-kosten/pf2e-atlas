@@ -36,6 +36,7 @@ export async function readThenBack(
   host: Locator,
   info: TestInfo,
   targetName = "Off-Guard",
+  returnMode: "back" | "close" = "back",
 ) {
   const link = host.getByRole("link", { name: targetName, exact: true }).last();
   await expect(link).toBeVisible();
@@ -52,11 +53,32 @@ export async function readThenBack(
   const title = async (name: string | RegExp) => {
     if (await drawer.isVisible())
       await expect(page.getByRole("dialog", { name })).toBeVisible();
-    else await expect(host.getByRole("heading", { name })).toBeVisible();
+    else
+      await expect(
+        (returnMode === "close"
+          ? page.locator(".record-preview-popover__body")
+          : host
+        ).getByRole("heading", { name }),
+      ).toBeVisible();
   };
   await title(targetName);
-  await activate(page.getByRole("button", { name: "Back", exact: true }), info);
-  await title(/^Signal Pulse\b/);
+  if (returnMode === "close") {
+    const narrow = await drawer.isVisible();
+    await activate(
+      page.getByRole("button", {
+        name: narrow ? "Close" : "Close reference preview",
+        exact: true,
+      }),
+      info,
+    );
+    await expect(
+      narrow ? drawer : page.locator(".record-preview-popover"),
+    ).toBeHidden();
+    await expect(host.getByRole("heading", { name: /^Signal Pulse\b/ })).toBeVisible();
+  } else {
+    await activate(page.getByRole("button", { name: "Back", exact: true }), info);
+    await title(/^Signal Pulse\b/);
+  }
   await expect
     .poll(() => host.evaluate((node) => node.scrollTop))
     .toBeCloseTo(position, 0);

@@ -172,6 +172,7 @@ impl AtlasAppService {
                 )
             };
             participants.push(AddEncounterParticipant {
+                spell_resources: super::spell_catalog::initial_resources(&record.source),
                 participant_variant: variant,
                 variant_origin,
                 hp_origin: if max_hp.is_some() {
@@ -220,6 +221,7 @@ impl AtlasAppService {
         self.local_state_store()?.encounters().add_participant(
             &receipt.encounter_key,
             AddEncounterParticipant {
+                spell_resources: Vec::new(),
                 participant_variant: atlas_local_state::ParticipantVariant::Normal,
                 variant_origin: atlas_local_state::ParticipantVariantOrigin::Explicit,
                 hp_origin: atlas_local_state::ParticipantHpOrigin::Explicit,

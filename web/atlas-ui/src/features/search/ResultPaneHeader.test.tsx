@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement, ReactNode } from "react";
+import { fireEvent, render as rtlRender, screen, within } from "@testing-library/react";
 import { summaryFixture } from "../../test/fixtures";
 import type { SearchResultsPage } from "../../generated/atlas";
 import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
@@ -6,6 +8,15 @@ import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 import { SearchView } from "./SearchView";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
+
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return rtlRender(ui, {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+}
 
 describe("search pane composition", () => {
   it("keeps the visible chosen model beside the search input with an accessible label", () => {
@@ -235,6 +246,7 @@ function workspace(
     setPageNumber: vi.fn(),
     resultPage: searchResultsPage(),
     reading: {
+      changeRank: vi.fn(),
       request: null,
       inspect: vi.fn(),
       select: vi.fn(),
