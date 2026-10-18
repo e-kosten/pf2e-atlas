@@ -423,6 +423,22 @@ final Close restores the original opener. Reading does not commit a mutation,
 change an Add candidate or discard drafts. Keep feature forms and their
 pending/error lifecycle in their feature owner.
 
+Transient record previews omit related-record sections in every context,
+including their narrow-screen drawer presentation. Full record readers retain
+relationship discovery. Prepared HTML links use the same semantic link color as
+application links in both themes, including visited links. Shared result rows
+emphasize identity and kind/level; match evidence is a secondary control. Rarity
+uses the same labeled badge in result rows and record headings, separate from
+traits. Bounded search totals read as top matches, not exhaustive record counts
+or internal passage-window sizes.
+
+Activity summaries link to a deeper view only when the service's
+`has_reference_details` flag identifies additional reference information. Use
+that same contract in regular readers and encounters. Fully expanded inline
+abilities retain their explicit permalinks for direct addressing. References in
+source prose, including effect-application references, are a separate policy and
+remain intact pending the effect-reference research.
+
 Use matched React 19 runtime and type packages with Ant Design 6. Preserve root
 StrictMode and native Ant focus/Escape handling. Escape closes the innermost
 source-information dialog first, returning focus to its marker; the next Escape

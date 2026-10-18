@@ -31,6 +31,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Effect reference presentation](items/effect-reference-presentation.md)
+  Research a consistent policy for explanatory versus effect-application links
+  before changing their visibility. Status: planned.
+
 - [Product filter paths and semantics](items/product-filter-shape.md)
   Revisit source-oriented CEL paths and cross-kind semantics after shared
   product-oriented CLI/UI discovery is established. Status: proposed.
@@ -73,6 +77,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Standardize accessible labels and form semantics across Ant Design forms and compact editable controls. Status: proposed.
 
 ## Later
+
+- [Product color system](items/product-color-system.md)
+  Review rarity, semantic states and visual hierarchy across light/dark themes.
+  Status: proposed.
 
 - [Reusable encounter party definitions](items/encounter-party-presets.md)
   Define a party once and add its members to encounters without repeatedly

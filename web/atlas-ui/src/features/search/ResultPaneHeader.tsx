@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button, Select, Tooltip } from "antd";
+import { Button, Select } from "antd";
 import { useMemo, useState } from "react";
 import { totalPages } from "./pageMetrics";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
@@ -25,16 +25,11 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
           : page
             ? similar
               ? "Top matches"
-              : `${page.total.toLocaleString()} ${workspace.resultPage?.coverage?.exhaustive === false ? "candidate records" : "records"}`
+              : workspace.resultPage?.coverage?.exhaustive === false
+                ? `Top ${page.total.toLocaleString()} matches`
+                : `${page.total.toLocaleString()} records`
             : "Results"}
       </span>
-      {!similar && workspace.resultPage?.coverage?.exhaustive === false && (
-        <Tooltip title={workspace.resultPage.coverage.count_basis}>
-          <span aria-label="Search coverage">
-            Top matches ({workspace.resultPage.coverage.semantic_unit_window} units)
-          </span>
-        </Tooltip>
-      )}
       <div className="pager pager--compact">
         <Select
           aria-label="Records per page"
