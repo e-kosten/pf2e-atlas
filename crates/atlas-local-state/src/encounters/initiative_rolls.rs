@@ -118,6 +118,7 @@ impl EncountersWrite<'_> {
                         current_hp: p.current_hp,
                         temporary_hp: p.temporary_hp,
                         defeated: p.defeated,
+                        hazard_disabled: p.hazard_disabled,
                         hidden: p.hidden,
                         note: p.note,
                         hp_origin: p.hp_origin,

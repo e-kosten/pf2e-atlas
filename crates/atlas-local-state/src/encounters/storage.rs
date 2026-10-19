@@ -239,7 +239,7 @@ pub(crate) fn update_participant(
          SET display_name = ?1, side = ?2, participant_variant = ?3,
              initiative = ?4, initiative_order = ?5, max_hp = ?6, current_hp = ?7,
              temporary_hp = ?8, defeated = ?9, hidden = ?10, note = ?11, updated_at = ?12, hp_origin = ?14, variant_origin = ?15,
-             revision = revision + 1
+             hazard_disabled = ?17, revision = revision + 1
          WHERE participant_key = ?13 AND revision = ?16",
         params![
             participant.display_name,
@@ -258,6 +258,7 @@ pub(crate) fn update_participant(
             participant.hp_origin.as_str(),
             participant.variant_origin.as_str(),
             participant.expected_revision,
+            participant.hazard_disabled,
         ],
     )?;
     if updated > 0 {
@@ -543,7 +544,7 @@ fn participants(
                 participant.record_title_snapshot, participant.record_kind_snapshot, participant.side, participant.initiative,
                 participant.initiative_order, participant.max_hp, participant.current_hp,
                 participant.temporary_hp, participant.defeated, participant.hidden,
-                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision
+                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision, participant.hazard_disabled
          FROM encounter_participants participant
          JOIN encounters encounter ON encounter.id = participant.encounter_id
          WHERE encounter.encounter_key = ?1
@@ -605,6 +606,7 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
         current_hp: row.get(12)?,
         temporary_hp: row.get(13)?,
         defeated: row.get(14)?,
+        hazard_disabled: row.get(22)?,
         hidden: row.get(15)?,
         note: row.get(16)?,
         created_at: row.get(17)?,
@@ -625,7 +627,7 @@ pub(crate) fn participant(
                 participant.record_title_snapshot, participant.record_kind_snapshot, participant.side, participant.initiative,
                 participant.initiative_order, participant.max_hp, participant.current_hp,
                 participant.temporary_hp, participant.defeated, participant.hidden,
-                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision
+                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision, participant.hazard_disabled
          FROM encounter_participants participant
          WHERE participant.participant_key = ?1",
     )?;

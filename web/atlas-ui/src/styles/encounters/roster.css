@@ -115,8 +115,8 @@
   cursor: grabbing;
 }
 
-.encounter-roster__row--defeated .encounter-roster__name,
-.encounter-roster__row--defeated .encounter-roster__hp {
+.encounter-roster__row--inactive .encounter-roster__name,
+.encounter-roster__row--inactive .encounter-roster__hp {
   color: var(--muted);
   opacity: 0.65;
 }

@@ -18,6 +18,8 @@ const current: EncounterParticipantView = {
   max_hp: 25n,
   temporary_hp: 2n,
   defeated: false,
+  hazard_disabled: false,
+  cast_unavailable_reason: null,
   hidden: false,
   note_hint: null,
   conditions: [],

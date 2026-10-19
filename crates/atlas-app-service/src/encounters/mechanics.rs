@@ -418,7 +418,7 @@ pub(super) fn participant_stat_block(
                 (delta != 0).then(|| format!("({}){delta:+}", damage.formula));
         }
     }
-    block.action_budget = Some(action_budget(participant));
+    block.action_budget = Some(super::action_budget::action_budget(participant));
     block
 }
 fn condition_note(
@@ -443,21 +443,12 @@ fn condition_manual_reason(rule: ConditionRule, applied: bool) -> Option<&'stati
             Some("Spell attack/DC penalties and the spellcasting flat check need manual handling.")
         }
         ConditionRule::Prone => Some("Restrictions on movement/actions need manual handling."),
-        ConditionRule::Quickened => {
-            Some("The additional action's permitted uses need manual handling.")
-        }
-        ConditionRule::Stunned => {
-            Some("Stunned value recovery and restricted action use need manual handling.")
-        }
         ConditionRule::Frightened | ConditionRule::Sickened if !applied => {
             Some("Check and DC penalties need manual adjustment where statistics are unavailable.")
         }
         ConditionRule::OffGuard if !applied => {
             Some("The AC penalty needs manual adjustment where AC is unavailable.")
         }
-        ConditionRule::Slowed if !applied => Some(
-            "Action loss is shown in the action budget; spending actions is tracked at the table.",
-        ),
         ConditionRule::Immobilized if !applied => {
             Some("Movement restrictions need manual handling where speed is unavailable.")
         }
@@ -695,7 +686,7 @@ pub(super) fn participant_runtime_block(p: &EncounterParticipant) -> StatBlockVi
         adjusted_level: None,
         values: vec![],
         speeds: vec![],
-        action_budget: Some(action_budget(p)),
+        action_budget: Some(super::action_budget::action_budget(p)),
         activities: vec![],
         unapplied_effects: p
             .conditions
@@ -708,53 +699,5 @@ pub(super) fn participant_runtime_block(p: &EncounterParticipant) -> StatBlockVi
                 }
             })
             .collect(),
-    }
-}
-fn action_budget(p: &EncounterParticipant) -> ActionBudgetView {
-    let mut loss = 0;
-    let mut quick = false;
-    let mut stunned = false;
-    for c in &p.conditions {
-        match condition_rule_for_key(c.condition_key.as_deref()) {
-            Some(ConditionRule::Slowed) => loss = loss.max(c.value.unwrap_or(1).max(0)),
-            Some(ConditionRule::Stunned) => {
-                loss = loss.max(c.value.unwrap_or(1).max(0));
-                stunned = true;
-            }
-            Some(ConditionRule::Quickened) => quick = true,
-            _ => {}
-        }
-    }
-    let actions = (3 - loss).max(0) + i64::from(quick);
-    let count = |label: &str, base: i64, value: i64| RuntimeCountView {
-        label: label.into(),
-        base_value: base,
-        adjusted_value: value,
-        segments: vec![],
-        adjustments: vec![],
-        suppressed_adjustments: vec![],
-    };
-    ActionBudgetView {
-        actions: count("Actions", 3, actions),
-        reactions: count("Reactions", 1, i64::from(!stunned)),
-        can_act: RuntimeCapabilityView {
-            available: actions > 0,
-            source: None,
-            reason: None,
-        },
-        can_react: RuntimeCapabilityView {
-            available: !stunned,
-            source: None,
-            reason: None,
-        },
-        notes: if quick {
-            vec![RuntimeEffectNoteView {
-                source: "quickened".into(),
-                label: "Quickened action".into(),
-                reason: "One added action is restricted by the effect that granted it.".into(),
-            }]
-        } else {
-            vec![]
-        },
     }
 }

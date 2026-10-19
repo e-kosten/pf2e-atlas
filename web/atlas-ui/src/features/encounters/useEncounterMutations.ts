@@ -218,8 +218,8 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
         void message.info("Encounter updated. Try again.", 4);
       } else {
         const verb =
-          action.kind === "cast"
-            ? "cast"
+          action.kind === "cast" || action.kind === "record_use"
+            ? "record spell use"
             : action.kind === "undo"
               ? "undo"
               : action.expended

@@ -44,6 +44,8 @@ const participant: EncounterParticipantView = {
   initiative_order: 1n,
   temporary_hp: 0n,
   defeated: false,
+  hazard_disabled: false,
+  cast_unavailable_reason: null,
   hidden: false,
   note_hint: null,
   conditions: [],

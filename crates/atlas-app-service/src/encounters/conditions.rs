@@ -461,6 +461,7 @@ pub(super) fn condition_catalog() -> EncounterConditionCatalogView {
                 automation_level: condition.automation_level,
                 applies_to: condition.applies_to.to_vec(),
                 categories: condition.categories.to_vec(),
+                supports_duration_instead_of_value: condition.rule == Some(ConditionRule::Stunned),
                 has_value: condition.has_value,
                 default_value: condition.default_value,
             })

@@ -16,6 +16,8 @@ impl TestStore {
         )? {
             conn.execute_batch("CREATE TABLE record_identity(id INTEGER PRIMARY KEY,key TEXT UNIQUE,last_known_name TEXT,availability TEXT NOT NULL);")?;
             conn.execute_batch(LOCAL_STATE_SCHEMA_SQL)?;
+            conn.execute_batch(ENCOUNTER_STATUS_SCHEMA_SQL)?;
+            conn.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
         }
         Ok(store)
     }
@@ -378,6 +380,8 @@ mod tests {
         let connection = Connection::open_in_memory()?;
         connection.execute_batch("PRAGMA foreign_keys=ON; CREATE TABLE record_identity(id INTEGER PRIMARY KEY,key TEXT UNIQUE,last_known_name TEXT,availability TEXT NOT NULL);")?;
         connection.execute_batch(LOCAL_STATE_SCHEMA_SQL)?;
+        connection.execute_batch(ENCOUNTER_STATUS_SCHEMA_SQL)?;
+        connection.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
         Ok(connection)
     }
 

@@ -234,6 +234,9 @@ export function EncounterRosterPane({
               onClick={() => onSelect(participant.participant_key)}
             >
               <span className="encounter-roster__name">{participant.display_name}</span>
+              {participant.hazard_disabled && (
+                <span className="encounter-roster__state">Disabled</span>
+              )}
               {participant.defeated && (
                 <span className="encounter-roster__state">Defeated</span>
               )}
@@ -583,7 +586,9 @@ function rosterRowClass(
     "encounter-roster__row",
     current ? "encounter-roster__row--current" : "",
     selected ? "encounter-roster__row--selected" : "",
-    participant.defeated ? "encounter-roster__row--defeated" : "",
+    participant.defeated || participant.hazard_disabled
+      ? "encounter-roster__row--inactive"
+      : "",
   ]
     .filter(Boolean)
     .join(" ");

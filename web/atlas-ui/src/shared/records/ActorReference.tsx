@@ -448,8 +448,7 @@ function ActorRuntime({
             )}
             {!detailsOnly &&
               actor.runtime.action_budget &&
-              !actor.runtime.action_budget.can_act.available &&
-              actor.runtime.action_budget.actions.adjusted_value !== 0n && (
+              !actor.runtime.action_budget.can_act.available && (
                 <FactRow label="Can act">
                   No; {actor.runtime.action_budget.can_act.reason}
                 </FactRow>
@@ -479,7 +478,7 @@ function ActorCombatBudget({ actor }: { actor: ActorPresentationView }) {
     <div className="actor-reference__combat-budget record-fact-list">
       <RuntimeCount count={budget.actions} />
       <RuntimeCount count={budget.reactions} />
-      {!budget.can_act.available && budget.actions.adjusted_value !== 0n && (
+      {!budget.can_act.available && (
         <FactRow label="Can act">No; {budget.can_act.reason}</FactRow>
       )}
       {!budget.can_react.available && (
@@ -892,6 +891,7 @@ export function ActorActivities({
 
 function RuntimeCount({ count }: { count: RuntimeCountView }) {
   const explanation =
+    count.explanation ||
     count.adjustments.length ||
     count.suppressed_adjustments.length ||
     count.base_value !== count.adjusted_value ||
@@ -903,8 +903,14 @@ function RuntimeCount({ count }: { count: RuntimeCountView }) {
           title={count.label}
           content={
             <div>
+              {count.explanation && <p>{count.explanation}</p>}
               <p>Baseline: {String(count.base_value)}</p>
-              <p>Effective: {String(count.adjusted_value)}</p>
+              <p>
+                Effective:{" "}
+                {count.adjusted_value === null
+                  ? "Needs review"
+                  : String(count.adjusted_value)}
+              </p>
               {count.adjustments.map((modifier, index) => (
                 <p key={index}>
                   {modifier.source}: {String(modifier.value)}; {modifier.reason}
@@ -930,9 +936,13 @@ function RuntimeCount({ count }: { count: RuntimeCountView }) {
             size="small"
             aria-label={`Show explanation for ${count.label}`}
           >
-            {String(count.adjusted_value)}
+            {count.adjusted_value === null
+              ? "Needs review"
+              : String(count.adjusted_value)}
           </Button>
         </Popover>
+      ) : count.adjusted_value === null ? (
+        "Needs review"
       ) : (
         String(count.adjusted_value)
       )}
