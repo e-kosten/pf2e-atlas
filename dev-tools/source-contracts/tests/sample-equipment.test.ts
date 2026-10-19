@@ -25,7 +25,7 @@ test('manifest sampling includes root and actor items, skips folder metadata, an
     await mkdir(path.join(directory, 'static'));
     await mkdir(path.join(directory, 'packs/equipment'), { recursive: true });
     await mkdir(path.join(directory, 'packs/npc'));
-    await writeFile(path.join(directory, 'static/system.json'), JSON.stringify({ packs: [
+    await writeFile(path.join(directory, 'system.pf2e.json'), JSON.stringify({ packs: [
       { name: 'equipment', type: 'Item', path: 'packs/equipment' },
       { name: 'bestiary', type: 'Actor', path: 'packs/npc' },
     ] }));
@@ -37,7 +37,24 @@ test('manifest sampling includes root and actor items, skips folder metadata, an
     assert.equal(packets.length, 2);
     assert.equal(packets[0].ordinal, null);
     assert.equal(packets[1].ordinal, 0);
-    await writeFile(path.join(directory, 'static/system.json'), '{"packs":[{"name":"missing","type":"Item","path":"packs/missing"}]}');
+    await writeFile(path.join(directory, 'system.pf2e.json'), '{"packs":[{"name":"missing","type":"Item","path":"packs/missing"}]}');
     await assert.rejects(async () => { for await (const _packet of sampleEquipment(directory)) { /* exhaust */ } }, /ENOENT/);
   } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('namespaced PF2e source packs exclude adjacent Starfinder data', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'atlas-namespaced-corpus-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  for (const system of ['pf2e', 'sf2e']) {
+    await mkdir(path.join(directory, 'packs', system, 'equipment'), { recursive: true });
+    await writeFile(path.join(directory, 'packs', system, 'equipment/a.json'),
+      JSON.stringify({ _id: system, type: 'equipment', system: {} }));
+  }
+  await writeFile(path.join(directory, 'system.pf2e.json'), JSON.stringify({ packs: [
+    { name: 'equipment', type: 'Item', path: 'packs/equipment' },
+  ] }));
+  const packets = [];
+  for await (const packet of sampleEquipment(directory)) packets.push(packet);
+  assert.equal(packets.length, 1);
+  assert.equal(packets[0].context.source_path, 'packs/pf2e/equipment/a.json');
 });

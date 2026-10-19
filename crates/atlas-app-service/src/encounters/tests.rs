@@ -2259,12 +2259,17 @@ fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
         (vec!["range-60", "brutal"], 11, Some("(1d6+4)+2")),
         (vec!["thrown-20"], 14, Some("(1d6+4)-1")),
     ] {
-        baseline
+        let strike = baseline
             .activities
             .iter_mut()
             .find(|a| a.label == "Claw")
-            .unwrap()
-            .traits = traits.into_iter().map(str::to_owned).collect();
+            .unwrap();
+        strike.is_ranged = Some(
+            traits
+                .iter()
+                .any(|t| t.starts_with("range-") || t.starts_with("thrown-")),
+        );
+        strike.traits = traits.into_iter().map(str::to_owned).collect();
         let effective = super::mechanics::participant_stat_block(&local, &baseline, true);
         let strike = effective
             .activities
@@ -2478,4 +2483,26 @@ fn disabled_hazard_preserves_state_and_next_turn_continues_from_its_position() {
             .update_encounter_participant(&key, invalid)
             .is_err()
     );
+}
+
+#[test]
+fn strike_range_uses_authored_range_instead_of_trait_spelling() {
+    for (range, expected) in [
+        (
+            Some(serde_json::json!({"increment":60,"max":null})),
+            Some(true),
+        ),
+        (Some(serde_json::Value::Null), Some(false)),
+        (Some(serde_json::json!(42)), None),
+        (None, None),
+    ] {
+        let mut system = serde_json::json!({"bonus":{"value":10},"traits":{"value":["range-60"]}});
+        if let Some(range) = range {
+            system["range"] = range;
+        }
+        let block = authored_arithmetic_baseline(
+            serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[{"_id":"bbbbbbbbbbbbbbbb","type":"melee","name":"Strike","system":system}]}),
+        );
+        assert_eq!(block.activities[0].is_ranged, expected);
+    }
 }

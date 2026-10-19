@@ -54,7 +54,7 @@ test('full portfolio sampling includes non-Actor documents without changing raw 
   try {
     await mkdir(path.join(directory, 'static'));
     const packs = ['JournalEntry', 'Macro', 'RollTable'].map(type => ({ type, name: type.toLowerCase(), path: `packs/${type}` }));
-    await writeFile(path.join(directory, 'static/system.json'), JSON.stringify({ packs }));
+    await writeFile(path.join(directory, 'system.pf2e.json'), JSON.stringify({ packs }));
     const raw = '{"_id":"id","future":9007199254740993,"future":null}';
     for (const pack of packs) {
       await mkdir(path.join(directory, pack.path), { recursive: true });
@@ -68,7 +68,7 @@ test('full portfolio sampling includes non-Actor documents without changing raw 
     const limited = [];
     for await (const packet of sampleDocuments(directory)) limited.push(packet);
     assert.equal(limited.length, 0);
-    await writeFile(path.join(directory, 'static/system.json'), JSON.stringify({ packs: [{ type: 'FutureDocument', path: 'packs/unknown', name: 'unknown' }] }));
+    await writeFile(path.join(directory, 'system.pf2e.json'), JSON.stringify({ packs: [{ type: 'FutureDocument', path: 'packs/unknown', name: 'unknown' }] }));
     await assert.rejects(async () => { for await (const _ of sampleDocuments(directory, true)) { /* exhaust */ } }, /Unmodeled document kind/);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

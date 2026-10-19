@@ -1,3 +1,4 @@
+import { sourcePackPath } from './source-packs.js';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { itemPackets, type ItemPacket } from './sample-items.js';
@@ -16,7 +17,7 @@ export function documentPackets(text: string, sourcePath: string, pack: string, 
     context: { record_key: `${pack}:${root._id}`, source_path: sourcePath, json_path: '$' } }, ...items];
 }
 export async function* sampleDocuments(source: string, includeOtherKinds = false): AsyncGenerator<DocumentPacket> {
-  const manifest = JSON.parse(await readFile(path.join(source, 'static/system.json'), 'utf8')) as { packs: { type: string; path: string; name: string }[] };
+  const manifest = JSON.parse(await readFile(path.join(source, 'system.pf2e.json'), 'utf8')) as { packs: { type: string; path: string; name: string }[] };
   const files = async (directory: string): Promise<string[]> => {
     const result: string[] = [];
     for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a,b) => a.name.localeCompare(b.name))) {
@@ -28,7 +29,7 @@ export async function* sampleDocuments(source: string, includeOtherKinds = false
   };
   for (const pack of manifest.packs.filter(pack => ['Actor','Item'].includes(pack.type) || includeOtherKinds)) {
     if (!['Actor', 'Item', 'JournalEntry', 'Macro', 'RollTable'].includes(pack.type)) throw new Error(`Unmodeled document kind: ${pack.type}`);
-    for (const file of await files(path.join(source, pack.path))) {
+    for (const file of await files(sourcePackPath(source, pack.path))) {
       const text = await readFile(file, 'utf8'), sourcePath = path.relative(source, file).replaceAll('\\', '/');
       if (['Actor', 'Item'].includes(pack.type)) yield* documentPackets(text, sourcePath, pack.name, pack.type as 'Actor' | 'Item');
       else {

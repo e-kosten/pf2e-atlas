@@ -1,4 +1,4 @@
-//! Bounded PF2e 6.12.4 assistance: current permission and a read-only regain forecast.
+//! Bounded PF2e 8.6.1 assistance: current permission and a read-only regain forecast.
 use super::conditions::{ConditionRule, condition_rule_for_key};
 use atlas_app_model::{
     ActionBudgetView, RuntimeAdjustmentView, RuntimeCapabilityView, RuntimeCountView,
@@ -62,7 +62,7 @@ pub(super) fn action_budget(p: &EncounterParticipant) -> ActionBudgetView {
             Some(allotment - lost_to_stun - lost_to_slowed)
         },
     );
-    actions.explanation = Some("Actions regained at your next turn. Spending and Stunned recovery remain manual. PF2e 6.12.4.".into());
+    actions.explanation = Some("Actions regained at your next turn. Spending and Stunned recovery remain manual. PF2e 8.6.1.".into());
     let mut notes = Vec::new();
     if quickened {
         actions.adjustments.push(adjustment(

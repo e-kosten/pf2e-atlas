@@ -83,7 +83,7 @@ pub(super) fn authored_spell(source: &SpellSource) -> SpellPresentationView {
                         id: id.clone(),
                         name: text((&v.name).into()),
                         sort: number((&v.sort).into()),
-                        changes: fact(SourceFieldView::from(&v.system).map(changes)),
+                        changes: fact(SourceFieldView::from(&v.system).map(overlay_changes)),
                     })
                     .collect()
             }),
@@ -249,6 +249,12 @@ macro_rules! changed_facts {
     };
 }
 
+fn overlay_changes(s: &SpellOverlaySystemPatch) -> SpellChangeView {
+    changed_facts!(
+        s,
+        fact(SourceFieldView::from(&s.heightening).map(heightening_changes))
+    )
+}
 fn changes(s: &PatchSpellSystemSource) -> SpellChangeView {
     changed_facts!(
         s,

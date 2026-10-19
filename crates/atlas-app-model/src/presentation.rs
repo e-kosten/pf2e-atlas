@@ -187,6 +187,7 @@ pub enum ActorActivityKindView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorActivityView {
+    pub is_ranged: FactView<bool>,
     pub effect_duration: FactView<EffectDurationView>,
     pub self_effect: FactView<ActivityEffectReferenceView>,
     pub strike_effects: FactView<Vec<String>>,

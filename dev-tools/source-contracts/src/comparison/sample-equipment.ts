@@ -1,3 +1,4 @@
+import { sourcePackPath } from './source-packs.js';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -37,7 +38,7 @@ export function equipmentPackets(text: string, sourcePath: string, pack: string)
 }
 
 export async function* sampleEquipment(source: string): AsyncGenerator<EquipmentPacket> {
-  const manifest = JSON.parse(await readFile(path.join(source, 'static/system.json'), 'utf8')) as {
+  const manifest = JSON.parse(await readFile(path.join(source, 'system.pf2e.json'), 'utf8')) as {
     packs: { type: string; path: string; name: string }[];
   };
   async function files(directory: string): Promise<string[]> {
@@ -51,7 +52,7 @@ export async function* sampleEquipment(source: string): AsyncGenerator<Equipment
     return result;
   }
   for (const pack of manifest.packs.filter(pack => ['Item', 'Actor'].includes(pack.type))) {
-    for (const file of await files(path.join(source, pack.path))) {
+    for (const file of await files(sourcePackPath(source, pack.path))) {
       yield* equipmentPackets(await readFile(file, 'utf8'), path.relative(source, file).replaceAll('\\', '/'), pack.name);
     }
   }

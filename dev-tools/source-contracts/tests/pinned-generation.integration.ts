@@ -19,7 +19,7 @@ test('pinned modular output is fresh and equipment imports the single physical o
   assert.deepEqual(Object.keys(files).sort(), await artifactFiles(outputPath));
   for (const [file, text] of Object.entries(files)) assert.equal(text, await readFile(path.join(outputPath, file), 'utf8'));
   assert.equal((Object.values(files).join('').match(/pub struct EquippedData \{/g) ?? []).length, 1);
-  assert.equal((Object.values(files).join('').match(/pub struct Coins \{/g) ?? []).length, 1);
+  assert.equal((Object.values(files).join('').match(/pub struct RawCoins \{/g) ?? []).length, 1);
   assert.match(files['items/equipment.rs'], /generated::physical/);
   assert.match(files['items/equipment.rs'], /pub type EquipmentFields = PhysicalEquipmentFields/);
   assert.doesNotMatch(files['items/equipment.rs'], /pub struct/);
@@ -40,10 +40,10 @@ test('fresh generation input stores nodes once and resolves every reference', ()
 
 test('maintained portfolio covers every document, family and specific rule with reserved family owners', () => {
   const roots = input.selection.filter(root => root.documentKind || root.ruleKey);
-  assert.equal(roots.length, 47);
-  assert.equal(roots.filter(root => root.ruleKey).length, 42);
+  assert.equal(roots.length, 45);
+  assert.equal(roots.filter(root => root.ruleKey).length, 40);
   assert.deepEqual(roots.flatMap(root => root.documentKind ? [root.documentKind] : []).sort(), ['Actor', 'Item', 'JournalEntry', 'Macro', 'RollTable']);
-  assert.equal(new Set(input.selection.filter(root => root.module.startsWith('items/families/')).map(root => root.module)).size, 24);
+  assert.equal(new Set(input.selection.filter(root => root.module.startsWith('items/families/')).map(root => root.module)).size, 25);
   assert.equal(new Set(input.selection.filter(root => root.module.startsWith('actors/families/')).map(root => root.module)).size, 8);
   const files = generateRustModules(input);
   for (const root of input.selection.filter(root => root.module.includes('/families/'))) {
@@ -51,6 +51,8 @@ test('maintained portfolio covers every document, family and specific rule with 
   }
   assert.equal((Object.values(files).join('').match(/pub struct SpellSource \{/g) ?? []).length, 1);
   assert.match(files['rules/source.rs'], /FlatModifier\(Box<FlatModifierRule>\)/);
+  assert.match(files['rules/adjust_modifier.rs'], /String\(String\)/);
+  assert.match(files['rules/flat_modifier.rs'], /selector: SourcePresence<SourceFromSchemaAdjustModifierSchemaSelectors>/); // Foundry ArrayField accepts authored scalar selectors.
   assert.match(files['items/source.rs'], /SpellSource\(Box<SpellSource>\)/);
 });
 
@@ -88,9 +90,9 @@ test('field and literal drift change generated types and preserve shared ownersh
 
 test('arrays, keyed objects and explicit trait policy retain distinct constraints', () => {
   const files = generateRustModules(input);
-  assert.equal(input.selection.filter(root => root.family).length,24);
+  assert.equal(input.selection.filter(root => root.family).length,25);
   assert.match(files['items/flags.rs'], /crate::source_model::SourceMap<ItemGranterSource>/);
-  assert.match(files['items/traits.rs'], /no array elements/);
+  assert.match(files['items/traits.rs'], /pub type TreasureTraitsFields = AmmoTraitsFields/);
   assert.match(files['items/traits.rs'], /Explicit trait-array policies keep identifiers as strings/);
   assert.match(files['items/traits.rs'], /Deity\(DeityTraitsFields\)/);
   assert.equal((Object.values(files).join('').match(/pub struct ItemDescriptionSource \{/g)??[]).length,1);
@@ -148,7 +150,7 @@ test('unsupported shapes, unsupported indices, dangling refs and naming collisio
   indexed.nodes[indexed.nodes.indexOf(hp)] = { ...hp, kind: 'intersection', members: ['indexed'], fields: hp.fields, indexSignatures };
   assert.throws(() => generateRustModules(indexed), /index signature/);
   const collision = structuredClone(input);
-  collision.selection.find(root => root.name === 'EquipmentFields')!.name = 'Coins';
+  collision.selection.find(root => root.name === 'EquipmentFields')!.name = 'RawCoins';
   assert.throws(() => generateRustModules(collision), /collision/);
   collision.selection[1].module = '../escape';
   assert.throws(() => generateRustModules(collision), /Invalid Rust module/);

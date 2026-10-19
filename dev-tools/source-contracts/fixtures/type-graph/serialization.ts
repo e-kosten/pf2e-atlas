@@ -1,6 +1,6 @@
 import type { ModifierAdjustment } from './src/module/actor/modifiers.js';
 import type { Predicate, RawPredicate } from './src/module/system/predication.js';
-import type { PickableThing } from './src/module/apps/pick-a-thing-prompt.js';
+import type { PickableThing } from './src/module/apps/pick-a-thing-prompt/app.js';
 
 export interface SerializedSource {
   adjustments?: ModifierAdjustment[];

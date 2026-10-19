@@ -268,19 +268,13 @@ fn files(path: &Path, out: &mut Vec<PathBuf>) {
 #[test]
 #[ignore = "requires pinned PF2e export; independent full Item/common extraction oracle"]
 fn pinned_corpus_item_and_common_projection_oracle() {
-    let source = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .find_map(|p| {
-            let source = p.join("scratch/source-contracts-full/pf2e");
-            source
-                .join("static/system.json")
-                .is_file()
-                .then_some(source)
-        })
-        .unwrap();
+    let source = PathBuf::from(
+        std::env::var("ATLAS_PF2E_SOURCE")
+            .expect("set ATLAS_PF2E_SOURCE to the pinned source export"),
+    );
     let manifest: Json =
-        serde_json::from_slice(&fs::read(source.join("static/system.json")).unwrap()).unwrap();
-    assert_eq!(manifest["version"], "6.12.4");
+        serde_json::from_slice(&fs::read(source.join("system.pf2e.json")).unwrap()).unwrap();
+    assert_eq!(manifest["version"], "8.6.1");
     let db = Connection::open_in_memory().unwrap();
     db.execute_batch(include_str!(
         "../../migrations/00000000000001_create_artifact/up.sql"
@@ -298,7 +292,11 @@ fn pinned_corpus_item_and_common_projection_oracle() {
         let name = pack["name"].as_str().unwrap();
         let kind = pack["type"].as_str().unwrap();
         let label = pack["label"].as_str().unwrap();
-        let dir = source.join(pack["path"].as_str().unwrap());
+        let dir = source.join("packs/pf2e").join(
+            Path::new(pack["path"].as_str().unwrap())
+                .file_name()
+                .unwrap(),
+        );
         if !dir.is_dir() {
             continue;
         }
@@ -385,9 +383,9 @@ fn pinned_corpus_item_and_common_projection_oracle() {
             }
         }
     }
-    assert_eq!(roots, 25_641, "pinned corpus roots changed");
-    assert_eq!(item_roots, 18_634, "pinned corpus Item roots changed");
-    assert_eq!(children, 79_818, "pinned corpus Actor Items changed");
+    assert_eq!(roots, 29_894, "pinned corpus roots changed");
+    assert_eq!(item_roots, 21_669, "pinned corpus Item roots changed");
+    assert_eq!(children, 98_228, "pinned corpus Actor Items changed");
     assert!(counts[0] > 100_000);
     assert!(counts[1] > 1_000);
     eprintln!(

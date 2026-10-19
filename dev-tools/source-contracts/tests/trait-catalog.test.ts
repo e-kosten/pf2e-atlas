@@ -125,3 +125,16 @@ test("malformed localization and non-string catalog metadata cannot count as com
   assert.ok(invalid.diagnostics.some((entry) => entry.code === "invalid-localization-key"));
   assert.deepEqual(JSON.parse(JSON.stringify(invalid)), invalid);
 });
+
+
+test("source-only trait key lists are selectors rather than label catalogs", (t) => {
+  const changed = changeFixture(t, (root) => {
+    const file = path.join(root, "src/scripts/config/traits.ts");
+    fs.appendFileSync(file, '\nconst nonEffectTraits = ["fire"] as const;\nconst filteredTraits = R.omit(equipmentTraits, nonEffectTraits);\nexport { filteredTraits };\n');
+  });
+  const result = extractTraitCatalog(changed);
+  assert.equal(result.complete, true);
+  assert.equal(result.catalogs.some(entry => entry.name === "nonEffectTraits"), false);
+  assert.equal(catalog(result, "filteredTraits").entries.some(entry => entry.identifier === "fire"), false);
+  assert.ok(catalog(result, "filteredTraits").entries.length > 0);
+});

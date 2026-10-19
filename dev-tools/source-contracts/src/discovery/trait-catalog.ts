@@ -258,7 +258,10 @@ export function extractTraitCatalog(sourceRoot: string, options: { configFile?: 
   // when they are not currently exposed on CONFIG.PF2E (e.g. backgroundTraits).
   for (const [name, initializer] of traits?.declarations ?? []) {
     if (!(/Traits$/.test(name) || /^other.*Tags$/.test(name)) || catalogs.some((catalog) => catalog.name === name)) continue;
-    const values = attempt(() => object(variable(name, traits!, new Map()), initializer));
+    const value = attempt(() => variable(name, traits!, new Map()));
+    // Authored key lists used by pick/omit are selectors, not label catalogs.
+    if (Array.isArray(value) && value.every(entry => typeof entry === "string")) continue;
+    const values = value === null ? null : attempt(() => object(value, initializer));
     addCatalog(name, /^other.*Tags$/.test(name) ? "otherTag" : "trait", values, initializer.parent, false);
   }
   const byCatalog = new Map(catalogs.map((entry) => [entry.name, entry]));

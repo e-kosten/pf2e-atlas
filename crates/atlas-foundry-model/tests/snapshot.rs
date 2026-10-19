@@ -108,7 +108,7 @@ fn ordered_values_and_presence_states_roundtrip_without_source_reparsing() {
 #[test]
 fn recursive_specific_rule_variants_roundtrip_exactly() {
     let admitted = admit_rule_source(SourceContext::new("rule", "rule.json", "$"),
-        br#"{"key":"FlatModifier","selector":"attack","value":2,"predicate":[{"or":["a",{"and":["b",{"not":"c"}]}]},{"gte":["level",5]}]}"#).unwrap();
+        br#"{"key":"FlatModifier","selector":["attack"],"value":2,"predicate":[{"or":["a",{"and":["b",{"not":"c"}]}]},{"gte":["level",5]}]}"#).unwrap();
     let model = admitted.model.unwrap();
     let bytes = serde_json::to_vec(&model).unwrap();
     let restored = serde_json::from_slice(&bytes).unwrap();

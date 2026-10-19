@@ -17,7 +17,7 @@ export interface RootSelection {
 }
 export interface RuleArrayInput {
   field: string; arrayRef: string; elementRef: string;
-  fieldClass: 'ArrayField' | 'StrictArrayField'; declaredAt: Location[];
+  fieldClass: 'ArrayField' | 'SetField' | 'StrictArrayField'; declaredAt: Location[];
 }
 export interface Family { documentKind: string; registered: string[]; discovered?: string[] }
 export interface Portfolio {

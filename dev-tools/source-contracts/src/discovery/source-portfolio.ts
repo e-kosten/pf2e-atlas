@@ -10,7 +10,7 @@ export function discoverSourcePortfolio(root: string): Portfolio {
   const diagnostics: DiscoveryDiagnostic[] = [];
   const selections: RootSelection[] = [];
   const families: Family[] = [];
-  const imports: string[] = [];
+  const imports: string[] = ['import type { SourceFromSchema } from "./types/foundry/common/data/fields.mjs";'];
   const aliases: string[] = [];
   const schemas: string[] = [];
   const problem = (message: string) => diagnostics.push({ code: 'source-portfolio', message });
@@ -77,7 +77,7 @@ export function discoverSourcePortfolio(root: string): Portfolio {
     const matches = object.properties.filter(ts.isPropertyAssignment).filter((entry) => name(entry.name) === key);
     return unique(matches, `property ${key} at ${context}`)?.initializer;
   };
-  const manifestText = ts.sys.readFile(path.join(root, 'static/system.json'));
+  const manifestText = ts.sys.readFile(path.join(root, 'system.pf2e.json'));
   let kinds: string[] = [];
   try {
     const manifest = JSON.parse(manifestText ?? "") as { packs?: { type: string }[] };
@@ -86,13 +86,13 @@ export function discoverSourcePortfolio(root: string): Portfolio {
     }
     kinds = [...new Set(manifest.packs.map((pack) => pack.type))].sort();
     if (!kinds.length) throw new Error('packs must not be empty');
-  } catch (error) { problem(`Invalid static/system.json: ${error instanceof Error ? error.message : String(error)}`); }
+  } catch (error) { problem(`Invalid system.pf2e.json: ${error instanceof Error ? error.message : String(error)}`); }
   for (const kind of kinds) {
     const overrides: Record<string, [string, string]> = {
       Actor: ['src/module/actor/data/index.ts', 'ActorSourcePF2e'],
       Item: ['src/module/item/base/data/index.ts', 'ItemSourcePF2e'],
     };
-    const [file, exportName] = overrides[kind] ?? ['types/foundry/common/documents/module.d.ts', `${kind}Source`];
+    const [file, exportName] = overrides[kind] ?? ['types/foundry/common/documents/_module.d.mts', `${kind}Source`];
     selections.push({ file, name: exportName, documentKind: kind });
   }
 

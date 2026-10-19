@@ -65,9 +65,6 @@ fn indexed(
 fn open(value: &SourceValue) -> Value {
     inspection::to_value(value).expect("source value serializes")
 }
-fn unknown_map(value: &SourceValue) -> Value {
-    indexed(object(value), &[], open)
-}
 fn selection_value(value: &SourceValue) -> Value {
     match value {
         SourceValue::String(_) | SourceValue::Number(_) => scalar(value),
@@ -114,14 +111,14 @@ fn expected(
         "traits":presence(member(system,"traits"),|v|fields(object(v), &traits)),
         "flags":presence(member(envelope,"flags"),|v|{
             let flags = object(v);
-            json!({"pf2e":presence(member(flags,"pf2e"),|v|{
+            indexed(flags, &[], |v|{
                 let pf2e = object(v);
                 json!({"item_grants":presence(member(pf2e,"itemGrants"),|v|indexed(object(v), &[], |value|fields(object(value), &["id","nested","onDelete"]))),
                     "granted_by":presence(member(pf2e,"grantedBy"),|v|fields(object(v), &["id","onDelete"])),
                     "rules_selections":presence(member(pf2e,"rulesSelections"),|v|indexed(object(v), &[], selection_value)),
                     "indexed_fields":indexed(pf2e,&["itemGrants","grantedBy","rulesSelections"],open),
                     "additional_fields":{"fields":[]}})
-            }),"indexed_fields":indexed(flags,&["pf2e"],unknown_map),"additional_fields":{"fields":[]}})
+            })
         }),
         "system_fields":remaining(system,&["description","publication","traits"]),
         "envelope_fields":remaining(envelope,&["type","system","flags"])
