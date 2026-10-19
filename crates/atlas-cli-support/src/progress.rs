@@ -53,6 +53,7 @@ struct EventFields {
     complete: bool,
     current: Option<u64>,
     total: Option<u64>,
+    unit: Option<String>,
     fields: Vec<(String, String)>,
 }
 
@@ -98,6 +99,9 @@ where
             Err(poisoned) => poisoned.into_inner(),
         };
         if target == "atlas_progress" {
+            if self.internal_logs_enabled && !fields.fields.is_empty() {
+                state.log(&message, &fields.fields);
+            }
             let render = progress_render_mode(self.options, state.is_interactive);
             if render.enabled() {
                 state.progress(&message, &fields, self.options.setup_timing, render);
@@ -179,6 +183,7 @@ impl CliProgressState {
             return;
         };
         let current = fields.current.unwrap_or(0);
+        let message = progress_message(message, current, total, fields.unit.as_deref());
         if render == ProgressRenderMode::Plain {
             self.ensure_progress_bar(
                 fields.phase.clone(),
@@ -191,12 +196,16 @@ impl CliProgressState {
                 .as_ref()
                 .map(ProgressBar::elapsed)
                 .unwrap_or_default();
+            let prefix = if setup_timing {
+                format!("[total {}] ", compact_elapsed(self.started_at.elapsed()))
+            } else {
+                String::new()
+            };
             eprintln!(
-                "{} INFO {message} | {current}/{total} | {}",
-                log_elapsed_prefix(self.started_at.elapsed()),
+                "{prefix}{message} · {}",
                 work_timing(current, total, elapsed),
             );
-            self.update_progress_bar(current, total, message, setup_timing);
+            self.update_progress_bar(current, total, &message, setup_timing);
             return;
         }
 
@@ -207,7 +216,7 @@ impl CliProgressState {
             ProgressDrawTarget::stderr_with_hz(10),
         );
 
-        self.update_progress_bar(current, total, message, setup_timing);
+        self.update_progress_bar(current, total, &message, setup_timing);
     }
 
     fn ensure_progress_bar(
@@ -219,11 +228,20 @@ impl CliProgressState {
     ) {
         let phase_changed = phase.as_ref() != self.progress_phase.as_ref();
         if phase_changed || !self.progress_has_total {
+            let elapsed = if phase_changed {
+                Duration::ZERO
+            } else {
+                self.progress_bar
+                    .as_ref()
+                    .map(ProgressBar::elapsed)
+                    .unwrap_or_default()
+            };
             if let Some(progress_bar) = self.progress_bar.take() {
                 progress_bar.finish_and_clear();
             }
             let progress_bar = ProgressBar::with_draw_target(Some(total), draw_target);
             progress_bar.set_style(progress_style(setup_timing));
+            progress_bar.set_elapsed(elapsed);
             if setup_timing {
                 progress_bar.enable_steady_tick(Duration::from_millis(100));
             }
@@ -261,8 +279,9 @@ impl CliProgressState {
     ) {
         let total = fields.total.expect("test progress event should have total");
         let current = fields.current.unwrap_or(0);
+        let message = progress_message(message, current, total, fields.unit.as_deref());
         self.ensure_progress_bar(fields.phase.clone(), total, setup_timing, draw_target);
-        self.update_progress_bar(current, total, message, setup_timing);
+        self.update_progress_bar(current, total, &message, setup_timing);
     }
 
     fn spinner(
@@ -276,10 +295,15 @@ impl CliProgressState {
             return;
         }
         if render == ProgressRenderMode::Plain {
-            eprintln!(
-                "{} INFO {message}",
-                log_elapsed_prefix(self.started_at.elapsed())
-            );
+            self.ensure_spinner(phase.cloned(), setup_timing, ProgressDrawTarget::hidden());
+            if setup_timing {
+                eprintln!(
+                    "[total {}] {message}",
+                    compact_elapsed(self.started_at.elapsed())
+                );
+            } else {
+                eprintln!("{message}");
+            }
             return;
         }
 
@@ -294,7 +318,7 @@ impl CliProgressState {
         draw_target: ProgressDrawTarget,
     ) {
         let phase_changed = phase.as_ref() != self.progress_phase.as_ref();
-        if phase_changed {
+        if phase_changed || self.progress_has_total || self.progress_bar.is_none() {
             self.clear_progress();
             let progress_bar = ProgressBar::with_draw_target(None, draw_target);
             progress_bar.set_style(spinner_style(setup_timing));
@@ -364,6 +388,7 @@ impl tracing::field::Visit for EventFields {
         match field.name() {
             "message" => self.message = Some(value.to_string()),
             "phase" => self.phase = Some(value.to_string()),
+            "unit" => self.unit = Some(value.to_string()),
             name => self.fields.push((name.to_string(), value.to_string())),
         }
     }
@@ -380,6 +405,7 @@ impl tracing::field::Visit for EventFields {
         match field.name() {
             "message" => self.message = Some(value),
             "phase" => self.phase = Some(value),
+            "unit" => self.unit = Some(value),
             name => self.fields.push((name.to_string(), value)),
         }
     }
@@ -387,7 +413,6 @@ impl tracing::field::Visit for EventFields {
 
 fn progress_style(setup_timing: bool) -> ProgressStyle {
     progress_style_with_phase_elapsed(progress_template(setup_timing), ProgressStyle::default_bar)
-        .progress_chars("=> ")
 }
 
 fn spinner_style(setup_timing: bool) -> ProgressStyle {
@@ -399,17 +424,17 @@ fn spinner_style(setup_timing: bool) -> ProgressStyle {
 
 fn progress_template(setup_timing: bool) -> &'static str {
     if setup_timing {
-        "[{prefix} | {phase_elapsed}] [{bar:40.cyan/blue}] {pos}/{len} {msg} {work_timing}"
+        "[total {prefix}] {msg} · {work_timing}"
     } else {
-        "[{bar:40.cyan/blue}] {pos}/{len} {msg} {work_timing}"
+        "{msg} · {work_timing}"
     }
 }
 
 fn spinner_template(setup_timing: bool) -> &'static str {
     if setup_timing {
-        "[{prefix} | {phase_elapsed}] {spinner:.cyan} {msg}"
+        "[total {prefix}] {spinner:.cyan} {msg} · {phase_elapsed}"
     } else {
-        "{spinner:.cyan} {msg}"
+        "{spinner:.cyan} {msg} · {phase_elapsed}"
     }
 }
 
@@ -440,23 +465,30 @@ fn progress_style_with_phase_elapsed(
         )
 }
 
+// Stages supply labels and units; the renderer owns counters and time formatting.
+fn progress_message(message: &str, current: u64, total: u64, unit: Option<&str>) -> String {
+    let suffix = unit.map(|unit| format!(" {unit}")).unwrap_or_default();
+    format!("{message} · {current}/{total}{suffix}")
+}
+
 fn work_timing(current: u64, total: u64, elapsed: Duration) -> String {
-    let seconds = elapsed.as_secs_f64();
-    let rate = if current > 0 && seconds > 0.0 {
-        Some(current as f64 / seconds)
-    } else {
-        None
-    };
-    let (rate, eta) = match rate {
-        Some(rate) if total > 0 && rate.is_finite() => (
-            format!("{rate:.2}/s"),
-            Duration::try_from_secs_f64(total.saturating_sub(current) as f64 / rate)
-                .map(compact_elapsed)
-                .unwrap_or_else(|_| "unknown".into()),
-        ),
-        _ => ("unknown".into(), "unknown".into()),
-    };
-    format!("elapsed {} rate {rate} ETA {eta}", compact_elapsed(elapsed))
+    let mut text = compact_elapsed(elapsed);
+    // Wait for a useful sample. Keep estimates deliberately coarser than elapsed
+    // time so batch completion does not make long-running inference look jittery.
+    if current > 0 && current < total && elapsed.as_secs() >= 5 {
+        let remaining = elapsed.as_secs_f64() * (total - current) as f64 / current as f64;
+        if let Ok(remaining) = Duration::try_from_secs_f64(remaining) {
+            let seconds = remaining.as_secs();
+            let quantum = if seconds >= 60 { 60 } else { 5 };
+            let rounded = seconds.div_ceil(quantum).saturating_mul(quantum);
+            let _ = write!(
+                text,
+                " · ETA ~{}",
+                compact_elapsed(Duration::from_secs(rounded))
+            );
+        }
+    }
+    text
 }
 
 fn format_log_line(elapsed: Duration, message: &str, fields: &[(String, String)]) -> String {
@@ -472,23 +504,25 @@ fn total_elapsed_prefix(total_elapsed: Duration) -> String {
 }
 
 fn log_elapsed_prefix(elapsed: Duration) -> String {
-    format!("[{}]", detailed_elapsed(elapsed))
+    format!("[{}]", compact_elapsed(elapsed))
 }
 
 fn compact_elapsed(elapsed: Duration) -> String {
-    let total_seconds = elapsed.as_secs();
-    let minutes = total_seconds / 60;
-    let seconds = total_seconds % 60;
-    format!("{minutes:02}:{seconds:02}")
-}
-
-fn detailed_elapsed(elapsed: Duration) -> String {
-    let total_millis = elapsed.as_millis();
-    let total_seconds = total_millis / 1000;
-    let millis = total_millis % 1000;
-    let minutes = total_seconds / 60;
-    let seconds = total_seconds % 60;
-    format!("{minutes:02}:{seconds:02}.{millis:03}")
+    let seconds = elapsed.as_secs();
+    let hours = seconds / 3600;
+    let minutes = (seconds % 3600) / 60;
+    let seconds = seconds % 60;
+    let mut parts = Vec::new();
+    if hours > 0 {
+        parts.push(format!("{hours}h"));
+    }
+    if minutes > 0 {
+        parts.push(format!("{minutes}m"));
+    }
+    if seconds > 0 || parts.is_empty() {
+        parts.push(format!("{seconds}s"));
+    }
+    parts.join(" ")
 }
 
 #[cfg(test)]
@@ -676,24 +710,24 @@ mod tests {
             ProgressRenderMode::Plain,
         );
 
-        assert!(state.progress_bar.is_none());
-        assert!(state.progress_phase.is_none());
+        assert!(state.progress_bar.is_some());
+        assert_eq!(state.progress_phase.as_deref(), Some("load-embeddings"));
     }
 
     #[test]
     fn total_elapsed_prefix_shows_compact_elapsed_time() {
-        assert_eq!(total_elapsed_prefix(Duration::from_secs(134)), "02:14");
+        assert_eq!(total_elapsed_prefix(Duration::from_secs(134)), "2m 14s");
     }
 
     #[test]
     fn setup_timing_templates_put_elapsed_prefix_first() {
         assert_eq!(
             progress_template(true),
-            "[{prefix} | {phase_elapsed}] [{bar:40.cyan/blue}] {pos}/{len} {msg} {work_timing}"
+            "[total {prefix}] {msg} · {work_timing}"
         );
         assert_eq!(
             spinner_template(true),
-            "[{prefix} | {phase_elapsed}] {spinner:.cyan} {msg}"
+            "[total {prefix}] {spinner:.cyan} {msg} · {phase_elapsed}"
         );
     }
 
@@ -705,17 +739,17 @@ mod tests {
             ProgressDrawTarget::term_like(Box::new(term.clone())),
         );
         progress_bar.set_style(super::progress_style(true));
-        progress_bar.set_prefix("00:42");
+        progress_bar.set_prefix("42s");
         progress_bar.set_position(2);
         progress_bar.set_message("Rendering progress");
         progress_bar.tick();
 
         let rendered = term.contents();
         assert!(
-            rendered.starts_with("[00:42 | 00:00] "),
+            rendered.starts_with("[total 42s] "),
             "rendered progress should start with total and phase elapsed: {rendered:?}"
         );
-        assert!(rendered.contains("2/5 Rendering progress"));
+        assert!(rendered.contains("Rendering progress"));
     }
 
     #[test]
@@ -733,6 +767,7 @@ mod tests {
             phase: Some("phase_one".to_string()),
             current: Some(2),
             total: Some(5),
+            unit: None,
             complete: false,
             fields: Vec::new(),
         };
@@ -746,10 +781,10 @@ mod tests {
 
         let rendered = term.contents();
         assert!(
-            rendered.starts_with("[00:42 | 00:00] "),
+            rendered.starts_with("[total 42s] "),
             "rendered state progress should use total elapsed and per-phase elapsed: {rendered:?}"
         );
-        assert!(rendered.contains("2/5 State progress"));
+        assert!(rendered.contains("State progress · 2/5"));
     }
 
     #[test]
@@ -760,13 +795,13 @@ mod tests {
             ProgressDrawTarget::term_like(Box::new(term.clone())),
         );
         progress_bar.set_style(super::spinner_style(true));
-        progress_bar.set_prefix("00:42");
+        progress_bar.set_prefix("42s");
         progress_bar.set_message("Rendering spinner");
         progress_bar.tick();
 
         let rendered = term.contents();
         assert!(
-            rendered.starts_with("[00:42 | 00:00] "),
+            rendered.starts_with("[total 42s] "),
             "rendered spinner should start with total and phase elapsed: {rendered:?}"
         );
         assert!(rendered.contains("Rendering spinner"));
@@ -792,26 +827,101 @@ mod tests {
 
         let rendered = term.contents();
         assert!(
-            rendered.starts_with("[00:42 | 00:00] "),
+            rendered.starts_with("[total 42s] "),
             "rendered state spinner should use total elapsed and per-phase elapsed: {rendered:?}"
         );
         assert!(rendered.contains("State spinner"));
     }
     #[test]
-    fn progress_timing_estimates_only_known_completed_work() {
+    fn progress_timing_omits_unknown_and_completed_estimates() {
+        assert_eq!(super::work_timing(0, 100, Duration::from_secs(10)), "10s");
+        assert_eq!(super::work_timing(1, 100, Duration::from_secs(1)), "1s");
+        assert_eq!(super::work_timing(100, 100, Duration::from_secs(50)), "50s");
+        assert_eq!(super::work_timing(0, 0, Duration::ZERO), "0s");
+        assert!(!super::work_timing(1, u64::MAX, Duration::MAX).contains("ETA"));
+    }
+
+    #[test]
+    fn long_estimates_do_not_change_with_every_small_batch() {
+        for current in [1000, 1001, 1002] {
+            assert_eq!(
+                super::work_timing(current, 2000, Duration::from_secs(3600)),
+                "1h · ETA ~1h"
+            );
+        }
         assert_eq!(
             super::work_timing(20, 100, Duration::from_secs(10)),
-            "elapsed 00:10 rate 2.00/s ETA 00:40"
+            "10s · ETA ~40s"
         );
         assert_eq!(
-            super::work_timing(100, 100, Duration::from_secs(50)),
-            "elapsed 00:50 rate 2.00/s ETA 00:00"
+            super::work_timing(20, 100, Duration::from_secs(11)),
+            "11s · ETA ~45s"
         );
+    }
+
+    #[test]
+    fn rendered_setup_progress_has_one_counter_and_no_diagnostic_fields() {
+        let term = RecordingTerm::default();
+        let mut state = CliProgressState {
+            is_interactive: true,
+            started_at: Instant::now(),
+            progress_bar: None,
+            progress_phase: None,
+            progress_has_total: false,
+        };
+        let fields = EventFields {
+            phase: Some("prepare_search".into()),
+            current: Some(6000),
+            total: Some(25641),
+            unit: Some("records".into()),
+            fields: vec![("semantic_units".into(), "70991".into())],
+            ..Default::default()
+        };
+        state.progress_with_draw_target_for_test(
+            &fields,
+            "Preparing search content",
+            false,
+            ProgressDrawTarget::term_like(Box::new(term.clone())),
+        );
+        let rendered = term.contents();
+        assert_eq!(rendered.matches("6000/25641").count(), 1, "{rendered}");
+        assert!(rendered.contains("6000/25641 records"), "{rendered}");
         assert!(
-            super::work_timing(0, 100, Duration::from_secs(10))
-                .contains("rate unknown ETA unknown")
+            !rendered.contains("70991") && !rendered.contains("unknown"),
+            "{rendered}"
         );
-        assert!(super::work_timing(0, 0, Duration::ZERO).contains("rate unknown ETA unknown"));
-        assert!(super::work_timing(1, u64::MAX, Duration::MAX).contains("ETA unknown"));
+    }
+    #[test]
+    fn counted_progress_keeps_the_initial_spinner_elapsed_time() {
+        let mut state = CliProgressState {
+            is_interactive: false,
+            started_at: Instant::now(),
+            progress_bar: None,
+            progress_phase: None,
+            progress_has_total: false,
+        };
+        state.ensure_spinner(Some("prepare".into()), false, ProgressDrawTarget::hidden());
+        state
+            .progress_bar
+            .as_ref()
+            .unwrap()
+            .set_elapsed(Duration::from_secs(20));
+        state.ensure_progress_bar(
+            Some("prepare".into()),
+            100,
+            false,
+            ProgressDrawTarget::hidden(),
+        );
+        assert!(state.progress_bar.as_ref().unwrap().elapsed() >= Duration::from_secs(20));
+        state.ensure_progress_bar(
+            Some("next".into()),
+            100,
+            false,
+            ProgressDrawTarget::hidden(),
+        );
+        assert!(state.progress_bar.as_ref().unwrap().elapsed() < Duration::from_secs(5));
+        state.ensure_spinner(Some("next".into()), false, ProgressDrawTarget::hidden());
+        assert!(!state.progress_has_total);
+        assert_eq!(state.progress_bar.as_ref().unwrap().length(), None);
     }
 }

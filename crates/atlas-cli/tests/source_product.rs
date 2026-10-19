@@ -834,8 +834,8 @@ fn actual_profile_setup_preserves_manifest_defaults_and_reports_cache_heavy_prog
     assert_eq!(first["search_profiles"][0]["profile_id"], "embeddinggemma");
     assert!(first["build"]["inferred_inputs"].as_u64().unwrap() > 0);
     eprintln!("Gemma-only normal setup: {}", first["build"]["profiles"]);
-    assert!(progress.contains("EmbeddingGemma [embeddinggemma]"));
-    assert!(progress.contains("unique inputs") && progress.contains("occurrences"));
+    assert!(progress.contains("Generating EmbeddingGemma embeddings"));
+    assert!(progress.contains("unique passages") && !progress.contains("occurrences"));
     assert!(
         progress.lines().count() < 100,
         "tiny build progress must be bounded"
@@ -888,7 +888,7 @@ fn actual_profile_setup_preserves_manifest_defaults_and_reports_cache_heavy_prog
     );
     let silent = String::from_utf8(silent.stderr).unwrap();
     assert!(
-        !silent.contains("INFO"),
+        silent.trim().is_empty(),
         "disabled progress must stay off stderr"
     );
     let (both, progress) = setup(&cache, &["bge-base", "embeddinggemma"], "always");
@@ -901,7 +901,9 @@ fn actual_profile_setup_preserves_manifest_defaults_and_reports_cache_heavy_prog
         .unwrap();
     assert_eq!(reused["inferred_inputs"], 0);
     assert!(reused["reused_inputs"].as_u64().unwrap() > 0);
-    assert!(progress.contains("0/0") && progress.contains("reused unique inputs"));
+    assert!(
+        progress.contains("Using saved EmbeddingGemma embeddings") && !progress.contains("0/0")
+    );
     eprintln!(
         "Both-profile setup with Gemma zero-inference reuse: {}",
         both["build"]["profiles"]
