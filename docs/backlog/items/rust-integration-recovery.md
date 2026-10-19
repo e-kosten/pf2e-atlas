@@ -36,8 +36,8 @@ if review warrants it; preserve its ID and record every resulting PR here.
 | CF-01 | CLI batches and error contracts | merged | Approved 2026-10-18 | [PR #68](https://github.com/e-kosten/pf2e-atlas/pull/68); merged as b6a0a684; local validation passed |
 | CF-02 | Creature/hazard reference facts and activity details | merged | Approved 2026-10-18 | [PR #69](https://github.com/e-kosten/pf2e-atlas/pull/69); merged as b0ac0ae5; user accepted reference layout; local validation passed |
 | CF-03 | Ritual/spell, feat/effect and journal/table reference completeness | merged | Approved 2026-10-18 | [PR #71](https://github.com/e-kosten/pf2e-atlas/pull/71), f950b54f; UI accepted; local gates passed |
-| CF-04 | Consumable presentation and nested-spell navigation | in_progress | Approved together with CF-05 | Locally complete; accepted preview; Rust/UI gates and independent browser review pass; User accepted; publication approved |
-| CF-05 | Physical query fields and labels | in_progress | Approved together with CF-04 | Locally complete; typed filters, migration and exact labels validated; User accepted; publication approved |
+| CF-04 | Consumable presentation and nested-spell navigation | in_progress | Approved together with CF-05 | Locally complete; accepted preview; Rust/UI gates and independent browser review pass; [PR #73](https://github.com/e-kosten/pf2e-atlas/pull/73); user accepted preview |
+| CF-05 | Physical query fields and labels | in_progress | Approved together with CF-04 | Locally complete; typed filters, migration and exact labels validated; [PR #73](https://github.com/e-kosten/pf2e-atlas/pull/73); user accepted preview |
 | CF-06 | Encounter status and action-budget policy | planned | Pending | Not started |
 | CF-07 | Supported condition/spell adjustments and casting reminders | planned | Pending | Not started |
 | CF-08 | Hazard Active/Disabled state | planned | Pending | Not started |
