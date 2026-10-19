@@ -16,7 +16,7 @@ async function fixture() {
     'src/example.ts': 'export type Example = string;',
     'types/example.d.ts': 'declare type Example = string;',
     'package.json': '{"version":"fixture"}',
-    'tsconfig.json': '{}', 'static/system.json': '{}', 'static/lang/en.json': '{}',
+    'tsconfig.json': '{}', 'system.pf2e.json': '{}', 'static/lang/en.json': '{}',
   })) await writeFile(path.join(source, relative), text);
   const identity = await sourceIdentity(source);
   const pin: SourcePin = { repository: 'https://github.com/foundryvtt/pf2e.git', commit: 'a'.repeat(40),

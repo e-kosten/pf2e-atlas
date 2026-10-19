@@ -6,6 +6,7 @@ macro_rules! item_fields {
     ($item:expr, $s:ident, $body:expr) => {
         match $item {
             $crate::source_record::ItemSourceView::AbilitySource($s) => $body,
+            $crate::source_record::ItemSourceView::AmmoSource($s) => $body,
             $crate::source_record::ItemSourceView::AfflictionSource($s) => $body,
             $crate::source_record::ItemSourceView::AncestrySource($s) => $body,
             $crate::source_record::ItemSourceView::ArmorSource($s) => $body,
@@ -52,6 +53,7 @@ pub(super) use actor_fields;
 #[derive(Debug, Clone, Copy)]
 pub enum ItemSourceView<'a> {
     AbilitySource(&'a AbilitySource),
+    AmmoSource(&'a AmmoSource),
     AfflictionSource(&'a AfflictionSource),
     AncestrySource(&'a AncestrySource),
     ArmorSource(&'a ArmorSource),
@@ -80,6 +82,7 @@ impl<'a> From<&'a ItemSourcePF2e> for ItemSourceView<'a> {
     fn from(item: &'a ItemSourcePF2e) -> Self {
         match item {
             ItemSourcePF2e::AbilitySource(s) => Self::AbilitySource(s),
+            ItemSourcePF2e::AmmoSource(s) => Self::AmmoSource(s),
             ItemSourcePF2e::AfflictionSource(s) => Self::AfflictionSource(s),
             ItemSourcePF2e::AncestrySource(s) => Self::AncestrySource(s),
             ItemSourcePF2e::ArmorSource(s) => Self::ArmorSource(s),
@@ -109,6 +112,7 @@ impl<'a> From<&'a ItemSourcePF2e> for ItemSourceView<'a> {
 impl<'a> From<&'a PhysicalItemSource> for ItemSourceView<'a> {
     fn from(item: &'a PhysicalItemSource) -> Self {
         match item {
+            PhysicalItemSource::AmmoSource(s) => Self::AmmoSource(s),
             PhysicalItemSource::ArmorSource(s) => Self::ArmorSource(s),
             PhysicalItemSource::BookSource(s) => Self::BookSource(s),
             PhysicalItemSource::ConsumableSource(s) => Self::ConsumableSource(s),
@@ -216,6 +220,7 @@ impl<'a> ItemSourceView<'a> {
     pub fn family(self) -> &'static str {
         match self {
             Self::AbilitySource(..) => "action",
+            Self::AmmoSource(..) => "ammo",
             Self::AfflictionSource(..) => "affliction",
             Self::AncestrySource(..) => "ancestry",
             Self::ArmorSource(..) => "armor",

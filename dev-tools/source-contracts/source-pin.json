@@ -1,9 +1,9 @@
 {
   "repository": "https://github.com/foundryvtt/pf2e.git",
-  "commit": "4cbdaa37d6c33e9519561bae2c59a23e0288cbce",
-  "systemVersion": "6.12.4",
-  "sourceDigest": "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8",
-  "inputFileCount": 1509,
+  "commit": "28d9d156f252d084371d994dc359509b49eadf18",
+  "systemVersion": "8.6.1",
+  "sourceDigest": "c1ee148d16a58ace19114544105ccd50c625ba356d5a79fffd40f49165b68d3b",
+  "inputFileCount": 1683,
   "typescriptVersion": "5.9.3",
   "ruleKeys": [
     "ActiveEffectLike",
@@ -38,7 +38,6 @@
     "SpecialResource",
     "SpecialStatistic",
     "Strike",
-    "Striking",
     "SubstituteRoll",
     "TempHP",
     "TokenEffectIcon",
@@ -46,7 +45,6 @@
     "TokenLight",
     "TokenMark",
     "TokenName",
-    "Weakness",
-    "WeaponPotency"
+    "Weakness"
   ]
 }

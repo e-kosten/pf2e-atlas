@@ -243,7 +243,7 @@ mod tests {
             "focus_capacity":{"state":"not_applicable","value":null,"adjustment":null},
             "frequency":{"state":"not_applicable","value":null},
             "casting_ranks":[],"attack_options":[],"has_reference_details":false,
-            "navigation":{"record_key":"pack:id","embedded_path":[]},"title":"Claw","family":"melee","kind":"strike",
+            "navigation":{"record_key":"pack:id","embedded_path":[]},"is_ranged":{"state":"value","value":false},"title":"Claw","family":"melee","kind":"strike",
             "usage":null,"action_cost":{"state":"missing","value":null},"traits":[],
             "attack":{"state":"value","value":12,"adjustment":null},
             "lore_modifier":{"state":"missing","value":null,"adjustment":null},
@@ -277,7 +277,7 @@ mod tests {
     }
 }
 
-// PF2e 6.12.4 damage/formula.ts combines precision/splash into damage-type
+// PF2e 8.6.1 damage/formula.ts combines precision/splash into damage-type
 // instances; persistent remains a separate instance. DamageInstance.total floors
 // each instance at zero and DamageRoll._evaluateASTAsync floors the roll at one.
 fn damage_totals(

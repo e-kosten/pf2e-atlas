@@ -248,28 +248,11 @@ impl<'a> ActorQueryView<'a> {
     }
     pub fn visit_skills(
         self,
-        mut visit: impl FnMut(&'static str, SourceFieldView<'a, &'a NPCSkillSource>),
+        mut visit: impl FnMut(&'a str, SourceFieldView<'a, &'a NPCSkillSource>),
     ) -> SourceFieldView<'a, ()> {
         self.npc_skills().map(|s| {
-            for (key, value) in [
-                ("acrobatics", &s.acrobatics),
-                ("arcana", &s.arcana),
-                ("athletics", &s.athletics),
-                ("crafting", &s.crafting),
-                ("deception", &s.deception),
-                ("diplomacy", &s.diplomacy),
-                ("intimidation", &s.intimidation),
-                ("medicine", &s.medicine),
-                ("nature", &s.nature),
-                ("occultism", &s.occultism),
-                ("performance", &s.performance),
-                ("religion", &s.religion),
-                ("society", &s.society),
-                ("stealth", &s.stealth),
-                ("survival", &s.survival),
-                ("thievery", &s.thievery),
-            ] {
-                visit(key, value.into());
+            for (key, value) in &s.entries {
+                visit(key, SourceFieldView::Value(value));
             }
         })
     }
@@ -295,7 +278,7 @@ impl<'a> ItemSourceView<'a> {
         }
     }
 
-    pub fn activity_frequency(self) -> SourceFieldView<'a, &'a Frequency> {
+    pub fn activity_frequency(self) -> SourceFieldView<'a, &'a AbilitySystemSourceFrequency> {
         match self {
             Self::AbilitySource(s) => {
                 SourceFieldView::from(&s.system).and_then(|s| (&s.frequency).into())

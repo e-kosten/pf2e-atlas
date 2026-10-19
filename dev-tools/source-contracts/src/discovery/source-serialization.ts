@@ -43,7 +43,7 @@ export function modifierCallbackProjection(owner: ts.Type, property: ts.Symbol, 
 }
 
 export function choicePredicateInputs(owner: ts.Type, property: ts.Symbol, resolved: ts.Type, checker: ts.TypeChecker, relative: Relative): { error: string } | { error?: undefined; inputs: ts.Type[]; predicate: ts.Type; constructor: ts.Symbol } | null {
-  if (!declarationIs(owner, 'src/module/apps/pick-a-thing-prompt.ts', 'PickableThing', relative)
+  if (!declarationIs(owner, 'src/module/apps/pick-a-thing-prompt/app.ts', 'PickableThing', relative)
     || property.getName() !== 'predicate') return null;
   const alternatives = resolved.isUnion() ? resolved.types : [resolved];
   const present = alternatives.filter((part) => !(part.flags & ts.TypeFlags.Undefined));

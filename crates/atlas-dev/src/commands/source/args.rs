@@ -68,7 +68,7 @@ pub(crate) struct AuditPathsOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas-dev source analyze\n  atlas-dev source analyze --source vendor/pf2e --manifest vendor/pf2e/static/system.json --json"
+    after_help = "Examples:\n  atlas-dev source analyze\n  atlas-dev source analyze --source vendor/pf2e --manifest vendor/pf2e/system.pf2e.json --json"
 )]
 pub(crate) struct AnalyzeOptions {
     #[arg(long, help = "Override the PF2E source checkout path")]

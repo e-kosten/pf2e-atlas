@@ -16,7 +16,7 @@ test('command writes discoverable failures and strict mode rejects incomplete ex
   await cp(new URL('../../fixtures/trait-catalog/', import.meta.url), source, { recursive: true });
   await mkdir(path.join(source, 'types'));
   await writeFile(path.join(source, 'package.json'), '{"version":"test"}');
-  await cp(new URL('../../fixtures/type-graph/static/system.json', import.meta.url), path.join(source, 'static/system.json'));
+  await cp(new URL('../../fixtures/type-graph/system.pf2e.json', import.meta.url), path.join(source, 'system.pf2e.json'));
   const args = [command, '--source', source, '--out', output];
   const discovered = JSON.parse(execFileSync(process.execPath,
     [command, '--source', 'source', '--out', 'output'],

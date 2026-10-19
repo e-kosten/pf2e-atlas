@@ -45,14 +45,12 @@ pub(super) fn collect_relationships(
     resolver: Option<&super::SourceReferenceIndex>,
     output: &mut Vec<SourceRelationshipOccurrence>,
 ) {
-    // World-document identity remains separate even when its collection spells
-    // the exact same package.pack as a compendium target.
+    // Only explicit compendium UUIDs can target this local reference corpus.
     let resolver = match source {
         SourceNodeView::Result(result)
-            if !matches!(
-                SourceFieldView::from(&result.r#type),
-                SourceFieldView::Value(atlas_foundry_model::generated::TableResultType::Pack)
-            ) =>
+            if !SourceFieldView::from(&result.document_uuid)
+                .value()
+                .is_some_and(|uuid| uuid.starts_with("Compendium.")) =>
         {
             None
         }
@@ -104,16 +102,10 @@ pub(super) fn collect_relationships(
     };
     if let SourceNodeView::Result(result) = source {
         use atlas_foundry_model::generated::TableResultType;
-        // A pack result's collection is the authored package.pack pair. World
-        // document targets retain their authored collection, but cannot resolve
-        // against a compendium-only reference artifact.
         let target = SourceFieldView::from(&result.r#type).and_then(|kind| match kind {
             TableResultType::Text => SourceFieldView::NotApplicable,
-            TableResultType::Pack | TableResultType::Document => {
-                SourceFieldView::from(&result.document_collection).and_then(|collection| {
-                    SourceFieldView::from(&result.document_id)
-                        .map(|id| format!("{collection}.{id}"))
-                })
+            TableResultType::Document => {
+                SourceFieldView::from(&result.document_uuid).map(Clone::clone)
             }
         });
         let state = match &target {
@@ -131,7 +123,7 @@ pub(super) fn collect_relationships(
             SourceFieldView::NotApplicable => SourceFieldView::NotApplicable,
         };
         add(
-            "/documentId",
+            "/documentUuid",
             SourceRelationshipKind::TableResult,
             state,
             false,
@@ -190,7 +182,10 @@ pub(super) fn collect_relationships(
         item,
         s,
         SourceFieldView::from(&s.flags)
-            .and_then(|s| (&s.pf2e).into())
+            .and_then(|s| match s.entries.iter().find(|(key, _)| key == "pf2e") {
+                Some((_, flags)) => SourceFieldView::Value(flags),
+                None => SourceFieldView::Missing,
+            })
             .and_then(|s| (&s.granted_by).into())
             .and_then(|s| (&s.id).into())
     );
@@ -204,7 +199,10 @@ pub(super) fn collect_relationships(
         item,
         s,
         SourceFieldView::from(&s.flags)
-            .and_then(|s| (&s.pf2e).into())
+            .and_then(|s| match s.entries.iter().find(|(key, _)| key == "pf2e") {
+                Some((_, flags)) => SourceFieldView::Value(flags),
+                None => SourceFieldView::Missing,
+            })
             .and_then(|s| (&s.item_grants).into())
     );
     match grants {

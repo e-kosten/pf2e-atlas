@@ -98,10 +98,10 @@ mod service_tests {
                             json!({
                                 "_id":"table00000000000", "name":"Ranges", "formula":"4", "replacement":false,
                                 "results":[
-                                    {"_id":"result0000000000", "type":"text", "range":[1,4], "text":"<p>First match</p>"},
-                                    {"_id":"result0000000001", "type":"text", "range":[4,8], "text":"<p>Second match</p>"},
-                                    {"_id":"result0000000002", "type":"text", "range":[9,2], "text":"Invalid"},
-                                    {"_id":"result0000000003", "type":"text", "range":[10,12], "text":"No match"}
+                                    {"_id":"result0000000000", "type":"text", "range":[1,4], "description":"<p>First match</p>"},
+                                    {"_id":"result0000000001", "type":"text", "range":[4,8], "description":"<p>Second match</p>"},
+                                    {"_id":"result0000000002", "type":"text", "range":[9,2], "description":"Invalid"},
+                                    {"_id":"result0000000003", "type":"text", "range":[10,12], "description":"No match"}
                                 ]
                             }),
                         ),
@@ -110,7 +110,7 @@ mod service_tests {
                             "RollTable",
                             json!({
                                 "_id":"table00000000001", "name":"Gap", "formula":"5", "results":[
-                                    {"_id":"result0000000000", "type":"text", "range":[1,4], "text":"Not selected"}
+                                    {"_id":"result0000000000", "type":"text", "range":[1,4], "description":"Not selected"}
                                 ]
                             }),
                         ),

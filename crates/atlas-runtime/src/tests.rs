@@ -1051,8 +1051,87 @@ fn setup_reprepares_prerequisites_from_old_selection_policy() {
     let reader = open_reader(&paths.index_path).unwrap();
     assert_eq!(
         reader.context().content_selection_version,
-        "structural-source-sections/v3"
+        "structural-source-sections/v4"
     );
     let report = atlas_index::validate_reference(reader.workspace_session().connection()).unwrap();
     assert_eq!(report.prepared_fields, 1);
+}
+
+#[test]
+fn explicit_setup_replaces_prior_model_and_preserves_saved_state() {
+    use atlas_local_state::{LocalStateRead, LocalStateWrite, NewEncounter, NewSavedList};
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    source(&paths);
+    assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
+    let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+    let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let state = LocalStateWrite::new(&write);
+    let list = state
+        .saved_lists()
+        .create(NewSavedList {
+            slug: "keep-upgrade".into(),
+            name: "Keep through model upgrade".into(),
+            description: Some("Personal notes".into()),
+            tags: vec!["campaign".into()],
+        })
+        .unwrap();
+    let encounter = state
+        .encounters()
+        .create(NewEncounter {
+            slug: "keep-upgrade".into(),
+            name: "Active encounter".into(),
+            description: None,
+            note: Some("Do not reset".into()),
+        })
+        .unwrap();
+    let mut context = atlas_index::read_stored_reference_context(write.connection())
+        .unwrap()
+        .unwrap();
+    context.source_contract =
+        "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8".into();
+    let json = serde_json::to_string(&context).unwrap();
+    write
+        .connection()
+        .execute(
+            "UPDATE artifact_context SET context_hash=?1,context_json=?2",
+            [atlas_search::test_support::hash(json.as_bytes()), json],
+        )
+        .unwrap();
+    let before = write.reference_revision().unwrap();
+    write.commit().unwrap();
+    assert!(crate::workspace::open_workspace_index(&paths.index_path).is_err());
+    assert!(!crate::setup::ensure_setup(&paths, options(true)).ready);
+    // An unsuccessful preparation retains the old publication and saved domains.
+    fs::write(
+        paths.source_root.join("packs/items/one.json"),
+        "invalid JSON",
+    )
+    .unwrap();
+    assert!(!crate::setup::ensure_setup(&paths, options(false)).ready);
+    assert_eq!(
+        workspace
+            .read(WORKSPACE_SCHEMA_VERSION)
+            .unwrap()
+            .reference_revision()
+            .unwrap(),
+        before
+    );
+    source(&paths);
+    let report = crate::setup::ensure_setup(&paths, options(false));
+    assert!(report.ready, "{report:?}");
+    let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert!(read.reference_revision().unwrap() > before);
+    let state = LocalStateRead::new(&read);
+    assert_eq!(state.saved_lists().list().unwrap(), vec![list]);
+    assert_eq!(state.encounters().list().unwrap(), vec![encounter]);
+    assert_eq!(
+        atlas_index::read_stored_reference_context(read.connection())
+            .unwrap()
+            .unwrap()
+            .source_contract,
+        atlas_foundry_model::SOURCE_CONTRACT_ID
+    );
+    drop(read);
+    assert!(crate::workspace::open_workspace_index(&paths.index_path).is_ok());
 }

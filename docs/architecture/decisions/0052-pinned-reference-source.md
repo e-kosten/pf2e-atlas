@@ -49,3 +49,21 @@ a state-preserving reference rebuild across the model contract change. Multiple
 upstream model versions and embedded-document failure isolation are separate
 product/architecture decisions; this policy introduces neither adapters nor
 relaxed union admission. See ADR0034, ADR0041 and ADR0051.
+
+## PF2e 8.6.1 replacement
+
+The current pin is PF2e 8.6.1 at
+`28d9d156f252d084371d994dc359509b49eadf18`. Its generated model replaces the
+6.12.4 model. Index recognizes the exact preceding snapshot contract only as a
+source-replacement candidate. It never decodes that contract with the current
+model, and ordinary readers reject it until preparation and publication succeed.
+Unknown contracts and snapshot versions remain unsupported.
+
+Setup can retain requested configuration and embedding checkpoints while rebuilding
+all source snapshots from the new checkout. Publication reconciles the existing
+workspace in one transaction, retaining saved lists, encounters and unresolved
+record identities. A failed preparation leaves the preceding reference publication
+and saved state intact. Maintenance recovery for this replacement checks storage
+integrity without admitting retired snapshots to product readers; the next explicit
+setup must still complete the replacement. This is a rebuild path, not a second
+runtime model or a snapshot conversion layer.

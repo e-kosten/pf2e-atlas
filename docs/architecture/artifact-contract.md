@@ -328,14 +328,14 @@ Strike-effect names remain authored labels without speculative cross-record link
 
 Feat prerequisite entries are selected as individually addressed rich fields under
 `/system/prerequisites/value/<index>/value`, following pinned feat embed semantics.
-Selection identity `structural-source-sections/v3` invalidates prepared/search
+Selection identity `structural-source-sections/v4` invalidates prepared/search
 projections when these fields are added; setup re-prepares from the configured
 compatible source before readers admit the new artifact. This requires no schema or snapshot migration. Array positions and
 unavailable entries remain explicit; renderers never parse or fall back to raw markup.
 
 Item provenance includes the declared open `flags.core.sourceId` namespace and
 `_stats.compendiumSource`. Duplicate or non-string core source identities do not
-supply a resolved target. Relationship policy `typed-authored-occurrences/v4`
+supply a resolved target. Relationship policy `typed-authored-occurrences/v5`
 requires re-preparation to include core provenance; the schema and source snapshot
 codec are unchanged. Contextual consumable reading is a transient app projection:
 `target` preserves the authored citation while optional `contextual_target` points
@@ -343,7 +343,7 @@ to the checked embedded spell. It does not replace the stored graph edge.
 
 Consumable query kind/type live on the shared physical projection for root and
 immediate actor equipment. Workspace migration 4 adds their state/value columns;
-authored-query/v2 and catalog v5 rebuild accelerators from retained typed snapshots.
+authored-query/v3 and catalog v6 rebuild accelerators from retained typed snapshots.
 The migration preserves saved state and does not change the source snapshot codec.
 
 ### Encounter status migration
@@ -356,3 +356,16 @@ by runtime after the immutable earlier migrations.
 Workspace migration 6 converts defeated hazards to disabled and prevents hazards
 from storing the creature defeated marker. It preserves HP and creature status.
 Migration 5 remains immutable because it has been applied to preview workspaces.
+
+### PF2e 8.6.1 reference preparation
+
+The current source contract includes ammunition as an equipment family. NPC skills
+are keyed authored entries; character movement is runtime-derived and has no
+source-backed movement projection. Table result content uses `/description` and
+structured references use `/documentUuid`, resolving only explicit compendium UUIDs.
+The query catalog is version 6, query projections use `authored-query/v3`, content
+selection uses `structural-source-sections/v4` and relationships use
+`typed-authored-occurrences/v5`. These rebuild derived data without a physical
+schema migration. The exact preceding 6.12.4 model can be replaced from compatible
+source while preserving saved state; its snapshots are never decoded by the new
+model (ADR0052).

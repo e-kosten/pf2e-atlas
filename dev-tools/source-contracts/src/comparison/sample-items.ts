@@ -1,3 +1,4 @@
+import { sourcePackPath } from './source-packs.js';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -40,7 +41,7 @@ export function itemPackets(text: string, sourcePath: string, pack: string, docu
   return packets;
 }
 export async function* sampleItems(source: string): AsyncGenerator<ItemPacket> {
-  const manifest = JSON.parse(await readFile(path.join(source,'static/system.json'),'utf8')) as {packs:{type:string;path:string;name:string}[]};
+  const manifest = JSON.parse(await readFile(path.join(source,'system.pf2e.json'),'utf8')) as {packs:{type:string;path:string;name:string}[]};
   const files = async (directory: string): Promise<string[]> => {
     const result: string[] = [];
     for (const entry of (await readdir(directory,{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))) {
@@ -50,6 +51,6 @@ export async function* sampleItems(source: string): AsyncGenerator<ItemPacket> {
     }
     return result;
   };
-  for (const pack of manifest.packs.filter(pack=>['Item','Actor'].includes(pack.type))) for (const file of await files(path.join(source,pack.path)))
+  for (const pack of manifest.packs.filter(pack=>['Item','Actor'].includes(pack.type))) for (const file of await files(sourcePackPath(source,pack.path)))
     yield* itemPackets(await readFile(file,'utf8'),path.relative(source,file).replaceAll('\\','/'),pack.name,pack.type as 'Item'|'Actor');
 }

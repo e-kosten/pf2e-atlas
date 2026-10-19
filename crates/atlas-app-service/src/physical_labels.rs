@@ -1,7 +1,8 @@
-//! Exact usage labels from PF2e 6.12.4 config/usages and English localization.
-//! Source: 03942c8abd0f8617d4f0446d07bd8006520324fd; unknown tokens stay verbatim.
+//! Exact usage labels from PF2e 8.6.1 config/usage and English localization.
+//! Source: 28d9d156f252d084371d994dc359509b49eadf18; unknown tokens stay verbatim.
 //! These labels never infer a normalized hand-count axis.
 pub(crate) const USAGES: &[(&str, &str)] = &[
+    ("affixed-or-held-in-one-hand", "Affixed or Held in 1 Hand"),
     ("affixed-to-a-creature", "Affixed to a Creature"),
     ("affixed-to-a-magical-staff", "Affixed to a Magical Staff"),
     ("affixed-to-a-metal-weapon", "Affixed to a Metal Weapon"),
@@ -15,6 +16,10 @@ pub(crate) const USAGES: &[(&str, &str)] = &[
         "affixed-to-a-shield-or-weapon",
         "Affixed to a Shield or Weapon",
     ),
+    (
+        "affixed-to-a-slashing-weapon",
+        "Affixed to a Slashing Weapon",
+    ),
     ("affixed-to-a-thrown-weapon", "Affixed to a Thrown Weapon"),
     (
         "affixed-to-a-two-handed-firearm-or-crossbow",
@@ -27,32 +32,16 @@ pub(crate) const USAGES: &[(&str, &str)] = &[
     ),
     ("affixed-to-armor", "Affixed to Armor"),
     (
-        "affixed-to-medium-heavy-armor",
-        "Affixed to Medium or Heavy Armor",
-    ),
-    (
-        "affixed-to-medium-heavy-metal-armor",
-        "Affixed to Medium or Heavy Metal Armor",
-    ),
-    (
-        "affixed-to-metal-armor-or-a-weapon",
-        "Affixed to Metal Armor or a Weapon",
-    ),
-    (
-        "affixed-to-non-metal-armor-or-a-weapon",
-        "Affixed to Non-Metal Armor or a Weapon",
-    ),
-    (
-        "affixed-to-armor-shield-or-weapon",
-        "Affixed to Armor, Shield, or Weapon",
-    ),
-    (
         "affixed-to-armor-or-a-weapon",
         "Affixed to Armor or a Weapon",
     ),
     (
         "affixed-to-armor-or-travelers-clothing",
         "Affixed to Armor or Travelers Clothing",
+    ),
+    (
+        "affixed-to-armor-shield-or-weapon",
+        "Affixed to Armor, Shield, or Weapon",
     ),
     (
         "affixed-to-crossbow-or-firearm",
@@ -82,8 +71,24 @@ pub(crate) const USAGES: &[(&str, &str)] = &[
         "affixed-to-load-bearing-wall-or-pillar",
         "Affixed to a Load-Bearing Wall or Pillar",
     ),
+    (
+        "affixed-to-medium-heavy-armor",
+        "Affixed to Medium or Heavy Armor",
+    ),
+    (
+        "affixed-to-medium-heavy-metal-armor",
+        "Affixed to Medium or Heavy Metal Armor",
+    ),
     ("affixed-to-melee-weapon", "Affixed to a Melee Weapon"),
+    (
+        "affixed-to-metal-armor-or-a-weapon",
+        "Affixed to Metal Armor or a Weapon",
+    ),
     ("affixed-to-metal-weapon", "Affixed to a Metal Weapon"),
+    (
+        "affixed-to-non-metal-armor-or-a-weapon",
+        "Affixed to Non-Metal Armor or a Weapon",
+    ),
     (
         "affixed-to-object-structure-or-creature",
         "Affixed to Structure, Object, or Creature",
@@ -99,14 +104,18 @@ pub(crate) const USAGES: &[(&str, &str)] = &[
         "applied-to-a-basket-bag-or-other-container",
         "Applied to a Basket, Bag, or Other Container",
     ),
+    (
+        "applied-to-a-non-injection-melee-weapon-piercing-damage",
+        "Applied to a non-injection melee weapon that deals piercing damage",
+    ),
+    (
+        "applied-to-a-tech-item-of5-bulk-or-less",
+        "Applied to a tech item of Bulk 5 or less",
+    ),
     ("applied-to-a-weapon", "Applied to a weapon"),
     (
         "applied-to-a-wind-powered-vehicle",
         "Applied to a wind-powered vehicle",
-    ),
-    (
-        "applied-to-a-non-injection-melee-weapon-piercing-damage",
-        "Applied to a non-injection melee weapon that deals piercing damage",
     ),
     (
         "applied-to-any-item-of-light-or-negligible-bulk",
@@ -166,13 +175,16 @@ pub(crate) const USAGES: &[(&str, &str)] = &[
         "each-rune-applied-to-a-separate-item-that-has-pockets",
         "Each rune applied to a separate item that has pockets",
     ),
-    ("etched-onto-a-weapon", "Etched onto a Weapon"),
     ("etched-onto-a-shield", "Etched onto a Shield"),
+    ("etched-onto-a-weapon", "Etched onto a Weapon"),
     ("etched-onto-armor", "Etched onto Armor"),
+    (
+        "etched-onto-bludgeoning-weapon",
+        "Etched on Bludgeoning Weapon",
+    ),
+    ("etched-onto-clan-dagger", "Etched on Clan Dagger"),
     ("etched-onto-heavy-armor", "Etched onto Heavy Armor"),
     ("etched-onto-light-armor", "Etched onto Light Armor"),
-    ("etched-onto-metal-armor", "Etched onto Metal Armor"),
-    ("etched-onto-clan-dagger", "Etched on Clan Dagger"),
     (
         "etched-onto-lm-nonmetal-armor",
         "Etched on L/M Nonmetal Armor",
@@ -185,15 +197,12 @@ pub(crate) const USAGES: &[(&str, &str)] = &[
         "etched-onto-medium-heavy-metal-armor",
         "Etched onto Medium or Heavy Metal Armor",
     ),
-    (
-        "etched-onto-bludgeoning-weapon",
-        "Etched on Bludgeoning Weapon",
-    ),
     ("etched-onto-melee-weapon", "Etched on Melee Weapon"),
     (
-        "etched-onto-slashing-melee-weapon",
-        "Etched on Slashing Melee Weapon",
+        "etched-onto-melee-weapon-monk",
+        "Etched onto a melee weapon with the monk trait",
     ),
+    ("etched-onto-metal-armor", "Etched onto Metal Armor"),
     (
         "etched-onto-piercing-or-slashing-melee-weapon",
         "Etched on Piercing/Slashing Melee Weapon",
@@ -203,6 +212,11 @@ pub(crate) const USAGES: &[(&str, &str)] = &[
         "Etched on Piercing/Slashing Weapon",
     ),
     (
+        "etched-onto-slashing-melee-weapon",
+        "Etched on Slashing Melee Weapon",
+    ),
+    ("etched-onto-thrown-weapon", "Etched on Thrown Weapon"),
+    (
         "etched-onto-weapon-wo-anarchic-rune",
         "Etched on Weapon w/o Axiomatic Rune",
     ),
@@ -211,30 +225,93 @@ pub(crate) const USAGES: &[(&str, &str)] = &[
         "Etched on Weapon w/o Anarchic Rune",
     ),
     (
-        "etched-onto-weapon-wo-unholy-rune",
-        "Etched on Weapon that isn't Holy",
-    ),
-    (
         "etched-onto-weapon-wo-holy-rune",
         "Etched on Weapon that isn't Unholy",
     ),
     (
-        "etched-onto-melee-weapon-monk",
-        "Etched onto a melee weapon with the monk trait",
-    ),
-    ("etched-onto-thrown-weapon", "Etched on Thrown Weapon"),
-    ("held-in-one-hand", "Held in one hand"),
-    (
-        "held-in-one-hand-or-free-standing",
-        "Held in 1 hand or free-standing",
+        "etched-onto-weapon-wo-unholy-rune",
+        "Etched on Weapon that isn't Holy",
     ),
     (
         "held-in-1-hand-hung-on-a-cord-or-attached-to-clothing",
         "Held in 1 hand, hung on a cord, or attached to clothing",
     ),
-    ("held-in-one-or-two-hands", "Held in one or two hands"),
-    ("held-in-two-hands", "Held in two hands"),
+    ("held-in-one-hand", "Held in 1 hand"),
+    (
+        "held-in-one-hand-or-free-standing",
+        "Held in 1 hand or free-standing",
+    ),
+    ("held-in-one-or-two-hands", "Held in 1 or 2 hands"),
+    ("held-in-two-hands", "Held in 2 hands"),
     ("implanted", "Implanted"),
+    ("installed-in-a-comm-unit", "Installed in a comm unit"),
+    ("installed-in-a-datapad", "Installed in a datapad"),
+    (
+        "installed-in-a-grenade-launcher-or-two-handed-weapon-with-an-undermounted-grenade-launcher",
+        "Installed in a Grenade Launcher or Two-Handed Weapon with an Undermounded Grenade Launcher",
+    ),
+    (
+        "installed-in-a-ranged-weapon",
+        "Installed in a ranged weapon",
+    ),
+    ("installed-in-a-weapon", "Installed in a Weapon"),
+    ("installed-in-a-weapon-sight", "Installed in a Weapon Sight"),
+    (
+        "installed-in-a-weapon-that-deals-acid-or-fire-damage",
+        "Installed in a weapon that deals acid or fire Damage",
+    ),
+    (
+        "installed-in-a-weapon-that-deals-cold-damage",
+        "Installed in a weapon that deals cold damage",
+    ),
+    (
+        "installed-in-a-weapon-that-uses-a-battery",
+        "Installed in a weapon that uses a battery",
+    ),
+    (
+        "installed-in-a-weapon-that-uses-projectiles",
+        "Installed in a weapon that uses projectiles",
+    ),
+    (
+        "installed-in-a-weapon-with-the-kickback-trait",
+        "Installed in a Weapon with the Kickback trait",
+    ),
+    ("installed-in-an-area-weapon", "Installed in an area weapon"),
+    (
+        "installed-in-an-area-weapon-that-deals-acid-cold-fire-or-void-damage",
+        "Installed in an area weapon that deals acid, cold, fire or void damage",
+    ),
+    ("installed-in-armor", "Installed in Armor"),
+    (
+        "installed-in-armor-with-the-energy-shielding-upgrade",
+        "Installed in Armor with the Energy Shielding upgrade",
+    ),
+    (
+        "installed-in-armor-with-the-exposed-trait",
+        "Installed in Armor with the Exposed trait",
+    ),
+    ("installed-in-atech-vehicle", "Installed in a tech vehicle"),
+    (
+        "installed-in-light-or-medium-armor",
+        "Installed in light or medium armor",
+    ),
+    (
+        "installed-in-one-handed-weapon-grip",
+        "Installed in One-Handed Weapon Grip",
+    ),
+    (
+        "installed-in-ranged-weapon-without-a-loudener",
+        "Installed in Ranged Weapon without a Loudener",
+    ),
+    (
+        "installed-in-two-handed-weapon",
+        "Installed in a Two-Handed Weapon",
+    ),
+    (
+        "installed-on-a-weapon-without-a-silencer",
+        "Installed on a Weapon without a Silencer",
+    ),
+    ("installed-on-atech-lock", "Installed on a tech lock"),
     (
         "mounted-on-a-tripod-or-bracket",
         "Mounted on a tripod or bracket",
@@ -244,6 +321,11 @@ pub(crate) const USAGES: &[(&str, &str)] = &[
     ("tattooed-on-the-body", "Tattooed on the Body"),
     ("touched", "Touched"),
     ("worn", "Worn"),
+    (
+        "worn-and-attached-to-two-weapons",
+        "Worn and Attached to Two Weapons",
+    ),
+    ("worn-under-armor", "Worn Under Light Armor or Clothes"),
     ("wornamulet", "Worn Amulet"),
     ("wornanklets", "Worn Anklets"),
     ("wornarmbands", "Worn Armbands"),
@@ -277,14 +359,10 @@ pub(crate) const USAGES: &[(&str, &str)] = &[
     ("wornsaddle", "Worn Saddle"),
     ("wornsandles", "Worn Sandles"),
     ("wornshoes", "Worn Shoes"),
+    ("wornwhilesleeping", "Worn while sleeping"),
     ("wornwrist", "Worn on Wrists"),
-    (
-        "worn-and-attached-to-two-weapons",
-        "Worn and Attached to Two Weapons",
-    ),
-    ("worn-under-armor", "Worn Under Light Armor or Clothes"),
-    ("held-in-one-plus-hands", "Held in 1+ hands"),
 ];
+
 pub(crate) fn usage(value: &str) -> String {
     USAGES
         .iter()
@@ -297,7 +375,14 @@ pub(crate) fn usage(value: &str) -> String {
 mod tests {
     #[test]
     fn exact_usage_labels_do_not_collapse_attachment_or_hand_choices() {
-        assert_eq!(super::usage("held-in-one-plus-hands"), "Held in 1+ hands");
+        assert_eq!(
+            super::usage("held-in-one-or-two-hands"),
+            "Held in 1 or 2 hands"
+        );
+        assert_eq!(
+            super::usage("held-in-one-plus-hands"),
+            "held-in-one-plus-hands"
+        );
         assert_ne!(
             super::usage("held-in-one-hand"),
             super::usage("held-in-two-hands")

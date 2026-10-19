@@ -105,3 +105,16 @@ test('comparison counts every affected occurrence and separates parser defects f
   assert.equal(report.families.a.rules, 2);
   assert.throws(() => compareRuleResults(packets, [], []), /count mismatch/);
 });
+
+
+test('SetField selector inputs inherit the bounded authored scalar-or-array policy', () => {
+  const original = schema();
+  original.roots[0].ruleKey = 'Note';
+  original.roots[0].arrayInputs![0].fieldClass = 'SetField';
+  const { graph, changes } = authoredRuleInputs(original);
+  assert.deepEqual(changes.map(change => [change.rule, change.field]), [['Note', 'selector']]);
+  const root = graph.nodes.find(node => node.id === graph.roots[0].ref)!;
+  assert.ok(root.kind === 'object');
+  assert.deepEqual(graph.nodes.find(node => node.id === root.fields[0].ref), { id: 'strings#authored-string-array', kind: 'union', members: ['strings', 'string'] });
+  assert.equal(root.fields[1].ref, 'strings');
+});
