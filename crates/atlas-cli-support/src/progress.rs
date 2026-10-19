@@ -1,3 +1,4 @@
+use crate::duration::format_elapsed as compact_elapsed;
 use std::fmt::{self, Write as FmtWrite};
 use std::io::IsTerminal;
 use std::sync::Mutex;
@@ -505,24 +506,6 @@ fn total_elapsed_prefix(total_elapsed: Duration) -> String {
 
 fn log_elapsed_prefix(elapsed: Duration) -> String {
     format!("[{}]", compact_elapsed(elapsed))
-}
-
-fn compact_elapsed(elapsed: Duration) -> String {
-    let seconds = elapsed.as_secs();
-    let hours = seconds / 3600;
-    let minutes = (seconds % 3600) / 60;
-    let seconds = seconds % 60;
-    let mut parts = Vec::new();
-    if hours > 0 {
-        parts.push(format!("{hours}h"));
-    }
-    if minutes > 0 {
-        parts.push(format!("{minutes}m"));
-    }
-    if seconds > 0 || parts.is_empty() {
-        parts.push(format!("{seconds}s"));
-    }
-    parts.join(" ")
 }
 
 #[cfg(test)]
