@@ -28,10 +28,10 @@ directories. Preserve that layout when backing them up. Model downloads remain
 in `.cache/hf-models`; experimental model assets also live inside research trees.
 
 Git carries the [curated evaluation dataset](evaluations/2026-10-search/README.md),
-its export/integrity tools, decision summaries and this map. Raw evidence remains ignored
+its integrity verifier, decision summaries and this map. Raw evidence remains ignored
 locally, including copied source and model data; this is **not an off-machine
 backup**. Preserve it separately before moving machines or deleting `scratch/`.
-Do not add entire SQLite/vector/model archives to Git. The committed subset retains individual/versioned opinions, selected judgments,
+Do not add entire SQLite/vector/model archives to Git. The committed subset retains selected reviewer opinions, final judgments,
 rankings and metrics, with source pointers/hashes instead of literal source passages.
 Full-source interpretation and arbitrary re-ranking still need the local archive.
 
