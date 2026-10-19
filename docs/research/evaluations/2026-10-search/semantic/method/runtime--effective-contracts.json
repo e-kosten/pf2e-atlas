@@ -1,0 +1,10 @@
+{
+  "common": {"threads":4,"automaticPrefix":false,"sourceContent":"unchanged captured source strings","normalization":"L2","outputDimensionsFull":true},
+  "models": [
+    {"id":"bge-small","dimension":384,"maxTokens":512,"pooling":"CLS","output":"last_hidden_state","queryPrefix":"Represent this sentence for searching relevant passages: ","documentPrefix":""},
+    {"id":"bge-base","dimension":768,"maxTokens":512,"pooling":"CLS","output":"last_hidden_state","queryPrefix":"Represent this sentence for searching relevant passages: ","documentPrefix":""},
+    {"id":"qwen","dimension":1024,"maxTokens":32768,"pooling":"last-attended-token","output":"last_hidden_state","padding":"left","queryPrefix":"Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:","documentPrefix":"","repository":"Qdrant/Qwen3-Embedding-0.6B-onnx","revision":"af95f2c416ffe9379369ad64f9113e865db6112c","weightsVerified":true,"assetReceipt":{"path":"scratch/full-corpus-search/embedding-full/qwen-model-receipt.json","sha256":"f76104e3255117d7871549eced7fca9a865094beebd006c180bda9d07ea87ccc"}},
+    {"id":"gemma","dimension":768,"maxTokens":2048,"pooling":"exported-rank2-trained-projection","output":"sentence_embedding","padding":"right","specialTokens":"BOS2,EOS1 included by tokenizer.json","queryPrefix":"task: search result | query: ","documentPrefix":"title: none | text: ","repository":"onnx-community/embeddinggemma-300m-ONNX","revision":"5090578d9565bb06545b4552f76e6bc2c93e4a66"}
+  ],
+  "revisionReason": "Native tokenizer budgets preserve identical source characters across differing vocabularies. Unsupported cached community Qwen graph replaced before quality evaluation; old evidence retained."
+}

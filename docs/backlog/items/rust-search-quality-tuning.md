@@ -3,14 +3,14 @@
 Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-17
+Last reviewed: 2026-10-19
 
 ## Current Baseline
 
 Precision FTS covers identity, verified aliases, typed vocabulary and named
 owned definitions. Semantic selection covers selected root and owned explanatory
 passages. Search uses one accepted semantic contribution per root and fuses root
-ranks with lexical specificity tiers. Eligibility and bounded candidate selection
+lanes with exact primary/alias priority and selectable Score-based/Rank-based fusion. Eligibility and bounded candidate selection
 follow [ADR 0046](../../architecture/decisions/0046-source-backed-reference-artifact.md).
 
 The product's selectable baseline profiles (`bge-base` and `embeddinggemma`) use
@@ -23,7 +23,9 @@ Local full-corpus experiments exposed tradeoffs between descriptive discovery an
 useful owner capabilities. The approved field-aware lexical policy and temporary
 Score-based/Rank-based comparison follow [ADR0053](../../architecture/decisions/0053-field-aware-search-fusion.md).
 Score-based is the user-selected dogfooding default, not a demonstrated universal
-quality winner. The [dated evaluation notes](../../research/source-backed-search-evaluation.md)
+quality winner. The [cross-experiment synthesis](../../research/search-evaluation-synthesis.md) and
+[curated grading/ranking archive](../../research/evaluations/2026-10-search/README.md)
+preserve the completed comparisons and rejected hypotheses. The [dated evaluation notes](../../research/source-backed-search-evaluation.md)
 preserve findings, sample sizes, evidence limits and local artifact references.
 
 ## Continuing Evaluation

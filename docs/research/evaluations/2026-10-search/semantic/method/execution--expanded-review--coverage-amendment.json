@@ -1,0 +1,19 @@
+{
+  "status": "user_approved_prospective_coverage_amendment_before_quality_unblinding",
+  "at": "2026-10-15T18:05:27.210Z",
+  "authority": "Parent relayed explicit user approval: independent second review of 100% fresh, 25% development, using existing three Luna reviewers; all disputes source-adjudicated and a deterministic random 10% of agreeing pairs audited.",
+  "qualityUnblinded": false,
+  "primaryCounts": {"fresh":1167,"development":1205},
+  "secondReviewTargets": {"fresh":1167,"development":302},
+  "reuse": {"freshOriginalRandom":117,"freshProvenanceRemedy":57,"developmentOriginalRandom":121},
+  "additional": {"fresh":993,"development":181},
+  "reviewers": "Three existing distinct Luna reviewer identities; each independent pair uses different reviewers. No primary opinion, model membership, score, rank, reference status or cost supplied to second reviewer.",
+  "seeds": {"developmentAdditional":1096043604,"agreementAudit":{"fresh":1096043605,"development":1096043606}},
+  "developmentSelection": "Sort unreviewed blind IDs, deterministic xorshift32 Fisher-Yates shuffle, take 181; original random 121 retained. No outcomes, grades or model information used.",
+  "agreementAudit": "After expanded opinions validate and before adjudication overrides, select exact raw grade+opposite agreeing pairs (including null agreements); sort blind IDs and seeded xorshift32 Fisher-Yates shuffle, take ceil(10% agreeing pairs) separately by cohort. Public audit panels withhold original opinions. Coordinator records source-only opinion first and discloses prior familiarity. Audit shared errors uniformly. Original random reliability and supplemental agreement statistics reported separately.",
+  "disagreements": "Every grade or opposite-flag difference, including 0/1 and 2/3, explicitly source-adjudicated. Preserve all originals/corrections; no majority-vote truth.",
+  "unchanged": "Models, representations, queries, rubric, retrieval and metric policy unchanged. Cost remains wholly outside quality scoring.",
+  "provenanceLimitation": "Independent 65-record remedy cannot recover overwritten unvalidated exploratory draft; unrecoverable-original limitation retained.",
+  "rubric": {"path":"scratch/full-corpus-search/embedding-full/evaluation/GRADING.md","sha256":"9f5aab80612d3f0eb1eaa73e9ee03fb65a6043db21b344d0edbb090016cab281"},
+  "protocol": {"path":"scratch/full-corpus-search/embedding-full/evaluation-design/protocol.json","sha256":"511c64646070ed33958552922b19c591c6d02093945382735c0233910fc20490"}
+}

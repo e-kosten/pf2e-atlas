@@ -2,6 +2,12 @@
 
 This directory preserves durable findings from spikes and exploratory branches.
 
+For search conclusions and unresolved tradeoffs, start with the
+[research synthesis](search-evaluation-synthesis.md). The
+[curated evaluation archive](evaluations/2026-10-search/README.md) preserves grading
+and ranked results; the [archive map](search-evaluation-handoff.md) locates the
+full local evidence.
+
 Research notes should capture:
 
 - the question the spike tried to answer;
