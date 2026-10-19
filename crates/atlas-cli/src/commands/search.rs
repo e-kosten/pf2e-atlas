@@ -51,14 +51,23 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
     };
     if let Some(query) = o.query {
         let result = match app_result(
-            s.search_text(query, filter, page, mode, o.search_profile.clone()),
+            s.search_text(
+                query,
+                filter,
+                page,
+                mode,
+                o.ranking,
+                o.search_profile.clone(),
+            ),
             o.json,
         )? {
             std::ops::ControlFlow::Continue(value) => value,
             std::ops::ControlFlow::Break(exit) => return Ok(exit),
         };
         if o.json {
-            write_json_data(search_json(&result))?;
+            let mut data = search_json(&result);
+            data["ranking"] = serde_json::to_value(o.ranking).map_err(|error| error.to_string())?;
+            write_json_data(data)?;
         } else {
             print_search_matches(&result.rows);
             if result.coverage.exhaustive {
@@ -88,6 +97,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         let result = match app_result(
             s.search_page(
                 atlas_app_model::SearchResultsRequest {
+                    ranking: None,
                     search_profile: o.search_profile,
                     criteria: atlas_app_model::SearchCriteria::ListRecords { filter },
                     page,

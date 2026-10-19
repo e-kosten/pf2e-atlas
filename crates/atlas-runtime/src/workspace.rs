@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 2;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 3;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -13,6 +13,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 2,
         name: "saved-state-baseline",
         sql: atlas_local_state::LOCAL_STATE_SCHEMA_SQL,
+    },
+    Migration {
+        version: 3,
+        name: "lexical-alias-rows",
+        sql: atlas_index::LEXICAL_ALIAS_SCHEMA_SQL,
     },
 ];
 

@@ -9,6 +9,12 @@ use std::path::PathBuf;
     after_help = "Examples:\n  atlas search --kind spell --trait healing\n  atlas search 'Ghoul Fever' --retrieval fts --json\n  atlas search --where 'defenses.hp.maximum >= 80 && \"undead\" in traits'\n  atlas filters fields"
 )]
 pub(crate) struct SearchOptions {
+    #[arg(
+        long,
+        default_value = "score",
+        help = "Hybrid ranking: rrf or score (dogfooding comparison)"
+    )]
+    pub(crate) ranking: atlas_domain::SearchRanking,
     #[arg(long,value_parser=crate::cli::args::parse_search_profile,help="Search profile: bge-base or embeddinggemma")]
     pub(crate) search_profile: Option<atlas_domain::SearchProfileId>,
     #[arg(help = "Text query; omit to browse eligible records alphabetically")]

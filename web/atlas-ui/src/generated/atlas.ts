@@ -219,3 +219,5 @@ export type { StrikeRollKind } from "../../../../crates/atlas-app-model/bindings
 export type { RollEncounterStrikeRequest } from "../../../../crates/atlas-app-model/bindings/RollEncounterStrikeRequest";
 export type { StrikeDamageRollView } from "../../../../crates/atlas-app-model/bindings/StrikeDamageRollView";
 export type { EncounterStrikeRollView } from "../../../../crates/atlas-app-model/bindings/EncounterStrikeRollView";
+
+export type { SearchRanking } from "../../../../crates/atlas-app-model/bindings/SearchRanking";

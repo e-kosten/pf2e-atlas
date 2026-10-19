@@ -6,7 +6,7 @@ mod discovery;
 mod embedding_checkpoints;
 mod persisted_inputs;
 pub use component_upgrade::{
-    ReferenceUpgrade, classify_reference_upgrade, ensure_query_projections,
+    ReferenceUpgrade, classify_reference_upgrade, ensure_reference_projections,
     read_stored_reference_context,
 };
 pub use persisted_inputs::read_persisted_inputs;
@@ -76,3 +76,7 @@ pub use schema::REFERENCE_SCHEMA_SQL;
 pub use validation::validate_artifact;
 pub use validation::{ArtifactValidationReport, validate_reference};
 pub use writer::{IndexArtifactWriter, SqliteIndexWriter};
+
+mod lexical_projection;
+pub use lexical_projection::project_lexical_units;
+pub use schema::LEXICAL_ALIAS_SCHEMA_SQL;

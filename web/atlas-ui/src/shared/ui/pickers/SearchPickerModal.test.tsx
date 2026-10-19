@@ -29,6 +29,7 @@ const search = vi.mocked(searchPage);
 const addSelected = vi.fn();
 function result(title = "Ghoul", generation = "generation-a", profile = "bge-base") {
   return {
+    ranking: "score" as const,
     search_profile: profile,
     artifact_generation: generation,
     mode: { kind: "list_records" as const },

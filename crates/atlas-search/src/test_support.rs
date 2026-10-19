@@ -9,8 +9,8 @@ use atlas_index::*;
 use atlas_record::{
     source_content::{CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentVisibilityRule},
     source_record::{
-        SOURCE_CONTENT_SELECTION_VERSION, SourceBackedRecord, SourceSelectedSectionKind,
-        prepare_record_content, select_record_search,
+        SOURCE_CONTENT_SELECTION_VERSION, SourceBackedRecord, prepare_record_content,
+        select_record_search,
     },
 };
 use serde_json::Value;
@@ -25,7 +25,7 @@ pub fn invalidate_reference(path: impl AsRef<std::path::Path>) -> Result<(), cra
         .update_owner()
         .map_err(|e| crate::SearchError::query_failed(e.to_string()))?;
     let maintenance = owner
-        .maintenance(2, "invalid reference test fixture")
+        .maintenance(3, "invalid reference test fixture")
         .map_err(|e| crate::SearchError::query_failed(e.to_string()))?;
     maintenance.publish(|c| {
         c.execute("DELETE FROM artifact_context", [])?;
@@ -186,39 +186,7 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
             &BTreeMap::new(),
         )
         .unwrap();
-        let root_name = selection
-            .identities
-            .iter()
-            .find(|i| i.owners.is_empty())
-            .map(|i| i.name.clone())
-            .unwrap_or_default();
-        let root_vocabulary = selection
-            .identities
-            .iter()
-            .find(|i| i.owners.is_empty())
-            .map(|i| i.vocabulary.join(" "))
-            .unwrap_or_default();
-        for identity in &selection.identities {
-            lexical_units.push(SourceLexicalUnitInput {
-                record: r.record.key().clone(),
-                owners: identity.owners.clone(),
-                field: None,
-                address: None,
-                kind: if identity.owners.is_empty() {
-                    SourceLexicalUnitKind::RootName
-                } else {
-                    SourceLexicalUnitKind::OwnedName
-                },
-                identity_terms: root_name.clone(),
-                alias_terms: String::new(),
-                structured_terms: identity.vocabulary.join(" "),
-                definition_terms: if identity.owners.is_empty() {
-                    String::new()
-                } else {
-                    identity.name.clone()
-                },
-            });
-        }
+        lexical_units.extend(atlas_index::project_lexical_units(&selection, &[]));
         let mut vector = vec![0.0; 768];
         vector[index % 768] = 1.0;
         if semantic && !selection.identity_required.is_empty() {
@@ -258,25 +226,6 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
                         chunk_bytes: range,
                     }
                 };
-                if section.is_lexical_definition() {
-                    lexical_units.push(SourceLexicalUnitInput {
-                        record: r.record.key().clone(),
-                        owners: field.locator.owners.clone(),
-                        field: Some(field.locator.field.clone()),
-                        address: Some(address.clone()),
-                        kind: match section.kind {
-                            SourceSelectedSectionKind::Heading => SourceLexicalUnitKind::Heading,
-                            SourceSelectedSectionKind::DefinitionLabel => {
-                                SourceLexicalUnitKind::DefinitionLabel
-                            }
-                            _ => unreachable!(),
-                        },
-                        identity_terms: selection.identity_required.clone(),
-                        alias_terms: String::new(),
-                        structured_terms: root_vocabulary.clone(),
-                        definition_terms: section.label.unwrap(),
-                    });
-                }
                 if semantic {
                     semantic_units.push(SourceSemanticUnitInput {
                         profile_id: atlas_domain::SearchProfileId::new("bge-base"),

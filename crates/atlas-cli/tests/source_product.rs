@@ -763,7 +763,7 @@ fn unsupported_cel_and_inconsistent_workspace_schema_fail_closed() {
         db.query_row("SELECT count(*) FROM schema_migrations", [], |r| r
             .get::<_, u64>(0))
             .unwrap(),
-        2
+        u64::from(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
     );
 }
 

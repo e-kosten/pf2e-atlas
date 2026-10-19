@@ -436,6 +436,7 @@ mod tests {
                 .worker
                 .search_page(
                     SearchResultsRequest {
+                        ranking: None,
                         search_profile: None,
                         criteria: SearchCriteria::ListRecords {
                             filter: Some(predicate.clone()),

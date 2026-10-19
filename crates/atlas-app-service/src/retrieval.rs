@@ -31,6 +31,7 @@ impl AtlasAppService {
         filter: Option<QueryPredicate>,
         page: atlas_app_model::SearchPageRequest,
         mode: atlas_app_model::RetrievalModeView,
+        ranking: atlas_domain::SearchRanking,
         search_profile: Option<atlas_domain::SearchProfileId>,
     ) -> AppServiceResult<atlas_app_model::SearchResultsView> {
         let page = SearchPage::new(page.number, page.size)?;
@@ -48,6 +49,7 @@ impl AtlasAppService {
             move |workspace| {
                 let r = workspace.retrieval_mut();
                 let result = r.search_text(TextSearchRequest {
+                    ranking,
                     search_profile: search_profile.as_ref(),
                     query: &query,
                     mode: retrieval_mode(mode),

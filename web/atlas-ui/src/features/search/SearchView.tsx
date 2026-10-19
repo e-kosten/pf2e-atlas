@@ -1,4 +1,4 @@
-import { Alert, Button, Space, Typography } from "antd";
+import { Alert, Button, Select, Space, Typography } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
 import { FilterControls } from "../../shared/filters/FilterPanel";
 import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
@@ -7,7 +7,10 @@ import type { SearchWorkspaceState } from "./useSearchWorkspace";
 import { SearchModelSelect } from "./SearchModelSelect";
 import { SearchProfileNotice } from "../../shared/search/SearchProfileNotice";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
-import { hasExecutableSearch } from "../../shared/filters/searchState";
+import {
+  hasExecutableSearch,
+  UNKNOWN_SEARCH_RANKING,
+} from "../../shared/filters/searchState";
 
 export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
   const profile = useSearchProfile();
@@ -27,7 +30,33 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
       <FilterControls
         filterState={workspace}
         layout="toolbar"
-        searchRowEnd={<SearchModelSelect />}
+        searchRowEnd={
+          <>
+            <SearchModelSelect />
+            {!workspace.search.similarSeed && (
+              <Select
+                aria-label="Search ranking"
+                className="search-model-select"
+                value={workspace.search.ranking ?? "score"}
+                options={[
+                  { value: "rrf", label: "Rank-based" },
+                  { value: "score", label: "Score-based" },
+                ]}
+                onChange={(ranking) =>
+                  workspace.setSearch({
+                    ...workspace.search,
+                    ranking,
+                    filterError:
+                      workspace.search.filterError === UNKNOWN_SEARCH_RANKING
+                        ? null
+                        : workspace.search.filterError,
+                  })
+                }
+                popupMatchSelectWidth={false}
+              />
+            )}
+          </>
+        }
       >
         {workspace.search.similarSeed && (
           <Space>

@@ -14,7 +14,7 @@ pub const ARTIFACT_CONTRACT_VERSION: &str = "pf2e-atlas-source-artifact/v3";
 pub const EXPECTED_SOURCE_KIND: &str = "foundry-pf2e";
 pub const SOURCE_PROJECTION_VERSION: &str = "authored-query/v1";
 pub const SOURCE_LOOKUP_VERSION: &str = "nfc-lowercase-whitespace/v1";
-pub const LEXICAL_SELECTION_VERSION: &str = "curated-lexical/v1";
+pub const LEXICAL_SELECTION_VERSION: &str = "curated-lexical/v2";
 pub const LOCALIZATION_POLICY_VERSION: &str = "selected-source-catalog/english-fallback/v1";
 pub const ASSET_POLICY_VERSION: &str = "safe-remote-images/local-unavailable/v1";
 pub const RELATIONSHIP_POLICY_VERSION: &str = "typed-authored-occurrences/v3";
@@ -117,6 +117,7 @@ pub struct SourceRemasterPairInput {
 #[serde(rename_all = "snake_case")]
 pub enum SourceLexicalUnitKind {
     RootName,
+    RootAlias,
     OwnedName,
     Heading,
     DefinitionLabel,
@@ -125,6 +126,7 @@ impl SourceLexicalUnitKind {
     pub(crate) const fn as_str(&self) -> &'static str {
         match self {
             Self::RootName => "root_name",
+            Self::RootAlias => "root_alias",
             Self::OwnedName => "owned_name",
             Self::Heading => "heading",
             Self::DefinitionLabel => "definition_label",

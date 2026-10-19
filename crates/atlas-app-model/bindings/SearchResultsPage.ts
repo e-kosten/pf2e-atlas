@@ -3,6 +3,7 @@ import type { SearchCoverageView } from "./SearchCoverageView";
 import type { SearchModeSummary } from "./SearchModeSummary";
 import type { SearchPageView } from "./SearchPageView";
 import type { SearchProfileId } from "./SearchProfileId";
+import type { SearchRanking } from "./SearchRanking";
 import type { SearchResultRow } from "./SearchResultRow";
 
-export type SearchResultsPage = { search_profile: SearchProfileId, artifact_generation: string, mode: SearchModeSummary, page: SearchPageView, rows: Array<SearchResultRow>, coverage: SearchCoverageView | null, };
+export type SearchResultsPage = { ranking: SearchRanking, search_profile: SearchProfileId, artifact_generation: string, mode: SearchModeSummary, page: SearchPageView, rows: Array<SearchResultRow>, coverage: SearchCoverageView | null, };
