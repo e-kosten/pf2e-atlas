@@ -99,7 +99,17 @@ impl AtlasRuntime {
         options: &RuntimeSetupOptions,
         manifest: Option<&Path>,
     ) -> Result<atlas_index::RequestedReferenceConfig, String> {
-        crate::source_configuration::resolve_configuration(&self.paths, options, manifest)
+        let configuration =
+            crate::source_configuration::resolve_configuration(&self.paths, options, manifest)?;
+        if configuration.source_root == self.paths.managed_source_root {
+            crate::source_acquisition::validate(&configuration.source_root)?;
+        }
+        atlas_ingest::validate_source_compatibility(
+            &configuration.source_root,
+            configuration.manifest_path.as_deref(),
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(configuration)
     }
 
     pub fn clean_setup(&self, options: RuntimeSetupCleanOptions) -> RuntimeSetupCleanReport {

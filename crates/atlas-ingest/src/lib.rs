@@ -9,6 +9,7 @@ mod index_build_input;
 mod report;
 mod source;
 mod source_aliases;
+mod source_compatibility;
 mod source_enrichment;
 mod source_fingerprint;
 mod source_loading;
@@ -19,6 +20,7 @@ pub use audit::{
 pub use build_model::{BuildArtifactOptions, BuildArtifactReport, ProfileBuildReport};
 pub use error::IngestError;
 pub use report::{SourceAnalysisReport, analyze_foundry_source};
+pub use source_compatibility::validate_source_compatibility;
 pub use source_enrichment::{
     EnrichedDocumentOutcome, EnrichedFoundryDocument, EnrichedFoundryPack, EnrichedFoundrySource,
     SourceEnrichmentContext, SourceEnrichmentReport, enrich_loaded_source,

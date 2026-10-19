@@ -5,6 +5,7 @@ export interface GenerationRoot {
   documentKind?: string; ruleKey?: string;
 }
 export interface GenerationInput {
+  referenceSource?: { repository: string; commit: string; systemVersion: string };
   traitLabelKeys?: Record<string, string>;
   source: SourceIdentity; selection: GenerationRoot[]; nodes: GraphNode[]; openTraitArrays?: string[];
   portfolio?: { typescript: string; schemaRoots: TypeGraph['roots']; families: NonNullable<TypeGraph['portfolio']>['families'] };

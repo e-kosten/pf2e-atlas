@@ -37,10 +37,15 @@ pub(crate) fn prepare_build(
     options: &BuildArtifactOptions,
     reusable: Vec<atlas_index::SourceArtifactRecordInput>,
 ) -> Result<PreparedSourceBuild, IngestError> {
+    crate::validate_source_compatibility(&options.source_root, options.manifest_path.as_deref())?;
     progress("load_source", "Loading typed Foundry source");
     let capture = crate::source_fingerprint::SourceCapture::capture(
         &options.source_root,
         options.manifest_path.as_deref(),
+    )?;
+    crate::source_compatibility::validate_manifest(
+        &capture.manifest_path,
+        &capture.read(&capture.manifest_path)?,
     )?;
     let fingerprint = capture.fingerprint.clone();
     let catalog =

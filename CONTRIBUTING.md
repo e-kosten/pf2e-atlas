@@ -511,21 +511,30 @@ Docs-only or instruction-only changes do not require the Rust or frontend gates 
 
 The normal landing path is a reviewed GitHub PR, with applicable local gates, CI, and human acceptance reported separately. `scripts/land-worktree.sh` and `just land` directly fast-forward local `main`; they are not the normal PR workflow and require explicit authorization to use. Do not interpret a passing gate as permission to merge.
 
-## Vendored PF2E Data
+## Pinned PF2E Data
 
-This repo expects a separate PF2E checkout under `vendor/pf2e`.
+`atlas setup --path-mode repo` acquires the model-aligned revision into
+`.cache/pf2e/<commit>`. The canonical pin is
+`dev-tools/source-contracts/source-pin.json`; runtime identity is generated from it.
+Global mode uses `pf2e-atlas/pf2e/<commit>` under the platform cache directory.
+The cache is detached and immutable: local edits or a different revision are
+reported, never overwritten. Cold acquisition requires Git and network access;
+warm check/offline use does not fetch.
 
-Initial clone:
+A separate `vendor/pf2e` checkout may be used for developer diagnostics or passed
+explicitly with `--source`. Atlas never pulls or checks out supplied directories.
+Existing workspaces retain their saved source selection. To move one to the
+managed repo-mode source without touching the old checkout or saved state:
 
 ```bash
-git clone https://github.com/foundryvtt/pf2e.git vendor/pf2e
+atlas setup --path-mode repo --source .cache/pf2e/4cbdaa37d6c33e9519561bae2c59a23e0288cbce
 ```
 
-The normal setup path can fetch or update source data automatically:
-
-```bash
-atlas setup
-```
+PF2e system sources must declare the supported version for product builds.
+Custom module versions are not interpreted as PF2e versions. Developer
+`atlas-dev source load` remains available for diagnosing unsupported inputs.
+Changing the pin requires regeneration and corpus/consumer validation; it is not
+an ordinary data refresh. See ADR0052.
 
 ## Source Modeling Integration
 
