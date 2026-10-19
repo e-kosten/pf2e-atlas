@@ -8,18 +8,18 @@ const ROOT: &str = "aaaaaaaaaaaaaaaa";
 const CHILD: &str = "bbbbbbbbbbbbbbbb";
 const OTHER: &str = "cccccccccccccccc";
 #[test]
-fn table_results_resolve_explicit_pack_pairs_and_retain_external_or_invalid_targets() {
+fn table_results_resolve_explicit_compendium_uuids_and_retain_external_or_invalid_targets() {
     let table = source_record(
         "RollTable",
         json!({"_id":ROOT,"results":[
-            {"_id":CHILD,"type":"pack","documentCollection":"pf2e.test","documentId":OTHER},
-            {"_id":"dddddddddddddddd","type":"pack","documentCollection":"pf2e.test","documentId":ROOT},
-            {"_id":"eeeeeeeeeeeeeeee","type":"pack","documentCollection":"other-system.test","documentId":OTHER},
-            {"_id":"ffffffffffffffff","type":"document","documentCollection":"Actor","documentId":OTHER},
-            {"_id":"gggggggggggggggg","type":"pack","documentCollection":"pf2e.macros","documentId":OTHER},
-            {"_id":"hhhhhhhhhhhhhhhh","type":"pack","documentCollection":"pf2e.test","documentId":42},
-            {"_id":"iiiiiiiiiiiiiiii","type":"text","documentCollection":"pf2e.test","documentId":OTHER},
-            {"_id":"jjjjjjjjjjjjjjjj","type":"document","documentCollection":"pf2e.test","documentId":OTHER}
+            {"_id":CHILD,"type":"document","documentUuid":format!("Compendium.pf2e.test.Item.{OTHER}")},
+            {"_id":"dddddddddddddddd","type":"document","documentUuid":format!("Compendium.pf2e.test.RollTable.{ROOT}")},
+            {"_id":"eeeeeeeeeeeeeeee","type":"document","documentUuid":format!("Compendium.other-system.test.Item.{OTHER}")},
+            {"_id":"ffffffffffffffff","type":"document","documentUuid":format!("Actor.{OTHER}")},
+            {"_id":"gggggggggggggggg","type":"document","documentUuid":format!("Compendium.pf2e.macros.Macro.{OTHER}")},
+            {"_id":"hhhhhhhhhhhhhhhh","type":"document","documentUuid":42},
+            {"_id":"iiiiiiiiiiiiiiii","type":"text","documentUuid":format!("Compendium.pf2e.test.Item.{OTHER}")},
+            {"_id":"jjjjjjjjjjjjjjjj","type":"document","documentUuid":format!("pf2e.test.{OTHER}")}
         ]}),
     );
     let target = source_record("Item", json!({"_id":OTHER,"type":"equipment"}));
@@ -38,7 +38,7 @@ fn table_results_resolve_explicit_pack_pairs_and_retain_external_or_invalid_targ
         edges
             .iter()
             .all(|e| e.kind == SourceRelationshipKind::TableResult
-                && e.locator.field == "/documentId"
+                && e.locator.field == "/documentUuid"
                 && e.locator.owners.len() == 1)
     );
     assert!(
@@ -56,8 +56,11 @@ fn table_results_resolve_explicit_pack_pairs_and_retain_external_or_invalid_targ
         edges[5].availability,
         FieldAvailability::Invalid { .. }
     ));
-    assert_eq!(edges[6].authored_target, edges[0].authored_target);
-    assert_eq!(edges[6].availability, FieldAvailability::Value);
+    assert_eq!(edges[6].authored_target, None);
+    assert!(matches!(
+        edges[6].availability,
+        FieldAvailability::Invalid { .. }
+    ));
     assert_eq!(edges[6].resolution, ContentReferenceResolution::Unresolved);
 }
 fn admitted(kind: &str, value: Value) -> atlas_foundry_model::FoundryDocumentSource {
@@ -193,6 +196,7 @@ fn dispatches_all_eight_actor_and_twenty_four_item_families() {
     for family in [
         "action",
         "affliction",
+        "ammo",
         "ancestry",
         "armor",
         "background",
@@ -730,7 +734,7 @@ fn macro_commands_are_source_data_and_table_results_have_owned_identity() {
     assert!(!text.iter().any(|t| t.text.contains("console.log")));
     let table = source_record(
         "RollTable",
-        json!({"_id":ROOT,"description":"<p>Table</p>","results":[{"_id":CHILD,"text":"@Damage[1d6]"}]}),
+        json!({"_id":ROOT,"description":"<p>Table</p>","results":[{"_id":CHILD,"description":"@Damage[1d6]"}]}),
     );
     assert_eq!(source_owned_document_count(&table), 1);
     let content = prepare_record_content(&table, public(), None, None);

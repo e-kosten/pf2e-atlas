@@ -169,8 +169,9 @@ impl<'a> ActorQueryView<'a> {
         actor_projection!(
             self,
             s,
-            [NPCSource, CharacterSource],
+            [NPCSource],
             [
+                CharacterSource,
                 HazardSource,
                 ArmySource,
                 VehicleSource,
@@ -192,13 +193,6 @@ impl<'a> ActorQueryView<'a> {
                     .and_then(|s| (&s.speed).into())
                     .and_then(|s| (&s.other_speeds).into())
                     .map(|s| ActorSpeeds::Npc(s))
-            }
-            SourceNodeView::Actor(ActorSourcePF2e::CharacterSource(s)) => {
-                SourceFieldView::from(&s.system)
-                    .and_then(|s| (&s.attributes).into())
-                    .and_then(|s| (&s.speed).into())
-                    .and_then(|s| (&s.other_speeds).into())
-                    .map(|s| ActorSpeeds::Character(s))
             }
             _ => SourceFieldView::NotApplicable,
         }
@@ -323,7 +317,7 @@ impl<'a> ActorQueryView<'a> {
                 .and_then(|s| (&s.adjustment).into())
         )
     }
-    pub fn npc_skills(self) -> SourceFieldView<'a, &'a NPCSystemSourceSkillsPartial> {
+    pub fn npc_skills(self) -> SourceFieldView<'a, &'a NPCSystemSourceSkills> {
         actor_projection!(
             self,
             s,
@@ -369,13 +363,11 @@ fn omitted_iwr<'a, T>(field: SourceFieldView<'a, &'a Vec<T>>) -> SourceFieldView
 #[derive(Debug, Clone, Copy)]
 pub enum ActorSpeeds<'a> {
     Npc(&'a [LabeledSpeed]),
-    Character(&'a [CharacterAttributesSourceSpeedOtherSpeedsEntry]),
 }
 impl<'a> ActorSpeeds<'a> {
     pub fn len(self) -> usize {
         match self {
             Self::Npc(s) => s.len(),
-            Self::Character(s) => s.len(),
         }
     }
     pub fn is_empty(self) -> bool {
@@ -384,34 +376,27 @@ impl<'a> ActorSpeeds<'a> {
     pub fn get(self, index: usize) -> Option<ActorSpeedEntry<'a>> {
         match self {
             Self::Npc(s) => s.get(index).map(ActorSpeedEntry::Npc),
-            Self::Character(s) => s.get(index).map(ActorSpeedEntry::Character),
         }
     }
     pub fn iter(self) -> Box<dyn ExactSizeIterator<Item = ActorSpeedEntry<'a>> + 'a> {
         match self {
             Self::Npc(v) => Box::new(v.iter().map(ActorSpeedEntry::Npc)),
-            Self::Character(v) => Box::new(v.iter().map(ActorSpeedEntry::Character)),
         }
     }
 }
 #[derive(Debug, Clone, Copy)]
 pub enum ActorSpeedEntry<'a> {
     Npc(&'a LabeledSpeed),
-    Character(&'a CharacterAttributesSourceSpeedOtherSpeedsEntry),
 }
 impl<'a> ActorSpeedEntry<'a> {
-    pub fn speed_type(
-        self,
-    ) -> SourceFieldView<'a, &'a CharacterAttributesSourceSpeedOtherSpeedsEntryType> {
+    pub fn speed_type(self) -> SourceFieldView<'a, &'a LabeledSpeedType> {
         match self {
             Self::Npc(s) => (&s.r#type).into(),
-            Self::Character(s) => (&s.r#type).into(),
         }
     }
     pub fn value(self) -> SourceFieldView<'a, &'a Number> {
         match self {
             Self::Npc(s) => (&s.value).into(),
-            Self::Character(s) => (&s.value).into(),
         }
     }
 }

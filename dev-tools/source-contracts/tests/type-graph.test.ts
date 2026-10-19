@@ -92,26 +92,26 @@ test('default portfolio follows pack kinds, complete family unions and registere
   assert.ok(!result.nodes.some((node) => 'fields' in node && node.fields?.some((field) => field.name === 'preparedOnly')));
 });
 
-test('rule schema field provenance distinguishes ArrayField, StrictArrayField and unrelated names without execution', async () => {
+test('rule schema field provenance distinguishes ArrayField, SetField, StrictArrayField and unrelated names without execution', async () => {
   const temporary = await mkdtemp(path.join(os.tmpdir(), 'atlas-array-fields-'));
   try {
     await cp(fixture, temporary, { recursive: true });
     await mkdir(path.join(temporary, 'types/foundry/common/data'), { recursive: true });
-    await writeFile(path.join(temporary, 'types/foundry/common/data/fields.d.ts'), 'export class ArrayField<T> { source: T[] }');
+    await writeFile(path.join(temporary, 'types/foundry/common/data/fields.d.mts'), 'export type SourceFromSchema<T> = { [K in keyof T]: T[K] extends { source: infer S } ? S : never }; export class ArrayField<T> { source: T[] } export class SetField<T> extends ArrayField<T> {}');
     await mkdir(path.join(temporary, 'src/module/system'), { recursive: true });
     await writeFile(path.join(temporary, 'src/module/system/schema-data-fields.ts'),
-      "import { ArrayField } from '../../../types/foundry/common/data/fields.js'; export class StrictArrayField<T> extends ArrayField<T> {}");
+      "import { ArrayField } from '../../../types/foundry/common/data/fields.mjs'; export class StrictArrayField<T> extends ArrayField<T> {}");
     await writeFile(path.join(temporary, 'unrelated.ts'), 'export class ArrayField<T> { declare source: T[] }');
     const exampleFile = path.join(temporary, 'src/module/rules/example.ts');
     const example = await readFile(exampleFile, 'utf8');
-    await writeFile(exampleFile, `import { ArrayField } from '../../../types/foundry/common/data/fields.js';
+    await writeFile(exampleFile, `import { ArrayField, SetField } from '../../../types/foundry/common/data/fields.mjs';
 import { StrictArrayField } from '../system/schema-data-fields.js';
 import { ArrayField as Impostor } from '../../../unrelated.js';
-${example.replace('choices: Field<string[]>', 'choices: ArrayField<string>; strict: StrictArrayField<string>; unrelated: Impostor<string>')}`);
+${example.replace('choices: Field<string[]>', 'choices: ArrayField<string>; sets: SetField<string>; strict: StrictArrayField<string>; unrelated: Impostor<string>')}`);
     const graph = extractTypeGraph(temporary);
     assert.equal(graph.complete, true, JSON.stringify(graph.diagnostics));
     for (const root of graph.roots.filter(root => root.ruleKey)) {
-      assert.deepEqual(root.arrayInputs!.map(input => [input.field, input.fieldClass]), [['choices', 'ArrayField'], ['strict', 'StrictArrayField']]);
+      assert.deepEqual(root.arrayInputs!.map(input => [input.field, input.fieldClass]), [['choices', 'ArrayField'], ['sets', 'SetField'], ['strict', 'StrictArrayField']]);
       assert.ok(root.arrayInputs!.every(input => input.elementRef === 'primitive:string' && input.declaredAt[0].file === 'src/module/rules/example.ts'));
     }
   } finally { await rm(temporary, { recursive: true, force: true }); }
@@ -129,14 +129,14 @@ test('portfolio changes reveal new families, document kinds, rules and unsupport
     assert.ok(mismatch.diagnostics.some((entry) => entry.code === 'family-coverage'));
     assert.equal(mismatch.complete, false);
     await writeFile(configFile, config);
-    const manifestFile = path.join(temporary, 'static/system.json');
+    const manifestFile = path.join(temporary, 'system.pf2e.json');
     const manifest = JSON.parse(await readFile(manifestFile, 'utf8'));
     manifest.packs.push({ type: 'NewDocument' });
     await writeFile(manifestFile, JSON.stringify(manifest));
     const missing = extractTypeGraph(temporary);
     assert.ok(missing.roots.some((entry) => entry.documentKind === 'NewDocument' && entry.ref === null));
     assert.ok(missing.diagnostics.some((entry) => entry.code === 'missing-root'));
-    const documentsFile = path.join(temporary, 'types/foundry/common/documents/module.d.ts');
+    const documentsFile = path.join(temporary, 'types/foundry/common/documents/_module.d.mts');
     await writeFile(documentsFile, `${await readFile(documentsFile, 'utf8')}\nexport interface NewDocumentSource { value: string }`);
     assert.equal(extractTypeGraph(temporary).complete, true);
     const rulesFile = path.join(temporary, 'src/module/rules/index.ts');
@@ -198,11 +198,11 @@ test('missing schema methods and invalid portfolio inputs cannot report a comple
     await writeFile(configFile, `${config}\nPF2ECONFIG.Actor.documentClasses.npc = Object;`);
     assert.equal(extractTypeGraph(temporary).complete, false);
     await writeFile(configFile, config);
-    await writeFile(path.join(temporary, 'static/system.json'), '{"packs":[]}');
+    await writeFile(path.join(temporary, 'system.pf2e.json'), '{"packs":[]}');
     const empty = extractTypeGraph(temporary);
     assert.equal(empty.complete, false);
     assert.ok(empty.diagnostics.some((entry) => entry.message.includes('packs must not be empty')));
-    await writeFile(path.join(temporary, 'static/system.json'), '{invalid json');
+    await writeFile(path.join(temporary, 'system.pf2e.json'), '{invalid json');
     assert.equal(extractTypeGraph(temporary).complete, false);
   } finally { await rm(temporary, { recursive: true, force: true }); }
 });

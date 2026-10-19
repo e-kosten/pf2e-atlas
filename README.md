@@ -1,5 +1,7 @@
 # PF2e Atlas
 
+The supported Foundry PF2e reference release is **8.6.1**. Setup acquires its pinned source revision.
+
 PF2e Atlas gives players, GMs, tool builders, and local coding agents a fast way to search and reference Pathfinder Second Edition content locally. It supports record lookup, ranked search, structured filters, name resolution, similar-record retrieval, graph context, and a local web workspace.
 
 The `atlas` CLI indexes PF2E data from the [Foundry PF2E repository](https://github.com/foundryvtt/pf2e) and exposes tools for people and agents.
@@ -279,7 +281,7 @@ The default setup stores the durable workspace in platform application-data stor
   - persistent workspace: `.atlas/workspace.sqlite`
 
 Default reference data and generated models use the same immutable PF2e revision
-(currently 6.12.4). Setup fetches that revision rather than following upstream's
+(currently 8.6.1). Setup fetches that revision rather than following upstream's
 latest branch. Supplied source directories are never pulled or checked out by
 Atlas; incompatible PF2e system versions produce an expected/detected version error.
 

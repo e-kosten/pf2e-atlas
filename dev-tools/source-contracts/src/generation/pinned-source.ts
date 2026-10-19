@@ -32,7 +32,7 @@ export function contains(parent: string, child: string): boolean {
   const relative = path.relative(path.resolve(parent), path.resolve(child));
   return !relative || relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative);
 }
-const sourcePaths = ['src', 'types', 'package.json', 'tsconfig.json', 'static/system.json', 'static/lang/en.json'];
+const sourcePaths = ['src', 'types', 'package.json', 'tsconfig.json', 'system.pf2e.json', 'static/lang/en.json'];
 async function exists(file: string): Promise<boolean> {
   try { await lstat(file); return true; } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;

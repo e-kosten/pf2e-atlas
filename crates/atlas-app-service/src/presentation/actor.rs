@@ -240,7 +240,7 @@ fn iwr(
                 let (exceptions, double_against) = match e {
                     ActorIwrEntry::Immunity(v) => (
                         qualifiers((&v.exceptions).into(), |q| match q {
-                            ImmunityQualifier::Alternative103(v) => text((&v.label).into()),
+                            ImmunityQualifier::Alternative107(v) => text((&v.label).into()),
                             _ => identifier(SourceFieldView::Value(q)),
                         }),
                         unavailable(),
@@ -250,7 +250,7 @@ fn iwr(
                     }
                     ActorIwrEntry::Weakness(v) => (
                         qualifiers((&v.exceptions).into(), |q| match q {
-                            WeaknessQualifier::Alternative70(v) => text((&v.label).into()),
+                            WeaknessQualifier::Alternative72(v) => text((&v.label).into()),
                             _ => identifier(SourceFieldView::Value(q)),
                         }),
                         unavailable(),
@@ -296,7 +296,7 @@ fn resistance_qualifiers(
     v: SourceFieldView<'_, &Vec<ResistanceQualifier>>,
 ) -> FactView<Vec<String>> {
     qualifiers(v, |q| match q {
-        ResistanceQualifier::Alternative67(v) => text((&v.label).into()),
+        ResistanceQualifier::Alternative69(v) => text((&v.label).into()),
         _ => identifier(SourceFieldView::Value(q)),
     })
 }
@@ -390,6 +390,16 @@ pub(super) fn authored_activity(
         ),
     };
     let mut activity = ActorActivityView {
+        is_ranged: fact(match item {
+            ItemSourceView::MeleeSource(s) => {
+                match SourceFieldView::from(&s.system).and_then(|s| (&s.range).into()) {
+                    SourceFieldView::Value(_) => SourceFieldView::Value(true),
+                    SourceFieldView::Null => SourceFieldView::Value(false),
+                    other => other.map(|_| false),
+                }
+            }
+            _ => SourceFieldView::NotApplicable,
+        }),
         effect_duration: item_reference::effect_duration(item),
         self_effect: fact(
             match item.self_effect() {
@@ -415,7 +425,7 @@ pub(super) fn authored_activity(
             "spellcastingEntry" => ActorActivityKindView::CastingEntry,
             "lore" => ActorActivityKindView::Lore,
             "action" | "effect" | "feat" => ActorActivityKindView::Ability,
-            "weapon" | "armor" | "shield" | "equipment" | "consumable" | "backpack"
+            "ammo" | "weapon" | "armor" | "shield" | "equipment" | "consumable" | "backpack"
             | "treasure" => ActorActivityKindView::Gear,
             _ => ActorActivityKindView::Other,
         },
@@ -693,7 +703,7 @@ pub(crate) fn manual_presentation(
 }
 
 fn activity_frequency(item: ItemSourceView<'_>) -> FactView<ActivityFrequencyView> {
-    use atlas_foundry_model::generated::FrequencyPer;
+    use atlas_foundry_model::generated::AbilitySystemSourceFrequencyPer;
     let source = match item.activity_frequency() {
         SourceFieldView::Null => SourceFieldView::NotApplicable,
         value => value,
@@ -702,16 +712,16 @@ fn activity_frequency(item: ItemSourceView<'_>) -> FactView<ActivityFrequencyVie
         maximum: number((&frequency.max).into()),
         interval: fact(SourceFieldView::from(&frequency.per).map(|per| {
             match per {
-                FrequencyPer::P1M => "month",
-                FrequencyPer::P1W => "week",
-                FrequencyPer::P1Y => "year",
-                FrequencyPer::PT10M => "10 minutes",
-                FrequencyPer::PT1H => "hour",
-                FrequencyPer::PT1M => "minute",
-                FrequencyPer::PT24H => "24 hours",
-                FrequencyPer::Day => "day",
-                FrequencyPer::Round => "round",
-                FrequencyPer::Turn => "turn",
+                AbilitySystemSourceFrequencyPer::P1M => "month",
+                AbilitySystemSourceFrequencyPer::P1W => "week",
+                AbilitySystemSourceFrequencyPer::P1Y => "year",
+                AbilitySystemSourceFrequencyPer::PT10M => "10 minutes",
+                AbilitySystemSourceFrequencyPer::PT1H => "hour",
+                AbilitySystemSourceFrequencyPer::PT1M => "minute",
+                AbilitySystemSourceFrequencyPer::PT24H => "24 hours",
+                AbilitySystemSourceFrequencyPer::Day => "day",
+                AbilitySystemSourceFrequencyPer::Round => "round",
+                AbilitySystemSourceFrequencyPer::Turn => "turn",
             }
             .to_owned()
         })),

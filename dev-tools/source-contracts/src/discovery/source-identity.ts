@@ -5,7 +5,7 @@ import path from 'node:path';
 import type { SourceIdentity } from '../contracts.js';
 
 const inputDirectories = ['src', 'types'];
-const inputFiles = ['package.json', 'tsconfig.json', 'static/system.json', 'static/lang/en.json'];
+const inputFiles = ['package.json', 'tsconfig.json', 'system.pf2e.json', 'static/lang/en.json'];
 
 export async function sourceIdentity(sourceRoot: string): Promise<SourceIdentity> {
   const names = [...inputFiles];

@@ -176,7 +176,7 @@ pub(super) fn participant_stat_block(
                     }
                 }
             }
-            // PF2e 6.12.4 MeleePF2e.prepareActorData adjusts the first stored
+            // PF2e 8.6.1 MeleePF2e.prepareActorData adjusts the first stored
             // damage component, preserving source order, once for an NPC variant.
             if delta != 0
                 && activity.kind == MechanicActivityKindView::Strike
@@ -291,26 +291,25 @@ pub(super) fn participant_stat_block(
                 applied = true;
             }
         }
-        // Pinned PF2e 6.12.4: MeleePF2e.defaultAttribute and
+        // Pinned PF2e 8.6.1: MeleePF2e.defaultAttribute and
         // getAttackDamageDomains define these selectors from typed strike traits.
         for activity in &mut block.activities {
-            let ranged = activity
-                .traits
-                .iter()
-                .any(|t| t.starts_with("range-") || t.starts_with("thrown-"));
-            let dexterity_attack = if ranged {
-                !activity.traits.iter().any(|t| t == "brutal")
-            } else {
-                activity.traits.iter().any(|t| t == "finesse")
-            };
+            let ranged = activity.is_ranged;
+            let dexterity_attack = ranged.map(|ranged| {
+                if ranged {
+                    !activity.traits.iter().any(|t| t == "brutal")
+                } else {
+                    activity.traits.iter().any(|t| t == "finesse")
+                }
+            });
             let penalty = match rule {
                 ConditionRule::Frightened | ConditionRule::Sickened => {
                     Some((-amount, StatModifierTypeView::Status))
                 }
-                ConditionRule::Enfeebled if !dexterity_attack => {
+                ConditionRule::Enfeebled if dexterity_attack == Some(false) => {
                     Some((-amount, StatModifierTypeView::Status))
                 }
-                ConditionRule::Clumsy if dexterity_attack => {
+                ConditionRule::Clumsy if dexterity_attack == Some(true) => {
                     Some((-amount, StatModifierTypeView::Status))
                 }
                 ConditionRule::Prone => Some((-2, StatModifierTypeView::Circumstance)),
@@ -332,7 +331,7 @@ pub(super) fn participant_stat_block(
                     applied = true;
                 }
             }
-            let strength_damage = !ranged
+            let strength_damage = ranged == Some(false)
                 || activity.traits.iter().any(|t| t == "propulsive")
                 || (activity.traits.iter().any(|t| t.starts_with("thrown-"))
                     && !activity.traits.iter().any(|t| t == "splash"));
@@ -572,6 +571,7 @@ pub(super) fn arithmetic_baseline(presentation: &RecordPresentationView) -> Opti
         })
         .cloned()
         .map(|a| MechanicActivityView {
+            is_ranged: a.is_ranged.value,
             activity_id: a
                 .navigation
                 .owners

@@ -144,7 +144,7 @@ pub fn prepare_record_content(
     output
 }
 
-// Evidence: PF2e 6.12.4 Item.description and Actor family sheet enrichHTML
+// Evidence: PF2e 8.6.1 Item.description and Actor family sheet enrichHTML
 // callsites; core journal text format 1/2 and RollTable HTMLField declarations.
 // Unknown/additional/patch/rule strings are intentionally not traversed.
 impl<'a> SourceNodeView<'a> {
@@ -450,7 +450,13 @@ pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<SourceContentSel
             All,
             (&s.description).into(),
         ),
-        SourceNodeView::Result(s) => add("/text", TableResult, Html, All, (&s.text).into()),
+        SourceNodeView::Result(s) => add(
+            "/description",
+            TableResult,
+            Html,
+            All,
+            (&s.description).into(),
+        ),
         SourceNodeView::Actor(ActorSourcePF2e::FamiliarSource(_))
         | SourceNodeView::Journal(_)
         | SourceNodeView::Macro(_) => {}
@@ -459,7 +465,7 @@ pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<SourceContentSel
         let values = SourceFieldView::from(&feat.system)
             .and_then(|s| (&s.prerequisites).into())
             .and_then(|p| (&p.value).into());
-        // PF2e 6.12.4 feat embedHTMLString enriches prerequisite text. Select each
+        // PF2e 8.6.1 feat embedHTMLString enriches prerequisite text. Select each
         // entry independently to retain its exact address and link attribution.
         match values {
             SourceFieldView::Value(values) => {

@@ -42,6 +42,7 @@ pub enum ReferenceUpgrade {
     QueryProjections,
     LexicalProjections,
     SourcePreparation,
+    SourceReplacement,
 }
 
 /// Known policy namespaces are versioned independently. Older positive versions
@@ -76,8 +77,13 @@ fn upgrade_plan(
     let Some(original) = read_stored_reference_context(c)? else {
         return Ok((ReferenceUpgrade::Current, None));
     };
-    if original.snapshot_version != atlas_foundry_model::SNAPSHOT_VERSION
-        || original.source_contract != atlas_foundry_model::SOURCE_CONTRACT_ID
+    // This predecessor is replaced from source, never decoded by the new model.
+    let replace_source = original.snapshot_version == 1
+        && original.source_contract
+            == "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8";
+    if !replace_source
+        && (original.snapshot_version != atlas_foundry_model::SNAPSHOT_VERSION
+            || original.source_contract != atlas_foundry_model::SOURCE_CONTRACT_ID)
     {
         return Err(IndexError::Unsupported(
             "stored source snapshot contract is unsupported".into(),
@@ -94,6 +100,10 @@ fn upgrade_plan(
         crate::input::SOURCE_PROJECTION_VERSION,
     )? || original.query_catalog_version != current_catalog;
     let mut target = original.clone();
+    if replace_source {
+        target.snapshot_version = atlas_foundry_model::SNAPSHOT_VERSION;
+        target.source_contract = atlas_foundry_model::SOURCE_CONTRACT_ID.into();
+    }
     target.query_catalog_version = current_catalog;
     target.query_projection_version = crate::input::SOURCE_PROJECTION_VERSION.into();
     let lexical_changed = older_policy(
@@ -131,6 +141,9 @@ fn upgrade_plan(
     // The target must still satisfy every non-upgradable source/model/FTS
     // contract. No current-reader checks are bypassed for product consumers.
     crate::writer::validate_context(&target)?;
+    if replace_source {
+        return Ok((ReferenceUpgrade::SourceReplacement, None));
+    }
     if source_changed {
         return Ok((ReferenceUpgrade::SourcePreparation, None));
     }

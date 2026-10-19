@@ -4,7 +4,7 @@ use atlas_foundry_model::generated::*;
 use serde::de::{self, DeserializeOwned};
 use std::{fmt, sync::OnceLock};
 
-pub const QUERY_CAPABILITY_VERSION: u32 = 5;
+pub const QUERY_CAPABILITY_VERSION: u32 = 6;
 const ACTORS: &[&str] = &[
     "npc",
     "hazard",
@@ -18,6 +18,7 @@ const ACTORS: &[&str] = &[
 const ACTOR_LEVELS: &[&str] = &["npc", "hazard", "character", "army", "vehicle", "loot"];
 const IWR: &[&str] = &["npc", "hazard", "character", "army", "vehicle"];
 const PHYSICAL: &[&str] = &[
+    "ammo",
     "armor",
     "backpack",
     "book",
@@ -31,6 +32,7 @@ const ITEMS: &[&str] = &[
     "action",
     "affliction",
     "ancestry",
+    "ammo",
     "armor",
     "background",
     "book",
@@ -57,6 +59,7 @@ const ITEM_TRAITS: &[&str] = &[
     "action",
     "affliction",
     "ancestry",
+    "ammo",
     "armor",
     "background",
     "book",
@@ -77,6 +80,7 @@ const ITEM_TRAITS: &[&str] = &[
 ];
 const ITEM_RARITY: &[&str] = &[
     "ancestry",
+    "ammo",
     "armor",
     "background",
     "book",
@@ -505,12 +509,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
         ),
         ("defenses.saves.will", "will", &["npc", "hazard"][..], None),
         ("perception", "perception", &["npc"][..], None),
-        (
-            "movement.land",
-            "land_speed",
-            &["npc", "character"][..],
-            Some("feet"),
-        ),
+        ("movement.land", "land_speed", &["npc"][..], Some("feet")),
         ("hazard.hardness", "hardness", &["hazard"][..], None),
     ] {
         fields.push(field(
@@ -549,7 +548,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
             "speeds",
             "actor_speeds",
             "record_id",
-            &["npc", "character"][..],
+            &["npc"][..],
             None,
         ),
         (
@@ -722,7 +721,14 @@ fn build() -> Result<Vec<Descriptor>, String> {
             "physical.usage",
             "usage",
             String,
-            &["backpack", "book", "consumable", "equipment", "weapon"][..],
+            &[
+                "ammo",
+                "backpack",
+                "book",
+                "consumable",
+                "equipment",
+                "weapon",
+            ][..],
             Vec::new(),
             None,
         ),
@@ -739,7 +745,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
             "consumable_damage_type",
             String,
             &["consumable"][..],
-            choices::<ConsumableDamageHealingType>()?,
+            choices::<ModularConfigDamageType>()?,
             None,
         ),
         (
@@ -785,7 +791,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
             "damage_type",
             &["weapon"][..],
             String,
-            choices::<ConsumableDamageHealingType>()?,
+            choices::<ModularConfigDamageType>()?,
             None,
         ),
         (
@@ -936,7 +942,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
             "duration_unit",
             &["effect"][..],
             String,
-            choices::<DurationDataUnit>()?,
+            choices::<SourceFromSchemaDurationDataSchemaUnit>()?,
         ),
         (
             "condition.is_valued",
@@ -1091,7 +1097,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
             "movement.speeds",
             "type",
             String,
-            choices::<CharacterAttributesSourceSpeedOtherSpeedsEntryType>()?,
+            choices::<LabeledSpeedType>()?,
             None,
         ),
         ("movement.speeds", "feet", Number, Vec::new(), Some("feet")),
@@ -1129,7 +1135,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
             "spell.damage",
             "type",
             String,
-            choices::<ConsumableDamageHealingType>()?,
+            choices::<ModularConfigDamageType>()?,
             None,
         ),
     ] {

@@ -1,6 +1,8 @@
 //! Authored feat/effect reading facts, without character or encounter execution.
 use super::*;
-use atlas_foundry_model::generated::{DurationDataExpiry, DurationDataUnit};
+use atlas_foundry_model::generated::{
+    SourceFromSchemaDurationDataSchemaExpiry, SourceFromSchemaDurationDataSchemaUnit,
+};
 
 pub(super) fn effect_duration(item: ItemSourceView<'_>) -> FactView<EffectDurationView> {
     let ItemSourceView::EffectSource(source) = item else {
@@ -12,10 +14,12 @@ pub(super) fn effect_duration(item: ItemSourceView<'_>) -> FactView<EffectDurati
             .map(|duration| EffectDurationView {
                 duration: fact(
                     SourceFieldView::from(&duration.unit).and_then(|unit| match unit {
-                        DurationDataUnit::Encounter => {
+                        SourceFromSchemaDurationDataSchemaUnit::Encounter => {
                             SourceFieldView::Value("Until the encounter ends".into())
                         }
-                        DurationDataUnit::Unlimited => SourceFieldView::Value("Unlimited".into()),
+                        SourceFromSchemaDurationDataSchemaUnit::Unlimited => {
+                            SourceFieldView::Value("Unlimited".into())
+                        }
                         unit => SourceFieldView::from(&duration.value).and_then(|amount| {
                             if !amount.as_f64().is_some_and(|n| n >= 0.0) {
                                 return SourceFieldView::ProjectionInvalid {
@@ -25,12 +29,12 @@ pub(super) fn effect_duration(item: ItemSourceView<'_>) -> FactView<EffectDurati
                             }
                             let singular = amount.as_f64() == Some(1.0);
                             let label = match unit {
-                                DurationDataUnit::Rounds => "round",
-                                DurationDataUnit::Minutes => "minute",
-                                DurationDataUnit::Hours => "hour",
-                                DurationDataUnit::Days => "day",
-                                DurationDataUnit::Encounter => "encounter",
-                                DurationDataUnit::Unlimited => "unlimited",
+                                SourceFromSchemaDurationDataSchemaUnit::Rounds => "round",
+                                SourceFromSchemaDurationDataSchemaUnit::Minutes => "minute",
+                                SourceFromSchemaDurationDataSchemaUnit::Hours => "hour",
+                                SourceFromSchemaDurationDataSchemaUnit::Days => "day",
+                                SourceFromSchemaDurationDataSchemaUnit::Encounter => "encounter",
+                                SourceFromSchemaDurationDataSchemaUnit::Unlimited => "unlimited",
                             };
                             SourceFieldView::Value(format!(
                                 "{amount} {label}{}",
@@ -41,10 +45,11 @@ pub(super) fn effect_duration(item: ItemSourceView<'_>) -> FactView<EffectDurati
                 ),
                 sustained: fact(SourceFieldView::from(&duration.sustained).map(|v| *v)),
                 expiry: fact(
-                    // PF2e 6.12.4 EffectPF2e.prepareBaseData clears expiry for these units.
+                    // PF2e 8.6.1 AbstractEffectPF2e.totalDuration makes these units unlimited.
                     match SourceFieldView::from(&duration.unit) {
                         SourceFieldView::Value(
-                            DurationDataUnit::Encounter | DurationDataUnit::Unlimited,
+                            SourceFromSchemaDurationDataSchemaUnit::Encounter
+                            | SourceFromSchemaDurationDataSchemaUnit::Unlimited,
                         ) => SourceFieldView::NotApplicable,
                         _ => match SourceFieldView::from(&duration.expiry) {
                             SourceFieldView::Null => SourceFieldView::NotApplicable,
@@ -53,9 +58,15 @@ pub(super) fn effect_duration(item: ItemSourceView<'_>) -> FactView<EffectDurati
                     }
                     .map(|expiry| {
                         match expiry {
-                            DurationDataExpiry::TurnStart => "At the start of the turn",
-                            DurationDataExpiry::TurnEnd => "At the end of the turn",
-                            DurationDataExpiry::RoundEnd => "At the end of the round",
+                            SourceFromSchemaDurationDataSchemaExpiry::TurnStart => {
+                                "At the start of the turn"
+                            }
+                            SourceFromSchemaDurationDataSchemaExpiry::TurnEnd => {
+                                "At the end of the turn"
+                            }
+                            SourceFromSchemaDurationDataSchemaExpiry::RoundEnd => {
+                                "At the end of the round"
+                            }
                         }
                         .into()
                     }),

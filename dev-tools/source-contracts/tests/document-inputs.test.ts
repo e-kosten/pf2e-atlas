@@ -18,8 +18,8 @@ function fixture(): TypeGraph {
       { id: 'nullable', kind: 'union', members: ['token', 'primitive:null'] }, { id: 'primitive:number', kind: 'primitive', value: 'number' },
       { id: 'vocabulary', kind: 'union', members: ['token'] },
       object('Reload', weaponFile, [field('value', 'nullable', weaponFile, false, true)]),
-      object('Bonus', weaponFile, [field('value','primitive:number',weaponFile)]), object('Splash', weaponFile, [field('value','primitive:number',weaponFile)]),
-      object('WeaponSystemSource', weaponFile, [field('reload', 'Reload', weaponFile),field('bonusDamage','Bonus',weaponFile),field('splashDamage','Splash',weaponFile)]),
+      object('Splash', weaponFile, [field('value','primitive:number',weaponFile)]),
+      object('WeaponSystemSource', weaponFile, [field('reload', 'Reload', weaponFile),field('splashDamage','Splash',weaponFile)]),
       object('WeaponDamage', weaponFile, [field('die', 'nullable', weaponFile, false, true)]),
       object('SpellDamageSource', spellFile, [field('category', 'nullable', spellFile, false, true)]),
       object('SpellArea', spellFile, [field('value', 'primitive:number', spellFile), field('type', 'vocabulary', spellFile)]),
@@ -28,10 +28,10 @@ function fixture(): TypeGraph {
       object('SpellDefenseSource', spellFile, [field('passive','PassiveNullable',spellFile,false,true),field('save','SaveNullable',spellFile,false,true)]),
       object('CreatureInitiativeSource', 'src/module/actor/creature/data.ts', [field('statistic', 'vocabulary', 'src/module/actor/creature/data.ts')]),
       object('SpellSystemSource', spellFile, [field('damage', 'SpellDamageSource', spellFile), field('next', 'SpellSystemSource', spellFile, true)]),
-      object('DeepPartial', 'types/foundry/util.d.ts', [field('damage', 'SpellDamageSource', spellFile, true), field('next', 'SpellSystemSource', spellFile, true)]),
-      object('Levels', spellFile, Array.from({length:10}, (_, index) => field(String(index + 1), 'DeepPartial', spellFile, true))),
+      object('Partial', 'node_modules/typescript/lib/lib.es5.d.ts', [field('damage', 'SpellDamageSource', spellFile, true), field('next', 'SpellSystemSource', spellFile, true)]),
+      object('Levels', spellFile, Array.from({length:10}, (_, index) => field(String(index + 1), 'Partial', spellFile, true))),
       object('SpellHeighteningFixed', spellFile, [field('levels', 'Levels', spellFile)]),
-      object('SpellOverlayOverride', spellFile, [field('system', 'DeepPartial', spellFile, true)]),
+      object('SpellOverlayOverride', spellFile, [field('system', 'Partial', spellFile, true)]),
       object('Item', 'root.ts', [field('weapon', 'WeaponSystemSource', 'root.ts'), field('damage', 'WeaponDamage', 'root.ts'), field('spell', 'SpellSystemSource', 'root.ts'), field('overlay', 'SpellOverlayOverride', 'root.ts'), field('area', 'SpellArea', 'root.ts'), field('defense', 'SpellDefenseSource', 'root.ts'), field('initiative', 'CreatureInitiativeSource', 'root.ts'), field('fixed', 'SpellHeighteningFixed', 'root.ts'), field('unrelated', 'nullable', 'root.ts', false, true)])] };
 }
 
@@ -40,7 +40,7 @@ test('document authored policies preserve declaration evidence and remain scoped
   const projected = authoredDocumentInputs(schema);
   assert.deepEqual(schema, before);
   assert.deepEqual(authoredDocumentInputs(schema).graph, projected.graph);
-  assert.equal(projected.changes.length, 12);
+  assert.equal(projected.changes.length, 11);
   assert.deepEqual(projected.graph.nodes.slice(0, schema.nodes.length), schema.nodes);
   const root = projected.graph.nodes.find(node => node.id === projected.graph.roots[0].ref)!;
   assert.ok(root.kind === 'object');
@@ -83,4 +83,23 @@ test('document policy drift is a visible error, not a silently weakened field', 
     (graph: TypeGraph) => { const node = graph.nodes.find(node => node.id === 'SpellOverlayOverride')!; if (node.kind === 'object') node.fields[0].nullable = true; }]) {
     const graph = fixture(); alter(graph); assert.throws(() => authoredDocumentInputs(graph), /complete|drift/);
   }
+});
+
+test('spell overlay patches omit overlays while fixed heightening retains the full system fields', () => {
+  const graph = fixture();
+  const spell = graph.nodes.find(node => node.id === 'SpellSystemSource')!;
+  const full = graph.nodes.find(node => node.id === 'Partial')!;
+  const overlay = graph.nodes.find(node => node.id === 'SpellOverlayOverride')!;
+  assert.ok(spell.kind === 'object' && full.kind === 'object' && overlay.kind === 'object');
+  const omitted = { ...structuredClone(full), id: 'OverlayPartial' };
+  graph.nodes.push(omitted);
+  overlay.fields[0].ref = omitted.id;
+  spell.fields.push(field('overlays', 'primitive:string', spellFile, true));
+  full.fields.push(field('overlays', 'primitive:string', spellFile, true));
+  const projected = authoredDocumentInputs(graph).graph;
+  const patch = projected.nodes.find(node => node.name === 'SpellOverlaySystemPatch');
+  assert.ok(patch?.kind === 'object');
+  assert.deepEqual(patch.fields.map(field => field.name).sort(), ['damage', 'next']);
+  const fullPatch = projected.nodes.find(node => node.id === patch.id.replace(/#overlay$/, ''));
+  assert.ok(fullPatch?.kind === 'object' && fullPatch.fields.some(field => field.name === 'overlays'));
 });

@@ -166,6 +166,7 @@ impl<'a> ItemSourceView<'a> {
                 AbilitySource,
                 AfflictionSource,
                 AncestrySource,
+                AmmoSource,
                 ArmorSource,
                 BackgroundSource,
                 BookSource,
@@ -202,6 +203,7 @@ impl<'a> ItemSourceView<'a> {
             s,
             [
                 AncestrySource,
+                AmmoSource,
                 ArmorSource,
                 BackgroundSource,
                 BookSource,
@@ -273,8 +275,8 @@ pub fn source_family_record_kind(family: &str) -> Option<RecordKind> {
         "deity" => Lore,
         "campaignFeature" => CampaignFeature,
         "ancestry" | "background" | "class" | "heritage" => CharacterOption,
-        "armor" | "backpack" | "consumable" | "equipment" | "kit" | "shield" | "treasure"
-        | "weapon" => Equipment,
+        "ammo" | "armor" | "backpack" | "consumable" | "equipment" | "kit" | "shield"
+        | "treasure" | "weapon" => Equipment,
         _ => return None,
     })
 }
