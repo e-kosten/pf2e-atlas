@@ -1,6 +1,6 @@
-# Reference build performance without inference
+# Ingest and reference build performance
 
-Status: planned
+Status: in_progress
 Priority: soon
 Owner: unassigned
 Last reviewed: 2026-10-18
@@ -20,13 +20,18 @@ evidence; do not repeat expensive inference to profile unrelated stages.
 
 ## Scope
 
-After the FTS comparison slice, measure source loading/admission, content and
+Measure source loading/admission, content and
 search preparation, tokenization, checkpoint reads, row/vector publication,
 validation, checkpoint pruning and commit/checkpoint time separately. Inspect SQL
 query plans and repeated processing where measurements identify bottlenecks.
 Compare debug/release performance, fresh cached-vector builds, unchanged updates,
 lexical-only upgrades and bounded source changes. Separate inference time from
 the cost of loading model assets when every input is reusable.
+
+Also evaluate ordinary inference builds: input preparation and batching,
+checkpoint overhead, peak memory, and temporary disk use. Preserve existing
+full-corpus research assets and use bounded inference measurements unless a new
+full build is necessary to answer a concrete performance question.
 
 ## Acceptance
 
@@ -37,3 +42,32 @@ the cost of loading model assets when every input is reusable.
   dependency and correctness contracts permit it.
 - Progress makes lengthy preparation/publication understandable; do not restart
   an active build merely to improve its progress display.
+
+## Implementation and measurements
+
+The implementation removes duplicate full-batch native token validation, loads
+inference models only for uncached inputs, borrows checkpoint and pending-insert
+vectors, and reuses each root's validated prepared content. Sequential vector
+validation uses an 8 MiB SQLite cache; dirty pages are flushed before validation
+without committing the publication transaction. Model inputs, execution policy,
+stored vector format and validation guarantees remain unchanged.
+
+Local macOS ARM64 release measurements, with BGE Base and EmbeddingGemma over
+25,641 roots and 270,070 attributed semantic units:
+
+| Measurement | Integration baseline | Optimized |
+| --- | --- | --- |
+| Unchanged build, all vectors reused | 308.85s | 174.78s |
+| Maximum resident size, same runs | 7.39 GiB | 4.80 GiB |
+| Fresh build with verified checkpoints | Not measured on this exact content version | 221.05s |
+
+These are serial local warm-cache runs, not portable timing guarantees. The
+historical unmodified release fresh build took 341.98s with the earlier content
+selection version; the original 2,139s build used debug compilation. Keep those
+observations separate from the matched unchanged-build comparison.
+
+Exact data/state table digests match across the unchanged builds; fresh snapshot
+and checkpoint digests match too. The remaining largest measured phase is shared
+passage segmentation/tokenization, about 70s. Preserve its literal input, chunk
+and attribution contracts in any future optimization. Evidence, frozen binaries
+and research probes are retained under `scratch/ingest-performance/`.

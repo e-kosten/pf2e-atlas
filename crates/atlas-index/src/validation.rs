@@ -8,10 +8,12 @@ use crate::{
 use atlas_foundry_model::{SNAPSHOT_VERSION, decode_snapshot};
 use atlas_record::{
     source_content::{
-        ContentInteraction, OwnedContentLocator, SourceContentLocator, validate_prepared_markers,
-        validate_prepared_reference_bindings,
+        ContentInteraction, OwnedContentLocator, PreparedSourceContent, SourceContentLocator,
+        validate_prepared_markers, validate_prepared_reference_bindings,
     },
-    source_record::SourceBackedRecord,
+    source_record::{
+        FieldAvailability, SourceBackedRecord, SourceContentOutcome, SourceContentStatus,
+    },
 };
 #[cfg(any(test, feature = "test-support"))]
 use rusqlite::OpenFlags;
@@ -180,9 +182,17 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
         if ids.end() > end {
             return Err(bad("projection allocation overflow"));
         }
-        prepared_fields += validate_content(c, id, &input.record, &context)?;
+        let (field_count, content) = validate_content(c, id, &input.record, &context)?;
+        prepared_fields += field_count;
         relationships += validate_relationships(c, id, &input.record, &reference_index)?;
-        crate::validation_units::validate_selection(c, id, &input.record, &context, &label)?;
+        crate::validation_units::validate_selection(
+            c,
+            id,
+            &input.record,
+            &context,
+            &label,
+            &content,
+        )?;
         if roots.is_multiple_of(500) || roots == total_roots {
             tracing::info!(target:"atlas_progress",phase="artifact_coherence",current=roots as u64,total=total_roots as u64,"Checking source snapshots, projections and attributed units");
         }
@@ -210,7 +220,9 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
             "lexical identity coverage is incomplete".into(),
         ));
     }
+    tracing::info!(target:"atlas_progress",phase="artifact_fts_integrity","Checking lexical index postings");
     validate_fts(c)?;
+    tracing::info!(target:"atlas_progress",phase="artifact_vector_integrity","Checking semantic vector coverage and integrity");
     validate_vectors(c, &context, product_count)?;
     validate_aliases(c)?;
     let mut urls=c.prepare("SELECT target_url FROM relationship_occurrences WHERE resolution IN ('resolved_url','unverified_url')")?;
@@ -289,7 +301,7 @@ fn validate_content(
     id: i64,
     record: &SourceBackedRecord,
     context: &SourceArtifactBuildContext,
-) -> Result<usize, IndexError> {
+) -> Result<(usize, Vec<SourceContentOutcome>), IndexError> {
     let mut references = crate::read_content::content_references_for_record(c, id)?;
     let mut expected = std::collections::BTreeMap::new();
     let mut owner_error = None;
@@ -317,10 +329,15 @@ fn validate_content(
     if let Some(error) = owner_error {
         return Err(error.into());
     }
-    let mut s=c.prepare("SELECT owners_json,field_path,authored_markup_sha256,preparation_context_hash,outcome,html_gzip,interactions_json,visibility,role FROM prepared_content WHERE record_id=? AND published=1")?;
+    let preparation_hash = context.preparation_sha256()?;
+    let mut content = Vec::new();
+    let mut s=c.prepare("SELECT owners_json,field_path,authored_markup_sha256,preparation_context_hash,outcome,html_gzip,interactions_json,visibility,role,published FROM prepared_content WHERE record_id=? AND (published=1 OR outcome='prepared')")?;
     let mut rows = s.query([id])?;
     let mut n = 0;
     while let Some(r) = rows.next()? {
+        if !r.get::<_, bool>(9)? {
+            return Err(bad("unpublished content has prepared search HTML"));
+        }
         n += 1;
         let chain = owners(&r.get::<_, String>(0)?)?;
         let field: String = r.get(1)?;
@@ -344,7 +361,7 @@ fn validate_content(
             .ok_or_else(|| bad("cache does not address admitted selected content"))?;
         let hash: String = r.get(2)?;
         let preparation: String = r.get(3)?;
-        if hash != sha256(authored.as_bytes()) || preparation != context.preparation_sha256()? {
+        if hash != sha256(authored.as_bytes()) || preparation != preparation_hash {
             return Err(bad("prepared cache input/context mismatch"));
         }
         let outcome: String = r.get(4)?;
@@ -380,6 +397,21 @@ fn validate_content(
                 validate_prepared_markers(&html, &controls).map_err(|e| bad(e.to_string()))?;
                 validate_prepared_reference_bindings(&html, &locator, &hash, &field_references)
                     .map_err(|e| bad(e.to_string()))?;
+                content.push(SourceContentOutcome {
+                    role: selection.role,
+                    visibility,
+                    visibility_availability: FieldAvailability::Value,
+                    status: SourceContentStatus::Prepared(Box::new(PreparedSourceContent {
+                        locator,
+                        interpretation_version: context.content_interpretation_version.clone(),
+                        authored_markup_sha256: hash,
+                        html,
+                        text: String::new(),
+                        references: field_references,
+                        interactions: controls,
+                        diagnostics: Vec::new(),
+                    })),
+                });
             }
             ("prepared", None) => return Err(bad("missing prepared HTML")),
             (_, None) if controls.is_empty() && field_references.is_empty() => {}
@@ -392,7 +424,7 @@ fn validate_content(
     if !expected.is_empty() {
         return Err(bad("selected content cache coverage is incomplete"));
     }
-    Ok(n)
+    Ok((n, content))
 }
 fn validate_relationships(
     c: &Connection,
@@ -510,7 +542,10 @@ fn validate_vectors(
         if count(c, &table)? != total {
             return Err(bad("vector/unit coverage mismatch"));
         }
-        let mut statement = c.prepare(&format!("SELECT u.input_token_count,u.input_hash,v.embedding FROM semantic_units u LEFT JOIN {table} v USING(unit_id) WHERE u.profile_id=?"))?;
+        // The profile/input-hash index produces scattered vec0 chunk reads.
+        // This is a complete scan, so walk unit IDs in storage order instead.
+        // Preserve the LEFT JOIN: a missing vector must still fail validation.
+        let mut statement = c.prepare(&format!("SELECT u.input_token_count,u.input_hash,v.embedding FROM semantic_units u NOT INDEXED LEFT JOIN {table} v USING(unit_id) WHERE u.profile_id=? ORDER BY u.unit_id"))?;
         let mut rows = statement.query([model.profile_id.as_str()])?;
         let mut checked = 0usize;
         while let Some(row) = rows.next()? {

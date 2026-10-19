@@ -260,7 +260,6 @@ pub(crate) fn search_units(
         let model = input.context.search_profile(&unit.profile_id)?;
         crate::validation::check_vector(&unit.vector, model.dimensions)?;
         let id = crate::writer::product_id(ids, &unit.record)?;
-        let bytes = crate::read_units::vector_bytes(&unit.vector);
         let table = crate::schema::vector_table(model)?;
         let candidates = if old_profiles.get(unit.profile_id.as_str())
             == current_profiles.get(unit.profile_id.as_str())
@@ -269,10 +268,15 @@ pub(crate) fn search_units(
         } else {
             Vec::new()
         };
-        let reused = candidates
-            .into_iter()
-            .find(|(id, vector)| !kept.contains(id) && *vector == bytes)
-            .map(|(id, _)| id);
+        let reused = if candidates.is_empty() {
+            None
+        } else {
+            let bytes = crate::read_units::vector_bytes(&unit.vector);
+            candidates
+                .into_iter()
+                .find(|(id, vector)| !kept.contains(id) && *vector == bytes)
+                .map(|(id, _)| id)
+        };
         let unit_id = if let Some(id) = reused {
             id
         } else {
@@ -303,7 +307,13 @@ pub(crate) fn search_units(
         row.id("chunk_ordinal", unit.chunk_ordinal as i64);
         row.id("input_token_count", unit.input_token_count as i64);
         row.text("input_hash", &unit.input_hash);
-        pending.push((row, table, reused.is_none().then_some(bytes)));
+        // Keep the input vector borrowed while obsolete rows are removed.
+        // Materialize only the current insert's blob, not a full second corpus.
+        pending.push((
+            row,
+            table,
+            reused.is_none().then_some(unit.vector.as_slice()),
+        ));
     }
     let old_ids = c
         .prepare("SELECT unit_id,profile_id FROM semantic_units")?
@@ -325,7 +335,10 @@ pub(crate) fn search_units(
             execute(
                 c,
                 &format!("INSERT INTO {table}(unit_id,embedding) VALUES(?,?)"),
-                &[unit_id, Value::Blob(vector)],
+                &[
+                    unit_id,
+                    Value::Blob(crate::read_units::vector_bytes(vector)),
+                ],
             )?;
         }
     }

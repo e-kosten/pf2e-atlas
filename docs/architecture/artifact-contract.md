@@ -290,6 +290,20 @@ model metadata. Explicit full validation checks SQLite integrity/foreign keys,
 checked snapshots, exact typed projections, owner addresses, content input/context
 hashes, cache/section coverage, sanitized markers, attributed relationships,
 identity evidence, FTS postings and vector coverage/dimensions/finiteness/normalization.
+Within a validation pass, each root's checked prepared content feeds search
+selection directly. Its bytes and sidecars are validated once in the caller's
+transaction and discarded after that root; no cross-transaction validation cache
+or weaker publication check is introduced.
+Complete vector validation scans unit IDs in storage order rather than following
+the input-hash reuse index. Workspace sessions use an 8 MiB demand-filled SQLite
+page-cache target so sequential vec0 chunks fit without repeated eviction; this
+does not change the stored vector format or request-level retrieval policy.
+After reconciliation, the writer flushes dirty SQLite pages before validation so
+freshly written vector chunks do not compete with dirty pages for the cache.
+This is a mid-transaction cache flush, not a commit or early activation; any
+flush or validation failure still rolls back the complete publication.
+Pending vector inserts borrow prepared vectors and encode one blob at a time;
+reconciliation does not retain another full corpus of encoded vectors.
 Query summaries and selected cache reads do not decode bodies. Explicit detail
 decodes one root and requests bounded batches of selected content; no per-marker
 or per-field body reads are permitted.
