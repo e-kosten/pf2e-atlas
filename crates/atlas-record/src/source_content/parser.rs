@@ -1,0 +1,581 @@
+use std::collections::{BTreeMap, BTreeSet};
+
+use ego_tree::NodeRef;
+use scraper::{Html, node::Node};
+
+use super::parsed_markup::{
+    ParsedDamagePart, ParsedLink, ParsedLinkBehavior, ParsedLinkMacroKind, ParsedLinkSource,
+    ParsedLinkTarget, ParsedMacro, ParsedMarkup, ParsedNode,
+};
+
+use super::parse_diagnostics::ContentParseDiagnostics;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct ParsedContentDocument {
+    pub document: ParsedMarkup,
+    pub diagnostics: ContentParseDiagnostics,
+}
+
+pub trait LocalizationResolver {
+    fn localized_value(&self, key: &str) -> Option<&str>;
+}
+
+#[cfg(test)]
+pub(super) fn parse_foundry_content(value: &str) -> ParsedContentDocument {
+    parse_foundry_content_with_localization(value, None)
+}
+
+pub(super) fn parse_foundry_content_with_localization(
+    value: &str,
+    localization: Option<&dyn LocalizationResolver>,
+) -> ParsedContentDocument {
+    let fragment = Html::parse_fragment(value);
+    let mut state = ParseState::new(localization);
+    let nodes = parse_fragment_nodes(&fragment, &mut state);
+
+    let mut diagnostics = ContentParseDiagnostics::default();
+    for tag in state.unsupported_tags {
+        diagnostics.record_unsupported_tag(&tag);
+    }
+
+    ParsedContentDocument {
+        document: ParsedMarkup::new(nodes),
+        diagnostics,
+    }
+}
+
+struct ParseState<'a> {
+    localization: Option<&'a dyn LocalizationResolver>,
+    localization_depth: usize,
+    active_localizations: BTreeSet<String>,
+    unsupported_tags: BTreeSet<String>,
+}
+
+impl<'a> ParseState<'a> {
+    fn new(localization: Option<&'a dyn LocalizationResolver>) -> Self {
+        Self {
+            localization,
+            localization_depth: 0,
+            active_localizations: BTreeSet::new(),
+            unsupported_tags: BTreeSet::new(),
+        }
+    }
+}
+
+fn parse_fragment_nodes(fragment: &Html, state: &mut ParseState<'_>) -> Vec<ParsedNode> {
+    let mut nodes = Vec::new();
+    for child in fragment.tree.root().children() {
+        nodes.extend(convert_node_ref(child, state));
+    }
+    nodes
+}
+
+fn convert_node_ref(node_ref: NodeRef<'_, Node>, state: &mut ParseState<'_>) -> Vec<ParsedNode> {
+    match node_ref.value() {
+        Node::Text(text) => parse_text_nodes(text, state),
+        Node::Element(element) => {
+            let tag = element.name().to_ascii_lowercase();
+            if tag == "html" && element.attrs().next().is_none() {
+                let mut children = Vec::new();
+                for child in node_ref.children() {
+                    children.extend(convert_node_ref(child, state));
+                }
+                return children;
+            }
+            if is_unusual_tag(&tag) {
+                state.unsupported_tags.insert(tag.clone());
+            }
+            let attributes = element
+                .attrs()
+                .map(|(name, value)| (name.to_ascii_lowercase(), Some(value.to_string())))
+                .collect::<BTreeMap<_, _>>();
+            let mut children = Vec::new();
+            for child in node_ref.children() {
+                children.extend(convert_node_ref(child, state));
+            }
+            vec![ParsedNode::HtmlElement {
+                tag,
+                attributes,
+                children,
+            }]
+        }
+        Node::Comment(_) | Node::Doctype(_) => Vec::new(),
+        _ => Vec::new(),
+    }
+}
+
+fn is_unusual_tag(tag: &str) -> bool {
+    !matches!(
+        tag,
+        "a" | "article"
+            | "b"
+            | "blockquote"
+            | "body"
+            | "br"
+            | "caption"
+            | "code"
+            | "dd"
+            | "div"
+            | "dl"
+            | "dt"
+            | "em"
+            | "h1"
+            | "h2"
+            | "h3"
+            | "h4"
+            | "h5"
+            | "h6"
+            | "hr"
+            | "i"
+            | "img"
+            | "li"
+            | "main"
+            | "ol"
+            | "p"
+            | "section"
+            | "small"
+            | "span"
+            | "strong"
+            | "sub"
+            | "sup"
+            | "table"
+            | "tbody"
+            | "td"
+            | "tfoot"
+            | "th"
+            | "thead"
+            | "tr"
+            | "ul"
+    )
+}
+
+fn parse_text_nodes(value: &str, state: &mut ParseState<'_>) -> Vec<ParsedNode> {
+    let mut nodes = Vec::new();
+    let mut offset = 0;
+    while offset < value.len() {
+        let rest = &value[offset..];
+        if rest.starts_with("[[/")
+            && let Some(parsed) = parse_inline_command(value, offset, state)
+        {
+            nodes.push(ParsedNode::Foundry { node: parsed.node });
+            offset = parsed.end;
+            continue;
+        }
+        if rest.starts_with('@')
+            && let Some(parsed) = parse_foundry_macro(value, offset, state)
+        {
+            nodes.push(parsed.node);
+            offset = parsed.end;
+            continue;
+        }
+
+        let next_macro = rest.find('@').unwrap_or(rest.len());
+        let next_inline_command = rest.find("[[/").unwrap_or(rest.len());
+        let next_signal = next_macro.min(next_inline_command);
+        if next_signal > 0 {
+            push_text(&mut nodes, &rest[..next_signal]);
+            offset += next_signal;
+        } else if let Some(character) = rest.chars().next() {
+            push_text(&mut nodes, &character.to_string());
+            offset += character.len_utf8();
+        } else {
+            break;
+        }
+    }
+    merge_adjacent_text(nodes)
+}
+
+fn push_text(nodes: &mut Vec<ParsedNode>, text: &str) {
+    if !text.is_empty() {
+        nodes.push(ParsedNode::Text {
+            text: text.to_string(),
+        });
+    }
+}
+
+struct ParsedMacroMatch {
+    node: ParsedNode,
+    end: usize,
+}
+
+struct ParsedParsedMacro {
+    node: ParsedMacro,
+    end: usize,
+}
+
+fn parse_inline_command(
+    value: &str,
+    start: usize,
+    state: &mut ParseState<'_>,
+) -> Option<ParsedParsedMacro> {
+    let body_end = inline_command_end(value, start + 3)?;
+    let body = value[start + 3..body_end].trim();
+    let mut end = body_end + 2;
+    let label = parse_optional_label(value, &mut end, state)?;
+    let (command, arguments) = body
+        .split_once(char::is_whitespace)
+        .map(|(command, arguments)| (command.trim_start_matches('/'), arguments.trim()))
+        .unwrap_or_else(|| (body.trim_start_matches('/'), ""));
+
+    Some(ParsedParsedMacro {
+        node: ParsedMacro::InlineCommand {
+            command: command.to_string(),
+            arguments: arguments.to_string(),
+            options: inline_command_options(arguments),
+            label,
+        },
+        end,
+    })
+}
+
+fn inline_command_end(value: &str, start: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    for (relative, character) in value[start..].char_indices() {
+        let index = start + relative;
+        match character {
+            '[' => depth += 1,
+            ']' if depth > 0 => depth -= 1,
+            ']' if value[index..].starts_with("]]") => return Some(index),
+            _ => {}
+        }
+    }
+    None
+}
+
+fn parse_foundry_macro(
+    value: &str,
+    start: usize,
+    state: &mut ParseState<'_>,
+) -> Option<ParsedMacroMatch> {
+    let name_start = start + 1;
+    let mut name_end = name_start;
+    for (relative, character) in value[name_start..].char_indices() {
+        if character.is_ascii_alphabetic() {
+            name_end = name_start + relative + character.len_utf8();
+        } else {
+            break;
+        }
+    }
+    if name_end == name_start || !value[name_end..].starts_with('[') {
+        return None;
+    }
+
+    let name = &value[name_start..name_end];
+    let body_start = name_end + 1;
+    let body_end = balanced_close(value, body_start, '[', ']')?;
+    let body = &value[body_start..body_end];
+    let mut end = body_end + 1;
+    let label = parse_optional_label(value, &mut end, state)?;
+    let macro_name = name.to_ascii_lowercase();
+    let parsed_body = ParsedMacroBody::parse(body);
+
+    let node = match macro_name.as_str() {
+        "uuid" | "compendium" => {
+            let target = parsed_body.first_positional().unwrap_or(body).to_string();
+            ParsedNode::ParsedLink {
+                link: unresolved_link(
+                    if macro_name == "uuid" {
+                        ParsedLinkMacroKind::Uuid
+                    } else {
+                        ParsedLinkMacroKind::Compendium
+                    },
+                    target,
+                    label,
+                    ParsedLinkBehavior::Reference,
+                ),
+            }
+        }
+        "embed" => {
+            let embed = ParsedEmbedBody::parse(body);
+            let inline = embed
+                .options
+                .get("inline")
+                .is_some_and(|value| value != "false");
+            let hr = embed.options.get("hr").map(|value| value != "false");
+            ParsedNode::ParsedLink {
+                link: unresolved_link(
+                    ParsedLinkMacroKind::Embed,
+                    embed.target,
+                    label,
+                    ParsedLinkBehavior::Embed {
+                        inline,
+                        hr,
+                        options: embed.options,
+                    },
+                ),
+            }
+        }
+        "check" => ParsedNode::Foundry {
+            node: ParsedMacro::Check {
+                statistic: parsed_body
+                    .options
+                    .get("type")
+                    .cloned()
+                    .or_else(|| parsed_body.first_positional().map(ToOwned::to_owned)),
+                options: parsed_body.options,
+                label,
+            },
+        },
+        "damage" => {
+            let formula = parsed_body
+                .options
+                .get("formula")
+                .map(String::as_str)
+                .or_else(|| parsed_body.first_positional())
+                .unwrap_or(body)
+                .to_string();
+            ParsedNode::Foundry {
+                node: ParsedMacro::Damage {
+                    damage_parts: damage_parts(&formula),
+                    formula,
+                    options: parsed_body.options,
+                    label,
+                },
+            }
+        }
+        "template" => ParsedNode::Foundry {
+            node: ParsedMacro::Template {
+                shape: parsed_body
+                    .options
+                    .get("type")
+                    .cloned()
+                    .or_else(|| parsed_body.first_positional().map(ToOwned::to_owned)),
+                options: parsed_body.options,
+                label,
+            },
+        },
+        "localize" => ParsedNode::Foundry {
+            node: ParsedMacro::Localize {
+                key: body.to_string(),
+                resolved: resolve_localization(body, state),
+                label,
+            },
+        },
+        _ => ParsedNode::Foundry {
+            node: ParsedMacro::UnknownFoundry {
+                name: macro_name,
+                body: Some(body.to_string()),
+                label,
+                raw: value[start..end].to_string(),
+            },
+        },
+    };
+
+    Some(ParsedMacroMatch { node, end })
+}
+
+fn resolve_localization(key: &str, state: &mut ParseState<'_>) -> Option<Vec<ParsedNode>> {
+    const MAX_LOCALIZATION_DEPTH: usize = 8;
+
+    if state.localization_depth >= MAX_LOCALIZATION_DEPTH
+        || state.active_localizations.contains(key)
+    {
+        return None;
+    }
+
+    let localized = state.localization?.localized_value(key)?.to_string();
+    state.active_localizations.insert(key.to_string());
+    state.localization_depth += 1;
+    let fragment = Html::parse_fragment(&localized);
+    let nodes = parse_fragment_nodes(&fragment, state);
+    state.localization_depth -= 1;
+    state.active_localizations.remove(key);
+
+    (!nodes.is_empty()).then_some(nodes)
+}
+
+fn parse_optional_label(
+    value: &str,
+    end: &mut usize,
+    state: &mut ParseState<'_>,
+) -> Option<Option<Vec<ParsedNode>>> {
+    if value[*end..].starts_with('{') {
+        let label_start = *end + 1;
+        let label_end = balanced_close(value, label_start, '{', '}')?;
+        *end = label_end + 1;
+        Some(Some(parse_text_nodes(
+            &value[label_start..label_end],
+            state,
+        )))
+    } else {
+        Some(None)
+    }
+}
+
+fn unresolved_link(
+    macro_kind: ParsedLinkMacroKind,
+    target: String,
+    label: Option<Vec<ParsedNode>>,
+    behavior: ParsedLinkBehavior,
+) -> ParsedLink {
+    let fallback_label = reference_display_fallback(&target);
+    ParsedLink {
+        target: ParsedLinkTarget::Unresolved {
+            target: target.clone(),
+            fallback_label,
+        },
+        label,
+        source: ParsedLinkSource {
+            macro_kind,
+            authored_target: target,
+            relation: None,
+        },
+        behavior,
+    }
+}
+
+struct ParsedMacroBody {
+    positional: Vec<String>,
+    options: BTreeMap<String, String>,
+}
+
+impl ParsedMacroBody {
+    fn parse(body: &str) -> Self {
+        let mut positional = Vec::new();
+        let mut options = BTreeMap::new();
+
+        for (index, segment) in split_at_depth(body, '|').into_iter().enumerate() {
+            let segment = segment.trim();
+            if segment.is_empty() {
+                continue;
+            }
+            if let Some((key, value)) = split_option(segment) {
+                options.insert(key.to_string(), value.to_string());
+            } else if index == 0 {
+                positional.push(segment.to_string());
+            } else {
+                options.insert(segment.to_string(), String::new());
+            }
+        }
+
+        Self {
+            positional,
+            options,
+        }
+    }
+
+    fn first_positional(&self) -> Option<&str> {
+        self.positional.first().map(String::as_str)
+    }
+}
+
+struct ParsedEmbedBody {
+    target: String,
+    options: BTreeMap<String, String>,
+}
+
+impl ParsedEmbedBody {
+    fn parse(body: &str) -> Self {
+        let mut segments = body.split_whitespace();
+        let target = segments.next().unwrap_or(body).to_string();
+        let mut options = BTreeMap::new();
+        for segment in segments {
+            if let Some((key, value)) = split_option(segment) {
+                options.insert(key.to_string(), value.to_string());
+            } else if !segment.is_empty() {
+                options.insert(segment.to_string(), "true".to_string());
+            }
+        }
+        Self { target, options }
+    }
+}
+
+fn balanced_close(value: &str, start: usize, open: char, close: char) -> Option<usize> {
+    let mut depth = 1;
+    for (relative, character) in value[start..].char_indices() {
+        if character == open {
+            depth += 1;
+        } else if character == close {
+            depth -= 1;
+            if depth == 0 {
+                return Some(start + relative);
+            }
+        }
+    }
+    None
+}
+
+fn split_option(segment: &str) -> Option<(&str, &str)> {
+    segment
+        .split_once(':')
+        .or_else(|| segment.split_once('='))
+        .map(|(key, value)| (key.trim(), value.trim()))
+        .filter(|(key, _)| !key.is_empty())
+}
+
+fn split_at_depth(value: &str, separator: char) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut start = 0;
+    let mut bracket_depth = 0usize;
+    let mut brace_depth = 0usize;
+
+    for (index, character) in value.char_indices() {
+        match character {
+            '[' => bracket_depth += 1,
+            ']' => bracket_depth = bracket_depth.saturating_sub(1),
+            '{' => brace_depth += 1,
+            '}' => brace_depth = brace_depth.saturating_sub(1),
+            _ if character == separator && bracket_depth == 0 && brace_depth == 0 => {
+                parts.push(&value[start..index]);
+                start = index + character.len_utf8();
+            }
+            _ => {}
+        }
+    }
+
+    parts.push(&value[start..]);
+    parts
+}
+
+fn inline_command_options(arguments: &str) -> BTreeMap<String, String> {
+    arguments
+        .split_whitespace()
+        .filter_map(split_option)
+        .map(|(key, value)| (key.to_string(), value.to_string()))
+        .collect()
+}
+
+fn damage_parts(formula: &str) -> Vec<ParsedDamagePart> {
+    split_at_depth(formula, ',')
+        .into_iter()
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            if let Some(open) = part.rfind('[')
+                && part.ends_with(']')
+            {
+                return ParsedDamagePart {
+                    formula: part[..open].to_string(),
+                    damage_type: Some(part[open + 1..part.len() - 1].to_string()),
+                };
+            }
+            ParsedDamagePart {
+                formula: part.to_string(),
+                damage_type: None,
+            }
+        })
+        .collect()
+}
+
+fn reference_display_fallback(target: &str) -> String {
+    target
+        .rsplit('.')
+        .next()
+        .unwrap_or(target)
+        .replace(['-', '_'], " ")
+        .trim()
+        .to_string()
+}
+
+fn merge_adjacent_text(nodes: Vec<ParsedNode>) -> Vec<ParsedNode> {
+    let mut merged = Vec::new();
+    for node in nodes {
+        match (merged.last_mut(), node) {
+            (Some(ParsedNode::Text { text: existing }), ParsedNode::Text { text }) => {
+                existing.push_str(&text);
+            }
+            (_, node) => merged.push(node),
+        }
+    }
+    merged
+}

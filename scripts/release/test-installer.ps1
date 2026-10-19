@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 if ($PSVersionTable.PSVersion.Major -ge 7) {
   $PSNativeCommandUseErrorActionPreference = $true
 }
-$tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("atlas-release-test-" + [System.Guid]::NewGuid())
+$tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("atlas release test-" + [System.Guid]::NewGuid())
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 
 try {
@@ -22,17 +22,7 @@ try {
     Copy-Item (Join-Path $RepoRoot "LICENSE") (Join-Path $root "LICENSE")
     Copy-Item (Join-Path $RepoRoot "README.md") (Join-Path $root "README.md")
     Copy-Item (Join-Path $RepoRoot "THIRD-PARTY-NOTICES.md") (Join-Path $root "THIRD-PARTY-NOTICES.md")
-    @'
-import sys
-import tarfile
-from pathlib import Path
-
-archive = Path(sys.argv[1])
-root = Path(sys.argv[2])
-target = sys.argv[3]
-with tarfile.open(archive, "w:xz") as out:
-    out.add(root, arcname=f"atlas-cli-{target}")
-'@ | python - $archive $root $Target
+    node (Join-Path $RepoRoot "dev-tools/release/dist/tests/release-fixtures.js") unix-archive $archive $root
   }
 
   function New-WindowsArchive($Target) {
@@ -78,8 +68,8 @@ Console.WriteLine("atlas 9.9.9");
   Copy-Item (Join-Path $RepoRoot "THIRD-PARTY-NOTICES.md") (Join-Path $dist "THIRD-PARTY-NOTICES.md")
   "{}" | Set-Content -Path (Join-Path $dist "dist-manifest.json")
 
-  python (Join-Path $RepoRoot "scripts/release/generate-release-manifest.py") v9.9.9 $dist
-  bash (Join-Path $RepoRoot "scripts/release/validate-release-assets.sh") v9.9.9 $dist
+  node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/generate-release-manifest.js") v9.9.9 $dist
+  node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/validate-release-assets.js") v9.9.9 $dist
 
   $badManifestDist = Join-Path $tmp "bad-manifest-dist"
   Copy-Item $dist $badManifestDist -Recurse
@@ -89,7 +79,7 @@ Console.WriteLine("atlas 9.9.9");
   $manifest | ConvertTo-Json -Depth 5 | Set-Content $manifestPath
   $acceptedBadManifest = $true
   try {
-    bash (Join-Path $RepoRoot "scripts/release/validate-release-assets.sh") v9.9.9 $badManifestDist | Out-Null
+    node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/validate-release-assets.js") v9.9.9 $badManifestDist | Out-Null
   } catch {
     $acceptedBadManifest = $false
   }
@@ -98,13 +88,14 @@ Console.WriteLine("atlas 9.9.9");
   }
 
   $fakeBin = Join-Path $tmp "bin"
-  $installDir = Join-Path $tmp "install"
+  $installDir = Join-Path $tmp "install with spaces"
   New-Item -ItemType Directory -Force -Path $fakeBin, $installDir | Out-Null
   @'
 param(
   [string]$Uri,
   [string]$OutFile
 )
+if ($env:ATLAS_URL_LOG) { Add-Content -Path $env:ATLAS_URL_LOG -Value $Uri }
 $name = Split-Path ([System.Uri]$Uri).AbsolutePath -Leaf
 Copy-Item (Join-Path $env:ATLAS_FAKE_RELEASE_DIR $name) $OutFile
 '@ | Set-Content -Path (Join-Path $fakeBin "Invoke-WebRequest.ps1")
@@ -154,6 +145,25 @@ function Invoke-WebRequest {
     throw "PowerShell installer replaced existing binary without -Yes"
   }
 
+  $nightlyTag = "v9.9.9-nightly.20261018092300.gabcdef123456"
+  Set-Content -Path (Join-Path $dist "nightly-version.txt") -Value $nightlyTag
+  $env:ATLAS_URL_LOG = Join-Path $tmp "nightly-urls"
+  (Get-Content (Join-Path $fakeBin "run-install.ps1") -Raw).Replace("-Version v9.9.9", "-Version nightly") |
+    Set-Content (Join-Path $fakeBin "run-nightly.ps1")
+  pwsh -NoProfile -File (Join-Path $fakeBin "run-nightly.ps1") | Out-Null
+  $urls = @(Get-Content $env:ATLAS_URL_LOG)
+  if ($urls[0] -ne "https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt") {
+    throw "nightly installer did not fetch the channel pointer"
+  }
+  if (@($urls | Select-Object -Skip 1 | Where-Object { $_ -like "*/download/$nightlyTag/*" }).Count -ne 3) {
+    throw "nightly installer did not pin all downloads to the resolved release"
+  }
+  Set-Content -Path (Join-Path $dist "nightly-version.txt") -Value "v9.9.9"
+  $failed = $false
+  try { pwsh -NoProfile -File (Join-Path $fakeBin "run-nightly.ps1") | Out-Null } catch { $failed = $true }
+  if (-not $failed) { throw "nightly installer accepted a stable channel pointer" }
+  Remove-Item Env:ATLAS_URL_LOG
+
   $rollbackDist = Join-Path $tmp "rollback-dist"
   Copy-Item $dist $rollbackDist -Recurse
   $archive = "atlas-cli-x86_64-pc-windows-msvc.zip"
@@ -164,7 +174,7 @@ function Invoke-WebRequest {
   Copy-Item (Join-Path $RepoRoot "THIRD-PARTY-NOTICES.md") (Join-Path $badRoot "THIRD-PARTY-NOTICES.md")
   "not an executable" | Set-Content -Path (Join-Path $badRoot "atlas.exe")
   Compress-Archive -Path $badRoot -DestinationPath (Join-Path $rollbackDist $archive) -Force
-  python (Join-Path $RepoRoot "scripts/release/generate-release-manifest.py") v9.9.9 $rollbackDist
+  node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/generate-release-manifest.js") v9.9.9 $rollbackDist
   $env:ATLAS_FAKE_RELEASE_DIR = $rollbackDist
   $failed = $false
   try {

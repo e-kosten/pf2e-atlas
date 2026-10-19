@@ -1,5 +1,4 @@
-use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
-use atlas_index::ValidationTarget;
+use atlas_domain::SearchProfileId;
 
 #[derive(Debug, Clone)]
 pub struct RuntimeSetupOptions {
@@ -7,15 +6,17 @@ pub struct RuntimeSetupOptions {
     pub check: bool,
     pub offline: bool,
     pub force_rebuild: bool,
-    pub embedding_model_id: EmbeddingModelId,
+    /// Add to the persisted requested model set; a fresh full setup uses BGE Base.
+    pub search_profiles: Vec<SearchProfileId>,
     pub embedding_batch_size: usize,
+    /// None preserves the requested indexing locale, or uses English for a new workspace.
+    pub locale: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct RuntimeSetupCleanOptions {
     pub source: bool,
     pub embedding_cache: bool,
-    pub artifact: bool,
     pub check: bool,
 }
 
@@ -26,8 +27,9 @@ impl Default for RuntimeSetupOptions {
             check: false,
             offline: false,
             force_rebuild: false,
-            embedding_model_id: DEFAULT_EMBEDDING_MODEL,
+            search_profiles: Vec::new(),
             embedding_batch_size: 32,
+            locale: None,
         }
     }
 }
@@ -41,13 +43,6 @@ pub enum SetupTarget {
 impl SetupTarget {
     pub const fn requires_embeddings(self) -> bool {
         matches!(self, Self::Full)
-    }
-
-    pub const fn validation_target(self) -> ValidationTarget {
-        match self {
-            Self::Full => ValidationTarget::Full,
-            Self::Records => ValidationTarget::BaseOnly,
-        }
     }
 
     pub const fn as_str(self) -> &'static str {
@@ -80,7 +75,6 @@ pub enum SetupActionStatus {
 pub enum SetupCleanTargetKind {
     Source,
     EmbeddingCache,
-    Artifact,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -240,7 +234,7 @@ pub struct RuntimeSetupReport {
     pub actions: Vec<SetupAction>,
     pub readiness: SetupReadiness,
     pub paths: SetupPathsReport,
-    pub embedding: SetupEmbeddingReport,
+    pub search_profiles: Vec<SetupEmbeddingReport>,
     pub build: Option<SetupBuildReport>,
 }
 
@@ -277,6 +271,8 @@ pub struct SetupPathsReport {
 
 #[derive(Debug, Clone)]
 pub struct SetupEmbeddingReport {
+    pub profile_id: SearchProfileId,
+    pub stored: bool,
     pub model: String,
     pub model_path: String,
     pub cache_root: String,
@@ -286,16 +282,14 @@ pub struct SetupEmbeddingReport {
 
 #[derive(Debug, Clone)]
 pub struct SetupBuildReport {
-    pub source_signature: String,
-    pub source_record_count: usize,
-    pub artifact_record_count: usize,
-    pub generated_record_count: usize,
-    pub pending_document_embedding_count: usize,
-    pub document_embedding_count: usize,
-    pub reused_document_embedding_count: usize,
-    pub generated_document_embedding_count: usize,
+    pub profiles: Vec<atlas_ingest::ProfileBuildReport>,
+    pub pack_count: usize,
+    pub record_count: usize,
+    pub product_record_count: usize,
+    pub semantic_unit_count: usize,
+    pub inferred_inputs: usize,
+    pub reused_inputs: usize,
+    pub context_shortened_sections: usize,
+    pub source_fingerprint: String,
     pub build_duration_ms: u128,
-    pub embedding_tokenization_duration_ms: u128,
-    pub embedding_model_load_duration_ms: u128,
-    pub embedding_generation_duration_ms: u128,
 }

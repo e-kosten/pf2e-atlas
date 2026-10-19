@@ -9,7 +9,9 @@ Last reviewed: 2026-06-28
 
 Saved lists and future local-state features should live outside the generated SQLite artifact so they survive index rebuilds. That keeps the artifact rebuildable and read-only for runtime retrieval, but it also means users and agents need a deliberate way to back up, move, inspect, and restore durable local state without copying opaque SQLite files by hand.
 
-The first saved-list implementation should keep import/export out of scope so the local-state database, CLI CRUD, and rebuild-survival behavior can land cleanly. This backlog item preserves the follow-up once the local-state schema has at least one real user-facing collection surface.
+Saved-list CRUD and JSON import/export are implemented independently of generated
+artifact rebuilds. This item tracks broader local-state export, including encounters,
+and possible convenience formats.
 
 ## Desired Outcome
 

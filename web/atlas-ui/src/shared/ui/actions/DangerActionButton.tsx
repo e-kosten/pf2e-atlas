@@ -1,13 +1,13 @@
 import { Button } from "antd";
 import type { ButtonProps } from "antd";
-import { confirmDangerAction } from "./confirmDangerAction";
+import { useConfirmDangerAction } from "./useConfirmDangerAction";
 
 type DangerActionButtonProps = Omit<ButtonProps, "danger" | "onClick"> & {
   confirmContent?: string;
   confirmOkText: string;
   confirmTitle: string;
   onBeforeConfirm?: React.MouseEventHandler<HTMLElement>;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<unknown>;
 };
 
 export function DangerActionButton({
@@ -18,6 +18,7 @@ export function DangerActionButton({
   onConfirm,
   ...buttonProps
 }: DangerActionButtonProps) {
+  const confirmDangerAction = useConfirmDangerAction();
   return (
     <Button
       {...buttonProps}

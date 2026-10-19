@@ -13,7 +13,7 @@ Usage: atlas-installer.sh [options]
 
 Options:
   --install-dir <dir>   Install atlas into this directory
-  --version <version>   Install vX.Y.Z, vX.Y.Z-rc.N, or latest
+  --version <version>   Install a version tag, nightly, or latest (stable)
   --yes                 Replace an existing atlas without prompting
   --dry-run             Print planned actions without downloading or installing
   --help                Show this help
@@ -85,6 +85,7 @@ case "$os:$arch" in
 esac
 
 case "$VERSION" in
+  nightly) tag="nightly"; base_url="https://github.com/$REPO/releases/download/nightly" ;;
   latest) tag="latest"; base_url="https://github.com/$REPO/releases/latest/download" ;;
   v*) tag="$VERSION"; base_url="https://github.com/$REPO/releases/download/$VERSION" ;;
   *) tag="v$VERSION"; base_url="https://github.com/$REPO/releases/download/v$VERSION" ;;
@@ -120,7 +121,11 @@ fi
 printf 'Atlas installer\n'
 printf '  target:      %s\n' "$target"
 printf '  version:     %s\n' "$VERSION"
-printf '  manifest:    %s\n' "$manifest_url"
+if [ "$VERSION" = "nightly" ]; then
+  printf '  channel:     %s/nightly-version.txt (resolved when installing)\n' "$base_url"
+else
+  printf '  manifest:    %s\n' "$manifest_url"
+fi
 printf '  install dir: %s\n' "$INSTALL_DIR"
 printf '  PATH:        %s\n' "$path_status"
 printf '  existing:    %s\n' "$existing"
@@ -167,6 +172,16 @@ download() {
     wget -q "$url" -O "$dest" || die "failed to download $url"
   fi
 }
+
+if [ "$VERSION" = "nightly" ]; then
+  download "$base_url/nightly-version.txt" "$tmp/nightly-version.txt"
+  tag=$(cat "$tmp/nightly-version.txt")
+  printf '%s\n' "$tag" | LC_ALL=C grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{14}\.g[0-9a-f]{12}$' || die "invalid nightly channel pointer"
+  [ "$(printf '%s\n' "$tag" | wc -l | tr -d ' ')" = 1 ] || die "invalid nightly channel pointer"
+  base_url="https://github.com/$REPO/releases/download/$tag"
+  manifest_url="$base_url/atlas-release-manifest.json"
+  printf '  nightly:     %s\n' "$tag"
+fi
 
 download "$base_url/SHA256SUMS" "$tmp/SHA256SUMS"
 download "$manifest_url" "$tmp/atlas-release-manifest.json"

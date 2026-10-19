@@ -1,15 +1,34 @@
 # Rust Web Record Detail Polish
 
-Status: proposed
+Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-06-07
+Last reviewed: 2026-10-13
 
 ## Problem
 
-The web UI can load and render record detail through the shared presentation document, but the detail experience is still a first vertical slice. It needs a readability and interaction pass before users will rely on it for browsing records at length.
+The web UI renders transient semantic family facts and prepared HTML through
+shared presentation components. Creature, hazard and authored spell reference
+have deliberate layouts; other families retain content and narrow physical/table
+facts while their dedicated presentation remains future work.
 
-Record details should benefit all consumers by improving shared presentation contracts when the base document is insufficient, rather than inventing browser-only record data models.
+Further detail work should improve source-backed semantic contracts only when a
+consumer needs another fact, and reuse shared family presentation across detail,
+preview, comparison and encounters.
+
+## Current Baseline
+
+Reference, preview, comparison and encounter surfaces reuse semantic family
+components and selected prepared HTML. Exact owner addresses govern navigation,
+Related availability and bounded owned reading. Similar discovery uses the shared
+search browser with explicit seed/filter state. These contracts are documented in
+[ADR 0047](../../architecture/decisions/0047-semantic-record-presentation.md) and
+[frontend guidelines](../../../web/atlas-ui/docs/frontend-guidelines.md).
+
+Creature, hazard and authored spell reference have dedicated layouts. Equipment,
+journal and table presentation and selected-rank execution remain separate design
+work. Further changes should preserve useful content, availability states,
+source attribution and consistent behavior across hosts.
 
 ## Desired Outcome
 
@@ -18,17 +37,28 @@ Improve the web record detail view for scanability, navigation, and PF2e-specifi
 The pass should consider:
 
 - stronger layout for identity facts, badges, sections, and rich content;
-- kind-specific presentation improvements where the shared `RecordPresentationDocument` supports them;
+- dedicated equipment, journal and table layouts where useful;
 - inline reference navigation and first-class record-detail routes;
 - loading, empty, error, and stale-detail states;
 - detail-pane behavior when results change, panes collapse, or users navigate by keyboard;
 - visual polish that stays consistent with the selected Ant Design-based UI.
+- meaningful casting-entry context for owned spells, resolved from their actual
+  source owner through the existing service rather than displaying a raw local
+  Foundry identifier or resolving it in the browser.
+- [bounded spell rank preview](rust-spell-rank-preview.md), designed separately
+  from reference layout and authored heightening display.
 
 ## Constraints
 
-- Extend or improve `RecordPresentationDocument` when shared presentation data is insufficient.
+- Revisit creature spell rosters' Base rank / Cast rank presentation as a separate
+  product design discussion. It remains unchanged by the reference workspace pass.
+
+- Extend narrow app-service family facts when current consumer data is insufficient;
+  keep checked source and prepared HTML authoritative under ADR 0047.
 - Do not duplicate rich document parsing or record-kind semantics in TypeScript.
 - Keep browser-specific layout code separate from shared Rust presentation contracts.
+- Reuse family components and shared Ant primitives rather than duplicating
+  layouts or creating visually inconsistent feature-local designs.
 
 ## Related
 

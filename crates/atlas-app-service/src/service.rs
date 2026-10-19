@@ -1,29 +1,23 @@
 use std::path::PathBuf;
-use std::sync::atomic::AtomicU64;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::Arc;
 
 use atlas_app_model::{AppErrorCode, AppReadinessStatus, AppReadinessView};
 use atlas_runtime::{AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use atlas_search::AtlasRetrievalService;
 
+use crate::ReadExecutionContext;
 use crate::error::{AppServiceError, AppServiceResult};
-use crate::executor::{
-    RetrievalExecutor, open_retrieval_service_for_stored_vectors,
-    open_retrieval_service_no_embeddings,
-};
-use crate::windows::{MAX_RESULT_WINDOWS, ResultWindowStore};
+use crate::executor::RetrievalExecutor;
 
 #[derive(Clone)]
 pub struct AtlasAppService {
     pub(super) retrieval: RetrievalBackend,
-    pub(super) runtime_options: AtlasRuntimeOptions,
-    pub(super) local_state_path: PathBuf,
-    pub(super) windows: Arc<Mutex<ResultWindowStore>>,
-    pub(super) next_window_id: Arc<AtomicU64>,
+    pub(super) runtime: Arc<AtlasRuntime>,
 }
 
 #[derive(Debug, Clone)]
 pub struct AtlasAppServiceOptions {
+    pub default_search_profile: Option<atlas_domain::SearchProfileId>,
     pub path_mode: AtlasPathMode,
     pub source_root: Option<PathBuf>,
     pub embedding_cache_root: Option<PathBuf>,
@@ -34,90 +28,201 @@ pub struct AtlasAppServiceOptions {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppServiceRetrievalMode {
     FullPool,
+    /// Open bounded command reads and retain shared query inference.
+    OnDemandEmbeddings,
+    /// Open bounded command reads without query inference.
     OnDemandNoEmbeddings,
+    /// Open bounded reads of stored vectors without query inference.
     OnDemandStoredVectors,
 }
 
 impl AtlasAppService {
     pub fn start(options: AtlasAppServiceOptions) -> AppServiceResult<Self> {
         let runtime_options = runtime_options(&options);
-        let runtime = AtlasRuntime::resolve(runtime_options.clone())?;
+        let runtime = Arc::new(AtlasRuntime::resolve(runtime_options)?);
+        runtime.upgrade_workspace_if_present()?;
         let retrieval = match options.retrieval_mode {
             AppServiceRetrievalMode::FullPool => {
-                RetrievalBackend::Pooled(RetrievalExecutor::start(runtime_options.clone())?)
+                RetrievalBackend::Pooled(RetrievalExecutor::start(Arc::clone(&runtime))?)
             }
-            AppServiceRetrievalMode::OnDemandNoEmbeddings => RetrievalBackend::OnDemandNoEmbeddings,
+            AppServiceRetrievalMode::OnDemandEmbeddings => {
+                RetrievalBackend::command(CommandRetrievalMode::QueryEmbeddings)
+            }
+            AppServiceRetrievalMode::OnDemandNoEmbeddings => {
+                RetrievalBackend::command(CommandRetrievalMode::NoEmbeddings)
+            }
             AppServiceRetrievalMode::OnDemandStoredVectors => {
-                RetrievalBackend::OnDemandStoredVectors
+                RetrievalBackend::command(CommandRetrievalMode::StoredVectors)
             }
         };
-        Self::new(
-            retrieval,
-            runtime_options,
-            runtime.local_state_path().to_path_buf(),
-        )
+        Ok(Self { retrieval, runtime })
     }
 
     pub fn readiness(&self) -> AppReadinessView {
+        let metadata = self.with_retrieval(&ReadExecutionContext::uncancellable(), |retrieval| {
+            Ok((
+                retrieval.artifact_generation()?,
+                retrieval.artifact_context().search_profiles.clone(),
+                retrieval.default_search_profile().clone(),
+            ))
+        });
+        let generation = metadata
+            .as_ref()
+            .ok()
+            .map(|(generation, _, _)| generation.clone());
+        let profiles = metadata
+            .as_ref()
+            .ok()
+            .map(|(_, profiles, _)| profiles.as_slice())
+            .unwrap_or(&[]);
         AppReadinessView {
-            status: AppReadinessStatus::Ready,
-            message: "Atlas web service is ready".to_string(),
+            default_search_profile: metadata
+                .as_ref()
+                .ok()
+                .map(|(_, _, id)| id.clone())
+                .or_else(|| self.runtime.requested_search_profile().cloned())
+                .unwrap_or_else(|| atlas_domain::SearchProfileId::new("bge-base")),
+            artifact_generation: generation,
+            search_profiles: self
+                .runtime
+                .search_profile_readiness(profiles)
+                .into_iter()
+                .map(|profile| atlas_app_model::SearchProfileReadinessView {
+                    id: profile.id,
+                    label: profile.label.into(),
+                    stored_vectors: profile.stored_vectors,
+                    assets_ready: profile.assets_ready,
+                    usable: profile.usable,
+                })
+                .collect(),
+            status: if metadata.is_ok() {
+                AppReadinessStatus::Ready
+            } else {
+                AppReadinessStatus::Blocked
+            },
+            message: metadata.err().map_or_else(
+                || "Atlas service is ready".into(),
+                |error| error.to_string(),
+            ),
         }
     }
 
-    pub fn local_state_path(&self) -> &std::path::Path {
-        &self.local_state_path
+    pub fn workspace_path(&self) -> &std::path::Path {
+        self.runtime.index_path()
     }
 
+    #[cfg(test)]
+    pub(super) fn last_read_metrics(&self) -> atlas_search::test_support::SourceReadMetrics {
+        match &self.retrieval {
+            RetrievalBackend::Pooled(executor) => *executor
+                .last_read_metrics
+                .lock()
+                .expect("operation read metrics"),
+            RetrievalBackend::Command { .. } => panic!("metrics require fixture executor"),
+        }
+    }
+
+    #[cfg(test)]
     pub(super) fn new(
         retrieval: RetrievalBackend,
         runtime_options: AtlasRuntimeOptions,
-        local_state_path: PathBuf,
     ) -> AppServiceResult<Self> {
         Ok(Self {
             retrieval,
-            runtime_options,
-            local_state_path,
-            windows: Arc::new(Mutex::new(ResultWindowStore::new(MAX_RESULT_WINDOWS))),
-            next_window_id: Arc::new(AtomicU64::new(1)),
+            runtime: Arc::new(AtlasRuntime::resolve(runtime_options)?),
         })
     }
 
-    pub(super) fn windows(&self) -> AppServiceResult<MutexGuard<'_, ResultWindowStore>> {
-        self.windows.lock().map_err(|error| {
-            AppServiceError::new(
-                AppErrorCode::InternalError,
-                format!("result-window state lock is poisoned: {error}"),
-            )
-        })
-    }
-
-    pub(super) fn submit_retrieval<T>(
+    pub(super) fn with_retrieval<T>(
         &self,
+        execution: &ReadExecutionContext,
         task: impl FnOnce(&mut AtlasRetrievalService) -> AppServiceResult<T> + Send + 'static,
     ) -> AppServiceResult<T>
     where
         T: Send + 'static,
     {
+        self.with_workspace(execution, move |workspace| task(workspace.retrieval_mut()))
+    }
+
+    pub(crate) fn with_workspace<T>(
+        &self,
+        execution: &ReadExecutionContext,
+        task: impl FnOnce(&mut atlas_runtime::WorkspaceRead) -> AppServiceResult<T> + Send + 'static,
+    ) -> AppServiceResult<T>
+    where
+        T: Send + 'static,
+    {
+        self.with_prepared_workspace(execution, None, task)
+    }
+
+    pub(crate) fn with_prepared_workspace<T>(
+        &self,
+        execution: &ReadExecutionContext,
+        prepared: Option<atlas_search::PreparedQueryEmbedding>,
+        task: impl FnOnce(&mut atlas_runtime::WorkspaceRead) -> AppServiceResult<T> + Send + 'static,
+    ) -> AppServiceResult<T>
+    where
+        T: Send + 'static,
+    {
+        execution.check()?;
         match &self.retrieval {
-            RetrievalBackend::Pooled(executor) => executor.submit(task),
-            RetrievalBackend::OnDemandNoEmbeddings => {
-                let mut retrieval =
-                    open_retrieval_service_no_embeddings(self.runtime_options.clone())?;
-                task(&mut retrieval)
+            RetrievalBackend::Pooled(executor) => {
+                executor.submit_prepared(execution.clone(), prepared, task)
             }
-            RetrievalBackend::OnDemandStoredVectors => {
-                let mut retrieval =
-                    open_retrieval_service_for_stored_vectors(self.runtime_options.clone())?;
-                task(&mut retrieval)
+            RetrievalBackend::Command { .. } => {
+                let mut workspace = self.runtime.read_workspace(prepared)?;
+                execution.check()?;
+                task(&mut workspace)
             }
         }
+    }
+
+    pub(crate) fn with_state<T>(
+        &self,
+        task: impl FnOnce(&atlas_runtime::StateRead) -> AppServiceResult<T>,
+    ) -> AppServiceResult<T> {
+        let state = self.runtime.read_state()?;
+        task(&state)
+    }
+
+    pub(crate) fn with_write<T>(
+        &self,
+        task: impl FnOnce(&atlas_runtime::WorkspaceWrite) -> AppServiceResult<T>,
+    ) -> AppServiceResult<T> {
+        let write = self.runtime.write_workspace()?;
+        let result = task(&write)?;
+        write.commit()?;
+        Ok(result)
+    }
+
+    pub(crate) fn prepare_query(
+        &self,
+        profile: Option<&atlas_domain::SearchProfileId>,
+        text: &str,
+        mode: atlas_search::RetrievalMode,
+    ) -> AppServiceResult<Option<atlas_search::PreparedQueryEmbedding>> {
+        if !mode.uses_vector() || text.trim().is_empty() {
+            return Ok(None);
+        }
+        if matches!(
+            self.retrieval,
+            RetrievalBackend::Command {
+                mode: CommandRetrievalMode::NoEmbeddings | CommandRetrievalMode::StoredVectors
+            }
+        ) {
+            return Err(AppServiceError::new(
+                AppErrorCode::VectorReadinessRequired,
+                "query embeddings are unavailable in this runtime mode",
+            ));
+        }
+        Ok(Some(self.runtime.prepare_query(profile, text)?))
     }
 }
 
 impl Default for AtlasAppServiceOptions {
     fn default() -> Self {
         Self {
+            default_search_profile: None,
             path_mode: AtlasPathMode::Global,
             source_root: None,
             embedding_cache_root: None,
@@ -129,6 +234,7 @@ impl Default for AtlasAppServiceOptions {
 
 fn runtime_options(options: &AtlasAppServiceOptions) -> AtlasRuntimeOptions {
     AtlasRuntimeOptions {
+        default_search_profile: options.default_search_profile.clone(),
         path_mode: options.path_mode,
         overrides: AtlasPathOverrides {
             source_root: options.source_root.clone(),
@@ -141,38 +247,53 @@ fn runtime_options(options: &AtlasAppServiceOptions) -> AtlasRuntimeOptions {
 #[derive(Clone)]
 pub(super) enum RetrievalBackend {
     Pooled(RetrievalExecutor),
-    OnDemandNoEmbeddings,
-    OnDemandStoredVectors,
+    Command { mode: CommandRetrievalMode },
+}
+impl RetrievalBackend {
+    pub(super) fn command(mode: CommandRetrievalMode) -> Self {
+        Self::Command { mode }
+    }
+}
+#[derive(Clone, Copy)]
+pub(super) enum CommandRetrievalMode {
+    QueryEmbeddings,
+    NoEmbeddings,
+    StoredVectors,
 }
 
 #[cfg(test)]
+#[path = "service_lifetime_tests.rs"]
+mod lifetime_tests;
+
+#[cfg(test)]
+#[path = "service_abandonment_tests.rs"]
+mod abandonment_tests;
+
+#[cfg(test)]
 mod tests {
-    use atlas_app_model::AppErrorCode;
 
     use super::*;
 
     #[test]
-    fn app_service_start_fails_when_artifact_is_unavailable() {
+    fn app_service_start_without_workspace_reports_blocked_readiness() {
         let missing_path = std::env::temp_dir().join(format!(
             "atlas-app-service-missing-{}-{}.sqlite",
             std::process::id(),
             unique_suffix()
         ));
         let result = AtlasAppService::start(AtlasAppServiceOptions {
+            default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
             path_mode: AtlasPathMode::Global,
             source_root: None,
             embedding_cache_root: None,
-            index_path: Some(missing_path),
+            index_path: Some(missing_path.clone()),
             retrieval_mode: AppServiceRetrievalMode::FullPool,
         });
 
-        let error = match result {
-            Ok(_) => panic!(
-                "web app service startup should fail instead of using no-embeddings fallback"
-            ),
-            Err(error) => error.into_app_error(),
-        };
-        assert_eq!(error.code, AppErrorCode::IndexUnavailable);
+        let service = result.unwrap();
+        assert_eq!(service.readiness().status, AppReadinessStatus::Blocked);
+        assert!(!missing_path.exists());
+        assert!(service.record_detail("items:missing").is_err());
     }
 
     fn unique_suffix() -> u128 {

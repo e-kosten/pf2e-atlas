@@ -15,18 +15,20 @@ import type {
   EncounterConditionCatalogView,
   EncounterDetailView,
   EncounterIndexView,
-  EncounterParticipantView,
-  EncounterUpdateView,
+  EncounterMutationView,
   FilterEditorView,
   FilterSavedListRequest,
   FilterValueListView,
-  OpenResultWindowRequest,
-  ReadResultWindowPageRequest,
+  SearchResultsRequest,
   RecordDetailView,
+  RecordPresentationView,
+  RecordDetailRequest,
+  EmbeddedReadingRequest,
+  EmbeddedReadingBatchView,
   RemoveSavedListItemRequest,
   ReorderEncounterParticipantRequest,
   SavedListCreateView,
-  ResultWindowPage,
+  SearchResultsPage,
   SavedListDetailView,
   SavedListIndexView,
   SavedListItemMutationView,
@@ -58,68 +60,96 @@ export async function getReadiness(): Promise<AppReadinessView> {
 
 export async function discoverFilterEditor(
   request: DiscoverFilterEditorRequest,
+  signal?: AbortSignal,
 ): Promise<FilterEditorView> {
   const editor = await atlasFetch<unknown>("/api/filters/editor", {
     method: "POST",
     body: jsonBody(request),
+    signal,
   });
-  return normalizeFilterEditor(editor);
+  return editor as FilterEditorView;
 }
 
 export async function discoverFilterValues(
   request: DiscoverFilterValuesRequest,
+  signal?: AbortSignal,
 ): Promise<FilterValueListView> {
   const values = await atlasFetch<unknown>("/api/filters/values", {
     method: "POST",
     body: jsonBody(request),
+    signal,
   });
   return normalizeFilterValueList(values);
 }
 
-export async function openResultWindow(
-  request: OpenResultWindowRequest,
-): Promise<ResultWindowPage> {
-  const page = await atlasFetch<unknown>("/api/result-windows", {
+export async function searchPage(
+  request: SearchResultsRequest,
+  signal?: AbortSignal,
+): Promise<SearchResultsPage> {
+  const page = await atlasFetch<unknown>("/api/search/page", {
+    signal,
     method: "POST",
     body: jsonBody(request),
   });
-  return normalizeResultWindowPage(page);
+  return normalizeSearchResultsPage(page);
 }
 
-export async function readResultWindowPage(
-  windowId: bigint,
-  request: ReadResultWindowPageRequest,
-): Promise<ResultWindowPage> {
-  const page = await atlasFetch<unknown>(
-    `/api/result-windows/${windowId.toString()}/page`,
+export async function getRecordDetail(
+  recordKey: string,
+  selection?: RecordDetailRequest,
+  signal?: AbortSignal,
+): Promise<RecordDetailView> {
+  return selection
+    ? atlasFetch("/api/records/detail", {
+        method: "POST",
+        body: jsonBody(selection),
+        signal,
+      })
+    : atlasFetch(`/api/records/${encodeURIComponent(recordKey)}`, { signal });
+}
+export async function getEmbeddedReading(
+  request: EmbeddedReadingRequest,
+  signal?: AbortSignal,
+): Promise<EmbeddedReadingBatchView> {
+  return atlasFetch("/api/records/embedded-reading", {
+    method: "POST",
+    body: jsonBody(request),
+    signal,
+  });
+}
+export async function getEncounterReference(
+  encounterRef: string,
+  participantKey: string,
+  request: import("../generated/atlas").EncounterReferenceRequest,
+  signal?: AbortSignal,
+): Promise<RecordDetailView> {
+  const detail = await atlasFetch<RecordDetailView>(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/reference`,
     {
+      signal,
       method: "POST",
       body: jsonBody(request),
     },
   );
-  return normalizeResultWindowPage(page);
-}
-
-export async function getRecordDetail(recordKey: string): Promise<RecordDetailView> {
-  return atlasFetch(`/api/records/${encodeURIComponent(recordKey)}`);
+  return { ...detail, presentation: normalizeConditionNotes(detail.presentation) };
 }
 
 export async function getEncounters(): Promise<EncounterIndexView> {
-  return atlasFetch("/api/encounters");
+  return atlasFetchEncounter("/api/encounters");
 }
 
 export async function getEncounterConditionDefinitions(): Promise<EncounterConditionCatalogView> {
-  return atlasFetch("/api/encounters/condition-definitions");
+  return atlasFetchEncounter("/api/encounters/condition-definitions");
 }
 
 export async function getEncounter(encounterRef: string): Promise<EncounterDetailView> {
-  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}`);
+  return atlasFetchEncounter(`/api/encounters/${encodeURIComponent(encounterRef)}`);
 }
 
 export async function createEncounter(
   request: CreateEncounterRequest,
 ): Promise<EncounterCreateView> {
-  return atlasFetch("/api/encounters", {
+  return atlasFetchEncounter("/api/encounters", {
     method: "POST",
     body: jsonBody(request),
   });
@@ -135,7 +165,7 @@ export async function deleteEncounter(
 
 export async function updateEncounter(
   request: UpdateEncounterRequest,
-): Promise<EncounterUpdateView> {
+): Promise<EncounterMutationView> {
   return atlasFetch(`/api/encounters/${encodeURIComponent(request.encounter_key)}`, {
     method: "PATCH",
     body: jsonBody(request),
@@ -144,7 +174,7 @@ export async function updateEncounter(
 
 export async function addEncounterRecordParticipant(
   request: AddEncounterRecordParticipantRequest,
-): Promise<EncounterDetailView> {
+): Promise<EncounterMutationView> {
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(request.encounter_ref)}/participants/record`,
     {
@@ -156,7 +186,7 @@ export async function addEncounterRecordParticipant(
 
 export async function addEncounterManualParticipant(
   request: AddEncounterManualParticipantRequest,
-): Promise<EncounterDetailView> {
+): Promise<EncounterMutationView> {
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(request.encounter_ref)}/participants/manual`,
     {
@@ -166,10 +196,30 @@ export async function addEncounterManualParticipant(
   );
 }
 
+export async function applyEncounterHpAction(
+  encounterRef: string,
+  request: import("../generated/atlas").ApplyEncounterHpActionRequest,
+): Promise<import("../generated/atlas").EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/hp`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
+
+export async function applyEncounterSpellAction(
+  encounterRef: string,
+  request: import("../generated/atlas").ApplyEncounterSpellActionRequest,
+): Promise<import("../generated/atlas").EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/spells`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
+
 export async function updateEncounterParticipant(
   encounterRef: string,
   request: UpdateEncounterParticipantRequest,
-): Promise<EncounterParticipantView> {
+): Promise<EncounterMutationView> {
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}`,
     {
@@ -182,7 +232,7 @@ export async function updateEncounterParticipant(
 export async function reorderEncounterParticipant(
   encounterRef: string,
   request: ReorderEncounterParticipantRequest,
-): Promise<EncounterDetailView> {
+): Promise<EncounterMutationView> {
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/reorder`,
     {
@@ -195,16 +245,59 @@ export async function reorderEncounterParticipant(
 export async function removeEncounterParticipant(
   encounterRef: string,
   participantKey: string,
-): Promise<EncounterDetailView> {
+): Promise<EncounterMutationView> {
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}`,
     { method: "DELETE" },
   );
 }
 
+export async function getEncounterTurnReview(
+  encounterRef: string,
+): Promise<import("../generated/atlas").EncounterTurnReviewView> {
+  return atlasFetchEncounter(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/turn-review`,
+  );
+}
+
+export async function advanceEncounterTurn(
+  encounterRef: string,
+  request: import("../generated/atlas").AdvanceEncounterTurnRequest,
+): Promise<EncounterMutationView> {
+  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}/advance`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
+}
+
+export async function getInitiativeOptions(
+  encounterRef: string,
+): Promise<import("../generated/atlas").InitiativeOptionsView> {
+  const result = await atlasFetch<import("../generated/atlas").InitiativeOptionsView>(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/initiative`,
+  );
+  return {
+    ...result,
+    expected_revision: toBigInt(result.expected_revision),
+    participants: result.participants.map((p) => ({
+      ...p,
+      expected_revision: toBigInt(p.expected_revision),
+    })),
+  };
+}
+export function rollInitiative(
+  encounterRef: string,
+  request: import("../generated/atlas").RollInitiativeRequest,
+): Promise<import("../generated/atlas").InitiativeRollView> {
+  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}/initiative`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
+}
+
 export async function setEncounterTurn(
   request: SetEncounterTurnRequest,
-): Promise<EncounterDetailView> {
+): Promise<EncounterMutationView> {
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(request.encounter_ref)}/turn`,
     {
@@ -217,7 +310,7 @@ export async function setEncounterTurn(
 export async function addEncounterParticipantCondition(
   encounterRef: string,
   request: AddEncounterParticipantConditionRequest,
-): Promise<EncounterDetailView> {
+): Promise<EncounterMutationView> {
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/conditions`,
     {
@@ -231,7 +324,7 @@ export async function updateEncounterParticipantCondition(
   encounterRef: string,
   participantKey: string,
   request: UpdateEncounterParticipantConditionRequest,
-): Promise<EncounterDetailView> {
+): Promise<EncounterMutationView> {
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${request.condition_id.toString()}`,
     {
@@ -245,7 +338,7 @@ export async function removeEncounterParticipantCondition(
   encounterRef: string,
   participantKey: string,
   conditionId: bigint,
-): Promise<EncounterDetailView> {
+): Promise<EncounterMutationView> {
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${conditionId.toString()}`,
     { method: "DELETE" },
@@ -257,21 +350,20 @@ export async function getSavedLists(): Promise<SavedListIndexView> {
 }
 
 export async function getSavedList(listRef: string): Promise<SavedListDetailView> {
-  const list = await atlasFetch<unknown>(`/api/lists/${encodeURIComponent(listRef)}`);
-  return normalizeSavedListDetail(list);
+  return checkedSavedListDetail(
+    await atlasFetch(`/api/lists/${encodeURIComponent(listRef)}`),
+  );
 }
 
 export async function filterSavedList(
   request: FilterSavedListRequest,
 ): Promise<SavedListDetailView> {
-  const list = await atlasFetch<unknown>(
-    `/api/lists/${encodeURIComponent(request.list_ref)}/filter`,
-    {
+  return checkedSavedListDetail(
+    await atlasFetch(`/api/lists/${encodeURIComponent(request.list_ref)}/filter`, {
       method: "POST",
       body: jsonBody(request),
-    },
+    }),
   );
-  return normalizeSavedListDetail(list);
 }
 
 export async function createSavedList(
@@ -344,7 +436,127 @@ async function atlasFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     );
   }
 
+  validateResponseNumbers(payload);
   return payload as T;
+}
+
+function validateResponseNumbers(value: unknown): void {
+  if (
+    typeof value === "number" &&
+    (!Number.isFinite(value) ||
+      (Number.isInteger(value) && !Number.isSafeInteger(value)))
+  )
+    throw new AtlasApiError(
+      200,
+      "Invalid numeric field: response exceeds JSON safe numeric range",
+    );
+  if (Array.isArray(value)) value.forEach(validateResponseNumbers);
+  else if (isRecord(value)) Object.values(value).forEach(validateResponseNumbers);
+}
+
+function normalizeConditionNotes(
+  presentation: RecordPresentationView,
+): RecordPresentationView {
+  const body = presentation.body;
+  const actor =
+    body.kind === "creature"
+      ? body.value
+      : body.kind === "hazard"
+        ? body.value.actor
+        : null;
+  if (!actor?.runtime) return presentation;
+  const value = {
+    ...actor,
+    runtime: {
+      ...actor.runtime,
+      unapplied_effects: actor.runtime.unapplied_effects.map((note) =>
+        note.condition_id === undefined
+          ? note
+          : { ...note, condition_id: toBigInt(note.condition_id) },
+      ),
+    },
+  };
+  return body.kind === "creature"
+    ? { ...presentation, body: { ...body, value } }
+    : body.kind === "hazard"
+      ? { ...presentation, body: { ...body, value: { ...body.value, actor: value } } }
+      : presentation;
+}
+
+async function atlasFetchEncounter<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const payload = await atlasFetch<unknown>(path, init);
+  if (!isRecord(payload)) throw new AtlasApiError(200, "Invalid encounter response");
+  const result = { ...payload };
+  const summary = (value: unknown) => {
+    if (!isRecord(value)) throw new AtlasApiError(200, "Invalid encounter summary");
+    return { ...value, round_number: toBigInt(value.round_number) };
+  };
+  const optionalIntegers = (value: Record<string, unknown>, fields: string[]) =>
+    Object.fromEntries(
+      fields
+        .filter((field) => value[field] !== undefined)
+        .map((field) => [field, toBigInt(value[field])]),
+    );
+  const duration = (value: unknown) => {
+    if (!isRecord(value)) throw new AtlasApiError(200, "Invalid condition duration");
+    return { ...value, amount: toBigInt(value.amount) };
+  };
+  const condition = (value: unknown) => {
+    if (!isRecord(value)) throw new AtlasApiError(200, "Invalid encounter condition");
+    return {
+      ...value,
+      condition_id: toBigInt(value.condition_id),
+      ...optionalIntegers(value, ["value"]),
+      ...(value.duration === undefined ? {} : { duration: duration(value.duration) }),
+    };
+  };
+  const participant = (value: unknown) => {
+    if (!isRecord(value) || !Array.isArray(value.conditions))
+      throw new AtlasApiError(200, "Invalid encounter participant");
+    if (
+      typeof value.revision !== "number" ||
+      !Number.isSafeInteger(value.revision) ||
+      value.revision < 0
+    )
+      throw new AtlasApiError(200, "Invalid participant revision in API response");
+    return {
+      ...value,
+      revision: BigInt(value.revision),
+      position: toBigInt(value.position),
+      initiative_order: toBigInt(value.initiative_order),
+      temporary_hp: toBigInt(value.temporary_hp),
+      ...optionalIntegers(value, ["initiative", "max_hp", "current_hp"]),
+      conditions: value.conditions.map(condition),
+      ...(value.presentation === undefined
+        ? {}
+        : {
+            presentation: normalizeConditionNotes(
+              value.presentation as RecordPresentationView,
+            ),
+          }),
+    };
+  };
+  if (Array.isArray(result.encounters))
+    result.encounters = result.encounters.map(summary);
+  if (result.encounter !== undefined) result.encounter = summary(result.encounter);
+  if (Array.isArray(result.participants)) {
+    result.revision = toBigInt(result.revision);
+    result.participants = result.participants.map(participant);
+  }
+  if (Array.isArray(result.reminders)) {
+    result.expected_revision = toBigInt(result.expected_revision);
+    result.reminders = result.reminders.map(condition);
+  }
+  if (Array.isArray(result.conditions))
+    result.conditions = result.conditions.map((value) => {
+      if (!isRecord(value))
+        throw new AtlasApiError(200, "Invalid condition definition");
+      return { ...value, ...optionalIntegers(value, ["default_value"]) };
+    });
+  return result as T;
 }
 
 function parseJsonResponse(
@@ -362,10 +574,23 @@ function parseJsonResponse(
 
 function jsonBody(value: unknown): string {
   return JSON.stringify(value, (_key, nestedValue) => {
+    if (
+      typeof nestedValue === "number" &&
+      (!Number.isFinite(nestedValue) ||
+        (Number.isInteger(nestedValue) && !Number.isSafeInteger(nestedValue)))
+    ) {
+      throw new AtlasApiError(
+        0,
+        "Request numeric field exceeds JSON safe numeric range",
+      );
+    }
     if (typeof nestedValue !== "bigint") {
       return nestedValue;
     }
-    if (nestedValue > BigInt(Number.MAX_SAFE_INTEGER)) {
+    if (
+      nestedValue > BigInt(Number.MAX_SAFE_INTEGER) ||
+      nestedValue < BigInt(Number.MIN_SAFE_INTEGER)
+    ) {
       throw new AtlasApiError(
         0,
         "Request numeric field exceeds JSON safe integer range",
@@ -389,70 +614,71 @@ function fallbackErrorMessage(
   return response.statusText || `HTTP ${response.status}`;
 }
 
-function normalizeResultWindowPage(value: unknown): ResultWindowPage {
+function normalizeSearchResultsPage(value: unknown): SearchResultsPage {
   if (!isRecord(value)) {
-    throw new AtlasApiError(200, "Invalid result-window response");
+    throw new AtlasApiError(200, "Invalid search-page response");
   }
   const page = isRecord(value.page) ? value.page : {};
   return {
     ...value,
-    window_id: toBigInt(value.window_id),
     page: {
       ...page,
       total: toBigInt(page.total),
     },
-  } as ResultWindowPage;
-}
-
-function normalizeFilterEditor(value: unknown): FilterEditorView {
-  if (!isRecord(value)) {
-    throw new AtlasApiError(200, "Invalid filter-editor response");
-  }
-  return {
-    ...value,
-    matching_record_count: toBigInt(value.matching_record_count),
-  } as FilterEditorView;
+  } as SearchResultsPage;
 }
 
 function normalizeFilterValueList(value: unknown): FilterValueListView {
-  if (!isRecord(value)) {
-    throw new AtlasApiError(200, "Invalid filter-value response");
+  if (!isRecord(value)) throw new AtlasApiError(200, "Invalid filter-value response");
+  if (value.kind === "vocabulary" && isRecord(value.values)) {
+    return {
+      ...value,
+      values: { ...value.values, total_values: toBigInt(value.values.total_values) },
+    } as FilterValueListView;
   }
-  return {
-    ...value,
-    matching_record_count: toBigInt(value.matching_record_count),
-    options: Array.isArray(value.options)
-      ? value.options.map((option) =>
-          isRecord(option) && "count" in option
-            ? { ...option, count: toBigInt(option.count) }
-            : option,
-        )
-      : [],
-  } as FilterValueListView;
-}
-
-function normalizeSavedListDetail(value: unknown): SavedListDetailView {
-  if (!isRecord(value)) {
-    throw new AtlasApiError(200, "Invalid saved-list response");
+  if (value.kind === "contextual" && isRecord(value.outcome)) {
+    if (value.outcome.status === "unavailable") return value as FilterValueListView;
+    if (value.outcome.status === "available" && isRecord(value.outcome.value)) {
+      const values = value.outcome.value;
+      return {
+        ...value,
+        outcome: {
+          ...value.outcome,
+          value: {
+            ...values,
+            total_values: toBigInt(values.total_values),
+            options: Array.isArray(values.options)
+              ? values.options.map((option) =>
+                  isRecord(option)
+                    ? { ...option, distinct_roots: toBigInt(option.distinct_roots) }
+                    : option,
+                )
+              : [],
+          },
+        },
+      } as FilterValueListView;
+    }
   }
-  return {
-    ...value,
-    items: Array.isArray(value.items)
-      ? value.items.map((item) =>
-          isRecord(item) ? { ...item, position: toBigInt(item.position) } : item,
-        )
-      : [],
-  } as SavedListDetailView;
+  throw new AtlasApiError(200, "Invalid filter-value response");
 }
 
 function toBigInt(value: unknown): bigint {
   if (typeof value === "bigint") {
     return value;
   }
-  if (typeof value === "number" || typeof value === "string") {
+  if (typeof value === "number" && Number.isSafeInteger(value)) {
+    return BigInt(value);
+  }
+  if (typeof value === "string" && /^-?\d+$/.test(value)) {
     return BigInt(value);
   }
   throw new AtlasApiError(200, "Invalid numeric field in API response");
+}
+
+function checkedSavedListDetail(value: unknown): SavedListDetailView {
+  if (!isRecord(value) || !Array.isArray(value.items))
+    throw new AtlasApiError(200, "Invalid saved-list response");
+  return value as SavedListDetailView;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -463,4 +689,71 @@ function isAppError(value: unknown): value is AppError {
   return (
     typeof value === "object" && value !== null && "code" in value && "message" in value
   );
+}
+
+export async function getRelatedRecords(
+  request: import("../generated/atlas").RelatedRecordsRequest,
+  signal?: AbortSignal,
+): Promise<import("../generated/atlas").RelatedRecordsView> {
+  return atlasFetch("/api/related", {
+    method: "POST",
+    body: jsonBody(request),
+    signal,
+  });
+}
+export async function discoverFilterCounts(
+  request: import("../generated/atlas").DiscoverFilterCountsRequest,
+  signal?: AbortSignal,
+): Promise<import("../generated/atlas").FilterCountsView> {
+  const result = await atlasFetch<import("../generated/atlas").FilterCountsView>(
+    "/api/filters/counts",
+    { method: "POST", body: jsonBody(request), signal },
+  );
+  if (result.counts.status === "unavailable") return result;
+  return {
+    ...result,
+    counts: {
+      ...result.counts,
+      value: {
+        ...result.counts.value,
+        total_values: toBigInt(result.counts.value.total_values),
+        options: result.counts.value.options.map((option) => ({
+          ...option,
+          distinct_roots: toBigInt(option.distinct_roots),
+        })),
+      },
+    },
+  };
+}
+
+export async function rollTable(
+  request: import("../generated/atlas").RollTableRequest,
+): Promise<import("../generated/atlas").TableRollView> {
+  return atlasFetch("/api/rolls/table", { method: "POST", body: jsonBody(request) });
+}
+
+export async function getEncounterStrikeOptions(
+  encounter: string,
+  request: import("../generated/atlas").EncounterStrikeOptionsRequest,
+): Promise<import("../generated/atlas").EncounterStrikeOptionsView> {
+  const result = await atlasFetch<
+    import("../generated/atlas").EncounterStrikeOptionsView
+  >(`/api/encounters/${encodeURIComponent(encounter)}/strike-options`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
+  return {
+    ...result,
+    expected_revision: toBigInt(result.expected_revision),
+    expected_participant_revision: toBigInt(result.expected_participant_revision),
+  };
+}
+export async function rollEncounterStrike(
+  encounter: string,
+  request: import("../generated/atlas").RollEncounterStrikeRequest,
+): Promise<import("../generated/atlas").EncounterStrikeRollView> {
+  return atlasFetch(`/api/encounters/${encodeURIComponent(encounter)}/strike-rolls`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
 }

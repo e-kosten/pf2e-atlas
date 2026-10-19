@@ -1,49 +1,33 @@
-use std::fs;
-use std::path::{Path, PathBuf};
+//! Domain access borrowed from a caller-owned workspace transaction.
+//! Each mutation has a savepoint: errors undo that action, while final commit stays caller-owned.
+use crate::{EncountersRead, EncountersWrite, SavedListsRead, SavedListsWrite};
+use atlas_storage::{ReadSession, WriteSession};
 
-use rusqlite::Connection;
-
-use crate::schema;
-use crate::{Encounters, LocalStateResult, SavedLists};
-
-#[derive(Debug, Clone)]
-pub struct LocalStateStore {
-    path: PathBuf,
+pub struct LocalStateRead<'a> {
+    session: &'a ReadSession,
 }
-
-impl LocalStateStore {
-    pub fn open(path: impl Into<PathBuf>) -> LocalStateResult<Self> {
-        let path = path.into();
-        if let Some(parent) = path.parent()
-            && !parent.as_os_str().is_empty()
-        {
-            fs::create_dir_all(parent)?;
-        }
-        let store = Self { path };
-        store.initialize()?;
-        Ok(store)
+pub struct LocalStateWrite<'a> {
+    session: &'a WriteSession,
+}
+impl<'a> LocalStateRead<'a> {
+    pub fn new(session: &'a ReadSession) -> Self {
+        Self { session }
     }
-
-    pub fn path(&self) -> &Path {
-        &self.path
+    pub fn saved_lists(&self) -> SavedListsRead<'a> {
+        SavedListsRead::from_connection(self.session.connection())
     }
-
-    pub fn saved_lists(&self) -> SavedLists<'_> {
-        SavedLists::new(self)
+    pub fn encounters(&self) -> EncountersRead<'a> {
+        EncountersRead::from_connection(self.session.connection())
     }
-
-    pub fn encounters(&self) -> Encounters<'_> {
-        Encounters::new(self)
+}
+impl<'a> LocalStateWrite<'a> {
+    pub fn new(session: &'a WriteSession) -> Self {
+        Self { session }
     }
-
-    pub(crate) fn connection(&self) -> LocalStateResult<Connection> {
-        let connection = Connection::open(&self.path)?;
-        connection.execute_batch("PRAGMA foreign_keys = ON;")?;
-        Ok(connection)
+    pub fn saved_lists(&self) -> SavedListsWrite<'a> {
+        SavedListsWrite::from_connection(self.session.connection())
     }
-
-    fn initialize(&self) -> LocalStateResult<()> {
-        let connection = self.connection()?;
-        schema::initialize(&connection)
+    pub fn encounters(&self) -> EncountersWrite<'a> {
+        EncountersWrite::from_connection(self.session.connection())
     }
 }

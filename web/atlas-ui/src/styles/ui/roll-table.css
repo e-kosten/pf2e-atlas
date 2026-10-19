@@ -1,0 +1,10 @@
+.roll-table-result--highlight > td {
+  background: var(--active-bg);
+}
+
+.roll-table-result-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}

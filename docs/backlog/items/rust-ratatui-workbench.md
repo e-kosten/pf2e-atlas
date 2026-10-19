@@ -3,11 +3,12 @@
 Status: planned
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-05-19
+Last reviewed: 2026-10-13
 
 ## Problem
 
-PF2e Atlas has a strong CLI and agent skill surface, but it does not yet have an interactive terminal workbench over the Rust runtime. The workbench should preserve the useful product ideas from the previous terminal backlog without carrying over implementation-specific assumptions.
+PF2e Atlas needs an interactive terminal workbench for keyboard-driven discovery,
+reference reading and preparation over its shared application contracts.
 
 ## Desired Outcome
 
@@ -28,14 +29,12 @@ The workbench should cover:
 
 ## Constraints
 
-- Compose through `atlas-runtime`, `atlas-search`, `atlas-index`, and `atlas-record`; do not open SQLite or embedding models directly from screen code.
+- Compose product workflows through `atlas-app-service` and `atlas-app-model`,
+  which use the shared runtime and retrieval owners. Screen code does not open
+  SQLite or embedding models directly.
 - Keep durable state models separate from rendered row/view models.
 - Treat terminal capability checks for clipboard, links, and pointer behavior as explicit abstractions.
-- Do not recreate structures from retired terminal implementations.
-
-## Notes
-
-This item preserves the useful intent from retired terminal backlog items such as search interaction cleanup, view/detail presentation, query editor shortcuts, page navigation, shared UI model boundaries, pointer target hit testing, and mouse text selection.
+- Define terminal-specific navigation and rendering around those contracts.
 
 ## Related
 

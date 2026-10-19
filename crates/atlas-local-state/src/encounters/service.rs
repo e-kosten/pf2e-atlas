@@ -1,64 +1,67 @@
-use rusqlite::TransactionBehavior;
-
 use super::model::{
     AddEncounterParticipant, AddEncounterParticipantCondition, Encounter, EncounterParticipant,
-    EncounterParticipantCondition, EncounterWithParticipants, NewEncounter,
-    ReorderEncounterParticipant, UpdateEncounter, UpdateEncounterParticipant,
-    UpdateEncounterParticipantCondition,
+    EncounterParticipantCondition, EncounterTurnState, EncounterTurnUpdate,
+    EncounterWithParticipants, NewEncounter, ReorderEncounterParticipant, UpdateEncounter,
+    UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
 };
 use super::storage;
-use crate::{LocalStateError, LocalStateResult, LocalStateStore};
+use crate::{LocalStateError, LocalStateResult};
 
-#[derive(Debug, Clone, Copy)]
-pub struct Encounters<'a> {
-    store: &'a LocalStateStore,
+#[derive(Clone, Copy)]
+pub struct EncountersRead<'a> {
+    pub(super) connection: &'a rusqlite::Connection,
 }
-
-impl<'a> Encounters<'a> {
-    pub(crate) fn new(store: &'a LocalStateStore) -> Self {
-        Self { store }
+pub struct EncountersWrite<'a> {
+    pub(super) read: EncountersRead<'a>,
+}
+impl<'a> std::ops::Deref for EncountersWrite<'a> {
+    type Target = EncountersRead<'a>;
+    fn deref(&self) -> &Self::Target {
+        &self.read
     }
-
+}
+impl<'a> EncountersRead<'a> {
+    pub(crate) fn from_connection(connection: &'a rusqlite::Connection) -> Self {
+        Self { connection }
+    }
+}
+impl<'a> EncountersWrite<'a> {
+    pub(crate) fn from_connection(connection: &'a rusqlite::Connection) -> Self {
+        Self {
+            read: EncountersRead::from_connection(connection),
+        }
+    }
+}
+impl EncountersWrite<'_> {
     pub fn create(&self, encounter: NewEncounter) -> LocalStateResult<Encounter> {
-        let connection = self.store.connection()?;
-        let encounter_key = storage::insert_encounter(&connection, encounter)?;
-        self.get(&encounter_key)?
-            .ok_or(LocalStateError::EncounterNotFound(encounter_key))
-    }
+        crate::atomic_action::run(self.connection, || {
+            let transaction = self.connection;
+            let encounter_key = storage::insert_encounter(transaction, encounter)?;
+            let result = storage::get(transaction, &encounter_key)?
+                .ok_or(LocalStateError::EncounterNotFound(encounter_key))?;
 
-    pub fn list(&self) -> LocalStateResult<Vec<Encounter>> {
-        let connection = self.store.connection()?;
-        storage::list(&connection)
-    }
-
-    pub fn get(&self, encounter_ref: &str) -> LocalStateResult<Option<Encounter>> {
-        validate_ref(encounter_ref)?;
-        let connection = self.store.connection()?;
-        storage::get(&connection, encounter_ref)
-    }
-
-    pub fn get_with_participants(
-        &self,
-        encounter_ref: &str,
-    ) -> LocalStateResult<Option<EncounterWithParticipants>> {
-        validate_ref(encounter_ref)?;
-        let connection = self.store.connection()?;
-        storage::get_with_participants(&connection, encounter_ref)
+            Ok(result)
+        })
     }
 
     pub fn update(&self, encounter: UpdateEncounter) -> LocalStateResult<Option<Encounter>> {
-        validate_ref(&encounter.encounter_key)?;
-        let connection = self.store.connection()?;
-        if !storage::update_encounter(&connection, encounter.clone())? {
-            return Ok(None);
-        }
-        self.get(&encounter.encounter_key)
+        crate::atomic_action::run(self.connection, || {
+            validate_ref(&encounter.encounter_key)?;
+            let transaction = self.connection;
+            if !storage::update_encounter(transaction, encounter.clone())? {
+                return Ok(None);
+            }
+            let result = storage::get(transaction, &encounter.encounter_key)?;
+
+            Ok(result)
+        })
     }
 
     pub fn delete(&self, encounter_ref: &str) -> LocalStateResult<bool> {
-        validate_ref(encounter_ref)?;
-        let connection = self.store.connection()?;
-        storage::delete(&connection, encounter_ref)
+        crate::atomic_action::run(self.connection, || {
+            validate_ref(encounter_ref)?;
+            storage::delete(self.connection, encounter_ref)
+        })
     }
 
     pub fn add_participant(
@@ -66,89 +69,129 @@ impl<'a> Encounters<'a> {
         encounter_ref: &str,
         participant: AddEncounterParticipant,
     ) -> LocalStateResult<EncounterParticipant> {
-        validate_ref(encounter_ref)?;
-        let mut connection = self.store.connection()?;
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let participant_key = storage::add_participant(&transaction, encounter_ref, participant)?;
-        transaction.commit()?;
-        self.participant(&participant_key)?
-            .ok_or(LocalStateError::ParticipantNotFound(participant_key))
+        crate::atomic_action::run(self.connection, || {
+            validate_ref(encounter_ref)?;
+            let transaction = self.connection;
+            let participant_key =
+                storage::add_participant(transaction, encounter_ref, participant)?;
+            let result = storage::participant(transaction, &participant_key)?
+                .ok_or(LocalStateError::ParticipantNotFound(participant_key))?;
+
+            Ok(result)
+        })
+    }
+
+    /// Add one resolved quantity as a single durable operation.
+    pub fn add_participants(
+        &self,
+        encounter_ref: &str,
+        participants: Vec<AddEncounterParticipant>,
+    ) -> LocalStateResult<Vec<EncounterParticipant>> {
+        crate::atomic_action::run(self.connection, || {
+            validate_ref(encounter_ref)?;
+            let transaction = self.connection;
+            if storage::get(transaction, encounter_ref)?.is_none() {
+                return Err(LocalStateError::EncounterNotFound(
+                    encounter_ref.to_string(),
+                ));
+            }
+            let mut result = Vec::with_capacity(participants.len());
+            for participant in participants {
+                let key = storage::add_participant(transaction, encounter_ref, participant)?;
+                result.push(
+                    storage::participant(transaction, &key)?
+                        .ok_or(LocalStateError::ParticipantNotFound(key))?,
+                );
+            }
+
+            Ok(result)
+        })
     }
 
     pub fn update_participant(
         &self,
         participant: UpdateEncounterParticipant,
     ) -> LocalStateResult<Option<EncounterParticipant>> {
-        let mut connection = self.store.connection()?;
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        if !storage::update_participant(&transaction, participant.clone())? {
-            transaction.commit()?;
-            return Ok(None);
-        }
-        transaction.commit()?;
-        self.participant(&participant.participant_key)
+        crate::atomic_action::run(self.connection, || {
+            let transaction = self.connection;
+            if !storage::update_participant(transaction, participant.clone())? {
+                return Ok(None);
+            }
+            let result = storage::participant(transaction, &participant.participant_key)?;
+
+            Ok(result)
+        })
     }
 
     pub fn reorder_participant(
         &self,
         reorder: ReorderEncounterParticipant,
     ) -> LocalStateResult<Option<EncounterParticipant>> {
-        validate_ref(&reorder.participant_key)?;
-        validate_ref(&reorder.target_participant_key)?;
-        let mut connection = self.store.connection()?;
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        if !storage::reorder_participant(&transaction, reorder.clone())? {
-            transaction.commit()?;
-            return Ok(None);
-        }
-        transaction.commit()?;
-        self.participant(&reorder.participant_key)
+        crate::atomic_action::run(self.connection, || {
+            validate_ref(&reorder.participant_key)?;
+            validate_ref(&reorder.target_participant_key)?;
+            let transaction = self.connection;
+            if !storage::reorder_participant(transaction, reorder.clone())? {
+                return Ok(None);
+            }
+            let result = storage::participant(transaction, &reorder.participant_key)?;
+
+            Ok(result)
+        })
     }
 
     pub fn remove_participant(&self, participant_key: &str) -> LocalStateResult<bool> {
-        validate_ref(participant_key)?;
-        let mut connection = self.store.connection()?;
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let removed = storage::remove_participant(&transaction, participant_key)?;
-        transaction.commit()?;
-        Ok(removed)
+        crate::atomic_action::run(self.connection, || {
+            validate_ref(participant_key)?;
+            let transaction = self.connection;
+            let removed = storage::remove_participant(transaction, participant_key)?;
+
+            Ok(removed)
+        })
     }
 
     pub fn add_condition(
         &self,
         condition: AddEncounterParticipantCondition,
     ) -> LocalStateResult<EncounterParticipantCondition> {
-        validate_ref(&condition.participant_key)?;
-        let mut connection = self.store.connection()?;
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let condition_id = storage::add_condition(&transaction, condition)?;
-        transaction.commit()?;
-        self.condition(condition_id)?
-            .ok_or(LocalStateError::ParticipantNotFound(
-                condition_id.to_string(),
-            ))
+        crate::atomic_action::run(self.connection, || {
+            validate_ref(&condition.participant_key)?;
+            let transaction = self.connection;
+            let condition_id = storage::add_condition(transaction, condition)?;
+            let result = storage::condition(transaction, condition_id)?.ok_or(
+                LocalStateError::ParticipantNotFound(condition_id.to_string()),
+            )?;
+
+            Ok(result)
+        })
     }
 
     pub fn update_condition(
         &self,
         condition: UpdateEncounterParticipantCondition,
     ) -> LocalStateResult<Option<EncounterParticipantCondition>> {
-        let mut connection = self.store.connection()?;
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        if !storage::update_condition(&transaction, condition.clone())? {
-            transaction.commit()?;
-            return Ok(None);
-        }
-        transaction.commit()?;
-        self.condition(condition.condition_id)
+        crate::atomic_action::run(self.connection, || {
+            let transaction = self.connection;
+            if !storage::update_condition(transaction, condition.clone())? {
+                return Ok(None);
+            }
+            let result = storage::condition(transaction, condition.condition_id)?;
+
+            Ok(result)
+        })
     }
 
-    pub fn remove_condition(&self, condition_id: i64) -> LocalStateResult<bool> {
-        let mut connection = self.store.connection()?;
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let removed = storage::remove_condition(&transaction, condition_id)?;
-        transaction.commit()?;
-        Ok(removed)
+    pub fn remove_condition(
+        &self,
+        participant_key: &str,
+        condition_id: i64,
+    ) -> LocalStateResult<bool> {
+        crate::atomic_action::run(self.connection, || {
+            let transaction = self.connection;
+            let removed = storage::remove_condition(transaction, participant_key, condition_id)?;
+
+            Ok(removed)
+        })
     }
 
     pub fn set_current_turn(
@@ -156,9 +199,13 @@ impl<'a> Encounters<'a> {
         encounter_ref: &str,
         participant_key: Option<&str>,
     ) -> LocalStateResult<bool> {
-        validate_ref(encounter_ref)?;
-        let connection = self.store.connection()?;
-        storage::set_current_turn(&connection, encounter_ref, participant_key)
+        crate::atomic_action::run(self.connection, || {
+            validate_ref(encounter_ref)?;
+            let transaction = self.connection;
+            let result = storage::set_current_turn(transaction, encounter_ref, participant_key)?;
+
+            Ok(result)
+        })
     }
 
     pub fn set_turn_state(
@@ -168,45 +215,123 @@ impl<'a> Encounters<'a> {
         round_number: i64,
         mark_running: bool,
     ) -> LocalStateResult<bool> {
-        validate_ref(encounter_ref)?;
-        let connection = self.store.connection()?;
-        storage::set_turn_state(
-            &connection,
-            encounter_ref,
-            participant_key,
-            Some(round_number),
-            mark_running,
-        )
+        crate::atomic_action::run(self.connection, || {
+            validate_ref(encounter_ref)?;
+            let transaction = self.connection;
+            let result = storage::set_turn_state(
+                transaction,
+                encounter_ref,
+                participant_key,
+                Some(round_number),
+                mark_running,
+            )?;
+
+            Ok(result)
+        })
     }
 
-    fn participant(&self, participant_key: &str) -> LocalStateResult<Option<EncounterParticipant>> {
-        let connection = self.store.connection()?;
-        storage::participant(&connection, participant_key)
-    }
-
-    fn condition(
+    /// Choose a turn using the same locked snapshot that is updated.
+    /// The callback must be pure; resolve immutable source facts before this call.
+    pub fn advance_turn(
         &self,
-        condition_id: i64,
-    ) -> LocalStateResult<Option<EncounterParticipantCondition>> {
-        let connection = self.store.connection()?;
-        let encounters = storage::list(&connection)?;
-        for encounter in encounters {
-            let Some(detail) =
-                storage::get_with_participants(&connection, &encounter.encounter_key)?
-            else {
-                continue;
+        encounter_ref: &str,
+        choose: impl FnOnce(&EncounterWithParticipants) -> EncounterTurnState,
+    ) -> LocalStateResult<Option<Encounter>> {
+        crate::atomic_action::run(self.connection, || {
+            validate_ref(encounter_ref)?;
+            let transaction = self.connection;
+            let Some(snapshot) = storage::get_with_participants(transaction, encounter_ref)? else {
+                return Ok(None);
             };
-            for participant in detail.participants {
-                if let Some(condition) = participant
-                    .conditions
-                    .into_iter()
-                    .find(|condition| condition.condition_id == condition_id)
-                {
-                    return Ok(Some(condition));
-                }
+            let turn = choose(&snapshot);
+            storage::set_turn_state(
+                transaction,
+                encounter_ref,
+                turn.participant_key.as_deref(),
+                Some(turn.round_number),
+                turn.mark_running,
+            )?;
+            let result = storage::get(transaction, encounter_ref)?;
+
+            Ok(result)
+        })
+    }
+
+    /// Check a reviewed revision and apply turn/timing in one write transaction.
+    /// The callback is pure and may only plan updates from this locked snapshot.
+    pub fn advance_reviewed_turn(
+        &self,
+        encounter_ref: &str,
+        expected_revision: i64,
+        choose: impl FnOnce(&EncounterWithParticipants) -> EncounterTurnUpdate,
+    ) -> LocalStateResult<Option<Encounter>> {
+        crate::atomic_action::run(self.connection, || {
+            validate_ref(encounter_ref)?;
+            let transaction = self.connection;
+            let Some(snapshot) = storage::get_with_participants(transaction, encounter_ref)? else {
+                return Ok(None);
+            };
+            if snapshot.encounter.revision != expected_revision {
+                return Err(LocalStateError::StaleEncounterRevision {
+                    encounter_key: snapshot.encounter.encounter_key,
+                    expected_revision,
+                    actual_revision: snapshot.encounter.revision,
+                });
             }
-        }
-        Ok(None)
+            let update = choose(&snapshot);
+            for (condition_id, amount) in update.durations {
+                storage::update_duration_amount(transaction, condition_id, amount)?;
+            }
+            storage::set_turn_state(
+                transaction,
+                encounter_ref,
+                update.turn.participant_key.as_deref(),
+                Some(update.turn.round_number),
+                update.turn.mark_running,
+            )?;
+            let result = storage::get(transaction, encounter_ref)?;
+
+            Ok(result)
+        })
+    }
+
+    /// Remove a participant and apply the application's replacement turn atomically.
+    /// The pure callback sees the complete pre-removal snapshot.
+    pub fn remove_participant_and_select_turn(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        choose: impl FnOnce(&EncounterWithParticipants) -> Option<EncounterTurnState>,
+    ) -> LocalStateResult<Option<Encounter>> {
+        crate::atomic_action::run(self.connection, || {
+            validate_ref(encounter_ref)?;
+            validate_ref(participant_key)?;
+            let transaction = self.connection;
+            let Some(snapshot) = storage::get_with_participants(transaction, encounter_ref)? else {
+                return Ok(None);
+            };
+            if !snapshot
+                .participants
+                .iter()
+                .any(|row| row.participant_key == participant_key)
+            {
+                return Ok(None);
+            }
+            let replacement = choose(&snapshot);
+            storage::remove_participant(transaction, participant_key)?;
+            if let Some(turn) = replacement {
+                storage::set_turn_state(
+                    transaction,
+                    encounter_ref,
+                    turn.participant_key.as_deref(),
+                    Some(turn.round_number),
+                    turn.mark_running,
+                )?;
+            }
+            let result = storage::get(transaction, encounter_ref)?;
+
+            Ok(result)
+        })
     }
 }
 
@@ -218,4 +343,24 @@ fn validate_ref(value: &str) -> LocalStateResult<()> {
         });
     }
     Ok(())
+}
+
+impl EncountersRead<'_> {
+    pub fn list(&self) -> LocalStateResult<Vec<Encounter>> {
+        storage::list(self.connection)
+    }
+    pub fn get(&self, encounter_ref: &str) -> LocalStateResult<Option<Encounter>> {
+        validate_ref(encounter_ref)?;
+        storage::get(self.connection, encounter_ref)
+    }
+    pub fn get_with_participants(
+        &self,
+        encounter_ref: &str,
+    ) -> LocalStateResult<Option<EncounterWithParticipants>> {
+        validate_ref(encounter_ref)?;
+        let transaction = self.connection;
+        let result = storage::get_with_participants(transaction, encounter_ref)?;
+
+        Ok(result)
+    }
 }

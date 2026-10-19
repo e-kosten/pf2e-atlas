@@ -1,26 +1,13 @@
 # Backlog History
 
-Use this folder only when historical snapshots are actually useful.
+This directory preserves completed and superseded backlog work, archived plans,
+and historical migration research. Use it to understand prior scope, decisions
+and supporting evidence.
 
-Good uses:
+- [Completed and superseded work](done-and-superseded.md) indexes retired items.
+- `items/` retains their detailed context.
+- [Plans](plans/README.md) preserves tracked planning history.
+- `rust-cli-runtime/` contains migration records and exploratory findings.
 
-- monthly or milestone backlog snapshots
-- archived `done` / `superseded` rolls that are too noisy for the live index
-- preserving a backlog state before a larger triage or restructuring pass
-
-Current live archive files:
-
-- `done-and-superseded.md` for the current completed / retired index
-
-Avoid using this folder for:
-
-- every small backlog edit
-- duplicate copies of active item files
-- temporary implementation notes that belong in `scratch/plans/`
-
-If you need history, prefer coarse snapshots such as:
-
-- `2026-04.md`
-- `2026-q2.md`
-
-If you do not need historical tracking yet, leave this folder with only this guide.
+Current open work belongs in the [backlog](../backlog.md); current implementation
+guidance belongs in the [architecture docs](../../architecture/overview.md).

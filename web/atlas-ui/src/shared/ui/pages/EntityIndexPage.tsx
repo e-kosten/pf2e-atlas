@@ -5,6 +5,9 @@ export function EntityIndexPage({
   overlays,
   summary,
   title,
+  toolbar,
+  scrollRef,
+  onScroll,
 }: {
   actions?: React.ReactNode;
   children: React.ReactNode;
@@ -12,10 +15,15 @@ export function EntityIndexPage({
   overlays?: React.ReactNode;
   summary?: React.ReactNode;
   title: string;
+  toolbar?: React.ReactNode;
+  scrollRef?: React.Ref<HTMLElement>;
+  onScroll?: React.UIEventHandler<HTMLElement>;
 }) {
   return (
     <>
-      <main className={className}>
+      <main
+        className={`entity-index-page ${className}${toolbar ? " entity-index-page--with-controls" : ""}`}
+      >
         <section className="entity-index-page__toolbar">
           <div>
             <h2>{title}</h2>
@@ -23,7 +31,14 @@ export function EntityIndexPage({
           </div>
           {actions}
         </section>
-        <section className="entity-index-page__table">{children}</section>
+        {toolbar && <div className="entity-index-page__controls">{toolbar}</div>}
+        <section
+          className="entity-index-page__table"
+          ref={scrollRef}
+          onScroll={onScroll}
+        >
+          {children}
+        </section>
       </main>
       {overlays}
     </>

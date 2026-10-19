@@ -4,6 +4,11 @@
 
 Accepted.
 
+The app-layer ownership and full web readiness decision remain current.
+ADR0046 replaces capability-trait retrieval with the concrete search service;
+[ADR0049](./0049-search-lifetimes-and-pages.md) supersedes result-window state and
+per-call command opens with stateless pages and coherent reader lifetimes.
+
 ## Context
 
 PF2e Atlas is adding a local interactive web surface on top of the existing Rust search/runtime stack. The web UI needs TypeScript DTOs, HTTP routes, long-lived search/result-window state, and record detail loading, but it should not duplicate CLI internals or leak SQLite/index ownership into the app layer.

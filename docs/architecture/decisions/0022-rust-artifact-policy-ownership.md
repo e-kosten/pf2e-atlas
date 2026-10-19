@@ -2,7 +2,14 @@
 
 ## Status
 
-Accepted
+Partially superseded by [ADR 0046](./0046-source-backed-reference-artifact.md).
+The Diesel and standalone artifact lifecycle decisions are superseded by
+[ADR 0051](./0051-persistent-workspace.md): domain-owned rusqlite SQL runs on
+shared workspace sessions.
+
+Index schema/vector ownership remains. Generic metric definitions/storage and the
+public-only nonembedded graph default below are replaced by named source query
+projections and attributed eligible occurrences under the approved audience.
 
 ## Context
 

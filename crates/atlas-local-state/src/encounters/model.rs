@@ -3,6 +3,7 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Encounter {
+    pub revision: i64,
     pub encounter_key: String,
     pub slug: String,
     pub name: String,
@@ -46,6 +47,11 @@ impl EncounterStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct EncounterParticipant {
+    pub spell_resources: Vec<SpellResource>,
+    pub expended_spells: Vec<String>,
+    pub revision: i64,
+    pub hp_origin: ParticipantHpOrigin,
+    pub variant_origin: ParticipantVariantOrigin,
     pub participant_key: String,
     pub record_key: Option<String>,
     pub participant_kind: ParticipantKind,
@@ -101,7 +107,7 @@ pub struct EncounterParticipantCondition {
     pub name: String,
     pub value: Option<i64>,
     pub source_participant_key: Option<String>,
-    pub duration_rounds: Option<i64>,
+    pub duration: Option<ConditionDuration>,
     pub note: Option<String>,
     pub created_at: String,
     pub updated_at: String,
@@ -171,6 +177,14 @@ pub struct EncounterWithParticipants {
     pub participants: Vec<EncounterParticipant>,
 }
 
+/// An application-chosen turn transition, persisted atomically with its snapshot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EncounterTurnState {
+    pub participant_key: Option<String>,
+    pub round_number: i64,
+    pub mark_running: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewEncounter {
     pub slug: String,
@@ -191,6 +205,10 @@ pub struct UpdateEncounter {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AddEncounterParticipant {
+    pub spell_resources: Vec<SpellResource>,
+    pub participant_variant: ParticipantVariant,
+    pub hp_origin: ParticipantHpOrigin,
+    pub variant_origin: ParticipantVariantOrigin,
     pub record_key: Option<RecordKey>,
     pub participant_kind: ParticipantKind,
     pub display_name: String,
@@ -206,6 +224,9 @@ pub struct AddEncounterParticipant {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateEncounterParticipant {
+    pub expected_revision: i64,
+    pub hp_origin: ParticipantHpOrigin,
+    pub variant_origin: ParticipantVariantOrigin,
     pub participant_key: String,
     pub display_name: String,
     pub side: ParticipantSide,
@@ -239,17 +260,131 @@ pub struct AddEncounterParticipantCondition {
     pub name: String,
     pub value: Option<i64>,
     pub source_participant_key: Option<String>,
-    pub duration_rounds: Option<i64>,
+    pub duration: Option<ConditionDuration>,
     pub note: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateEncounterParticipantCondition {
+    pub expected_encounter_revision: i64,
+    pub participant_key: String,
     pub condition_id: i64,
     pub condition_key: Option<String>,
     pub name: String,
     pub value: Option<i64>,
     pub source_participant_key: Option<String>,
-    pub duration_rounds: Option<i64>,
+    pub duration: Option<ConditionDuration>,
     pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ParticipantHpOrigin {
+    DerivedPristine,
+    DerivedEdited,
+    #[default]
+    Explicit,
+    Unknown,
+}
+impl ParticipantHpOrigin {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::DerivedPristine => "derived_pristine",
+            Self::DerivedEdited => "derived_edited",
+            Self::Explicit => "explicit",
+            Self::Unknown => "unknown",
+        }
+    }
+    pub(crate) fn from_str(value: &str) -> Self {
+        match value {
+            "derived_pristine" => Self::DerivedPristine,
+            "derived_edited" => Self::DerivedEdited,
+            "unknown" => Self::Unknown,
+            _ => Self::Explicit,
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ParticipantVariantOrigin {
+    DefaultUnadjusted,
+    InheritedKnown,
+    InheritedUnknown,
+    #[default]
+    Explicit,
+}
+impl ParticipantVariantOrigin {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::DefaultUnadjusted => "default_unadjusted",
+            Self::InheritedKnown => "inherited_known",
+            Self::InheritedUnknown => "inherited_unknown",
+            Self::Explicit => "explicit",
+        }
+    }
+    pub(crate) fn from_str(value: &str) -> Self {
+        match value {
+            "default_unadjusted" => Self::DefaultUnadjusted,
+            "inherited_known" => Self::InheritedKnown,
+            "inherited_unknown" => Self::InheritedUnknown,
+            _ => Self::Explicit,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConditionDurationUnit {
+    Rounds,
+    Minutes,
+    Hours,
+    Days,
+}
+impl ConditionDurationUnit {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Rounds => "rounds",
+            Self::Minutes => "minutes",
+            Self::Hours => "hours",
+            Self::Days => "days",
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConditionTurnEvent {
+    Start,
+    End,
+}
+impl ConditionTurnEvent {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Start => "start",
+            Self::End => "end",
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ConditionTiming {
+    pub participant_key: String,
+    pub event: ConditionTurnEvent,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ConditionDuration {
+    pub amount: i64,
+    pub unit: ConditionDurationUnit,
+    pub timing: Option<ConditionTiming>,
+}
+#[derive(Debug, Clone)]
+pub struct EncounterTurnUpdate {
+    pub turn: EncounterTurnState,
+    pub durations: Vec<(i64, i64)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SpellResource {
+    pub key: String,
+    pub capacity: i64,
+    pub remaining: i64,
+    pub undo_remaining: Option<i64>,
 }

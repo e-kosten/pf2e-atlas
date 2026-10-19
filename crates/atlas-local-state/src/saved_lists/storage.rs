@@ -41,9 +41,10 @@ pub(crate) fn insert_list(connection: &Connection, list: NewSavedList) -> LocalS
 pub(crate) fn list(connection: &Connection) -> LocalStateResult<Vec<SavedList>> {
     let mut statement = connection.prepare(
         "SELECT list.id, list.list_key, list.slug, list.name, list.description,
-                COUNT(item.record_key), list.created_at, list.updated_at
+                COUNT(item.record_key), list.created_at, list.updated_at, list.revision
          FROM saved_lists list
          LEFT JOIN saved_list_items item ON item.list_id = list.id
+         WHERE list.owner_id = 1
          GROUP BY list.id
          ORDER BY list.slug",
     )?;
@@ -56,10 +57,10 @@ pub(crate) fn get(connection: &Connection, list_ref: &str) -> LocalStateResult<O
     let raw = connection
         .query_row(
             "SELECT list.id, list.list_key, list.slug, list.name, list.description,
-                    COUNT(item.record_key), list.created_at, list.updated_at
+                    COUNT(item.record_key), list.created_at, list.updated_at, list.revision
              FROM saved_lists list
              LEFT JOIN saved_list_items item ON item.list_id = list.id
-             WHERE list.list_key = ?1 OR list.slug = ?1
+             WHERE list.owner_id = 1 AND (list.list_key = ?1 OR list.slug = ?1)
              GROUP BY list.id",
             params![list_ref],
             raw_saved_list_from_row,
@@ -92,7 +93,7 @@ pub(crate) fn get_with_items(
 
 pub(crate) fn delete(connection: &Connection, list_ref: &str) -> LocalStateResult<bool> {
     let removed = connection.execute(
-        "DELETE FROM saved_lists WHERE list_key = ?1 OR slug = ?1",
+        "DELETE FROM saved_lists WHERE owner_id = 1 AND (list_key = ?1 OR slug = ?1)",
         params![list_ref],
     )?;
     Ok(removed > 0)
@@ -112,7 +113,7 @@ pub(crate) fn replace_items(
     )?;
     insert_imported_items(connection, list_id, items)?;
     connection.execute(
-        "UPDATE saved_lists SET updated_at = ?1 WHERE id = ?2",
+        "UPDATE saved_lists SET revision = revision + 1, updated_at = ?1 WHERE id = ?2",
         params![now_rfc3339()?, list_id],
     )?;
     Ok(())
@@ -125,7 +126,7 @@ pub(crate) fn update_list(
     let now = now_rfc3339()?;
     let result = connection.execute(
         "UPDATE saved_lists
-         SET slug = ?1, name = ?2, description = ?3, updated_at = ?4
+         SET revision = revision + 1, slug = ?1, name = ?2, description = ?3, updated_at = ?4
          WHERE list_key = ?5",
         params![list.slug, list.name, list.description, now, list.list_key],
     );
@@ -163,6 +164,7 @@ pub(crate) fn add_item(
     if existing.is_some() {
         return Ok(AddSavedListItemOutcome::AlreadyPresent);
     }
+    crate::references::retain(connection, &item.record_key, &item.record_title_snapshot)?;
     let position = next_position(connection, list_id)?;
     let now = now_rfc3339()?;
     connection.execute(
@@ -183,7 +185,7 @@ pub(crate) fn add_item(
         ],
     )?;
     connection.execute(
-        "UPDATE saved_lists SET updated_at = ?1 WHERE id = ?2",
+        "UPDATE saved_lists SET revision = revision + 1, updated_at = ?1 WHERE id = ?2",
         params![now, list_id],
     )?;
     Ok(AddSavedListItemOutcome::Added)
@@ -196,6 +198,7 @@ fn insert_imported_items(
 ) -> LocalStateResult<()> {
     let now = now_rfc3339()?;
     for (index, item) in items.into_iter().enumerate() {
+        crate::references::retain(connection, &item.record_key, &item.record_title_snapshot)?;
         connection.execute(
             "INSERT INTO saved_list_items (
                 list_id, record_key, position, note,
@@ -232,7 +235,7 @@ pub(crate) fn remove_item(
     if removed > 0 {
         compact_positions(connection, list_id)?;
         connection.execute(
-            "UPDATE saved_lists SET updated_at = ?1 WHERE id = ?2",
+            "UPDATE saved_lists SET revision = revision + 1, updated_at = ?1 WHERE id = ?2",
             params![now_rfc3339()?, list_id],
         )?;
     }
@@ -260,6 +263,7 @@ pub(crate) fn validate_record_key(record_key: &str) -> LocalStateResult<()> {
 
 #[derive(Debug)]
 struct RawSavedList {
+    revision: i64,
     id: i64,
     list_key: String,
     slug: String,
@@ -272,6 +276,7 @@ struct RawSavedList {
 
 fn raw_saved_list_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawSavedList> {
     Ok(RawSavedList {
+        revision: row.get(8)?,
         id: row.get(0)?,
         list_key: row.get(1)?,
         slug: row.get(2)?,
@@ -285,6 +290,7 @@ fn raw_saved_list_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawSaved
 
 fn saved_list_with_tags(connection: &Connection, raw: RawSavedList) -> LocalStateResult<SavedList> {
     Ok(SavedList {
+        revision: raw.revision,
         list_key: raw.list_key,
         slug: raw.slug,
         name: raw.name,
@@ -311,7 +317,7 @@ fn saved_list_item_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SavedLi
 fn list_id(connection: &Connection, list_ref: &str) -> rusqlite::Result<Option<i64>> {
     connection
         .query_row(
-            "SELECT id FROM saved_lists WHERE list_key = ?1 OR slug = ?1",
+            "SELECT id FROM saved_lists WHERE owner_id = 1 AND (list_key = ?1 OR slug = ?1)",
             params![list_ref],
             |row| row.get(0),
         )
@@ -352,7 +358,7 @@ fn replace_tags(
 fn slug_exists(connection: &Connection, slug: &str) -> rusqlite::Result<bool> {
     connection
         .query_row(
-            "SELECT 1 FROM saved_lists WHERE slug = ?1",
+            "SELECT 1 FROM saved_lists WHERE owner_id = 1 AND slug = ?1",
             params![slug],
             |_row| Ok(()),
         )

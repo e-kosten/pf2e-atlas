@@ -1,0 +1,81 @@
+# Open and indexed source values
+
+Status: accepted
+Date: 2026-10-07
+
+## Decision
+
+The source emitter supports explicit upstream open domains through SourceValue
+and domain-specific parsing primitives. any and unknown preserve every persisted
+JSON value. TypeScript object accepts arrays and objects, excluding primitives
+and null. An explicitly empty TypeScript shape (`{}`) accepts non-null JSON,
+including primitives. The Rust carrier is deliberately broader than these last
+two domains; their parsers enforce the declaration's JSON kind constraint.
+No runtime JavaScript values, functions or undefined JSON values are synthesized.
+Structured open domains, unresolved types and unsupported constructs still stop
+generation; open values are not a fallback for extraction or generation gaps.
+
+Anonymous atomic unions use canonical member-derived names, extending the scalar
+order with Object, NonNullish, Unknown and Any. For example, the Item rule selection
+value becomes StringOrNumberOrObject. Object includes arrays as required by
+TypeScript. Declared names and structural sharing retain the existing policies.
+Overlapping broad and specific union alternatives remain reported ambiguities.
+
+A single string index signature may coexist with named fields. Generate an
+ordinary struct with SourcePresence named fields, ordered SourceMap indexed_fields,
+and ordered SourceObject additional_fields for declaration-forbidden members.
+Every non-null named value must satisfy both its field parser and the index value
+parser. Named missing/null states retain the ordinary pre-default source policy,
+even when a current declaration would reject them after defaults/admission.
+Dynamic values use the index parser directly, including its null constraints.
+Every modeled key occurs at most once; declaration-forbidden repeated members
+remain additional data. Repeated names inside an explicit open value remain intact.
+
+Pure string maps remain SourceMap. A single numeric index generates a struct,
+including when it has no named fields: indexed_fields contains canonical numeric
+names, and additional_fields retains other names in source order, including
+repeated unmodeled names. Named fields satisfy the numeric index constraint only
+when their names belong to that domain. Numeric keys remain strings; there is no
+key coercion or reconstruction.
+
+Numeric names follow the pinned TypeScript compiler's
+[`isNumericLiteralName`](https://github.com/microsoft/TypeScript/blob/v5.9.3/src/compiler/utilities.ts):
+`String(Number(name)) === name`. Thus `"1"`, `"-1"`, `"1e-7"`, `"NaN"` and
+`"Infinity"` qualify; `"01"`, `"-0"` and `"1e3"` do not. Rust uses ryu-js for
+ECMAScript number formatting. Shared fixtures compare the compiler and Rust
+decisions across rounding/exponent boundaries. Numeric structs anchor recursive
+numeric maps; their ordered map entries provide layout indirection.
+
+Undefined in an index value union permits absent keys;
+persisted entries still use its remaining declared value types. Object intersections
+use the compiler's resolved fields and index signatures for the entire intersection,
+including narrowed and merged index value types. Original constituent references
+remain discovery provenance; the Rust emitter does not reconstruct conjunctions
+from their broader individual constraints. Resolved pure string maps use SourceMap; named
+indexed intersections use the same struct representation as indexed objects and
+share equivalent owners. Older graphs without resolved intersection indices must
+be re-extracted; there is no constituent-based fallback.
+Explicit nullable index values use the collection representation in
+[ADR 0035](./0035-source-value-generation-policy.md). Multiple index signatures
+and key domains other than string/number remain unsupported.
+Indexed object identity includes the dynamic value constraint and forbidden-member
+set. Named indexed structs can anchor recursion; their map entries provide layout
+indirection, while inline recursive named fields retain the existing boxing policy.
+
+## Application and validation
+
+The shared Item source slice uses the generated complete ItemSourceFlagsPF2e
+declaration under items/flags. Its pf2e namespace models itemGrants, grantedBy and
+rulesSelections plus open entries; other namespaces are ordered maps of unknown
+values. The previous partial handwritten flags parser and grant slice are removed.
+
+These source models support later ingest interpretation. Preserved open data does
+not automatically become a stored field, metric, API contract or product behavior.
+Production ingest continues through its existing parsers.
+
+Synthetic generated fixtures compile against the actual parsing primitives and
+exercise domain boundaries, indexed constraints, escaped diagnostics, duplicate
+members, recursive indexed owners, cross-module imports and overlapping unions.
+The Item corpus probe independently projects the expanded flags from ordered raw
+values. Whole-portfolio emission reports remain distinct from compilation,
+admission and production adoption.

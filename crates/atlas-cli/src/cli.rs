@@ -2,7 +2,7 @@ use std::process::ExitCode;
 
 use clap::{CommandFactory, Parser, Subcommand};
 
-use crate::cli::args::CliProgressMode;
+use crate::commands;
 use crate::commands::agent_skills::args::AgentArgs;
 use crate::commands::completions::args::CompletionsArgs;
 use crate::commands::filter_discovery::args::{FiltersArgs, FiltersCommand};
@@ -10,15 +10,16 @@ use crate::commands::graph::args::{GraphArgs, GraphCommand};
 use crate::commands::index::args::{IndexArgs, IndexCommand};
 use crate::commands::lists::args::{ListsArgs, ListsCommand};
 use crate::commands::record::args::{RecordArgs, RecordCommand};
+use crate::commands::roll::RollArgs;
 use crate::commands::search::args::SearchOptions;
 use crate::commands::setup::args::SetupArgs;
 use crate::commands::similar::args::SimilarOptions;
 use crate::commands::tags::args::{TagsArgs, TagsCommand};
 use crate::commands::web::args::WebArgs;
-use crate::{commands, output, progress};
+use atlas_cli_support::CliProgressMode;
+use atlas_cli_support::{ProgressOptions, init_tracing, write_json_error};
 
 pub(crate) mod args;
-pub(crate) mod parse;
 
 #[derive(Debug, Parser)]
 #[command(name = "atlas")]
@@ -43,9 +44,11 @@ pub(crate) struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum Command {
+    #[command(about = "Roll dice with a complete result breakdown; no setup required")]
+    Roll(RollArgs),
     #[command(about = "Install, repair, or check local Atlas runtime data")]
     Setup(SetupArgs),
-    #[command(about = "Build, validate, inspect, and analyze Atlas indexes")]
+    #[command(about = "Build, check, and validate Atlas indexes")]
     Index(IndexArgs),
     #[command(about = "Fetch and resolve Atlas records")]
     Record(RecordArgs),
@@ -74,22 +77,27 @@ pub(crate) fn main() -> ExitCode {
         Ok(cli) => cli,
         Err(error) => {
             if std::env::args().any(|arg| arg == "--json") {
-                let _ = output::write_json_error("invalid_input", error.to_string());
+                let _ = write_json_error("invalid_input", error.to_string());
                 return ExitCode::from(2);
             }
             let _ = error.print();
             return ExitCode::from(error.exit_code() as u8);
         }
     };
-    progress::init_tracing(progress::ProgressOptions {
+    init_tracing(ProgressOptions {
         mode: cli.progress.into(),
         json: cli.command.uses_json(),
         setup_timing: cli.command.uses_setup_timing(),
     });
+    let json = cli.command.uses_json();
     match run(cli) {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("{error}");
+            if json {
+                let _ = write_json_error("command_failed", error);
+            } else {
+                eprintln!("{error}");
+            }
             ExitCode::from(2)
         }
     }
@@ -98,18 +106,17 @@ pub(crate) fn main() -> ExitCode {
 impl Command {
     fn uses_json(&self) -> bool {
         match self {
+            Self::Roll(args) => args.json,
             Self::Setup(args) => args.paths.json,
             Self::Index(args) => match &args.command {
-                IndexCommand::Analyze(options) => options.json,
-                IndexCommand::AuditSourcePaths(options) => options.json,
                 IndexCommand::Build(options) => options.json,
                 IndexCommand::Check(options) => options.json,
-                IndexCommand::Inspect(options) => options.json,
                 IndexCommand::Validate(options) => options.json,
             },
             Self::Record(args) => match &args.command {
                 RecordCommand::Get(options) => options.json,
                 RecordCommand::Resolve(options) => options.json,
+                RecordCommand::Source(options) => options.json,
             },
             Self::Graph(args) => match &args.command {
                 GraphCommand::Links(options) => options.json,
@@ -150,20 +157,17 @@ impl Command {
 
 fn run(cli: Cli) -> Result<ExitCode, String> {
     match cli.command {
+        Command::Roll(args) => commands::roll::run_roll(args),
         Command::Setup(args) => commands::setup::run_setup(args),
         Command::Index(index) => match index.command {
-            IndexCommand::Analyze(options) => commands::index::run_index_analyze(options),
-            IndexCommand::AuditSourcePaths(options) => {
-                commands::index::run_index_audit_source_paths(options)
-            }
             IndexCommand::Build(options) => commands::index::run_index_build(options),
             IndexCommand::Check(options) => commands::index::run_index_check(options),
-            IndexCommand::Inspect(options) => commands::index::run_index_inspect(options),
             IndexCommand::Validate(options) => commands::index::run_index_validate(options),
         },
         Command::Record(record) => match record.command {
-            RecordCommand::Get(options) => commands::record::run_record_get(options),
+            RecordCommand::Get(options) => commands::record::run_record_get(*options),
             RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
+            RecordCommand::Source(options) => commands::record::source::run_record_source(options),
         },
         Command::Graph(graph) => match graph.command {
             GraphCommand::Links(options) => commands::graph::run_graph_links(options),

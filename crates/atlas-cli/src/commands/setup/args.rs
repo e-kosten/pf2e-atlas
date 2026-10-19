@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
-use atlas_embedding::{DEFAULT_EMBEDDING_MODEL, EmbeddingModelId};
+use atlas_domain::SearchProfileId;
 use clap::{Args, Subcommand};
 
-use crate::cli::args::CliPathMode;
+use atlas_cli_support::CliPathMode;
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas setup --check --offline --path-mode global\n  atlas setup clean --artifact\n  atlas setup clean --all --yes"
+    after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas setup --check --offline --path-mode global\n  atlas setup clean --embeddings\n  atlas setup clean --all --yes"
 )]
 pub(crate) struct SetupArgs {
     #[command(flatten)]
@@ -53,7 +53,7 @@ pub(crate) struct SetupPathOptions {
         long,
         global = true,
         help_heading = "Path Overrides",
-        help = "Override the SQLite artifact path used by setup and setup clean --artifact"
+        help = "Override the persistent SQLite workspace path used by setup"
     )]
     pub(crate) index: Option<PathBuf>,
     #[arg(
@@ -69,7 +69,12 @@ pub(crate) struct SetupPathOptions {
 pub(crate) struct SetupRunOptions {
     #[arg(
         long,
-        help = "Prepare a record/resolve-ready artifact without semantic embeddings"
+        help = "Indexing locale; defaults to English for a new artifact and preserves an existing artifact locale"
+    )]
+    pub(crate) locale: Option<String>,
+    #[arg(
+        long,
+        help = "Prepare records without requesting additional embedding models; existing models are preserved"
     )]
     pub(crate) no_embeddings: bool,
     #[arg(
@@ -87,8 +92,8 @@ pub(crate) struct SetupRunOptions {
         help = "Rebuild the artifact even if it already satisfies the selected setup target"
     )]
     pub(crate) force_rebuild: bool,
-    #[arg(long, default_value_t = DEFAULT_EMBEDDING_MODEL, help = "Embedding model to use for full setup")]
-    pub(crate) embedding_model: EmbeddingModelId,
+    #[arg(long="search-profile",value_parser=crate::cli::args::parse_search_profile,conflicts_with="no_embeddings",help="Add a stored search profile; omission preserves configured models (fresh default: bge-base)")]
+    pub(crate) search_profiles: Vec<SearchProfileId>,
     #[arg(
         long,
         default_value_t = 32,
@@ -108,12 +113,6 @@ pub(crate) struct SetupCleanOptions {
     #[arg(
         long,
         help_heading = "Cleanup Targets",
-        help = "Remove the SQLite artifact and companion WAL/SHM files"
-    )]
-    pub(crate) artifact: bool,
-    #[arg(
-        long,
-        help_heading = "Cleanup Targets",
         help = "Remove the embedding model cache root"
     )]
     pub(crate) embeddings: bool,
@@ -126,7 +125,7 @@ pub(crate) struct SetupCleanOptions {
     #[arg(
         long,
         help_heading = "Cleanup Targets",
-        help = "Remove source, embedding cache, and SQLite artifact files"
+        help = "Remove source and embedding caches; preserve the workspace and saved data"
     )]
     pub(crate) all: bool,
     #[arg(

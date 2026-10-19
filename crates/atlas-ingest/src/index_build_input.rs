@@ -1,168 +1,259 @@
-use atlas_index::{IndexBuildInput, IndexBuildPack};
+//! Consuming projection from admitted records into explicit artifact inputs.
+use crate::{EnrichedDocumentOutcome, EnrichedFoundrySource, IngestError};
+use atlas_embedding::{
+    IDENTITY_TOKEN_BUDGET, PassageSection, PreparedEmbeddingInput, TextEmbeddingTokenizer,
+    prepare_embedding_section,
+};
+use atlas_index::{
+    IndexBuildInput, IndexBuildPack, SourceArtifactBuildContext, SourceArtifactDiagnostic,
+    SourceArtifactRecordInput, SourceSemanticUnitInput,
+};
+use atlas_record::source_record::{
+    SOURCE_CONTENT_SELECTION_VERSION, SourceSearchSelection, select_record_search,
+};
 
-use crate::source::SourceLoad;
-
-pub(crate) fn index_build_input(source: SourceLoad) -> IndexBuildInput {
-    IndexBuildInput {
-        source_signature: source.source_signature,
-        source_record_count: source.source_record_count,
-        packs: source
-            .packs
-            .into_iter()
-            .map(|pack| IndexBuildPack {
-                name: pack.name,
-                label: pack.label,
-                document_type: pack.document_type,
-                declared_path: pack.declared_path,
-                resolved_path: pack.resolved_path,
-                record_count: pack.record_count,
-            })
-            .collect(),
-        records: source
-            .records
-            .into_iter()
-            .map(|loaded| loaded.record)
-            .collect(),
-        references: source.references,
-        aliases: source.aliases,
-        remaster_links: source.remaster_links,
-        pending_document_embeddings: source.pending_document_embeddings,
-        document_embeddings: source.document_embeddings,
-    }
+#[derive(Clone)]
+pub(crate) struct PendingSemanticUnit {
+    pub(crate) input: PreparedEmbeddingInput,
+    pub(crate) unit: SourceSemanticUnitInput,
 }
-
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use atlas_domain::{PackName, RecordId, RecordKey, RecordKind, RemasterLinkSource};
-    use atlas_embedding::{
-        DocumentEmbeddingTokenizationTelemetry, EmbeddingUnitKind, GeneratedDocumentEmbedding,
-        PendingDocumentEmbedding,
+pub(crate) struct PreparedBuildInput {
+    pub(crate) index: IndexBuildInput,
+    pub(crate) pending: Vec<PendingSemanticUnit>,
+    pub(crate) context_shortened: usize,
+}
+pub(crate) fn index_build_input(
+    source: EnrichedFoundrySource,
+    context: SourceArtifactBuildContext,
+    tokenizer: Option<&TextEmbeddingTokenizer>,
+    capture: &crate::source_fingerprint::SourceCapture,
+) -> Result<PreparedBuildInput, IngestError> {
+    tracing::info!(target:"atlas_progress",phase="select_search","Selecting searchable content and identities");
+    let source_root = source.metadata.source_root.clone();
+    let mut selections = Vec::new();
+    let context_hash = context
+        .preparation_sha256()
+        .map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
+    let mut output = PreparedBuildInput {
+        index: IndexBuildInput {
+            records: vec![],
+            packs: vec![],
+            context,
+            aliases: vec![],
+            remaster_pairs: vec![],
+            lexical_units: vec![],
+            semantic_units: vec![],
+        },
+        pending: vec![],
+        context_shortened: 0,
     };
-    use atlas_record::{
-        AliasSource, AtlasRecord, ContentSourceKind, ContentVisibility, FoundryDocumentType,
-        FoundryRecordInfo, FoundryRecordType, RecordAlias, RecordClassification, RecordIdentity,
-        RecordProvenance, ReferenceEdge, RemasterLink,
+    for pack in source.packs {
+        output.index.packs.push(IndexBuildPack {
+            pack_id: pack.metadata.name.clone(),
+            label: pack.metadata.label.clone(),
+            document_kind: pack.metadata.document_type,
+            declared_path: pack.metadata.declared_path,
+        });
+        for document in pack.documents {
+            let EnrichedDocumentOutcome::Addressed {
+                record,
+                content,
+                relationships,
+            } = document.outcome
+            else {
+                continue;
+            };
+            let selection = select_record_search(
+                &record,
+                &content,
+                output.index.context.audience,
+                &pack.metadata.label,
+                &output.index.context.used_trait_labels,
+            )
+            .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?;
+            selections.push(selection);
+            let diagnostics = document
+                .admission_diagnostics
+                .into_iter()
+                .map(|diagnostic| SourceArtifactDiagnostic {
+                    owners: None,
+                    field: Some(diagnostic.json_path.clone()),
+                    stage: "admission".into(),
+                    code: "unparseable_source_field".into(),
+                    message: diagnostic.to_string(),
+                    source_diagnostic: Some(diagnostic),
+                })
+                .collect();
+            output.index.records.push(SourceArtifactRecordInput {
+                record: *record,
+                source_path: document.provenance.source_path,
+                content_hash: document.content_hash,
+                preparation_context_hash: context_hash.clone(),
+                content,
+                relationships,
+                diagnostics,
+            });
+        }
+    }
+    tracing::info!(target:"atlas_progress",phase="select_aliases","Extracting verified source aliases");
+    crate::source_aliases::extract_source_aliases(&mut output.index, &source_root, capture)?;
+    for selection in &selections {
+        let aliases = output
+            .index
+            .aliases
+            .iter()
+            .filter(|alias| alias.record == selection.root)
+            .map(|alias| alias.alias.clone())
+            .collect::<Vec<_>>();
+        output
+            .index
+            .lexical_units
+            .extend(atlas_index::project_lexical_units(selection, &aliases));
+    }
+    if let Some(tokenizer) = tokenizer {
+        tracing::info!(target:"atlas_progress",phase="prepare_search","Segmenting and tokenizing shared search passages");
+        let total = selections.len();
+        for (ordinal, mut selection) in selections.into_iter().enumerate() {
+            selection.identity_optional.extend(
+                output
+                    .index
+                    .aliases
+                    .iter()
+                    .filter(|alias| alias.record == selection.root)
+                    .map(|alias| alias.alias.clone()),
+            );
+            semantic_units(
+                &selection,
+                tokenizer,
+                &mut output.pending,
+                &mut output.context_shortened,
+            )?;
+            if (ordinal + 1) % 1000 == 0 || ordinal + 1 == total {
+                tracing::info!(target:"atlas_progress",phase="prepare_search",current=(ordinal+1) as u64,total=total as u64,semantic_units=output.pending.len(),record=%selection.root,"Preparing attributable search passages: {}/{} records, {} semantic units",ordinal+1,total,output.pending.len());
+            }
+        }
+    }
+    Ok(output)
+}
+pub(crate) fn semantic_units(
+    selection: &SourceSearchSelection,
+    tokenizer: &TextEmbeddingTokenizer,
+    output: &mut Vec<PendingSemanticUnit>,
+    shortened: &mut usize,
+) -> Result<(), IngestError> {
+    if selection.identities.is_empty() {
+        return Ok(());
+    }
+    let mut identity = selection.identity_required.clone();
+    if tokenizer
+        .count_tokens(&identity, false)
+        .map_err(embedding_error)?
+        > IDENTITY_TOKEN_BUDGET
+    {
+        return Err(IngestError::DocumentEmbeddingFailed(format!(
+            "required root identity exceeds budget: {}",
+            selection.root
+        )));
+    }
+    for optional in &selection.identity_optional {
+        let candidate = format!("{identity}\n{optional}");
+        if tokenizer
+            .count_tokens(&candidate, false)
+            .map_err(embedding_error)?
+            <= IDENTITY_TOKEN_BUDGET
+        {
+            identity = candidate;
+        } else {
+            *shortened += 1;
+        }
+    }
+    for input in prepare_embedding_section(tokenizer, PassageSection::Identity { text: &identity })
+        .map_err(embedding_error)?
+    {
+        push_pending(output, selection, vec![], None, 0, input);
+    }
+    for field in &selection.fields {
+        for section in &field.sections {
+            let owner_name = selection
+                .identities
+                .iter()
+                .find(|identity| identity.owners == field.locator.owners)
+                .map(|identity| identity.name.as_str())
+                .unwrap_or("");
+            let context = if field.locator.owners.is_empty() {
+                format!(
+                    "{}\n{}\n{}\n{}",
+                    selection.identity_required,
+                    selection.pack_label,
+                    owner_name,
+                    section.heading_chain.join(" / ")
+                )
+            } else {
+                format!(
+                    "{}\n{}\n{}",
+                    selection.identity_required,
+                    owner_name,
+                    section.heading_chain.join(" / ")
+                )
+            };
+            let passage = if let Some(html_hash) = &field.prepared_html_sha256 {
+                PassageSection::Html {
+                    text: &section.text,
+                    context: &context,
+                    prepared_html_sha256: html_hash,
+                    selection_version: SOURCE_CONTENT_SELECTION_VERSION,
+                    section_ordinal: section.section_ordinal,
+                    label: section.label.as_deref(),
+                }
+            } else {
+                PassageSection::Plain {
+                    text: &section.text,
+                    context: &context,
+                    selection_version: SOURCE_CONTENT_SELECTION_VERSION,
+                    section_ordinal: section.section_ordinal,
+                    label: section.label.as_deref(),
+                }
+            };
+            for (ordinal, input) in prepare_embedding_section(tokenizer, passage)
+                .map_err(embedding_error)?
+                .into_iter()
+                .enumerate()
+            {
+                *shortened += usize::from(input.context_shortened);
+                push_pending(
+                    output,
+                    selection,
+                    field.locator.owners.clone(),
+                    Some(field.locator.field.clone()),
+                    ordinal,
+                    input,
+                );
+            }
+        }
+    }
+    Ok(())
+}
+fn push_pending(
+    output: &mut Vec<PendingSemanticUnit>,
+    selection: &SourceSearchSelection,
+    owners: Vec<atlas_record::source_content::OwnedContentLocator>,
+    field: Option<String>,
+    chunk_ordinal: usize,
+    input: PreparedEmbeddingInput,
+) {
+    let unit = SourceSemanticUnitInput {
+        profile_id: atlas_domain::SearchProfileId::new("bge-base"),
+        record: selection.root.clone(),
+        owners,
+        field,
+        address: input.address.clone(),
+        chunk_ordinal,
+        input_token_count: input.token_count,
+        input_hash: input.input_sha256.clone(),
+        vector: vec![],
     };
-
-    use super::index_build_input;
-    use crate::diagnostics::IngestDiagnostics;
-    use crate::records::{LoadedSourceRecord, SourceConstructionFacts};
-    use crate::source::{LoadedPack, SourceLoad};
-
-    #[test]
-    fn maps_source_load_to_index_build_input_without_changing_boundaries()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let source_record = record("source-pack", "source-record", RecordKind::Rule);
-        let generated_record = record("generated-pack", "generated-record", RecordKind::Rule);
-        let source_key = source_record.identity.key.clone();
-        let generated_key = generated_record.identity.key.clone();
-        let source = SourceLoad {
-            manifest_path: PathBuf::from("manifest.json"),
-            source_signature: "foundry-pf2e:sha256:test".to_string(),
-            source_record_count: 1,
-            packs: vec![LoadedPack {
-                name: PackName::new("source-pack").expect("pack name parses"),
-                label: "Source Pack".to_string(),
-                document_type: "Item".to_string(),
-                declared_path: "packs/source-pack".to_string(),
-                resolved_path: PathBuf::from("/tmp/source-pack"),
-                record_count: 1,
-            }],
-            records: vec![
-                LoadedSourceRecord::new(source_record, SourceConstructionFacts::empty()),
-                LoadedSourceRecord::new(generated_record, SourceConstructionFacts::empty()),
-            ],
-            references: vec![ReferenceEdge {
-                from_record_key: source_key.clone(),
-                to_record_key: generated_key.clone(),
-                display_text: Some("Generated Record".to_string()),
-                reference_text: "@UUID[generated]".to_string(),
-                relation_kind: atlas_record::ReferenceRelationKind::Reference,
-                source_kind: ContentSourceKind::Description,
-                visibility: ContentVisibility::Public,
-            }],
-            aliases: vec![RecordAlias {
-                canonical_record_key: source_key.clone(),
-                alias_text: "Source Alias".to_string(),
-                normalized_alias: "source alias".to_string(),
-                source: AliasSource::Migration,
-                source_ref: "migration".to_string(),
-            }],
-            remaster_links: vec![RemasterLink {
-                remaster_record_key: source_key.clone(),
-                legacy_record_key: generated_key.clone(),
-                source: RemasterLinkSource::Migration,
-                source_ref: "migration".to_string(),
-            }],
-            pending_document_embeddings: vec![PendingDocumentEmbedding::prepared(
-                "source-pack.source-record#parent".to_string(),
-                source_key.to_string(),
-                EmbeddingUnitKind::Parent,
-                None,
-                0,
-                "source record".to_string(),
-                "pending-hash".to_string(),
-            )],
-            document_embeddings: vec![GeneratedDocumentEmbedding {
-                embedding_unit_key: "source-pack.source-record#parent".to_string(),
-                record_key: source_key.to_string(),
-                unit_kind: EmbeddingUnitKind::Parent,
-                label: None,
-                ordinal: 0,
-                input_hash: "generated-hash".to_string(),
-                dimensions: 3,
-                vector: vec![0.1, 0.2, 0.3],
-            }],
-            document_embedding_tokenization: DocumentEmbeddingTokenizationTelemetry::default(),
-            diagnostics: IngestDiagnostics::default(),
-            skipped_records: Vec::new(),
-            warnings: Vec::new(),
-        };
-
-        let input = index_build_input(source);
-
-        assert_eq!(input.source_signature, "foundry-pf2e:sha256:test");
-        assert_eq!(input.source_record_count, 1);
-        assert_eq!(input.artifact_record_count(), 2);
-        assert_eq!(input.generated_record_count()?, 1);
-
-        assert_eq!(input.packs.len(), 1);
-        assert_eq!(input.packs[0].name.as_str(), "source-pack");
-        assert_eq!(input.packs[0].label, "Source Pack");
-        assert_eq!(input.packs[0].document_type, "Item");
-        assert_eq!(input.packs[0].declared_path, "packs/source-pack");
-        assert_eq!(
-            input.packs[0].resolved_path,
-            PathBuf::from("/tmp/source-pack")
-        );
-        assert_eq!(input.packs[0].record_count, 1);
-
-        assert_eq!(input.records.len(), 2);
-        assert_eq!(input.records[0].identity.key, source_key);
-        assert_eq!(input.records[1].identity.key, generated_key);
-
-        assert_eq!(input.references.len(), 1);
-        assert_eq!(input.aliases.len(), 1);
-        assert_eq!(input.remaster_links.len(), 1);
-        assert_eq!(input.pending_document_embeddings.len(), 1);
-        assert_eq!(input.document_embeddings.len(), 1);
-        Ok(())
-    }
-
-    fn record(pack_name: &str, id: &str, kind: RecordKind) -> AtlasRecord {
-        let pack_name = PackName::new(pack_name).expect("pack name parses");
-        let id = RecordId::new(id).expect("record id parses");
-        AtlasRecord::new(
-            RecordIdentity::new(RecordKey::new(pack_name, id), "Test Record"),
-            RecordClassification::new(kind),
-            FoundryRecordInfo::new(
-                "Test Pack",
-                FoundryDocumentType::Item,
-                FoundryRecordType::Action,
-            ),
-            RecordProvenance::new("test.json").with_raw_json("{}"),
-        )
-    }
+    output.push(PendingSemanticUnit { input, unit });
+}
+fn embedding_error(error: atlas_embedding::EmbeddingError) -> IngestError {
+    IngestError::DocumentEmbeddingFailed(error.to_string())
 }

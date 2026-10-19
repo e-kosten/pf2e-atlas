@@ -1,710 +1,859 @@
 import {
   Alert,
   Button,
-  Checkbox,
-  Collapse,
-  Empty,
+  Drawer,
   Form,
   Input,
-  InputNumber,
   Popover,
   Select,
-  Tag,
+  Space,
+  Spin,
   Tooltip,
+  Typography,
 } from "antd";
-import { Minus, Plus, Search, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import type { FilterEditorFieldView } from "../../generated/atlas";
-import type { MetricComparisonState } from "./searchState";
-import { SORT_OPTIONS } from "./searchState";
 import {
-  addVisibleFilter,
-  additionalFilterGroups,
-  additionalVisibleFilterIds,
-  booleanForField,
+  ClearOutlined,
+  CloseOutlined,
+  FilterOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
+import {
+  createContext,
+  useContext,
+  type ReactNode,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  QueryBuilder,
+  RuleComponents,
+  RuleGroupBodyComponents,
+  type UseRuleGroup,
+  useRule,
+  update,
+  type RuleType,
+  type RuleProps,
+  type RuleGroupType,
+  type ValueEditorProps,
+  type FieldSelectorProps,
+  type OperatorSelectorProps,
+  type CombinatorSelectorProps,
+  type ActionProps,
+} from "react-querybuilder";
+import { QueryBuilderAntD } from "@react-querybuilder/antd";
+import type {
+  FilterEditorFieldView,
+  FilterEditorView,
+  QueryPredicate,
+} from "../../generated/atlas";
+import type { SearchWorkspaceState } from "../../features/search/useSearchWorkspace";
+import {
+  builderPredicate,
+  commonDraftCondition,
+  commonDraftRange,
+  BOOLEAN_CONDITION,
+  emptyGroup,
+  numericLiteral,
+  replaceCommonDraft,
+  replaceCommonRangeDraft,
+  type PredicateRule,
+} from "./queryBuilder";
+import {
   clearAllFilters,
-  clearFieldFilter,
-  clearSelectedValueForField,
-  controlKindForField,
-  cycleSelectedValueForField,
-  discoveredOptions,
-  editorFieldForId,
-  excludedValuesForField,
-  hasActiveFieldFilter,
-  hasActiveFilters,
-  includeOperatorForField,
-  labelForField,
-  metricComparisonForField,
-  rangeForField,
-  removeVisibleFilter,
-  setBooleanForField,
-  setIncludeOperatorForField,
-  setMetricComparisonForField,
-  setRangeForField,
-  valuesForField,
-  valueFilterOperatorPolicy,
-  visibleEditorFilterFields,
-  type FilterSelectOption,
+  type CommonCondition,
   type FilterPanelState,
 } from "./filterControls";
-import type { SearchWorkspaceState } from "../../features/search/useSearchWorkspace";
+import { FilterValueInput } from "./FilterValueInput";
+import { SearchEntry } from "./SearchEntry";
+import { CommonChoicePicker } from "./CommonChoicePicker";
+import { PrimaryToolbar } from "../ui/PrimaryToolbar";
+import { useFilterEditor } from "./useFilterEditor";
+import { isBuilderGroup, normalizeBuilderEdit } from "./builderEdits";
+import { CollectionValueInput, isCompactCollection } from "./CollectionValueInput";
 
-export function FilterPanel({ workspace }: { workspace: SearchWorkspaceState }) {
-  return <FilterControls filterState={workspace} />;
+export function FilterPanel({
+  workspace,
+  children,
+}: {
+  workspace: SearchWorkspaceState;
+  children?: ReactNode;
+}) {
+  return <FilterControls filterState={workspace}>{children}</FilterControls>;
 }
-
 export function FilterControls({
   filterState: workspace,
   includeSearch = true,
-  includeResultOptions = true,
+  layout = "panel",
+  searchRowEnd,
+  children,
 }: {
   filterState: FilterPanelState;
   includeSearch?: boolean;
-  includeResultOptions?: boolean;
+  layout?: "panel" | "toolbar" | "inline-toolbar";
+  searchRowEnd?: ReactNode;
+  children?: ReactNode;
 }) {
   const { search, setSearch } = workspace;
-  const standardFilterFields = visibleEditorFilterFields(workspace);
-  const optionalFilterIds = additionalVisibleFilterIds(workspace);
-  const addFilterGroups = additionalFilterGroups(workspace);
-  const activeFilters = hasActiveFilters(search);
-  const textSearchActive =
-    search.mode === "text_search" && search.query.trim().length > 0;
-
+  const [advanced, setAdvanced] = useState(false);
+  const advancedTrigger = useRef<HTMLButtonElement>(null);
+  const [draftRevision, setDraftRevision] = useState(0);
+  const editor = workspace.filterEditor;
+  const fields = useMemo(
+    () => editor?.groups.flatMap((group) => group.fields) ?? [],
+    [editor],
+  );
+  const prepared = useFilterEditor(search, fields, setSearch);
+  const countWorkspace = {
+    ...workspace,
+    filterCountsEnabled:
+      workspace.filterCountsEnabled !== false && search.mode !== "similar_records",
+  };
+  const advancedEditor =
+    editor && prepared.query ? (
+      <StructuredBuilder
+        editor={editor}
+        query={prepared.query}
+        onChange={prepared.change}
+        workspace={countWorkspace}
+      />
+    ) : null;
+  const commonLayout = layout === "panel" ? "panel" : "toolbar";
+  const CriteriaHost = commonLayout === "toolbar" ? PrimaryToolbar : "div";
+  const inlineError =
+    prepared.error && (search.filterError || !prepared.query) ? (
+      <Typography.Text type="danger" role="status">
+        {prepared.error}
+      </Typography.Text>
+    ) : null;
+  const searchEntry = includeSearch && (
+    <SearchEntry
+      query={search.query}
+      onSearch={(query) =>
+        setSearch({
+          ...search,
+          query,
+          mode: query.trim() ? "text_search" : "browse",
+        })
+      }
+    />
+  );
+  const criteria = (
+    <>
+      <div className="common-filters">
+        {(editor?.common_field_ids ?? []).map((id) => {
+          const field = fields.find((candidate) => candidate.definition.id === id);
+          return field ? (
+            <CommonFilter
+              key={id + ":" + draftRevision}
+              field={field}
+              layout={commonLayout}
+              condition={
+                prepared.query
+                  ? commonDraftCondition(prepared.query, field.definition)
+                  : { status: "empty", clause: null }
+              }
+              range={
+                prepared.query
+                  ? commonDraftRange(prepared.query, field.definition)
+                  : null
+              }
+              onChange={(replacement) => {
+                if (prepared.query)
+                  prepared.changeCommon(
+                    replaceCommonDraft(prepared.query, field.definition, replacement),
+                    field.definition,
+                  );
+              }}
+              onRangeChange={(range) => {
+                if (prepared.query)
+                  prepared.changeCommon(
+                    replaceCommonRangeDraft(prepared.query, field.definition, range),
+                    field.definition,
+                  );
+              }}
+              workspace={countWorkspace}
+              onAdvanced={() => setAdvanced(true)}
+            />
+          ) : null;
+        })}
+      </div>
+      <div className="filter-panel-actions">
+        <Button
+          ref={advancedTrigger}
+          icon={<FilterOutlined aria-hidden="true" />}
+          onClick={() => setAdvanced(!advanced)}
+          aria-expanded={advanced}
+        >
+          Advanced filters
+        </Button>
+        {(search.filter ||
+          search.filterError ||
+          prepared.error ||
+          (prepared.query?.rules.length ?? 0) > 0) && (
+          <Tooltip title="Clear filters">
+            <Button
+              type="text"
+              icon={<ClearOutlined aria-hidden="true" />}
+              aria-label="Clear filters"
+              onClick={() => {
+                prepared.clear();
+                setDraftRevision((revision) => revision + 1);
+                setSearch(clearAllFilters(search));
+                advancedTrigger.current?.focus();
+              }}
+            />
+          </Tooltip>
+        )}
+      </div>
+    </>
+  );
   return (
-    <aside className="filter-panel">
-      {workspace.errorMessage ? (
-        <Alert showIcon type="error" message={workspace.errorMessage} />
-      ) : null}
-      <Form className="ant-filter-form" layout="vertical" size="middle">
-        {includeSearch ? (
-          <Form.Item label="Search">
-            <div className="filter-search-row">
-              <Input.Search
-                allowClear
-                enterButton={<Search size={16} />}
-                placeholder="Search records"
-                value={search.query}
-                onChange={(event) =>
-                  setSearch({
-                    ...search,
-                    query: event.target.value,
-                    mode: event.target.value.trim() ? "text_search" : "browse",
-                  })
-                }
-                onSearch={(query) =>
-                  setSearch({
-                    ...search,
-                    query,
-                    mode: query.trim() ? "text_search" : "browse",
-                  })
-                }
-              />
-              <Tooltip title="Clear search and filters">
-                <Button
-                  aria-label="Clear search and filters"
-                  icon={<X size={14} />}
-                  disabled={!activeFilters}
-                  onClick={() => setSearch(clearAllFilters(search))}
-                />
-              </Tooltip>
-            </div>
-          </Form.Item>
-        ) : null}
-        <Collapse
-          className="ant-filter-collapse"
-          defaultActiveKey={
-            includeResultOptions ? ["standard", "options"] : ["standard"]
-          }
-          ghost
-          items={[
-            {
-              key: "standard",
-              label: "Standard filters",
-              children: (
-                <div className="filter-section">
-                  {standardFilterFields.map((field) => (
-                    <FilterFieldControl
-                      key={field.id}
-                      workspace={workspace}
-                      field={field}
-                    />
-                  ))}
-                </div>
-              ),
-            },
-            {
-              key: "more",
-              label: `Added filters${
-                optionalFilterIds.length > 0 ? ` (${optionalFilterIds.length})` : ""
-              }`,
-              children: (
-                <div className="filter-section">
-                  {optionalFilterIds.length === 0 ? (
-                    <p className="filter-empty-note">No additional filters added.</p>
-                  ) : (
-                    optionalFilterIds.map((fieldId) => (
-                      <Form.Item
-                        key={fieldId}
-                        label={
-                          <div className="control-heading">
-                            <span>{labelForField(workspace, fieldId)}</span>
-                            <Button
-                              size="small"
-                              type="text"
-                              onClick={() => removeVisibleFilter(workspace, fieldId)}
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                        }
-                      >
-                        <OptionalFilterControl
-                          workspace={workspace}
-                          fieldId={fieldId}
-                        />
-                      </Form.Item>
-                    ))
-                  )}
-                  <Form.Item label="Add filter">
-                    <Select
-                      loading={workspace.filterDiscoveryLoading}
-                      notFoundContent={
-                        <Empty
-                          description="No filters available"
-                          image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        />
-                      }
-                      options={addFilterGroups}
-                      placeholder="Choose a filter"
-                      value={null}
-                      onChange={(fieldId) => addVisibleFilter(workspace, fieldId)}
-                    />
-                  </Form.Item>
-                </div>
-              ),
-            },
-            includeResultOptions
-              ? {
-                  key: "options",
-                  label: "Result options",
-                  children: (
-                    <div className="control-row">
-                      {textSearchActive ? null : (
-                        <Form.Item label="Sort">
-                          <Select
-                            options={SORT_OPTIONS}
-                            value={search.sort}
-                            onChange={(sort) => setSearch({ ...search, sort })}
-                          />
-                        </Form.Item>
-                      )}
-                      <Form.Item label="Page size">
-                        <InputNumber
-                          min={10}
-                          max={100}
-                          step={5}
-                          value={search.pageSize}
-                          onChange={(pageSize) =>
-                            setSearch({ ...search, pageSize: pageSize ?? 25 })
-                          }
-                        />
-                      </Form.Item>
-                    </div>
-                  ),
-                }
-              : null,
-          ].filter((item) => item !== null)}
+    <aside
+      className={
+        layout === "panel"
+          ? "filter-panel"
+          : layout === "inline-toolbar"
+            ? "filter-toolbar filter-toolbar--inline"
+            : "filter-toolbar"
+      }
+    >
+      {children}
+      {!editor && workspace.filterDiscoveryLoading && (
+        <Spin description="Loading filters…">
+          <div className="filter-loading-placeholder" />
+        </Spin>
+      )}
+      {layout === "inline-toolbar" ? (
+        <PrimaryToolbar className="filter-controls__criteria filter-controls__inline">
+          {searchEntry}
+          {searchRowEnd}
+          {criteria}
+        </PrimaryToolbar>
+      ) : (
+        <>
+          {includeSearch && (
+            <PrimaryToolbar className="filter-controls__search-row">
+              {searchEntry}
+              {searchRowEnd}
+            </PrimaryToolbar>
+          )}
+          <CriteriaHost className="filter-controls__criteria">{criteria}</CriteriaHost>
+        </>
+      )}
+      <Drawer
+        title="Advanced filters"
+        placement="left"
+        size="min(100vw, 640px)"
+        open={advanced}
+        onClose={() => setAdvanced(false)}
+      >
+        <section className="advanced-filters" aria-label="Advanced filters">
+          {prepared.error &&
+            !search.filterError &&
+            search.filter &&
+            prepared.query &&
+            hasConfiguredCondition(prepared.query) && (
+              <Typography.Text type="secondary" role="status">
+                Changes pending
+              </Typography.Text>
+            )}
+          {advancedEditor}
+          {inlineError}
+        </section>
+      </Drawer>
+      {!advanced && prepared.error && inlineError}
+      {workspace.filterDiscoveryError && (
+        <Alert
+          type="error"
+          title="Filter information could not be loaded"
+          description={workspace.filterDiscoveryError}
         />
-      </Form>
+      )}
     </aside>
   );
 }
 
-function FilterFieldControl({
-  workspace,
+function CommonFilter({
   field,
+  range,
+  onRangeChange,
+  condition,
+  onChange,
+  workspace,
+  onAdvanced,
+  layout,
 }: {
-  workspace: FilterPanelState;
   field: FilterEditorFieldView;
+  layout: "panel" | "toolbar";
+  condition: CommonCondition;
+  range: [string, string] | null;
+  onRangeChange: (range: [string, string]) => void;
+  onChange: (replacement: QueryPredicate | null) => void;
+  workspace: FilterPanelState;
+  onAdvanced: () => void;
 }) {
-  const { search, setSearch } = workspace;
-  const controlKind = controlKindForField(workspace, field.id);
-  const fieldLabel = (
-    <FilterFieldLabel workspace={workspace} fieldId={field.id} label={field.label} />
-  );
-
-  if (controlKind === "range") {
-    const range = rangeForField(search, field.id);
-    const minLabel = field.control.kind === "range" ? field.control.min_label : "Min";
-    const maxLabel = field.control.kind === "range" ? field.control.max_label : "Max";
-    return (
-      <Form.Item label={fieldLabel}>
-        <div className="control-row">
-          <Form.Item label={`${minLabel} ${field.label.toLowerCase()}`}>
-            <InputNumber
-              min={field.control.kind === "range" ? field.control.min : undefined}
-              max={field.control.kind === "range" ? field.control.max : undefined}
-              step={field.control.kind === "range" ? field.control.step : undefined}
-              value={range.min}
-              onChange={(min) =>
-                setSearch(
-                  setRangeForField(search, field.id, {
-                    ...range,
-                    min: min ?? null,
-                  }),
-                )
-              }
-            />
-          </Form.Item>
-          <Form.Item label={`${maxLabel} ${field.label.toLowerCase()}`}>
-            <InputNumber
-              min={field.control.kind === "range" ? field.control.min : undefined}
-              max={field.control.kind === "range" ? field.control.max : undefined}
-              step={field.control.kind === "range" ? field.control.step : undefined}
-              value={range.max}
-              onChange={(max) =>
-                setSearch(
-                  setRangeForField(search, field.id, {
-                    ...range,
-                    max: max ?? null,
-                  }),
-                )
-              }
-            />
-          </Form.Item>
+  const update = onChange;
+  return (
+    <section
+      className={
+        layout === "toolbar" ? "common-filter common-filter--toolbar" : "common-filter"
+      }
+      aria-label={field.label + " filter"}
+    >
+      {layout === "panel" && (
+        <div className="common-filter-heading">
+          <Typography.Text strong>{field.label}</Typography.Text>
+          {condition.status === "editable" && (
+            <Button
+              type="text"
+              size="small"
+              aria-label={"Clear " + field.label}
+              onClick={() => update(null)}
+            >
+              Clear
+            </Button>
+          )}
         </div>
-      </Form.Item>
-    );
-  }
-
-  if (controlKind === "boolean") {
-    return (
-      <Form.Item label={fieldLabel}>
-        <Select
-          allowClear
-          loading={workspace.filterDiscoveryLoading}
-          options={discoveredOptions(workspace, field.id)}
-          value={booleanForField(search, field.id)}
-          onChange={(value) =>
-            setSearch(setBooleanForField(search, field.id, value ?? null))
-          }
+      )}
+      {condition.status === "advanced" && !range ? (
+        <Button onClick={onAdvanced}>{field.label}: Advanced</Button>
+      ) : field.definition.field_type === "number" ? (
+        layout === "panel" ? (
+          <CommonRange
+            field={field}
+            range={range ?? ["", ""]}
+            onChange={onRangeChange}
+          />
+        ) : (
+          <Popover
+            trigger="click"
+            placement="bottomLeft"
+            title={field.label}
+            content={
+              <Space orientation="vertical">
+                <CommonRange
+                  field={field}
+                  range={range ?? ["", ""]}
+                  onChange={onRangeChange}
+                />
+                <Button
+                  type="text"
+                  onClick={() => {
+                    onRangeChange(["", ""]);
+                  }}
+                >
+                  Clear range
+                </Button>
+              </Space>
+            }
+          >
+            <Button aria-label={"Edit " + field.label + " range"}>
+              {field.label}: {range?.filter(Boolean).join(" – ") || "Any"}
+            </Button>
+          </Popover>
+        )
+      ) : (
+        <CommonChoicePicker
+          field={field}
+          clause={condition.clause}
+          scope={workspace.vocabularyScope ?? { kind: "artifact" }}
+          countContext={workspace.filterDiscoveryContext}
+          countsEnabled={workspace.filterCountsEnabled !== false}
+          countQueryKey={workspace.filterCountQueryKey}
+          countLimit={workspace.filterEditor?.limits.literal_list ?? 0}
+          onChange={update}
         />
-      </Form.Item>
+      )}
+    </section>
+  );
+}
+
+function CommonRange({
+  field,
+  range,
+  onChange,
+}: {
+  field: FilterEditorFieldView;
+  range: [string, string];
+  onChange: (range: [string, string]) => void;
+}) {
+  let error: string | null = null;
+  try {
+    const min = range[0].trim() ? numericLiteral(range[0]) : null;
+    const max = range[1].trim() ? numericLiteral(range[1]) : null;
+    if (min !== null && max !== null && min > max)
+      throw new Error("Minimum exceeds maximum");
+  } catch (failure) {
+    error = failure instanceof Error ? failure.message : String(failure);
+  }
+  return (
+    <div>
+      <div className="filter-range">
+        <Input
+          aria-label={field.label + " minimum"}
+          name={field.definition.id + "-minimum"}
+          inputMode="decimal"
+          autoComplete="off"
+          placeholder="Minimum…"
+          status={error ? "error" : undefined}
+          value={range[0]}
+          onChange={(event) => onChange([event.target.value, range[1]])}
+        />
+        <span>to</span>
+        <Input
+          aria-label={field.label + " maximum"}
+          name={field.definition.id + "-maximum"}
+          inputMode="decimal"
+          autoComplete="off"
+          placeholder="Maximum…"
+          status={error ? "error" : undefined}
+          value={range[1]}
+          onChange={(event) => onChange([range[0], event.target.value])}
+        />
+      </div>
+      {error && (
+        <Typography.Text type="danger" role="status">
+          {error}
+        </Typography.Text>
+      )}
+    </div>
+  );
+}
+
+type BuilderContext = {
+  editor: FilterEditorView;
+  scope: string | null;
+  narrowFields: boolean;
+  workspace: FilterPanelState;
+  replaceGroup: (path: number[], group: RuleGroupType) => void;
+  replaceRule: (path: number[], rule: RuleType) => void;
+};
+function StructuredBuilder({
+  editor,
+  query,
+  onChange,
+  scope = null,
+  workspace,
+}: {
+  editor: FilterEditorView;
+  query: RuleGroupType;
+  onChange: (query: RuleGroupType) => void;
+  scope?: string | null;
+  workspace: FilterPanelState;
+}) {
+  const visible = editor.groups
+    .flatMap((group) => group.fields)
+    .filter(
+      (field) =>
+        field.definition.scope === scope &&
+        (scope === null || field.definition.field_type !== "collection"),
     );
-  }
-
-  if (controlKind === "metric") {
-    return <MetricFilterControl workspace={workspace} field={field} />;
-  }
-
+  return (
+    <QueryBuilderAntD>
+      <QueryBuilder
+        query={query}
+        onQueryChange={(next) =>
+          onChange(
+            normalizeBuilderEdit(
+              query,
+              next,
+              editor.groups.flatMap((group) => group.fields),
+              scope,
+            ),
+          )
+        }
+        autoSelectField={false}
+        enableMountQueryChange={false}
+        fields={[
+          ...editor.groups
+            .map((group) => ({
+              label: group.label,
+              options: visible
+                .filter((field) => group.fields.includes(field))
+                .map((field) => ({
+                  name: field.definition.id,
+                  label:
+                    field.label +
+                    (field.definition.units ? " (" + field.definition.units + ")" : ""),
+                })),
+            }))
+            .filter((group) => group.options.length),
+        ]}
+        combinators={[
+          { name: "and", label: "Match all" },
+          { name: "or", label: "Match any" },
+        ]}
+        getOperators={(id) =>
+          id === BOOLEAN_CONDITION
+            ? [{ name: "constant", label: "Matches" }]
+            : (
+                visible.find((field) => field.definition.id === id)?.operators ?? []
+              ).map((operator) => ({ name: operator.operator, label: operator.label }))
+        }
+        context={
+          {
+            editor,
+            scope,
+            narrowFields: isPositiveConjunction(query),
+            workspace,
+            replaceGroup: (path, group) =>
+              onChange(
+                update(query, { combinator: group.combinator, not: group.not }, path),
+              ),
+            replaceRule: (path, rule) =>
+              onChange(
+                normalizeBuilderEdit(
+                  query,
+                  update(
+                    query,
+                    {
+                      field: rule.field,
+                      operator: rule.operator,
+                      value: rule.value,
+                      meta: rule.meta,
+                    },
+                    path,
+                  ),
+                  editor.groups.flatMap((group) => group.fields),
+                  scope,
+                ),
+              ),
+          } satisfies BuilderContext
+        }
+        translations={{
+          addRule: { label: "Add condition", title: "Add condition" },
+          addGroup: { label: "Add group", title: "Add group" },
+          removeRule: { label: "Remove", title: "Remove condition" },
+          removeGroup: { label: "Remove group", title: "Remove group" },
+        }}
+        controlElements={{
+          removeRuleAction: RemoveCondition,
+          addRuleAction: HiddenGroupAction,
+          addGroupAction: HiddenGroupAction,
+          ruleGroupBodyElements: FilterGroupBody,
+          removeGroupAction: RemoveCondition,
+          rule: FilterRule,
+          valueEditor: BuilderValueEditor,
+          fieldSelector: BuilderFieldSelector,
+          operatorSelector: BuilderOperatorSelector,
+          combinatorSelector: GroupMatchSelector,
+        }}
+      />
+    </QueryBuilderAntD>
+  );
+}
+const RuleEditContext = createContext<{
+  rule: PredicateRule;
+  replace: (rule: PredicateRule) => void;
+} | null>(null);
+function FilterRule(props: RuleProps) {
+  const rule = useRule(props);
+  const { replaceRule } = props.context as BuilderContext;
+  return (
+    <RuleEditContext.Provider
+      value={{
+        rule: props.rule as PredicateRule,
+        replace: (next) => replaceRule(props.path, next),
+      }}
+    >
+      <div className={rule.outerClassName} data-rule-id={props.rule.id}>
+        <RuleComponents {...rule} />
+      </div>
+    </RuleEditContext.Provider>
+  );
+}
+// Current-result applicability is safe for additive conditions. Boolean groups
+// that can broaden the result need the complete catalog while being edited.
+function isPositiveConjunction(group: RuleGroupType): boolean {
+  return (
+    group.combinator === "and" &&
+    !group.not &&
+    group.rules.every((rule) => !("rules" in rule) || isPositiveConjunction(rule))
+  );
+}
+function BuilderFieldSelector(props: FieldSelectorProps) {
+  const { editor, scope, narrowFields } = props.context as BuilderContext;
+  const groups = [
+    ...editor.groups
+      .map((group) => ({
+        label: group.label,
+        options: group.fields
+          .filter(
+            (field) =>
+              field.definition.scope === scope &&
+              (scope === null || field.definition.field_type !== "collection") &&
+              (!narrowFields ||
+                field.applicable ||
+                field.definition.id === props.value ||
+                field.unit_fields.some((unit) => unit.field_id === props.value)) &&
+              (!field.unit_fields.length ||
+                field.unit_fields[0].field_id === field.definition.id),
+          )
+          .map((field) => ({ value: field.definition.id, label: field.label })),
+      }))
+      .filter((group) => group.options.length),
+    ...(props.value === BOOLEAN_CONDITION
+      ? [
+          {
+            label: "Technical condition",
+            options: [{ value: BOOLEAN_CONDITION, label: "Constant condition" }],
+          },
+        ]
+      : []),
+  ];
+  return (
+    <Select
+      className={props.className}
+      aria-label="Filter field"
+      placeholder="Choose a filter…"
+      showSearch={{ optionFilterProp: "label" }}
+      options={groups}
+      value={
+        props.value === "~"
+          ? undefined
+          : (editor.groups
+              .flatMap((group) => group.fields)
+              .find((field) => field.definition.id === props.value)?.unit_fields[0]
+              ?.field_id ?? props.value)
+      }
+      onChange={props.handleOnChange}
+      disabled={props.disabled}
+    />
+  );
+}
+function RemoveCondition(props: ActionProps) {
+  return (
+    <Button
+      className={props.className}
+      type="text"
+      icon={<CloseOutlined />}
+      aria-label={props.title || "Remove condition"}
+      disabled={props.disabled}
+      onClick={props.handleOnClick}
+    />
+  );
+}
+function GroupMatchSelector(props: CombinatorSelectorProps) {
+  const { replaceGroup } = props.context as BuilderContext;
+  const group = props.ruleGroup as RuleGroupType;
+  return (
+    <Select
+      aria-label="Match conditions"
+      value={(group.not ? "not:" : "") + group.combinator}
+      options={[
+        { value: "and", label: "Match all" },
+        { value: "or", label: "Match any" },
+        { value: "not:or", label: "Match none" },
+        { value: "not:and", label: "Not all match" },
+      ]}
+      onChange={(value) =>
+        replaceGroup(props.path, {
+          ...group,
+          combinator: value.replace("not:", ""),
+          not: value.startsWith("not:"),
+        })
+      }
+    />
+  );
+}
+function HiddenGroupAction() {
+  return null;
+}
+function hasConfiguredCondition(group: RuleGroupType): boolean {
+  return group.rules.some((rule) =>
+    "rules" in rule ? hasConfiguredCondition(rule) : rule.field !== "~",
+  );
+}
+function FilterGroupBody(props: UseRuleGroup) {
   return (
     <>
-      <Form.Item label={fieldLabel}>
-        <TriStateOptionFilter workspace={workspace} fieldId={field.id} />
-      </Form.Item>
-      {field.id === "traits" ? (
-        <Checkbox
-          checked={includeOperatorForField(search, field.id) === "include_any"}
-          onChange={(event) =>
-            setSearch(
-              setIncludeOperatorForField(
-                search,
-                field.id,
-                event.target.checked ? "include_any" : "include_all",
-              ),
-            )
-          }
+      <RuleGroupBodyComponents {...props} />
+      <Space className="filter-group-actions">
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          aria-label="Add condition"
+          disabled={props.disabled}
+          onClick={props.addRule}
         >
-          Match any selected trait
-        </Checkbox>
-      ) : null}
+          Add condition
+        </Button>
+        {props.schema.maxLevels > props.path.length && (
+          <Button type="text" disabled={props.disabled} onClick={props.addGroup}>
+            Add group
+          </Button>
+        )}
+      </Space>
     </>
   );
 }
-
-function FilterFieldLabel({
-  workspace,
-  fieldId,
-  label,
-}: {
-  workspace: FilterPanelState;
-  fieldId: string;
-  label: string;
-}) {
-  const active = hasActiveFieldFilter(workspace.search, fieldId);
+function BuilderOperatorSelector(props: OperatorSelectorProps) {
+  const editing = useContext(RuleEditContext);
+  const { editor } = props.context as BuilderContext;
+  const field = editor.groups
+    .flatMap((group) => group.fields)
+    .find((field) => field.definition.id === props.field);
+  const excluded = !!editing?.rule.meta?.atlasExcluded;
+  const operators =
+    field?.operators.filter(
+      (operator) => operator.operator !== "state" || props.value === "state",
+    ) ?? [];
+  const options = operators.map((operator) => ({
+    value: operator.operator,
+    label: operator.operator === "exists" ? "has" : operator.label,
+  }));
+  for (const operator of operators) {
+    if (
+      ["in", "includes_all", "exists"].includes(operator.operator) ||
+      (excluded && operator.operator === props.value)
+    ) {
+      options.push({
+        value: "not:" + operator.operator,
+        label:
+          operator.operator === "exists"
+            ? "has no"
+            : operator.operator === "in"
+              ? "is none of"
+              : operator.operator === "eq"
+                ? "is not"
+                : operator.operator === "neq"
+                  ? "is"
+                  : operator.operator === "includes"
+                    ? "excludes"
+                    : operator.operator === "includes_all"
+                      ? "does not include all"
+                      : "not " + operator.label,
+      });
+    }
+  }
   return (
-    <div className="control-heading">
-      <span>{label}</span>
-      {active ? (
-        <Button
-          aria-label={`Clear ${label} filter`}
-          icon={<X size={12} />}
-          size="small"
-          type="text"
-          onClick={() =>
-            workspace.setSearch(clearFieldFilter(workspace.search, fieldId))
-          }
-        >
-          Clear
-        </Button>
-      ) : null}
-    </div>
+    <Select
+      className={props.className}
+      aria-label={"Condition for " + (field?.label ?? "this field")}
+      value={excluded ? "not:" + props.value : props.value}
+      options={
+        props.field === BOOLEAN_CONDITION
+          ? [{ value: "constant", label: "Matches" }]
+          : options
+      }
+      onChange={(next) => {
+        if (!editing) return props.handleOnChange(next);
+        const negate = next.startsWith("not:");
+        editing.replace({
+          ...editing.rule,
+          operator: negate ? next.slice(4) : next,
+          meta: { ...editing.rule.meta, atlasExcluded: negate },
+        });
+      }}
+      disabled={props.disabled}
+    />
   );
 }
-
-function OptionalFilterControl({
-  workspace,
-  fieldId,
-}: {
-  workspace: FilterPanelState;
-  fieldId: string;
-}) {
-  const { search, setSearch } = workspace;
-  const controlKind = controlKindForField(workspace, fieldId);
-
-  if (controlKind === "range") {
-    const range = rangeForField(search, fieldId);
-    const field = editorFieldForId(workspace, fieldId);
-    return (
-      <div className="control-row">
-        <InputNumber
-          placeholder="Min"
-          min={field?.control.kind === "range" ? field.control.min : undefined}
-          max={field?.control.kind === "range" ? field.control.max : undefined}
-          step={field?.control.kind === "range" ? field.control.step : undefined}
-          value={range.min}
-          onChange={(min) =>
-            setSearch(
-              setRangeForField(search, fieldId, {
-                ...range,
-                min: min ?? null,
-              }),
-            )
-          }
-        />
-        <InputNumber
-          placeholder="Max"
-          min={field?.control.kind === "range" ? field.control.min : undefined}
-          max={field?.control.kind === "range" ? field.control.max : undefined}
-          step={field?.control.kind === "range" ? field.control.step : undefined}
-          value={range.max}
-          onChange={(max) =>
-            setSearch(
-              setRangeForField(search, fieldId, {
-                ...range,
-                max: max ?? null,
-              }),
-            )
-          }
-        />
-      </div>
-    );
-  }
-
-  if (controlKind === "boolean") {
+function BuilderValueEditor(props: ValueEditorProps) {
+  const editing = useContext(RuleEditContext);
+  const { editor, scope, workspace } = props.context as BuilderContext;
+  if (props.field === BOOLEAN_CONDITION)
     return (
       <Select
-        allowClear
-        loading={workspace.filterDiscoveryLoading}
-        options={discoveredOptions(workspace, fieldId)}
-        value={booleanForField(search, fieldId)}
-        onChange={(value) =>
-          setSearch(setBooleanForField(search, fieldId, value ?? null))
-        }
+        className="filter-rule-value"
+        aria-label="Structural condition"
+        virtual={false}
+        value={String(props.value)}
+        options={[
+          { value: "true", label: "All records" },
+          { value: "false", label: "No records" },
+        ]}
+        onChange={props.handleOnChange}
       />
     );
-  }
-
-  if (controlKind === "metric") {
-    const field = editorFieldForId(workspace, fieldId);
-    return field ? <MetricFilterControl workspace={workspace} field={field} /> : null;
-  }
-
-  return <TriStateOptionFilter workspace={workspace} fieldId={fieldId} />;
-}
-
-function TriStateOptionFilter({
-  workspace,
-  fieldId,
-}: {
-  workspace: FilterPanelState;
-  fieldId: string;
-}) {
-  const { search, setSearch } = workspace;
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const field = editorFieldForId(workspace, fieldId);
-  const operatorPolicy = valueFilterOperatorPolicy(field);
-  const options = discoveredOptions(workspace, fieldId);
-  const [openedOptions, setOpenedOptions] = useState(options);
-  const includedValues = valuesForField(search, fieldId);
-  const excludedValues = excludedValuesForField(search, fieldId);
-  const includedValueSet = new Set(includedValues);
-  const excludedValueSet = new Set(excludedValues);
-  const selectedValues = [...includedValues, ...excludedValues];
-  const displayedOptions = open
-    ? refreshedOptionSnapshot(openedOptions, options)
-    : options;
-  const filteredOptions = displayedOptions.filter((option) =>
-    option.label.toLowerCase().includes(query.trim().toLowerCase()),
-  );
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    function handleClick(event: MouseEvent) {
-      if (!(event.target instanceof Node)) {
-        return;
-      }
-      if (triggerRef.current?.contains(event.target)) {
-        return;
-      }
-      if (
-        event.target instanceof Element &&
-        event.target.closest(".tri-state-filter-popover")
-      ) {
-        return;
-      }
-      setOpen(false);
-      setQuery("");
-    }
-
-    document.addEventListener("click", handleClick);
-    return () => {
-      document.removeEventListener("click", handleClick);
-    };
-  }, [open]);
-
-  function setMenuOpen(nextOpen: boolean) {
-    if (nextOpen) {
-      setOpenedOptions(options);
-    }
-    setOpen(nextOpen);
-    if (!nextOpen) {
-      setQuery("");
-    }
-  }
-
-  function stateIcon(state: "included" | "excluded" | "neutral") {
-    if (state === "included") {
-      return <Plus aria-hidden="true" size={12} strokeWidth={2.5} />;
-    }
-    if (state === "excluded") {
-      return <Minus aria-hidden="true" size={12} strokeWidth={2.5} />;
-    }
-    return null;
-  }
-
-  function optionState(value: string): "included" | "excluded" | "neutral" {
-    if (includedValueSet.has(value)) {
-      return "included";
-    }
-    if (excludedValueSet.has(value)) {
-      return "excluded";
-    }
-    return "neutral";
-  }
-
-  function optionLabel(value: string): string {
-    return (
-      displayedOptions.find((option) => option.value === value)?.label ??
-      options.find((option) => option.value === value)?.label ??
-      value
+  const field = editor.groups
+    .flatMap((group) => group.fields)
+    .find(
+      (field) =>
+        field.definition.id === props.field && field.definition.scope === scope,
     );
-  }
-
-  const content = (
-    <div className="tri-state-filter-content">
-      <Input
-        allowClear
-        placeholder="Search options"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-      />
-      <div className="tri-state-filter-options">
-        {filteredOptions.length > 0 ? (
-          filteredOptions.map((option) => {
-            const state = optionState(option.value);
-            return (
-              <Button
-                key={option.value}
-                aria-label={option.label}
-                className={`filter-option-row is-${state}`}
-                disabled={option.disabled}
-                type="text"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setSearch(
-                    cycleSelectedValueForField(
-                      search,
-                      fieldId,
-                      option.value,
-                      operatorPolicy,
-                    ),
-                  );
-                }}
-              >
-                <span className="filter-option-state-marker">{stateIcon(state)}</span>
-                <span>{option.label}</span>
-              </Button>
-            );
-          })
-        ) : (
-          <Empty
-            description="No options"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            className="tri-state-filter-empty"
+  if (!field)
+    return props.field === "~" ? null : (
+      <Typography.Text type="danger" role="status" className="filter-rule-value">
+        This field is unavailable. Choose another field or remove this condition.
+      </Typography.Text>
+    );
+  if (props.operator === "exists") {
+    const query = isBuilderGroup(props.value) ? props.value : emptyGroup();
+    if (isCompactCollection(field, query))
+      return (
+        <div className="filter-collection-condition">
+          <CollectionValueInput
+            field={field}
+            editor={editor}
+            query={query}
+            onChange={props.handleOnChange}
+            workspace={workspace}
           />
-        )}
+        </div>
+      );
+    return (
+      <div className="filter-collection-condition">
+        <StructuredBuilder
+          editor={editor}
+          query={isBuilderGroup(props.value) ? props.value : emptyGroup()}
+          onChange={props.handleOnChange}
+          scope={field.definition.path}
+          workspace={workspace}
+        />
       </div>
-    </div>
-  );
-
+    );
+  }
+  let error: string | null = null;
+  try {
+    builderPredicate(
+      { combinator: "and", rules: [props.rule] },
+      [field.definition],
+      scope,
+    );
+  } catch (reason) {
+    error = reason instanceof Error ? reason.message : String(reason);
+  }
+  const incomplete =
+    props.value == null ||
+    props.value === "" ||
+    (Array.isArray(props.value) && !props.value.length);
   return (
-    <Popover
-      arrow={false}
-      classNames={{
-        body: "tri-state-filter-menu",
-        root: "tri-state-filter-popover",
-      }}
-      content={content}
-      destroyOnHidden
-      open={open}
-      placement="bottomLeft"
-      trigger="click"
-      onOpenChange={setMenuOpen}
-    >
-      <div
-        ref={triggerRef}
-        className={`tri-state-filter-trigger ${open ? "is-open" : ""}`}
-        role="button"
-        tabIndex={0}
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-label={`Edit ${labelForField(workspace, fieldId)} filter`}
-        onClick={() => setMenuOpen(true)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            setMenuOpen(true);
-          }
-          if (event.key === "Escape") {
-            setMenuOpen(false);
-          }
-        }}
+    <div className="filter-rule-value">
+      <Form.Item
+        style={{ marginBottom: 0 }}
+        validateStatus={error && !incomplete ? "error" : undefined}
+        help={error && !incomplete ? <span role="status">{error}</span> : undefined}
       >
-        {selectedValues.length > 0 ? (
-          selectedValues.map((value) => {
-            const excluded = excludedValueSet.has(value);
-            return (
-              <Tag
-                key={value}
-                className={`filter-value-tag ${
-                  excluded ? "is-excluded" : "is-included"
-                }`}
-                closable
-                closeIcon={
-                  <button
-                    type="button"
-                    className="filter-value-tag-close"
-                    aria-label={`Remove ${optionLabel(value)} filter`}
-                  >
-                    <X aria-hidden="true" size={12} strokeWidth={2.25} />
-                  </button>
-                }
-                onClose={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setSearch(clearSelectedValueForField(search, fieldId, value));
-                }}
-              >
-                <span className="filter-value-tag-marker">
-                  {stateIcon(excluded ? "excluded" : "included")}
-                </span>
-                <span className="filter-value-tag-label">{optionLabel(value)}</span>
-              </Tag>
-            );
-          })
-        ) : (
-          <span className="tri-state-filter-placeholder">
-            {workspace.filterDiscoveryLoading ? "Loading options" : "Select options"}
-          </span>
-        )}
-      </div>
-    </Popover>
-  );
-}
-
-function refreshedOptionSnapshot(
-  openedOptions: FilterSelectOption[],
-  currentOptions: FilterSelectOption[],
-): FilterSelectOption[] {
-  if (openedOptions.length === 0) {
-    return currentOptions;
-  }
-  const currentByValue = new Map(
-    currentOptions.map((option) => [option.value, option] as const),
-  );
-  return openedOptions.map((option) => currentByValue.get(option.value) ?? option);
-}
-
-function MetricFilterControl({
-  workspace,
-  field,
-}: {
-  workspace: FilterPanelState;
-  field: FilterEditorFieldView;
-}) {
-  const { search, setSearch } = workspace;
-  const current = metricComparisonForField(search, field.id);
-  const [draft, setDraft] = useState<MetricComparisonState>(current);
-  const keyLabel =
-    field.control.kind === "metric_comparison" ? field.control.key_label : "Metric";
-  const operatorLabel =
-    field.control.kind === "metric_comparison"
-      ? field.control.operator_label
-      : "Operator";
-  const valueLabel =
-    field.control.kind === "metric_comparison" ? field.control.value_label : "Value";
-
-  function update(next: MetricComparisonState) {
-    setDraft(next);
-    setSearch(setMetricComparisonForField(search, field.id, next));
-  }
-
-  return (
-    <div className="control-row metric-filter-control">
-      <Form.Item label={keyLabel}>
-        <Select
-          showSearch
-          allowClear
-          loading={workspace.filterDiscoveryLoading}
-          optionFilterProp="label"
-          options={discoveredOptions(workspace, field.id)}
-          value={draft.key}
-          onChange={(key) => update({ ...draft, key: key ?? null })}
-        />
-      </Form.Item>
-      <Form.Item label={operatorLabel}>
-        <Select
-          options={[
-            { value: "gte", label: ">=" },
-            { value: "lte", label: "<=" },
-            { value: "gt", label: ">" },
-            { value: "lt", label: "<" },
-            { value: "eq", label: "=" },
-          ]}
-          value={draft.op}
-          onChange={(op) => update({ ...draft, op })}
-        />
-      </Form.Item>
-      <Form.Item label={valueLabel}>
-        <InputNumber
-          value={draft.value}
-          onChange={(value) => update({ ...draft, value: value ?? null })}
-        />
+        <div className={field.unit_fields.length ? "filter-duration-value" : undefined}>
+          <FilterValueInput
+            excluded={!!props.rule.meta?.atlasExcluded}
+            field={field}
+            operator={props.operator}
+            value={props.value}
+            onChange={props.handleOnChange}
+            scope={workspace.vocabularyScope ?? { kind: "artifact" }}
+            countContext={workspace.filterDiscoveryContext}
+            countsEnabled={workspace.filterCountsEnabled !== false}
+            countQueryKey={workspace.filterCountQueryKey}
+            countLimit={workspace.filterEditor?.limits.literal_list ?? 0}
+            clauseId={String(props.rule.id)}
+          />
+          {field.unit_fields.length > 0 && (
+            <Select
+              aria-label="Duration unit"
+              value={field.definition.id}
+              options={field.unit_fields.map((option) => ({
+                value: option.field_id,
+                label: option.unit,
+              }))}
+              onChange={(id) =>
+                editing && editing.replace({ ...editing.rule, field: id })
+              }
+            />
+          )}
+        </div>
       </Form.Item>
     </div>
   );

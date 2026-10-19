@@ -1,27 +1,39 @@
 # atlas-index
 
-`atlas-index` owns index read/write boundaries and concrete SQLite artifact access.
-
-This crate opens validated artifacts, loads persisted rows, validates artifact contract coherence, compiles canonical filters into SQL keysets, runs lexical/vector SQL, exposes inspection summaries, and writes completed SQLite artifacts from build inputs. It is the storage access boundary for both runtime reads and ingest-time artifact writes.
+`atlas-index` owns reference-domain SQLite schema, validation, publication and
+queries within the persistent Atlas workspace. `atlas-storage` owns connections,
+transactions, the migration ledger and coordinated maintenance admission.
 
 ## Owns
 
-- Focused read capability traits, the composite `RetrievalReadIndex` contract, and `SqliteIndexReader` read handles.
-- `IndexArtifactWriter` write contract and `SqliteIndexWriter` artifact writes.
-- Artifact validation diagnostics and validation reports.
-- Diesel migrations, checked-in schema declarations validated against those migrations, and ordinary relational writer/reader row models.
-- Row readers and hydration into `atlas-record` models.
-- Filter-to-SQL keyset compilation.
-- Vector query SQL over `document_embedding_cache` and `record_vector_index`.
-- Index inspection summaries.
+- `SqliteIndexReader` handles bound to admitted read sessions and snapshots.
+- Reference schema SQL and relational models, composed with saved-state migrations
+  by runtime into one workspace.
+- Incremental reference publication through `SqliteIndexWriter` on an admitted
+  maintenance connection, retaining stable record identities and unchanged rows.
+- Checked DTO snapshots, compact prepared content, diagnostics and relationship
+  occurrences, including exact metadata for reusing source preparation.
+- Typed filter catalog discovery, validation and SQL compilation.
+- Curated FTS5 units, semantic attribution and profile-specific sqlite-vec tables.
+- Durable exact-input embedding checkpoints and reference-update job metadata.
+- Independent requested source/model configuration, component-version inspection
+  and automatic query-projection backfills.
 
-## Should Not Own
+## Boundaries
 
-- Ingest-time source normalization.
-- Query embedding generation.
-- Product-level search ranking or vector-hit collapse.
-- CLI presentation.
+Runtime composes the workspace; product retrieval goes through `atlas-search`.
+Ingest owns source admission, content preparation and model execution. This crate
+does not generate embeddings, decide product ranking, or present CLI output.
+Saved lists and encounters belong to `atlas-local-state` in the same database.
 
-## Boundary Notes
+A reference publication validates its transaction before advancing the reference
+revision. It updates reference-domain rows without replacing the database or
+clearing saved state. Schema upgrades use the shared migration coordinator;
+component upgrades rebuild only affected derived outputs from retained inputs.
 
-Runtime surfaces should reach SQLite through `SqliteIndexReader` and retrieval-facing traits, not by opening their own connections. Ingest should write artifacts through `IndexArtifactWriter` implementations rather than owning database-specific writers. `atlas-index` owns the SQLite artifact contract; migration files under `migrations/` are the schema source of truth, artifact creation embeds those migrations, and the test suite checks the checked-in Diesel schema against them. Ordinary relational access should use Diesel, while FTS5, sqlite-vec, dynamic filter relations, and validation pragmas may stay as explicit raw SQL. Product-facing retrieval behavior should compose through `atlas-search`.
+Offline validation checks source addresses, content coherence, semantic coverage,
+hashes and vector shape without model assets. Embedding reuse reads durable
+checkpoints by exact model identity and execution-input key, checking input hash,
+native token count, dimensions and vector checksum. It does not reconstruct old
+embedding text from active reference rows. Checkpoints remain independent of
+content/projection versions and are pruned only after successful publication.

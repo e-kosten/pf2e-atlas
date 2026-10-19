@@ -2,6 +2,18 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum LocalStateError {
+    #[error("Local-state mutations require a caller-owned write transaction")]
+    ActionRequiresTransaction,
+    #[error("Unsupported stored roll receipt version {0}")]
+    UnsupportedReceiptVersion(u32),
+    #[error("This roll request ID was already used for a different request")]
+    RollRequestConflict,
+    #[error("Invalid roll request: {0}")]
+    InvalidRollRequest(&'static str),
+    #[error("Dice evaluation failed: {0}")]
+    Dice(#[from] atlas_dice::DiceError),
+    #[error("Roll receipt is not valid: {0}")]
+    RollReceipt(#[from] serde_json::Error),
     #[error("local-state path is not valid UTF-8: {0}")]
     NonUtf8Path(String),
     #[error("invalid saved-list slug `{slug}`: {reason}")]
@@ -32,6 +44,22 @@ pub enum LocalStateError {
     EncounterNotFound(String),
     #[error("encounter participant not found: {0}")]
     ParticipantNotFound(String),
+    #[error(
+        "encounter participant `{participant_key}` changed: expected revision {expected_revision}, actual revision {actual_revision}"
+    )]
+    StaleParticipantRevision {
+        participant_key: String,
+        expected_revision: i64,
+        actual_revision: i64,
+    },
+    #[error(
+        "encounter `{encounter_key}` changed: expected revision {expected_revision}, actual revision {actual_revision}"
+    )]
+    StaleEncounterRevision {
+        encounter_key: String,
+        expected_revision: i64,
+        actual_revision: i64,
+    },
     #[error("could not allocate a unique encounter key")]
     EncounterKeyAllocationFailed,
     #[error("could not allocate a unique encounter participant key")]

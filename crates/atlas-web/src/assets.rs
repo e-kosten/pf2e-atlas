@@ -65,3 +65,18 @@ fn cache_control(path: &str) -> &'static str {
         "public, max-age=300"
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::borrow::Cow;
+
+    use super::WebAssets;
+
+    #[test]
+    fn frontend_assets_are_compiled_into_debug_and_release_binaries() {
+        // A filesystem-backed debug build can serve a newer UI against an older
+        // backend after another frontend build, even if its binary was copied.
+        let asset = WebAssets::get("index.html").expect("built frontend index");
+        assert!(matches!(asset.data, Cow::Borrowed(_)));
+    }
+}

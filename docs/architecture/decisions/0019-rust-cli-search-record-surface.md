@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted intent separation. ADR 0046 replaces the historical filter JSON,
+presentation hydration and fusion controls described below. Current CLI examples
+use catalog-bound predicates and --where; strict key/name resolution remains.
 
 ## Context
 

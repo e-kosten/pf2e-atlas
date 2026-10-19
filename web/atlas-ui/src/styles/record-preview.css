@@ -1,52 +1,69 @@
-.record-preview-popover__backdrop {
-  background: var(--overlay-backdrop);
-  bottom: 0;
-  left: 0;
-  position: fixed;
-  right: 0;
-  top: 0;
-  z-index: 40;
-}
-
-.record-preview-popover {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  box-shadow: var(--shadow);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  max-width: calc(100vw - 32px);
-  min-width: min(320px, calc(100vw - 32px));
-  min-height: 0;
-  overflow: hidden;
+.record-preview-loading {
   position: absolute;
+  inset-inline-start: 100%;
+  top: 0;
+  margin-inline-start: 4px;
 }
 
 .record-preview-popover__header {
+  padding-block-end: 8px;
   align-items: center;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
   display: flex;
   font-weight: 600;
-  justify-content: space-between;
-  padding: 10px 12px;
+  justify-content: flex-end;
 }
 
 .record-preview-popover__body {
-  background: var(--panel);
+  position: relative;
+  width: min(560px, calc(100vw - 48px));
+  max-height: min(560px, calc(100vh - 96px));
   min-height: 0;
   overscroll-behavior: contain;
   overflow: auto;
-  padding: 12px;
 }
 
-.record-preview-drawer .ant-drawer-header {
-  padding: 10px 12px;
+/* The scroll host anchors refresh feedback. A positioned nested panel can
+   intercept toolbar clicks above the native popover's scrolled viewport. */
+.record-preview-popover__body > .detail-panel {
+  position: static;
 }
 
-.record-preview-drawer .ant-drawer-body {
+.record-preview-drawer__header {
+  padding: 16px;
+}
+
+.record-preview-drawer__body {
   min-height: 0;
   overscroll-behavior: contain;
   overflow: auto;
-  padding: 12px;
+  padding: 0;
+}
+
+.record-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--panel-gap);
+}
+@media (max-width: 720px) {
+  .record-comparison {
+    grid-template-columns: 1fr;
+  }
+}
+
+.related-records__item {
+  padding-block: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.record-preview-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+  gap: 8px;
+  font-weight: normal;
+}
+.record-preview-toolbar__navigation {
+  margin-inline-start: auto;
+  flex-shrink: 0;
 }

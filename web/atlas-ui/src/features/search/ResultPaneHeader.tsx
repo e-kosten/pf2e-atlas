@@ -1,11 +1,12 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "antd";
+import { Button, Select } from "antd";
 import { useMemo, useState } from "react";
 import { totalPages } from "./pageMetrics";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 
 export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceState }) {
   const page = workspace.resultPage?.page;
+  const similar = workspace.resultPage?.mode.kind === "similar_records";
   const displayedPageNumber = workspace.resultsRefreshing
     ? workspace.pageNumber
     : (page?.number ?? workspace.pageNumber);
@@ -15,27 +16,56 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
       ? Number.MAX_SAFE_INTEGER
       : Number(pageCount);
 
+  if (!page || page.total === 0n) return null;
   return (
     <div className="result-pane-header">
       <span>
         {workspace.resultsRefreshing
           ? "Updating results"
           : page
-            ? `${page.total.toLocaleString()} records`
-            : "No result window yet"}
+            ? similar
+              ? "Top matches"
+              : workspace.resultPage?.coverage?.exhaustive === false
+                ? `Top ${page.total.toLocaleString()} matches`
+                : `${page.total.toLocaleString()} records`
+            : "Results"}
       </span>
       <div className="pager pager--compact">
+        <Select
+          aria-label="Records per page"
+          size="small"
+          style={{ width: 128 }}
+          disabled={workspace.resultsPaused || workspace.resultsRecovering}
+          value={workspace.search.pageSize}
+          options={[10, 25, 50, 100].map((value) => ({
+            value,
+            label: value + " / page",
+          }))}
+          onChange={(pageSize) =>
+            workspace.setSearch({ ...workspace.search, pageSize })
+          }
+        />
         <Button
           aria-label="Previous page"
           className="pager__button"
-          disabled={workspace.pageNumber <= 1 || workspace.resultsRefreshing}
+          disabled={
+            workspace.pageNumber <= 1 ||
+            workspace.resultsRefreshing ||
+            workspace.resultsPaused ||
+            workspace.resultsRecovering
+          }
           icon={<ChevronLeft size={15} />}
           onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
           type="text"
         />
         <PageJump
           key={displayedPageNumber}
-          disabled={workspace.resultsRefreshing || workspace.resultsLoading}
+          disabled={
+            workspace.resultsRefreshing ||
+            workspace.resultsLoading ||
+            Boolean(workspace.resultsPaused) ||
+            Boolean(workspace.resultsRecovering)
+          }
           displayedPageNumber={displayedPageNumber}
           onPageChange={workspace.setPageNumber}
           pageCount={pageCount}
@@ -45,7 +75,12 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
         <Button
           aria-label="Next page"
           className="pager__button"
-          disabled={!page?.has_more || workspace.resultsRefreshing}
+          disabled={
+            !page?.has_more ||
+            workspace.resultsRefreshing ||
+            workspace.resultsPaused ||
+            workspace.resultsRecovering
+          }
           icon={<ChevronRight size={15} />}
           onClick={() =>
             workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)

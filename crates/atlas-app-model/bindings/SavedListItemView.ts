@@ -3,4 +3,4 @@ import type { RecordSummaryView } from "./RecordSummaryView";
 import type { SavedListItemSnapshotView } from "./SavedListItemSnapshotView";
 import type { SavedListItemStatusView } from "./SavedListItemStatusView";
 
-export type SavedListItemView = { record_key: string, position: bigint, note?: string, status: SavedListItemStatusView, snapshot: SavedListItemSnapshotView, record?: RecordSummaryView, };
+export type SavedListItemView = { record_key: string, position: number, note?: string, status: SavedListItemStatusView, snapshot: SavedListItemSnapshotView, record?: RecordSummaryView, };

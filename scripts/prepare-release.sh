@@ -421,7 +421,7 @@ update_lockfile() {
 }
 
 update_third_party_notices() {
-  scripts/release/generate-notices.py
+  npm --prefix dev-tools/release run notices
 }
 
 release_branch_from_current_branch() {

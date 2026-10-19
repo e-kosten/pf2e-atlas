@@ -1,10 +1,11 @@
 import { Input } from "antd";
 import type { InputProps } from "antd";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export function EditableCommitField({
   ariaLabel,
   className,
+  disabled = false,
   inputMode,
   onCommit,
   placeholder,
@@ -14,8 +15,9 @@ export function EditableCommitField({
 }: {
   ariaLabel: string;
   className?: string;
+  disabled?: InputProps["disabled"];
   inputMode?: InputProps["inputMode"];
-  onCommit: (value: string) => void;
+  onCommit: (value: string) => void | Promise<unknown>;
   placeholder?: string;
   size?: InputProps["size"];
   stopPropagation?: boolean;
@@ -24,14 +26,36 @@ export function EditableCommitField({
   const [draftState, setDraftState] = useState({
     committedValue: value,
     draft: value,
+    failed: false,
   });
-  const draft = draftState.committedValue === value ? draftState.draft : value;
+  const draft =
+    draftState.failed || draftState.committedValue === value ? draftState.draft : value;
   const setDraft = (nextDraft: string) =>
-    setDraftState({ committedValue: value, draft: nextDraft });
+    setDraftState({ committedValue: value, draft: nextDraft, failed: false });
+  const editFinished = useRef(false);
 
-  const commit = () => {
-    if (draft !== value) {
-      onCommit(draft);
+  const finishEdit = (commit: boolean) => {
+    if (disabled || editFinished.current) {
+      return;
+    }
+    editFinished.current = true;
+    if (commit && draft !== value) {
+      const result = onCommit(draft);
+      if (result) {
+        void result
+          .then(() => {
+            setDraftState((current) =>
+              current.draft === draft ? { ...current, failed: false } : current,
+            );
+          })
+          .catch(() => {
+            setDraftState({ committedValue: value, draft, failed: true });
+            editFinished.current = false;
+          });
+      }
+    }
+    if (!commit) {
+      setDraft(value);
     }
   };
 
@@ -39,22 +63,29 @@ export function EditableCommitField({
     <Input
       aria-label={ariaLabel}
       className={className}
+      disabled={disabled}
       inputMode={inputMode}
-      onBlur={commit}
-      onChange={(event) => setDraft(event.currentTarget.value)}
+      onBlur={() => finishEdit(true)}
+      onChange={(event) => {
+        editFinished.current = false;
+        setDraft(event.currentTarget.value);
+      }}
       onClick={stopPropagation ? (event) => event.stopPropagation() : undefined}
+      onFocus={() => {
+        editFinished.current = false;
+      }}
       onKeyDown={(event) => {
         if (stopPropagation) {
           event.stopPropagation();
         }
         if (event.key === "Enter") {
           event.preventDefault();
-          commit();
+          finishEdit(true);
           event.currentTarget.blur();
         }
         if (event.key === "Escape") {
           event.preventDefault();
-          setDraftState({ committedValue: value, draft: value });
+          finishEdit(false);
           event.currentTarget.blur();
         }
       }}

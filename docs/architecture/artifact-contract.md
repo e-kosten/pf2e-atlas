@@ -1,203 +1,347 @@
-# Artifact Contract
+# Artifact contract
 
-This document defines the runtime artifact boundary for PF2e Atlas. The Rust runtime opens prepared SQLite artifacts read-only for lookup and search commands. Setup and index diagnostic commands own metadata validation, vector readiness checks, and deep artifact coherence checks.
+Reference data and saved state share one persistent SQLite workspace.
+`atlas-index` owns checked source snapshots and derived reference tables;
+`atlas-local-state` owns lists, encounters and their durable actions.
+`atlas-storage` owns admission, transactions and migration execution, while
+runtime composes one schema history. Normal reference publication preserves the
+workspace file and saved rows. [ADR0051](./decisions/0051-persistent-workspace.md)
+defines these ownership and lifetime boundaries.
 
-For the broader crate and data-flow architecture around this artifact contract, see [runtime architecture](./runtime.md).
+## Identity and versions
 
-Durable mutable local state is not part of this artifact contract. Saved lists and future user-authored or agent-authored local data live in the separate local-state database owned by `atlas-local-state`; artifact rebuilds do not copy, preserve, or validate those rows.
+Record identity is the Foundry pack and source `_id`, serialized as `pack:id`.
+Readable route slugs may accompany that identity. They do not introduce another
+public identity scheme. Internal `record_identity` rows survive source removal;
+saved foreign keys reference that stable registry with restrictive deletion. Embedded documents stay in their parent snapshot, including
+customized copies of canonical Items. Checked owner chains use unique source IDs
+where available and snapshot-local positions otherwise. Snapshot-local owners
+must not reconcile saved state across rebuilds.
+Product navigation using snapshot-local positions carries the source fingerprint;
+detail rejects missing or stale generation context for those explicit addresses.
 
-## Contract Version
+The reference format, checked snapshot codec, preparation policies and query
+catalog have separate version identities. `artifact_context` contains the typed,
+hashed active build context. SQLite `user_version` instead tracks the shared
+physical migration ledger composed by runtime (two baseline migrations followed by lexical-alias and consumable-filter migrations).
+The source artifact format is not the workspace schema version.
 
-The first supported contract version is:
+Pre-release separate-file formats have no compatibility reader or conversion
+shim. Future workspace upgrades use ordered migrations with recorded checksums,
+a consistent backup before structural changes, and transaction-scoped validation.
+Saved-domain and reference migrations share the same ledger and transaction.
 
-```text
-pf2e-atlas-artifact/v1
-```
+Reference DDL lives in
+[the index baseline SQL](../../crates/atlas-index/migrations/00000000000001_create_artifact/up.sql);
+saved-domain DDL lives in
+[local-state schema.sql](../../crates/atlas-local-state/src/schema.sql).
+Both execute through rusqlite on admitted sessions. FTS5, sqlite-vec, dynamic
+eligibility relations and validation pragmas remain index-owned SQL. Stored data
+never supplies executable SQL.
 
-The SQLite schema version for this active development artifact family is:
+## Stored families
 
-```text
-1
-```
+The shared header contains `workspace` and `schema_migrations`. Durable intent
+lives in `requested_reference_config`; resumable inference uses
+`reference_update_jobs` and `embedding_checkpoints`. These are independent of the
+active reference context. Saved-domain tables include a seeded local principal
+and non-null ownership, with owner-scoped slug uniqueness.
 
-These values are stored in `artifact_metadata` as `artifact_contract_version` and `schema_version`. Setup and index diagnostic commands must fail validation when they do not support either value. Normal lookup and search commands open the resolved artifact read-only and report operational failures from the requested action instead of running validation as a command preflight.
-
-## Metadata Table
-
-Runtime artifacts must include:
-
-```sql
-CREATE TABLE artifact_metadata (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL
-);
-```
-
-The metadata table must be readable with plain SQLite. Validation of this table must not require loading `sqlite-vec` or any other extension.
-
-Required keys:
-
-| Key | Required value or rule |
+| Family | Tables and purpose |
 | --- | --- |
-| `artifact_contract_version` | `pf2e-atlas-artifact/v1` |
-| `schema_version` | `1` |
-| `source_kind` | `foundry-pf2e` |
-| `source_signature` | `foundry-pf2e:sha256:<digest>` for current source snapshots |
-| `source_record_count` | positive integer count of loaded Foundry source records before Rust-generated records are added |
-| `artifact_record_count` | positive integer count of rows in `records`, including generated records |
-| `generated_record_count` | non-negative integer count of Rust-generated records included in `records` |
-| `content_hash_algorithm` | `sha256` |
-| `embedding_provider_family` | `onnx-mean-pooling` for the default BGE small embedding model |
-| `embedding_model_id` | `BAAI/bge-small-en-v1.5` |
-| `embedding_model_revision` | `main` until model artifact checksums are available |
-| `embedding_tokenizer_id` | `BAAI/bge-small-en-v1.5` |
-| `embedding_pooling` | `mean` |
-| `embedding_normalization` | `l2` |
-| `embedding_dimensions` | `384` |
-| `embedding_dtype` | `f32` |
-| `embedding_distance_metric` | `cosine` |
-| `embedding_document_prefix` | empty string for BGE small |
-| `embedding_query_prefix` | `Represent this sentence for searching relevant passages: ` |
-| `embedding_unit_policy_version` | `coverage-driven-rich-content/v1` |
-| `fts_tokenizer` | `unicode61 remove_diacritics 2` |
-| `adjacent_manifest_path` | relative path next to the SQLite artifact |
+| Identity and provenance | `record_identity`, `packs`, `records`: canonical keys, compact source paths/hashes, lookup keys and body-free common summaries. |
+| Checked source | `record_bodies`: one gzip-compressed, versioned checked DTO snapshot per root. Invalid members retained by admission remain in that snapshot. No duplicate complete original JSON payload is stored. |
+| Query accelerators | `record_traits`, `actor_projection`, `actor_items`, Actor IWR/language/speed/sense rows, and named Spell/physical/weapon/armor/shield/ability/heritage/effect/condition/deity projection tables. Explicit immediate-child `embedded.*` collections use the same typed extractors as the corresponding standalone families. |
+| Query catalog | `query_field_catalog`: serialized public definitions checked against executable Rust bindings; no artifact-defined extractor expressions. |
+| Prepared content | `prepared_content`: selected field outcomes, one compressed sanitized HTML cache, narrow interaction facts and authored/preparation hashes. Plain authored fields are read from the checked source when needed. |
+| Developer reports | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports. |
+| Relationships | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status. |
+| Verified identity evidence | `verified_aliases`, `remaster_pairs`: explicit evidence-backed lookup names and edition relationships. |
+| Precision lexical search | `lexical_units`, `lexical_fts`: root names, verified aliases, typed vocabulary, owned names, headings and structural definition labels. |
+| Semantic search | `search_profiles`, `semantic_units`, profile-specific `semantic_vectors_<identity hash>` tables: complete profile identity, profile-scoped attributed section/chunk addresses, raw input hashes and vectors. |
 
-Embedding model decisions must be concentrated in an `atlas-embedding` model catalog rather than repeated as raw strings across ingest, index validation, and search. The catalog default is `bge-small-en-v1.5`, selected from the embedding comparison harness as the best quality/performance default for the Rust runtime; MiniLM remains an explicit catalog option for parity checks and older artifacts. Switching models requires rebuilding `document_embedding_cache`, `record_vector_index`, and embedding metadata, then rerunning search-quality validation; it should not require changing storage, validation, or search call sites outside the catalog/provider boundary unless the new model changes vector storage requirements such as dimensions or dtype. Runtime retrieval opens the embedding model recorded in artifact metadata; product search callers do not choose an embedding model after the artifact is built. Runtime query orchestration lives in `atlas-search`, which composes `atlas-embedding` with read-only index handles rather than loading models or opening SQLite connections in CLI code.
+There is no generic metric EAV store, persisted RichDocument, synthetic canonical
+affliction table, copied embedded Item authority or complete plain-text/model-input
+corpus. Developer original-source inspection reads the configured Foundry checkout
+using compact provenance. Normal product reads do not require that checkout.
 
-The Rust embedding provider uses the `ort` crate with a pinned ONNX Runtime crate version plus the real `tokenizers` tokenizer JSON from the prepared model cache. This keeps model execution in-process and avoids introducing a sidecar runtime. Distribution packaging should keep the native ONNX Runtime dependency explicit and pinned; a later product packaging pass may decide whether to vendor the native library, rely on the crate-managed artifact, or provide a platform-specific install step.
+Visible prepared reference markers and stored content occurrences must correspond
+one to one within each field. A compact marker digest binds the attributed
+reference fact to its locator and checked authored-field hash. Validation rejects
+missing/duplicate markers, missing edges and changed destinations, alongside the
+interaction-marker ordinal and kind checks. Interaction parameters are not
+independently rebound to marker text: same-kind parameter mutations are outside
+this offline check. These checks establish the specified derived-cache coherence;
+they do not
+authenticate coordinated changes to an artifact or independently resolve a
+localized target without the build-time locale catalog.
 
-Document embedding input construction and document vector generation are owned by `atlas-embedding` so ingest, refresh, validation, and query tooling use the same renderer and provider. Rust ingest builds a `RecordPresentationDocument` for each eligible normalized record through `atlas-record`, renders it through the compact embedding text renderer in `atlas-embedding`, appends lookup aliases as a late embedding-only recall signal, and computes the semantic input hash as SHA-256 over the exact generated input text. The embedding-unit kind vocabulary is owned by `atlas-embedding`; ingest writes it, index validation parses it, and search ranks over that shared typed vocabulary instead of repeating string allowlists. The model catalog declares each provider's ONNX-safe input token limit; tokenizers are configured from that catalog so documents and queries are truncated before model execution. Document embedding text is rendered as ordered section chunks from strongest identity and user-facing semantic signals toward lower-priority relationship recall signals. Ingest analyzes the full candidate input, applies the active tokenizer's budget to only over-limit documents, drops or word-trims lower-priority chunks by section, and recomputes the semantic input hash from the budgeted text before vector reuse or generation. Ingest reports document tokenization telemetry, including observed max tokens, tokens over the configured limit, and section-level truncation counts, for comparison harness lossiness analysis.
+Resolved structured destinations are checked with the record-owned resolver over
+a compact identity/name index reconstructed from checked snapshots. Destination
+existence alone is insufficient. Unresolved occurrences are not promoted during
+validation: ingest may have excluded ambiguous names using unaddressable source
+evidence that is intentionally absent from the product artifact.
 
-Ingest prepares embedding units only for default-visible searchable records; hidden provenance rows and remaster-hidden legacy rows are excluded from vector work. Every eligible record has exactly one `parent` unit keyed as `{record_key}#parent`. Parent units render the record presentation document from primary/default-visible record content but exclude embedded item/spell supplemental content so embedded capabilities do not rank as ordinary parent description text. Rich content documents are split into stable coverage groups from leading text, explicit heading sections, and whole-document fallback groups. Synthetic sections created from strong-leading paragraphs or table captions remain folded into their containing text, and unpromoted embedded item/spell supplemental content does not produce independent child embedding units. Child units are materialized only when tokenizer budgeting trims or drops a rich group from the parent and only for child-worthy rich sources: `description`, `details_field_description`, and `public_notes`. When a child is needed, it is built from the whole impacted rich group rather than only the omitted fragment, then independently budgeted to the active model limit. Source-backed generated records, such as generated afflictions, are normal records and receive their own parent units plus coverage-driven child units when default-visible and over-limit. The active unit kinds are `parent`, `heading_section`, and `titled_option`. The active embedding unit policy is stored as `embedding_unit_policy_version` so setup and validation can detect stale semantic artifacts when unit generation rules change. Generated vectors carry `embedding_unit_key`, parent `record_key`, unit kind, optional unit label, ordinal, semantic input hash, vector dimensions, and the vector payload into `document_embedding_cache`. The sqlite-vec `record_vector_index` stores only the vector payload keyed by rowid; its rowid matches the corresponding `document_embedding_cache.rowid` so normal SQLite metadata remains the authoritative embedding-unit mapping. Runtime semantic search defaults to `weighted-chunks`: child units may recover records from long-document sections, but unit-kind weighting is applied before collapsing hits by parent `record_key`. User-facing results remain records while diagnostics may expose the matched unit. Runtime search uses a try-and-report execution model: it opens the resolved read-only artifact, checks embedding readiness when constructing the normal embedding-backed retrieval service, performs the requested lexical or semantic query, and translates operational failures into product-facing errors. Deep coherence diagnostics belong to `atlas setup`, `atlas index check`, and `atlas index validate`.
+## Query facts and eligibility
 
-Rust artifact rebuilds reuse existing `document_embedding_cache` rows by default when the output artifact already exists, embedding identity metadata matches the active model catalog, and the row's `semantic_input_hash` and dimensions match the newly prepared input. The build command exposes an explicit opt-out for full regeneration. Reuse is limited to the normal SQLite cache table; normal embedding-enabled ingest creates and populates `record_vector_index` from `document_embedding_cache` before publishing the artifact.
+Query fields distinguish `value`, `missing`, `null`, `invalid` and
+`not_applicable`. Known zero, false and empty sets are values. Numeric storage
+preserves integers and finite real numbers without silently narrowing integers
+to f64 or coercing quoted numeric strings. Unsupported representations produce
+explicit invalid query facts while the checked source remains retained.
 
-`atlas-runtime` resolves source, embedding-cache, and index paths for CLI and future Rust surfaces. `global` mode is the default and uses platform cache paths under a `pf2e-atlas` directory so first-run setup and later installed-CLI commands resolve the same data from any working directory. `repo` mode is an explicit contributor mode: it requires `git rev-parse --show-toplevel` to find a git root containing `Cargo.toml` plus `crates/atlas-cli/Cargo.toml`, then uses that checkout's `vendor/pf2e` and `.cache` paths.
+`atlas-domain::QueryPredicate` is the shared Boolean/field/set/Exists vocabulary.
+Index validates fields, applicability, operators, literals and bounded complexity
+against its catalog, then compiles parameterized SQL. Only true roots match;
+unknown remains unknown under NOT. Exists uses one child witness for its complete
+predicate and allows one collection level. Missing IWR arrays have an explicit
+upstream-backed empty query default only when their typed parent is known.
 
-Direct path flags are command-local overrides rather than persisted configuration. `--index` is the SQLite artifact override for commands that open or repair an artifact, including `setup`, record, search, filter discovery, validation, and inspection commands. `atlas index build` uses `--output` for the artifact it writes, while `setup --index` names the artifact target that setup should repair or build. `--source` and `--embedding-cache-path` override the source checkout and embedding model cache for the command that receives them. A future persisted config file, if added, should feed `AtlasPathOverrides` before CLI direct flags are applied; CLI direct flags should remain the highest-precedence path source.
+CLI CEL uses the maintained parser and a documented supported subset. The UI
+builder submits structured predicates independently. There is no translation
+between CEL and editor state. Field/value discovery shares executable bindings
+and user-facing catalog labels. Labels name the useful property; source-family
+applicability, stable query IDs and collection scopes remain separate metadata.
+CLI numeric discovery uses range/state statistics rather than enumerating values;
+collection discovery uses states and directs callers to scoped member descriptors.
+Discovery shares query eligibility. Root facets self-exclude all selections of
+the edited field through conjunctions, including individual negative selections.
+Scoped facets replace the target clause while preserving same-child siblings.
+Targets inside OR or compound NOT, and unsupported scoped negatives, can report
+typed optional discovery unavailability; the query itself
+remains executable. The index validates the complete predicate, target field,
+scope, clause identity, value type and request limits before that classification.
+Malformed requests and service failures remain errors. Search obtains availability
+from the same index analysis before query embeddings or ranking.
 
-`atlas setup` is the first-run install/repair path: it fetches or updates PF2E source by default, prepares embedding model cache files for full setup, builds or repairs the selected artifact target, and checks the final readiness state. `atlas setup clean` removes selected resolved runtime data without uninstalling the CLI: artifact cleanup removes the SQLite artifact plus WAL/SHM companions, embedding cleanup removes the embedding cache root, and source cleanup removes the PF2E source checkout. Setup emits progress events to stderr for long-running phases while preserving JSON command results on stdout. `--offline` prevents network-backed source or model preparation, `--check` reports planned or blocked actions without writing, and `--no-embeddings` selects base record-readiness rather than full semantic readiness. Setup uses the adjacent artifact manifest's source position to avoid recomputing the full source signature when the source state clearly matches the artifact; it falls back to full source analysis when the manifest is missing, inconsistent with artifact metadata, lacks a source position, or the current source position differs. `atlas-cli` owns argument parsing, output formatting, progress presentation, and exit codes rather than durable path or setup policy.
+Explicit count-free vocabulary discovery has no search predicate or retrieval
+context. It enumerates known applicable values in the product artifact or explicit
+saved-list key scope before edition preference, retaining server text search,
+bounded paging and separately validated selections. An empty key scope stays empty.
+Vocabulary totals describe available matching values, exclude absent selections,
+and never masquerade as displayed-root counts. Closed choices remain in the
+executable catalog even when absent from the corpus.
 
-Long-running Rust CLI index operations initialize `tracing` and emit progress events to stderr. JSON command output remains reserved for the command result on stdout, so automation can parse reports without stripping progress text.
+Public filters use domain namespaces, including root `kind`, `traits`,
+`level_or_rank` and explicit `embedded.spells`/`embedded.equipment` collections.
+Embedded predicates match immediate children only, irrespective of root-kind
+filters. Root-or-child queries require explicit OR. Retired Actor/Item paths fail
+rather than receiving an implicit translation. Supported query-catalog/projection
+upgrades regenerate rows from stored DTOs in one maintenance transaction; they
+neither require source admission nor invalidate unchanged embedding inputs.
 
-## Validation Families
+Filters, explicit key scopes and product-family eligibility constrain lexical and
+vector units before ranking. Macros remain available for developer inspection and
+are excluded from every product path, including exact lookup, facets, graph
+neighbors and similar seeds. RollTables are normal product records.
 
-Validation diagnostics are grouped by contract family:
+## Content and references
 
-- `contract`: artifact contract version.
-- `schema`: SQLite schema version.
-- `source`: Foundry source kind, source signature, record count, and content hashing.
-- `data`: required row relationships, generated catalogs, and side-table coherence.
-- `embedding`: query/document vector compatibility.
-- `fts`: lexical tokenizer compatibility.
-- `manifest`: adjacent artifact manifest linkage.
+The DTO retains authored markup. `atlas-record::source_content` owns interpretation
+and sanitization; ingest supplies localization, audience and reference resolution
+context. Prepared caches bind to the exact authored field hash and preparation
+context hash, which excludes the embedding profile manifest. Controls refer to
+markers local to that field. The browser renders sanitized HTML with those narrow
+facts; html2text formats terminal output at read time. Neither renderer executes
+Foundry scripts or reconstructs a general document AST. Terminal formatting is not
+FTS text.
 
-`atlas index check --json` returns stable JSON diagnostics for fast runtime readiness: supported metadata, required runtime tables, and vector capability for the default full target. `atlas index validate --json` runs deeper artifact diagnostics for artifact table/data contract violations. Indexes without the `artifact_metadata` table are reported as missing the artifact contract.
+Preparation emits fixed action glyphs as allowlisted semantic HTML attributes
+with readable text, retaining nested enrichments rather than flattening them.
+Font characters are display decoration, not canonical search or terminal text.
+Prepared unresolved references preserve an explicit authored label or a qualified
+authored root name; opaque UUIDs display as unavailable. Their exact authored
+targets and unresolved status remain in relationship evidence and diagnostics.
+The content interpretation identity is `foundry-content/v7`; older prepared
+content requires re-preparation even when the physical schema is unchanged.
+Exact compatible embedding checkpoints remain reusable.
 
-## Adjacent Manifest
+App-service derives transient semantic family presentation from these checked
+snapshots and selected caches. Those response DTOs are not stored family bodies
+or another authored authority. Presentation changes alone require neither an
+artifact rebuild nor a schema migration; see [ADR0047](./decisions/0047-semantic-record-presentation.md).
 
-`adjacent_manifest_path` points to the JSON artifact manifest written beside the SQLite artifact. The first manifest version is `pf2e-atlas-artifact-manifest/v1`. The manifest records artifact contract/schema identity, source kind, source root display path, full `source_signature`, source record count, artifact/generated record counts, document embedding count, selected embedding model, and the source position used for setup freshness.
+Initial indexing includes GM/owner prose and check DCs, excludes explicit None,
+and defaults to English with a build-time locale override. Search uses the indexed
+locale until rebuild; initial display also uses it. This does not implement a
+Foundry permission engine or runtime localization engine. Local/unavailable image
+paths produce safe unavailable-asset placeholders. Safe HTTP(S) assets are
+optional; no asset fetch subsystem is part of artifact readiness.
 
-The source position is an invalidation hint for setup freshness, not a replacement for the full source signature. For git source checkouts, the manifest records the PF2E checkout `git_commit` and setup compares it to the current `HEAD`. For non-git source roots, the source position uses the source manifest content plus pack JSON file paths, sizes, and mtimes; when it differs from the manifest, setup falls back to full source analysis and compares the authoritative source signature.
+Relationship occurrences retain root, owner chain, field and occurrence ordinal.
+Resolved root/owned identities differ from unverified external URLs and unresolved
+or blocked targets. Hidden content contributes no product edge. Macro targets do
+not become product graph neighbors or interactive tooling links. Authored labels
+may still display as plain text. Only verified aliases affect strict name lookup.
 
-Runtime artifact validation requires only the relative `adjacent_manifest_path` metadata and SQLite coherence. Setup owns freshness policy by reading the adjacent manifest, verifying that its source and record counts match artifact metadata, comparing the current source position, and deciding whether full source analysis is needed before planning a rebuild.
+## Lexical and semantic policy
 
-## Source Signature
+FTS uses `unicode61 remove_diacritics 2` with separate identity, alias, structured
+and definition columns. Long explanatory prose and presentation styles are not
+precision FTS input. Semantic selection independently covers selected explanatory
+root and owned prose plus one compact root identity unit. Embedded/prose affliction
+definitions remain attributed to their actual source; they do not become generated
+canonical records.
 
-Rust ingest computes `source_signature` from the loaded Foundry source inputs before source-backed generated records are added. The digest includes the manifest path and content hash, loaded localization files such as `static/lang/en.json`, loaded pack declarations and record counts, each loaded source record's relative source path and raw JSON content hash, and skipped source record paths with skip reasons. It excludes absolute local paths, output artifact paths, generated records, timestamps, and other machine-local build facts.
+The canonical manifest supports `bge-base` and `embeddinggemma` with exact pinned
+assets, tokenizer/configuration, output/pooling, prefixes and baseline recipe.
+Each emits 768-dimensional L2-normalized vectors. FastEmbed owns inference;
+text-splitter owns generic segmentation. Atlas owns selection, attribution, context,
+exact reuse and final native guards. Both profiles use BGE baseline segmentation:
+body 256, context 64, overlap at most 32, identity at most 480, assembled baseline
+input at most 512 including special tokens. Only owned headers omit pack labels.
+The selected native final prefixed limit is 512 for BGE and 2048 for Gemma; Gemma
+does not expand passages. No silent truncation or token-estimator fallback is allowed.
 
-Generated records, enrichment projections, and side-table rows are validated as artifact/data coherence rather than source freshness. This keeps the source signature stable for identical Foundry inputs while allowing Rust-owned projection policy to be checked by artifact validation and parity reports.
+Passage metadata addresses a selected section and UTF-8 byte range, with source or
+prepared HTML/canonical-text hashes and selection version. Identity units have no
+fabricated prose range. Readers recover text from checked source/prepared content.
+Vector reuse requires exact model/input identity, token count, dimensions and
+verified vector bytes. Durable checkpoints survive interrupted builds and content
+policy changes; changed prepared text obtains a different input identity. Input
+reuse does not merge source attributions. Offline validation checks addresses,
+coverage and vector integrity without requiring model assets.
+Each stored profile has complete semantic coverage. An empty profile manifest is
+lexical-only. Each exact profile identity owns a dimensioned vec0 table; KNN
+eligibility remains constrained to eligible roots within the selected profile.
+Final publication reconciles active units and prunes inactive checkpoints in the
+same transaction, never before a successful replacement is available.
+Lexical/reference reads and stored-vector Similar do not require query weights.
 
-## Rust Record And Schema Owners
+Lexical rows keep each root name and verified alias separate with root vocabulary;
+embedded names use only their own vocabulary, and section rows contain their label.
+No row inherits its parent's identity. The strongest weighted matching row determines
+each root's lexical strength (root/alias 1, root section .5, embedded .25).
+Exact primary names and verified aliases retain priority ahead of fused results.
+Lexical-policy upgrades rebuild these rows from retained records and content in a
+maintenance transaction without replacing semantic vectors or saved state.
 
-The Rust workspace keeps storage-agnostic normalized record DTOs in `atlas-record`. Ingest builds `AtlasRecord` values from Foundry source data, artifact writers serialize the durable subset into SQLite table families, and index/runtime readers deserialize SQLite rows into `AtlasRecord` and `AtlasRecordSet` values or deliberately narrower views derived from them. `atlas-record` also owns the canonical `RichDocument` model for authored rich text, including plain-text and markdown-like renderers, reference traversal, structured FTS projection, and section-tree projection. `AtlasRecord` carries an ordered set of `RecordContentDocument` values rather than stripped text fields. Foundry `@Localize[...]` macros preserve their authored localization key and optional authored label in `RichDocument`; ingest resolves English localization values from the source localization catalog and stores the parsed resolved rich content beside that macro context. Raw Foundry markup belongs to ingest parsing and raw JSON provenance, not to runtime presentation, search, reference extraction, or embedding construction.
+Search collapses semantic units by maximum similarity per root. Hybrid offers
+one rank per root per lane with RRF60 as a dogfooding alternative. The default
+`score` strategy min-max normalizes each candidate lane and combines lexical .25 with semantic .75;
+a constant nonempty lane receives its full lane weight. Neither strategy adds
+weight for sibling matches. The request-level choice is independent of embedding
+profile and requires no persisted projection changes. See ADR0053.
+Semantic candidate windows are bounded and reported as such. Similar uses the
+stored root identity seed and semantic candidates, excluding the seed. No invented
+trait/graph reranking weights apply. App search pages expose the same bounded
+Similar request and body-free seed summary; they do not extend the stored schema.
 
-`atlas-record` also owns the renderer-neutral `RecordPresentationDocument` contract: title, identity facts, badges, ordered section union, fact/prose/relationship blocks, and relationship targets. Family-specific projection recipes in `atlas-record` assign normalized record facts to that shared sectioned document. `atlas-embedding` owns compact embedding text rendering, token budgeting, and embedding-unit selection over presentation/content inputs. It consumes the `atlas-record` section tree for child units and does not parse raw Foundry markup. Ingest-only construction state is carried by ingest-owned source-load DTOs, not by `AtlasRecord`; content parse diagnostics, source slugs, compendium-source locators, embedded item facts, and journal page facts are loader facts, while resolved record targets are stored in `RichDocument` `FoundryLink` nodes and written as source-tagged reference edges/occurrences. Post-normalization ingest stages consume typed construction facts when building aliases, remaster links, and source-backed generated records; reference, FTS, and embedding projections consume the normalized `RichDocument` outputs produced during normalization. Persisted `raw_json` remains available for provenance, parity debugging, and deliberate future source-audit tooling, but normal ingest projection code should not parse it after normalization. `atlas-record` depends on `atlas-domain` primitives and must not own SQLite table names, column names, DDL, validation diagnostics, CLI envelopes, or source JSON parser structs.
+The full serialized `SourceArtifactBuildContext` SHA-256 identifies the active reference
+generation for search pages, detail envelopes and Related availability. It covers
+locale, shared preparation policies and the complete sorted profile manifest as
+well as source identity. Shared HTML/content preparation hashes exclude the
+profile manifest, including its model and passage recipe. Raw input hashes identify
+unprefixed selected strings; profile execution/reuse keys bind final prefixed inputs,
+native tokenizer assets and the full shared BGE segmentation-tokenizer SHA-256.
+Each profile persists that segmentation digest separately from its native tokenizer
+digest, including Gemma-only manifests.
+Snapshot-local navigation continues to use the source fingerprint; these identities
+serve different purposes and are not interchangeable.
 
-`atlas-ingest` is organized by ingest phase. The crate root is a thin public facade. Top-level artifact build orchestration lives in `build`, source loading and normalization live under `source`, record enrichment lives under `records`, source-backed generated records live under `generated`, and ingest-side embedding execution lives under `embeddings`. Ingest does not own database-specific artifact writers; after enrichment and embedding generation it consumes ingest-only state into an owned `atlas-index::IndexBuildInput` and invokes configured `atlas-index::IndexArtifactWriter` implementations. `IndexBuildInput` is the write-side artifact package, while `AtlasRecord` remains the read-side hydration DTO for completed artifacts. Crate-internal modules should import from those owner subtrees instead of using `lib.rs` as a crate-private barrel. Embedding policy remains in `atlas-embedding`; ingest-side embedding code only decides whether to run embeddings for this artifact build, handles cache reuse, records timing, and passes prepared source data to embedding-owned APIs. The ingest public build API accepts embedding model identifiers as strings and returns ingest-owned report DTOs so `atlas-embedding` remains the only crate exposing embedding-specific public types.
+Stateless app requests carry criteria, page and an optional expected generation.
+Generation mismatch is checked before expensive retrieval and requires deliberate
+recovery from page1. This neither changes the artifact schema nor adds a result
+cache. A running web reader pool remains on its opened instance until restart;
+new commands observe later publication on their first reference read.
 
-Physical SQLite table and column ownership lives in `atlas-index`. Diesel migration files under `crates/atlas-index/migrations/` are the physical schema source of truth. Artifact creation embeds the migration `up.sql` rather than maintaining separate DDL, and the checked-in Diesel `schema.rs` is validated against that migration-created schema in the atlas-index test suite. Diesel schema declarations, writer DTOs, and stable reader hydration should follow those migrations. `atlas-index` also owns artifact metadata keys, expected artifact contract values, narrow validation requirements for external artifact files, runtime validation semantics, filter discovery field policy, SQLite discovery extractor rendering, and SQLite `f32` vector blob encoding. Raw SQL remains an index-owned implementation detail for SQLite facilities that do not fit Diesel's typed query model: FTS5 virtual tables, sqlite-vec virtual tables, dynamic filter/discovery relations, and SQLite validation pragmas. Raw-SQL helpers may keep stable table and column name constants, but they must not recreate a parallel schema descriptor model for Diesel-owned tables. Artifact validation report DTOs live with the validator in `atlas-index`. `atlas-domain` owns semantic vocabulary and shared request/output contracts; it must not own SQLite DDL, table inventories, artifact metadata inventories, storage DTOs, filter discovery extractor SQL, or validation-context DTOs.
+Legacy suppression occurs only when its verified remaster also matches the complete
+current request, before paging. A legacy-only match remains visible, and exact key
+lookup remains available. Suggested variants are bounded evidence-backed same-pack,
+family and compatible-category candidates. Verification distinguishes a complete
+empty result from unavailable seed/candidate compatibility or an incomplete
+bounded check; nonempty results retain ambiguity and truncation. These suggestions
+never change identity or suppression.
 
-Within `atlas-index`, physical layout follows ownership boundaries rather than storage technology alone. `artifact` owns artifact metadata identity, schema migration embedding, vector blob storage, validation inventory, and artifact coherence validation. `read` owns record hydration, search traits, filter compilation, FTS, vector query SQL, graph/reference reads, filter discovery, and read-side validation/inspection methods. `write` owns index build input, retrieval visibility policy, and SQLite artifact writing. `sqlite` owns connection lifecycle, read-only opening, raw SQL binding primitives, and public SQLite reader/writer facade re-exports. `SqliteIndexReader` should remain a connection shell; read behavior belongs in the `read` submodule that owns the concern. `SqliteIndexWriter` should remain an artifact-write orchestrator; table-specific writes and output publishing belong in focused `write::sqlite` children.
+## Publication, readers and validation
 
-The normalized metric definition catalog lives in `atlas-record::metrics`. `MetricRow` remains open-ended storage-agnostic record data, while definitions describe known metric domains, keys, value types, namespaces, labels, and groups. Static definitions cover exact keys such as actor armor class and item weapon damage; pattern definitions cover data-driven families such as skills, speeds, senses, and hazard disable metrics. Foundry JSON source paths are ingest-owned source specs that reference those shared metric definitions instead of restating metric identity. Static source specs map first-valid path candidates to exact metric definitions, while dynamic source specs map closed vocabularies, object entries, or array entries to pattern definitions using definition-owned key helpers. Computed and parser-backed metrics remain imperative until they share enough shape to justify source specs. Ingest validates emitted rows against the typed catalog during metric extraction, so emitted metric keys and value types stay aligned with the shared definitions. Search, discovery, and presentation may enrich known rows with labels from the definition catalog but must preserve unknown rows with raw-key fallback labels if a future ingestion policy explicitly permits provider-defined metric rows.
+Ingest fingerprints the deterministic actual relevant input set, including pack
+definitions, manifests and excluded inputs. Local edits therefore change identity
+even if a Git revision is unchanged. Locale, catalog and preparation/model policy
+identities are separate context inputs. Ordinary reads do not rescan source files.
+The typed context retains a compact map of resolved trait labels actually used
+by selected vocabulary. Exact lexical terms can therefore be reconstructed
+offline; there is no duplicate full localization catalog. Root alias terms must
+match the verified alias relation, with no arbitrary additional FTS vocabulary.
 
-## Runtime Table Families
+The writer reconciles changed reference rows inside a maintenance transaction in
+the existing workspace. Unchanged rows retain their identity; removed sources lose
+current projections and become unavailable identities without deleting saved
+references. Reference publication and profile activation advance the workspace's
+reference revision; user-state writes do not. Failed publication rolls back the
+whole delta. Durable maintenance remains set until committed data is validated
+and admission can safely resume.
 
-The Rust artifact contract extends beyond `artifact_metadata`. Artifact table families are generated projections over typed ingest/domain models rather than ad hoc row bags.
+Readers own bounded deferred transactions. One composed operation shares its
+snapshot across reference and saved-domain readers; idle CLI/web owners retain no
+SQLite session. Writes use immediate transactions and recheck preparation revisions
+before applying source-derived changes. Local-state actions use savepoints inside
+the outer transaction, so caught action errors cannot leak partial writes into a
+later commit. Durable receipt recovery precedes stale-source checks. Receipt JSON
+uses explicit storage versions and domain facts rather than application DTOs.
 
-Required runtime table families for Rust-written artifacts are:
+The workspace identity is durable; request generation checks additionally bind the
+complete reference context. A later operation can observe a completed update, while
+an already admitted read remains coherent. Application-managed sidecar locks
+coordinate cooperating processes; external SQLite tools do not participate.
 
-| Family | Tables | Purpose |
-| --- | --- | --- |
-| Artifact identity | `artifact_metadata` | Runtime contract, source identity, embedding identity, tokenizer/FTS contract, and adjacent manifest pointer. |
-| Source packs | `packs` | Pack labels, document type, source paths, and record counts for display, filtering, and source parity. |
-| Records | `records` | Canonical normalized record identity, derived `record_kind`, source path/provenance, selected direct `system_*` projections, display-oriented source text arrays such as `prerequisites_json`, normalized price/time facts, variant facts, default retrieval visibility, and raw JSON for parity/debugging. Authored rich content is not stored on `records`. |
-| Rich content | `record_content` | All authored `RichDocument` rows keyed by record and deterministic artifact-local `content_key`, with ordinal, `source_kind`, `visibility`, `contributes_to_search`, `contributes_to_references`, optional label, and content JSON. Rows include description, blurb, disable/routine/reset/stealth/details text, public/GM/private notes, embedded item/spell descriptions, and generated affliction content. Rule-element implementation text is not modeled as public rich content. |
-| Generated source-backed records | `records`, `reference_edges` | Derived affliction canonicals and hidden affliction instances generated from staged action, consumable, and spell records. Canonical records are default-visible; instance records are retained for provenance and graph navigation. |
-| Aliases and remaster links | `record_aliases`, `remaster_links` | Lookup aliases and explicit premaster-to-remaster record bridges extracted from remaster journals and migration aliases. `record_aliases` stores `canonical_record_key`, alias text, normalized alias text, `source_kind`, and `source_ref`; `remaster_links` stores `remaster_record_key`, `legacy_record_key`, `source_kind`, and `source_ref`. Source and presentation metadata is derived by joining to `records`. |
-| Filterable row projections | `record_traits`, actor/item/spell side tables; later `record_tags` after the tagging implementation | Normalized rows for common filters, discovery, presentation, and search SQL. Multi-value filterable facts should have typed row projections instead of requiring runtime JSON parsing. Tag rows will be written during regular `atlas index build` from validated YAML catalog and assignment files. |
-| Filter discovery catalogs | `filter_field_catalog`, `filter_value_catalog`, `filter_sample_catalog`, `filter_numeric_catalog` | Generated field/value discovery catalogs for unfiltered and single-record-kind filter spaces. Field rows describe filterable field ids, groups, operators, CLI flag mappings, value policies, applicability, and value-shape statistics. Value rows store complete enumerable value counts, sample rows store deterministic representative text samples, and numeric rows store exact count/null/min/percentile/mean/max summaries. Richer filter spaces are computed dynamically by `atlas-index` over the canonical eligible-record relation. |
-| Metric rows and catalogs | `record_metrics`, `metric_key_catalog`, `metric_value_catalog` | Open-ended actor/item metrics in one physical row model with a `metric_domain` axis, plus generated discovery catalogs for unfiltered and single-record-kind scopes by metric domain and metric namespace. |
-| Reference graph | `reference_edges`, `reference_occurrences` | Exact outgoing/backlink relationships for `links_to`, `linked_from`, key-based graph context retrieval, and page navigation. `reference_edges` stores record-level summaries derived from resolved `RichDocument` links plus explicit generated-record edges, with `from_record_key`, `to_record_key`, optional authored link `display_text`, `reference_text`, `relation_kind`, `source_kind`, and `visibility`; default graph/backlink consumers should treat public non-embedded edges as the ordinary surface unless a command explicitly asks for broader visibility. `reference_occurrences` preserves exact per-content reference provenance with `record_key`, artifact-local `content_key`, `occurrence_ordinal`, `target_record_key`, `source_kind`, `visibility`, optional `display_text`, `reference_text`, and `relation_kind`; content keys match `record_content.content_key`. Occurrences support future snippet/highlight and same-content multi-reference queries without duplicating content text. |
-| Lexical search | `records_fts` | SQLite FTS5 index over default-visible records with weighted projection columns. The active precision path indexes title/aliases plus structured high-signal fields such as traits, taxonomy, constraints, mechanics, source terms, and metric terms. Rich prose columns remain part of the table contract for future exploration but are not populated from `RichDocument` in the default V1 projection. |
-| Document embedding cache | `document_embedding_cache` | Durable reusable embedding unit vector blobs keyed by `embedding_unit_key`, with parent `record_key`, unit kind, optional label, ordinal, semantic input hashes, and vector dimensions for reuse, validation, debugging, sqlite-vec rowid mapping, and optional non-sqlite-vec scoring paths. Rows are normal SQLite and can be written before sqlite-vec is available. |
-| Vector search index | `record_vector_index` | Lightweight sqlite-vec KNN table over default-visible embedding units. It stores only the embedding vector and uses rowid as the physical key matching `document_embedding_cache.rowid`; it does not own user-facing filter semantics or duplicate text metadata. Normal embedding-enabled ingest creates and populates this table from `document_embedding_cache`; runtime validation and search access it through an explicit sqlite-vec capability path. |
+Opening a reader checks format, typed context, executable schema/catalog and active
+model metadata. Explicit full validation checks SQLite integrity/foreign keys,
+checked snapshots, exact typed projections, owner addresses, content input/context
+hashes, cache/section coverage, sanitized markers, attributed relationships,
+identity evidence, FTS postings and vector coverage/dimensions/finiteness/normalization.
+Within a validation pass, each root's checked prepared content feeds search
+selection directly. Its bytes and sidecars are validated once in the caller's
+transaction and discarded after that root; no cross-transaction validation cache
+or weaker publication check is introduced.
+Complete vector validation scans unit IDs in storage order rather than following
+the input-hash reuse index. Workspace sessions use an 8 MiB demand-filled SQLite
+page-cache target so sequential vec0 chunks fit without repeated eviction; this
+does not change the stored vector format or request-level retrieval policy.
+After reconciliation, the writer flushes dirty SQLite pages before validation so
+freshly written vector chunks do not compete with dirty pages for the cache.
+This is a mid-transaction cache flush, not a commit or early activation; any
+flush or validation failure still rolls back the complete publication.
+Pending vector inserts borrow prepared vectors and encode one blob at a time;
+reconciliation does not retain another full corpus of encoded vectors.
+Query summaries and selected cache reads do not decode bodies. Explicit detail
+decodes one root and requests bounded batches of selected content; no per-marker
+or per-field body reads are permitted.
 
-Rust writers may refine exact SQL column constraints, but they must preserve the runtime meaning of these table families until an artifact-contract decision records an accepted difference.
+Exact-locator attributed content reading is an index-owned transient operation;
+it changes no stored schema or preparation identity. Requests select at most 256
+fields. Delivered rich fields retain complete validated content-origin occurrence
+attribution within a 1024 occurrence response budget. A whole field exceeding the
+remaining budget has an explicit bounded outcome; readers do not display its HTML
+with silently missing links. Non-content relationship discovery stays a separate
+bounded operation. App-service embedded-reading batches check one parent, select at
+most 32 immediate Ability-class activities or table results and reuse this prepared batch without
+recursive detail projection or a second fact authority.
 
-`records_fts` structured-term columns are deterministic projections from normalized typed record fields, not parsed raw JSON. `taxonomy_terms` contains categorical identity fields such as record kind, Foundry record type, taxonomy families, item category/group/base item, spell kinds, and variant labels. `constraint_terms` contains user-facing preconditions and use gates such as prerequisites, activation/action-cost phrases, and hands requirements. `mechanic_terms` contains non-metric mechanical descriptors such as level/rank phrases, rarity, spell traditions/range/targets/area/save/damage-type flags, item usage/damage types, and actor mechanics sets. `source_terms` contains publication title/family and pack label, not pack name. `metric_terms` contains metric display labels and short labels for metric rows present on the record; numeric metric values stay out of FTS and remain filter/metric query data.
+Structured ability/feat self-effect UUIDs use the same attributed relationship
+preparation and exact identity resolution as other authored links. The relationship
+policy version invalidates old preparation when these occurrences are added; no
+SQLite schema migration is required. App-service attaches verified navigation to
+the shared activity projection with one bounded relationship read per selected
+record. Missing targets remain readable references, never inferred name matches.
+Strike-effect names remain authored labels without speculative cross-record links.
 
-## Table Design Rules
+Feat prerequisite entries are selected as individually addressed rich fields under
+`/system/prerequisites/value/<index>/value`, following pinned feat embed semantics.
+Selection identity `structural-source-sections/v3` invalidates prepared/search
+projections when these fields are added; setup re-prepares from the configured
+compatible source before readers admit the new artifact. This requires no schema or snapshot migration. Array positions and
+unavailable entries remain explicit; renderers never parse or fall back to raw markup.
 
-Rust artifacts should keep schema constraints explicit where doing so improves validation without changing intended behavior:
+Item provenance includes the declared open `flags.core.sourceId` namespace and
+`_stats.compendiumSource`. Duplicate or non-string core source identities do not
+supply a resolved target. Relationship policy `typed-authored-occurrences/v4`
+requires re-preparation to include core provenance; the schema and source snapshot
+codec are unchanged. Contextual consumable reading is a transient app projection:
+`target` preserves the authored citation while optional `contextual_target` points
+to the checked embedded spell. It does not replace the stored graph edge.
 
-- `RecordKey` values are serialized as `pack:id`, but Rust runtime code should use a parsed `RecordKey` newtype.
-- Boolean columns should either use SQLite `CHECK` constraints for `0`/`1` values or be rejected by row-loader validation.
-- Closed vocabularies such as `record_kind`, publication family, default visibility policy, metric value type, variant source, and source-backed type axes should be validated by row loaders and represented as enums or validated newtypes in Rust.
-- `record_kind` is an Atlas-derived product grouping from Foundry `document_type` plus record `type`. Raw source identity remains available separately as `foundry_document_type` and `foundry_record_type`.
-- Generated afflictions use `record_kind = affliction`, `foundry_document_type = Item`, and generated `foundry_record_type` values `affliction` or `affliction-instance`. Instances are not default-visible and exist to preserve the source host relationship.
-- Direct Foundry `system.*` projections use `system_*` names. Atlas-derived fields stay unprefixed, such as `price_cp`, `activation_time_*`, and `duration_*`.
-- `is_default_visible` is a generated retrieval policy projection. It controls default user-facing search, browse, and list surfaces; records with false remain present for direct key lookup, references, remaster links, and inspection. It is not a source-authored fact. Tooling-family records are stored but are not default-visible because user-facing retrieval should prefer PF2e product content over helper macros and roll tables.
-- Activation time is the normalized "how long it takes to do/cast/use this" field family. Spell or effect duration remains a separate normalized field family because it means how long the effect lasts after activation.
-- Actor, item, and spell side tables hold stable non-metric filter and presentation data. Metrics remain in `record_metrics`; direct Foundry item projections keep `system_*` names.
-- The artifact does not have a generic `subcategory` scope. Useful grouping concepts are represented as explicit metadata/filter axes when they come from source fields or collapsed signals, and as trait filters when they are entirely trait-derived.
-- Open PF2E/provider-defined values such as traits, metric keys, pack names, and some metadata text values may remain strings, but their normalization owner must be explicit.
-- Runtime behavior should prefer typed columns, side tables, and generated catalogs over `raw_json`. Persisted raw JSON is for parity, debugging, and future ingest analysis, not normal lookup/search/discovery execution.
-- Filterable multi-value fields should have typed row projections or generated catalogs. JSON array columns can remain as compact presentation caches only when generated from the same typed source. Small display-only source arrays, such as feat prerequisite text, may live on `records` as JSON when runtime consumers only need to present the authored strings and do not need relational filtering, discovery, FTS, or semantic retrieval over their values.
-- Generated projections such as `records_fts`, `record_vector_index`, metric catalogs, filter discovery catalogs, and aliases must be written from typed source models and covered by row-count/key-coverage validation. Tag rows are deferred until the accepted tagging architecture is implemented; the target table family is `record_tags`, not legacy `record_derived_tags`.
-- `record_vector_index` is a query index, not a duplicated filter store. The Rust vector table should stay to rowid plus vector only. Do not add `record_key`, `embedding_unit_key`, `record_kind`, trait, level, rarity, metric, source, or other filter projection columns as part of the baseline. If performance testing later proves a vec metadata or partition column is needed, treat it as an accelerator generated from authoritative rows and add validation that it cannot drift.
-- Semantic search with filters uses authoritative SQL keyset prefiltering. The shared filter compiler lives in `atlas-index` and lowers the canonical `SearchFilterNode` tree into a parameterized eligible-record relation from `records` and side tables. Browse, lexical, lookup narrowing, and vector search compose from that same eligible relation; vector search should constrain sqlite-vec units by `record_vector_index.rowid` using eligible `document_embedding_cache.rowid` values and return raw matching units to `atlas-search`. Do not implement exact filtered semantic search by joining ordinary filter tables around the vec scan alone, because joined predicates can be applied after the vec top-k result set.
-- The `atlas-index` vector query boundary accepts an already-computed query vector and optional `SearchFilterNode`. Text-to-query-vector embedding remains owned by `atlas-embedding` and is called by `atlas-search` before it invokes vector-index SQL. Product surfaces should consume `atlas-search` for semantic search instead of opening SQLite connections or embedding models directly.
-- `atlas-search` groups sqlite-vec unit hits by parent record before returning user-facing records. Search-time semantic modes determine which embedding units participate: `parent-only` restricts retrieval to parent units, `chunks` allows parent and child units to compete on raw vector distance, and `weighted-chunks` allows child units to recover records while applying unit-kind rank-distance adjustments before parent-record collapse. Diagnostics may expose both raw vector distance and adjusted rank distance.
-- Filters that cannot compile to an authoritative SQL keyset are errors for the first Rust baseline. Approximate overfetch-and-post-filter behavior is not part of the default contract.
-- sqlite-vec sentinel values for nullable filter columns should not be needed in the baseline because the vector table has no filter projection columns. If future performance accelerators add vec metadata columns, their sentinels must stay hidden behind `atlas-index` vector projection helpers. Domain and search code should not observe sentinels as real metadata.
-- Premaster-to-remaster bridges should be modeled as `remaster_links` or edition links, not as generic legacy compatibility. Canonical Rust lookup should be based on `RecordKey` and aliases, while record detail can expose explicit remaster bridge relationships.
-
-## Artifact Validation Beyond Metadata
-
-Metadata validation must remain available without loading `sqlite-vec`. For Rust-written SQLite artifacts, `atlas index validate` also validates the lightweight runtime table contract:
-
-- required runtime table presence
-- required column presence for the current artifact schema
-- `artifact_record_count` agreement with `records`
-- `source_record_count` plus `generated_record_count` agreement with `artifact_record_count`
-- SQLite foreign-key integrity plus explicit relationship orphan checks
-- boolean integer columns constrained to `0`/`1`
-- metric value columns matching `value_type`
-- `records_fts` key coverage exactly matching default-visible records
-- remaster link visibility policy: remaster-side records are default-visible and legacy-side records are not
-- metric key/value catalogs matching metrics emitted for default-visible records
-- filter discovery catalog tables present with coherent field/value/stat rows for broad discovery
-- non-empty `document_embedding_cache` parent-record coverage exactly matching default-visible records that are eligible for semantic search, with one or more embedding-unit rows per eligible record
-- embedding unit policy metadata matching the runtime's active document-unit generation policy
-- search-readiness validation for `record_vector_index` rowid coverage exactly matching `document_embedding_cache`
-- vector dimensions matching the embedding identity metadata
-
-Setup and `atlas index check` use a fast readiness check rather than the full deep validation suite. Fast readiness validates metadata compatibility, required runtime table presence, and vector capability for semantic targets. Deep validation stays behind `atlas index validate` and covers SQLite data coherence such as row coverage, catalog consistency, foreign keys, FTS, and vector row diagnostics. Source freshness comparison belongs to callers that supply an expected source signature or equivalent already-computed value. If vector readiness is missing or stale, the supported repair path is an ingest rebuild with the selected embedding model. Recomputing source-derived assignment quality, semantic coverage, or full parity against the Foundry corpus remains outside startup validation.
-
-## Extension Loading
-
-Artifact metadata validation must not load vector extensions. Vector-specific validation and search commands use an explicit sqlite-vec capability boundary and report `vector_extension_unavailable` when the extension cannot be loaded or probed. Plain artifact validation remains available on systems where vector extension loading is unavailable.
-
-Rust sqlite-vec registration is isolated in `atlas-sqlite-vec`, a small crate that owns the required SQLite FFI call. Runtime crates such as `atlas-index` and `atlas-search` use that capability boundary instead of embedding unsafe extension-registration code locally.
+Consumable query kind/type live on the shared physical projection for root and
+immediate actor equipment. Workspace migration 4 adds their state/value columns;
+authored-query/v2 and catalog v5 rebuild accelerators from retained typed snapshots.
+The migration preserves saved state and does not change the source snapshot codec.

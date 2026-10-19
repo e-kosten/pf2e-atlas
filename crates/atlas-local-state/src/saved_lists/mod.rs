@@ -9,7 +9,7 @@ pub use model::{
     NewSavedList, ResolvedSavedListItem, SavedList, SavedListItem, SavedListItemSnapshot,
     SavedListItemStatus, SavedListWithItems, UpdateSavedList,
 };
-pub use service::SavedLists;
+pub use service::{SavedListsRead, SavedListsWrite};
 
 #[cfg(test)]
 mod tests;

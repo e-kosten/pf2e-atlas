@@ -1,53 +1,88 @@
-# Rust Search Quality And Retrieval Weight Tuning
+# Source-backed Search Quality Evaluation
 
 Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-05-17
+Last reviewed: 2026-10-17
 
-## Problem
+## Current Baseline
 
-The Phase 6 Rust search runtime should land the retrieval architecture first: FTS, vector retrieval, default hybrid RRF, weighted RRF plumbing, and exact identity handling. Full live-index quality fixtures, parity reports, default weights, and retrieval windows should be tuned after that baseline is measurable rather than guessed during initial implementation.
+Precision FTS covers identity, verified aliases, typed vocabulary and named
+owned definitions. Semantic selection covers selected root and owned explanatory
+passages. Search uses one accepted semantic contribution per root and fuses root
+ranks with lexical specificity tiers. Eligibility and bounded candidate selection
+follow [ADR 0046](../../architecture/decisions/0046-source-backed-reference-artifact.md).
 
-Without a dedicated follow-up, tuning work can leak into ad hoc rerank rules or repeated one-off constants. That risks accumulating quality hacks instead of evaluating the Rust retrieval axes directly.
+The product's selectable baseline profiles (`bge-base` and `embeddinggemma`) use
+the shared storage/input/session contract in
+[ADR0050](../../architecture/decisions/0050-selectable-search-profiles.md). BGE Base
+is the operational default; this does not select a semantic quality winner or
+authorize a new ranking experiment. Further quality evaluation below remains open.
 
-## Desired Outcome
+Local full-corpus experiments exposed tradeoffs between descriptive discovery and
+useful owner capabilities. The approved field-aware lexical policy and temporary
+Score-based/Rank-based comparison follow [ADR0053](../../architecture/decisions/0053-field-aware-search-fusion.md).
+Score-based is the user-selected dogfooding default, not a demonstrated universal
+quality winner. The [dated evaluation notes](../../research/source-backed-search-evaluation.md)
+preserve findings, sample sizes, evidence limits and local artifact references.
 
-Evaluate and choose Rust search defaults from measured search-quality runs after Phase 6 lands.
+## Continuing Evaluation
 
-The tuning pass should cover:
+Evaluate FTS independently, then evaluate its fusion with semantic retrieval.
+The completed lexical/fusion comparison is recorded in the evaluation notes.
+For further refinement, separate candidate recall from ordering: inspect tokenization, partial
+primary-title matching, verified aliases, embedded-title matches, specificity
+tiers and candidate limits before attributing poor hybrid ranking to fusion.
+Compare FTS-only, semantic-only and hybrid results over the same full corpus and
+query/filter conditions, including both available semantic profiles. Preserve
+natural-language discovery while improving short name and partial-name searches.
 
-- Whether the broad weighted FTS path should be removed entirely or retained only as a diagnostic/tuning primitive now that precision FTS is the product default.
-- Precision FTS lane tuning, including whether kind/type/source facets should join the current title/alias and trait/taxonomy lanes.
-- Whether selected high-signal rich-content fields, especially authored headings, should be reintroduced into precision FTS after the RichDocument migration intentionally removes rich prose from default FTS.
-- FTS confidence policy tuning, including the current `demote-weak` default and whether weak/medium lexical evidence should be discounted differently in hybrid fusion.
-- Candidate hydration cost in ranked search. Precision FTS confidence currently hydrates bounded FTS/vector candidates before final fusion; if larger candidate windows become necessary, consider a lighter ranking-facts load instead of full record hydration.
-- FTS column and BM25 weights for any retained broad weighted FTS diagnostic path.
-- Top-k search-quality fixtures from the bakeoff set.
-- Rust-owned embedding and ranking comparison harnesses for repeatable model, query, and fusion experiments.
-- accepted-difference reports against observed task quality.
-- FTS token composition policy, including OR versus AND behavior and prefix matching.
-- RRF rank constant.
-- FTS and vector candidate windows.
-- Weighted RRF lane weights.
-- Vector unit participation and collapse policy, if fixture failures point there.
-- Whether any generic rerank adjustment is still justified after retrieval weights are tuned.
+User observation (2026-10-17): searching `harrowkin` placed **Fabled Harrowkin**
+on the first page, but below the first few results despite the primary-title
+match. Record this as an exposed development case, not an established root cause
+or a requirement that this particular record always rank first. Capture the
+profile, filters, competing results, lexical/semantic ranks and contributing
+evidence when reproducing it. Add fresh comparable partial-name queries across
+record kinds so changes are not tuned to this one example. Evaluate primary-name
+relevance against embedded matches and semantic relevance explicitly.
 
-The outcome should be documented defaults plus the smallest stable configuration surface needed for future tuning.
+Compare the distinct roles of primary identity, the root's own explanation,
+intrinsic local mechanics and associated content. Preserve useful exact embedded
+name discovery and genuine queries for an owner's capabilities while reducing
+noisy partial-label and associated-body influence where evidence supports it.
 
-## Constraints
+The proposed work should:
 
-- Do not add Tantivy, LanceDB, learned rerankers, or non-default embedding model switches as part of this item unless a separate quality decision justifies expanding scope.
-- Do not expose individual FTS component weights as stable user-facing CLI flags before they have proven durable.
-- Prefer fixture-backed changes over subjective one-query adjustments.
-- Keep comparison tooling Rust-owned or language-neutral. Do not reintroduce retired scratch harnesses for search-quality runs.
-- Preserve the Phase 6 product model: one opinionated default search, with advanced retrieval/fusion controls for diagnostics and evaluation.
+- Compare partial embedded-label influence separately from primary-name behavior
+  and exact embedded-name specificity.
+- Test reduced associated semantic influence with one contribution per root,
+  using matched candidate budgets and explicit source attribution.
+- Evaluate self-description and intrinsic mechanics as separate evidence classes;
+  their usefulness depends on the query, not an implicit product intent setting.
+- Probe paragraph/context embedding inputs separately from ranking changes over
+  existing vectors. Define source coverage, reuse identity and inference cost
+  before generating inputs.
+- Include masked-spirit paraphrases, repeated-match observations and actual
+  associated-only owner positives. Keep exposed development cases distinct from
+  a fresh source-grounded holdout and cluster related scenarios.
 
-## Notes
+Freeze candidate policies and evaluation rules before opening the holdout. Judge
+root relevance and witness support separately; use source evidence to resolve
+consequential disagreements. A small target-only embedding probe establishes
+input behavior, not full-corpus ranking quality. Preserve exact lookup and broad
+semantic discovery while evaluating changes.
 
-Phase 6 should centralize FTS weights in code so this item can tune them cleanly. Initial Phase 6 defaults should use precision FTS, weighted RRF with equal FTS/vector lane weights, and a weak-evidence demotion policy.
+## Execution Boundaries
 
-## Related
+Reuse the pinned artifact and model where input identity permits. Agree resource
+budgets and any full-corpus rebuild separately. New models, learned rerankers,
+search backends, product intent controls and narrative FTS expansion require their
+own evidence and design decision. Keep ordinary filters explicit user criteria.
 
-- [Rust Phase 6 Search Runtime Plan](../../../scratch/plans/2026-05-17-rust-phase-6-search-runtime.md)
-- [Rust CLI runtime migration research](../rust-cli-runtime/README.md)
+Maintained evaluation tooling, if needed, belongs in a reviewed developer surface.
+The current local plan is under scratch/plans, indexed by its local README;
+implementation and publication require authorization for that scope.
+
+Related: [tokenization](rust-fts-tokenization-stemming.md),
+[query spelling](rust-cli-typo-tolerant-discovery.md),
+[completed shared UI consistency](../history/items/shared-ui-consistency-and-saved-lists.md).
