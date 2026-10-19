@@ -1,25 +1,29 @@
 import { Button } from "antd";
+import type { ComponentPropsWithRef, ReactNode } from "react";
+
+type PaneActionProps = Omit<
+  ComponentPropsWithRef<typeof Button>,
+  "aria-label" | "children" | "icon" | "type"
+> & {
+  icon: ReactNode;
+  label: string;
+};
 
 export function PaneIconButton({
-  disabled,
+  className,
   icon,
   label,
-  onClick,
   title = label,
-}: {
-  disabled?: boolean;
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  title?: string;
+  ...buttonProps
+}: Omit<PaneActionProps, "href"> & {
+  onClick: NonNullable<PaneActionProps["onClick"]>;
 }) {
   return (
     <Button
+      {...buttonProps}
       aria-label={label}
-      className="pane-toggle"
-      disabled={disabled}
+      className={["pane-toggle", className].filter(Boolean).join(" ")}
       icon={icon}
-      onClick={onClick}
       title={title}
       type="text"
     />
@@ -27,25 +31,20 @@ export function PaneIconButton({
 }
 
 export function PaneIconLink({
-  href,
+  className,
   icon,
   label,
-  onClick,
   title = label,
-}: {
+  ...buttonProps
+}: PaneActionProps & {
   href: string;
-  icon: React.ReactNode;
-  label: string;
-  onClick?: React.MouseEventHandler<HTMLAnchorElement>;
-  title?: string;
 }) {
   return (
     <Button
+      {...buttonProps}
       aria-label={label}
-      className="pane-toggle"
-      href={href}
+      className={["pane-toggle", className].filter(Boolean).join(" ")}
       icon={icon}
-      onClick={onClick}
       title={title}
       type="text"
     />

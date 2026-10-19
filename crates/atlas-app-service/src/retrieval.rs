@@ -1,97 +1,240 @@
-use atlas_domain::{RecordKey, SearchFilterNode};
+use crate::{AppServiceError, AppServiceResult, AtlasAppService};
+use atlas_app_model::AppErrorCode;
+use atlas_domain::{QueryPredicate, RecordKey};
 use atlas_search::{
-    GraphContextRequest, GraphContextResult, GraphRetrieval, ListRecordsRequest, ListRecordsResult,
-    RecordListSort, RecordRetrieval, RemasterLinksRequest, RemasterLinksResult, RemasterRetrieval,
-    ResolveVariantGroupRefRequest, SearchPage, SimilarRecordRefRequest, SimilarRecordRefResult,
-    SimilarRetrieval, SimilarScoreWeights, TextRetrieval, TextSearchRequest, TextSearchResult,
-    TextSearchTuning, VariantGroupRefResolutionResult, VariantRetrieval,
+    GraphContextRequest, ListRecordsRequest, RecordRefResolutionResult, RemasterLinksRequest,
+    ResolveRecordRefRequest, SearchPage, SimilarRecordRequest, TextSearchRequest,
+    VariantGroupRequest,
 };
-
-use crate::error::AppServiceResult;
-use crate::service::AtlasAppService;
-
 impl AtlasAppService {
     pub fn list_records(
         &self,
-        filter: Option<SearchFilterNode>,
-        sort: RecordListSort,
-        page: SearchPage,
-    ) -> AppServiceResult<ListRecordsResult> {
-        self.submit_retrieval(move |retrieval| {
-            Ok(retrieval
-                .list_records(ListRecordsRequest::new(filter.as_ref(), page).with_sort(sort))?)
+        filter: Option<QueryPredicate>,
+        page: atlas_app_model::SearchPageRequest,
+    ) -> AppServiceResult<atlas_app_model::RecordListView> {
+        let page = SearchPage::new(page.number, page.size)?;
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            let result = r.list_records(ListRecordsRequest::new(filter.as_ref(), page))?;
+            Ok(atlas_app_model::RecordListView {
+                records: result
+                    .records
+                    .iter()
+                    .map(|s| crate::projection::localized_summary_view(s, r))
+                    .collect(),
+                page: crate::projection::search_page_view(result.page),
+            })
         })
     }
-
     pub fn search_text(
         &self,
         query: String,
-        exclude: Option<String>,
-        filter: Option<SearchFilterNode>,
-        page: SearchPage,
-        tuning: Option<TextSearchTuning>,
-        explain: bool,
-    ) -> AppServiceResult<TextSearchResult> {
-        self.submit_retrieval(move |retrieval| {
-            Ok(retrieval.search_text(TextSearchRequest {
-                query: &query,
-                exclude: exclude.as_deref(),
+        filter: Option<QueryPredicate>,
+        page: atlas_app_model::SearchPageRequest,
+        mode: atlas_app_model::RetrievalModeView,
+        ranking: atlas_domain::SearchRanking,
+        search_profile: Option<atlas_domain::SearchProfileId>,
+    ) -> AppServiceResult<atlas_app_model::SearchResultsView> {
+        let page = SearchPage::new(page.number, page.size)?;
+        let checked_filter = filter.clone();
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            if let Some(filter) = checked_filter {
+                r.validate_filter(&filter)?;
+            }
+            Ok(())
+        })?;
+        let prepared = self.prepare_query(search_profile.as_ref(), &query, retrieval_mode(mode))?;
+        self.with_prepared_workspace(
+            &crate::ReadExecutionContext::uncancellable(),
+            prepared,
+            move |workspace| {
+                let r = workspace.retrieval_mut();
+                let result = r.search_text(TextSearchRequest {
+                    ranking,
+                    search_profile: search_profile.as_ref(),
+                    query: &query,
+                    mode: retrieval_mode(mode),
+                    filter: filter.as_ref(),
+                    scope: atlas_search::RecordScope::All,
+                    page,
+                    prefer_remaster: true,
+                })?;
+                Ok(crate::projection::search_results_view(result, r))
+            },
+        )
+    }
+    pub fn similar_records(
+        &self,
+        record_ref: String,
+        filter: Option<QueryPredicate>,
+        page: atlas_app_model::SearchPageRequest,
+        search_profile: Option<atlas_domain::SearchProfileId>,
+    ) -> AppServiceResult<Option<atlas_app_model::SimilarRecordsView>> {
+        let page = SearchPage::new(page.number, page.size)?;
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            let key = match r.resolve_record_ref(ResolveRecordRefRequest {
+                record_ref: &record_ref,
+                filter: None,
+            })? {
+                RecordRefResolutionResult::Key(key) => key,
+                RecordRefResolutionResult::Miss => {
+                    return Err(AppServiceError::new(
+                        AppErrorCode::RecordResolutionMiss,
+                        "similar seed not found",
+                    ));
+                }
+                RecordRefResolutionResult::Ambiguous(_) => {
+                    return Err(AppServiceError::new(
+                        AppErrorCode::RecordResolutionAmbiguous,
+                        "similar seed is ambiguous",
+                    ));
+                }
+            };
+            Ok(r.similar_records(SimilarRecordRequest {
+                search_profile: search_profile.as_ref(),
+                record_key: &key,
                 filter: filter.as_ref(),
                 scope: atlas_search::RecordScope::All,
                 page,
-                tuning,
-                explain,
-            })?)
+                prefer_remaster: true,
+            })?
+            .map(|s| atlas_app_model::SimilarRecordsView {
+                seed: crate::projection::localized_summary_view(&s.seed, r),
+                results: crate::projection::search_results_view(s.results, r),
+            }))
         })
     }
-
-    pub fn similar_records_for_ref(
-        &self,
-        record_ref: String,
-        filter: Option<SearchFilterNode>,
-        limit: u32,
-        candidate_limit: u32,
-        weights: SimilarScoreWeights,
-    ) -> AppServiceResult<SimilarRecordRefResult> {
-        self.submit_retrieval(move |retrieval| {
-            Ok(retrieval.similar_records_for_ref(SimilarRecordRefRequest {
-                record_ref: &record_ref,
-                filter: filter.as_ref(),
-                limit,
-                candidate_limit,
-                weights,
-            })?)
-        })
-    }
-
     pub fn graph_context(
         &self,
-        request: GraphContextRequest,
-    ) -> AppServiceResult<Option<GraphContextResult>> {
-        self.submit_retrieval(move |retrieval| Ok(retrieval.graph_context(request)?))
-    }
+        request: atlas_app_model::GraphContextViewRequest,
+    ) -> AppServiceResult<Option<atlas_app_model::GraphContextView>> {
+        let key = RecordKey::parse(&request.record_key)
+            .map_err(|e| AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string()))?;
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            if let Some(owners) = &request.owners {
+                if crate::projection::navigation_fingerprint(owners, r.source_fingerprint())
+                    .is_some()
+                    && request.source_fingerprint.as_deref() != Some(r.source_fingerprint())
+                {
+                    return Err(AppServiceError::invalid_request(
+                        "snapshot-local graph navigation belongs to another artifact",
+                    ));
+                }
+                let detail = r
+                    .get_record(atlas_search::GetRecordRequest {
+                        record_key: &key,
+                        selected_content: &[],
+                    })?
+                    .ok_or_else(|| {
+                        AppServiceError::new(AppErrorCode::RecordNotFound, "graph seed not found")
+                    })?;
+                if detail.source.node_at(owners).is_none() {
+                    return Err(AppServiceError::invalid_request(
+                        "graph selection is unavailable",
+                    ));
+                }
+            }
+            let request = GraphContextRequest {
+                seed: key,
+                owners: request.owners,
+                outgoing_limit: request.outgoing_limit,
+                backlink_limit: request.backlink_limit,
+            };
 
-    pub fn resolve_variant_group_ref(
-        &self,
-        variant_group_ref: String,
-    ) -> AppServiceResult<VariantGroupRefResolutionResult> {
-        self.submit_retrieval(move |retrieval| {
-            Ok(
-                retrieval.resolve_variant_group_ref(ResolveVariantGroupRefRequest {
-                    variant_group_ref: &variant_group_ref,
-                })?,
-            )
+            Ok(r.graph_context(request)?
+                .map(|g| atlas_app_model::GraphContextView {
+                    seed: crate::projection::localized_summary_view(&g.seed, r),
+                    outgoing: crate::projection::graph_section_view(g.outgoing, r),
+                    backlinks: crate::projection::graph_section_view(g.backlinks, r),
+                }))
         })
     }
-
+    pub fn variant_group(
+        &self,
+        record_key: RecordKey,
+    ) -> AppServiceResult<atlas_app_model::RelatedCategoryView<atlas_app_model::VariantGroupView>>
+    {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            variant_group_view(r, &record_key)
+        })
+    }
     pub fn remaster_links(
         &self,
         record_key: RecordKey,
-    ) -> AppServiceResult<Option<RemasterLinksResult>> {
-        self.submit_retrieval(move |retrieval| {
-            Ok(retrieval.remaster_links(RemasterLinksRequest {
+    ) -> AppServiceResult<Option<atlas_app_model::RemasterLinksView>> {
+        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            Ok(r.remaster_links(RemasterLinksRequest {
                 record_key: &record_key,
-            })?)
+            })?
+            .map(|g| atlas_app_model::RemasterLinksView {
+                seed: crate::projection::localized_summary_view(&g.seed, r),
+                links: g
+                    .links
+                    .into_iter()
+                    .map(|l| atlas_app_model::RemasterLinkView {
+                        legacy_record: crate::projection::localized_summary_view(
+                            &l.legacy_record,
+                            r,
+                        ),
+                        remaster_record: crate::projection::localized_summary_view(
+                            &l.remaster_record,
+                            r,
+                        ),
+                        evidence: l.evidence,
+                    })
+                    .collect(),
+            }))
         })
     }
+}
+
+pub(crate) fn retrieval_mode(
+    mode: atlas_app_model::RetrievalModeView,
+) -> atlas_search::RetrievalMode {
+    match mode {
+        atlas_app_model::RetrievalModeView::Lexical => atlas_search::RetrievalMode::Fts,
+        atlas_app_model::RetrievalModeView::Semantic => atlas_search::RetrievalMode::Vector,
+        atlas_app_model::RetrievalModeView::Hybrid => atlas_search::RetrievalMode::Hybrid,
+    }
+}
+
+pub(crate) fn variant_group_view(
+    r: &atlas_search::AtlasRetrievalService,
+    record_key: &RecordKey,
+) -> AppServiceResult<atlas_app_model::RelatedCategoryView<atlas_app_model::VariantGroupView>> {
+    use atlas_app_model::RelatedCategoryView;
+    Ok(match r.variant_group(VariantGroupRequest { record_key })? {
+        atlas_search::VariantGroupOutcome::Missing => {
+            return Err(AppServiceError::new(
+                AppErrorCode::RecordNotFound,
+                "variant seed not found",
+            ));
+        }
+        atlas_search::VariantGroupOutcome::Empty => RelatedCategoryView::Empty,
+        atlas_search::VariantGroupOutcome::Unavailable { reason } => {
+            RelatedCategoryView::Unavailable { reason }
+        }
+        atlas_search::VariantGroupOutcome::Content(g) => RelatedCategoryView::Content {
+            content: atlas_app_model::VariantGroupView {
+                seed: crate::projection::localized_summary_view(&g.seed, r),
+                base_name: g.base_name,
+                variants: g
+                    .variants
+                    .iter()
+                    .map(|s| crate::projection::localized_summary_view(s, r))
+                    .collect(),
+                evidence: g
+                    .evidence
+                    .into_iter()
+                    .map(|e| atlas_app_model::VariantEvidenceView {
+                        record_key: e.record.to_string(),
+                        naming_convention: e.naming_convention,
+                        qualifier: e.qualifier,
+                        compatibility: e.compatibility,
+                    })
+                    .collect(),
+                ambiguous: g.ambiguous,
+                truncated: g.truncated,
+            },
+        },
+    })
 }

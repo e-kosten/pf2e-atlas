@@ -8,7 +8,6 @@ rust-version.workspace = true
 
 [dependencies]
 atlas-domain.workspace = true
-atlas-record.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 yaml_serde.workspace = true

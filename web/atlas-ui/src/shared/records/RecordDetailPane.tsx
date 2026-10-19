@@ -1,52 +1,183 @@
+import { Alert, Button, Empty, Space, Spin } from "antd";
+import type { AtlasApiError } from "../../api/atlasApi";
+import {
+  navigateToAtlasRoute,
+  searchPath,
+  shouldHandleAtlasRouteClick,
+} from "../../app/routes";
 import type { RecordDetailView } from "../../generated/atlas";
 import { RecordPresentation } from "./RecordPresentation";
-import { RecordSurface } from "./RecordSurface";
-
+import type { RecordReferenceHandler } from "./PreparedContent";
+import { RelatedRecords } from "./RelatedRecords";
+import { currentAtlasRoute } from "../../app/routes";
 type RecordDetailPaneError = Error | { message: string } | null | undefined;
-
 export function RecordDetailPane({
   detail,
-  emptyMessage,
-  errors = [],
+  emptyMessage = "Select a record",
+  error,
   loading,
-  loadingMessage,
+  loadingMessage = "Loading record…",
+  onRetry,
+  onReload = onRetry,
+  reloadLabel = "Reload record",
+  retryLabel = "Retry",
+  onBack,
+  backLabel = "Back to search",
   onReference,
+  onRankChange,
+  compact = false,
+  showRelated = true,
+  landing,
+  onLandingReady,
+  onOwnerReturn,
+  visibleOwnerRecordKey,
+  hideTitle = false,
+  showOwnerReturn = true,
 }: {
   detail: RecordDetailView | undefined;
+  visibleOwnerRecordKey?: string;
+  hideTitle?: boolean;
+  showOwnerReturn?: boolean;
   emptyMessage?: string;
-  errors?: RecordDetailPaneError[];
+  error?: RecordDetailPaneError;
   loading: boolean;
   loadingMessage?: string;
-  onReference: (recordKey: string, anchorRect?: DOMRect) => void;
+  onRetry?: () => void;
+  onReload?: () => void;
+  reloadLabel?: string;
+  retryLabel?: string;
+  onBack?: () => void;
+  backLabel?: string;
+  onReference: RecordReferenceHandler;
+  onRankChange?: (rank: number | undefined) => void;
+  compact?: boolean;
+  showRelated?: boolean;
+  landing?: import("../../generated/atlas").RecordNavigationView;
+  onLandingReady?: (target?: HTMLElement) => void;
+  onOwnerReturn?: (
+    parent: string,
+    landing: import("../../generated/atlas").RecordNavigationView,
+    anchor: HTMLElement,
+  ) => void;
 }) {
+  const code =
+    error && "appError" in error ? (error as AtlasApiError).appError?.code : undefined;
+  const notFound = code === "record_not_found";
+  const route = currentAtlasRoute();
+  const routeLanding = "landing" in route ? route.landing : undefined;
+  const readingLanding =
+    landing ??
+    (routeLanding?.record_key === detail?.record.record_key ? routeLanding : undefined);
   return (
-    <section className="detail-panel">
-      {loading ? (
-        <RecordPresentation
-          detail={detail}
-          emptyMessage={emptyMessage}
-          loading={loading}
-          loadingMessage={loadingMessage}
-          onReference={onReference}
-        />
-      ) : detail?.surface ? (
-        <RecordSurface surface={detail.surface} onReference={onReference} />
-      ) : (
-        <RecordPresentation
-          detail={detail}
-          emptyMessage={emptyMessage}
-          loading={loading}
-          loadingMessage={loadingMessage}
-          onReference={onReference}
-        />
+    <section
+      className={`detail-panel${compact ? " detail-panel--compact" : ""}`}
+      aria-busy={loading}
+    >
+      {detail && loading && (
+        <div className="detail-refresh" aria-label="Updating record">
+          <Spin size="small" delay={500} />
+        </div>
       )}
-      {errors.map((error, index) =>
-        error ? <InlineError key={index} message={error.message} /> : null,
+      {error && (
+        <div className="detail-status">
+          <Alert
+            showIcon
+            type="error"
+            title={
+              detail
+                ? "Unable to refresh this record"
+                : notFound
+                  ? "Record unavailable"
+                  : "Unable to load this record"
+            }
+            description={
+              detail ? (
+                <>Previously loaded content remains below. {error.message}</>
+              ) : notFound ? (
+                "This record is not present in the current reference collection."
+              ) : (
+                error.message
+              )
+            }
+            action={
+              <Space wrap>
+                {onRetry && (
+                  <Button size="small" onClick={onRetry} loading={loading}>
+                    {retryLabel}
+                  </Button>
+                )}
+                {onBack ? (
+                  <Button size="small" onClick={onBack}>
+                    {backLabel}
+                  </Button>
+                ) : (
+                  <Button
+                    size="small"
+                    href={searchPath()}
+                    onClick={(event) => {
+                      if (!shouldHandleAtlasRouteClick(event)) return;
+                      event.preventDefault();
+                      navigateToAtlasRoute({ kind: "search", selectedRecordKey: null });
+                    }}
+                  >
+                    Back to search
+                  </Button>
+                )}
+              </Space>
+            }
+          />
+        </div>
       )}
+      {detail ? (
+        <>
+          <RecordPresentation
+            hideTitle={hideTitle}
+            showOwnerReturn={showOwnerReturn}
+            visibleOwnerRecordKey={visibleOwnerRecordKey}
+            presentation={detail.presentation}
+            root={detail.record}
+            selection={detail.selected}
+            compact={compact}
+            relationships={detail.relationships}
+            reading={{
+              generation: detail.artifact_generation,
+              parent: {
+                record_key: detail.record.record_key,
+                embedded_path: [],
+                field: null,
+                passage: null,
+                source_fingerprint: null,
+              },
+              landing: readingLanding,
+              onLandingReady,
+              reloadParent: onReload,
+              reloadParentLabel: reloadLabel,
+            }}
+            onReference={onReference}
+            onRankChange={onRankChange}
+            onOwnerReturn={onOwnerReturn}
+          />
+          {showRelated && (
+            <RelatedRecords
+              key={JSON.stringify(detail.selected)}
+              detail={detail}
+              onReference={onReference}
+              onReload={onReload}
+              reloadLabel={reloadLabel}
+            />
+          )}
+        </>
+      ) : loading ? (
+        <Spin description={loadingMessage}>
+          <div className="detail-empty" role="status">
+            {loadingMessage}
+          </div>
+        </Spin>
+      ) : !error ? (
+        <div className="detail-empty">
+          <Empty description={emptyMessage} />
+        </div>
+      ) : null}
     </section>
   );
-}
-
-function InlineError({ message }: { message: string }) {
-  return <div className="error-banner">{message}</div>;
 }

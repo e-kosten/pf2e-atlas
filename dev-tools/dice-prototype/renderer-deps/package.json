@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@3d-dice/dice-box": "1.1.4",
+    "@3d-dice/dice-box-threejs": "0.0.12",
+    "react-3d-dice": "0.1.0"
+  }
+}

@@ -13,32 +13,16 @@ Create `items/<slug>.md` when the item:
 
 Keep small notes in the top-level backlog index instead of creating a file per idea.
 
-## Recommended Template
+## Item Contents
 
-```md
-# Item Title
+Use the status vocabulary from the backlog, plus priority, owner and review date
+where useful. Describe the problem, desired outcome, material constraints and
+relevant evidence. Choose sections to fit the item; a short task may need only
+a few paragraphs.
 
-Status: proposed
-Priority: soon
-Owner: unassigned
-Last reviewed: 2026-04-20
-
-## Problem
-Short description of what is wrong or missing.
-
-## Desired Outcome
-What done looks like from the user or repo perspective.
-
-## Constraints
-Important boundaries, risks, or explicit non-goals.
-
-## Notes
-Extra implementation notes, links, or related context.
-
-## Related
-- [Relevant architecture doc](../../architecture/runtime.md)
-- [Temporary working plan](../../scratch/plans/example-plan.md)
-```
+Link current architecture and related work. Keep implementation progress in its
+working plan and dated findings in research or history. Revise the item around
+what remains open as its baseline changes.
 
 ## File Naming
 

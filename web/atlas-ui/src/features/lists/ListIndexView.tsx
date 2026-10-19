@@ -1,9 +1,14 @@
-import { Button, Checkbox, Tag } from "antd";
+import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
+import { ListTagSummary } from "./ListTagSummary";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { ChoicePicker } from "../../shared/ui/pickers/ChoicePicker";
+import { Alert, Button, Input, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Pencil, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Pencil, Plus, Search } from "lucide-react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { SavedListSummaryView } from "../../generated/atlas";
 import {
+  ATLAS_ROUTE_CHANGE_EVENT,
   listEditPath,
   listPath,
   navigateToAtlasRoute,
@@ -19,33 +24,142 @@ import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 import { CreateListModal } from "./CreateListModal";
 import { useSavedLists } from "./savedListQueries";
-import { formatDate, listCountLabel, savedListTagOptions } from "./listUtils";
+import { listCountLabel, savedListTagOptions } from "./listUtils";
+import { formatDate } from "../../shared/ui/formatDate";
 
 type ListIndexViewProps = {
   route: Extract<AtlasRoute, { kind: "lists" }>;
 };
 
+type IndexState = {
+  name: string;
+  include: string[];
+  exclude: string[];
+  scroll: number;
+  documentScroll: number;
+};
+// Browser-session collection state survives detail/edit navigation, scoped to this app client.
+const indexPositions = new WeakMap<QueryClient, IndexState>();
 export function ListIndexView(_props: ListIndexViewProps) {
+  const client = useQueryClient();
+  const [state, setState] = useState<IndexState>(
+    () =>
+      indexPositions.get(client) ?? {
+        name: "",
+        include: [],
+        exclude: [],
+        scroll: 0,
+        documentScroll: 0,
+      },
+  );
+  const scrollRef = useRef<HTMLElement>(null);
+  const restored = useRef(false);
+  function changeState(next: IndexState) {
+    indexPositions.set(client, next);
+    setState(next);
+    if (scrollRef.current) scrollRef.current.scrollTop = next.scroll;
+    if (window.scrollY !== next.documentScroll) window.scrollTo(0, next.documentScroll);
+  }
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [tagSearch, setTagSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const selectedTags = [...state.include, ...state.exclude];
   const lists = useSavedLists();
   const allLists = useMemo(() => lists.data?.lists ?? [], [lists.data?.lists]);
   const tagOptions = useMemo(() => savedListTagOptions(allLists), [allLists]);
-  const filteredLists = useMemo(
-    () => filterListsByTags(allLists, selectedTags),
-    [allLists, selectedTags],
-  );
+  const filteredLists = useMemo(() => filterLists(allLists, state), [allLists, state]);
 
+  useLayoutEffect(() => {
+    if (lists.data && scrollRef.current && !restored.current) {
+      const restore = () => {
+        if (scrollRef.current) scrollRef.current.scrollTop = state.scroll;
+        if (window.scrollY !== state.documentScroll)
+          window.scrollTo(0, state.documentScroll);
+      };
+      restore();
+      const frame = requestAnimationFrame(restore);
+      restored.current = true;
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [lists.data, state.scroll, state.documentScroll]);
+  useLayoutEffect(() => {
+    const snapshot = () =>
+      indexPositions.set(client, {
+        ...state,
+        scroll: scrollRef.current?.scrollTop ?? 0,
+        documentScroll: window.scrollY,
+      });
+    window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, snapshot);
+    window.addEventListener("popstate", snapshot);
+    return () => {
+      window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, snapshot);
+      window.removeEventListener("popstate", snapshot);
+    };
+  }, [client, state]);
   return (
     <EntityIndexPage
-      actions={
-        <div className="list-index-view__actions">
-          {tagOptions.length > 0 && (
-            <Checkbox.Group
-              className="list-index-view__tag-filter"
-              onChange={(values) => setSelectedTags(values.map(String))}
-              options={tagOptions.map((tag) => ({ label: tag, value: tag }))}
-              value={selectedTags}
+      scrollRef={scrollRef}
+      onScroll={(event) => {
+        const next = {
+          ...state,
+          scroll: event.currentTarget.scrollTop,
+          documentScroll: window.scrollY,
+        };
+        indexPositions.set(client, next);
+      }}
+      toolbar={
+        <PrimaryToolbar className="list-index-view__actions">
+          <Input
+            className="list-index-view__search"
+            aria-label="Search saved lists"
+            placeholder="Search lists…"
+            prefix={<Search size={16} />}
+            allowClear
+            value={state.name}
+            onChange={(event) =>
+              changeState({
+                ...state,
+                name: event.target.value,
+                scroll: 0,
+                documentScroll: 0,
+              })
+            }
+          />
+          {(tagOptions.length > 0 || selectedTags.length > 0) && (
+            <ChoicePicker
+              id="saved-list-tags"
+              label="Tags"
+              choices={tagOptions.map((tag) => ({ value: tag, label: tag }))}
+              selected={selectedTags}
+              stateOf={(tag) =>
+                state.include.includes(tag)
+                  ? "include"
+                  : state.exclude.includes(tag)
+                    ? "exclude"
+                    : "neutral"
+              }
+              onChange={(tag, next) =>
+                changeState({
+                  ...state,
+                  include:
+                    next === "include"
+                      ? [...state.include.filter((value) => value !== tag), tag]
+                      : state.include.filter((value) => value !== tag),
+                  exclude:
+                    next === "exclude"
+                      ? [...state.exclude.filter((value) => value !== tag), tag]
+                      : state.exclude.filter((value) => value !== tag),
+                  scroll: 0,
+                  documentScroll: 0,
+                })
+              }
+              open={tagsOpen}
+              onOpenChange={(open) => {
+                setTagsOpen(open);
+                if (!open) setTagSearch("");
+              }}
+              text={tagSearch}
+              onTextChange={setTagSearch}
             />
           )}
           <Button
@@ -53,9 +167,9 @@ export function ListIndexView(_props: ListIndexViewProps) {
             onClick={() => setCreateOpen(true)}
             type="primary"
           >
-            New List
+            New list
           </Button>
-        </div>
+        </PrimaryToolbar>
       }
       className="list-index-view"
       overlays={
@@ -68,14 +182,37 @@ export function ListIndexView(_props: ListIndexViewProps) {
           }}
         />
       }
-      summary={listCountLabel(filteredLists.length)}
+      summary={lists.data ? listCountLabel(filteredLists.length) : undefined}
       title="Saved Lists"
     >
+      {lists.error && (
+        <Alert
+          type="error"
+          title={
+            lists.data ? "Saved lists could not refresh" : "Saved lists could not load"
+          }
+          description={lists.error.message}
+          action={
+            <Button loading={lists.isFetching} onClick={() => void lists.refetch()}>
+              Retry lists
+            </Button>
+          }
+        />
+      )}
       <IndexTable
         columns={listIndexColumns()}
+        scroll={{ x: 880 }}
         dataSource={filteredLists}
         loading={lists.isLoading || lists.isFetching}
-        locale={{ emptyText: "No saved lists" }}
+        locale={{
+          emptyText: lists.isLoading
+            ? "Loading saved lists…"
+            : lists.error && !lists.data
+              ? "Saved lists unavailable"
+              : selectedTags.length || state.name.trim()
+                ? "No lists match these filters"
+                : "No saved lists. Create a list to collect records.",
+        }}
         onActivateRow={(list) =>
           navigateToAtlasRoute({
             kind: "list",
@@ -89,21 +226,27 @@ export function ListIndexView(_props: ListIndexViewProps) {
   );
 }
 
-function filterListsByTags(
+function filterLists(
   lists: SavedListSummaryView[],
-  selectedTags: string[],
+  state: IndexState,
 ): SavedListSummaryView[] {
-  if (selectedTags.length === 0) {
-    return lists;
-  }
-  const selected = new Set(selectedTags);
-  return lists.filter((list) => list.tags.some((tag) => selected.has(tag)));
+  const included = state.include;
+  const excluded = new Set(state.exclude);
+  const name = state.name.trim().toLocaleLowerCase();
+  return lists.filter(
+    (list) =>
+      list.name.toLocaleLowerCase().includes(name) &&
+      (!included.length || list.tags.some((tag) => included.includes(tag))) &&
+      !list.tags.some((tag) => excluded.has(tag)),
+  );
 }
 
 function listIndexColumns(): ColumnsType<SavedListSummaryView> {
-  return [
+  const columns: ColumnsType<SavedListSummaryView> = [
     {
       title: "List",
+      minWidth: 240,
+      width: 280,
       render: (_, list) => (
         <RowTitleLink
           href={listPath(list.slug)}
@@ -125,18 +268,27 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
     },
     {
       title: "Description",
+      minWidth: 280,
       dataIndex: "description",
-      render: (value) => value ?? "",
+      render: (value: string | null) =>
+        value ? (
+          <Typography.Paragraph
+            className="list-index-view__description"
+            ellipsis={{ rows: 2 }}
+            title={value}
+          >
+            {value}
+          </Typography.Paragraph>
+        ) : (
+          ""
+        ),
     },
     {
       title: "Tags",
-      dataIndex: "tags",
-      render: (tags: string[]) => (
-        <div className="list-index-view__tags">
-          {tags.map((tag) => (
-            <Tag key={tag}>{tag}</Tag>
-          ))}
-        </div>
+      minWidth: 160,
+      width: 240,
+      render: (_, list) => (
+        <ListTagSummary tags={list.tags} label={list.name + " tags"} />
       ),
     },
     {
@@ -144,7 +296,7 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
       dataIndex: "item_count",
       align: "right",
       width: 96,
-      render: (value: bigint) => value.toLocaleString(),
+      render: (value: number) => value.toLocaleString(),
     },
     {
       title: "Updated",
@@ -173,4 +325,8 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
       ),
     },
   ];
+  return columns.map((column) => ({
+    ...column,
+    onCell: () => ({ style: { verticalAlign: "top" } }),
+  }));
 }

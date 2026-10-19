@@ -8,7 +8,8 @@ use atlas_runtime::{
 };
 use serde::Serialize;
 
-use crate::output::{format_duration_ms, write_json_data, write_json_error};
+use crate::output::format_duration_ms;
+use atlas_cli_support::{write_json_data, write_json_error};
 
 pub(crate) mod args;
 
@@ -22,6 +23,7 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
                 || args.run.no_embeddings
                 || args.run.offline
                 || args.run.force_rebuild
+                || !args.run.search_profiles.is_empty()
             {
                 return invalid_setup_input(
                     json,
@@ -46,6 +48,7 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
 
 fn setup_runtime(options: SetupPathOptions) -> Result<AtlasRuntime, String> {
     AtlasRuntime::resolve(AtlasRuntimeOptions {
+        default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
         path_mode: options.path_mode.into(),
         overrides: AtlasPathOverrides {
             source_root: options.source,
@@ -70,8 +73,9 @@ fn run_setup_install(
         check: options.check,
         offline: options.offline,
         force_rebuild: options.force_rebuild,
-        embedding_model_id: options.embedding_model,
+        search_profiles: options.search_profiles,
         embedding_batch_size: options.embedding_batch_size,
+        locale: options.locale,
     };
     let report = runtime.ensure_setup(setup_options);
     let exit_class = report.exit_code_class();
@@ -96,14 +100,13 @@ fn run_setup_clean(
 ) -> Result<ExitCode, String> {
     let source = options.all || options.source_checkout;
     let embedding_cache = options.all || options.embeddings;
-    let artifact = options.all || options.artifact;
-    if !source && !embedding_cache && !artifact {
+    if !source && !embedding_cache {
         return invalid_setup_clean_input(
             json,
-            "setup clean requires at least one of --artifact, --embeddings, --source-checkout, or --all",
+            "setup clean requires at least one of --embeddings, --source-checkout, or --all",
         );
     }
-    if source && embedding_cache && artifact && !options.check && !options.yes {
+    if source && embedding_cache && !options.check && !options.yes {
         if json || !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
             return invalid_setup_clean_input(
                 json,
@@ -118,7 +121,6 @@ fn run_setup_clean(
     let report = runtime.clean_setup(RuntimeSetupCleanOptions {
         source,
         embedding_cache,
-        artifact,
         check: options.check,
     });
     let exit_class = report.exit_code_class();
@@ -140,7 +142,7 @@ fn invalid_setup_clean_input(json: bool, message: &'static str) -> Result<ExitCo
 }
 
 fn confirm_setup_clean_all() -> Result<bool, String> {
-    inquire::Confirm::new("Remove Atlas source, embedding cache, and artifact files?")
+    inquire::Confirm::new("Remove Atlas source and embedding caches? Saved data will be preserved.")
         .with_default(false)
         .prompt()
         .map_err(|error| format!("setup clean cancelled: {error}"))
@@ -171,7 +173,7 @@ struct SetupData {
     actions: Vec<SetupActionData>,
     readiness: SetupReadinessData,
     paths: SetupPathsData,
-    embedding: SetupEmbeddingData,
+    search_profiles: Vec<SetupEmbeddingData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     build: Option<SetupBuildData>,
 }
@@ -217,6 +219,8 @@ struct SetupPathsData {
 
 #[derive(Debug, Serialize)]
 struct SetupEmbeddingData {
+    profile_id: atlas_domain::SearchProfileId,
+    stored: bool,
     model: String,
     model_path: String,
     cache_root: String,
@@ -227,18 +231,15 @@ struct SetupEmbeddingData {
 
 #[derive(Debug, Serialize)]
 struct SetupBuildData {
-    source_signature: String,
-    source_record_count: usize,
-    artifact_record_count: usize,
-    generated_record_count: usize,
-    pending_document_embedding_count: usize,
-    document_embedding_count: usize,
-    reused_document_embedding_count: usize,
-    generated_document_embedding_count: usize,
+    profiles: Vec<atlas_ingest::ProfileBuildReport>,
+    source_fingerprint: String,
+    record_count: usize,
+    product_record_count: usize,
+    semantic_unit_count: usize,
+    reused_inputs: usize,
+    inferred_inputs: usize,
+    context_shortened_sections: usize,
     build_duration_ms: u128,
-    embedding_tokenization_duration_ms: u128,
-    embedding_model_load_duration_ms: u128,
-    embedding_generation_duration_ms: u128,
 }
 
 #[derive(Debug, Serialize)]
@@ -271,7 +272,12 @@ fn print_setup_report(report: &atlas_runtime::RuntimeSetupReport) {
     );
     println!(
         "embedding model: {} {}",
-        report.embedding.model,
+        report
+            .search_profiles
+            .iter()
+            .map(|p| p.profile_id.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
         readiness_label(&report.readiness.embedding_model.status)
     );
     println!("index: {}", report.paths.index);
@@ -309,21 +315,15 @@ fn print_setup_report(report: &atlas_runtime::RuntimeSetupReport) {
             format_duration_ms(build.build_duration_ms)
         );
         println!(
-            "  records: source={} generated={} artifact={}",
-            build.source_record_count, build.generated_record_count, build.artifact_record_count
+            "  records: {} ({} products)",
+            build.record_count, build.product_record_count
         );
         println!(
-            "  embeddings: pending_document={} document={} reused={} generated={}",
-            build.pending_document_embedding_count,
-            build.document_embedding_count,
-            build.reused_document_embedding_count,
-            build.generated_document_embedding_count
-        );
-        println!(
-            "  embedding timing: tokenization={} model_load={} generation={}",
-            format_duration_ms(build.embedding_tokenization_duration_ms),
-            format_duration_ms(build.embedding_model_load_duration_ms),
-            format_duration_ms(build.embedding_generation_duration_ms)
+            "  semantic units={} reused inputs={} inferred inputs={} shortened contexts={}",
+            build.semantic_unit_count,
+            build.reused_inputs,
+            build.inferred_inputs,
+            build.context_shortened_sections
         );
     }
 }
@@ -370,26 +370,29 @@ fn setup_json_data(report: &atlas_runtime::RuntimeSetupReport) -> SetupData {
             embedding_cache: report.paths.embedding_cache.clone(),
             index: report.paths.index.clone(),
         },
-        embedding: SetupEmbeddingData {
-            model: report.embedding.model.clone(),
-            model_path: report.embedding.model_path.clone(),
-            cache_root: report.embedding.cache_root.clone(),
-            ready: report.embedding.ready,
-            missing_files: report.embedding.missing_files.clone(),
-        },
+        search_profiles: report
+            .search_profiles
+            .iter()
+            .map(|profile| SetupEmbeddingData {
+                profile_id: profile.profile_id.clone(),
+                stored: profile.stored,
+                model: profile.model.clone(),
+                model_path: profile.model_path.clone(),
+                cache_root: profile.cache_root.clone(),
+                ready: profile.ready,
+                missing_files: profile.missing_files.clone(),
+            })
+            .collect(),
         build: report.build.as_ref().map(|build| SetupBuildData {
-            source_signature: build.source_signature.clone(),
-            source_record_count: build.source_record_count,
-            artifact_record_count: build.artifact_record_count,
-            generated_record_count: build.generated_record_count,
-            pending_document_embedding_count: build.pending_document_embedding_count,
-            document_embedding_count: build.document_embedding_count,
-            reused_document_embedding_count: build.reused_document_embedding_count,
-            generated_document_embedding_count: build.generated_document_embedding_count,
+            profiles: build.profiles.clone(),
+            source_fingerprint: build.source_fingerprint.clone(),
+            record_count: build.record_count,
+            product_record_count: build.product_record_count,
+            semantic_unit_count: build.semantic_unit_count,
+            reused_inputs: build.reused_inputs,
+            inferred_inputs: build.inferred_inputs,
+            context_shortened_sections: build.context_shortened_sections,
             build_duration_ms: build.build_duration_ms,
-            embedding_tokenization_duration_ms: build.embedding_tokenization_duration_ms,
-            embedding_model_load_duration_ms: build.embedding_model_load_duration_ms,
-            embedding_generation_duration_ms: build.embedding_generation_duration_ms,
         }),
     }
 }
@@ -550,7 +553,6 @@ fn clean_target_kind_label(kind: &SetupCleanTargetKind) -> &'static str {
     match kind {
         SetupCleanTargetKind::Source => "source",
         SetupCleanTargetKind::EmbeddingCache => "embedding_cache",
-        SetupCleanTargetKind::Artifact => "artifact",
     }
 }
 

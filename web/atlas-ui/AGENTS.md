@@ -13,15 +13,24 @@ This package owns the React browser frontend for PF2e Atlas. Follow these rules 
 
 Before creating a feature-local interaction pattern, check `src/shared/ui`.
 
+- Use `PrimaryToolbar` for wrapping primary control rows. Inherit default Ant sizes; reserve small controls for dense inline/table actions. Keep search flexible and neighboring controls top-aligned when selected choices wrap.
 - Use `IndexTable` for clickable entity/index tables.
 - Use `EntityIndexPage` for `/things` index pages with a title, summary, actions, and table body.
 - Use `EditableCommitField` for inline fields that keep a local draft and commit on blur or Enter.
 - Use `SearchPickerModal` for modal record-search selection flows.
 - Use `PaneIconButton` and `PaneIconLink` for pane-header icon actions.
 - Use `DangerActionButton` for buttons that open a destructive confirmation before running the action.
-- Keep lower-level helpers such as `confirmDangerAction` for non-button callbacks where a shared button is not the right shape.
+- Keep lower-level helpers such as `useConfirmDangerAction` for non-button callbacks where a shared button is not the right shape.
 
 If a second surface needs a behavior, move it into `src/shared/ui` instead of copying the feature-local implementation. Feature modules should compose shared primitives with feature-specific requests, labels, mutations, and DTOs. Shared primitives should normally wrap or compose Ant components; do not create plain-button or plain-anchor replacements for generic Ant behavior unless there is a documented product-specific reason.
+
+For overlays and secondary tasks, follow
+[Choosing an interaction surface](docs/frontend-guidelines.md#choosing-an-interaction-surface).
+For record browsing, links and nested previews, follow
+[In-place reference reading](docs/frontend-guidelines.md#in-place-reference-reading).
+Reuse the shared browse/reader and preview owners with exact backend navigation;
+keep feature selection and mutations separate. Do not invent feature-local
+Popover/Drawer or link-navigation policies.
 
 ## CSS Layout
 
@@ -40,3 +49,23 @@ npm --prefix web/atlas-ui run verify
 ```
 
 For narrow refactors, also run focused tests for the touched surface before the full verify.
+
+Follow [responsive acceptance](docs/frontend-guidelines.md#responsive-design-and-acceptance)
+for layout, navigation, overlays and forms. Run `npm --prefix web/atlas-ui run
+test:devices` when those shared behaviors change; it uses a small real-app fixture.
+Keep Astra visual/interaction review separate from automated checks. Test actual
+taps in touch contexts and distinguish viewport resizing, emulation and physical
+device evidence. Report unavailable device/zoom/software-keyboard checks explicitly.
+
+Human product previews use the existing full-corpus artifact and verified query
+models, with every stored profile usable. Reuse a compatible running backend for
+frontend-only changes. Reserve the model-free fixture for automated acceptance
+and targeted fault checks; follow CONTRIBUTING.md for preview/state ownership.
+
+Contextual feedback uses the root Ant `App` inside `ConfigProvider`. Destructive
+button and callback flows use `useConfirmDangerAction`; prepared source dialogs
+use contextual `Modal.useModal`. Do not use static Ant feedback methods. Style
+Ant internals through documented `classNames`, `styles` and component tokens;
+Atlas-owned classes describe product layout rather than internal Ant DOM.
+
+Follow the root repository early functional UX checkpoint rule for substantial visible frontend changes. Keep existing tests enabled and disclose stale expectations; complete frontend gates and Astra visual review after the user confirms the direction.

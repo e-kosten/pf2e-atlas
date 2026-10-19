@@ -18,67 +18,73 @@ absolute_git_common_dir() {
   cd "$(git rev-parse --git-common-dir)" && pwd -P
 }
 
-is_zero_oid() {
+# Keep the path policy shared by commit hooks and changed-path verification.
+validation_surface_for_path() {
   case "$1" in
-    0000000000000000000000000000000000000000) return 0 ;;
-    *) return 1 ;;
+    AGENTS.md | CONTRIBUTING.md | README.md | THIRD-PARTY-NOTICES.md | docs/*.md | scratch/plans/*.md | .codex/skills/*.md | skills/*.md | crates/*/README.md | dev-tools/README.md | dev-tools/*/README.md | vendor/README.md | web/atlas-ui/AGENTS.md | web/atlas-ui/README.md | web/atlas-ui/docs/*.md)
+      printf 'docs\n' ;;
+    crates/atlas-app-model/src/* | crates/atlas-app-model/bindings/*)
+      printf 'both\n' ;;
+    Cargo.toml | Cargo.lock | crates/* | src/* | tests/* | build.rs)
+      printf 'rust\n' ;;
+    web/atlas-ui/*)
+      printf 'web\n' ;;
+    *)
+      # Unknown configuration, tooling and special file modes must not skip gates.
+      printf 'both\n' ;;
   esac
 }
 
-is_docs_only_path() {
-  case "$1" in
-    scratch/plans/* | *.md) return 0 ;;
-    *) return 1 ;;
-  esac
-}
+classify_validation_paths() {
+  rust_touched=0
+  web_touched=0
+  docs_only=0
+  classification_saw_path=0
 
-paths_are_docs_only() {
-  saw_path=0
-
-  while IFS= read -r path; do
+  while IFS= read -r path || [ -n "$path" ]; do
     [ -n "$path" ] || continue
-    saw_path=1
-    if ! is_docs_only_path "$path"; then
-      return 1
-    fi
-  done
+    classification_saw_path=1
+    case "$(validation_surface_for_path "$path")" in
+      rust) rust_touched=1 ;;
+      web) web_touched=1 ;;
+      both) rust_touched=1; web_touched=1 ;;
+    esac
+  done <"$1"
 
-  [ "$saw_path" -eq 1 ]
+  if [ "$classification_saw_path" -eq 1 ] && [ "$rust_touched" -eq 0 ] && [ "$web_touched" -eq 0 ]; then
+    docs_only=1
+  fi
+}
+
+collect_changed_paths() {
+  collected_paths="$1"
+  shift
+  # Run from the root, include deleted rename sources, and check Git failures.
+  # Quoted unusual filenames conservatively fall into the unknown-path gate.
+  if ! git -C "$(repo_root)" -c core.quotePath=true diff --no-renames --name-only "$@" >"$collected_paths"; then
+    return 1
+  fi
+  if ! git -C "$(repo_root)" diff --no-renames --raw "$@" >"$collected_paths.modes"; then
+    return 1
+  fi
+  # Executable files, symlinks and submodules cannot use a documentation exemption.
+  awk '($1 != ":000000" && $1 != ":100644") || ($2 != "000000" && $2 != "100644") { print "__atlas_special_file_mode__" }' \
+    "$collected_paths.modes" >>"$collected_paths"
 }
 
 staged_changes_are_docs_only() {
-  git diff --cached --name-only --relative --diff-filter=ACDMRTUXB | paths_are_docs_only
+  staged_paths_dir="$(mktemp -d "${TMPDIR:-/tmp}/atlas-staged-paths.XXXXXX")"
+  if ! collect_changed_paths "$staged_paths_dir/paths" --cached --diff-filter=ACDMRTUXB; then
+    rm -rf "$staged_paths_dir"
+    return 1
+  fi
+  classify_validation_paths "$staged_paths_dir/paths"
+  rm -rf "$staged_paths_dir"
+  [ "$docs_only" -eq 1 ]
 }
 
 run_required_verification() {
   "$(repo_root)/scripts/verify-changed.sh" --staged
-}
-
-run_full_verification_for_range() {
-  range="$1"
-  "$(repo_root)/scripts/verify-changed.sh" --range "$range" --full
-}
-
-push_range_is_docs_only() {
-  local_oid="$1"
-  remote_oid="$2"
-
-  if is_zero_oid "$local_oid" || is_zero_oid "$remote_oid"; then
-    return 1
-  fi
-
-  git diff --name-only --relative "$remote_oid" "$local_oid" | paths_are_docs_only
-}
-
-push_range() {
-  local_oid="$1"
-  remote_oid="$2"
-
-  if is_zero_oid "$local_oid" || is_zero_oid "$remote_oid"; then
-    return 1
-  fi
-
-  printf '%s..%s\n' "$remote_oid" "$local_oid"
 }
 
 require_linked_worktree() {

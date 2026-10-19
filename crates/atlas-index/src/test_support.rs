@@ -1,217 +1,106 @@
-use rusqlite::Connection;
-
-use crate::artifact::metadata::{
-    ARTIFACT_CONTRACT_VERSION, ARTIFACT_SCHEMA_VERSION, artifact_metadata_keys,
+//! Disposable test workspaces use the same complete schema as runtime composition.
+use crate::{
+    ArtifactValidationReport, IndexArtifactWriter, IndexBuildInput, IndexError, SqliteIndexReader,
+    SqliteIndexWriter,
 };
-use crate::artifact::schema::CREATE_ARTIFACT_SCHEMA_SQL;
-
-pub fn create_record_vector_index_sql(dimensions: usize) -> String {
-    crate::read::search::sqlite_vector_index::create_sql(dimensions)
-}
-
-pub fn insert_record_vector_index_sql() -> String {
-    crate::read::search::sqlite_vector_index::insert_sql()
-}
-
-pub fn encode_f32_vector_blob(vector: &[f32]) -> Vec<u8> {
-    crate::artifact::storage::encode_f32_vector_blob(vector)
-}
-
-pub fn create_minimal_artifact_schema(
-    connection: &Connection,
-) -> Result<(), Box<dyn std::error::Error>> {
-    connection.execute_batch(CREATE_ARTIFACT_SCHEMA_SQL)?;
-    Ok(())
-}
-
-pub fn insert_artifact_metadata_entries(
-    connection: &Connection,
-    entries: Vec<(&'static str, &'static str)>,
-    override_entry: Option<(&str, &str)>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    for (key, mut value) in entries {
-        if let Some((override_key, override_value)) = override_entry
-            && key == override_key
-        {
-            value = override_value;
-        }
-        connection.execute(
-            "INSERT INTO artifact_metadata (key, value) VALUES (?1, ?2)",
-            [key, value],
-        )?;
-    }
-    Ok(())
-}
-
-pub fn insert_artifact_metadata_omitting(
-    connection: &Connection,
-    entries: Vec<(&'static str, &'static str)>,
-    omitted_key: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    for (key, value) in entries {
-        if key != omitted_key {
-            connection.execute(
-                "INSERT INTO artifact_metadata (key, value) VALUES (?1, ?2)",
-                [key, value],
-            )?;
-        }
-    }
-    Ok(())
-}
-
-pub fn insert_minimal_artifact_rows(
-    connection: &Connection,
-) -> Result<(), Box<dyn std::error::Error>> {
-    connection.execute(
-        "INSERT INTO packs (name, label, document_type, declared_path, resolved_path, record_count)
-             VALUES ('actions', 'Actions', 'Item', 'packs/actions', 'packs/actions', 3)",
-        [],
+use atlas_storage::{Migration, Workspace};
+use std::path::Path;
+pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
+    atlas_sqlite_vec::register_sqlite_vec_auto_extension()
+        .map_err(|e| IndexError::Operation(e.to_string()))?;
+    let workspace = Workspace::at(path)?;
+    workspace.migrate(
+        &[
+            Migration {
+                version: 1,
+                name: "reference-baseline",
+                sql: crate::REFERENCE_SCHEMA_SQL,
+            },
+            Migration {
+                version: 2,
+                name: "saved-state-baseline",
+                sql: atlas_local_state::LOCAL_STATE_SCHEMA_SQL,
+            },
+            Migration {
+                version: 3,
+                name: "lexical-alias-rows",
+                sql: crate::LEXICAL_ALIAS_SCHEMA_SQL,
+            },
+            Migration {
+                version: 4,
+                name: "consumable-filters",
+                sql: crate::CONSUMABLE_FILTER_SCHEMA_SQL,
+            },
+        ],
+        |_| Ok(()),
     )?;
-    for index in 1..=3 {
-        let record_key = format!("actions:testAction{index}");
-        let record_id = format!("testAction{index}");
-        let name = format!("Test Action {index}");
-        let normalized_name = name.to_lowercase();
-        let source_path = format!("packs/actions/test-action-{index}.json");
-        connection.execute(
-                "INSERT INTO records (
-                  record_key, id, name, normalized_name, record_kind, pack_name, pack_label,
-                  foundry_document_type, foundry_record_type, traits_json, prerequisites_json, publication_remaster,
-                  publication_family, taxonomy_families_json, variant_axes_json, variant_source,
-                  source_path, is_default_visible, raw_json
-                ) VALUES (?1, ?2, ?3, ?4, 'rule', 'actions', 'Actions', 'Item', 'action',
-                  '[]', '[]', 0, 'unknown', '[]', '[]', 'none', ?5, 1, '{}')",
-                [
-                    record_key.as_str(),
-                    record_id.as_str(),
-                    name.as_str(),
-                    normalized_name.as_str(),
-                    source_path.as_str(),
-                ],
-            )?;
-        connection.execute(
-                "INSERT INTO records_fts (
-                  record_key, title, aliases, traits, taxonomy_terms, constraint_terms, mechanic_terms,
-                  source_terms, metric_terms, headings, body, facts, reference_terms, embedded_content
-                 ) VALUES (?1, ?2, '', '', '', '', '', '', '', '', ?2, '', '', '')",
-                [record_key.as_str(), name.as_str()],
-            )?;
-    }
-    insert_minimal_filter_discovery_rows(connection)?;
-    Ok(())
+    Ok(workspace)
+}
+pub fn open_reader(path: impl AsRef<Path>) -> Result<SqliteIndexReader, IndexError> {
+    atlas_sqlite_vec::register_sqlite_vec_auto_extension()
+        .map_err(|e| IndexError::Operation(e.to_string()))?;
+    SqliteIndexReader::from_session(Workspace::at(path)?.read(4)?)
+}
+pub fn publish_input(
+    path: impl AsRef<Path>,
+    input: &IndexBuildInput,
+) -> Result<ArtifactValidationReport, IndexError> {
+    let workspace = initialize_workspace(path)?;
+    let owner = workspace.update_owner()?;
+    let maintenance = owner.maintenance(4, "test publication")?;
+    SqliteIndexWriter::new(&maintenance).write(input)
 }
 
-fn insert_minimal_filter_discovery_rows(
-    connection: &Connection,
-) -> Result<(), Box<dyn std::error::Error>> {
-    const CANONICAL_KINDS_JSON: &str = r#"["creature","character","companion","army","hazard","vehicle","equipment","feat","spell","affliction","rule","character_option","lore","tooling","campaign_feature"]"#;
-    let fields = [
-        ("record_kind", r#"["--kind"]"#, CANONICAL_KINDS_JSON),
-        ("pack_name", r#"["--pack-name"]"#, CANONICAL_KINDS_JSON),
-        ("pack_label", r#"["--pack-label"]"#, CANONICAL_KINDS_JSON),
-        ("foundry_record_type", r#"[]"#, CANONICAL_KINDS_JSON),
-        ("publication_family", r#"[]"#, CANONICAL_KINDS_JSON),
-    ];
-    for kind in [None, Some("rule")] {
-        for (field, cli_flags, applicable_kinds) in fields {
-            connection.execute(
-                "INSERT INTO filter_field_catalog (
-                       field, record_kind, field_type, field_group, value_policy,
-                       operators_json, cli_flags_json, applicable_kinds_json,
-                       value_count, matching_record_count, null_count, distinct_count,
-                       singleton_count, singleton_ratio, observation_singleton_ratio, policy_reason
-                     ) VALUES (
-                       ?1, ?2, 'enum_string', 'record', 'enumerable',
-                       '[\"eq\",\"not_eq\",\"is_null\",\"is_not_null\"]', ?3, ?4,
-                       3, 3, 0, 1, 0, 0.0, 0.0, 'Enumerable'
-                     )",
-                (field, kind, cli_flags, applicable_kinds),
-            )?;
-        }
-    }
-    for kind in [None, Some("rule")] {
-        connection.execute(
-            "INSERT INTO filter_field_catalog (
-                   field, record_kind, field_type, field_group, value_policy,
-                   operators_json, cli_flags_json, applicable_kinds_json,
-                   value_count, matching_record_count, null_count, distinct_count,
-                   singleton_count, singleton_ratio, observation_singleton_ratio, policy_reason
-                 ) VALUES (
-                   'publication_remaster', ?1, 'boolean', 'record', 'boolean_counts',
-                   '[\"eq\",\"is_null\",\"is_not_null\"]', '[]', ?2,
-                   3, 3, 0, 1, 0, 0.0, 0.0, 'BooleanCounts'
-                 )",
-            (kind, CANONICAL_KINDS_JSON),
+/// Model an older preparation contract coherently, including the allocation
+/// digests used to decide whether publication can retain a record's rows.
+pub fn set_content_interpretation_version(
+    path: impl AsRef<Path>,
+    version: &str,
+) -> Result<(), IndexError> {
+    set_preparation_policy(path, |context| {
+        context.content_interpretation_version = version.into()
+    })
+}
+
+pub fn set_content_selection_version(
+    path: impl AsRef<Path>,
+    version: &str,
+) -> Result<(), IndexError> {
+    set_preparation_policy(path, |context| {
+        context.content_selection_version = version.into()
+    })
+}
+
+fn set_preparation_policy(
+    path: impl AsRef<Path>,
+    update: impl FnOnce(&mut crate::SourceArtifactBuildContext),
+) -> Result<(), IndexError> {
+    let workspace = Workspace::at(path)?;
+    let write = workspace.write(4)?;
+    let c = write.connection();
+    let mut context = crate::read_stored_reference_context(c)?
+        .ok_or_else(|| IndexError::Invalid("fixture has no reference context".into()))?;
+    update(&mut context);
+    let json = serde_json::to_string(&context)?;
+    c.execute(
+        "UPDATE artifact_context SET context_hash=?1,context_json=?2",
+        [crate::codec::sha256(json.as_bytes()), json],
+    )?;
+    c.execute(
+        "UPDATE prepared_content SET preparation_context_hash=?",
+        [context.preparation_sha256()?],
+    )?;
+    for source in crate::read_persisted_inputs(c, &context)? {
+        let (id, label): (i64, String) = c.query_row(
+            "SELECT r.record_id,p.label FROM records r JOIN packs p USING(pack_id) WHERE r.key=?",
+            [source.record.key().to_string()],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        c.execute(
+            "UPDATE projection_allocations SET input_hash=? WHERE record_id=?",
+            rusqlite::params![crate::publication_delta::root_digest(&source, &label)?, id],
         )?;
     }
-    for kind in [None, Some("rule")] {
-        for (field, value) in [
-            ("record_kind", "rule"),
-            ("pack_name", "actions"),
-            ("pack_label", "Actions"),
-            ("foundry_record_type", "action"),
-            ("publication_family", "unknown"),
-        ] {
-            connection.execute(
-                "INSERT INTO filter_value_catalog (field, record_kind, value, catalog_count)
-                     VALUES (?1, ?2, ?3, 3)",
-                (field, kind, value),
-            )?;
-        }
-    }
+    write.commit()?;
     Ok(())
-}
-
-pub fn legacy_minilm_metadata_entries() -> Vec<(&'static str, &'static str)> {
-    vec![
-        (
-            artifact_metadata_keys::ARTIFACT_CONTRACT_VERSION,
-            ARTIFACT_CONTRACT_VERSION,
-        ),
-        (
-            artifact_metadata_keys::SCHEMA_VERSION,
-            ARTIFACT_SCHEMA_VERSION,
-        ),
-        (artifact_metadata_keys::SOURCE_KIND, "foundry-pf2e"),
-        (
-            artifact_metadata_keys::SOURCE_SIGNATURE,
-            "foundry-pf2e:fixture",
-        ),
-        (artifact_metadata_keys::SOURCE_RECORD_COUNT, "3"),
-        (artifact_metadata_keys::ARTIFACT_RECORD_COUNT, "3"),
-        (artifact_metadata_keys::GENERATED_RECORD_COUNT, "0"),
-        (artifact_metadata_keys::CONTENT_HASH_ALGORITHM, "sha256"),
-        (
-            artifact_metadata_keys::EMBEDDING_PROVIDER_FAMILY,
-            "transformers-js-minilm",
-        ),
-        (
-            artifact_metadata_keys::EMBEDDING_MODEL_ID,
-            "Xenova/all-MiniLM-L12-v2",
-        ),
-        (artifact_metadata_keys::EMBEDDING_MODEL_REVISION, "main"),
-        (
-            artifact_metadata_keys::EMBEDDING_TOKENIZER_ID,
-            "Xenova/all-MiniLM-L12-v2",
-        ),
-        (artifact_metadata_keys::EMBEDDING_POOLING, "mean"),
-        (artifact_metadata_keys::EMBEDDING_NORMALIZATION, "l2"),
-        (artifact_metadata_keys::EMBEDDING_DIMENSIONS, "384"),
-        (artifact_metadata_keys::EMBEDDING_DTYPE, "f32"),
-        (artifact_metadata_keys::EMBEDDING_DISTANCE_METRIC, "cosine"),
-        (artifact_metadata_keys::EMBEDDING_DOCUMENT_PREFIX, ""),
-        (artifact_metadata_keys::EMBEDDING_QUERY_PREFIX, ""),
-        (
-            artifact_metadata_keys::EMBEDDING_UNIT_POLICY_VERSION,
-            "coverage-driven-rich-content/v1",
-        ),
-        (
-            artifact_metadata_keys::FTS_TOKENIZER,
-            "unicode61 remove_diacritics 2",
-        ),
-        (
-            artifact_metadata_keys::ADJACENT_MANIFEST_PATH,
-            "manifest.json",
-        ),
-    ]
 }

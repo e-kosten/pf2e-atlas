@@ -10,6 +10,9 @@ __pycache__/
 *.py[cod]
 scratch/
 .worktrees/
-node_modules/
+node_modules
 dist/
 *.tsbuildinfo
+
+# Persistent development workspace, including saved user data.
+.atlas/

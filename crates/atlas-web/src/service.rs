@@ -2,18 +2,25 @@ use std::sync::Arc;
 
 use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
-    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AppError, AppErrorCode,
-    AppReadinessView, CreateEncounterRequest, CreateSavedListRequest, DeleteEncounterView,
-    DeleteSavedListView, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
-    EncounterConditionCatalogView, EncounterCreateView, EncounterDetailView, EncounterIndexView,
-    EncounterParticipantView, EncounterUpdateView, FilterEditorView, FilterSavedListRequest,
-    FilterValueListView, OpenResultWindowRequest, ReadResultWindowPageRequest, RecordDetailView,
-    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, ResultWindowPage,
-    SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
-    SavedListUpdateView, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
+    AddEncounterRecordParticipantRequest, AddSavedListItemRequest, AdvanceEncounterTurnRequest,
+    AppError, AppErrorCode, AppReadinessView, ApplyEncounterHpActionRequest,
+    ApplyEncounterSpellActionRequest, CreateEncounterRequest, CreateSavedListRequest,
+    DeleteEncounterView, DeleteSavedListView, DiscoverFilterEditorRequest,
+    DiscoverFilterValuesRequest, EncounterConditionCatalogView, EncounterCreateView,
+    EncounterDetailView, EncounterIndexView, EncounterMutationView, EncounterTurnReviewView,
+    FilterEditorView, FilterSavedListRequest, FilterValueListView, RecordDetailView,
+    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, SavedListCreateView,
+    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListUpdateView,
+    SearchResultsPage, SearchResultsRequest, SetEncounterTurnRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest, UpdateSavedListRequest,
 };
-use atlas_app_service::{AppServiceError, AtlasAppService};
+use atlas_app_model::{
+    DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
+};
+use atlas_app_model::{InitiativeOptionsView, InitiativeRollView, RollInitiativeRequest};
+use atlas_app_service::{AppServiceError, AtlasAppService, ReadExecutionContext};
+use atlas_domain::QueryPredicate;
 use tokio::sync::Semaphore;
 
 use crate::error::WebError;
@@ -49,6 +56,20 @@ impl AtlasWebState {
 }
 
 pub(crate) trait AtlasWebService: Send + Sync {
+    fn roll_table(
+        &self,
+        request: atlas_app_model::RollTableRequest,
+    ) -> Result<atlas_app_model::TableRollView, AppServiceError>;
+    fn encounter_strike_options(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::EncounterStrikeOptionsRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeOptionsView, AppServiceError>;
+    fn roll_encounter_strike(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::RollEncounterStrikeRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeRollView, AppServiceError>;
     fn readiness(&self) -> AppReadinessView;
 
     fn discover_filter_editor(
@@ -59,20 +80,44 @@ pub(crate) trait AtlasWebService: Send + Sync {
     fn discover_filter_values(
         &self,
         request: DiscoverFilterValuesRequest,
+        execution: &ReadExecutionContext,
     ) -> Result<FilterValueListView, AppServiceError>;
 
-    fn open_result_window(
+    fn search_page(
         &self,
-        request: OpenResultWindowRequest,
-    ) -> Result<ResultWindowPage, AppServiceError>;
-
-    fn read_result_window_page(
-        &self,
-        window_id: u64,
-        request: ReadResultWindowPageRequest,
-    ) -> Result<ResultWindowPage, AppServiceError>;
+        request: SearchResultsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<SearchResultsPage, AppServiceError>;
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
+    fn encounter_reference(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::EncounterReferenceRequest,
+    ) -> Result<RecordDetailView, AppServiceError>;
+    fn embedded_reading(
+        &self,
+        request: atlas_app_model::EmbeddedReadingRequest,
+    ) -> Result<atlas_app_model::EmbeddedReadingBatchView, AppServiceError>;
+    fn record_detail_at(
+        &self,
+        request: RecordDetailRequest,
+    ) -> Result<RecordDetailView, AppServiceError>;
+    fn discover_filter_counts(
+        &self,
+        request: DiscoverFilterCountsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<FilterCountsView, AppServiceError>;
+    fn validate_filter(
+        &self,
+        predicate: QueryPredicate,
+    ) -> Result<FilterValidationResult, AppServiceError>;
+
+    fn related_records(
+        &self,
+        request: atlas_app_model::RelatedRecordsRequest,
+    ) -> Result<atlas_app_model::RelatedRecordsView, AppServiceError>;
 
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError>;
 
@@ -93,60 +138,92 @@ pub(crate) trait AtlasWebService: Send + Sync {
     fn update_encounter(
         &self,
         request: UpdateEncounterRequest,
-    ) -> Result<EncounterUpdateView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn add_encounter_record_participant(
         &self,
         request: AddEncounterRecordParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn add_encounter_manual_participant(
         &self,
         request: AddEncounterManualParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn update_encounter_participant(
         &self,
         encounter_ref: &str,
         request: UpdateEncounterParticipantRequest,
-    ) -> Result<EncounterParticipantView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
+
+    fn apply_encounter_hp_action(
+        &self,
+        encounter_ref: &str,
+        request: ApplyEncounterHpActionRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+
+    fn encounter_initiative_options(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<InitiativeOptionsView, AppServiceError>;
+    fn roll_encounter_initiative(
+        &self,
+        encounter_ref: &str,
+        request: RollInitiativeRequest,
+    ) -> Result<InitiativeRollView, AppServiceError>;
+
+    fn apply_encounter_spell_action(
+        &self,
+        encounter_ref: &str,
+        request: ApplyEncounterSpellActionRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn reorder_encounter_participant(
         &self,
         encounter_ref: &str,
         request: ReorderEncounterParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn remove_encounter_participant(
         &self,
         encounter_ref: &str,
         participant_key: &str,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
+
+    fn encounter_turn_review(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<EncounterTurnReviewView, AppServiceError>;
+    fn advance_encounter_turn(
+        &self,
+        encounter_ref: &str,
+        request: AdvanceEncounterTurnRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn set_encounter_turn(
         &self,
         request: SetEncounterTurnRequest,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn add_encounter_participant_condition(
         &self,
         encounter_ref: &str,
         request: AddEncounterParticipantConditionRequest,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn update_encounter_participant_condition(
         &self,
         encounter_ref: &str,
         participant_key: &str,
         request: UpdateEncounterParticipantConditionRequest,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn remove_encounter_participant_condition(
         &self,
         encounter_ref: &str,
         participant_key: &str,
         condition_id: i64,
-    ) -> Result<EncounterDetailView, AppServiceError>;
+    ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError>;
 
@@ -181,6 +258,66 @@ pub(crate) trait AtlasWebService: Send + Sync {
 }
 
 impl AtlasWebService for AtlasAppService {
+    fn roll_encounter_strike(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::RollEncounterStrikeRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeRollView, AppServiceError> {
+        self.roll_encounter_strike(encounter_ref, request)
+    }
+    fn encounter_strike_options(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::EncounterStrikeOptionsRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeOptionsView, AppServiceError> {
+        self.encounter_strike_options(encounter_ref, request)
+    }
+    fn roll_table(
+        &self,
+        request: atlas_app_model::RollTableRequest,
+    ) -> Result<atlas_app_model::TableRollView, AppServiceError> {
+        self.roll_table(request)
+    }
+    fn encounter_reference(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::EncounterReferenceRequest,
+    ) -> Result<RecordDetailView, AppServiceError> {
+        self.encounter_reference(encounter_ref, participant_key, request)
+    }
+    fn embedded_reading(
+        &self,
+        request: atlas_app_model::EmbeddedReadingRequest,
+    ) -> Result<atlas_app_model::EmbeddedReadingBatchView, AppServiceError> {
+        self.embedded_reading(request)
+    }
+    fn related_records(
+        &self,
+        request: atlas_app_model::RelatedRecordsRequest,
+    ) -> Result<atlas_app_model::RelatedRecordsView, AppServiceError> {
+        self.related_records(request)
+    }
+
+    fn record_detail_at(
+        &self,
+        request: RecordDetailRequest,
+    ) -> Result<RecordDetailView, AppServiceError> {
+        self.record_detail_at(request)
+    }
+    fn discover_filter_counts(
+        &self,
+        request: DiscoverFilterCountsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<FilterCountsView, AppServiceError> {
+        self.discover_filter_counts(request, execution)
+    }
+    fn validate_filter(
+        &self,
+        predicate: QueryPredicate,
+    ) -> Result<FilterValidationResult, AppServiceError> {
+        self.validate_filter(predicate)
+    }
     fn readiness(&self) -> AppReadinessView {
         self.readiness()
     }
@@ -195,23 +332,17 @@ impl AtlasWebService for AtlasAppService {
     fn discover_filter_values(
         &self,
         request: DiscoverFilterValuesRequest,
+        execution: &ReadExecutionContext,
     ) -> Result<FilterValueListView, AppServiceError> {
-        self.discover_filter_values(request)
+        self.discover_filter_values(request, execution)
     }
 
-    fn open_result_window(
+    fn search_page(
         &self,
-        request: OpenResultWindowRequest,
-    ) -> Result<ResultWindowPage, AppServiceError> {
-        self.open_result_window(request)
-    }
-
-    fn read_result_window_page(
-        &self,
-        window_id: u64,
-        request: ReadResultWindowPageRequest,
-    ) -> Result<ResultWindowPage, AppServiceError> {
-        self.read_result_window_page(window_id, request)
+        request: SearchResultsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<SearchResultsPage, AppServiceError> {
+        self.search_page(request, execution)
     }
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
@@ -249,21 +380,21 @@ impl AtlasWebService for AtlasAppService {
     fn update_encounter(
         &self,
         request: UpdateEncounterRequest,
-    ) -> Result<EncounterUpdateView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.update_encounter(request)
     }
 
     fn add_encounter_record_participant(
         &self,
         request: AddEncounterRecordParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.add_encounter_record_participant(request)
     }
 
     fn add_encounter_manual_participant(
         &self,
         request: AddEncounterManualParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.add_encounter_manual_participant(request)
     }
 
@@ -271,15 +402,45 @@ impl AtlasWebService for AtlasAppService {
         &self,
         encounter_ref: &str,
         request: UpdateEncounterParticipantRequest,
-    ) -> Result<EncounterParticipantView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.update_encounter_participant(encounter_ref, request)
+    }
+
+    fn apply_encounter_hp_action(
+        &self,
+        encounter_ref: &str,
+        request: ApplyEncounterHpActionRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.apply_encounter_hp_action(encounter_ref, request)
+    }
+
+    fn encounter_initiative_options(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<InitiativeOptionsView, AppServiceError> {
+        self.encounter_initiative_options(encounter_ref)
+    }
+    fn roll_encounter_initiative(
+        &self,
+        encounter_ref: &str,
+        request: RollInitiativeRequest,
+    ) -> Result<InitiativeRollView, AppServiceError> {
+        self.roll_encounter_initiative(encounter_ref, request)
+    }
+
+    fn apply_encounter_spell_action(
+        &self,
+        encounter_ref: &str,
+        request: ApplyEncounterSpellActionRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.apply_encounter_spell_action(encounter_ref, request)
     }
 
     fn reorder_encounter_participant(
         &self,
         encounter_ref: &str,
         request: ReorderEncounterParticipantRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.reorder_encounter_participant(encounter_ref, request)
     }
 
@@ -287,14 +448,28 @@ impl AtlasWebService for AtlasAppService {
         &self,
         encounter_ref: &str,
         participant_key: &str,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.remove_encounter_participant(encounter_ref, participant_key)
+    }
+
+    fn encounter_turn_review(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<EncounterTurnReviewView, AppServiceError> {
+        self.encounter_turn_review(encounter_ref)
+    }
+    fn advance_encounter_turn(
+        &self,
+        encounter_ref: &str,
+        request: AdvanceEncounterTurnRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.advance_encounter_turn(encounter_ref, request)
     }
 
     fn set_encounter_turn(
         &self,
         request: SetEncounterTurnRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.set_encounter_turn(request)
     }
 
@@ -302,7 +477,7 @@ impl AtlasWebService for AtlasAppService {
         &self,
         encounter_ref: &str,
         request: AddEncounterParticipantConditionRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.add_encounter_participant_condition(encounter_ref, request)
     }
 
@@ -311,7 +486,7 @@ impl AtlasWebService for AtlasAppService {
         encounter_ref: &str,
         participant_key: &str,
         request: UpdateEncounterParticipantConditionRequest,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.update_encounter_participant_condition(encounter_ref, participant_key, request)
     }
 
@@ -320,7 +495,7 @@ impl AtlasWebService for AtlasAppService {
         encounter_ref: &str,
         participant_key: &str,
         condition_id: i64,
-    ) -> Result<EncounterDetailView, AppServiceError> {
+    ) -> Result<EncounterMutationView, AppServiceError> {
         self.remove_encounter_participant_condition(encounter_ref, participant_key, condition_id)
     }
 
@@ -370,6 +545,29 @@ impl AtlasWebService for AtlasAppService {
     fn delete_saved_list(&self, list_ref: &str) -> Result<DeleteSavedListView, AppServiceError> {
         self.delete_saved_list(list_ref)
     }
+}
+
+struct AbandonReadOnDrop(ReadExecutionContext);
+
+impl Drop for AbandonReadOnDrop {
+    fn drop(&mut self) {
+        self.0.abandon();
+    }
+}
+
+pub(crate) async fn call_read_service<T: Send + 'static>(
+    state: AtlasWebState,
+    call: impl FnOnce(ReadExecutionContext) -> Result<T, AppServiceError> + Send + 'static,
+) -> Result<T, WebError> {
+    let execution = ReadExecutionContext::tracked();
+    // This guard belongs to the awaiting handler, independently of the blocking
+    // work which must retain its permit until it actually finishes.
+    let _guard = AbandonReadOnDrop(execution.clone());
+    call_service(state, move || {
+        execution.check()?;
+        call(execution)
+    })
+    .await
 }
 
 pub(crate) async fn call_service<T: Send + 'static>(

@@ -1,0 +1,22 @@
+{
+  "name": "@atlas-dev/dice-prototype",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare:renderers": "node prepare-renderers.mjs",
+    "dev": "vite --host 127.0.0.1 --port 8820 --strictPort",
+    "build": "tsc --noEmit && vite build"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "antd": "^6.6.5",
+    "@ant-design/icons": "^6.3.4"
+  },
+  "devDependencies": {
+    "vite": "^8.0.16",
+    "typescript": "^5.6.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
+  }
+}

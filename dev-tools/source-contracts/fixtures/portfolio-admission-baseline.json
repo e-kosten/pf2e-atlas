@@ -1,0 +1,16 @@
+{
+  "sourceDigest": "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8",
+  "corpusDigest": "b11d1bae6151272929ffc99380c7c6cd743c4a2ed440b2005b69dafa485520b7",
+  "counts": {
+    "occurrences": 136832,
+    "retained": 136832,
+    "modeled": 136825,
+    "fullyTyped": 136543,
+    "partial": 282,
+    "rawOnly": 7,
+    "rejected": 0,
+    "fidelityFailures": 0,
+    "diagnostics": 400
+  },
+  "outcomeDigest": "aa13fd2ae0fd4f3558476e7c5b06efcbebf1cf43686ba8be8cd6de985cac98f3"
+}

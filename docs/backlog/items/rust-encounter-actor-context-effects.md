@@ -36,4 +36,4 @@ The end state should let the encounter runner answer questions such as:
 
 - [Rust encounter condition mechanics](./rust-encounter-condition-mechanics.md)
 - [Rust record presentation mechanics unification](./rust-record-presentation-mechanics-unification.md)
-- [Encounter mechanics activity model](../../../scratch/plans/2026-06-24-encounter-mechanics-activity-model.md)
+- Encounter mechanics activity model (historical local plan: `scratch/plans/archive/2026-06/2026-06-24-encounter-mechanics-activity-model.md`)

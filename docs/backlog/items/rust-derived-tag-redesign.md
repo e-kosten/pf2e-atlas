@@ -3,13 +3,13 @@
 Status: planned
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-06
+Last reviewed: 2026-10-13
 
 ## Problem
 
-Derived tags remain useful as a product concept, but the Rust artifact model changes the surrounding vocabulary: record kinds replace broad category/subcategory assumptions, explicit source axes are available, and search/filter discovery has stronger typed foundations.
-
-The next implementation should redesign the retained tag model for the Rust runtime instead of porting the previous editorial implementation directly.
+Derived tags describe concepts that complement record kinds, source axes, typed
+traits and query facts. Their ontology, assessment workflow and product integration
+need a deliberate design grounded in those source-backed contracts.
 
 ## Desired Outcome
 
@@ -19,7 +19,7 @@ The redesign should decide:
 
 - which tag concepts remain runtime filter axes
 - which concepts become authored taxonomy or editorial-only metadata
-- which concepts retire because record kind, traits, metadata, metrics, or graph context cover the use case better
+- which concepts retire because record kind, traits, typed query facts or graph context cover the use case better
 - how global tag definitions, applicability predicates, shallow display group/subgroup navigation, and search-space tag discovery replace the old common-tag plus category-projection model
 - what Rust struct, enum, trait, and file layout should exist before any real tag taxonomy is implemented
 - which fields are closed typed vocabularies versus open authored strings, so group/subgroup/kind/applicability values do not drift through string proliferation
@@ -33,7 +33,8 @@ The redesign should decide:
 
 ## Constraints
 
-- Add an `atlas-tags` crate only when the accepted runtime/editorial model starts implementation.
+- Use the existing `atlas-tags` owner for definitions and validation; agree runtime
+  and editorial integration before expanding its product responsibilities.
 - Do not depend on retired implementation files as the runtime model.
 - Keep high-churn candidate discovery and clustering behind stable runtime tag consumption.
 - Preserve useful authored knowledge only through a deliberate migration or seed format.
@@ -52,9 +53,11 @@ The redesign should decide:
 
 ## Notes
 
-This item preserves the useful intent from retired derived-tag backlog items around concept modeling, index/service boundaries, assignments layout, manifest metadata, review questions, tagging command organization, category relevance, and editorial workflows.
-
-The accepted model is captured in [Tagging architecture](../../architecture/tagging.md) and [ADR 0028](../../architecture/decisions/0028-rust-tagging-model.md). It proposes an `atlas-tags` domain crate, global tags with typed applicability predicates, shallow display group/subgroup navigation, YAML catalog and assignment files backed by Rust validation, search-space tag discovery for mixed record-kind result sets, record-level assignment sets that may contain zero tags after review, secondary human-approved ontology suggestions, and an agent-first workflow where Rust validates worklists, applicability, proposal packets, reconsideration loops, escalation packets, and authored assignment import while delegated agents perform the semantic tagging work from explicit JSON context.
+The accepted model is captured in [Tagging architecture](../../architecture/tagging.md)
+and [ADR 0028](../../architecture/decisions/0028-rust-tagging-model.md). These remain
+the authority while further ontology/assessment design is provisional. An approved
+revision must reconcile those documents with its implementation; a working proposal
+alone does not replace their policy.
 
 ## Related
 

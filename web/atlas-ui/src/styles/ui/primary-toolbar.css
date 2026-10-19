@@ -1,0 +1,12 @@
+.primary-toolbar {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+.primary-toolbar > * {
+  min-width: 0;
+}

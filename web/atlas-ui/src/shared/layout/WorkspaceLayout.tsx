@@ -20,9 +20,9 @@ type WorkspaceLayoutProps = {
   detail?: React.ReactNode;
   detailHeaderActions?: React.ReactNode;
   labels?: Partial<Record<PaneKey, string>>;
-  sizing?: "results-focus" | "detail-focus";
   widthSpecs?: Partial<PaneState>;
   selectedRecordKey: string | null;
+  collapsiblePanes?: readonly PaneKey[];
 };
 
 const COLLAPSED_WIDTH = 44;
@@ -40,9 +40,9 @@ export function WorkspaceLayout({
   detail,
   detailHeaderActions,
   labels = {},
-  sizing = "results-focus",
   selectedRecordKey,
   widthSpecs = {},
+  collapsiblePanes = ["filter", "results", "detail"],
 }: WorkspaceLayoutProps) {
   const effectiveWidthSpecs = {
     filter: widthSpecs.filter ?? WIDTH_SPECS.filter,
@@ -65,13 +65,15 @@ export function WorkspaceLayout({
 
   const effectiveCollapsed = useMemo(
     () => ({
-      ...collapsed,
+      filter: collapsiblePanes.includes("filter") && collapsed.filter,
+      results: collapsiblePanes.includes("results") && collapsed.results,
       detail:
+        collapsiblePanes.includes("detail") &&
         collapsed.detail &&
         detailCollapsedForRecordKey !== null &&
         detailCollapsedForRecordKey === selectedRecordKey,
     }),
-    [collapsed, detailCollapsedForRecordKey, selectedRecordKey],
+    [collapsed, detailCollapsedForRecordKey, selectedRecordKey, collapsiblePanes],
   );
 
   function togglePane(pane: PaneKey) {
@@ -95,9 +97,11 @@ export function WorkspaceLayout({
           {
             kind: "pane" as const,
             key: "filter",
-            column: paneColumn("filter", effectiveCollapsed, widths, sizing),
+            column: paneColumn("filter", effectiveCollapsed, widths),
             content: (
               <WorkspacePane
+                pane="filter"
+                collapsible={collapsiblePanes.includes("filter")}
                 collapsed={effectiveCollapsed.filter}
                 headerActions={filterHeaderActions}
                 label={paneLabels.filter}
@@ -119,10 +123,12 @@ export function WorkspaceLayout({
             kind: "pane" as const,
             key: "results",
             column: hasDetail
-              ? paneColumn("results", effectiveCollapsed, widths, sizing)
+              ? paneColumn("results", effectiveCollapsed, widths)
               : twoPaneResultsColumn(effectiveCollapsed),
             content: (
               <WorkspacePane
+                pane="results"
+                collapsible={collapsiblePanes.includes("results")}
                 collapsed={effectiveCollapsed.results}
                 headerActions={resultsHeaderActions}
                 label={paneLabels.results}
@@ -140,15 +146,17 @@ export function WorkspaceLayout({
               key: "results-detail",
               disabled: effectiveCollapsed.results && effectiveCollapsed.detail,
               label: `Resize ${paneLabels.results.toLowerCase()}`,
-              resizePane: sizing === "detail-focus" ? "results" : "detail",
-              deltaMultiplier: sizing === "detail-focus" ? 1 : -1,
+              resizePane: "detail",
+              deltaMultiplier: -1,
             },
             {
               kind: "pane" as const,
               key: "detail",
-              column: paneColumn("detail", effectiveCollapsed, widths, sizing),
+              column: paneColumn("detail", effectiveCollapsed, widths),
               content: (
                 <WorkspacePane
+                  pane="detail"
+                  collapsible={collapsiblePanes.includes("detail")}
                   collapsed={effectiveCollapsed.detail}
                   headerActions={detailHeaderActions}
                   label={paneLabels.detail}
@@ -170,15 +178,11 @@ function paneColumn(
   pane: PaneKey,
   collapsed: Record<PaneKey, boolean>,
   widths: Record<string, number>,
-  sizing: "results-focus" | "detail-focus",
 ): string {
   if (collapsed[pane]) {
     return `${COLLAPSED_WIDTH}px`;
   }
-  if (sizing === "results-focus" && pane === "results") {
-    return "minmax(0, 1fr)";
-  }
-  if (sizing === "detail-focus" && pane === "detail") {
+  if (pane === "results") {
     return "minmax(0, 1fr)";
   }
   if (pane === "detail" && collapsed.results) {
@@ -201,33 +205,37 @@ function twoPaneResultsColumn(collapsed: Record<PaneKey, boolean>): string {
 }
 
 function WorkspacePane({
+  pane,
   children,
   collapsed,
+  collapsible,
   headerActions,
   label,
   onToggle,
 }: {
+  pane: PaneKey;
   children: React.ReactNode;
   collapsed: boolean;
+  collapsible: boolean;
   headerActions?: React.ReactNode;
   label: string;
   onToggle: () => void;
 }) {
   return (
     <PaneFrame
-      className={
-        collapsed ? "workspace-pane workspace-pane--collapsed" : "workspace-pane"
-      }
+      className={`workspace-pane workspace-pane--${pane}${collapsed ? " workspace-pane--collapsed" : ""}`}
       headerActions={
         <>
           {!collapsed && headerActions}
-          <PaneIconButton
-            icon={
-              collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />
-            }
-            label={collapsed ? `Expand ${label}` : `Collapse ${label}`}
-            onClick={onToggle}
-          />
+          {collapsible && (
+            <PaneIconButton
+              icon={
+                collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />
+              }
+              label={collapsed ? `Expand ${label}` : `Collapse ${label}`}
+              onClick={onToggle}
+            />
+          )}
         </>
       }
       label={label}

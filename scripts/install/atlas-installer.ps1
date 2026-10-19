@@ -37,6 +37,8 @@ switch ($arch) {
 
 if ($Version -eq "latest") {
   $baseUrl = "https://github.com/$Repo/releases/latest/download"
+} elseif ($Version -eq "nightly") {
+  $baseUrl = "https://github.com/$Repo/releases/download/nightly"
 } elseif ($Version.StartsWith("v")) {
   $baseUrl = "https://github.com/$Repo/releases/download/$Version"
 } else {
@@ -61,7 +63,11 @@ if ($cmd -and ($cmd.Source -ne $installPath)) { $shadow = $cmd.Source }
 Write-Host "Atlas installer"
 Write-Host "  target:      $target"
 Write-Host "  version:     $Version"
-Write-Host "  manifest:    $manifestUrl"
+if ($Version -eq "nightly") {
+  Write-Host "  channel:     $baseUrl/nightly-version.txt (resolved when installing)"
+} else {
+  Write-Host "  manifest:    $manifestUrl"
+}
 Write-Host "  install dir: $InstallDir"
 Write-Host "  PATH:        $pathStatus"
 Write-Host "  existing:    $existing"
@@ -77,6 +83,17 @@ New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("atlas-install-" + [System.Guid]::NewGuid())
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 try {
+  if ($Version -eq "nightly") {
+    $pointer = Join-Path $tmp "nightly-version.txt"
+    Invoke-WebRequest -Uri "$baseUrl/nightly-version.txt" -OutFile $pointer
+    $tag = (Get-Content $pointer -Raw).Trim()
+    if ($tag -cnotmatch '\Av[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{14}\.g[0-9a-f]{12}\z') {
+      Fail "invalid nightly channel pointer"
+    }
+    $baseUrl = "https://github.com/$Repo/releases/download/$tag"
+    $manifestUrl = "$baseUrl/atlas-release-manifest.json"
+    Write-Host "  nightly:     $tag"
+  }
   $sums = Join-Path $tmp "SHA256SUMS"
   $manifestPath = Join-Path $tmp "atlas-release-manifest.json"
   $zip = Join-Path $tmp $archive

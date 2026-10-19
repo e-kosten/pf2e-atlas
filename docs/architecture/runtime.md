@@ -1,205 +1,476 @@
-# Runtime Architecture
+# Runtime architecture
 
-This document describes the Rust workspace architecture for deterministic ingest, artifact validation, local CLI workflows, local web workflows, lexical and semantic search, graph context retrieval, first-party agent skill workflows, and future Rust TUI/tagging surfaces.
-
-The Rust architecture is deliberately crate-oriented. Crates should expose only the public API needed by adjacent owners, and ingest/build-time policy should not leak into runtime query or presentation crates.
-
-## System Shape
+Runtime reads use the source-backed reference portion of a persistent workspace. Build-time admission,
+filesystem discovery and developer reports remain separate from product retrieval.
+See the [overview](./overview.md) for crate ownership and the
+[artifact contract](./artifact-contract.md) for storage/validation.
 
 ```mermaid
 flowchart TD
-    source["Foundry PF2E JSON<br/>vendor/pf2e"] --> ingest["atlas-ingest<br/>source load, normalization,<br/>enrichment, artifact build"]
-    ingest --> artifact["SQLite artifact<br/>records, content, FTS,<br/>relationships, embeddings,<br/>vector index"]
-    localStateDb["SQLite local state<br/>saved lists, encounters,<br/>and mutable local data"]
-
-    skill["PF2e Atlas agent skill"] --> cli["atlas-cli<br/>commands, JSON/text output,<br/>exit codes,<br/>agent skill installation"]
-    cli --> web["atlas-web<br/>local Axum API"]
-    web --> appService["atlas-app-service<br/>application workflow service"]
-    appService --> appModel["atlas-app-model<br/>app DTOs + TS export"]
-    appService --> runtime
-    appService --> search
-    appService --> localState["atlas-local-state<br/>saved lists, encounters,<br/>and mutable local state"]
-    cli --> cliClient["atlas-cli client<br/>local app-service / future HTTP"]
-    cliClient --> appService
-    cli --> runtime["atlas-runtime<br/>setup/index control plane"]
-    runtime --> search["atlas-search<br/>AtlasRetrievalService"]
-    runtime --> index["atlas-index<br/>RetrievalReadIndex capability bundle<br/>SqliteIndexReader"]
-    runtime --> localStateDb
-    localState --> localStateDb
-
+    source[Foundry checkout] --> ingest[atlas-ingest: load and prepare]
+    model[atlas-foundry-model: authored DTO and checked codec] --> ingest
+    record[atlas-record: borrowed facts and content policies] --> ingest
+    embedding[atlas-embedding: pinned model and inputs] --> ingest
+    ingest --> index[atlas-index: checked writer and read APIs]
+    index --> artifact[Persistent SQLite workspace]
+    runtime[atlas-runtime: paths and readiness] --> search[atlas-search: retrieval]
     search --> index
-    search --> embedding["atlas-embedding<br/>query vectors, document units,<br/>model catalog"]
-    index --> artifact
-    ingest --> sqliteVec["atlas-sqlite-vec<br/>sqlite-vec capability"]
-    index --> sqliteVec
-    sqliteVec --> artifact
-
-    subgraph SharedRustModels["Shared Rust models"]
-      domain["atlas-domain<br/>request/filter/output vocabulary"]
-      record["atlas-record<br/>normalized records, RichDocument,<br/>presentation and projections"]
-      artifactSchema["atlas-index<br/>Diesel schema, migrations,<br/>discovery policy, and artifact contract constants"]
-    end
-
-    ingest --> domain
-    ingest --> record
-    index --> domain
-    index --> record
-    index --> artifactSchema
-    search --> domain
-    search --> embedding
-    cli --> domain
+    runtime --> embedding
+    cli[atlas-cli] --> runtime
+    cli --> search
+    cli --> app[atlas-app-service]
+    web[atlas-web] --> app
+    app --> runtime
+    app --> search
+    app --> local[atlas-local-state]
+    local --> artifact
+    runtime --> storage[atlas-storage: sessions and migration execution]
+    storage --> artifact
+    browser[React and Ant UI] --> web
 ```
 
-## Crate Ownership
+## Pinned reference acquisition
 
-| Crate | Owns | Should not own |
-| --- | --- | --- |
-| `atlas-app-model` | Interactive app workflow DTOs, app errors, readiness views, filter editor contracts, basic filter state, result-window request/response types, record view wrappers, serde contracts, and generated TypeScript app contracts. | Durable search semantics, SQLite access, runtime path policy, CLI presentation, or duplicate record presentation/rich document logic. |
-| `atlas-app-service` | Application workflow orchestration over `atlas-runtime`, `atlas-search`, and `atlas-local-state`, including web full retrieval-service startup, explicit on-demand retrieval modes for short-lived local CLI clients, result-window metadata, filter editor projection, app filter lowering, record detail projection, saved-list read projection/hydration, encounter runner projection/hydration, and app error mapping. Its service entry module owns the public handle, shared state, local-state path, and bounded retrieval executor; workflow modules own result-window, record-detail, filter-discovery, saved-list, and encounter orchestration plus their focused tests. | Direct `atlas-index` access, SQLite reader assembly, implicit retrieval fallback policy, HTTP routing, frontend layout/state, or a single unbounded global request lane. |
-| `atlas-web` | Local Axum HTTP routes, API error/status mapping, and future static frontend serving for the local web app. | Retrieval semantics, result-window policy, app DTO definitions, SQLite access, frontend component logic. |
-| `atlas-domain` | Shared request/filter/output vocabulary and lightweight semantic primitives, including the simple product filter DTO and canonical `SearchFilterNode` tree. | SQLite DDL, ingest source structs, artifact metadata inventories, CLI formatting, embedding provider config. |
-| `atlas-tags` | Tag ontology, YAML parsing, corpus loading, applicability evaluation, assignment validation, evidence validation, ontology suggestions, and tagging agent contract DTOs. | Raw source normalization, SQLite schema, runtime path policy, CLI presentation, or terminal rendering. |
-| `atlas-local-state` | Durable mutable local state stored outside the generated artifact, including saved-list schema/items and encounter schema/participants with snapshots for unresolved record-backed rows. | Generated artifact schema, source ingest, retrieval/search semantics, runtime path policy, CLI presentation, or frontend state. |
-| `atlas-record` | Storage-agnostic normalized records, typed metric definitions and labels, mechanics/activity projections, `RichDocument`, rich-content renderers, reference graph policy, reference traversal, section-tree projection, FTS projection, and `RecordPresentationDocument`. | Foundry HTML/macro parsing, SQLite names, validation diagnostics, CLI envelopes, embedding model execution. |
-| `atlas-ingest` | Source loading, Foundry-specific parsing, normalization, Foundry metric source specs and metric extraction with definition validation, generated records, aliases/remaster links, reference resolution, retrieval visibility, embedding execution during builds, and owned conversion into `IndexBuildInput`. | Public embedding-specific API, runtime query orchestration, CLI presentation, broad crate-root behavior, metric-definition ownership, physical SQLite writer ownership. |
-| `atlas-index` | Read-only completed-artifact access through narrow read capability traits and the composite `RetrievalReadIndex` bundle implemented by `SqliteIndexReader`, Diesel-backed relational schema and migrations, artifact writing through `IndexArtifactWriter` and `SqliteIndexWriter`, filter discovery field policy and SQLite extractor rendering, fast artifact readiness checks, deep artifact validation, row readers, internal filter-to-SQL keyset compilation, reference-policy SQL lowering, vector query SQL, and inspection summaries. | Query embedding, CLI command presentation, ingest-time normalization policy, runtime path policy, metric-definition ownership, shared discovery/result DTO vocabulary. |
-| `atlas-embedding` | Model catalog, query/document embedding generation, token budgeting, embedding text rendering, document-unit construction, semantic input hashes, and embedding-specific public types. | Foundry raw markup parsing, artifact schema ownership, SQLite vector byte layout, search result collapse policy. |
-| `atlas-search` | Product-facing retrieval orchestration through `AtlasRetrievalService` and narrow capability traits for records, text search, similar records, graph context, variants, remaster links, and filter discovery. It owns lexical/semantic composition, vector-hit collapse, search ranking modes, and product-shaped filter discovery intent over read-only index handles. Semantic-only retrieval and low-level fusion controls are expert/debug APIs rather than ordinary product entrypoints. | Opening source files, building artifacts, loading models in CLI code, SQLite schema definitions, preflight artifact validation, or exposing index-owned SQL/read details as product API. |
-| `atlas-runtime` | Repo/global path resolution, setup policy, setup readiness and repair orchestration, and construction of runtime index/retrieval handles shared by CLI and future Rust surfaces. | Search semantics, artifact schema, source normalization, CLI JSON projection, deep artifact diagnostics. |
-| `atlas-cli` | Argument parsing, command routing, terminal/JSON presentation, progress output, exit codes, completions, and agent skill installation. | Durable retrieval semantics, SQLite access policy, embedding provider ownership. |
-| `atlas-sqlite-vec` | Unsafe sqlite-vec extension registration and capability boundary. | Domain/search logic or artifact metadata interpretation. |
+Runtime acquires the exact PF2e commit emitted by model generation from the
+canonical source pin (ADR0052). Default source caches are keyed by commit and
+published only after a detached checkout is complete and clean; setup never pulls
+upstream HEAD. Explicit or persisted user source directories are inspected without
+mutation. Ingest rejects incompatible PF2e system manifest versions before product
+preparation; developer admission reports remain usable for unsupported sources.
 
-## Ingest And Artifact Flow
+## Source loading and checked records
 
-```mermaid
-flowchart LR
-    raw["Foundry source records<br/>raw JSON + manifest packs"] --> load["atlas-ingest::source<br/>load packs and source signature"]
-    load --> normalize["normalize<br/>RecordKey, kind, traits,<br/>metrics, side tables"]
-    normalize --> content["Foundry content parser<br/>HTML/macros -> RichDocument"]
-    content --> enrich["atlas-ingest::records<br/>aliases, variants, taxonomy,<br/>reference resolution, visibility"]
-    enrich --> generated["atlas-ingest::generated<br/>source-backed generated afflictions"]
-    generated --> embedPrep["atlas-ingest::embeddings<br/>prepare/run embedding-owned units"]
-    enrich --> buildInput["atlas-ingest::index_build_input<br/>assemble IndexBuildInput"]
-    buildInput --> writer["atlas-index::SqliteIndexWriter<br/>write complete SQLite artifact"]
-    embedPrep --> writer
-    writer --> sqlite["Rust SQLite artifact"]
+Private TypeScript tooling resolves pinned Foundry declarations and emits modular
+Rust under `atlas-foundry-model/src/source_model/generated`. Large extracted
+graphs are ignored caches; CI regenerates/checks committed Rust. Ordinary builds
+need neither Node nor the upstream checkout. Generation ownership, recursive
+identity, templates and authored profiles follow ADR0034–40.
 
-    record["atlas-record<br/>AtlasRecord + RichDocument"] -. model .-> normalize
-    artifactSchema["atlas-index Diesel schema,<br/>migrations, and discovery policy"] -. schema/catalog policy .-> writer
-    embedding["atlas-embedding<br/>document units + vectors"] -. owns .-> embedPrep
-    sqliteVec["atlas-sqlite-vec<br/>vector table capability"] -. capability .-> writer
-```
+Strict authored parsing and admission are distinct. Admission retains useful
+records with explicit invalid members and diagnostics; malformed collection
+members are not silently dropped or reordered. Specific rule interpretation stays
+atomic and separate from generic Item rule retention. See ADR0041. Ingest's
+`load_foundry_documents` preserves file order, bytes/hashes, provenance and explicit
+quarantines/unaddressable outcomes; it does not construct product schemas.
 
-`atlas-ingest/src/lib.rs` is a thin facade. New ingest behavior belongs under the phase that owns it: `source`, `records`, `generated`, `embeddings`, or the build-input handoff. The final build-input handoff consumes ingest state into an owned `atlas-index::IndexBuildInput`; it should not be a borrowed view over `SourceLoad`. Physical SQLite artifact writing belongs in `atlas-index`.
+`SourceBackedRecord` derives a checked key from an admitted DTO and exposes an
+immutable body. Its shared traversal processes borrowed nodes using an active
+owner chain, rather than storing a global inventory. Consumers request concrete
+owner/content addresses. Family/common query and presentation views borrow actual
+typed fields and preserve unavailable states. There is no DTO-to-AtlasRecord
+normalization step or separately maintained runtime family authority.
 
-Source-field promotion follows [ADR 0032](./decisions/0032-ingest-product-intent.md): ingest should model Foundry source facts when they improve search/discovery, record presentation, runtime play surfaces, CLI/agent workflows, graph/reference behavior, or audit/data-quality feedback. Do not mirror raw JSON into typed models solely because a field exists.
+`encode_snapshot`/`decode_snapshot` belong to `atlas-foundry-model`. Decoding reads
+the tagged checked representation with version/identity/recursion guards; it runs
+no source admission, defaults or repairs. Original complete source JSON is not
+duplicated in the artifact. Developer source inspection can read the checkout;
+normal runtime reads use the checked codec and work without it.
+`atlas record source` explicitly exports a product record's complete checked
+snapshot and compact provenance through the existing retrieval/app-service path.
+This inspection does not use presentation projections or read the source clone.
+The shared model-owned JSON inspection helper preserves the codec's depth guards;
+developer original-file inspection remains a separate hash-verified operation.
 
-Source normalization emits ingest-only construction facts beside each normalized record. These facts carry source identity such as slugs and compendium-source locators, embedded item identity/provenance/content references, and journal page content parsed from Foundry source JSON. Later ingest phases use those facts for aliases, remaster links, and source-backed generated records instead of reparsing `AtlasRecord.raw_json`; reference, FTS, and embedding projections consume the normalized `RichDocument` outputs produced during normalization. Persisted raw JSON remains provenance/debug input and a future analysis substrate, not the normal construction API between ingest phases.
+## Build and preparation
 
-`atlas index audit-source-paths` is the explicit offline diagnostic for that analysis substrate. It scans Foundry source packs, inventories scalar JSON paths with representative examples, and annotates paths with known ingest consumer families. This command may inspect broad raw source JSON because it is reporting/debug tooling; runtime lookup, search, filtering, and presentation should still use typed records, side tables, content documents, and product DTOs.
+Ingest first establishes source/reference identity, then supplies explicit locale,
+audience and resolver context to record-owned preparation and relationship policies.
+The record itself remains a key and DTO. Content outcomes and resolved relationship
+occurrences are separate derived outputs. Original bytes/provenance, admission
+failures and detailed reports remain ingest/developer concerns.
 
-## Content, Search, And Reference Projections
+`BuildArtifactOptions` composes source paths, locale, selected profile configurations,
+batching/reuse and output paths. An empty profile collection builds lexical content.
+The build prepares shared source content once, then checks native inputs and runs
+inference/reuse sequentially per selected profile. It produces index-owned inputs: checked
+records, named typed projections, selected content, verified identity evidence and
+attributed lexical/semantic units. The index writer owns physical encoding and
+publication. A failed publication rolls back reference changes and preserves saved state.
 
-```mermaid
-flowchart TD
-    markup["Known Foundry rich-text fields<br/>description, notes, hazard text,<br/>embedded item/spell descriptions"] --> parser["atlas-ingest parser<br/>Foundry HTML/macros"]
-    parser --> doc["atlas-record::RichDocument<br/>HTML elements, text,<br/>Foundry links/macros"]
+The aggregate source fingerprint hashes the ordered actual relevant inputs,
+including manifest/pack definitions and excluded records. A Git revision alone
+does not capture exported checkouts or local edits. Shared content preparation
+identity includes locale/catalogs, audience and content/relationship/selection
+policies; it excludes profile model assets and passage recipes. Each profile's
+execution/reuse identity binds its complete selected model/native-tokenizer assets,
+the full shared BGE segmentation-tokenizer digest and its passage recipe. The full
+artifact generation binds shared preparation plus the complete profile manifest.
+Embedding checkpoints persist exact model/input identities, input hashes, token
+counts, vector checksums and dimensions independently of the active reference.
+Ingest prepares current inputs with the pinned tokenizers and accepts only exact
+checkpoint matches. Profile-native preparation produces an immutable checked
+batch in `atlas-embedding`; checkpoint lookup and generation consume the same
+counts and execution identities without repeating full-batch token validation.
+Uncached inputs retain the inference tokenizer checks. An inference session is
+loaded only when that batch contains uncached inputs. Verified checkpoint vectors
+are borrowed during generation rather than copied into another full-profile map.
+Each inferred batch commits separately after computation;
+no SQLite write transaction remains open during inference. Final publication
+activates complete profile coverage and prunes checkpoints not used by active
+profiles. A failed preparation retains reusable batches for a retry.
 
-    doc --> presentation["RecordPresentationDocument<br/>CLI/TUI-ready rich structure"]
-    doc --> fts["RecordFtsProjection<br/>title, aliases, traits,<br/>taxonomy, constraints, mechanics,<br/>source, metrics, headings,<br/>body, facts, references,<br/>embedded_content"]
-    doc --> tree["Content section tree<br/>explicit headings,<br/>synthetic run-in labels,<br/>table captions"]
-    doc --> refs["Resolved FoundryLink nodes"]
+Unchanged admitted sources reuse checked DTOs and prepared content when the source
+and preparation identities agree. References are resolved again against the current
+identity catalog, including previously unresolved targets, so dependency changes
+can invalidate a dependent record without changing its own source bytes.
 
-    presentation --> parentEmbedding["Embedding parent unit<br/>primary/default content;<br/>embedded capability content excluded"]
-    tree --> childEmbedding["Embedding child units<br/>explicit headings only;<br/>unpromoted embedded content excluded"]
-    refs --> edges["reference_edges<br/>source_kind + visibility + relation_kind"]
-    fts --> recordsFts["records_fts<br/>weighted lexical search"]
-```
+The content interpreter produces sanitized HTML and narrow marker/control facts
+using the shared HTML parser and sanitizer.
+The selected cache is stored once per field; authored markup remains in the DTO.
+CLI formatting is derived with html2text at read time. UI controls use field-local
+ordinals and intentional app contracts, never arbitrary Foundry JavaScript.
+Initial indexing includes GM/owner text/DCs and excludes None; English is the
+overridable build default. Search/display initially use artifact locale.
 
-The durable source of authored rich text is `RichDocument`, not stripped text and not raw Foundry markup. `RichDocument` preserves HTML elements and Foundry enrichments together; plain text, structured presentation content for CLI JSON/terminal output, structured FTS rows, semantic chunks, and reference edges are projections from content and presentation models.
+Lexical selection uses names, verified aliases, typed vocabulary, actual owned
+labels and meaningful structural definition labels. It does not dump descriptive
+prose into FTS. Semantic selection independently covers selected explanatory
+root/owned passages plus compact root identity. text-splitter segments passages;
+the actual tokenizer checks every final input with complete body/tail coverage.
+FastEmbed executes pinned BGE Base CLS/L2 and EmbeddingGemma's exported projected
+sentence output with L2 normalization. Both profiles share baseline BGE segmentation;
+the selected native tokenizer checks every officially prefixed final input.
+[ADR0050](./decisions/0050-selectable-search-profiles.md) pins these boundaries.
 
-Default public graph and backlink behavior uses the named reference graph policy in `atlas-record`: public non-embedded reference edges are in the default graph, public embedded edges require an expanded mode, and GM/private/internal edges remain excluded unless a caller explicitly asks for broader visibility. `atlas-index` lowers that policy into SQL predicates over `reference_edges`; the database does not store a separate default-edge boolean.
+## Runtime paths and setup
 
-## Runtime Query Flow
+The workspace lives in platform application-data storage; source checkouts and
+model assets remain in platform cache storage. Explicit repo mode uses
+`vendor/pf2e`, `.cache/hf-models` and `.atlas/workspace.sqlite`. Source path,
+manifest, locale and requested profiles are durable configuration independent of
+active reference output. Explicit setup overrides update that intent; omitted
+options preserve it. Adding a profile retains already requested profiles.
 
-```mermaid
-flowchart TD
-    skill["PF2e Atlas agent skill"] --> command["atlas-cli product read command<br/>search, record, graph, lists, filters"]
-    skill --> control["atlas-cli control command<br/>setup, index"]
-    command --> cliClient["atlas-cli client<br/>local app-service"]
-    cliClient --> appService["atlas-app-service"]
-    appService --> runtime["atlas-runtime<br/>resolved paths + handles"]
-    appService --> search["atlas-search<br/>AtlasRetrievalService"]
-    control --> runtime
-    runtime --> index["atlas-index<br/>SqliteIndexReader"]
-    search --> filters["atlas-index internal filter compiler<br/>SearchFilterNode -> eligible records"]
-    filters --> sqlite["SQLite artifact"]
+Runtime composes reference and saved-domain SQL into one ordered migration ledger.
+Storage verifies ledger checksums, backs up existing workspaces before structural
+upgrades, and commits migrations, backfills and validation atomically. Supported
+query-catalog changes rebuild typed projections from retained DTOs without source
+admission or inference. Other component changes require their corresponding
+preparation work; physical schema version alone is not an inference invalidation.
 
-    search --> graph["atlas-index reference-edge queries<br/>default graph policy"]
-    graph --> sqlite
+One update owner serializes configuration/source publication. Maintenance drains
+cooperating sessions and records durable admission closure. Publication validates
+inside its final transaction before advancing the reference revision. Interrupted
+maintenance is recovered only after validating committed data; failed validation
+keeps admission closed. The workspace file and saved tables are never replaced by
+normal setup. Existing pre-release formats are rejected explicitly; the new
+baseline establishes the migration path for subsequent upgrades.
 
-    search --> lexical["atlas-index lexical SQL<br/>records_fts weighted columns"]
-    lexical --> sqlite
+Setup owns source-fetch/offline policy, pinned model preparation and readiness.
+Records-only operation needs no query embeddings. English is the fresh indexing
+default. The embedding crate owns checksum/cache readiness without loading models.
+Fresh semantic setup selects BGE Base. Cache packages use model-ID/revision
+directories; missing or corrupt files are repaired through verified temporary
+download and rename. Old package revisions remain untouched.
 
-    search --> queryVec["atlas-embedding<br/>query text -> vector"]
-    queryVec --> vectorSql["atlas-index vector query<br/>eligible document_embedding_cache rowids"]
-    vectorSql --> sqliteVec["atlas-sqlite-vec capability"]
-    sqliteVec --> sqlite
+Explicit setup freshness may compare the source fingerprint. Ordinary lookup,
+search, lists and encounters do not scan the source checkout. Cheap index checks
+validate the executable contract/capability; deep coherence validation is an
+explicit diagnostic/build-publication operation. Model-free lexical and stored
+vector workflows remain deliberate modes rather than implicit web fallbacks.
 
-    graph --> collapse["atlas-search result assembly"]
-    lexical --> collapse
-    vectorSql --> collapse
-    collapse --> output["atlas-cli presentation<br/>JSON or terminal text"]
-```
+## Retrieval and application workflows
 
-Simple product filters lower once through `atlas-domain::SimpleSearchFilter` into the canonical `SearchFilterNode` tree; advanced callers may provide a canonical tree directly. Filters compile to an authoritative SQL keyset before lexical or vector search. SQLite lexical search keeps that keyset in the same query as `records_fts` and the normal search path uses precision FTS lanes over title/alias and high-signal facet columns. `atlas-search` classifies FTS hits by title/alias coverage and high-value record-token coverage before hybrid fusion, so weak broad-token FTS evidence is demoted instead of crowding out stronger semantic matches. The vector table stays rowid plus vector; filtering metadata remains in normal SQLite tables and is reached through `document_embedding_cache.rowid`.
+CLI and web operations use bounded read sessions rather than retaining database
+snapshots between requests. A composed reference/state read shares one connection
+and transaction. Source-free lists and encounters can operate before reference
+publication. App-service receives typed `WorkspaceRead`, `StateRead` and
+`WorkspaceWrite` capabilities; it does not open databases or coordinate raw SQL.
 
-Product retrieval requests use shared page-number pagination through `atlas-search::SearchPage`, not caller-supplied SQL offsets. `atlas-search` translates that page intent into SQL limit/offset for filter-only listing and into bounded ranked result windows for text search, then returns `SearchPageInfo` so CLI, future TUI, and future web surfaces share one traversal contract. Stateful surfaces that need to filter a caller-owned record set, such as saved-list views, pass a generic `RecordScope` to `atlas-search` for listing, discovery, and text search; `atlas-index` applies that scope as an intersection with the compiled SQL keyset rather than teaching search about the stateful product.
+Web retains a bounded worker queue and runtime/inference owners. Idle workers hold
+no reader. Each operation observes one coherent reference revision; later
+operations can see a completed publication without restarting the service.
+Semantic queries prepare their embedding before opening the consuming session,
+then recheck the profile contract. Default query-profile warming and retained
+model sessions are independent of database lifetimes. Lexical/reference reads and
+stored-vector Similar remain model-free.
 
-Graph context retrieval is one-hop. `atlas graph links <record>` routes through the CLI client into app-service and `AtlasRetrievalService`, resolves a strict name when needed, loads the seed record through the normal record path, asks the `ReferenceReadIndex` boundary for policy-visible `reference_edges`, applies deterministic edge ordering and unique-neighbor limits, then hydrates only retained neighbor records. `atlas graph uses <record>` is the backlinks-focused form. Variant group resolution is owned by `atlas-search`: canonical record keys open the group for that concrete record, while text inputs prefer direct variant base-name group lookup before strict record-name fallback. `atlas similar <record>` is a record-to-record retrieval surface owned by `atlas-search`: runtime opens a vector-ready record retrieval service without loading the embedding model, resolves a seed record, loads the seed's stored parent embedding from the active SQLite index, queries vector candidates without re-rendering or re-embedding the seed, applies the same structured filter scope to candidate retrieval, and reranks/explains the result set with modest shared-reference and shared-trait evidence. The ref-based similar surface resolves strict seed names with that same structured filter so inputs like `atlas similar "Dirge of Doom" --kind spell` choose the spell seed, while the direct key-based similar request remains available for callers that already have a canonical `RecordKey`. Search relationship flags such as `--referenced-by` remain result-set filters; graph context retrieval returns a local context bundle with edge evidence, counts, and truncation metadata.
+One global native mutex serializes model loading/inference, with four inference
+threads and the existing bounded worker queue. It releases before SQL ranking.
+Stored-vector Similar and lexical/reference operations do not require query assets.
+Profile readiness reports stored vectors, verified assets and query usability
+separately for stored profiles only, without constructing a native session for
+metadata checks. App-service readiness retains the same runtime as query workers.
+Required-file metadata witnesses retain verified availability until the package
+changes; normal repair is observed on a later check. Native loading still verifies
+actual bytes, and an already-loaded session remains usable after disk changes.
+The inference owner publishes its finite loaded-profile snapshot after successful
+session insertion, so metadata does not wait behind the native inference lane.
+Omitted launch selection remains optional until runtime resolves the manifest:
+sole profile selects itself, both select BGE Base. Explicit missing choices error.
 
-Runtime SQLite access is read-only and goes through `SqliteIndexReader`, with retrieval orchestration depending on index-owned read capability traits rather than on ad hoc SQL access. `atlas-index` owns the composite `RetrievalReadIndex` bundle for consumers that legitimately need the full retrieval read surface; `atlas-search` consumes that bundle while exposing product-facing retrieval traits to its own callers. Construction-time writes are separate and go through `IndexArtifactWriter` implementations such as `SqliteIndexWriter`, which write a temporary artifact and publish it only after records, FTS, embedding cache rows, and `record_vector_index` are complete. Product surfaces route retrieval and filter discovery through the CLI client/app-service boundary, `atlas-runtime`, and `AtlasRetrievalService`; they do not open SQLite or assemble retrieval dependencies directly. Inside lower-level Rust modules, callers should type dependencies to the narrow `atlas-search` capability trait they need, such as `RecordRetrieval`, `TextRetrieval`, `GraphRetrieval`, `VariantRetrieval`, `RemasterRetrieval`, or `FilterDiscoveryRetrieval`.
+Build owners emit existing `atlas_progress` events with profile IDs/names, stages,
+completed/total work and separate occurrence/unique/reuse counts. CLI-support owns
+TTY in-place and bounded nonTTY stderr rendering, elapsed/rate and supported ETA;
+unknown work stays unknown. JSON stdout and disabled progress remain clean.
 
-The local web surface follows the same boundary through `atlas-app-service`. `atlas web` resolves path overrides and starts Axum; `atlas-web` serves the embedded built frontend plus `/api/*` routes, but app-service retrieval workers open full `AtlasRetrievalService` instances with `AtlasRuntime::open_retrieval_service`. Web startup fails if the full semantic-search runtime is not ready. App-service also supports an explicit on-demand no-embeddings retrieval mode for short-lived local CLI workflows; `atlas web` must continue to use the full pooled mode. Axum handlers call the cloneable app-service handle, and the app service owns result-window metadata plus a bounded retrieval executor so read-only requests from multiple clients do not serialize behind one global database lane. Queue saturation is reported as a retryable service-busy app error rather than growing an unbounded backlog. Saved-list and encounter reads and mutations are app-service workflows: app-service opens the runtime-resolved local-state database, composes product APIs from `atlas-local-state` with record resolution and hydration from `atlas-search`, and marks unresolved rows explicitly.
+Search pages, contextual filter counts, and both contextual and count-free value
+discovery receive an explicit, non-serialized `ReadExecutionContext`. Unrelated callers
+choose an uncancellable context. App-service checks abandonment before lazy open
+and queue admission, before a worker enters its expensive closure, and after
+completed retrieval before app projection. A canceled queued item can retain its
+slot and blocking waiter until drained; the contract saves work rather than
+promising immediate capacity reclamation.
 
-Filter discovery callers express product intent through `atlas-search` request types. `atlas-search` owns option coherence such as metric selector shape before adapting to index read requests. `atlas-index` still owns catalog-backed and dynamic discovery execution, including SQL, field definitions, metric resolution against catalog rows, and artifact-specific error details.
+Web's `call_read_service` keeps an abandonment guard in the awaiting handler
+future and delegates to the existing bounded blocking-call helper. Dropping the
+wait marks the context; the actual blocking closure retains its semaphore permit
+until completion. Started SQL/model work can finish before reaching the next
+checkpoint. This does not introduce native interruption, deadlines, or a promise
+that every browser abort drops its server handler. Durable mutations, transaction
+receipts and their reference reads use the normal uncancellable path under
+[ADR0048](./decisions/0048-atomic-mutable-workflows.md).
 
-The local web filter editor is an app-layer projection over product discovery, not a frontend-owned field catalog. `atlas-app-service` adapts `atlas-search` discovery into `FilterEditorView`, including app field ids, groups, typed controls, placement, labels, supported operators, count support, metric comparison controls, field applicability, selected-field preservation, and display ordering such as rarity domain order. `web/atlas-ui` renders that contract and may keep local visibility, pending input values, URL state, and component rendering state, but it should not hard-code product filter groupings, control kind, fallback value lists, field label policy, or discovery-scope semantics. Actual frontend filter values should be stored as app-model `FilterClause` entries so visible controls, URL state, search execution, and discovery context share one clause-first representation.
+`AtlasRetrievalService` is a concrete service over index, an explicit default
+profile and an optional prepared query embedding. Narrow inherent methods own strict name/key lookup, browse, text search,
+similar, graph, remaster links, Suggested variants and catalog discovery. The
+service uses the concrete index reader defined by the artifact contract.
 
-Interactive filter discovery uses different scopes for different product questions:
+The shared predicate compiles to index-owned parameterized eligibility SQL.
+CLI CEL and UI structured requests independently target it. Applicable source
+fields retain value/missing/null/invalid/not-applicable states; only true matches.
+Same-child Exists preserves one witness. Facets use the same bindings and explicit
+self-exclusion semantics. Index analysis returns typed optional unavailability for
+valid unsupported suggestion contexts before search loads embeddings or ranks
+candidates. Malformed predicates, wrong targets/scopes, invalid types and bounds,
+and actual model/SQLite/service failures remain errors. CLI raw discovery presents
+unavailable contexts as actionable command failures without another analysis.
 
-- Editor field applicability is result-space-aware. The backend may use the current filter set to decide which unselected fields are useful in the current result space; this is not limited to record kind. Single-kind filters may use catalog-backed counts as an optimization, but kind is not a special semantic rule.
-- Selected fields must remain editable even when the current result space would otherwise make that field non-applicable or zero-count. The app-service projection should preserve selected controls and mark their applicability/status instead of allowing the frontend to lose the control needed to revise or remove the clause.
-- Field value discovery is self-excluding for the field being edited. Counts and options for a field are computed with the active filter minus clauses for that same field, so users can build unions such as multiple kinds or rarities while still narrowing unrelated fields like publication or metrics by the rest of the active filter.
-- Result retrieval uses the full active filter. Filter-editor discovery scopes must not change the search result semantics.
+Count-free vocabulary is a separate discovery request with artifact or saved-list
+membership scope, value-search text, bounded paging and selected literals. It has
+no query predicate, query text or retrieval mode. App-service resolves saved-list
+keys; search forwards scope without embedding; index enumerates known applicable
+product values before edition preference. Empty membership remains empty, and
+retained selections do not inflate suggestion totals. Contextual counts retain
+their exact same-child/counterfactual/remaster and bounded-candidate semantics.
+The app counts operation accepts a bounded explicit literal page, independently
+of vocabulary enumeration. It uses the same index-owned counterfactual compiler
+and counts distinct displayed roots for each replacement literal. Text context
+returns optional unavailability before inference, after field/literal/target
+validation. Raw CLI field counts retain availability states and numeric extrema.
+Shared browser pickers request optional counts only while open, retaining their
+independent vocabulary when counts are unavailable or fail.
 
-This scoping policy belongs in `atlas-app-service` and app-model DTOs, not in `web/atlas-ui`. The frontend should pass the current app filter context and the field being edited; app-service should derive the discovery filter used for editor structure and value options before lowering to `atlas-search`. For saved-list discovery, app-service resolves the list ref through local-state and passes the active record keys as a `RecordScope`; unresolved local-state rows remain preserved in local-state but are outside scoped filter/discovery counts. `atlas-search` and `atlas-index` remain responsible for product discovery execution, metric selector coherence, dynamic/catalog discovery, and SQL-backed applicability/counts.
+Index owns useful human labels alongside executable filter definitions.
+App-service adds collection-context prefixes, groups, choice and operator labels
+and one ordered common field list: Kind, Level / Rank, Rarity, Traits. Presentation
+decoration does not declare executable fields or choices.
+Editor catalog discovery is independent of active criteria and saved-list
+membership. It remains available to repair invalid URL conditions. Operator
+metadata includes the input shape (scalar, list, range, availability or nested
+predicate); rendering and value transitions use this contract. Executable search
+and contextual counts retain their separate index-owned validation.
+The common Level / rank primitive is index-owned and uses existing rank/state
+for spells and level/state for other applicable families.
 
-Record-reference inputs that intentionally accept either a canonical `RecordKey` or a strict resolvable record name use the `RecordRetrieval` record-reference resolver in `atlas-search`. Surface crates may decide which arguments accept that product behavior and how to present misses or ambiguity, but they should not duplicate the key-or-name resolution policy locally.
+FTS and sqlite-vec apply filters, key scopes and product eligibility before top-k.
+Search aggregates matching units to one root result while preserving useful
+root/owned/field/passage witnesses. Semantic scoring uses max per root, hybrid
+defaults to fixed score fusion, and candidate windows remain bounded.
+`SearchRanking` also permits an RRF60 dogfooding alternative (ADR0053).
+CLI `--ranking` and the browser's URL-preserved ranking selector carry that choice
+independently of the embedding profile; adapters do not implement ranking policy.
+Verified legacy preference applies only among records matching the complete request,
+before paging. Exact legacy keys remain accessible. Macros are excluded on every
+product path; RollTables remain browse/search/detail records.
 
-`atlas-runtime` owns path resolution for source checkouts, embedding model caches, SQLite artifacts, and the local-state database. The default `global` path mode resolves to platform cache install paths; `repo` requires checkout-local contributor paths. CLI path flags are command-local overrides passed into runtime resolution, not persisted configuration. Runtime path resolution failures are reported through typed `RuntimeError` / `RuntimeErrorKind` values so CLI, future TUI, and future web surfaces can distinguish repo-mode, current-directory, cache-root, and default-path failures without parsing messages. `--index` selects the SQLite artifact for commands that open or repair an artifact, while `atlas index build` uses `--output` for the artifact it writes. The local-state database resolves beside the active artifact as `pf2e-local-state.sqlite`; v1 intentionally has no direct local-state path override. If persisted configuration is added later, it should feed runtime path overrides below direct CLI flags rather than changing the meaning of direct path flags.
+Text search and semantic contextual discovery share an exhaustive query-embedding
+error conversion. Empty input and exact token-budget overflow remain invalid
+requests, with useful counts and a shortening instruction; model/cache/inference
+failures retain their availability classification. Queries are never truncated or
+downgraded to lexical retrieval to conceal semantic input errors. Optional facet
+availability is still checked before embeddings when its context is unsupported.
 
-Durable mutable state does not live in the generated artifact. `atlas-local-state` owns local-state schema and product APIs for saved lists, encounters, and future mutable product surfaces. `atlas-runtime` only resolves the local-state database path beside the active artifact; it does not own saved-list or encounter behavior. Saved lists have stable generated `list_key` identity plus a separate unique slug for URL, CLI, and script-friendly references. Saved-list tags are user-authored local-state metadata used for grouping and filtering lists in product surfaces; they are not generated artifact taxonomy rows. Encounters follow the same identity shape with a stable generated `encounter_key` plus a unique slug, while participants use separate `participant_key` instance identity so duplicate creatures or hazards remain independent rows. Local-state resolves list and encounter refs by key or slug, so browser routes and CLI commands can remain slug-oriented while update workflows can use stable keys internally when changing a slug. Saved-list item additions and record-backed encounter participant additions must resolve to one active canonical `RecordKey`; local-state accepts already-resolved inputs and stores canonical keys plus snapshots. App-service owns workflows that resolve record refs, call local-state, hydrate active artifact records, and preserve unresolved rows explicitly after artifact rebuilds.
+Index summaries and selected cache bundles are body free. Explicit detail decodes
+one root and batches required fields. Search result witnesses do not cause
+per-field/per-marker body reads. Reader connections stay on one generation while
+the writer atomically publishes later artifacts.
 
-## Artifact Families
+App-service search pages reuse browse, text and stored-vector Similar retrieval.
+Similar mode carries the exact root seed and canonical filters, and returns a
+body-free seed summary beside bounded candidate pages. It adds no ranking lane or
+query embedding. Every request supplies its complete criteria, page and optional
+expected artifact generation. The generation check precedes embedding and ranking;
+a mismatch returns `ArtifactGenerationChanged` with HTTP409 and expected/actual
+context hashes. There is no app window registry or handle lifecycle. Each page
+still performs retrieval independently, including query inference where needed;
+the API does not promise a frozen semantic candidate set or cache speedup.
+Browser URL state owns the removable seed criterion. Similarity uses catalog
+choices and vocabulary without text-scoped contextual facet counts.
 
-The Rust SQLite artifact is the runtime contract between ingest and search. The authoritative table-family definitions live in [artifact contract](./artifact-contract.md). The current families are:
+The browser search owner keeps the current generation and request epoch. Query
+keys include criteria, page and generation; first-response adoption reuses the
+completed page without a second inference request. Generation conflicts pause
+paging and offer `Refresh results`. Recovery cancels affected immutable queries
+before removing their data, advances the epoch and restarts at page1 with the same
+criteria. Previous-page data never crosses generations. Saved lists, encounter
+aggregates and dirty drafts survive this reset. Signals and epoch checks prevent
+late old reads from restoring retired data. Similar previews reload their actual
+owning detail before retrying against a new generation, including encounter-owned
+reference previews. Snapshot-local owner selections remain exact.
 
-- artifact identity: `artifact_metadata`
-- source packs: `packs`
-- canonical records: `records`
-- supplemental content: `record_content`
-- aliases and remaster links: `record_aliases`, `remaster_links`
-- filterable projections: `record_traits`, actor/item/spell side tables; future `record_tags`
-- discovery catalogs: `filter_field_catalog`, `filter_value_catalog`, `filter_sample_catalog`, `filter_numeric_catalog`
-- open metrics and catalogs: `record_metrics`, `metric_key_catalog`, `metric_value_catalog`
-- reference graph: `reference_edges`
-- lexical search: `records_fts`
-- semantic cache and vector index: `document_embedding_cache`, `record_vector_index`
+One bounded app-service Related operation returns verified nonempty categories
+with separate empty, unavailable and error outcomes. Its reference scope is the
+exact selected owner (including the empty root owner path). Verified counterparts
+and typed variant checks apply only to roots. Variant checks retain their bounded
+source-snapshot compatibility verification; category discovery never runs Similar
+ranking. Responses and browser caches use the complete selection and immutable
+artifact-context hash, distinct from snapshot-local navigation fingerprints.
 
-## Current Gaps And Deferred Shapes
+App-service owns workflow composition/search pages, catalog-to-editor controls,
+semantic family presentation and local-state hydration over runtime/search.
+Detail retains a body-free root summary, full selected address, and selected-node
+identity beside prepared content, useful owned links and an explicit family body.
+Authored reference extraction is independent of encounter composition; the private
+encounter arithmetic workspace is never transported. Encounter participants have
+one composed presentation beside their durable local state, with explanations
+attached to adjusted facts. Fact availability distinguishes missing, null, invalid
+and not-applicable parents from known zero, false and empty collections.
 
-- The future Ratatui workbench is an interactive app consumer. It should compose through `atlas-app-model` and `atlas-app-service` rather than opening SQLite or embedding models directly.
-- Journal pages and table results are recognized as rich content but are deferred to [Rust content subdocuments for journal pages and table results](../backlog/items/rust-content-subdocuments-journal-table-results.md).
-- Tag rows are intentionally deferred until the accepted [tagging architecture](./tagging.md) is implemented. The target runtime table family is `record_tags`, written during regular `atlas index build` from validated YAML catalog and assignment files.
-- Search quality tuning and broader full-corpus parity remain follow-up validation work, not reasons to reintroduce raw JSON scanning or duplicate markup parsing.
+Transient physical price facts retain availability for each currency, and table
+results retain collection availability with one owned-link collection in the
+table body. App-service supplies compact kind/level/rank captions from typed
+facts. Shared readers omit optional known-empty baseline rows and empty headings
+without altering source facts; required/unavailable values and explicit authored
+clear/empty changes remain visible. No stored visibility flags or HTML emptiness
+parser participates in this policy.
+
+Spells and their owned copies display contextual casting ranks and supported
+fixed/interval heightening over a transient checked-source copy. Invalid context
+and unsupported calculations remain explicit. Partial form changes remain
+reference information; interactive form execution is deferred. Rank preview is
+read-only. Encounter casting separately spends revision-checked participant
+resources or toggles manual expenditure markers; it does not roll dice, execute
+effects or advance turns. Renderers share semantic responses while independently formatting
+terminal and browser layouts. Complete selected navigation drives detail caching
+and reader transitions. Root terminal summaries stay body-free.
+
+Selected immediate Actor casting entries obtain associated local spells from the
+already-decoded checked parent, preserving complete owner addresses. Root activity
+rosters expose base and explicit authored cast ranks without duplicating the
+roster in each entry. Hazard defense-block applicability is projected explicitly:
+known zero AC and maximum HP suppress the primary block while original facts and
+valid zero saves remain retained. Shared reference layouts put prose first;
+encounter layouts prioritize combat state. Immediate Ability-class actions, effects and feats read inline by default through
+bounded embedded-reading batches: one checked parent decode and one attributed
+prepared-content batch, up to 32 entries and 256 fields. Roll-table result reading
+uses the same bounded owner with range facts retained in the parent presentation.
+Table reference rolls remain non-consuming; matched results are shown even when
+their reading page is not loaded. Index owns exact
+locator SQL and complete relationship attribution for each delivered field.
+Fields exceeding the 1024 occurrence response budget have an explicit bounded
+outcome; valid rich content is never delivered with silently disabled links.
+Separate non-content relationship discovery remains bounded. Reading continuations
+and browser caches bind the checked reference generation; partial content never
+seeds selected-detail caches. Direct late-owner landing loads its bounded range
+without predecessor reads and retains explicit backward/forward continuation.
+
+All browser reference consumers render the same family meaning, including native
+previews and comparison; compact changes density only. Shared prepared content
+renders authored controls and exact links. Scrolling the actual reading container
+near continuation starts the next finite batch; an idle visible sentinel and a
+collapsed section do not start further batches. Complete checked owner anchors
+are distinct from selected-detail addresses. Native permalinks preserve modified
+clicks, and parent return retains known search/list/reader context and a checked
+reading landing.
+
+Encounter quick lookup requests the same complete selected-document view as other
+reference readers. App-service checks the participant against current local state,
+decodes one checked parent, reads selected content and composes the bounded runtime
+overlay in Rust. Casting entries retain their associated local spell roster;
+equipment keeps its customized authored view. Spells retain full authored details
+and current runtime notes without calculating spell forms or damage adjustments.
+Runtime detail uses a separate cache keyed by participant presentation and complete
+selection; it never seeds immutable reference caches. Changed participants, stale
+generations and missing selections remain explicit. Content-free
+hydration captures the artifact generation in the same deduplicated retrieval;
+source-free encounters have no generation and require no artifact open. Invalid
+referenced participants remain unresolved rather than becoming manual records.
+
+An embedded reader can offer an Original record link only for a resolved explicit
+CompendiumProvenance relationship. It opens the current local catalog record,
+while the selected reader and its full-page permalink retain the embedded copy.
+There is no name-based pairing or substitution of catalog data into local copies.
+
+Web startup uses
+full pooled retrieval; short-lived CLI workflows may choose explicit model-free
+or stored-vector modes. The bounded executor preserves parallel SQL retrieval;
+the shared native inference owner serializes only model loading and inference.
+Web routes are transport glue. App-model generates intentional browser DTOs;
+the browser neither receives whole Foundry bodies nor reimplements gameplay rules.
+
+Web hosting embeds the built frontend into debug and release binaries. A running
+server retains its compiled frontend/backend pair when later builds change the
+checkout's frontend output. Frontend hot reload uses the separate Vite dev server.
+
+Saved lists/encounters preserve unresolved snapshots and explicit user choices.
+Actor display uses authored baselines with bounded source/participant/condition
+overlays and unapplied-context notes. New HP starts from a known integral effective
+maximum; unknown does not become zero. Source adjustments apply once, explicit
+participant choices replace them, and saved HP/overrides/edit intent survive
+artifact rebuilds. No Foundry world execution or guessed aggregate mechanics is
+introduced. Local-state migrations preserve existing ambiguous values.
+
+Encounter HP actions carry participant identity, expected revision and one explicit
+operation: damage, heal, exact current/temporary/maximum correction, or derived
+maximum reset. App-service interprets raw integer addition/subtraction input against
+the checked current participant, then reuses provenance policy and the transactional
+replacement guard. The bounded shortcut accepts one initial plus/minus sign.
+Enter sends signed Heal intent (positive heals, negative damages); negative Damage
+or Heal amounts reverse the operation in Rust before applying its complete policy.
+Exact correction formulas retain their zero floor and never acquire a maximum
+clamp. Null explicitly clears
+current/maximum availability. Formula length, arithmetic and browser-safe final
+input bounds are checked; dice and general expressions are unsupported. Damage
+absorbs temporary HP first, floors current HP at zero and marks zero HP defeated;
+healing caps at a known maximum and does not clear defeated. Missing current HP
+rejects damage/healing rather than inventing a value. These actions return the
+same durable receipt, independently of subsequent presentation refresh. The
+three-field HP editor sends SetValues with only supplied raw inputs; an explicit
+null inside a current/maximum wrapper clears availability. All fields parse before
+one guarded replacement, preserving omitted values/provenance and same-value
+maximum edit intent. Condition-specific manual notes use canonical rule identity
+and exact condition IDs; noncondition diagnostics omit that ID. The browser can
+place these notes on their cards without hiding unrelated runtime context.
+
+Local-state initialization and migrations commit schema and metadata together.
+List metadata/tags, quantity additions and removal with replacement turn each
+have one write transaction. Next turn chooses from the same locked snapshot it
+updates, using pure app-service policy. A side-effect-free turn review returns the
+encounter revision; Continue checks it in the immediate transaction before applying
+old-END/new-START duration decrements and the new turn. Every relevant durable
+encounter mutation advances that revision. Duration rounds store one remaining
+amount and explicit participant/event anchor; zero retains the condition until
+explicit removal, unresolved anchors never tick, and nonround units are reminders.
+Manual Set turn, reorder and removal never tick. Only canonical Persistent Damage
+supplies its owner-END damage/recovery table reminder; no dice, HP, severity or
+expiry action is automatic. Participant replacements require an
+expected revision and fail with a typed conflict when stale. Condition IDs are
+not reused, and condition edits check participant ownership inside the write.
+Existing-encounter mutations return a durable canonical-key receipt rather than
+hydrating reference presentation after commit. Saved-list import uses its
+precommit resolved summaries for receipt counts. Explicit reads own any later
+projection failure. These boundaries are defined by
+[ADR0048](./decisions/0048-atomic-mutable-workflows.md).
+
+The browser's detail/edit mutation owner serializes commands through their
+canonical-key refresh and populates the route alias from the same response.
+There is no private optimistic participant overlay. A failed refresh after a
+receipt is a saved-but-unavailable state with read-only Retry, not a failed
+write. Typed stale conflicts retain the draft and refresh without resubmission.
+Save and deletion confirmations await completion; same-entity dirty metadata
+survives background refresh and old route completions cannot navigate a new
+editor. The index owns its separate awaited deletion and action-local feedback.
+
+## Deferred work
+
+New query projections are added only for useful product cases, with typed bindings,
+catalog/SQL/facet evidence and consumer tests. Skills, nuanced affliction filters,
+frequency/aggregate gameplay models and tag-artifact search are deferred. Tag-file
+validation remains independent; HasMetric is explicitly unsupported rather than
+recreating a metric store.
+
+Macro-inspired UI actions, source-local asset ingestion, independent runtime display
+locale, broader label selection, representative root embeddings/reranking and new
+embedding models beyond the two pinned baseline profiles require separate bounded design/evidence. Their retained source
+data does not imply runtime execution support. See the active backlog and ADR0046.

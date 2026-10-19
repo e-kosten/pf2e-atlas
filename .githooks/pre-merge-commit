@@ -5,6 +5,8 @@ set -eu
 HOOK_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 . "$HOOK_DIR/../scripts/git-hooks/common.sh"
 
+git -C "$(repo_root)" diff --cached --check
+
 if staged_changes_are_docs_only; then
   echo "Docs-only merge detected; skipping pre-merge verification." >&2
   exit 0
