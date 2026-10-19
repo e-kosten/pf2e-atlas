@@ -9,6 +9,7 @@ import type {
 type Duration = NonNullable<EncounterParticipantConditionView["duration"]>;
 export type ConditionFormValues = {
   conditionRef?: string;
+  stunMode?: "value" | "duration";
   value?: number | null;
   durationAmount?: number | null;
   durationUnit: Duration["unit"] | "none";
@@ -83,6 +84,9 @@ export function EncounterConditionEditor({
   const definition = definitions.find(
     (d) => d.condition_ref === (condition?.condition_key ?? conditionRef),
   );
+  const stunMode = Form.useWatch("stunMode", form) ?? "value";
+  const durationInstead =
+    definition?.supports_duration_instead_of_value && stunMode === "duration";
   const hasValue = definition?.has_value ?? condition?.value !== undefined;
   const durationAmount = Form.useWatch("durationAmount", form);
   const durationUnit = Form.useWatch("durationUnit", form) ?? "none";
@@ -94,6 +98,10 @@ export function EncounterConditionEditor({
     if (!condition) return;
     const values: ConditionFormValues = {
       conditionRef: condition.condition_key,
+      stunMode:
+        condition.value === undefined && condition.duration !== undefined
+          ? "duration"
+          : "value",
       value: condition.value === undefined ? undefined : Number(condition.value),
       durationAmount:
         condition.duration === undefined
@@ -153,13 +161,20 @@ export function EncounterConditionEditor({
           timingEvent: condition?.duration?.timing?.event,
           value: condition?.value === undefined ? undefined : Number(condition.value),
           conditionRef: condition?.condition_key,
+          stunMode:
+            condition?.value === undefined && condition?.duration !== undefined
+              ? "duration"
+              : "value",
           sourceParticipantKey: condition?.source_participant_key,
           note: condition?.note,
         }}
         onFinish={async (values) => {
           if (disabled || onReload) return;
           try {
-            await onSave(values, form.isFieldsTouched(durationFields));
+            await onSave(
+              { ...values, value: durationInstead ? undefined : values.value },
+              form.isFieldsTouched(durationFields) || form.isFieldTouched("stunMode"),
+            );
           } catch {
             /* Keep the draft; the feature mutation owner supplies feedback. */
           }
@@ -193,7 +208,25 @@ export function EncounterConditionEditor({
             />
           </Form.Item>
         )}
-        {hasValue && (
+        {definition?.supports_duration_instead_of_value && (
+          <Form.Item name="stunMode" label="Stunned">
+            <Select
+              aria-label="Stunned mode"
+              options={[
+                { value: "value", label: "Lose actions" },
+                { value: "duration", label: "For a duration" },
+              ]}
+              onChange={(mode) => {
+                if (mode === "duration" && durationUnit === "none") {
+                  form.setFieldsValue({ durationUnit: "rounds", durationAmount: 1 });
+                }
+                if (mode === "value" && form.getFieldValue("value") == null)
+                  form.setFieldValue("value", 1);
+              }}
+            />
+          </Form.Item>
+        )}
+        {hasValue && !durationInstead && (
           <Form.Item name="value" label="Value" rules={[integerRule(true)]}>
             <InputNumber
               mode="spinner"
@@ -224,7 +257,7 @@ export function EncounterConditionEditor({
                   form.setFieldValue("durationAmount", 1);
               }}
               options={[
-                { value: "none", label: "No duration" },
+                ...(!durationInstead ? [{ value: "none", label: "No duration" }] : []),
                 ...["rounds", "minutes", "hours", "days"].map((value) => ({
                   value,
                   label: value,

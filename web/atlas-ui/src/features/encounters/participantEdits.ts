@@ -22,6 +22,7 @@ export function participantUpdate(
     current_hp: participant.current_hp,
     temporary_hp: participant.temporary_hp,
     defeated: participant.defeated,
+    hazard_disabled: participant.hazard_disabled,
     hidden: participant.hidden,
     note: participant.note,
     ...changes,

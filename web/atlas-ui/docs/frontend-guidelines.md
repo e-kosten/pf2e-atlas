@@ -734,8 +734,9 @@ Encounter roster handles use the sortable-list library for whole-row movement,
 touch and keyboard pickup/movement/drop, then submit one guarded reorder command.
 Current turn uses the strong filled row treatment; preview selection uses a
 separate outline. Play and confirmed
-delete remain direct row actions. Fade defeated names and facts without dimming
-controls. Encounter-owned section spacing belongs under encounter styles; shared
+delete remain direct row actions. Fade defeated and disabled-hazard names and facts without dimming
+controls. Hazard Active/Disabled controls live beside the same participant HP/status
+controls; no HP display is required to disable or reactivate a hazard. Encounter-owned section spacing belongs under encounter styles; shared
 record CSS must not override HP borders, padding or encounter control spacing.
 HP and Conditions share a row when the reader has room and stack on narrow panes;
 HP identity/value and action groups align left and right. Creature-level facts,

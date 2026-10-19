@@ -9,6 +9,9 @@ This package owns the React browser frontend for PF2e Atlas. Follow these rules 
 - Hand-roll UI only when the surface is product-specific, such as record presentation, PF2e stat/rendering layouts, rich result summaries that Ant list/table primitives cannot express cleanly, or encounter-runtime panels.
 - Use Atlas theme tokens and existing CSS variables. Do not add ad hoc raw colors or one-off palettes. Derive custom Atlas state variables from Ant semantic tokens, not raw brand tokens such as `colorPrimary`, where the variable represents selected, active, link, hover, or focus behavior.
 
+Follow the root `AGENTS.md` Product UI Copy guidance for both frontend text and
+backend-projected text. Review the rendered result, not just the component code.
+
 ## Shared UI Primitives
 
 Before creating a feature-local interaction pattern, check `src/shared/ui`.

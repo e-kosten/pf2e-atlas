@@ -564,6 +564,7 @@ pub(super) fn update(p: &EncounterParticipantView) -> UpdateEncounterParticipant
         current_hp: p.current_hp,
         temporary_hp: p.temporary_hp,
         defeated: p.defeated,
+        hazard_disabled: p.hazard_disabled,
         hidden: p.hidden,
         note: p.note.clone(),
     }
@@ -2342,6 +2343,139 @@ fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
     assert!(
         f.worker
             .roll_encounter_strike(&encounter.encounter_key, stale)
+            .is_err()
+    );
+}
+
+#[test]
+fn disabled_hazard_preserves_state_and_next_turn_continues_from_its_position() {
+    let f = encounter_fixture_worker();
+    let key = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Disabled hazard".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter
+        .encounter_key;
+    for (reference, initiative) in [
+        ("Test Creature 1", 30),
+        ("Test Hazard 1", 20),
+        ("Test Creature 1", 10),
+    ] {
+        f.worker
+            .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                encounter_ref: key.clone(),
+                record_ref: reference.into(),
+                quantity: 1,
+                initiative: Some(initiative),
+            })
+            .unwrap();
+    }
+    let initial = f.worker.encounter(&key).unwrap();
+    let mut disabled = update(&initial.participants[1]);
+    disabled.hazard_disabled = true;
+    f.worker
+        .update_encounter_participant(&key, disabled.clone())
+        .unwrap();
+    assert!(
+        f.worker
+            .update_encounter_participant(&key, disabled)
+            .is_err(),
+        "Stale replacement cannot overwrite state"
+    );
+    let detail = f.worker.encounter(&key).unwrap();
+    assert!(detail.participants[1].hazard_disabled);
+    assert_eq!(
+        detail.participants[1].current_hp,
+        initial.participants[1].current_hp
+    );
+    assert_eq!(
+        detail.participants[1].conditions,
+        initial.participants[1].conditions
+    );
+    assert!(!detail.participants[1].defeated);
+    let mut snapshot = f
+        .worker
+        .with_state(|s| Ok(s.local_state().encounters().get_with_participants(&key)?))
+        .unwrap()
+        .unwrap();
+    snapshot.encounter.current_turn_participant_key =
+        Some(snapshot.participants[1].participant_key.clone());
+    let removed = super::turns::next_turn_after_removed(
+        &snapshot.participants,
+        &snapshot.participants[1].participant_key,
+        snapshot.encounter.round_number,
+    )
+    .unwrap();
+    assert_eq!(
+        removed.participant_key.as_deref(),
+        Some(snapshot.participants[2].participant_key.as_str())
+    );
+    let next = super::turns::next_turn(&snapshot);
+    assert_eq!(
+        next.participant_key.as_deref(),
+        Some(snapshot.participants[2].participant_key.as_str())
+    );
+    assert_eq!(next.round_number, snapshot.encounter.round_number);
+    let mut activate = update(&detail.participants[1]);
+    activate.hazard_disabled = false;
+    f.worker
+        .update_encounter_participant(&key, activate)
+        .unwrap();
+    let after = f.worker.encounter(&key).unwrap();
+    assert!(!after.participants[1].hazard_disabled);
+    assert_eq!(
+        after.participants[1].current_hp,
+        initial.participants[1].current_hp
+    );
+    let mut invalid_hazard = update(&after.participants[1]);
+    invalid_hazard.defeated = true;
+    assert!(
+        f.worker
+            .update_encounter_participant(&key, invalid_hazard)
+            .is_err()
+    );
+    let hazard_key = after.participants[1].participant_key.clone();
+    for action in [
+        EncounterHpAction::Damage {
+            amount: "9999".into(),
+        },
+        EncounterHpAction::Heal { amount: "1".into() },
+    ] {
+        let current = f.worker.encounter(&key).unwrap();
+        let hazard = &current.participants[1];
+        f.worker
+            .apply_encounter_hp_action(
+                &key,
+                ApplyEncounterHpActionRequest {
+                    participant_key: hazard_key.clone(),
+                    expected_revision: hazard.revision,
+                    action,
+                },
+            )
+            .unwrap();
+        let changed = f.worker.encounter(&key).unwrap();
+        assert!(changed.participants[1].hazard_disabled);
+        assert!(!changed.participants[1].defeated);
+    }
+    let healed = f.worker.encounter(&key).unwrap();
+    assert_eq!(healed.participants[1].current_hp, Some(1));
+    let mut activate = update(&healed.participants[1]);
+    activate.hazard_disabled = false;
+    f.worker
+        .update_encounter_participant(&key, activate)
+        .unwrap();
+    let active = f.worker.encounter(&key).unwrap();
+    assert_eq!(active.participants[1].current_hp, Some(1));
+    assert!(!active.participants[1].hazard_disabled);
+    let mut invalid = update(&after.participants[0]);
+    invalid.hazard_disabled = true;
+    assert!(
+        f.worker
+            .update_encounter_participant(&key, invalid)
             .is_err()
     );
 }

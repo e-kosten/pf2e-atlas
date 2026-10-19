@@ -257,17 +257,30 @@ function EncounterParticipantSurface({
     body.value.defense_block.state === "value" &&
     body.value.defense_block.value === false
   );
-  const statusControl = (
-    <Button
-      size="small"
-      disabled={disabled}
-      onClick={() =>
-        void updateParticipant({ defeated: !participant.defeated }).catch(() => {})
-      }
-    >
-      {participant.defeated ? "Mark active" : "Mark defeated"}
-    </Button>
-  );
+  const statusControl =
+    participant.participant_kind === "hazard" ? (
+      <Button
+        size="small"
+        disabled={disabled}
+        onClick={() =>
+          void updateParticipant({
+            hazard_disabled: !participant.hazard_disabled,
+          }).catch(() => {})
+        }
+      >
+        {participant.hazard_disabled ? "Activate" : "Disable"}
+      </Button>
+    ) : (
+      <Button
+        size="small"
+        disabled={disabled}
+        onClick={() =>
+          void updateParticipant({ defeated: !participant.defeated }).catch(() => {})
+        }
+      >
+        {participant.defeated ? "Clear defeated" : "Mark defeated"}
+      </Button>
+    );
   return (
     <section className="encounter-reference">
       <div className="encounter-reference__header">

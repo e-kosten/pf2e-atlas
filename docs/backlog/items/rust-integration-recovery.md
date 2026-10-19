@@ -1,8 +1,8 @@
 # Source-modeling Capability Follow-through
 
 Status: in_progress
-Priority: agreed sequence; combined CF-04 + CF-05 implementation approved
-Owner: CF-04 + CF-05 parity worktree
+Priority: agreed sequence; CF-06 + CF-08 selected, product policy approved
+Owner: CF-06 + CF-08 encounter-state worktree
 Last reviewed: 2026-10-18
 
 ## Purpose and authorization
@@ -14,8 +14,10 @@ its documentation, **not implementation of every recommendation**. Confirm the
 selected scope and unresolved product behavior before implementation. Do not
 interpret this list as ten mandatory merge blockers.
 
-CF-01/02/03 merged in PRs #68/#69/#71. CF-04 and CF-05 are approved as one
-combined slice; CF-06 through CF-10 remain unapproved. Mixed-failure precedence is runtime (3), invalid input (2), domain
+CF-01/02/03 merged in PRs #68/#69/#71; CF-04/05 merged in PR #73.
+All are now on main through integration PR #25 (41865f60). The user selected
+CF-06 + CF-08 as the next combined slice targeting main. The user approved the product policy, including consistent creature/hazard
+controls and subdued disabled-hazard initiative facts; CF-07/09/10 remain unapproved. Mixed-failure precedence is runtime (3), invalid input (2), domain
 miss/ambiguity (1), success (0).
 
 The user agreed to deprioritize consumable base-item filtering: only one of
@@ -36,11 +38,11 @@ if review warrants it; preserve its ID and record every resulting PR here.
 | CF-01 | CLI batches and error contracts | merged | Approved 2026-10-18 | [PR #68](https://github.com/e-kosten/pf2e-atlas/pull/68); merged as b6a0a684; local validation passed |
 | CF-02 | Creature/hazard reference facts and activity details | merged | Approved 2026-10-18 | [PR #69](https://github.com/e-kosten/pf2e-atlas/pull/69); merged as b0ac0ae5; user accepted reference layout; local validation passed |
 | CF-03 | Ritual/spell, feat/effect and journal/table reference completeness | merged | Approved 2026-10-18 | [PR #71](https://github.com/e-kosten/pf2e-atlas/pull/71), f950b54f; UI accepted; local gates passed |
-| CF-04 | Consumable presentation and nested-spell navigation | in_progress | Approved together with CF-05 | Locally complete; accepted preview; Rust/UI gates and independent browser review pass; [PR #73](https://github.com/e-kosten/pf2e-atlas/pull/73); user accepted preview |
-| CF-05 | Physical query fields and labels | in_progress | Approved together with CF-04 | Locally complete; typed filters, migration and exact labels validated; [PR #73](https://github.com/e-kosten/pf2e-atlas/pull/73); user accepted preview |
-| CF-06 | Encounter status and action-budget policy | planned | Pending | Not started |
+| CF-04 | Consumable presentation and nested-spell navigation | merged | Approved together with CF-05 | Locally complete; accepted preview; Rust/UI gates and independent browser review pass; [PR #73](https://github.com/e-kosten/pf2e-atlas/pull/73); user accepted preview |
+| CF-05 | Physical query fields and labels | merged | Approved together with CF-04 | Locally complete; typed filters, migration and exact labels validated; [PR #73](https://github.com/e-kosten/pf2e-atlas/pull/73); user accepted preview |
+| CF-06 | Encounter status and action-budget policy | in_progress | Approved | Based on main 41865f60; locally complete; user accepted preview; Rust/UI gates, 20 device journeys and independent Sol browser review pass; awaiting publication |
 | CF-07 | Supported condition/spell adjustments and casting reminders | planned | Pending | Not started |
-| CF-08 | Hazard Active/Disabled state | planned | Pending | Not started |
+| CF-08 | Hazard Active/Disabled state | in_progress | Approved with CF-06 | locally complete; single Active/Disabled state; user accepted preview; Rust/UI gates and browser reviews pass; awaiting publication |
 | CF-09 | Browse sorting | planned | Pending | Not started |
 | CF-10 | Relationship-scoped full results and filtering | planned | Pending | Not started |
 
@@ -170,7 +172,9 @@ Damage classification/component selection follows the chosen source policy.
 
 ### CF-08 — Hazard Active/Disabled state
 
-Agree a separate hazard-disabled state independent of HP/defeated. Keep disabled
+Hazards use Active/Disabled instead of Active/Defeated, with HP tracked separately.
+Damage reaching zero disables; healing does not reactivate. Existing defeated
+hazards migrate to disabled. Keep disabled
 hazards readable/editable and exclude them from automatic turn selection.
 Reactivation is explicit; authored Reset instructions remain reference material.
 

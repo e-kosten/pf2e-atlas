@@ -114,39 +114,48 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
             note: Some("In progress".into()),
         })
         .unwrap();
-    state
-        .encounters()
-        .add_participant(
-            &encounter.encounter_key,
-            AddEncounterParticipant {
-                record_key: Some(key),
-                participant_kind: ParticipantKind::Creature,
-                display_name: "Wounded creature".into(),
-                record_title_snapshot: Some("Test Creature".into()),
-                record_kind_snapshot: Some("creature".into()),
-                side: ParticipantSide::Enemy,
-                participant_variant: ParticipantVariant::Elite,
-                hp_origin: ParticipantHpOrigin::Explicit,
-                variant_origin: ParticipantVariantOrigin::Explicit,
-                initiative: Some(21),
-                max_hp: Some(40),
-                current_hp: Some(13),
-                temporary_hp: 5,
-                note: Some("Do not reset HP".into()),
-                spell_resources: vec![],
-            },
+    // Seed historical rows directly: current participant readers require newer columns.
+    write
+        .connection()
+        .execute(
+            "INSERT INTO encounter_participants (
+            encounter_id,participant_key,record_key,participant_kind,participant_variant,
+            position,display_name,record_title_snapshot,record_kind_snapshot,side,
+            initiative,initiative_order,max_hp,current_hp,temporary_hp,note,
+            hp_origin,variant_origin,created_at,updated_at)
+         SELECT id,'kept-participant',?2,'creature','elite',0,'Wounded creature',
+            'Test Creature','creature','enemy',21,0,40,13,5,'Do not reset HP',
+            'explicit','explicit','before','before'
+         FROM encounters WHERE encounter_key=?1",
+            rusqlite::params![encounter.encounter_key, key.to_string()],
         )
         .unwrap();
+    let participant_rows =
+        |connection: &rusqlite::Connection| {
+            let mut statement = connection.prepare(
+            "SELECT participant_key,record_key,participant_kind,participant_variant,position,
+             display_name,record_title_snapshot,record_kind_snapshot,side,initiative,
+             initiative_order,max_hp,current_hp,temporary_hp,defeated,hidden,note,
+             hp_origin,variant_origin,created_at,updated_at,revision
+             FROM encounter_participants ORDER BY participant_key"
+        ).unwrap();
+            let column_count = statement.column_count();
+            statement
+                .query_map([], |row| {
+                    (0..column_count)
+                        .map(|column| row.get::<_, rusqlite::types::Value>(column))
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                })
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap()
+        };
     let saved_list = state
         .saved_lists()
         .get_with_items(&list.list_key)
         .unwrap()
         .unwrap();
-    let saved_encounter = state
-        .encounters()
-        .get_with_participants(&encounter.encounter_key)
-        .unwrap()
-        .unwrap();
+    let saved_participants = participant_rows(write.connection());
     let model = &input.context.search_profiles[0];
     let unit = &input.semantic_units[0];
     let checkpoint = atlas_embedding::PreparedEmbeddingInput {
@@ -255,14 +264,14 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
                 .unwrap(),
             saved_list
         );
-        assert_eq!(
-            state
-                .encounters()
-                .get_with_participants(&encounter.encounter_key)
-                .unwrap()
-                .unwrap(),
-            saved_encounter
-        );
+        assert_eq!(participant_rows(read.connection()), saved_participants);
+        let saved_encounter = state
+            .encounters()
+            .get_with_participants(&encounter.encounter_key)
+            .unwrap()
+            .unwrap();
+        assert_eq!(saved_encounter.encounter, encounter);
+        assert!(!saved_encounter.participants[0].hazard_disabled);
         assert_eq!(stored_vectors(read.connection()), vectors_before);
         for phrase in ["Test Creature", "Flame Lance", "Frozen Grave"]
             .into_iter()

@@ -112,6 +112,8 @@ pub(super) fn participant_view(
                 .map(|block| crate::presentation::actor::manual_presentation(&participant, block))
         });
     EncounterParticipantView {
+        cast_unavailable_reason: super::action_budget::cannot_act_reason(&participant)
+            .map(str::to_owned),
         spellcasting: record_detail.map(|r| {
             super::spell_catalog::catalog(
                 &r.detail.source,
@@ -148,6 +150,7 @@ pub(super) fn participant_view(
         current_hp: participant.current_hp,
         temporary_hp: participant.temporary_hp,
         defeated: participant.defeated,
+        hazard_disabled: participant.hazard_disabled,
         hidden: participant.hidden,
         note: participant.note,
         note_hint: note_hint.filter(|value| !value.is_empty()),

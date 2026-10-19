@@ -8,7 +8,11 @@ struct Fixture(PathBuf);
 fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {
     let workspace = atlas_index::test_support::initialize_workspace(&options.output_path)
         .map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
-    crate::build_artifact(&workspace, 4, options)
+    crate::build_artifact(
+        &workspace,
+        atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+        options,
+    )
 }
 impl Fixture {
     fn new() -> Self {
@@ -546,7 +550,9 @@ fn actual_profile_builds_share_preparation_isolate_reuse_and_publish_atomically(
 fn request_test_configuration(options: &BuildArtifactOptions) {
     let workspace = atlas_index::test_support::initialize_workspace(&options.output_path).unwrap();
     let _owner = workspace.update_owner().unwrap();
-    let session = workspace.write(4).unwrap();
+    let session = workspace
+        .write(atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
     atlas_index::write_requested_reference_config(
         &session,
         &atlas_index::RequestedReferenceConfig {

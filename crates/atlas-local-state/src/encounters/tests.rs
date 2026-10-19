@@ -467,6 +467,7 @@ fn participant_variant_defaults_and_updates() -> Result<(), Box<dyn std::error::
             current_hp: participant.current_hp,
             temporary_hp: participant.temporary_hp,
             defeated: participant.defeated,
+            hazard_disabled: participant.hazard_disabled,
             hidden: participant.hidden,
             note: participant.note,
         })?
@@ -893,6 +894,7 @@ fn edit(participant: &EncounterParticipant) -> UpdateEncounterParticipant {
         current_hp: participant.current_hp,
         temporary_hp: participant.temporary_hp,
         defeated: participant.defeated,
+        hazard_disabled: participant.hazard_disabled,
         hidden: participant.hidden,
         note: participant.note.clone(),
     }

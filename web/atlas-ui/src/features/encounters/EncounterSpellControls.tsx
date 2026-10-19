@@ -84,14 +84,14 @@ export function EncounterSpellControls({
       : resource && spellResourceExhausted(resource)
         ? "No uses remaining"
         : undefined);
-  const run = async () => {
+  const run = async (retrospective = false) => {
     if (
       await onAction({
-        kind: "cast",
+        kind: retrospective ? "record_use" : "cast",
         selection: { ...selection, spell_rank: selectedRank },
       })
     )
-      void message.success("Cast", 2);
+      void message.success(retrospective ? "Use recorded" : "Cast recorded", 2);
   };
   return (
     <div className="encounter-casting__controls">
@@ -99,12 +99,33 @@ export function EncounterSpellControls({
         <Button
           type="primary"
           size="small"
-          disabled={disabled || pending || !!unavailable}
+          disabled={
+            disabled ||
+            pending ||
+            !!unavailable ||
+            !!participant.cast_unavailable_reason
+          }
           loading={pending}
           onClick={() => void run()}
         >
           Cast
         </Button>
+        {participant.cast_unavailable_reason && (
+          <Typography.Text type="secondary">
+            {participant.cast_unavailable_reason}
+          </Typography.Text>
+        )}
+        {participant.cast_unavailable_reason && resource && (
+          <Tooltip title="Record a past use without changing this participant’s current status.">
+            <Button
+              size="small"
+              disabled={disabled || pending || !!unavailable}
+              onClick={() => void run(true)}
+            >
+              Record past use
+            </Button>
+          </Tooltip>
+        )}
         {resource ? (
           <ResourceCount resource={resource} />
         ) : (
