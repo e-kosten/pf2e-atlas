@@ -1,10 +1,9 @@
 //! Consistent whole-workspace snapshots and missing-only seed installation.
+use crate::backup::{self, Destination, sync_directory};
 use crate::{StorageError, StorageResult, Workspace, locking, workspace::validate};
-use rusqlite::{Connection, backup::Backup};
 use std::{
     fs::{self, File},
     path::{Path, PathBuf},
-    time::Duration,
 };
 
 /// Holds both admission locks until the caller finishes recording seed provenance.
@@ -24,23 +23,7 @@ impl Workspace {
         source.execute_batch("BEGIN DEFERRED")?;
         let schema = source.query_row("PRAGMA user_version", [], |row| row.get(0))?;
         validate(&source, schema, false)?;
-        let parent = destination.parent().unwrap_or(Path::new("."));
-        let temporary = tempfile::NamedTempFile::new_in(parent)?;
-        {
-            let mut target = Connection::open(temporary.path())?;
-            Backup::new(&source, &mut target)?.run_to_completion(
-                4096,
-                Duration::from_millis(1),
-                None,
-            )?;
-            target.execute_batch("PRAGMA journal_mode=DELETE")?;
-        }
-        temporary.as_file().sync_all()?;
-        temporary
-            .persist_noclobber(destination)
-            .map_err(|error| error.error)?;
-        sync_directory(parent)?;
-        Ok(())
+        backup::write(&source, destination, Destination::CreateNew)
     }
 
     /// Reserve an absent destination. Existing files and dangling symlinks are
@@ -113,12 +96,4 @@ fn copy_seed(source: &Path, destination: &Path) -> StorageResult<&'static str> {
     }
     fs::copy(source, destination)?;
     Ok("copy")
-}
-
-fn sync_directory(path: &Path) -> StorageResult<()> {
-    #[cfg(unix)]
-    File::open(path)?.sync_all()?;
-    #[cfg(not(unix))]
-    let _ = path;
-    Ok(())
 }

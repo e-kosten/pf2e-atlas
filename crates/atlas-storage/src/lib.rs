@@ -5,6 +5,7 @@
 //! composed operation, never retained by an idle server or during inference.
 #![deny(unsafe_code)]
 
+mod backup;
 mod error;
 mod locking;
 mod migration;
