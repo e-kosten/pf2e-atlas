@@ -1,6 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 
+# Fixture timings must not appear as real validation measurements in CI.
+unset GITHUB_STEP_SUMMARY
+
 repo_root=$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/atlas-prepare-release-test.XXXXXX")
 cleanup() {

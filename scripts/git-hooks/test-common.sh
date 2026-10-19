@@ -2,6 +2,9 @@
 
 set -eu
 
+# Fixture timings must not appear as real validation measurements in CI.
+unset GITHUB_STEP_SUMMARY
+
 script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd -P)
 repo_root=$(CDPATH='' cd -- "$script_dir/../.." && pwd -P)
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/atlas-git-hooks-test.XXXXXX")
