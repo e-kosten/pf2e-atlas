@@ -34,7 +34,7 @@ if review warrants it; preserve its ID and record every resulting PR here.
 | ID | Intended PR scope | Status | Implementation approval | PR / candidate / validation |
 | --- | --- | --- | --- | --- |
 | CF-01 | CLI batches and error contracts | merged | Approved 2026-10-18 | [PR #68](https://github.com/e-kosten/pf2e-atlas/pull/68); merged as b6a0a684; local validation passed |
-| CF-02 | Creature/hazard reference facts and activity details | in_progress | Approved 2026-10-18 | Local implementation and approved inline qualifier layout validated; Rust/frontend gates and independent targeted browser review passed; not committed/published |
+| CF-02 | Creature/hazard reference facts and activity details | in_progress | Approved 2026-10-18 | [PR #69](https://github.com/e-kosten/pf2e-atlas/pull/69); user accepted reference layout; Rust/frontend gates and independent targeted browser review passed; awaiting merge |
 | CF-03 | Ritual/spell, feat/effect and journal/table reference completeness | planned | Pending | Not started |
 | CF-04 | Consumable presentation and nested-spell navigation | planned | Pending | Not started |
 | CF-05 | Physical query fields and labels | planned | Pending | Not started |
