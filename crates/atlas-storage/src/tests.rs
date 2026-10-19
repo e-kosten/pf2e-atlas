@@ -129,6 +129,12 @@ fn failed_upgrade_rolls_back_schema_data_and_ledger_and_keeps_backup() {
     let backup = rusqlite::Connection::open(workspace.upgrade_backup_path()).unwrap();
     assert_eq!(
         backup
+            .query_row("PRAGMA journal_mode", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "delete"
+    );
+    assert_eq!(
+        backup
             .query_row("PRAGMA user_version", [], |r| r.get::<_, u32>(0))
             .unwrap(),
         1
@@ -558,7 +564,17 @@ fn snapshot_and_seed_admission_preserve_existing_state() {
     ));
     drop(owner);
     workspace.snapshot_to(&snapshot).unwrap();
+    let before = std::fs::read(&snapshot).unwrap();
+    workspace
+        .write_action(1, |session| -> StorageResult<()> {
+            session
+                .connection()
+                .execute("UPDATE saved SET title='new state'", [])?;
+            Ok(())
+        })
+        .unwrap();
     assert!(workspace.snapshot_to(&snapshot).is_err());
+    assert_eq!(std::fs::read(&snapshot).unwrap(), before);
     let target = Workspace::at(dir.path().join("copy.sqlite")).unwrap();
     let admission = target.begin_initialization().unwrap().unwrap();
     assert!(
