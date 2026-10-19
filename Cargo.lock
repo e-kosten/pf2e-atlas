@@ -219,9 +219,13 @@ dependencies = [
  "atlas-record",
  "atlas-runtime",
  "atlas-search",
+ "atlas-storage",
  "clap",
+ "serde",
  "serde_json",
  "sha2",
+ "tempfile",
+ "time",
 ]
 
 [[package]]

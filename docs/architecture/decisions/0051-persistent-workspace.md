@@ -90,6 +90,19 @@ Changes to this boundary require production lifecycle integration,
 delta/backfill/checkpoint tests, consumer replacement and matching architecture
 guidance. Isolated storage tests do not establish those obligations.
 
+## Development snapshots
+
+Whole-workspace developer seeds are storage-owned snapshots, not a second live
+reference store. Capture holds shared update/access admission and uses SQLite
+backup to include committed WAL contents. Installation verifies a staged clone or
+copy before publishing only to an absent path under exclusive admission. It never
+migrates, replaces existing saved state, or shares writable pages with the seed.
+Migration backups and developer snapshots share one storage-owned capture and
+durable publication implementation. Callers retain their admission policy and
+explicitly choose replacement (latest migration backup) or missing-only publication
+(developer snapshot). Both outputs are closed standalone SQLite files.
+Developer manifests and tool retention belong to atlas-dev orchestration.
+
 ## Implementation evidence
 
 The migration/session APIs, shared schema, state-preserving reference writer,

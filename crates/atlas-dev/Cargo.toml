@@ -20,6 +20,10 @@ sha2.workspace = true
 atlas-runtime.workspace = true
 clap.workspace = true
 serde_json.workspace = true
+serde.workspace = true
+atlas-storage.workspace = true
+time.workspace = true
+tempfile = "3"
 
 [dev-dependencies]
 atlas-index = { workspace = true, features = ["test-support"] }

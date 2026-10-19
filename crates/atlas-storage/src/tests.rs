@@ -129,6 +129,12 @@ fn failed_upgrade_rolls_back_schema_data_and_ledger_and_keeps_backup() {
     let backup = rusqlite::Connection::open(workspace.upgrade_backup_path()).unwrap();
     assert_eq!(
         backup
+            .query_row("PRAGMA journal_mode", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "delete"
+    );
+    assert_eq!(
+        backup
             .query_row("PRAGMA user_version", [], |r| r.get::<_, u32>(0))
             .unwrap(),
         1
@@ -506,4 +512,80 @@ fn current_schema_fast_path_never_reopens_abandoned_maintenance() {
         workspace.read(1),
         Err(StorageError::Maintenance(_))
     ));
+}
+
+#[test]
+fn snapshots_include_live_wal_and_seeds_are_independent() {
+    let (dir, workspace) = fixture();
+    let writer = rusqlite::Connection::open(workspace.path()).unwrap();
+    writer
+        .execute_batch("PRAGMA journal_mode=WAL; INSERT INTO saved VALUES(2,'wal row');")
+        .unwrap();
+    let snapshot = dir.path().join("seed.sqlite");
+    workspace.snapshot_to(&snapshot).unwrap();
+    let seed = Workspace::at(&snapshot).unwrap();
+    assert_eq!(
+        seed.read(1)
+            .unwrap()
+            .connection()
+            .query_row("SELECT count(*) FROM saved", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        2
+    );
+    let target = Workspace::at(dir.path().join("copy.sqlite")).unwrap();
+    let admission = target.begin_initialization().unwrap().unwrap();
+    admission.install(&snapshot, |_| Ok(())).unwrap();
+    drop(admission);
+    target
+        .write_action(1, |s| -> StorageResult<()> {
+            s.connection().execute("DELETE FROM saved", [])?;
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(
+        seed.read(1)
+            .unwrap()
+            .connection()
+            .query_row("SELECT count(*) FROM saved", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        2
+    );
+    assert!(target.begin_initialization().unwrap().is_none());
+}
+
+#[test]
+fn snapshot_and_seed_admission_preserve_existing_state() {
+    let (dir, workspace) = fixture();
+    let snapshot = dir.path().join("seed.sqlite");
+    let owner = workspace.update_owner().unwrap();
+    assert!(matches!(
+        workspace.snapshot_to(&snapshot),
+        Err(StorageError::Busy)
+    ));
+    drop(owner);
+    workspace.snapshot_to(&snapshot).unwrap();
+    let before = std::fs::read(&snapshot).unwrap();
+    workspace
+        .write_action(1, |session| -> StorageResult<()> {
+            session
+                .connection()
+                .execute("UPDATE saved SET title='new state'", [])?;
+            Ok(())
+        })
+        .unwrap();
+    assert!(workspace.snapshot_to(&snapshot).is_err());
+    assert_eq!(std::fs::read(&snapshot).unwrap(), before);
+    let target = Workspace::at(dir.path().join("copy.sqlite")).unwrap();
+    let admission = target.begin_initialization().unwrap().unwrap();
+    assert!(
+        admission
+            .install(&snapshot, |_| Err(StorageError::Unsupported(
+                "rejected hash".into()
+            )))
+            .is_err()
+    );
+    assert!(!target.path().exists());
+    drop(admission);
+    std::fs::write(locking::sidecar(target.path(), "-wal"), b"orphan").unwrap();
+    assert!(target.begin_initialization().is_err());
 }

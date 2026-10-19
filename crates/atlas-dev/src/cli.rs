@@ -26,6 +26,8 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Publish and reuse development baselines without rebuilding source data.
+    Baseline(commands::baseline::args::BaselineArgs),
     #[command(about = "Analyze and audit Foundry source data")]
     Source(SourceArgs),
     #[command(about = "Inspect built Atlas artifacts")]
@@ -45,6 +47,7 @@ pub(crate) fn main() -> ExitCode {
         }
     };
     let json = match &cli.command {
+        Command::Baseline(args) => args.json,
         Command::Source(args) => match &args.command {
             SourceCommand::Load(options) => options.json,
             SourceCommand::Analyze(options) => options.json,
@@ -61,6 +64,7 @@ pub(crate) fn main() -> ExitCode {
         setup_timing: false,
     });
     let result = match cli.command {
+        Command::Baseline(args) => commands::baseline::run(args),
         Command::Source(args) => match args.command {
             SourceCommand::Load(options) => commands::source::run_source_load(options),
             SourceCommand::Analyze(options) => commands::source::run_source_analyze(options),

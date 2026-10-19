@@ -208,6 +208,18 @@ Use checkout-local Cargo output; never share or symlink targets across worktrees
 
 Compiler caches are disposable when their task ends; saved state, source/model assets, and builds still under review require explicit preservation. Preserve live dependency targets such as `node_modules` when another checkout links to them. Use focused checks during iteration and full gates at the required milestones; reuse successful evidence for an unchanged candidate. See CONTRIBUTING.md for debugging and retention details.
 
+For full-corpus development, use `just dev-workspace-init` to seed only a missing
+checkout workspace from the shared validated baseline. Bootstrap or explicitly
+refresh the retained Rust developer tool with `just dev-tool-build`; normal
+baseline commands never compile. Keep the retained tool outside linked worktrees.
+`just dev-status` reports
+provenance and compatibility; `just dev-web` uses the frozen baseline executable
+unless `--binary target/debug/atlas` explicitly selects the candidate. Share pinned
+source/model caches, not writable databases or Cargo targets. Do not reset existing
+saved state or run setup automatically on compatibility failure. Baseline versions
+and referenced assets must survive worktree retirement; follow CONTRIBUTING.md for
+publication and retention.
+
 ## Pull Requests And Human Review
 
 For changes that affect user experience, including UI and CLI behavior or output,
