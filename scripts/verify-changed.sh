@@ -12,9 +12,10 @@ Modes:
   --staged       validate staged paths for pre-commit
   --range RANGE  validate paths changed in a git diff range
   --paths-file FILE  validate a newline-separated list of paths
-  --all          validate Rust and web UI gates regardless of paths
+  --all          select every validation surface regardless of paths
 
 Options:
+  --list         print selected surfaces as key=true/false; run no checks
   --full         run full integration gates for touched surfaces
   -v, --verbose  stream detailed command output
   -h, --help     show this help
@@ -25,6 +26,7 @@ mode=
 range=
 input_paths=
 full=0
+list=0
 verbose=0
 
 while [ "$#" -gt 0 ]; do
@@ -54,6 +56,10 @@ while [ "$#" -gt 0 ]; do
         exit 2
       fi
       shift 2
+      ;;
+    --list)
+      list=1
+      shift
       ;;
     --full)
       full=1
@@ -110,46 +116,51 @@ case "$mode" in
     ;;
 esac
 
-run_check() {
-  label="$1"
-  shift
-
-  if [ "$verbose" -eq 1 ]; then
-    printf 'Running %s...\n' "$label" >&2
-    "$@"
-    return
-  fi
-
-  output="$tmp_dir/$label.log"
-  printf 'Running %s...\n' "$label" >&2
-  if "$@" >"$output" 2>&1; then
-    printf 'Passed %s\n' "$label" >&2
-    return
-  fi
-
-  printf '\nFailed %s\n' "$label" >&2
-  printf 'Command: %s\n\n' "$*" >&2
-  cat "$output" >&2
-  return 1
-}
+. "$REPO_ROOT/scripts/validation/run-check.sh"
 
 rust_touched=0
 web_touched=0
+source_touched=0
+release_touched=0
+research_touched=0
 docs_only=0
 
 if [ "$mode" = all ]; then
   rust_touched=1
   web_touched=1
+  source_touched=1
+  release_touched=1
+  research_touched=1
 elif [ ! -s "$paths_file" ]; then
-  echo "No changed paths detected; skipping validation." >&2
-  exit 0
+  docs_only=1
 else
   classify_validation_paths "$paths_file"
+fi
+
+if [ "$list" -eq 1 ]; then
+  for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched"; do
+    value=false
+    [ "${entry#*:}" -eq 0 ] || value=true
+    printf '%s=%s\n' "${entry%%:*}" "$value"
+  done
+  exit 0
 fi
 
 if [ "$docs_only" -eq 1 ]; then
   echo "Docs-only change detected; skipping code validation." >&2
   exit 0
+fi
+
+if [ "$web_touched" -eq 1 ]; then
+  if [ "$full" -eq 1 ]; then
+    run_check "web UI verify" npm --prefix web/atlas-ui run verify
+  else
+    run_check "web UI format" npm --prefix web/atlas-ui run format:check
+  fi
+fi
+
+if [ "$full" -eq 1 ] && [ "$rust_touched" -eq 1 ] && [ "$web_touched" -eq 0 ]; then
+  run_check "web bundle for Rust" npm --prefix web/atlas-ui run build
 fi
 
 if [ "$rust_touched" -eq 1 ]; then
@@ -164,10 +175,18 @@ if [ "$rust_touched" -eq 1 ]; then
   fi
 fi
 
-if [ "$web_touched" -eq 1 ]; then
-  if [ "$full" -eq 1 ]; then
-    run_check "web UI verify" npm --prefix web/atlas-ui run verify
-  else
-    run_check "web UI format" npm --prefix web/atlas-ui run format:check
+# Contributor packages have no formatting gate; substantive checks are explicit.
+if [ "$full" -eq 1 ]; then
+  if [ "$source_touched" -eq 1 ]; then
+    run_check "source contract fixtures" npm --prefix dev-tools/source-contracts run verify
+    run_check "pinned source generation" npm --prefix dev-tools/source-contracts run verify-generated
+  fi
+  if [ "$release_touched" -eq 1 ]; then
+    run_check "release tooling and static checks" sh scripts/release/validate-release-tooling.sh
+    run_check "release smoke tests" sh scripts/release/test-release-tools.sh
+    run_check "release preparation tests" sh scripts/release/test-prepare-release.sh
+  fi
+  if [ "$research_touched" -eq 1 ]; then
+    run_check "research evidence" sh scripts/validation/research.sh
   fi
 fi

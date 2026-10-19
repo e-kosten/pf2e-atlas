@@ -39,28 +39,7 @@ trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
 
 cd "$REPO_ROOT"
 
-run_check() {
-  label="$1"
-  shift
-
-  if [ "$verbose" -eq 1 ]; then
-    printf 'Running %s...\n' "$label" >&2
-    "$@"
-    return
-  fi
-
-  output="$tmp_dir/$label.log"
-  printf 'Running %s...\n' "$label" >&2
-  if "$@" >"$output" 2>&1; then
-    printf 'Passed %s\n' "$label" >&2
-    return
-  fi
-
-  printf '\nFailed %s\n' "$label" >&2
-  printf 'Command: %s\n\n' "$*" >&2
-  cat "$output" >&2
-  return 1
-}
+. "$REPO_ROOT/scripts/validation/run-check.sh"
 
 run_check "cargo fmt" cargo fmt --check
 run_check "broad clippy" cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
