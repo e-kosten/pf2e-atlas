@@ -16,30 +16,30 @@ preflight:
 [group('development')]
 [positional-arguments]
 dev-baseline-publish *args:
-    python3 {{ quote(justfile_directory() / "scripts/development/baseline.py") }} publish --checkout {{ quote(invocation_directory()) }} "$@"
+    sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} publish --checkout {{ quote(invocation_directory()) }} "$@"
 
 [doc('Seed this checkout from the baseline only if its workspace is missing')]
 [group('development')]
 [positional-arguments]
 dev-workspace-init *args:
-    python3 {{ quote(justfile_directory() / "scripts/development/baseline.py") }} init --checkout {{ quote(invocation_directory()) }} "$@"
+    sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} init --checkout {{ quote(invocation_directory()) }} "$@"
 
 [doc('Show development baseline provenance and candidate compatibility without migrating')]
 [group('development')]
 [positional-arguments]
 dev-status *args:
-    python3 {{ quote(justfile_directory() / "scripts/development/baseline.py") }} status --checkout {{ quote(invocation_directory()) }} "$@"
+    sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} status --checkout {{ quote(invocation_directory()) }} "$@"
 
 [doc('Run the baseline backend or an explicit candidate with private data; default port 4727')]
 [group('development')]
 [positional-arguments]
 dev-web *args:
-    python3 {{ quote(justfile_directory() / "scripts/development/baseline.py") }} web --checkout {{ quote(invocation_directory()) }} "$@"
+    sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} web --checkout {{ quote(invocation_directory()) }} "$@"
 
 [doc('Test development baseline publication, snapshots and workspace isolation without models')]
 [group('validation')]
 dev-baseline-test:
-    python3 -m unittest discover -s scripts/development -p 'test_*.py'
+    cargo test -p atlas-storage -p atlas-dev
 
 [doc('Run the full Rust fmt, clippy, test, and build gate; pass --verbose for detailed output')]
 [group('validation')]
@@ -132,3 +132,8 @@ release-install *args:
 [group('release')]
 release-check-tools:
     scripts/release/validate-release-tooling.sh
+
+[doc('Build and retain atlas-dev once for all linked worktrees')]
+[group('development')]
+dev-tool-build:
+    sh {{ quote(justfile_directory() / "scripts/development/build-tool.sh") }}

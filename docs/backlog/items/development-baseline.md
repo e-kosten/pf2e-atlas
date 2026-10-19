@@ -2,7 +2,7 @@
 
 Status: in_progress
 
-Local implementation and operational acceptance are complete; integration is pending.
+Local Rust implementation and operational acceptance are complete; PR #85 integration is pending.
 
 Provide versioned validated executable/workspace seeds shared by main and linked
 worktrees. Initialize missing private workspaces without replacing saved state;
@@ -14,6 +14,11 @@ provenance/status commands, focused regression tests and real two-profile smoke.
 
 See [the contributor workflow](../../../CONTRIBUTING.md#reusable-development-baseline) for commands and retention guidance.
 
-Local acceptance: 23 focused tests, validation-routing regressions, real baseline
-publication/deep validation, both vector profiles, independent main/worktree
-clones, repeat-init preservation and packaged backend smoke passed.
+The baseline manifest and existing private databases remain reusable across tooling
+updates. Snapshot admission belongs to atlas-storage; atlas-dev owns orchestration
+and the existing Rust test gate covers both.
+
+Validation: full Rust fmt/Clippy/test/build gate, launcher/routing checks, native
+full-corpus publication with deep validation and both vector profiles, independent
+fresh clone readiness, existing main/worktree preservation, and isolated backend
+readiness/record/assets smoke passed.

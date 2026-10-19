@@ -8,6 +8,12 @@ runtime composes one schema history. Normal reference publication preserves the
 workspace file and saved rows. [ADR0051](./decisions/0051-persistent-workspace.md)
 defines these ownership and lifetime boundaries.
 
+Developer baseline snapshots use `atlas-storage` admission and SQLite backup,
+including committed WAL data. Seed installation accepts only an absent workspace
+without orphan SQLite sidecars, verifies a staged clone/copy, and publishes without
+replacing an existing path. It preserves workspace identity and all saved state.
+`atlas-dev` owns manifests and provenance receipts, not SQL or migration policy.
+
 ## Identity and versions
 
 Record identity is the Foundry pack and source `_id`, serialized as `pack:id`.

@@ -80,8 +80,7 @@ sh "$repo_root/scripts/git-hooks/test-pre-push.sh"
 cp "$repo_root/.githooks/pre-commit" "$repo_root/.githooks/pre-merge-commit" "$fixture/.githooks/"
 cp "$repo_root/scripts/git-hooks/common.sh" "$fixture/scripts/git-hooks/common.sh"
 cp "$repo_root/scripts/verify-changed.sh" "$repo_root/scripts/verify.sh" "$fixture/scripts/"
-mkdir -p "$fixture/scripts/validation" "$fixture/scripts/release" "$fixture/scripts/development"
-printf 'import unittest\nclass Fixture(unittest.TestCase):\n    def test_fixture(self): pass\n' >"$fixture/scripts/development/test_fixture.py"
+mkdir -p "$fixture/scripts/validation" "$fixture/scripts/release"
 cp "$repo_root/scripts/validation/run-check.sh" "$fixture/scripts/validation/"
 for skill_check in skill.ts skill.test.ts; do
   printf 'import { appendFileSync } from "node:fs"; appendFileSync(process.env.ATLAS_TEST_COMMAND_LOG, "skill check\\n");\n' >"$fixture/scripts/validation/$skill_check"
@@ -175,18 +174,6 @@ printf 'crates/example/src/lib.rs\n' >>"$fixture/paths-input"
 grep -q '^rust=true$' "$check_output"
 grep -q '^skill=true$' "$check_output"
 
-# Development tooling has its own full gate and propagates test failures.
-printf 'scripts/development/baseline.py\n' >"$fixture/paths-input"
-: >"$log"
-(cd "$fixture"; ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" scripts/verify-changed.sh --paths-file paths-input --full) >"$check_output" 2>&1
-! grep -Eq '^(cargo|npm) ' "$log"
-cp "$fixture/scripts/development/test_fixture.py" "$tmp/valid-development-test"
-printf 'raise RuntimeError("development failure fixture")\n' >"$fixture/scripts/development/test_fixture.py"
-if (cd "$fixture"; scripts/verify-changed.sh --paths-file paths-input --full) >"$check_output" 2>&1; then
-  echo 'development test failure ignored' >&2; exit 1
-fi
-cp "$tmp/valid-development-test" "$fixture/scripts/development/test_fixture.py"
-
 # Literal path input must not discard a final line without a newline.
 printf 'unknown-tooling-file' >"$fixture/paths-input"
 : >"$log"
@@ -215,22 +202,21 @@ printf 'git-hook common smoke tests and %s fixture cases passed\n' "$case_count"
 
 # Explicit surfaces, dependency fan-out, and conservative unknown inputs.
 for entry in \
-  'scripts/development/baseline.py:0000001' \
-  'README.md:0000000' \
-  'docs/research/evaluations/frozen/README.md:0000100' \
-  'docs/research/evaluations/frozen/judgments.jsonl:0000100' \
-  'docs/research/evaluations/frozen/verify.ts:0000100' \
-  'dev-tools/source-contracts/tests/fixture.md:0010000' \
-  'dev-tools/release/src/check.ts:0001000' \
-  'crates/atlas-foundry-model/src/lib.rs:1010000' \
-  'crates/atlas-app-model/bindings/Search.ts:1100000' \
-  'Cargo.lock:1111000' \
-  'crates/atlas-cli/Cargo.toml:1111000' \
-  'THIRD-PARTY-NOTICES.md:0001000' \
-  'skills/pf2e-atlas-cli/SKILL.md:0000010' \
-  '.cargo/config.toml:1111111' \
-  '.github/workflows/ci.yml:1111111' \
-  'unknown.config:1111111'; do
+  'README.md:000000' \
+  'docs/research/evaluations/frozen/README.md:000010' \
+  'docs/research/evaluations/frozen/judgments.jsonl:000010' \
+  'docs/research/evaluations/frozen/verify.ts:000010' \
+  'dev-tools/source-contracts/tests/fixture.md:001000' \
+  'dev-tools/release/src/check.ts:000100' \
+  'crates/atlas-foundry-model/src/lib.rs:101000' \
+  'crates/atlas-app-model/bindings/Search.ts:110000' \
+  'Cargo.lock:111100' \
+  'crates/atlas-cli/Cargo.toml:111100' \
+  'THIRD-PARTY-NOTICES.md:000100' \
+  'skills/pf2e-atlas-cli/SKILL.md:000001' \
+  '.cargo/config.toml:111111' \
+  '.github/workflows/ci.yml:111111' \
+  'unknown.config:111111'; do
   changed_path=${entry%:*}
   expected=${entry##*:}
   printf '%s\n' "$changed_path" >"$fixture/paths-input"
@@ -249,7 +235,7 @@ grep -q '^rust=true$' "$check_output"
 chmod +x "$fixture/README.md"
 git -C "$fixture" add README.md
 (cd "$fixture"; scripts/verify-changed.sh --staged --list) >"$check_output"
-[ "$(grep -c '=true$' "$check_output")" -eq 7 ]
+[ "$(grep -c '=true$' "$check_output")" -eq 6 ]
 
 # The real research runner rejects missing verifiers and propagates failures.
 cp "$repo_root/scripts/validation/research.sh" "$fixture/scripts/validation/research.sh"
