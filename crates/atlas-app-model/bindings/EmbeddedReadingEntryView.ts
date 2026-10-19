@@ -3,4 +3,4 @@ import type { PreparedContentFieldView } from "./PreparedContentFieldView";
 import type { RecordNavigationView } from "./RecordNavigationView";
 import type { RecordRelationshipView } from "./RecordRelationshipView";
 
-export type OwnedReadingEntryView = { navigation: RecordNavigationView, content: Array<PreparedContentFieldView>, relationships: Array<RecordRelationshipView>, };
+export type EmbeddedReadingEntryView = { navigation: RecordNavigationView, content: Array<PreparedContentFieldView>, relationships: Array<RecordRelationshipView>, };

@@ -4,7 +4,7 @@ import { expect, it, vi } from "vitest";
 import { RollTableReading } from "./RollTableReading";
 import { knownFact, unavailableFact } from "../../test/fixtures";
 import type { RecordNavigationView } from "../../generated/atlas";
-const api = vi.hoisted(() => ({ getOwnedReading: vi.fn() }));
+const api = vi.hoisted(() => ({ getEmbeddedReading: vi.fn() }));
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
   ...api,
@@ -13,17 +13,17 @@ vi.mock("../../api/atlasApi", async (original) => ({
 it("reads a batch of complete table text and opens its checked reference in place", async () => {
   const parent: RecordNavigationView = {
     record_key: "tables:one",
-    owners: [],
+    embedded_path: [],
     field: null,
     passage: null,
     source_fingerprint: null,
   };
   const navigation: RecordNavigationView = {
     ...parent,
-    owners: [{ collection: "/results", identity: { Stable: "result" } }],
+    embedded_path: [{ collection: "/results", identity: { Stable: "result" } }],
   };
   const target: RecordNavigationView = { ...parent, record_key: "items:staff" };
-  api.getOwnedReading.mockResolvedValue({
+  api.getEmbeddedReading.mockResolvedValue({
     artifact_generation: "generation",
     parent,
     availability: "value",
@@ -39,7 +39,7 @@ it("reads a batch of complete table text and opens its checked reference in plac
           {
             locator: {
               record: parent.record_key,
-              owners: navigation.owners,
+              embedded_path: navigation.embedded_path,
               field: "/text",
             },
             role: "table_result",
@@ -89,8 +89,8 @@ it("reads a batch of complete table text and opens its checked reference in plac
     expect.any(HTMLElement),
     target,
   );
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(1);
-  expect(api.getOwnedReading.mock.calls[0][0].selection).toEqual({
+  expect(api.getEmbeddedReading).toHaveBeenCalledTimes(1);
+  expect(api.getEmbeddedReading.mock.calls[0][0].selection).toEqual({
     kind: "table_results",
     cursor: null,
   });

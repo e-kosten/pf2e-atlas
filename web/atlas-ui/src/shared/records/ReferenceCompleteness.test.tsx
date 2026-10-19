@@ -56,7 +56,7 @@ it("shows prerequisites and effect duration from the shared projection", () => {
           {
             locator: {
               record: "feats:aaaaaaaaaaaaaaaa",
-              owners: [],
+              embedded_path: [],
               field: "/system/prerequisites/value/0/value",
             },
             role: "prerequisite",
@@ -88,7 +88,7 @@ it("distinguishes empty journals from unavailable collections and keeps selected
     identity: summaryFixture("journals:aaaaaaaaaaaaaaaa"),
     classification: "Journal",
     content: [],
-    owned: [],
+    embedded: [],
   };
   const { rerender } = render(
     <RecordPresentation
@@ -120,7 +120,7 @@ it("distinguishes empty journals from unavailable collections and keeps selected
           {
             locator: {
               record: "journals:aaaaaaaaaaaaaaaa",
-              owners: [],
+              embedded_path: [],
               field: "/text/content",
             },
             role: "description",
@@ -147,7 +147,7 @@ it("keeps table roll guidance behind an accessible information button", async ()
       <TableRollControl
         selection={{
           record_key: "tables:test",
-          owners: [],
+          embedded_path: [],
           fields: [],
           passage: null,
           source_fingerprint: null,

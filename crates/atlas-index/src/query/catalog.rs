@@ -4,7 +4,7 @@ use atlas_foundry_model::generated::*;
 use serde::de::{self, DeserializeOwned};
 use std::{fmt, sync::OnceLock};
 
-pub const QUERY_CAPABILITY_VERSION: u32 = 4;
+pub const QUERY_CAPABILITY_VERSION: u32 = 5;
 const ACTORS: &[&str] = &[
     "npc",
     "hazard",
@@ -724,6 +724,22 @@ fn build() -> Result<Vec<Descriptor>, String> {
             String,
             &["backpack", "book", "consumable", "equipment", "weapon"][..],
             Vec::new(),
+            None,
+        ),
+        (
+            "consumable.damage.kind",
+            "consumable_damage_kind",
+            String,
+            &["consumable"][..],
+            choices::<DamageKind>()?,
+            None,
+        ),
+        (
+            "consumable.damage.type",
+            "consumable_damage_type",
+            String,
+            &["consumable"][..],
+            choices::<ConsumableDamageHealingType>()?,
             None,
         ),
         (

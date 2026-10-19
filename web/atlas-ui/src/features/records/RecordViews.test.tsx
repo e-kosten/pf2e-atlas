@@ -4,7 +4,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { ConfigProvider, Grid } from "antd";
-import type { RecordDetailView, RecordNavigationView } from "../../generated/atlas";
+import type {
+  RecordDetailRequest,
+  RecordDetailView,
+  RecordNavigationView,
+} from "../../generated/atlas";
 import { ReaderView, RecordView } from "./RecordViews";
 import {
   ATLAS_ROUTE_CHANGE_EVENT,
@@ -170,11 +174,11 @@ describe("record route views", () => {
     expect(screen.getByText("Select a record")).toBeInTheDocument();
   });
 
-  it("preserves owned field and passage identity through preview follow, close, promotion and history", async () => {
+  it("preserves embedded field and passage identity through preview follow, close, promotion and history", async () => {
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true, lg: true });
     const selected = (record_key: string, ordinal: number): RecordNavigationView => ({
       record_key,
-      owners: [
+      embedded_path: [
         { collection: "items", identity: { SnapshotLocal: { index: ordinal } } },
       ],
       field: "system.description.value",
@@ -193,7 +197,7 @@ describe("record route views", () => {
     const second = selected("actors:second", 2);
     const third = selected("actors:third", 3);
     apiMocks.getRecordDetail.mockImplementation(
-      (recordKey: string, selection?: RecordNavigationView) => {
+      (recordKey: string, selection?: RecordDetailRequest) => {
         const result = recordDetailFixture(recordKey);
         result.relationships[0].target =
           recordKey === primary.record_key
@@ -202,8 +206,15 @@ describe("record route views", () => {
               ? second
               : third;
         if (selection) {
-          const { record_key, owners, field, passage, source_fingerprint } = selection;
-          result.selected = { record_key, owners, field, passage, source_fingerprint };
+          const { record_key, embedded_path, fields, passage, source_fingerprint } =
+            selection;
+          result.selected = {
+            record_key,
+            embedded_path,
+            field: fields[0] ?? null,
+            passage,
+            source_fingerprint,
+          };
         }
         return Promise.resolve(result);
       },
@@ -255,8 +266,11 @@ describe("record route views", () => {
     expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
       second.record_key,
       {
-        ...second,
+        record_key: second.record_key,
+        embedded_path: second.embedded_path,
         fields: [second.field],
+        passage: second.passage,
+        source_fingerprint: second.source_fingerprint,
       },
       expect.any(AbortSignal),
     );

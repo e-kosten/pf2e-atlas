@@ -145,6 +145,8 @@ fn oracle(rows: &[ProjectionRow], raw: &Json, counts: &mut [usize; 2]) {
                 ("bulk", "/system/bulk/value"),
                 ("usage", "/system/usage/value"),
                 ("consumable_category", "/system/category"),
+                ("consumable_damage_kind", "/system/damage/kind"),
+                ("consumable_damage_type", "/system/damage/type"),
             ],
             "weapon_projection" => &[
                 ("category", "/system/category"),
@@ -284,6 +286,8 @@ fn pinned_corpus_item_and_common_projection_oracle() {
         "../../migrations/00000000000001_create_artifact/up.sql"
     ))
     .unwrap();
+    db.execute_batch(crate::CONSUMABLE_FILTER_SCHEMA_SQL)
+        .unwrap();
     let mut families = BTreeMap::new();
     let mut counts = [0; 2];
     let mut roots = 0;

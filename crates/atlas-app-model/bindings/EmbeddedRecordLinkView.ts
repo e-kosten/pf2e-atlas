@@ -3,4 +3,4 @@ import type { ActionCostView } from "./ActionCostView";
 import type { FactView } from "./FactView";
 import type { RecordNavigationView } from "./RecordNavigationView";
 
-export type OwnedRecordLinkView = { navigation: RecordNavigationView, title: string, family: string, usage: string | null, action_cost: FactView<ActionCostView>, };
+export type EmbeddedRecordLinkView = { navigation: RecordNavigationView, title: string, family: string, usage: string | null, action_cost: FactView<ActionCostView>, };

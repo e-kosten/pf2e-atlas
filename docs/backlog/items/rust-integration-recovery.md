@@ -1,8 +1,8 @@
 # Source-modeling Capability Follow-through
 
 Status: in_progress
-Priority: agreed sequence; CF-03 implementation approved
-Owner: unassigned
+Priority: agreed sequence; combined CF-04 + CF-05 implementation approved
+Owner: CF-04 + CF-05 parity worktree
 Last reviewed: 2026-10-18
 
 ## Purpose and authorization
@@ -14,8 +14,8 @@ its documentation, **not implementation of every recommendation**. Confirm the
 selected scope and unresolved product behavior before implementation. Do not
 interpret this list as ten mandatory merge blockers.
 
-CF-01 merged in PR #68 and CF-02 merged in PR #69; CF-03 implementation is approved; CF-04 through CF-10 remain
-unapproved. Mixed-failure precedence is runtime (3), invalid input (2), domain
+CF-01/02/03 merged in PRs #68/#69/#71. CF-04 and CF-05 are approved as one
+combined slice; CF-06 through CF-10 remain unapproved. Mixed-failure precedence is runtime (3), invalid input (2), domain
 miss/ambiguity (1), success (0).
 
 The user agreed to deprioritize consumable base-item filtering: only one of
@@ -35,9 +35,9 @@ if review warrants it; preserve its ID and record every resulting PR here.
 | --- | --- | --- | --- | --- |
 | CF-01 | CLI batches and error contracts | merged | Approved 2026-10-18 | [PR #68](https://github.com/e-kosten/pf2e-atlas/pull/68); merged as b6a0a684; local validation passed |
 | CF-02 | Creature/hazard reference facts and activity details | merged | Approved 2026-10-18 | [PR #69](https://github.com/e-kosten/pf2e-atlas/pull/69); merged as b0ac0ae5; user accepted reference layout; local validation passed |
-| CF-03 | Ritual/spell, feat/effect and journal/table reference completeness | in_progress | Approved 2026-10-18 | UI accepted; implementation and local validation complete; bounded desktop/narrow browser review passed; awaiting PR review and merge |
-| CF-04 | Consumable presentation and nested-spell navigation | planned | Pending | Not started |
-| CF-05 | Physical query fields and labels | planned | Pending | Not started |
+| CF-03 | Ritual/spell, feat/effect and journal/table reference completeness | merged | Approved 2026-10-18 | [PR #71](https://github.com/e-kosten/pf2e-atlas/pull/71), f950b54f; UI accepted; local gates passed |
+| CF-04 | Consumable presentation and nested-spell navigation | in_progress | Approved together with CF-05 | Locally complete; accepted preview; Rust/UI gates and independent browser review pass; [PR #73](https://github.com/e-kosten/pf2e-atlas/pull/73); user accepted preview |
+| CF-05 | Physical query fields and labels | in_progress | Approved together with CF-04 | Locally complete; typed filters, migration and exact labels validated; [PR #73](https://github.com/e-kosten/pf2e-atlas/pull/73); user accepted preview |
 | CF-06 | Encounter status and action-budget policy | planned | Pending | Not started |
 | CF-07 | Supported condition/spell adjustments and casting reminders | planned | Pending | Not started |
 | CF-08 | Hazard Active/Disabled state | planned | Pending | Not started |
@@ -105,8 +105,8 @@ pages; table gaps/invalid ranges remain honest without implying saved deck state
 ### CF-04 — Consumable presentation and nested-spell navigation
 
 Terminology decision: replace product-facing owned/owners wording with embedded
-content terminology consistently across CLI, API and UI; exact field names remain
-to be finalized in this slice. This terminology work is deferred from CF-01.
+content terminology consistently across CLI, API and UI: `embedded_path` for
+checked navigation, `embedded` for child links and `embedded-reading` for batches. This terminology work is deferred from CF-01.
 
 Choose compact intrinsic facts (category, damage/healing, useful uses/capacity,
 package pricing and secondary properties) and distinguish source-carried state
@@ -125,13 +125,23 @@ than treating the earlier static observation as a reproduced defect.
 Prioritize useful typed consumable damage/healing kind/type and clear usage
 choices. Agree a reviewed hands mapping before adding a normalized hands axis;
 do not restore substring heuristics or confuse hands held with hands required.
-Keep per-item GP semantics and make package pricing clear.
+Keep per-item GP semantics and make package pricing clear. This slice uses exact
+authored Usage values and pinned readable labels; no normalized hands axis.
 
-Acceptance: healing vitality differs from vitality damage; root/immediate-owned
+Acceptance: healing vitality differs from vitality damage; root/immediate-embedded
 filters use the same typed extraction; unknown values retain query semantics;
 attachment to a two-handed weapon is not classified as two hands to hold the item.
 **Consumable base-item filtering is deprioritized by user decision**, not part of
 the default implementation scope for this item.
+
+CF-04/05 local validation: Rust verification gate; frontend verification (686
+passing tests); 20 Chromium/WebKit responsive journeys; independent Sol browser
+review at 1200/800/390px, including touch, native full-page links and canonical
+original navigation. The shared request conversion now explicitly converts a
+navigation field into the request field list. The nine-record model-free preview
+supports bounded reference acceptance, not full-corpus or semantic-search release
+acceptance. The user accepted the final preview and authorized publication of
+`feat/cf04-cf05-consumable-reference` against `integration/source-modeling`.
 
 ### CF-06 — Encounter status and action-budget policy
 

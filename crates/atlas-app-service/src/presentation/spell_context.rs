@@ -36,8 +36,29 @@ pub(crate) fn ranks(record: &SourceBackedRecord, source: &SpellSource) -> Vec<u8
         return vec![];
     };
     let parent = record.node_at(&[]);
+    // Only an immediate actor spell belongs to that actor's casting collections.
+    // A consumable's nested spell has its own authored casting context.
+    let mut direct_actor_spell = false;
+    record.visit_immediate_actor_items(|_, _, item| {
+        if let ItemSourceView::SpellSource(candidate) = item {
+            direct_actor_spell |= std::ptr::eq(candidate, source);
+        }
+    });
+    let parent = parent.filter(|_| direct_actor_spell);
     let Some(parent @ SourceNodeView::Actor(_)) = parent else {
-        return vec![base];
+        return match system.location.as_value().map_or_else(
+            || {
+                if matches!(system.location, SourcePresence::Invalid(_)) {
+                    Err(())
+                } else {
+                    Ok(None)
+                }
+            },
+            |location| override_rank(&location.heightened_level),
+        ) {
+            Ok(rank) => vec![rank.unwrap_or(base).max(base)],
+            Err(()) => vec![],
+        };
     };
     if matches!(system.location, SourcePresence::Invalid(_)) {
         return vec![];

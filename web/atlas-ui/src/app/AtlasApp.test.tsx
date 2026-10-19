@@ -160,7 +160,7 @@ describe("AtlasApp routing", () => {
     async (single) => {
       const selection = {
         record_key: "spell:heal",
-        owners: [],
+        embedded_path: [],
         field: "/system/description/value",
         passage: null,
         source_fingerprint: "snapshot-a",
@@ -168,7 +168,7 @@ describe("AtlasApp routing", () => {
       const landing = {
         ...selection,
         field: null,
-        owners: [{ collection: "items", identity: { Stable: "landing" } }],
+        embedded_path: [{ collection: "items", identity: { Stable: "landing" } }],
       };
       const filter = encodeFilterUrl({
         kind: "in",
@@ -194,8 +194,11 @@ describe("AtlasApp routing", () => {
         (key: string, request?: RecordDetailRequest) => {
           const detail = recordDetailFixture(key);
           if (!request) return Promise.resolve(detail);
-          const { fields: _fields, ...selected } = request;
-          return Promise.resolve({ ...detail, selected });
+          const { fields, ...address } = request;
+          return Promise.resolve({
+            ...detail,
+            selected: { ...address, field: fields[0] ?? null },
+          });
         },
       );
       apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>

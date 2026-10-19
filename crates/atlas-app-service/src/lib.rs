@@ -1,13 +1,16 @@
 #![deny(unsafe_code)]
 
+mod contextual_references;
+mod physical_labels;
+
 mod discovery;
+mod embedded_reading;
 mod encounters;
 mod error;
 mod executor;
 mod filter;
 mod filters;
 mod lists;
-mod owned_reading;
 mod prepared_content;
 mod presentation;
 mod projection;
@@ -20,7 +23,7 @@ mod service;
 mod table_roll;
 
 #[cfg(test)]
-mod owned_reading_tests;
+mod embedded_reading_tests;
 #[cfg(test)]
 mod related_tests;
 #[cfg(test)]

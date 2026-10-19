@@ -1,7 +1,7 @@
 use super::{filters::build_filter, product::report_app_error};
 use crate::client::{ClientOptions, connect};
 use atlas_app_model::{
-    OwnedReadingEntryView, OwnedReadingRequest, OwnedReadingSelection, RecordBodyView,
+    EmbeddedReadingEntryView, EmbeddedReadingRequest, EmbeddedReadingSelection, RecordBodyView,
     RecordDetailRequest, RecordDetailView,
 };
 use atlas_cli_support::write_json_response;
@@ -172,7 +172,7 @@ fn render_selected_record(
     record: &RecordDetailView,
     detail: TerminalDetail,
 ) -> Result<String, atlas_app_model::AppError> {
-    let mut reading: Vec<OwnedReadingEntryView> = vec![];
+    let mut reading: Vec<EmbeddedReadingEntryView> = vec![];
     if detail != TerminalDetail::Summary
         && record.selected.owners.is_empty()
         && record.selected.field.is_none()
@@ -184,10 +184,10 @@ fn render_selected_record(
         let mut cursor = None;
         loop {
             let batch = service
-                .owned_reading(OwnedReadingRequest {
+                .embedded_reading(EmbeddedReadingRequest {
                     parent: record.selected.clone(),
                     artifact_generation: record.artifact_generation.clone(),
-                    selection: OwnedReadingSelection::Abilities {
+                    selection: EmbeddedReadingSelection::Abilities {
                         cursor,
                         target: None,
                     },
@@ -228,6 +228,13 @@ fn render_selected_record(
                     .iter()
                     .flatten()
                     .map(|row| &row.link.navigation)
+                    .collect(),
+                RecordBodyView::PhysicalReference(physical) => physical
+                    .consumable
+                    .as_ref()
+                    .and_then(|c| c.spell.value.as_ref())
+                    .map(|s| &s.navigation)
+                    .into_iter()
                     .collect(),
                 RecordBodyView::Journal(journal) => journal
                     .pages

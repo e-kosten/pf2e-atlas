@@ -77,7 +77,7 @@ describe("reference fact reading policy", () => {
       identity: summaryFixture("actors:test", "Test"),
       classification: "Creature 0",
       content: [],
-      owned: [],
+      embedded: [],
       body: { kind: "creature", value: actor },
     };
     actor.abilities = knownFact([
@@ -117,7 +117,7 @@ describe("reference fact reading policy", () => {
           identity: summaryFixture("actors:technical-key", "Seize"),
           classification: "Ability",
           content: [],
-          owned: [],
+          embedded: [],
           body: { kind: "activity", value: activity },
         }}
         onReference={vi.fn()}
@@ -147,13 +147,14 @@ describe("reference fact reading policy", () => {
       identity: summaryFixture("items:coin", "Coin"),
       classification: "Equipment 0",
       content: [],
-      owned: [],
+      embedded: [],
       body: {
         kind: "physical_reference",
         value: {
           usage: knownFact(" "),
           bulk: numberFact(0),
           price: knownFact(price),
+          consumable: null,
           price_per: absent,
         },
       },
@@ -184,7 +185,7 @@ describe("reference fact reading policy", () => {
       identity: summaryFixture("tables:test", "Table"),
       classification: "RollTable",
       content: [],
-      owned: [],
+      embedded: [],
       body: {
         kind: "roll_table",
         value: {

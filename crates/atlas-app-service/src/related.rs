@@ -53,7 +53,7 @@ impl AtlasAppService {
                         AppServiceError::new(AppErrorCode::RecordNotFound, "related seed not found")
                     })?;
                 let node = detail.source.node_at(&selection.owners).ok_or_else(|| {
-                    AppServiceError::invalid_request("related owner is unavailable")
+                    AppServiceError::invalid_request("related selection is unavailable")
                 })?;
                 if let Some(field) = &selection.field
                     && !node

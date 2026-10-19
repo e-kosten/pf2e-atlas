@@ -170,7 +170,7 @@ contract. CLI uses html2text at read time; the browser uses DOMPurify and native
 Ant overlays. No markup AST or alternative stored rendering is introduced.
 
 Human terminal reference reading puts introductory prose before mechanics and
-uses the existing bounded owned-reading workflow for inline ability descriptions.
+uses the existing bounded embedded-reading workflow for inline ability descriptions.
 Spell rosters use checked casting-entry associations and authored ranks without
 executing casting. Search renders concise summaries and at most one named excerpt
 per result. Match captions use existing indexed owner names without source-body
@@ -202,7 +202,7 @@ prioritize current combat state and actions. Family sections adapt to actual pan
 width rather than assuming full-window width. Reference consumers show the same
 content and facts; compact density does not suppress sections. Immediate
 Ability-class action/effect/feat content reads inline by default through a
-separate generation-bound owned-reading response. Each explicit batch checks one
+separate generation-bound embedded-reading response. Each explicit batch checks one
 parent and reads one prepared batch, limited to 32 activities and 256 fields.
 The response carries authored content and exact per-activity relationships,
 without recursive detail envelopes or duplicated activity facts. Index owns
@@ -274,3 +274,21 @@ a link conservatively. This bounded metadata check borrows existing typed conten
 selections without per-row fetches, HTML preparation, cache expansion or browser
 parsing. Nonblank markup-only authored strings can retain a link; the flag is not
 a new meaningful-HTML classifier. Complete selected navigation remains available.
+
+## Consumable spell association and contextual references
+
+A consumable's `system.spell` is a semantic association even when its description
+contains only generic casting instructions. Present it as Spell with its exact
+checked navigation and authored casting context. Do not expose it as generic
+Contents or reconstruct the association from names/prose.
+
+An inline UUID occurrence and the item's embedded spell remain distinct facts.
+When the spell's resolved authored provenance identifies exactly the inline
+citation's destination, app-service may attach contextual navigation alongside
+the original target. The ordinary inline click opens the contextual spell; the
+spell reader retains original-reference access. Suppress the separate Spell row
+only when a selected visible rich field supplies that contextual link. Otherwise
+keep the explicit Spell association. Conflicting/unavailable provenance does not
+choose a winner. This establishes contextual reading, not activation, consumption,
+targeting or casting execution semantics. Neither the graph edge nor the authored
+source is rewritten to make the display work.

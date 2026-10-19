@@ -175,6 +175,12 @@ pub(super) fn collect_relationships(
         return;
     };
     add(
+        "/flags/core/sourceId",
+        SourceRelationshipKind::CompendiumProvenance,
+        item.core_source_id(),
+        false,
+    );
+    add(
         "/system/selfEffect/uuid",
         SourceRelationshipKind::SelfEffect,
         item.self_effect().and_then(|e| (&e.uuid).into()),

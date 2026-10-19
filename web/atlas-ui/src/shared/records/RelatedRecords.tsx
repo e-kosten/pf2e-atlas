@@ -128,7 +128,7 @@ function RelatedTabs({
           <li key={record.record_key}>
             {link(record.title, {
               record_key: record.record_key,
-              owners: [],
+              embedded_path: [],
               field: null,
               passage: null,
               source_fingerprint: null,
@@ -339,7 +339,8 @@ function RelatedTabs({
               </Button>
             }
           />
-        ) : category.kind === "unavailable" && detail.selected.owners.length === 0 ? (
+        ) : category.kind === "unavailable" &&
+          detail.selected.embedded_path.length === 0 ? (
           <Typography.Paragraph key={label} type="secondary">
             {label}: {category.reason}
           </Typography.Paragraph>
@@ -360,7 +361,7 @@ function RelatedTabs({
         items={[
           {
             key: "similar",
-            label: detail.selected.owners.length
+            label: detail.selected.embedded_path.length
               ? `Similar to parent record: ${detail.record.title}`
               : "Similar records",
             children: (

@@ -68,6 +68,7 @@ fn price_units_and_table_collections_preserve_unavailable_and_zero_facts() {
         adjustment: None,
     };
     let physical = PhysicalPresentationView {
+        consumable: None,
         usage: known(" \t ".into()),
         bulk: numeric(0),
         price_per: absent(),
@@ -681,7 +682,7 @@ fn human_reading_omits_internal_navigation_while_json_retains_exact_selection() 
     assert!(!output.contains("SnapshotLocal"));
     let json = serde_json::to_value(record).unwrap();
     assert_eq!(
-        json["selected"]["owners"][0]["identity"]["SnapshotLocal"]["index"],
+        json["selected"]["embedded_path"][0]["identity"]["SnapshotLocal"]["index"],
         42
     );
     assert_eq!(json["selected"]["source_fingerprint"], "a".repeat(64));
@@ -764,7 +765,7 @@ fn cosmetic_blanks_and_inapplicable_rows_are_omitted_without_hiding_known_zero()
         },
     ] {
         record.presentation.content.push(PreparedContentFieldView {
-            locator: atlas_record::source_content::SourceContentLocator {
+            locator: atlas_app_model::ContentLocationView {
                 record: atlas_domain::RecordKey::parse("creatures:caster").unwrap(),
                 owners: vec![],
                 field: "/system/details/notes".into(),
@@ -943,7 +944,7 @@ fn unavailable_collections_entries_and_lore_use_final_typed_contract() {
 fn prerequisites_render_prepared_content_once_before_description() {
     let mut record = detail(RecordBodyView::Content);
     record.presentation.content = vec![PreparedContentFieldView {
-        locator: atlas_record::source_content::SourceContentLocator {
+        locator: atlas_app_model::ContentLocationView {
             record: atlas_domain::RecordKey::parse("feats:aaaaaaaaaaaaaaaa").unwrap(),
             owners: vec![],
             field: "/system/prerequisites/value/0/value".into(),

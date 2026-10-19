@@ -479,14 +479,14 @@ pub(crate) async fn encounter_reference(
         .await?,
     ))
 }
-pub(crate) async fn owned_reading(
+pub(crate) async fn embedded_reading(
     State(state): State<AtlasWebState>,
-    payload: Result<Json<atlas_app_model::OwnedReadingRequest>, JsonRejection>,
+    payload: Result<Json<atlas_app_model::EmbeddedReadingRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.owned_reading(request)).await?,
+        call_service(state, move || service.embedded_reading(request)).await?,
     ))
 }
 pub(crate) async fn discover_filter_counts(

@@ -15,7 +15,7 @@ describe("immutable reference retirement", () => {
       "saved-list-filter-discovery",
       "filter-vocabulary",
       "record-detail",
-      "owned-reading",
+      "embedded-reading",
       "related",
       "similar-preview",
       "encounter-record-detail",

@@ -2,21 +2,21 @@ import { Alert, Button, Space, Table, Typography } from "antd";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
-import { getOwnedReading } from "../../api/atlasApi";
+import { getEmbeddedReading } from "../../api/atlasApi";
 import type {
-  OwnedReadingEntryView,
-  OwnedReadingSelection,
+  EmbeddedReadingEntryView,
+  EmbeddedReadingSelection,
   RecordNavigationView,
   RollTablePresentationView,
   TableRollView,
 } from "../../generated/atlas";
 import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent";
-import type { OwnedReadingContext } from "./OwnedAbilityReading";
+import type { EmbeddedReadingContext } from "./EmbeddedAbilityReading";
 import { TableRollControl } from "./TableRollControl";
 import "../../styles/ui/roll-table.css";
 
 function address(navigation: RecordNavigationView) {
-  return JSON.stringify(navigation.owners);
+  return JSON.stringify(navigation.embedded_path);
 }
 
 export function RollTableReading({
@@ -27,21 +27,24 @@ export function RollTableReading({
 }: {
   table: RollTablePresentationView;
   selection: RecordNavigationView;
-  context: OwnedReadingContext;
+  context: EmbeddedReadingContext;
   onReference: RecordReferenceHandler;
 }) {
   const [result, setResult] = useState<TableRollView>();
   const [highlight, setHighlight] = useState<string[]>([]);
   const reading = useInfiniteQuery({
     queryKey: [
-      "owned-reading",
+      "embedded-reading",
       context.generation,
       selection.record_key,
       "table-results",
     ],
-    initialPageParam: { kind: "table_results", cursor: null } as OwnedReadingSelection,
+    initialPageParam: {
+      kind: "table_results",
+      cursor: null,
+    } as EmbeddedReadingSelection,
     queryFn: ({ pageParam, signal }) =>
-      getOwnedReading(
+      getEmbeddedReading(
         {
           parent: context.parent,
           artifact_generation: context.generation,
@@ -51,7 +54,7 @@ export function RollTableReading({
       ),
     getNextPageParam: (last) =>
       last.next
-        ? ({ kind: "table_results", cursor: last.next } as OwnedReadingSelection)
+        ? ({ kind: "table_results", cursor: last.next } as EmbeddedReadingSelection)
         : undefined,
     staleTime: Infinity,
     retry: false,
@@ -76,7 +79,7 @@ export function RollTableReading({
       <TableRollControl
         selection={{
           record_key: selection.record_key,
-          owners: selection.owners,
+          embedded_path: selection.embedded_path,
           fields: [],
           passage: null,
           source_fingerprint: selection.source_fingerprint,
@@ -154,7 +157,7 @@ function TableResultContent({
   entry,
   onReference,
 }: {
-  entry: OwnedReadingEntryView;
+  entry: EmbeddedReadingEntryView;
   onReference: RecordReferenceHandler;
 }) {
   const links = entry.relationships.filter(
@@ -209,7 +212,7 @@ function TableResultContent({
 }
 
 // Plain table labels become the reference link itself. Rich prose keeps its existing renderer.
-function simpleResultLabel(entry: OwnedReadingEntryView): string | undefined {
+function simpleResultLabel(entry: EmbeddedReadingEntryView): string | undefined {
   if (entry.content.length !== 1) return undefined;
   const body = entry.content[0].body;
   if (body.kind === "plain") return body.text.trim() || undefined;

@@ -215,7 +215,12 @@ describe("useSearchWorkspace", () => {
     apiMocks.getRecordDetail.mockImplementation(
       (_key: string, selection?: RecordDetailRequest) => {
         const detail = detailFixture("spell:heal", "Heal");
-        return Promise.resolve(selection ? { ...detail, selected: selection } : detail);
+        if (!selection) return Promise.resolve(detail);
+        const { fields, ...address } = selection;
+        return Promise.resolve({
+          ...detail,
+          selected: { ...address, field: fields[0] ?? null },
+        });
       },
     );
     apiMocks.searchPage
@@ -234,7 +239,9 @@ describe("useSearchWorkspace", () => {
       ...result.current.reading.request!,
       navigation: {
         ...result.current.reading.request!.navigation,
-        owners: [{ collection: "items", identity: { Stable: "owned-spell" } }],
+        embedded_path: [
+          { collection: "items", identity: { Stable: "embedded-spell" } },
+        ],
         field: "/system/description/value",
         source_fingerprint: "snapshot-a",
       },

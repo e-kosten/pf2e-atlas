@@ -23,7 +23,7 @@ detail rejects missing or stale generation context for those explicit addresses.
 The reference format, checked snapshot codec, preparation policies and query
 catalog have separate version identities. `artifact_context` contains the typed,
 hashed active build context. SQLite `user_version` instead tracks the shared
-physical migration ledger composed by runtime (currently two baseline migrations).
+physical migration ledger composed by runtime (two baseline migrations followed by lexical-alias and consumable-filter migrations).
 The source artifact format is not the workspace schema version.
 
 Pre-release separate-file formats have no compatibility reader or conversion
@@ -300,7 +300,7 @@ fields. Delivered rich fields retain complete validated content-origin occurrenc
 attribution within a 1024 occurrence response budget. A whole field exceeding the
 remaining budget has an explicit bounded outcome; readers do not display its HTML
 with silently missing links. Non-content relationship discovery stays a separate
-bounded operation. App-service owned-reading batches check one parent, select at
+bounded operation. App-service embedded-reading batches check one parent, select at
 most 32 immediate Ability-class activities or table results and reuse this prepared batch without
 recursive detail projection or a second fact authority.
 
@@ -318,3 +318,16 @@ Selection identity `structural-source-sections/v3` invalidates prepared/search
 projections when these fields are added; setup re-prepares from the configured
 compatible source before readers admit the new artifact. This requires no schema or snapshot migration. Array positions and
 unavailable entries remain explicit; renderers never parse or fall back to raw markup.
+
+Item provenance includes the declared open `flags.core.sourceId` namespace and
+`_stats.compendiumSource`. Duplicate or non-string core source identities do not
+supply a resolved target. Relationship policy `typed-authored-occurrences/v4`
+requires re-preparation to include core provenance; the schema and source snapshot
+codec are unchanged. Contextual consumable reading is a transient app projection:
+`target` preserves the authored citation while optional `contextual_target` points
+to the checked embedded spell. It does not replace the stored graph edge.
+
+Consumable query kind/type live on the shared physical projection for root and
+immediate actor equipment. Workspace migration 4 adds their state/value columns;
+authored-query/v2 and catalog v5 rebuild accelerators from retained typed snapshots.
+The migration preserves saved state and does not change the source snapshot codec.

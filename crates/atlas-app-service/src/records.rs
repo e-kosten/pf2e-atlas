@@ -141,7 +141,7 @@ pub(crate) fn read_record_detail(
             )
         })?;
     let node = detail.source.node_at(&request.owners).ok_or_else(|| {
-        AppServiceError::invalid_request("selected owner does not exist in this source snapshot")
+        AppServiceError::invalid_request("selected document does not exist in this source snapshot")
     })?;
     let selections = node.content_selections();
     if request
@@ -150,7 +150,7 @@ pub(crate) fn read_record_detail(
         .any(|f| !selections.iter().any(|s| s.field == f.as_str()))
     {
         return Err(AppServiceError::invalid_request(
-            "selected field is not declared content of the selected owner",
+            "selected field is not declared content of the selected document",
         ));
     }
     let selected: Vec<_> = selections
@@ -256,7 +256,7 @@ pub(crate) fn read_record_detail(
         direction: SourceRelationshipDirection::Outgoing,
         limit: 1024,
     })?;
-    let view = RecordDetailView {
+    let mut view = RecordDetailView {
         artifact_generation: r.artifact_generation()?,
         record: summary,
         presentation,
@@ -293,6 +293,7 @@ pub(crate) fn read_record_detail(
         .collect(),
         relationships_truncated: relationships.truncated || !content.bounded.is_empty(),
     };
+    crate::contextual_references::attach_consumable_spell(&mut view, r)?;
     Ok((detail, view))
 }
 pub(crate) fn validate_request(r: &RecordDetailRequest) -> AppServiceResult<()> {
@@ -305,7 +306,7 @@ pub(crate) fn validate_request(r: &RecordDetailRequest) -> AppServiceResult<()> 
         })
     {
         return Err(AppServiceError::invalid_request(
-            "detail selection exceeds its owner or field bounds",
+            "detail selection exceeds its embedded path or field bounds",
         ));
     }
     Ok(())

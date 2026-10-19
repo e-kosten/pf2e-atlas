@@ -3,7 +3,7 @@ use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct PreparedContentFieldView {
-    pub locator: atlas_record::source_content::SourceContentLocator,
+    pub locator: crate::ContentLocationView,
     pub role: String,
     pub source_fingerprint: Option<String>,
     pub body: PreparedFieldBodyView,

@@ -112,7 +112,9 @@ describe("RecordPreviewPopover", () => {
         xs: viewport === "narrow",
       });
       const detail = detailFixture("actors:mage", "Mage");
-      detail.selected.owners = [{ collection: "items", identity: { Stable: "fear" } }];
+      detail.selected.embedded_path = [
+        { collection: "items", identity: { Stable: "fear" } },
+      ];
       detail.presentation.identity = { ...detail.record, title: "Fear" };
       const onBack = vi.fn();
       render(
@@ -159,7 +161,7 @@ describe("RecordPreviewPopover", () => {
       const preview = (showTrigger: boolean, version = 1) => {
         const detail = detailFixture("rules:current", `Follow reference ${version}`);
         detail.presentation.identity = { ...detail.record, title: "Next reference" };
-        detail.selected.owners = showTrigger
+        detail.selected.embedded_path = showTrigger
           ? [{ collection: "/items", identity: { Stable: "selected-owner" } }]
           : [];
         return (
