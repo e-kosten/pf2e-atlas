@@ -1,13 +1,13 @@
 use crate::model_cache::read_verified_asset;
 use crate::{
     EmbeddingError, EmbeddingModelSpec, EmbeddingRuntimeConfig, PoolingStrategy,
-    PreparedEmbeddingInput, TextEmbeddingTokenizer, hash_document_embedding_input,
+    PreparedEmbeddingBatch, TextEmbeddingTokenizer,
 };
 use fastembed::{
     InitOptionsUserDefined, OutputKey, Pooling, TextEmbedding, TokenizerFiles,
     UserDefinedEmbeddingModel,
 };
-use std::{collections::BTreeMap, path::Path};
+use std::{borrow::Cow, collections::BTreeMap, path::Path};
 
 pub struct TextEmbedder {
     spec: EmbeddingModelSpec,
@@ -216,55 +216,32 @@ pub struct GeneratedEmbeddings {
 /// Reuse and inference deduplicate exact prepared inputs, while the returned
 /// vector sequence retains one entry for every independent source attribution.
 pub fn generate_prepared_embeddings(
-    embedder: &mut TextEmbedder,
-    inputs: &[PreparedEmbeddingInput],
+    config: &EmbeddingRuntimeConfig,
+    batch: &PreparedEmbeddingBatch,
     reusable: &BTreeMap<String, Vec<f32>>,
     batch_size: usize,
     mut checkpoint: impl FnMut(&[(String, Vec<f32>)]) -> Result<(), EmbeddingError>,
 ) -> Result<GeneratedEmbeddings, EmbeddingError> {
+    let spec = config.model_spec();
+    if spec != batch.spec() {
+        return Err(EmbeddingError::PreparedInputMismatch);
+    }
+    let inputs = batch.inputs();
     if batch_size == 0 {
         return Err(EmbeddingError::ModelRunFailed(
             "batch size must be positive".into(),
         ));
     }
-    let mut unique = BTreeMap::<String, &str>::new();
-    embedding_progress(
-        embedder.spec,
-        "native_validation",
-        0,
-        inputs.len(),
-        "occurrences",
-        None,
-        inputs.len(),
-    );
-    let mut last_reported = 0;
-    for (ordinal, input) in inputs.iter().enumerate() {
-        if input.input_sha256 != hash_document_embedding_input(&input.input)
-            || input.reuse_key != embedder.spec.document_reuse_key(&input.input)
-            || input.token_count != embedder.tokenizer.validate_document_input(&input.input)?
-        {
-            return Err(EmbeddingError::PreparedInputMismatch);
-        }
-        unique.insert(input.reuse_key.clone(), &input.input);
-        if report_embedding_progress(ordinal + 1, inputs.len(), last_reported) {
-            embedding_progress(
-                embedder.spec,
-                "native_validation",
-                ordinal + 1,
-                inputs.len(),
-                "occurrences",
-                None,
-                inputs.len(),
-            );
-            last_reported = ordinal + 1;
-        }
-    }
+    let unique = inputs
+        .iter()
+        .map(|input| (input.reuse_key.clone(), input.input.as_str()))
+        .collect::<BTreeMap<_, _>>();
     let mut available = BTreeMap::new();
     let mut pending = Vec::new();
     let mut reused_inputs = 0;
-    last_reported = 0;
+    let mut last_reported = 0;
     embedding_progress(
-        embedder.spec,
+        spec,
         "reuse_selection",
         0,
         unique.len(),
@@ -274,15 +251,17 @@ pub fn generate_prepared_embeddings(
     );
     for (ordinal, (key, text)) in unique.iter().enumerate() {
         if let Some(vector) = reusable.get(key) {
-            validate_embedding_vector(vector, embedder.spec.dimensions)?;
-            available.insert(key.clone(), vector.clone());
+            validate_embedding_vector(vector, spec.dimensions)?;
+            // Borrow verified checkpoints until occurrence output is assembled;
+            // a full-corpus cache should not need a second resident vector copy.
+            available.insert(key.clone(), Cow::Borrowed(vector.as_slice()));
             reused_inputs += 1;
         } else {
             pending.push((key.clone(), *text));
         }
         if report_embedding_progress(ordinal + 1, unique.len(), last_reported) {
             embedding_progress(
-                embedder.spec,
+                spec,
                 "reuse_selection",
                 ordinal + 1,
                 unique.len(),
@@ -295,7 +274,7 @@ pub fn generate_prepared_embeddings(
     }
     let inferred_inputs = pending.len();
     embedding_progress(
-        embedder.spec,
+        spec,
         "inference",
         0,
         inferred_inputs,
@@ -305,21 +284,34 @@ pub fn generate_prepared_embeddings(
     );
     let mut completed = 0;
     last_reported = 0;
+    // Cached-only builds need the verified tokenizer, not inference weights or
+    // an ONNX session. Load once, only when there is actual inference work.
+    let mut embedder = if pending.is_empty() {
+        None
+    } else {
+        tracing::info!(target:"atlas_progress",phase="load_embeddings",model=spec.model_id,"Loading verified inference model for new inputs");
+        Some(TextEmbedder::load(config)?)
+    };
     for batch in pending.chunks(batch_size) {
         let texts = batch.iter().map(|(_, text)| *text).collect::<Vec<_>>();
         let completed_batch = batch
             .iter()
-            .zip(embedder.embed_documents(&texts)?)
+            .zip(
+                embedder
+                    .as_mut()
+                    .ok_or(EmbeddingError::PreparedInputMismatch)?
+                    .embed_documents(&texts)?,
+            )
             .map(|((key, _), vector)| (key.clone(), vector))
             .collect::<Vec<_>>();
         checkpoint(&completed_batch)?;
         for (key, vector) in completed_batch {
-            available.insert(key, vector);
+            available.insert(key, Cow::Owned(vector));
         }
         completed += batch.len();
         if report_embedding_progress(completed, inferred_inputs, last_reported) {
             embedding_progress(
-                embedder.spec,
+                spec,
                 "inference",
                 completed,
                 inferred_inputs,
@@ -335,7 +327,7 @@ pub fn generate_prepared_embeddings(
         .map(|input| {
             available
                 .get(&input.reuse_key)
-                .cloned()
+                .map(|vector| vector.to_vec())
                 .ok_or(EmbeddingError::PreparedInputMismatch)
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -350,7 +342,7 @@ fn report_embedding_progress(current: usize, total: usize, last_reported: usize)
     let interval = (total / 100).clamp(25, 500);
     current == total || current.saturating_sub(last_reported) >= interval
 }
-fn embedding_progress(
+pub(crate) fn embedding_progress(
     spec: EmbeddingModelSpec,
     stage: &str,
     current: usize,

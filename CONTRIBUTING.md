@@ -271,7 +271,10 @@ snapshot and developer provenance; `--original --source vendor/pf2e` explicitly
 reads the original clone file only after checking its recorded path and hash.
 Source commands' `--manifest` overrides
 the Foundry input manifest. Reports go to stdout; `--json` selects JSON.
-Use Cargo's release profile for ingest performance measurements:
+Use Cargo's release profile for full-corpus processing and ingest performance
+measurements, including builds that reuse every embedding. Source preparation,
+tokenization and publication validation remain substantial CPU work without
+inference; ordinary debug builds are intended for development checks.
 
 ```bash
 cargo run --release -p atlas-dev -- source analyze --source vendor/pf2e --json
@@ -280,8 +283,14 @@ cargo run --release -p atlas-dev -- source analyze --source vendor/pf2e --json
 Setup and index build/check/validate remain operational product commands:
 
 ```bash
-cargo run -p atlas-cli -- index build --no-embeddings --json
+cargo run --release -p atlas-cli -- index build --no-embeddings --json
 ```
+
+For timings, build the executable first and measure its invocation separately
+from compilation. Keep fresh builds, unchanged updates and content-policy upgrades
+as separate cases; capture `--progress always` alongside the JSON report. Use an
+isolated workspace copy for experiments, retain verified embedding checkpoints,
+and avoid concurrent builds or benchmarks that would distort the comparison.
 
 Foundry compiler research runs through the separate private
 [TypeScript package](./dev-tools/source-contracts/README.md), with npm entry points.

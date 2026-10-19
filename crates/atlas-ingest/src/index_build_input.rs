@@ -28,6 +28,7 @@ pub(crate) fn index_build_input(
     tokenizer: Option<&TextEmbeddingTokenizer>,
     capture: &crate::source_fingerprint::SourceCapture,
 ) -> Result<PreparedBuildInput, IngestError> {
+    tracing::info!(target:"atlas_progress",phase="select_search","Selecting searchable content and identities");
     let source_root = source.metadata.source_root.clone();
     let mut selections = Vec::new();
     let context_hash = context
@@ -94,6 +95,7 @@ pub(crate) fn index_build_input(
             });
         }
     }
+    tracing::info!(target:"atlas_progress",phase="select_aliases","Extracting verified source aliases");
     crate::source_aliases::extract_source_aliases(&mut output.index, &source_root, capture)?;
     for selection in &selections {
         let aliases = output
@@ -109,6 +111,7 @@ pub(crate) fn index_build_input(
             .extend(atlas_index::project_lexical_units(selection, &aliases));
     }
     if let Some(tokenizer) = tokenizer {
+        tracing::info!(target:"atlas_progress",phase="prepare_search","Segmenting and tokenizing shared search passages");
         let total = selections.len();
         for (ordinal, mut selection) in selections.into_iter().enumerate() {
             selection.identity_optional.extend(
@@ -250,21 +253,6 @@ fn push_pending(
         vector: vec![],
     };
     output.push(PendingSemanticUnit { input, unit });
-}
-/// Shared segmentation has finished; apply only the selected native final guard/identity.
-pub(crate) fn profile_pending(
-    mut pending: PendingSemanticUnit,
-    tokenizer: &TextEmbeddingTokenizer,
-) -> Result<PendingSemanticUnit, IngestError> {
-    let model = atlas_embedding::embedding_model_for_model_id(tokenizer.spec().model_id)
-        .ok_or_else(|| IngestError::DocumentEmbeddingFailed("unsupported profile model".into()))?;
-    pending.input.token_count = tokenizer
-        .validate_document_input(&pending.input.input)
-        .map_err(embedding_error)?;
-    pending.input.reuse_key = tokenizer.spec().document_reuse_key(&pending.input.input);
-    pending.unit.profile_id = atlas_embedding::profile_for_model(model).profile_id();
-    pending.unit.input_token_count = pending.input.token_count;
-    Ok(pending)
 }
 fn embedding_error(error: atlas_embedding::EmbeddingError) -> IngestError {
     IngestError::DocumentEmbeddingFailed(error.to_string())

@@ -1,12 +1,9 @@
 //! Reconstruct selected search fields and verify evidence kinds and whole section coverage.
 use crate::{IndexError, SourceArtifactBuildContext};
 use atlas_domain::{SourceByteRange, SourcePassageAddress};
-use atlas_record::{
-    source_content::{CONTENT_INTERPRETATION_VERSION, PreparedSourceContent, SourceContentLocator},
-    source_record::{
-        FieldAvailability, SOURCE_CONTENT_SELECTION_VERSION, SourceBackedRecord,
-        SourceContentOutcome, SourceContentStatus, select_record_search,
-    },
+use atlas_record::source_record::{
+    SOURCE_CONTENT_SELECTION_VERSION, SourceBackedRecord, SourceContentOutcome,
+    select_record_search,
 };
 use rusqlite::Connection;
 use std::collections::BTreeMap;
@@ -14,123 +11,24 @@ fn invalid(s: &str) -> IndexError {
     IndexError::Invalid(s.into())
 }
 type SectionKey = (String, String, usize);
-/// Shared prepared-cache decoding for selection reconstruction. Column order is
-/// owners, field, role, visibility, authored hash, HTML, controls, context hash.
-pub(crate) fn stored_content_outcome(
-    row: &rusqlite::Row<'_>,
-    record: &SourceBackedRecord,
-    context: &SourceArtifactBuildContext,
-    references: Vec<atlas_record::source_content::ContentReferenceOccurrence>,
-) -> Result<SourceContentOutcome, IndexError> {
-    let locator = SourceContentLocator {
-        record: record.key().clone(),
-        owners: serde_json::from_str(&row.get::<_, String>(0)?)?,
-        field: row.get(1)?,
-    };
-    let selection = record
-        .content_selection_at(&locator)
-        .ok_or_else(|| invalid("cache has no checked authored selection"))?;
-    let hash: String = row.get(4)?;
-    let context_hash: String = row.get(7)?;
-    let authored = selection
-        .text
-        .value()
-        .ok_or_else(|| invalid("cache authored text unavailable"))?;
-    if hash != crate::codec::sha256(authored.as_bytes())
-        || context_hash != context.preparation_sha256()?
-    {
-        return Err(invalid("prepared cache input/context mismatch"));
-    }
-    let role = serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(2)?))?;
-    let visibility = serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(3)?))?;
-    if role != selection.role
-        || selection.visibility.value() != Some(visibility)
-        || !crate::writer::permits(context.audience, visibility)
-        || !matches!(
-            selection.format,
-            atlas_record::source_record::SourceFieldView::Value(
-                atlas_record::source_record::SourceContentFormat::Html
-            )
-        )
-    {
-        return Err(invalid("prepared cache selection metadata mismatch"));
-    }
-    let html = String::from_utf8(crate::codec::gunzip(&row.get::<_, Vec<u8>>(5)?)?)
-        .map_err(|e| IndexError::Invalid(e.to_string()))?;
-    let interactions: Vec<atlas_record::source_content::ContentInteraction> =
-        serde_json::from_str(&row.get::<_, String>(6)?)?;
-    atlas_record::source_content::validate_prepared_markers(&html, &interactions)
-        .map_err(|e| IndexError::Invalid(e.to_string()))?;
-    atlas_record::source_content::validate_prepared_reference_bindings(
-        &html,
-        &locator,
-        &hash,
-        &references,
-    )
-    .map_err(|e| IndexError::Invalid(e.to_string()))?;
-    Ok(SourceContentOutcome {
-        role,
-        visibility,
-        visibility_availability: FieldAvailability::Value,
-        status: SourceContentStatus::Prepared(Box::new(PreparedSourceContent {
-            locator,
-            interpretation_version: CONTENT_INTERPRETATION_VERSION.into(),
-            authored_markup_sha256: hash,
-            html,
-            text: String::new(),
-            references,
-            interactions,
-            diagnostics: vec![],
-        })),
-    })
-}
-pub(crate) fn stored_selection(
-    c: &Connection,
-    id: i64,
-    record: &SourceBackedRecord,
-    context: &SourceArtifactBuildContext,
-    label: &str,
-) -> Result<atlas_record::source_record::SourceSearchSelection, IndexError> {
-    let mut outcomes = vec![];
-    let mut references = crate::read_content::content_references_for_record(c, id)?;
-    let mut s=c.prepare("SELECT owners_json,field_path,role,visibility,authored_markup_sha256,html_gzip,interactions_json,preparation_context_hash FROM prepared_content WHERE record_id=? AND outcome='prepared'")?;
-    let mut rows = s.query([id])?;
-    while let Some(row) = rows.next()? {
-        let locator = SourceContentLocator {
-            record: record.key().clone(),
-            owners: serde_json::from_str(&row.get::<_, String>(0)?)?,
-            field: row.get(1)?,
-        };
-        let field_references = references
-            .remove(&crate::read_content::content_reference_key(&locator)?)
-            .unwrap_or_default();
-        outcomes.push(stored_content_outcome(
-            row,
-            record,
-            context,
-            field_references,
-        )?);
-    }
-    if !references.is_empty() {
-        return Err(invalid("content reference has no prepared search field"));
-    }
-    select_record_search(
-        record,
-        &outcomes,
-        context.audience,
-        label,
-        &context.used_trait_labels,
-    )
-    .map_err(|e| IndexError::Invalid(e.to_string()))
-}
 pub(crate) fn validate_selection(
     c: &Connection,
     id: i64,
     record: &SourceBackedRecord,
     context: &SourceArtifactBuildContext,
     label: &str,
+    content: &[SourceContentOutcome],
 ) -> Result<(), IndexError> {
-    let selection = stored_selection(c, id, record, context, label)?;
+    // The caller has checked these exact field bytes and sidecars in this same
+    // transaction. Reuse them instead of decoding and validating every field twice.
+    let selection = select_record_search(
+        record,
+        content,
+        context.audience,
+        label,
+        &context.used_trait_labels,
+    )
+    .map_err(|e| IndexError::Invalid(e.to_string()))?;
     let mut aliases =
         c.prepare("SELECT alias FROM verified_aliases WHERE record_id=? ORDER BY alias")?;
     let aliases = aliases

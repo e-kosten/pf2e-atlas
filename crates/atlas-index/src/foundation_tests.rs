@@ -665,6 +665,7 @@ fn prepared_cache_declared_policy_and_complete_coverage_are_checked() {
         "DELETE FROM prepared_content WHERE record_id=2",
         "UPDATE prepared_content SET role='Notes' WHERE record_id=2",
         "UPDATE prepared_content SET visibility='None' WHERE record_id=2",
+        "UPDATE prepared_content SET published=0 WHERE record_id=2",
         "UPDATE prepared_content SET outcome='unsupported_format',html_gzip=NULL,interactions_json='[]' WHERE record_id=2",
         "UPDATE prepared_content SET authored_markup_sha256=printf('%064d',0) WHERE record_id=2",
         "UPDATE prepared_content SET owners_json='[{\"collection\":\"items\",\"identity\":{\"SnapshotLocal\":{\"index\":99}}}]' WHERE record_id=2",

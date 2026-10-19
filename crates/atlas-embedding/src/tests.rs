@@ -337,15 +337,20 @@ fn prepared_reuse_identity_uses_the_selected_model() {
     );
 }
 
-fn local_model_dir() -> PathBuf {
+fn local_model_config() -> EmbeddingRuntimeConfig {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .map(|parent| {
-            crate::embedding_model_spec(crate::EmbeddingModelId::BgeBaseEnV15)
-                .model_cache_path(parent.join(".cache/hf-models"))
+            EmbeddingRuntimeConfig::new(
+                EmbeddingModelId::BgeBaseEnV15,
+                parent.join(".cache/hf-models"),
+            )
         })
-        .find(|path| path.join("onnx/model.onnx").is_file())
+        .find(|config| config.model_dir().join("onnx/model.onnx").is_file())
         .expect("these ignored execution tests require the verified local BGE asset cache")
+}
+fn local_model_dir() -> PathBuf {
+    local_model_config().model_dir()
 }
 
 #[test]
@@ -375,13 +380,16 @@ fn actual_bge_tokenizer_covers_unicode_long_fields_and_tail() {
 #[test]
 #[ignore = "requires the pinned local BGE model and native runtime; run explicitly"]
 fn actual_bge_batches_reuse_preserves_attribution_and_utf8() {
+    let config = local_model_config();
     let mut model = TextEmbedder::load_from_model_dir(
         crate::embedding_model_spec(crate::EmbeddingModelId::BgeBaseEnV15),
         local_model_dir(),
     )
     .unwrap();
+    let empty_batch = PreparedEmbeddingBatch::prepare(model.tokenizer(), vec![]).unwrap();
     let empty =
-        generate_prepared_embeddings(&mut model, &[], &BTreeMap::new(), 8, |_| Ok(())).unwrap();
+        generate_prepared_embeddings(&config, &empty_batch, &BTreeMap::new(), 8, |_| Ok(()))
+            .unwrap();
     assert!(empty.vectors.is_empty());
     assert_eq!((empty.inferred_inputs, empty.reused_inputs), (0, 0));
     let texts = [
@@ -423,20 +431,55 @@ fn actual_bge_batches_reuse_preserves_attribution_and_utf8() {
     }
     assert_ne!(duplicate.address, units[0].address);
     units.push(duplicate);
+    let batch = PreparedEmbeddingBatch::prepare(model.tokenizer(), units.clone()).unwrap();
     let initial =
-        generate_prepared_embeddings(&mut model, &units, &BTreeMap::new(), 16, |_| Ok(())).unwrap();
+        generate_prepared_embeddings(&config, &batch, &BTreeMap::new(), 16, |_| Ok(())).unwrap();
     assert_eq!(initial.inferred_inputs, 1);
     assert_eq!(initial.vectors.len(), 2);
     assert_eq!(initial.vectors[0], initial.vectors[1]);
     let reusable = BTreeMap::from([(units[0].reuse_key.clone(), initial.vectors[0].clone())]);
-    let reused =
-        generate_prepared_embeddings(&mut model, &units, &reusable, 16, |_| Ok(())).unwrap();
+    let reused = generate_prepared_embeddings(&config, &batch, &reusable, 16, |_| Ok(())).unwrap();
     assert_eq!(reused.inferred_inputs, 0);
     assert_eq!(reused.reused_inputs, 1);
     assert_eq!(reused.vectors, initial.vectors);
     units[0].input.push_str("changed");
     assert!(matches!(
-        generate_prepared_embeddings(&mut model, &units, &reusable, 16, |_| Ok(())),
+        PreparedEmbeddingBatch::prepare(model.tokenizer(), units),
         Err(EmbeddingError::PreparedInputMismatch)
     ));
+}
+
+#[test]
+fn cached_batch_needs_no_inference_assets_and_retains_occurrences() {
+    let tokenizer = tokenizer();
+    let input = prepare_embedding_section(&tokenizer, plain("one one", "one"))
+        .unwrap()
+        .remove(0);
+    let batch = PreparedEmbeddingBatch::prepare(&tokenizer, vec![input.clone(), input]).unwrap();
+    let mut vector = vec![0.0; tokenizer.spec().dimensions];
+    vector[0] = 1.0;
+    let reusable = BTreeMap::from([(batch.inputs()[0].reuse_key.clone(), vector.clone())]);
+    let directory = tempfile::tempdir().unwrap();
+    let config = EmbeddingRuntimeConfig::new(EmbeddingModelId::BgeBaseEnV15, directory.path());
+    let generated = generate_prepared_embeddings(&config, &batch, &reusable, 16, |_| {
+        panic!("cached inputs must not be inferred")
+    })
+    .unwrap();
+    assert_eq!((generated.inferred_inputs, generated.reused_inputs), (0, 1));
+    assert_eq!(generated.vectors, vec![vector.clone(), vector]);
+    let wrong_model =
+        EmbeddingRuntimeConfig::new(EmbeddingModelId::EmbeddingGemma300M, directory.path());
+    assert!(matches!(
+        generate_prepared_embeddings(&wrong_model, &batch, &reusable, 16, |_| Ok(())),
+        Err(EmbeddingError::PreparedInputMismatch)
+    ));
+    let invalid = BTreeMap::from([(
+        batch.inputs()[0].reuse_key.clone(),
+        vec![0.0; tokenizer.spec().dimensions],
+    )]);
+    assert!(generate_prepared_embeddings(&config, &batch, &invalid, 16, |_| Ok(())).is_err());
+    assert!(
+        generate_prepared_embeddings(&config, &batch, &BTreeMap::new(), 16, |_| Ok(())).is_err(),
+        "uncached inputs must still load verified model assets"
+    );
 }

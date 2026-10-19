@@ -5,6 +5,7 @@ mod error;
 mod inference;
 mod model_cache;
 mod passages;
+mod prepared_batch;
 mod profiles;
 mod query_sessions;
 pub use profiles::{
@@ -38,6 +39,7 @@ pub use model_cache::{
     validate_embedding_model_cache,
 };
 pub use passages::{PassageSection, PreparedEmbeddingInput, prepare_embedding_section};
+pub use prepared_batch::PreparedEmbeddingBatch;
 pub use tokenization::TextEmbeddingTokenizer;
 #[cfg(test)]
 mod tests;
