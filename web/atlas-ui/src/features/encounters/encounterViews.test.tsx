@@ -2629,6 +2629,7 @@ function conditionDefinitionFixture(
     automation_level: automationLevel,
     applies_to: ["creature"],
     categories: [automationLevel === "automated" ? "stat_modifier" : "runtime_state"],
+    supports_duration_instead_of_value: false,
     has_value: hasValue,
     ...(hasValue ? { default_value: 1n } : {}),
   };
@@ -2728,6 +2729,8 @@ function participantFixture(
     initiative_order: 1n,
     temporary_hp: 0n,
     defeated: false,
+    hazard_disabled: false,
+    cast_unavailable_reason: null,
     hidden: false,
     note_hint: null,
     conditions: [],

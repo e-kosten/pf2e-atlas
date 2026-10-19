@@ -67,6 +67,7 @@ pub struct EncounterParticipant {
     pub current_hp: Option<i64>,
     pub temporary_hp: i64,
     pub defeated: bool,
+    pub hazard_disabled: bool,
     pub hidden: bool,
     pub note: Option<String>,
     pub created_at: String,
@@ -236,6 +237,7 @@ pub struct UpdateEncounterParticipant {
     pub current_hp: Option<i64>,
     pub temporary_hp: i64,
     pub defeated: bool,
+    pub hazard_disabled: bool,
     pub hidden: bool,
     pub note: Option<String>,
 }

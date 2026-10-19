@@ -5,6 +5,8 @@ use crate::{
 };
 use atlas_storage::{Migration, Workspace};
 use std::path::Path;
+
+pub const TEST_WORKSPACE_SCHEMA_VERSION: u32 = 6;
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
         .map_err(|e| IndexError::Operation(e.to_string()))?;
@@ -31,6 +33,16 @@ pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexEr
                 name: "consumable-filters",
                 sql: crate::CONSUMABLE_FILTER_SCHEMA_SQL,
             },
+            Migration {
+                version: 5,
+                name: "encounter-status",
+                sql: atlas_local_state::ENCOUNTER_STATUS_SCHEMA_SQL,
+            },
+            Migration {
+                version: 6,
+                name: "hazard-participation",
+                sql: atlas_local_state::HAZARD_PARTICIPATION_SCHEMA_SQL,
+            },
         ],
         |_| Ok(()),
     )?;
@@ -39,7 +51,7 @@ pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexEr
 pub fn open_reader(path: impl AsRef<Path>) -> Result<SqliteIndexReader, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
         .map_err(|e| IndexError::Operation(e.to_string()))?;
-    SqliteIndexReader::from_session(Workspace::at(path)?.read(4)?)
+    SqliteIndexReader::from_session(Workspace::at(path)?.read(TEST_WORKSPACE_SCHEMA_VERSION)?)
 }
 pub fn publish_input(
     path: impl AsRef<Path>,
@@ -47,7 +59,7 @@ pub fn publish_input(
 ) -> Result<ArtifactValidationReport, IndexError> {
     let workspace = initialize_workspace(path)?;
     let owner = workspace.update_owner()?;
-    let maintenance = owner.maintenance(4, "test publication")?;
+    let maintenance = owner.maintenance(TEST_WORKSPACE_SCHEMA_VERSION, "test publication")?;
     SqliteIndexWriter::new(&maintenance).write(input)
 }
 
@@ -76,7 +88,7 @@ fn set_preparation_policy(
     update: impl FnOnce(&mut crate::SourceArtifactBuildContext),
 ) -> Result<(), IndexError> {
     let workspace = Workspace::at(path)?;
-    let write = workspace.write(4)?;
+    let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION)?;
     let c = write.connection();
     let mut context = crate::read_stored_reference_context(c)?
         .ok_or_else(|| IndexError::Invalid("fixture has no reference context".into()))?;

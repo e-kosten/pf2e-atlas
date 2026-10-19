@@ -21,6 +21,8 @@ it("shows updated derived HP after a submitted edit and variant capacity change"
     current_hp: 20n,
     temporary_hp: 0n,
     defeated: false,
+    hazard_disabled: false,
+    cast_unavailable_reason: null,
     hidden: false,
     note_hint: "",
     conditions: [],

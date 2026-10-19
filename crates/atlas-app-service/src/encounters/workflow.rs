@@ -332,6 +332,20 @@ impl AtlasAppService {
         let max_edited = request.max_hp_edit || request.max_hp != existing.max_hp;
         let variant_changed = request.variant_edit || existing.participant_variant != new_variant;
         let mut max_hp = request.max_hp;
+        if request.hazard_disabled
+            && existing.participant_kind != atlas_local_state::ParticipantKind::Hazard
+        {
+            return Err(AppServiceError::invalid_request(
+                "Only hazards can be disabled.",
+            ));
+        }
+        if request.defeated
+            && existing.participant_kind == atlas_local_state::ParticipantKind::Hazard
+        {
+            return Err(AppServiceError::invalid_request(
+                "Hazards use Disabled instead of Defeated.",
+            ));
+        }
         let mut current_hp = request.current_hp;
         let mut hp_origin = existing.hp_origin;
         if max_edited && !request.use_derived_max {
@@ -458,6 +472,7 @@ impl AtlasAppService {
                     current_hp,
                     temporary_hp: request.temporary_hp,
                     defeated: request.defeated,
+                    hazard_disabled: request.hazard_disabled,
                     hidden: request.hidden,
                     note: request.note,
                 })?

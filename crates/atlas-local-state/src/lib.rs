@@ -28,7 +28,9 @@ pub use saved_lists::{
     SavedListItemStatus, SavedListWithItems, SavedListsRead, SavedListsWrite, UpdateSavedList,
     hydrate_saved_list_item,
 };
-pub use schema::LOCAL_STATE_SCHEMA_SQL;
+pub use schema::{
+    ENCOUNTER_STATUS_SCHEMA_SQL, HAZARD_PARTICIPATION_SCHEMA_SQL, LOCAL_STATE_SCHEMA_SQL,
+};
 pub use slug::derive_slug;
 pub use store::{LocalStateRead, LocalStateWrite};
 #[cfg(test)]

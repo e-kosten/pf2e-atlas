@@ -584,7 +584,7 @@ async fn encounter_routes_use_real_router_wiring() {
             "max_hp": 12,
             "current_hp": 6,
             "temporary_hp": 1,
-            "defeated": false,
+            "defeated": false, "hazard_disabled": false,
             "hidden": false,
             "note": "wounded"
         })),
@@ -729,7 +729,7 @@ async fn participant_revision_is_required_and_stale_edits_return_409() {
     assert_eq!(detail["participants"][0]["revision"], json!(7));
     let mut request = json!({
         "participant_key":"participant_a", "display_name":"Edited", "side":"enemy",
-        "participant_variant":"normal", "temporary_hp":0, "defeated":false, "hidden":false,
+        "participant_variant":"normal", "temporary_hp":0, "defeated":false, "hazard_disabled":false, "hidden":false,
     });
     let path = "/api/encounters/ambush/participants/participant_a";
     let (status, body) = route_json(Method::PATCH, path, Some(request.clone())).await;
@@ -1056,6 +1056,7 @@ impl AtlasWebService for MockService {
     ) -> Result<EncounterConditionCatalogView, AppServiceError> {
         Ok(EncounterConditionCatalogView {
             conditions: vec![EncounterConditionDefinitionView {
+                supports_duration_instead_of_value: false,
                 condition_ref: "conditionitems:TBSHQspnbcqxsmjL".to_string(),
                 name: "Frightened".to_string(),
                 automation_level: EncounterConditionAutomationLevelView::Automated,
@@ -1498,6 +1499,7 @@ fn encounter_participant(
     include_condition: bool,
 ) -> EncounterParticipantView {
     EncounterParticipantView {
+        cast_unavailable_reason: None,
         spellcasting: None,
         revision: 7,
         hp_origin: "explicit".into(),
@@ -1516,6 +1518,7 @@ fn encounter_participant(
         current_hp: Some(6),
         temporary_hp: 0,
         defeated: false,
+        hazard_disabled: false,
         hidden: false,
         note: Some("wounded".to_string()),
         note_hint: Some("wounded".to_string()),

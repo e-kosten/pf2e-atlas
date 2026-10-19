@@ -54,6 +54,7 @@ impl AtlasAppService {
             max_hp: existing.max_hp,
             temporary_hp: existing.temporary_hp,
             defeated: existing.defeated,
+            hazard_disabled: existing.hazard_disabled,
             hidden: existing.hidden,
             note: existing.note.clone(),
         };
@@ -81,7 +82,12 @@ impl AtlasAppService {
                     let remaining = amount - temporary_damage;
                     update.temporary_hp -= temporary_damage;
                     update.current_hp = Some(current.saturating_sub(remaining).max(0));
-                    update.defeated = update.current_hp == Some(0) || existing.defeated;
+                    if existing.participant_kind == atlas_local_state::ParticipantKind::Hazard {
+                        update.hazard_disabled =
+                            update.current_hp == Some(0) || existing.hazard_disabled;
+                    } else {
+                        update.defeated = update.current_hp == Some(0) || existing.defeated;
+                    }
                 } else {
                     let current = existing.current_hp.ok_or_else(|| {
                         AppServiceError::invalid_request("Set current HP before applying healing")
