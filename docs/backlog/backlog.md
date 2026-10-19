@@ -28,6 +28,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Foundry inline content fidelity](items/foundry-inline-content-fidelity.md)
+  Compare remaining rich-text syntax and context-dependent expressions with the
+  pinned upstream handlers before extending inline mechanics. Status: proposed.
+
 - [Ingest and reference build performance](items/reference-build-performance.md)
   PR74 completed the measured optimization; further work targets remaining
   segmentation/tokenization and evidenced inference bottlenecks. Status: proposed.
