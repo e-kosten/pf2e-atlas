@@ -214,7 +214,7 @@ impl SqliteIndexReader {
         all.push(Value::Integer(limit as i64));
         let limit_param = all.len();
         let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT lu.unit_id,r.key,lu.owners_json,lu.field_path,lu.section_json,bm25(lexical_fts,10.0,8.0,1.0,6.0),lu.unit_kind,lu.identity_terms,lu.definition_terms,r.name_state FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id WHERE lexical_fts MATCH ?{term_param} AND lu.record_id IN (SELECT record_id FROM eligible) ORDER BY 6,lu.unit_id LIMIT ?{limit_param}"
+            "WITH eligible AS ({eligible}) SELECT lu.unit_id,r.key,lu.owners_json,lu.field_path,lu.section_json,bm25(lexical_fts,10.0,8.0,1.0,6.0),lu.unit_kind,CASE WHEN lu.unit_kind='root_alias' THEN lu.alias_terms ELSE lu.identity_terms END,lu.definition_terms,r.name_state FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id WHERE lexical_fts MATCH ?{term_param} AND lu.record_id IN (SELECT record_id FROM eligible) ORDER BY 6,lu.unit_id LIMIT ?{limit_param}"
         );
         let c = self.native()?;
         self.count_statement();
@@ -457,7 +457,7 @@ fn lexical_hit(row: &rusqlite::Row<'_>, text: &str) -> rusqlite::Result<SourceLe
     let definition: String = row.get(8)?;
     let name_state: String = row.get(9)?;
     let label = match kind.as_str() {
-        "root_name" if name_state == "value" => Some(identity.as_str()),
+        "root_name" | "root_alias" if name_state == "value" => Some(identity.as_str()),
         "owned_name" | "heading" | "definition_label" => Some(definition.as_str()),
         _ => None,
     };
@@ -497,7 +497,7 @@ impl SqliteIndexReader {
         let text_param = params.len() + 1;
         params.push(Value::Text(expression));
         let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT lu.unit_id,r.key,lu.owners_json,lu.field_path,lu.section_json,bm25(lexical_fts,10.0,8.0,1.0,6.0),lu.unit_kind,lu.identity_terms,lu.definition_terms,r.name_state FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id WHERE lexical_fts MATCH ?{text_param} AND lu.record_id IN (SELECT record_id FROM eligible) ORDER BY 6,lu.unit_id"
+            "WITH eligible AS ({eligible}) SELECT lu.unit_id,r.key,lu.owners_json,lu.field_path,lu.section_json,bm25(lexical_fts,10.0,8.0,1.0,6.0),lu.unit_kind,CASE WHEN lu.unit_kind='root_alias' THEN lu.alias_terms ELSE lu.identity_terms END,lu.definition_terms,r.name_state FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id WHERE lexical_fts MATCH ?{text_param} AND lu.record_id IN (SELECT record_id FROM eligible) ORDER BY 6,lu.unit_id"
         );
         let c = self.native()?;
         self.count_statement();
@@ -510,9 +510,10 @@ impl SqliteIndexReader {
                     .entry(hit.location.record.clone())
                     .or_insert_with(|| SourceLexicalRootHit {
                         record: hit.location.record.clone(),
-                        best_rank: hit.rank,
+                        best_rank: weighted_lexical_rank(&hit),
                         witnesses: vec![],
                     });
+            root.best_rank = root.best_rank.min(weighted_lexical_rank(&hit));
             root.witnesses.push(hit);
             root.witnesses.sort_by(|a, b| {
                 lexical_witness_priority(a)
@@ -558,11 +559,28 @@ impl SqliteIndexReader {
 
 fn lexical_witness_priority(hit: &SourceLexicalHit) -> (u8, bool) {
     let tier = match hit.unit_kind {
-        SourceLexicalUnitKind::RootName if hit.exact_label => 0,
+        SourceLexicalUnitKind::RootName | SourceLexicalUnitKind::RootAlias if hit.exact_label => 0,
         SourceLexicalUnitKind::OwnedName if hit.exact_label => 1,
         SourceLexicalUnitKind::Heading => 2,
         SourceLexicalUnitKind::DefinitionLabel => 3,
-        SourceLexicalUnitKind::RootName | SourceLexicalUnitKind::OwnedName => 4,
+        SourceLexicalUnitKind::RootName
+        | SourceLexicalUnitKind::RootAlias
+        | SourceLexicalUnitKind::OwnedName => 4,
     };
     (tier, !hit.exact_label)
+}
+
+/// Negative BM25: the minimum weighted rank is the strongest matching row.
+fn weighted_lexical_rank(hit: &SourceLexicalHit) -> f64 {
+    let weight = if !hit.location.owners.is_empty() {
+        0.25
+    } else if matches!(
+        hit.unit_kind,
+        SourceLexicalUnitKind::RootName | SourceLexicalUnitKind::RootAlias
+    ) {
+        1.0
+    } else {
+        0.5
+    };
+    hit.rank * weight
 }

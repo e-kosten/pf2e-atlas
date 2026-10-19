@@ -260,7 +260,10 @@ for spells and level/state for other applicable families.
 FTS and sqlite-vec apply filters, key scopes and product eligibility before top-k.
 Search aggregates matching units to one root result while preserving useful
 root/owned/field/passage witnesses. Semantic scoring uses max per root, hybrid
-uses one lane rank per root with RRF60, and candidate windows remain bounded.
+defaults to fixed score fusion, and candidate windows remain bounded.
+`SearchRanking` also permits an RRF60 dogfooding alternative (ADR0053).
+CLI `--ranking` and the browser's URL-preserved ranking selector carry that choice
+independently of the embedding profile; adapters do not implement ranking policy.
 Verified legacy preference applies only among records matching the complete request,
 before paging. Exact legacy keys remain accessible. Macros are excluded on every
 product path; RollTables remain browse/search/detail records.

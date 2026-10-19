@@ -2,5 +2,6 @@
 import type { SearchCriteria } from "./SearchCriteria";
 import type { SearchPageRequest } from "./SearchPageRequest";
 import type { SearchProfileId } from "./SearchProfileId";
+import type { SearchRanking } from "./SearchRanking";
 
-export type SearchResultsRequest = { search_profile?: SearchProfileId, criteria: SearchCriteria, page: SearchPageRequest, expected_artifact_generation: string | null, };
+export type SearchResultsRequest = { ranking?: SearchRanking, search_profile?: SearchProfileId, criteria: SearchCriteria, page: SearchPageRequest, expected_artifact_generation: string | null, };

@@ -617,6 +617,7 @@ function emptyFilterEditor(): FilterEditorView {
 
 function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
   return {
+    ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",
     mode: { kind: "text_search", query: "", mode: "hybrid" },

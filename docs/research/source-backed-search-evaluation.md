@@ -4,6 +4,26 @@ Pinned PF2e 6.12.4 local evaluation, recorded 2026-10-13. This preserves the dat
 
 Current task: [backlog item](../backlog/items/rust-search-quality-tuning.md).
 
+## Lexical and fusion decision, 2026-10-18
+
+The subsequent full-corpus comparison supports one field-aware lexical policy:
+separate identity/alias rows, no inherited parent terms in embedded rows, and
+strongest-row root aggregation. The small preference between RRF and fixed
+min-max score fusion reverses under judgment sensitivity analysis. Both remain
+available for dogfooding, independently of embedding model; the user selected
+Score-based as default after the functional preview. This is not a claim of a
+universal fusion winner. Current behavior is defined by
+[ADR0053](../architecture/decisions/0053-field-aware-search-fusion.md).
+
+Local evidence: `scratch/search-fusion-review/projection-fusion-followup/FINDINGS.md`
+and `AUDIT.md`, with the revised source-backed grading under
+`scratch/search-fusion-review/relevance-realignment/`. The matrix audit reproduced
+1,152 prior ranking comparisons and all summary arithmetic. Preserve grading,
+adjudications, query sets and policy configurations for later analysis. These
+holdouts are now exposed; future policy tuning needs fresh evaluation cases.
+
+The sections below retain earlier dated research context, not current defaults.
+
 ## Current baseline
 
 ADR 0046 governs the source-backed artifact and search policy. Precision FTS uses

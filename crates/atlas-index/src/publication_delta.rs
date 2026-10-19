@@ -215,46 +215,7 @@ pub(crate) fn search_units(
     input: &IndexBuildInput,
     ids: &BTreeMap<RecordKey, i64>,
 ) -> Result<(), IndexError> {
-    let mut lexical = BTreeSet::new();
-    for unit in &input.lexical_units {
-        let id = crate::writer::product_id(ids, &unit.record)?;
-        let hash = sha256(&serde_json::to_vec(unit)?);
-        let existing: Option<i64> = c
-            .query_row(
-                "SELECT unit_id FROM lexical_units WHERE input_hash=?",
-                [&hash],
-                |r| r.get(0),
-            )
-            .optional()?;
-        if let Some(unit_id) = existing {
-            if !lexical.insert(unit_id) {
-                return Err(IndexError::Invalid("duplicate lexical unit".into()));
-            }
-            continue;
-        }
-        let mut row = ProjectionRow::new("lexical_units");
-        row.text("input_hash", hash);
-        row.id("record_id", id);
-        row.text("owners_json", serde_json::to_string(&unit.owners)?);
-        row.push("field_path", nullable(unit.field.clone()));
-        row.push(
-            "section_json",
-            nullable(
-                unit.address
-                    .as_ref()
-                    .map(serde_json::to_string)
-                    .transpose()?,
-            ),
-        );
-        row.text("unit_kind", unit.kind.as_str());
-        row.text("identity_terms", &unit.identity_terms);
-        row.text("alias_terms", &unit.alias_terms);
-        row.text("structured_terms", &unit.structured_terms);
-        row.text("definition_terms", &unit.definition_terms);
-        row.insert(c)?;
-        lexical.insert(c.last_insert_rowid());
-    }
-    remove_unkept(c, "lexical_units", "unit_id", &lexical)?;
+    lexical_units(c, &input.lexical_units, ids)?;
 
     let old_profiles = c
         .prepare("SELECT profile_id,identity_json FROM search_profiles")?
@@ -378,5 +339,54 @@ pub(crate) fn search_units(
             c.execute_batch(&format!("DROP TABLE {table}"))?;
         }
     }
+    Ok(())
+}
+
+pub(crate) fn lexical_units(
+    c: &Connection,
+    units: &[crate::SourceLexicalUnitInput],
+    ids: &BTreeMap<RecordKey, i64>,
+) -> Result<(), IndexError> {
+    let mut lexical = BTreeSet::new();
+    for unit in units {
+        let id = crate::writer::product_id(ids, &unit.record)?;
+        let hash = sha256(&serde_json::to_vec(unit)?);
+        let existing: Option<i64> = c
+            .query_row(
+                "SELECT unit_id FROM lexical_units WHERE input_hash=?",
+                [&hash],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(unit_id) = existing {
+            if !lexical.insert(unit_id) {
+                return Err(IndexError::Invalid("duplicate lexical unit".into()));
+            }
+            continue;
+        }
+        let mut row = ProjectionRow::new("lexical_units");
+        row.text("input_hash", hash);
+        row.id("record_id", id);
+        row.text("owners_json", serde_json::to_string(&unit.owners)?);
+        row.push("field_path", nullable(unit.field.clone()));
+        row.push(
+            "section_json",
+            nullable(
+                unit.address
+                    .as_ref()
+                    .map(serde_json::to_string)
+                    .transpose()?,
+            ),
+        );
+        row.text("unit_kind", unit.kind.as_str());
+        row.text("identity_terms", &unit.identity_terms);
+        row.text("alias_terms", &unit.alias_terms);
+        row.text("structured_terms", &unit.structured_terms);
+        row.text("definition_terms", &unit.definition_terms);
+        row.insert(c)?;
+        lexical.insert(c.last_insert_rowid());
+    }
+    remove_unkept(c, "lexical_units", "unit_id", &lexical)?;
+
     Ok(())
 }

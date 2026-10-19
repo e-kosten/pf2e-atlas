@@ -1,11 +1,14 @@
 import type {
   FilterDiscoveryContext,
+  SearchRanking,
   SearchResultsRequest,
   QueryPredicate,
 } from "../../generated/atlas";
 import { decodeFilterUrl, encodeFilterUrl, UNSUPPORTED_FILTER_URL } from "./filterUrl";
 export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
+export const UNKNOWN_SEARCH_RANKING = "Unknown search ranking";
 export type SearchFormState = {
+  ranking?: SearchRanking;
   query: string;
   mode: "browse" | "text_search" | "similar_records";
   similarSeed: string | null;
@@ -48,6 +51,7 @@ export function buildSearchRequest(
     search_profile,
     page,
     expected_artifact_generation,
+    ranking: state.ranking ?? "score",
     criteria: state.query.trim()
       ? {
           kind: "text_search",
@@ -94,6 +98,7 @@ export function encodeSearchExecutionState(
   return encodeURIComponent(
     JSON.stringify({
       search_profile,
+      ranking: state.ranking ?? "score",
       query: state.query,
       similarSeed: state.similarSeed,
       mode: state.mode,
@@ -109,6 +114,7 @@ export function searchStateQueryString(
 ): string {
   const params = new URLSearchParams();
   if (search_profile != null) params.set("search_profile", search_profile);
+  if (state.ranking && state.ranking !== "score") params.set("ranking", state.ranking);
   if (state.query) params.set("q", state.query);
   if (state.similarSeed) params.set("similar", state.similarSeed);
   if (state.filter) params.set("filter", encodeFilterUrl(state.filter));
@@ -127,11 +133,15 @@ export function decodeSearchStateFromParams(params: URLSearchParams): SearchForm
         ? UNSUPPORTED_FILTER_URL
         : "Invalid structured filter URL";
   }
+  const ranking = params.get("ranking") ?? "score";
+  if (!filterError && ranking !== "rrf" && ranking !== "score")
+    filterError = UNKNOWN_SEARCH_RANKING;
   const pageSize = Number(params.get("limit") || 25);
   const similarSeed = params.get("similar")?.trim() || null;
   if (similarSeed && params.get("q")?.trim()) filterError = SIMILAR_QUERY_CONFLICT;
   return {
     ...DEFAULT_SEARCH_STATE,
+    ranking: ranking === "rrf" ? "rrf" : "score",
     query: params.get("q") || "",
     similarSeed,
     mode: similarSeed

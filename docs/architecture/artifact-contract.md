@@ -208,8 +208,20 @@ Final publication reconciles active units and prunes inactive checkpoints in the
 same transaction, never before a successful replacement is available.
 Lexical/reference reads and stored-vector Similar do not require query weights.
 
-Search collapses semantic units by maximum similarity per root. Hybrid uses one
-rank per root per lane with RRF60; sibling appearance does not penalize a passage.
+Lexical rows keep each root name and verified alias separate with root vocabulary;
+embedded names use only their own vocabulary, and section rows contain their label.
+No row inherits its parent's identity. The strongest weighted matching row determines
+each root's lexical strength (root/alias 1, root section .5, embedded .25).
+Exact primary names and verified aliases retain priority ahead of fused results.
+Lexical-policy upgrades rebuild these rows from retained records and content in a
+maintenance transaction without replacing semantic vectors or saved state.
+
+Search collapses semantic units by maximum similarity per root. Hybrid offers
+one rank per root per lane with RRF60 as a dogfooding alternative. The default
+`score` strategy min-max normalizes each candidate lane and combines lexical .25 with semantic .75;
+a constant nonempty lane receives its full lane weight. Neither strategy adds
+weight for sibling matches. The request-level choice is independent of embedding
+profile and requires no persisted projection changes. See ADR0053.
 Semantic candidate windows are bounded and reported as such. Similar uses the
 stored root identity seed and semantic candidates, excluding the seed. No invented
 trait/graph reranking weights apply. App search pages expose the same bounded

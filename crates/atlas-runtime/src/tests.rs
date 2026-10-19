@@ -18,18 +18,70 @@ fn paths(dir: &std::path::Path) -> ResolvedAtlasPaths {
 
 #[test]
 fn startup_backfills_filter_catalog_without_source_or_inference() {
+    assert_projection_backfill(true, false, 3);
+}
+
+#[test]
+fn startup_backfills_lexical_rows_without_source_or_inference() {
+    assert_projection_backfill(false, true, 3);
+}
+
+#[test]
+fn startup_backfills_query_and_lexical_rows_together() {
+    assert_projection_backfill(true, true, 3);
+}
+
+#[test]
+fn startup_backfills_populated_schema_two_after_sql_migration() {
+    assert_projection_backfill(false, true, 2);
+}
+
+fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initial_schema: u32) {
     use atlas_local_state::*;
     let directory = tempfile::tempdir().unwrap();
     let paths = paths(directory.path());
     let record = atlas_search::test_support::record(
         "actors",
         "Actor",
-        json!({"_id":"testCreature1000","type":"npc","name":"Test Creature"}),
+        json!({
+            "_id":"testCreature1000","type":"npc","name":"Test Creature",
+            "system":{"details":{"publicNotes":"<h2>Frozen Grave</h2><p>A patient guardian.</p>"}},
+            "items":[{"_id":"dddddddddddddddd","name":"Flame Lance","type":"spell",
+                "system":{"traits":{"value":["fire"]}}}]
+        }),
     );
     let input = atlas_search::test_support::input(vec![record], true);
-    publish_input(&paths.index_path, &input).unwrap();
+    if initial_schema == 2 {
+        use atlas_index::IndexArtifactWriter;
+        crate::workspace::register_extensions().unwrap();
+        let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+        workspace
+            .migrate(
+                &[
+                    atlas_storage::Migration {
+                        version: 1,
+                        name: "reference-baseline",
+                        sql: atlas_index::REFERENCE_SCHEMA_SQL,
+                    },
+                    atlas_storage::Migration {
+                        version: 2,
+                        name: "saved-state-baseline",
+                        sql: atlas_local_state::LOCAL_STATE_SCHEMA_SQL,
+                    },
+                ],
+                |_| Ok(()),
+            )
+            .unwrap();
+        let owner = workspace.update_owner().unwrap();
+        let maintenance = owner.maintenance(2, "old workspace fixture").unwrap();
+        atlas_index::SqliteIndexWriter::new(&maintenance)
+            .write(&input)
+            .unwrap();
+    } else {
+        publish_input(&paths.index_path, &input).unwrap();
+    }
     let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
-    let write = workspace.write(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
+    let write = workspace.write(initial_schema).unwrap();
     let state = LocalStateWrite::new(&write);
     let list = state
         .saved_lists()
@@ -128,10 +180,32 @@ fn startup_backfills_filter_catalog_without_source_or_inference() {
     let vectors_before = stored_vectors(write.connection());
     assert!(!vectors_before.is_empty());
     let before = write.reference_revision().unwrap();
-    write
-        .connection()
-        .execute("DELETE FROM query_field_catalog WHERE field='kind'", [])
-        .unwrap();
+    if query_changed {
+        write
+            .connection()
+            .execute("DELETE FROM query_field_catalog WHERE field='kind'", [])
+            .unwrap();
+    }
+    if lexical_changed {
+        write
+            .connection()
+            .execute(
+                "UPDATE lexical_units SET identity_terms='obsolete inherited name',input_hash=printf('%064x',unit_id)",
+                [],
+            )
+            .unwrap();
+        write.connection().execute(
+            "INSERT INTO verified_aliases(record_id,alias,alias_lookup_key,evidence_json) SELECT record_id,'Snow Keeper','snow keeper','\"source redirect\"' FROM records",
+            [],
+        ).unwrap();
+        write
+            .connection()
+            .execute(
+                "UPDATE lexical_units SET alias_terms='Snow Keeper' WHERE unit_kind='root_name'",
+                [],
+            )
+            .unwrap();
+    }
     let json: String = write
         .connection()
         .query_row("SELECT context_json FROM artifact_context", [], |row| {
@@ -139,7 +213,12 @@ fn startup_backfills_filter_catalog_without_source_or_inference() {
         })
         .unwrap();
     let mut context: atlas_index::SourceArtifactBuildContext = serde_json::from_str(&json).unwrap();
-    context.query_catalog_version = 3;
+    if query_changed {
+        context.query_catalog_version = 3;
+    }
+    if lexical_changed {
+        context.lexical_selection_version = "curated-lexical/v1".into();
+    }
     let json = serde_json::to_string(&context).unwrap();
     write
         .connection()
@@ -185,6 +264,27 @@ fn startup_backfills_filter_catalog_without_source_or_inference() {
             saved_encounter
         );
         assert_eq!(stored_vectors(read.connection()), vectors_before);
+        for phrase in ["Test Creature", "Flame Lance", "Frozen Grave"]
+            .into_iter()
+            .chain(lexical_changed.then_some("Snow Keeper"))
+        {
+            let matches: i64 = read
+                .connection()
+                .query_row(
+                    "SELECT count(*) FROM lexical_fts WHERE lexical_fts MATCH ?",
+                    [phrase],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert!(matches > 0, "missing migrated FTS match: {phrase}");
+        }
+        if lexical_changed {
+            let aliases: i64 = read.connection().query_row(
+                "SELECT count(*) FROM lexical_units WHERE unit_kind='root_alias' AND alias_terms='Snow Keeper'",
+                [], |row| row.get(0),
+            ).unwrap();
+            assert_eq!(aliases, 1);
+        }
         let checkpoints = atlas_index::read_embedding_checkpoints(
             &read,
             model,
@@ -251,7 +351,7 @@ fn setup_reprepares_known_old_content_policy_but_readers_remain_blocked_until_pu
     )
     .unwrap();
     assert!(
-        !atlas_index::ensure_query_projections(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
+        !atlas_index::ensure_reference_projections(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
             .unwrap()
     );
     assert!(open_reader(&paths.index_path).is_err());

@@ -653,6 +653,7 @@ fn searched_saved_list_records(
     loop {
         let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
         let result = retrieval.search_text(TextSearchRequest {
+            ranking: Default::default(),
             search_profile: None,
             query: &query,
             filter: filter.as_ref(),
