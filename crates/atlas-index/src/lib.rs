@@ -71,7 +71,7 @@ pub use reader::{
     SourceArtifactStatistics, SourceProfileStatistics, SourceReadCapabilities, SourceSummaryBatch,
     SqliteIndexReader,
 };
-pub use schema::REFERENCE_SCHEMA_SQL;
+pub use schema::{CONSUMABLE_FILTER_SCHEMA_SQL, REFERENCE_SCHEMA_SQL};
 #[cfg(any(test, feature = "test-support"))]
 pub use validation::validate_artifact;
 pub use validation::{ArtifactValidationReport, validate_reference};

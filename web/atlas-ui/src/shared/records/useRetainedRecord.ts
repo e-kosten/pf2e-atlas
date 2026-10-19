@@ -3,14 +3,14 @@ import type { RecordNavigationView } from "../../generated/atlas";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
 
 // Rank is a view parameter, not a different source document. Keep every other
-// address dimension: owned copies and source generations must never borrow data.
+// address dimension: embedded copies and source generations must never borrow data.
 export function recordReadingIdentity(
   recordKey: string | null,
   selection?: RecordNavigationView,
 ) {
   return JSON.stringify([
     recordKey,
-    selection?.owners ?? [],
+    selection?.embedded_path ?? [],
     selection?.field ?? null,
     selection?.passage ?? null,
     selection?.source_fingerprint ?? null,

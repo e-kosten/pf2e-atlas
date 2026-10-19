@@ -110,7 +110,7 @@ export function useSearchWorkspace({
   const [pagingProfile, setPagingProfile] = useState(searchProfile);
   const profileChanged = pagingProfile !== searchProfile;
   // Adjust the execution page in this render, before any new-profile query can run.
-  // This leaves the reader's artifact epoch and all draft owners untouched.
+  // This leaves the reader's artifact epoch and all draft embedded_path untouched.
   if (profileChanged) {
     setPagingProfile(searchProfile);
     if (pagingProfile !== null) dispatch({ type: "resultPage.changed", pageNumber: 1 });
@@ -282,7 +282,7 @@ export function useSearchWorkspace({
     const selected = reading.detail.selected;
     if (
       selected.spell_rank !== undefined ||
-      selected.owners.length ||
+      selected.embedded_path.length ||
       selected.field ||
       selected.passage ||
       selected.source_fingerprint

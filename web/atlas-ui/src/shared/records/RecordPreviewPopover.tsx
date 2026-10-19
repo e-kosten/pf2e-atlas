@@ -64,7 +64,7 @@ export function RecordPreviewPopover({
       trigger,
       {
         record_key: parent,
-        owners: [],
+        embedded_path: [],
         field: null,
         passage: null,
         source_fingerprint: null,

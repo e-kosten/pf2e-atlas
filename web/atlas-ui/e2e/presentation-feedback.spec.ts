@@ -18,7 +18,7 @@ test("creature lore precedes mechanics and selected casting retains local member
 
   const selection = {
     record_key: creatureKey,
-    owners: [{ collection: "/items", identity: { Stable: "aLhWdKoUI0wcntZE" } }],
+    embedded_path: [{ collection: "/items", identity: { Stable: "aLhWdKoUI0wcntZE" } }],
     field: null,
     passage: null,
     source_fingerprint: null,
@@ -63,7 +63,7 @@ test("hazard ability reads inline and returns to its exact parent reading positi
   expect(target.pathname).toBe("/records/" + hazardKey);
   const selection = JSON.parse(target.searchParams.get("selection")!);
   expect(selection.record_key).toBe(hazardKey);
-  expect(selection.owners).toEqual([
+  expect(selection.embedded_path).toEqual([
     { collection: "/items", identity: { Stable: "9awhcUUChblK5dxi" } },
   ]);
   await fullPage.click();
@@ -71,8 +71,8 @@ test("hazard ability reads inline and returns to its exact parent reading positi
   await expect(page).toHaveURL(target.href);
   const owner = page.getByRole("link", { name: "Return to Waking Nightmare" });
   const parentUrl = new URL((await owner.getAttribute("href"))!, page.url());
-  expect(JSON.parse(parentUrl.searchParams.get("landing")!).owners).toEqual(
-    selection.owners,
+  expect(JSON.parse(parentUrl.searchParams.get("landing")!).embedded_path).toEqual(
+    selection.embedded_path,
   );
   expect(parentUrl.searchParams.has("selection")).toBe(false);
   await owner.click();
@@ -133,9 +133,9 @@ test("owned reference return retains Similar, canonical filters, selected result
     values: filter.values,
   });
   expect(target.searchParams.has("selection")).toBe(false);
-  expect(JSON.parse(target.searchParams.get("landing")!).owners).toEqual(
+  expect(JSON.parse(target.searchParams.get("landing")!).embedded_path).toEqual(
     JSON.parse(new URL(selectedHref!, page.url()).searchParams.get("selection")!)
-      .owners,
+      .embedded_path,
   );
   // The href is complete for browser-native new-tab navigation, independent of history state.
   const other = await context.newPage();

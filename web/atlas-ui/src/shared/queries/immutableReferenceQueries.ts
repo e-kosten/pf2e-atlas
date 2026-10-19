@@ -9,7 +9,7 @@ const IMMUTABLE_REFERENCE_FAMILIES = new Set([
   "saved-list-filter-discovery",
   "filter-vocabulary",
   "record-detail",
-  "owned-reading",
+  "embedded-reading",
   "related",
   "similar-preview",
   "encounter-record-detail",

@@ -1,6 +1,6 @@
 //! CLI reading contract over shared semantic facts; no source reinterpretation.
 use atlas_app_model::{
-    OwnedRecordLinkView, PreparedContentFieldView, RecordBodyView, RecordDetailView,
+    EmbeddedRecordLinkView, PreparedContentFieldView, RecordBodyView, RecordDetailView,
     RecordNavigationView, RecordRelationshipView, RecordSummaryView,
 };
 use serde::Serialize;
@@ -23,7 +23,8 @@ pub(super) struct RecordResponse<'a> {
 pub(super) struct RecordContent<'a> {
     pub classification: &'a str,
     pub fields: &'a [PreparedContentFieldView],
-    pub owned: &'a [OwnedRecordLinkView],
+    #[serde(rename = "embedded")]
+    pub owned: &'a [EmbeddedRecordLinkView],
     pub body: &'a RecordBodyView,
 }
 

@@ -207,11 +207,11 @@ export function navigateToAtlasRoute(route: AtlasRoute) {
         ? current.selectedRecordKey
         : null;
   const inherited = history.state?.atlasOwnerOrigin;
-  const origin = selection?.owners.length
+  const origin = selection?.embedded_path.length
     ? inherited?.recordKey === selection.record_key
       ? inherited
       : currentKey === selection.record_key &&
-          !("selection" in current && current.selection?.owners.length)
+          !("selection" in current && current.selection?.embedded_path.length)
         ? {
             recordKey: selection.record_key,
             href: window.location.pathname + window.location.search,
@@ -238,7 +238,7 @@ export function ownerReturnPath(parent: string, landing: RecordNavigationView): 
         : null;
   const currentSelection = "selection" in current ? current.selection : undefined;
   const knownParent =
-    currentKey === parent && !currentSelection?.owners.length
+    currentKey === parent && !currentSelection?.embedded_path.length
       ? window.location.pathname + window.location.search
       : fallback;
   const url = new URL(
@@ -336,7 +336,7 @@ function selectedNavigation(
   if (!value) return undefined;
   try {
     const parsed = JSON.parse(value);
-    if (typeof parsed.record_key !== "string" || !Array.isArray(parsed.owners))
+    if (typeof parsed.record_key !== "string" || !Array.isArray(parsed.embedded_path))
       throw new Error("Invalid record navigation");
     return parsed as RecordNavigationView;
   } catch {

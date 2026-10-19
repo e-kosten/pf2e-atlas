@@ -4,8 +4,9 @@ use super::{
     terminal::{TerminalLayout, render_html},
 };
 use atlas_app_model::{
-    DamageComponentView, FactView, NumberFactView, OwnedReadingEntryView, PreparedContentFieldView,
-    PreparedFieldBodyView, RecordBodyView, RecordDetailView, RecordSummaryView,
+    DamageComponentView, EmbeddedReadingEntryView, FactView, NumberFactView,
+    PreparedContentFieldView, PreparedFieldBodyView, RecordBodyView, RecordDetailView,
+    RecordSummaryView,
 };
 use atlas_domain::QueryFieldState;
 
@@ -16,7 +17,7 @@ pub(super) fn render_record(
     record: &RecordDetailView,
     detail: TerminalDetail,
     width: TerminalLayout,
-    reading: &[OwnedReadingEntryView],
+    reading: &[EmbeddedReadingEntryView],
 ) -> Result<String, String> {
     let mut out = String::new();
     let presentation = &record.presentation;
@@ -90,7 +91,14 @@ pub(super) fn render_record(
         RecordBodyView::PhysicalReference(body) => {
             optional_text(&mut out, "Usage", &body.usage);
             number(&mut out, "Bulk", &body.bulk, false, "");
-            fact(&mut out, "Price", &body.price, |price| {
+            let price_label = body
+                .price_per
+                .value
+                .as_ref()
+                .and_then(|value| value.as_f64())
+                .filter(|value| *value > 1.0)
+                .map_or_else(|| "Price".into(), |value| format!("Price per {value}"));
+            fact(&mut out, &price_label, &body.price, |price| {
                 let coins = [
                     ("pp", &price.pp),
                     ("gp", &price.gp),
@@ -112,7 +120,74 @@ pub(super) fn render_record(
                     coins.join(", ")
                 }
             });
-            optional_number(&mut out, "Price per", &body.price_per, false, "");
+            if body.price_per.state != QueryFieldState::Value
+                || body
+                    .price_per
+                    .value
+                    .as_ref()
+                    .and_then(|v| v.as_f64())
+                    .is_some_and(|v| v < 1.0)
+            {
+                optional_number(&mut out, "Price per", &body.price_per, false, "items");
+            }
+            if let Some(consumable) = &body.consumable {
+                required_text(&mut out, "Category", &consumable.category);
+                if let Some(damage) = &consumable.damage.value {
+                    required_text(&mut out, "Damage or healing", &damage.kind);
+                    required_text(&mut out, "Formula", &damage.formula);
+                    required_text(&mut out, "Type", &damage.damage_type);
+                }
+                if consumable.damage.state == QueryFieldState::Invalid {
+                    line(&mut out, "Damage or healing: [invalid]");
+                }
+                if consumable.spell.state == QueryFieldState::Invalid {
+                    line(&mut out, "Spell: [invalid]");
+                }
+                let maximum = consumable
+                    .maximum_uses
+                    .value
+                    .as_ref()
+                    .and_then(|v| v.as_f64());
+                if maximum.is_some_and(|v| v > 1.0)
+                    || consumable.maximum_uses.state == QueryFieldState::Invalid
+                    || consumable.source_uses.state == QueryFieldState::Invalid
+                    || consumable.source_uses.value != consumable.maximum_uses.value
+                {
+                    let uses = if consumable.source_uses.value == consumable.maximum_uses.value {
+                        number_text(&consumable.maximum_uses, false, "")
+                    } else {
+                        format!(
+                            "{} / {}",
+                            number_text(&consumable.source_uses, false, ""),
+                            number_text(&consumable.maximum_uses, false, "")
+                        )
+                    };
+                    line(&mut out, format!("Uses: {uses}"));
+                }
+                if consumable
+                    .source_quantity
+                    .value
+                    .as_ref()
+                    .is_some_and(|v| v.as_f64() != Some(1.0))
+                    || consumable.source_quantity.state == QueryFieldState::Invalid
+                {
+                    number(&mut out, "Quantity", &consumable.source_quantity, false, "");
+                }
+                if let Some(spell) = &consumable.spell.value {
+                    line(
+                        &mut out,
+                        format!(
+                            "Spell: {}{}",
+                            spell.title,
+                            spell
+                                .navigation
+                                .spell_rank
+                                .map(|rank| format!(" (Rank {rank})"))
+                                .unwrap_or_default()
+                        ),
+                    );
+                }
+            }
         }
         RecordBodyView::RollTable(body) => {
             line(&mut out, &body.roll_note);
@@ -164,6 +239,12 @@ pub(super) fn render_record(
                 .map(|row| &row.link)
                 .collect(),
             RecordBodyView::Journal(journal) => journal.pages.value.iter().flatten().collect(),
+            RecordBodyView::PhysicalReference(physical) => physical
+                .consumable
+                .as_ref()
+                .and_then(|c| c.spell.value.as_ref())
+                .into_iter()
+                .collect(),
             _ => presentation.owned.iter().collect(),
         };
         for owned in owned {

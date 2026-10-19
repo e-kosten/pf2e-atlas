@@ -227,3 +227,18 @@ Roll-table reference rolls are stateless and may repeat, including when a source
 specifies no replacement; source drawn flags do not become saved deck history.
 All matching valid ranges remain visible with an incomplete-results warning when
 other rows have invalid ranges; a gap is not repaired or re-rolled automatically.
+
+Consumable presentation treats its explicit embedded spell as a semantic Spell
+association, not generic contents. Inline occurrences retain their authored target
+and canonical relationship. App-service may attach a separate contextual reading
+destination when the embedded spell's resolved provenance uniquely agrees with
+the citation in the exact selected consumable. Conflicting, unresolved or bounded
+provenance leaves the association explicit. The browser uses supplied navigation;
+it never matches names, interprets casting prose or rewrites graph identity.
+
+Product navigation uses `embedded_path`; presentation child links use `embedded`.
+The bounded reader is `/api/records/embedded-reading`, and CLI selection uses
+`--embedded-path`. Product content addresses are `ContentLocationView`; private
+source locators retain their persisted ownership vocabulary. There are no legacy
+public aliases. Usage labels preserve exact source tokens for filtering and do
+not infer a normalized hand-count requirement.

@@ -551,7 +551,7 @@ Reference composition puts prose first and groups facts/mechanics according to
 pane width. Encounter composition puts current HP, conditions and actions first;
 participant edits and maximum-HP configuration live in secondary disclosures.
 Immediate Ability-class activities read inline by default through bounded
-owned-reading batches, with an optional whole-section Collapse. The existing
+embedded-reading batches, with an optional whole-section Collapse. The existing
 activity facts supply the title and action cost once; shared prepared content
 supplies authored controls and exact relationships. Keep partial content in its
 own full-generation/parent/target cache, never in selected-detail cache. Scroll

@@ -1,19 +1,19 @@
 import { Alert, Button, Collapse, Space, Spin } from "antd";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getOwnedReading } from "../../api/atlasApi";
+import { getEmbeddedReading } from "../../api/atlasApi";
 import type {
   ActorActivityView,
-  OwnedReadingSelection,
+  EmbeddedReadingSelection,
   RecordNavigationView,
 } from "../../generated/atlas";
 import { ActorActivity } from "./ActorReference";
 import { ContentFields } from "./RecordPresentation";
 import type { RecordReferenceHandler } from "./PreparedContent";
-import { activityAnchor, activityAddress } from "./ownedNavigation";
+import { activityAnchor, activityAddress } from "./embeddedNavigation";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
 
-export type OwnedReadingContext = {
+export type EmbeddedReadingContext = {
   generation: string;
   parent: RecordNavigationView;
   landing?: RecordNavigationView;
@@ -24,13 +24,13 @@ export type OwnedReadingContext = {
   reloadParentLabel?: string;
 };
 
-export function OwnedAbilityReading({
+export function EmbeddedAbilityReading({
   abilities,
   context,
   onReference,
 }: {
   abilities: ActorActivityView[];
-  context?: OwnedReadingContext;
+  context?: EmbeddedReadingContext;
   onReference: RecordReferenceHandler;
 }) {
   if (!context)
@@ -66,7 +66,7 @@ function OwnedAbilityBatch({
   onReference,
 }: {
   abilities: ActorActivityView[];
-  context: OwnedReadingContext;
+  context: EmbeddedReadingContext;
   onReference: RecordReferenceHandler;
 }) {
   const [open, setOpen] = useState(true);
@@ -83,7 +83,7 @@ function OwnedAbilityBatch({
     "abilities",
     target,
   ]);
-  const queryKey = useMemo(() => ["owned-reading", identity], [identity]);
+  const queryKey = useMemo(() => ["embedded-reading", identity], [identity]);
   const reading = useInfiniteQuery({
     queryKey,
     enabled: open && Boolean(context),
@@ -91,9 +91,9 @@ function OwnedAbilityBatch({
       kind: "abilities",
       cursor: null,
       target,
-    } as OwnedReadingSelection,
+    } as EmbeddedReadingSelection,
     queryFn: ({ pageParam, signal }) =>
-      getOwnedReading(
+      getEmbeddedReading(
         {
           parent: context!.parent,
           artifact_generation: context!.generation,
@@ -107,7 +107,7 @@ function OwnedAbilityBatch({
             kind: "abilities",
             cursor: last.next,
             target: null,
-          } as OwnedReadingSelection)
+          } as EmbeddedReadingSelection)
         : undefined,
     getPreviousPageParam: (first) =>
       first.previous
@@ -115,7 +115,7 @@ function OwnedAbilityBatch({
             kind: "abilities",
             cursor: first.previous,
             target: null,
-          } as OwnedReadingSelection)
+          } as EmbeddedReadingSelection)
         : undefined,
     staleTime: Infinity,
     retry: false,
@@ -178,7 +178,7 @@ function OwnedAbilityBatch({
     return () => window.removeEventListener("scroll", scroll, true);
   }, [open, loading, hasNextPage, isError, fetchNextPage]);
   return (
-    <div ref={section} className="owned-ability-reading">
+    <div ref={section} className="embedded-ability-reading">
       <Collapse
         ghost
         size="small"
@@ -199,7 +199,7 @@ function OwnedAbilityBatch({
                   />
                 )}
                 {first && first.start > 0 && (
-                  <div className="owned-reading-continuation">
+                  <div className="embedded-reading-continuation">
                     <p>Earlier abilities are outside this reading range.</p>
                     <Button
                       size="small"
@@ -223,7 +223,7 @@ function OwnedAbilityBatch({
                   return activity ? (
                     <section
                       key={activityAnchor(entry.navigation)}
-                      className="owned-ability-reading__entry"
+                      className="embedded-ability-reading__entry"
                     >
                       <ActorActivity
                         activity={activity}
@@ -282,7 +282,7 @@ function OwnedAbilityBatch({
                 {last && last.end < last.total && (
                   <div
                     ref={sentinel}
-                    className="owned-reading-continuation"
+                    className="embedded-reading-continuation"
                     aria-label="Continue reading abilities"
                   >
                     <p>More abilities continue below as you read.</p>

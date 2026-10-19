@@ -234,7 +234,7 @@
   min-width: 0;
   padding-block: 8px;
 }
-.owned-reading-continuation {
+.embedded-reading-continuation {
   overflow-anchor: none;
   padding-block: 8px;
   color: var(--muted);

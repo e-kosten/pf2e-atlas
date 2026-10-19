@@ -431,7 +431,7 @@ describe("shared common and maintained advanced filters", () => {
       "Embedded items",
     );
     const child = {
-      ...fieldFixture("owned.name", "string", "Embedded item name"),
+      ...fieldFixture("embedded.name", "string", "Embedded item name"),
       path: "name",
       scope: "embedded.equipment",
       choices: ["Jaws"],
@@ -442,7 +442,7 @@ describe("shared common and maintained advanced filters", () => {
     };
     renderControls(editorFixture([collection, child, nested]), {
       kind: "exists",
-      clause_id: "owned",
+      clause_id: "embedded",
       scope_id: "scope",
       collection: "embedded.equipment",
       predicate: {

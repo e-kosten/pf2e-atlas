@@ -4,20 +4,20 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct OwnedReadingRequest {
+pub struct EmbeddedReadingRequest {
     pub parent: RecordNavigationView,
     pub artifact_generation: String,
-    pub selection: OwnedReadingSelection,
+    pub selection: EmbeddedReadingSelection,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum OwnedReadingSelection {
+pub enum EmbeddedReadingSelection {
     TableResults {
-        cursor: Option<OwnedReadingCursor>,
+        cursor: Option<EmbeddedReadingCursor>,
     },
     Abilities {
-        cursor: Option<OwnedReadingCursor>,
+        cursor: Option<EmbeddedReadingCursor>,
         target: Option<RecordNavigationView>,
     },
     Activity {
@@ -26,26 +26,26 @@ pub enum OwnedReadingSelection {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct OwnedReadingCursor {
+pub struct EmbeddedReadingCursor {
     pub artifact_generation: String,
     pub offset: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct OwnedReadingBatchView {
+pub struct EmbeddedReadingBatchView {
     pub artifact_generation: String,
     pub parent: RecordNavigationView,
     pub availability: atlas_domain::QueryFieldState,
     pub total: usize,
     pub start: usize,
     pub end: usize,
-    pub previous: Option<OwnedReadingCursor>,
-    pub next: Option<OwnedReadingCursor>,
-    pub entries: Vec<OwnedReadingEntryView>,
+    pub previous: Option<EmbeddedReadingCursor>,
+    pub next: Option<EmbeddedReadingCursor>,
+    pub entries: Vec<EmbeddedReadingEntryView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct OwnedReadingEntryView {
+pub struct EmbeddedReadingEntryView {
     pub navigation: RecordNavigationView,
     pub content: Vec<PreparedContentFieldView>,
     pub relationships: Vec<RecordRelationshipView>,

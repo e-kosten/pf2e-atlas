@@ -40,7 +40,7 @@ function actorPresentation(): RecordPresentationView {
     },
     body: { kind: "creature", value: actor },
     content: [],
-    owned: [],
+    embedded: [],
   };
 }
 
@@ -67,7 +67,7 @@ it("labels journal children as Pages even when the product kind is lore", () => 
   const presentation = detailFixture("journals:example", "Journal").presentation;
   const activity = activityFixture("A journal page", "journals:example");
   presentation.identity.kind = "lore";
-  presentation.owned = [
+  presentation.embedded = [
     {
       title: activity.title,
       family: "JournalEntryPage",
@@ -75,7 +75,7 @@ it("labels journal children as Pages even when the product kind is lore", () => 
       action_cost: unavailableFact("not_applicable"),
       navigation: {
         ...activity.navigation,
-        owners: [
+        embedded_path: [
           {
             collection: "/pages",
             identity: { Stable: "page-id" },
@@ -184,7 +184,7 @@ describe("semantic family presentation", () => {
     expect(screen.queryByRole("link", { name: "View original" })).toBeNull();
   });
 
-  it("shows selected activity traits once in its identity and retains traits on owned activities", () => {
+  it("shows selected activity traits once in its identity and retains traits on embedded activities", () => {
     const disease = { kind: "trait", value: "disease", label: "Disease" };
     const activity = { ...activityFixture("Ghoul Fever"), traits: [disease] };
     const presentation = {
@@ -205,7 +205,7 @@ describe("semantic family presentation", () => {
     expect(screen.getByRole("link", { name: "Ghoul Fever" })).toBeVisible();
   });
 
-  it("groups owned spells by their exact casting entry and retains authored DC and attack", () => {
+  it("groups embedded spells by their exact casting entry and retains authored DC and attack", () => {
     const presentation = actorPresentation();
     if (presentation.body.kind !== "creature") throw new Error("fixture family");
     const entry = {
@@ -223,7 +223,9 @@ describe("semantic family presentation", () => {
       association: knownFact("Matched authored entry"),
       navigation: {
         ...entry.navigation,
-        owners: [{ collection: "items", identity: { SnapshotLocal: { index: 1 } } }],
+        embedded_path: [
+          { collection: "items", identity: { SnapshotLocal: { index: 1 } } },
+        ],
       },
     };
     presentation.body.value.activities = knownFact([entry, spell]);
@@ -251,7 +253,7 @@ describe("semantic family presentation", () => {
       actor.activities = knownFact([activityFixture()]);
       const fields = ["description", "stealth", "disable", "routine", "reset"].map(
         (role) => ({
-          locator: { record: "hazards:pit", owners: [], field: role },
+          locator: { record: "hazards:pit", embedded_path: [], field: role },
           role,
           source_fingerprint: null,
           body: { kind: "plain" as const, text: `${role} instructions` },
@@ -263,7 +265,7 @@ describe("semantic family presentation", () => {
             classification: "Reference",
             identity: summaryFixture("hazards:pit", "Hidden Spiked Pit"),
             content: fields,
-            owned: [],
+            embedded: [],
             body: {
               kind: "hazard",
               value: {
@@ -380,7 +382,7 @@ describe("semantic family presentation", () => {
             classification: "Reference",
             identity: summaryFixture("spells:test", "Spell"),
             content: [],
-            owned: [],
+            embedded: [],
             body: { kind: "spell", value: spell },
           }}
           onReference={vi.fn()}
@@ -441,7 +443,7 @@ describe("semantic family presentation", () => {
           classification: "Reference",
           identity: summaryFixture("spells:heal", "Heal"),
           content: [],
-          owned: [],
+          embedded: [],
           body: { kind: "spell", value: spell },
         }}
         onReference={vi.fn()}
@@ -474,7 +476,7 @@ describe("semantic family presentation", () => {
     expect(screen.getAllByText("[invalid]")).toHaveLength(2);
     expect(screen.queryByRole("heading", { name: "Strikes" })).toBeNull();
   });
-  it("retains physical and table reference facts and exact owned navigation", () => {
+  it("retains physical and table reference facts and exact embedded navigation", () => {
     const callback = vi.fn();
     const table = detailFixture("tables:wonder", "Rod of Wonder").presentation;
     const child = activityFixture("Result 1–10", "tables:wonder").navigation;
@@ -545,6 +547,7 @@ describe("semantic family presentation", () => {
                 sp: { ...unavailableFact<number>("missing"), adjustment: null },
                 cp: { ...unavailableFact<number>("missing"), adjustment: null },
               }),
+              consumable: null,
               price_per: numberFact(1),
             },
           },
@@ -586,7 +589,7 @@ describe("semantic family presentation", () => {
           classification: "Reference",
           identity: summaryFixture("spells:mantis", "Mantis's Grasp"),
           content: [],
-          owned: [],
+          embedded: [],
           body: { kind: "spell", value: spell },
         }}
         onReference={vi.fn()}
@@ -618,7 +621,7 @@ describe("Rust-owned optional spell presentation", () => {
           identity: summaryFixture("spell:test", "Test spell"),
           body: { kind: "spell", value: spell },
           content: [],
-          owned: [],
+          embedded: [],
         }}
         onReference={vi.fn()}
       />,
@@ -643,7 +646,7 @@ describe("Rust-owned optional spell presentation", () => {
           identity: summaryFixture("spell:test", "Test spell"),
           body: { kind: "spell", value: spell },
           content: [],
-          owned: [],
+          embedded: [],
         }}
         onReference={vi.fn()}
       />,
@@ -702,7 +705,7 @@ describe("optional authored reference facts", () => {
             classification: "Reference",
             identity: summaryFixture("equipment:staff", "Staff"),
             content: [],
-            owned: [],
+            embedded: [],
             body: {
               kind: "physical_reference",
               value: {
@@ -713,6 +716,7 @@ describe("optional authored reference facts", () => {
                   sp: { ...unavailableFact<number>("missing"), adjustment: null },
                   cp: numberFact(0),
                 }),
+                consumable: null,
                 price_per:
                   state === "value"
                     ? numberFact(0)
@@ -866,7 +870,7 @@ it("opens verified self effects through the shared preview and leaves unverified
   const target = {
     ...activity.navigation,
     record_key: "effects:ward",
-    owners: [],
+    embedded_path: [],
     source_fingerprint: null,
   };
   activity.self_effect = knownFact({
@@ -887,4 +891,76 @@ it("opens verified self effects through the shared preview and leaves unverified
   rerender(<ActorActivities actor={actor} onReference={onReference} />);
   expect(screen.queryByRole("link", { name: "Preview Ward effect" })).toBeNull();
   expect(screen.getByText(/Ward effect.*reference unavailable/)).toBeVisible();
+});
+
+it("presents consumable spell semantics, exact navigation, package prices and source counts", () => {
+  const navigation = {
+    record_key: "equipment:wand",
+    embedded_path: [{ collection: "/system/spell", identity: { Stable: "spell" } }],
+    field: null,
+    passage: null,
+    source_fingerprint: null,
+    spell_rank: 2,
+  };
+  const consumable = {
+    category: knownFact("wand"),
+    damage: unavailableFact<import("../../generated/atlas").ConsumableDamageView>(),
+    spell: knownFact({
+      title: "Heal",
+      family: "spell",
+      navigation,
+      usage: null,
+      action_cost: unavailableFact<import("../../generated/atlas").ActionCostView>(),
+    }),
+    spell_presented_inline: false,
+    maximum_uses: numberFact(500),
+    source_uses: numberFact(420),
+    source_quantity: numberFact(10),
+  };
+  const presentation: RecordPresentationView = {
+    classification: "Item",
+    identity: summaryFixture("equipment:wand", "Wand"),
+    content: [],
+    embedded: [],
+    body: {
+      kind: "physical_reference",
+      value: {
+        consumable,
+        usage: knownFact("Held in one hand"),
+        bulk: numberFact(0.1),
+        price_per: numberFact(10),
+        price: knownFact({
+          pp: numberFact(0),
+          gp: numberFact(1),
+          sp: numberFact(0),
+          cp: numberFact(0),
+        }),
+      },
+    },
+  };
+  const onReference = vi.fn();
+  const { rerender } = render(
+    <RecordPresentation presentation={presentation} onReference={onReference} />,
+  );
+  expect(screen.getByText("Uses").parentElement).toHaveTextContent("420 / 500");
+  expect(screen.getByText("Quantity").parentElement).toHaveTextContent("10");
+  expect(screen.getByText("Price per 10").parentElement).toHaveTextContent("1 gp");
+  expect(screen.getByText("Spell").parentElement).toHaveTextContent("Heal · Rank 2");
+  fireEvent.click(screen.getByRole("link", { name: "Heal" }));
+  expect(onReference).toHaveBeenCalledWith(
+    "equipment:wand",
+    expect.any(HTMLElement),
+    navigation,
+  );
+  expect(screen.queryByText("Contents")).toBeNull();
+  consumable.spell_presented_inline = true;
+  consumable.source_uses = numberFact(1);
+  consumable.maximum_uses = numberFact(1);
+  consumable.source_quantity = numberFact(1);
+  rerender(
+    <RecordPresentation presentation={presentation} onReference={onReference} />,
+  );
+  expect(screen.queryByText("Spell")).toBeNull();
+  expect(screen.queryByText("Uses")).toBeNull();
+  expect(screen.queryByText("Quantity")).toBeNull();
 });

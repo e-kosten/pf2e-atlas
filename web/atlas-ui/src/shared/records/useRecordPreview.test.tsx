@@ -171,7 +171,7 @@ it("bounds preview history and restores exact selected copy, landing, source lin
   document.body.append(opener);
   const first = {
     ...detailFixture("actors:ghoul").selected,
-    owners: [{ collection: "items", identity: { SnapshotLocal: { index: 7 } } }],
+    embedded_path: [{ collection: "items", identity: { SnapshotLocal: { index: 7 } } }],
     field: "system.description.value",
     source_fingerprint: "copy-a",
   };

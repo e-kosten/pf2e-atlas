@@ -1,3 +1,4 @@
+import { recordDetailRequest } from "./recordDetailQuery";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -60,7 +61,7 @@ it("reads an exact field address even when its owner is a parent activity", asyn
   await waitFor(() => expect(result.current.detail?.selected).toEqual(match));
   expect(api).toHaveBeenLastCalledWith(
     "actors:ghoul",
-    { ...match, fields: [match.field] },
+    recordDetailRequest(match),
     expect.any(AbortSignal),
   );
   expect(result.current.landing).toBeUndefined();
@@ -143,7 +144,7 @@ it("changes a matched spell's rank without re-reading its old match or adding hi
   expect(result.current.canGoBack).toBe(false);
   expect(api).toHaveBeenLastCalledWith(
     "actors:caster",
-    { ...ranked, fields: [] },
+    recordDetailRequest(ranked),
     expect.any(AbortSignal),
   );
   await act(async () => finish({ ...selected, selected: ranked }));

@@ -123,7 +123,7 @@ describe("RecordDetailPane", () => {
               value: { ...actorFixture(), armor_class: numberFact(25) },
             },
             content: [],
-            owned: [],
+            embedded: [],
           },
         }}
         loading={false}

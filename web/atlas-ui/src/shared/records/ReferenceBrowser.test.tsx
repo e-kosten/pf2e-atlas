@@ -11,7 +11,7 @@ import {
 import { Grid } from "antd";
 import { readingScrollGeometry } from "../../test/readingScrollGeometry";
 import { StrictMode, useState } from "react";
-import { getOwnedReading, getRecordDetail } from "../../api/atlasApi";
+import { getEmbeddedReading, getRecordDetail } from "../../api/atlasApi";
 import {
   activityFixture,
   actorFixture,
@@ -24,7 +24,7 @@ import type { BrowsePositions } from "./useBrowsePositions";
 import { ATLAS_ROUTE_CHANGE_EVENT } from "../../app/routes";
 import { parentShowsActivity, useReferenceReading } from "./useReferenceReading";
 import type {
-  OwnedReadingBatchView,
+  EmbeddedReadingBatchView,
   RecordDetailView,
   SearchResultRow,
 } from "../../generated/atlas";
@@ -32,10 +32,10 @@ import type {
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
   getRecordDetail: vi.fn(),
-  getOwnedReading: vi.fn(),
+  getEmbeddedReading: vi.fn(),
 }));
 const getDetail = vi.mocked(getRecordDetail);
-const getAbilities = vi.mocked(getOwnedReading);
+const getAbilities = vi.mocked(getEmbeddedReading);
 const navigation = activityFixture("Jaws", "actors:ghoul").navigation;
 const rows: SearchResultRow[] = [
   {
@@ -109,7 +109,7 @@ it.each([
       value: { ...actorFixture(), activities: knownFact([activity]) },
     };
     const content = detailFixture("actors:ghoul", "Ghoul", "rules:linked");
-    const batch: OwnedReadingBatchView = {
+    const batch: EmbeddedReadingBatchView = {
       artifact_generation: parent.artifact_generation,
       parent: parent.selected,
       availability: "value",
@@ -154,7 +154,7 @@ it.each([
       let finish: (() => void) | undefined;
       if (delayed) {
         const pending = () =>
-          new Promise<OwnedReadingBatchView>((resolve) => {
+          new Promise<EmbeddedReadingBatchView>((resolve) => {
             finish = () => resolve(batch);
           });
         if (ability) {

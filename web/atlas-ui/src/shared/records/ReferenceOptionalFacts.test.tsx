@@ -14,7 +14,7 @@ import {
 
 describe("optional reference content", () => {
   it.each(["missing", "null", "invalid"] as const)(
-    "retains unavailable heightening/forms parents (%s) while omitting source-owned inapplicable structures",
+    "retains unavailable heightening/forms parents (%s) while omitting source-embedded inapplicable structures",
     (state) => {
       const spell: SpellPresentationView = {
         ...spellFixture(),
@@ -95,7 +95,7 @@ describe("optional reference content", () => {
       <ContentFields
         fields={[
           {
-            locator: { record: "actors:ghoul", owners: [], field: "notes" },
+            locator: { record: "actors:ghoul", embedded_path: [], field: "notes" },
             role: "notes",
             source_fingerprint: null,
             body,
@@ -114,7 +114,7 @@ describe("optional reference content", () => {
         <ContentFields
           fields={[
             {
-              locator: { record: "actors:ghoul", owners: [], field: "notes" },
+              locator: { record: "actors:ghoul", embedded_path: [], field: "notes" },
               role: "notes",
               source_fingerprint: null,
               body: { kind: "unavailable", state },
@@ -132,7 +132,7 @@ describe("optional reference content", () => {
       <ContentFields
         fields={[
           {
-            locator: { record: "actors:ghoul", owners: [], field: "notes" },
+            locator: { record: "actors:ghoul", embedded_path: [], field: "notes" },
             role: "notes",
             source_fingerprint: null,
             body: { kind: "plain", text: "void healing" },

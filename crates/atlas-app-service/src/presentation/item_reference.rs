@@ -63,3 +63,24 @@ pub(super) fn effect_duration(item: ItemSourceView<'_>) -> FactView<EffectDurati
             }),
     )
 }
+
+pub(super) fn consumable(item: ItemSourceView<'_>) -> Option<ConsumablePresentationView> {
+    let ItemSourceView::ConsumableSource(source) = item else {
+        return None;
+    };
+    let system = SourceFieldView::from(&source.system);
+    let uses = system.and_then(|s| (&s.uses).into());
+    Some(ConsumablePresentationView {
+        spell: unavailable(),
+        spell_presented_inline: false,
+        category: identifier(item.consumable_category()),
+        damage: fact(item.consumable_damage().map(|damage| ConsumableDamageView {
+            formula: text((&damage.formula).into()),
+            kind: identifier(item.consumable_damage_kind()),
+            damage_type: identifier(item.consumable_damage_type()),
+        })),
+        maximum_uses: number(uses.and_then(|u| (&u.max).into())),
+        source_uses: number(uses.and_then(|u| (&u.value).into())),
+        source_quantity: number(system.and_then(|s| (&s.quantity).into())),
+    })
+}

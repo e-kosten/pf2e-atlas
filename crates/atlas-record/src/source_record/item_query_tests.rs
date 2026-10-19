@@ -439,3 +439,37 @@ fn root_and_actor_item_use_the_same_extractor_and_original_component_order() {
     assert_eq!(child.spell_focus(), root.spell_focus());
     assert_eq!(child.spell_damage(), root.spell_damage());
 }
+
+#[test]
+fn consumable_damage_preserves_authored_kind_type_and_unavailable_states() {
+    let known = source(
+        "consumable",
+        json!({"damage":{"formula":"1d8", "kind":"healing", "type":"vitality"}}),
+    );
+    assert_eq!(
+        item(&known).consumable_damage_kind().value(),
+        Some(&DamageKind::Healing)
+    );
+    assert_eq!(
+        item(&known).consumable_damage_type().value(),
+        Some(&ConsumableDamageHealingType::Vitality)
+    );
+    let missing = source("consumable", json!({}));
+    assert_eq!(
+        item(&missing).consumable_damage_kind(),
+        SourceFieldView::Missing
+    );
+    let null = source("consumable", json!({"damage":null}));
+    assert_eq!(item(&null).consumable_damage_type(), SourceFieldView::Null);
+    let invalid = source(
+        "consumable",
+        json!({"damage":{"kind":"unknown", "type":"unknown"}}),
+    );
+    assert!(item(&invalid).consumable_damage_kind().value().is_none());
+    assert!(item(&invalid).consumable_damage_type().value().is_none());
+    let other = source("equipment", json!({}));
+    assert_eq!(
+        item(&other).consumable_damage_kind(),
+        SourceFieldView::NotApplicable
+    );
+}

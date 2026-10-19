@@ -1,14 +1,15 @@
+import { recordDetailRequest } from "./recordDetailQuery";
 import { recordReadingIdentity, useRetainedRecord } from "./useRetainedRecord";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useReducer } from "react";
 import { getRecordDetail } from "../../api/atlasApi";
 import type { RecordDetailView, RecordNavigationView } from "../../generated/atlas";
-import { activityAnchor } from "./ownedNavigation";
+import { activityAnchor } from "./embeddedNavigation";
 
 export function rootNavigation(recordKey: string): RecordNavigationView {
   return {
     record_key: recordKey,
-    owners: [],
+    embedded_path: [],
     field: null,
     passage: null,
     source_fingerprint: null,
@@ -45,7 +46,7 @@ export type ReadingRequest = {
   landing?: RecordNavigationView;
 };
 
-// A match first checks the typed parent's visible activities. Other owned nodes
+// A match first checks the typed parent's visible activities. Other embedded nodes
 // and precise field/passage addresses retain their complete addressed reader.
 export function useReferenceReading(
   initial: ReadingRequest | null = null,
@@ -101,17 +102,15 @@ export function useReferenceReading(
     enabled: enabled && request !== null,
     queryFn: async ({ signal }) => {
       const navigation = request!.navigation;
-      const owned =
-        navigation.owners.length ||
+      const embedded =
+        navigation.embedded_path.length ||
         navigation.field ||
         navigation.passage ||
         navigation.spell_rank ||
         navigation.source_fingerprint;
       const parent = await getRecordDetail(
         navigation.record_key,
-        owned
-          ? { ...navigation, fields: navigation.field ? [navigation.field] : [] }
-          : undefined,
+        embedded ? recordDetailRequest(navigation) : undefined,
         signal,
       );
       signal.throwIfAborted();
@@ -119,7 +118,7 @@ export function useReferenceReading(
       if (match && !parentShowsActivity(parent, match)) {
         const detail = await getRecordDetail(
           match.record_key,
-          { ...match, fields: match.field ? [match.field] : [] },
+          recordDetailRequest(match),
           signal,
         );
         return { detail, landing: undefined };

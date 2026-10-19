@@ -243,7 +243,7 @@ mod tests {
             "focus_capacity":{"state":"not_applicable","value":null,"adjustment":null},
             "frequency":{"state":"not_applicable","value":null},
             "casting_ranks":[],"attack_options":[],"has_reference_details":false,
-            "navigation":{"record_key":"pack:id","owners":[]},"title":"Claw","family":"melee","kind":"strike",
+            "navigation":{"record_key":"pack:id","embedded_path":[]},"title":"Claw","family":"melee","kind":"strike",
             "usage":null,"action_cost":{"state":"missing","value":null},"traits":[],
             "attack":{"state":"value","value":12,"adjustment":null},
             "lore_modifier":{"state":"missing","value":null,"adjustment":null},

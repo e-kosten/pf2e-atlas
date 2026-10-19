@@ -96,7 +96,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
           selection: {
             record_key: recordKey!,
             spell_rank: selection!.spell_rank,
-            owners: selection!.owners,
+            embedded_path: selection!.embedded_path,
             fields: selection!.field ? [selection!.field] : [],
             passage: selection!.passage,
             source_fingerprint: selection!.source_fingerprint,

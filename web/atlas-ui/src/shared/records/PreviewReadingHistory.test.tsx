@@ -9,8 +9,8 @@ import {
 } from "@testing-library/react";
 import { ConfigProvider, Grid } from "antd";
 import { StrictMode } from "react";
-import { getOwnedReading, getRecordDetail } from "../../api/atlasApi";
-import type { OwnedReadingBatchView } from "../../generated/atlas";
+import { getEmbeddedReading, getRecordDetail } from "../../api/atlasApi";
+import type { EmbeddedReadingBatchView } from "../../generated/atlas";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
   activityFixture,
@@ -24,7 +24,7 @@ import { useRecordPreview } from "./useRecordPreview";
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
   getRecordDetail: vi.fn(),
-  getOwnedReading: vi.fn(),
+  getEmbeddedReading: vi.fn(),
 }));
 
 it.each([
@@ -60,7 +60,7 @@ it.each([
         body: { kind: "activity", value: activity },
       };
     }
-    const batch: OwnedReadingBatchView = {
+    const batch: EmbeddedReadingBatchView = {
       artifact_generation: parent.artifact_generation,
       parent: parent.selected,
       availability: "value",
@@ -78,7 +78,7 @@ it.each([
       ],
     };
     const getDetail = vi.mocked(getRecordDetail);
-    const getAbilities = vi.mocked(getOwnedReading);
+    const getAbilities = vi.mocked(getEmbeddedReading);
     getDetail.mockReset();
     getAbilities.mockReset();
     getDetail.mockImplementation((key) =>
@@ -206,7 +206,7 @@ it.each([
       expect(document.documentElement.scrollTop).toBe(0);
       scroll.scrollTop = 425;
       // Preview positioning reacts to captured scroll events. Its rerender must
-      // not turn the same owned landing into another first-arrival scroll.
+      // not turn the same embedded landing into another first-arrival scroll.
       fireEvent.scroll(scroll);
       expect(scroll.scrollTop).toBe(425);
       nested.focus();
@@ -220,7 +220,7 @@ it.each([
       );
       let finish: (() => void) | undefined;
       if (kind === "ability" && reading === "landed") {
-        client.removeQueries({ queryKey: ["owned-reading"] });
+        client.removeQueries({ queryKey: ["embedded-reading"] });
         getAbilities.mockImplementationOnce(
           () =>
             new Promise((resolve) => {

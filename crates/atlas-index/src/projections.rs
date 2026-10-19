@@ -426,6 +426,8 @@ fn item_rows(
         number(i.physical_bulk())?.field(&mut r, "bulk");
         text(i.physical_usage())?.field(&mut r, "usage");
         choice(i.consumable_category())?.field(&mut r, "consumable_category");
+        choice(i.consumable_damage_kind())?.field(&mut r, "consumable_damage_kind");
+        choice(i.consumable_damage_type())?.field(&mut r, "consumable_damage_type");
         rows.push(r);
         if matches!(i, ItemSourceView::WeaponSource(_)) {
             let mut r = ProjectionRow::new("weapon_projection");

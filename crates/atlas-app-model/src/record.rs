@@ -25,23 +25,27 @@ pub struct RecordBadgeView {
     pub value: String,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
 pub struct RecordNavigationView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub spell_rank: Option<u8>,
     pub record_key: String,
+    #[serde(rename = "embedded_path")]
     pub owners: Vec<OwnedContentLocator>,
     pub field: Option<String>,
     pub passage: Option<SourcePassageAddress>,
     pub source_fingerprint: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
 pub struct RecordDetailRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub spell_rank: Option<u8>,
     pub record_key: String,
     #[serde(default)]
+    #[serde(rename = "embedded_path")]
     pub owners: Vec<OwnedContentLocator>,
     #[serde(default)]
     pub fields: Vec<String>,
@@ -59,7 +63,7 @@ pub struct RecordDetailView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordRelationshipView {
-    pub source: SourceContentLocator,
+    pub source: ContentLocationView,
     pub source_navigation: RecordNavigationView,
     pub ordinal: usize,
     pub origin: String,
@@ -72,6 +76,10 @@ pub struct RecordRelationshipView {
     pub target: Option<RecordNavigationView>,
     pub url: Option<String>,
     pub effect_label: Option<EffectReferenceLabelView>,
+    // Verified local reading context; the authored target remains unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub contextual_target: Option<RecordNavigationView>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EffectReferenceLabelView {
@@ -98,4 +106,33 @@ pub enum RecordRefResolutionView {
     Key(atlas_domain::RecordKey),
     Miss,
     Ambiguous(Vec<RecordResolutionCandidateView>),
+}
+
+/// Product content address; persisted source addresses retain their storage vocabulary.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ContentLocationView {
+    pub record: atlas_domain::RecordKey,
+    #[serde(rename = "embedded_path")]
+    pub owners: Vec<OwnedContentLocator>,
+    pub field: String,
+}
+impl From<SourceContentLocator> for ContentLocationView {
+    fn from(value: SourceContentLocator) -> Self {
+        Self {
+            record: value.record,
+            owners: value.owners,
+            field: value.field,
+        }
+    }
+}
+
+#[cfg(test)]
+mod embedded_contract_tests {
+    #[test]
+    fn old_owner_selection_is_rejected_instead_of_silently_opening_root() {
+        let old = serde_json::json!({"record_key":"equipment:wand", "owners":[], "passage":null,"source_fingerprint":null});
+        assert!(serde_json::from_value::<super::RecordDetailRequest>(old).is_err());
+        let new = serde_json::json!({"record_key":"equipment:wand", "embedded_path":[], "passage":null,"source_fingerprint":null});
+        assert!(serde_json::from_value::<super::RecordDetailRequest>(new).is_ok());
+    }
 }

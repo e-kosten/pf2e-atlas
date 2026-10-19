@@ -41,7 +41,7 @@ pub(crate) fn prepared_fields(
             (SourceFieldView::Value(_), SourceFieldView::Value(SourceContentFormat::Html)) => {
                 if bounded.contains(&locator) {
                     fields.push(PreparedContentFieldView {
-                        locator,
+                        locator: locator.into(),
                         role: format!("{:?}", s.role).to_lowercase(),
                         source_fingerprint: navigation_fingerprint(owners, fingerprint),
                         body: PreparedFieldBodyView::Bounded {
@@ -119,7 +119,7 @@ pub(crate) fn prepared_fields(
             },
         };
         fields.push(PreparedContentFieldView {
-            locator,
+            locator: locator.into(),
             role: format!("{:?}", s.role).to_lowercase(),
             source_fingerprint: navigation_fingerprint(owners, fingerprint),
             body,
