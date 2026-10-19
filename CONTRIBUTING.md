@@ -656,7 +656,11 @@ verified temporary download and rename. Do not relocate this path policy into
 vector identity or add a legacy-layout reader.
 
 Use `--progress always --json >report.json 2>progress.log` when reviewing normal
-build progress. Check selected profile names, shared occurrences versus unique
-inference inputs, reused counts and bounded stage updates. Include an unchanged
+build progress. Stages emit concise operation labels and structured counters/units;
+the CLI renderer owns counts and elapsed/estimated time. Keep paths, revisions,
+reuse statistics and internal terminology out of normal progress text; use
+`ATLAS_LOG=info` for diagnostic fields. Check selected model names, passage versus
+unique-passage counts and bounded stage updates. ETA is approximate, omitted until
+there is a useful sample, and rounded to minutes for long-running stages. Include an unchanged
 reuse-heavy tiny build and `--progress never`; JSON stdout must stay parseable.
 Rendering/control-plane corrections do not justify a full-corpus reembedding.

@@ -85,7 +85,7 @@ pub fn validate_artifact(path: impl AsRef<Path>) -> Result<ArtifactValidationRep
 /// This does not start or commit a transaction or reopen the database by path.
 pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, IndexError> {
     let context = validate_open(c)?;
-    tracing::info!(target:"atlas_progress",phase="artifact_integrity","Checking SQLite integrity; remaining duration unknown");
+    tracing::info!(target:"atlas_progress",phase="artifact_integrity","Checking database integrity");
     let integrity: String = c.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
     if integrity != "ok" {
         return Err(IndexError::Invalid(format!(
@@ -113,7 +113,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
             reference_index.insert_source(record.key(), record.source());
             checked += 1;
             if checked.is_multiple_of(500) || checked == total_roots {
-                tracing::info!(target:"atlas_progress",phase="artifact_reference_index",current=checked as u64,total=total_roots as u64,"Checking snapshot reference identities");
+                tracing::info!(target:"atlas_progress",phase="artifact_reference_index",current=checked as u64,total=total_roots as u64,unit="records","Checking record identities");
             }
         }
     }
@@ -194,7 +194,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
             &content,
         )?;
         if roots.is_multiple_of(500) || roots == total_roots {
-            tracing::info!(target:"atlas_progress",phase="artifact_coherence",current=roots as u64,total=total_roots as u64,"Checking source snapshots, projections and attributed units");
+            tracing::info!(target:"atlas_progress",phase="artifact_coherence",current=roots as u64,total=total_roots as u64,unit="records","Checking records and search content");
         }
     }
     for table in PROJECTION_TABLES {
@@ -220,9 +220,9 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
             "lexical identity coverage is incomplete".into(),
         ));
     }
-    tracing::info!(target:"atlas_progress",phase="artifact_fts_integrity","Checking lexical index postings");
+    tracing::info!(target:"atlas_progress",phase="artifact_fts_integrity","Checking text search index");
     validate_fts(c)?;
-    tracing::info!(target:"atlas_progress",phase="artifact_vector_integrity","Checking semantic vector coverage and integrity");
+    tracing::info!(target:"atlas_progress",phase="artifact_vector_integrity","Checking semantic search index");
     validate_vectors(c, &context, product_count)?;
     validate_aliases(c)?;
     let mut urls=c.prepare("SELECT target_url FROM relationship_occurrences WHERE resolution IN ('resolved_url','unverified_url')")?;
@@ -558,7 +558,7 @@ fn validate_vectors(
             check_vector(&crate::read_units::decode_vector(&bytes)?, model.dimensions)?;
             checked += 1;
             if checked.is_multiple_of(1000) || checked == total {
-                tracing::info!(target:"atlas_progress", phase="artifact_vector_integrity", current=checked as u64, total=total as u64, profile=%model.profile_id,"Checking profile vectors");
+                tracing::info!(target:"atlas_progress", phase="artifact_vector_integrity", current=checked as u64, total=total as u64, unit="passages", profile=%model.profile_id,"Checking search embeddings");
             }
         }
     }

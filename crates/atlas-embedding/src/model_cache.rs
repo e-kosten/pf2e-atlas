@@ -196,8 +196,18 @@ fn prepare_cache_file(
             Err(error) => return Err(error),
         }
     }
-    info!(target: "atlas_progress", phase = "embedding_model_cache", asset = file.source_path,
-        "Preparing pinned asset {}/{} at revision {}; download duration unknown",file.source_repo,file.source_path,file.source_revision);
+    let label = crate::embedding_model_for_model_id(file.source_repo)
+        .map(crate::profile_for_model)
+        .map_or(file.source_repo, |profile| profile.label);
+    let asset = match file.source_path {
+        "onnx/model.onnx" => "model",
+        "onnx/model.onnx_data" => "model weights",
+        "tokenizer.json" => "tokenizer",
+        _ => "configuration",
+    };
+    info!(target: "atlas_progress", phase = "embedding_model_cache",
+        repo = file.source_repo, revision = file.source_revision, asset = file.source_path,
+        "Downloading {label} {asset}");
     // The existing verified temporary-file/rename path preserves any previous
     // file until its replacement has passed the exact checksum contract.
     fetch(file)?;

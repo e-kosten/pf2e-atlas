@@ -90,6 +90,7 @@ pub(crate) fn ensure_setup(
             reason,
         ));
     }
+    progress("check_setup", "Checking setup");
     let mut model_ready = prepare_embeddings
         && profile_error.is_none()
         && configurations
@@ -114,7 +115,7 @@ pub(crate) fn ensure_setup(
                 ),
             ));
         } else {
-            progress("fetch_source", "Preparing pinned Foundry reference source");
+            progress("fetch_source", "Preparing Foundry source");
             match crate::source_acquisition::acquire(&paths.source_root) {
                 Ok(()) => {
                     source_ready = true;
@@ -176,10 +177,7 @@ pub(crate) fn ensure_setup(
                 "required pinned embedding assets are missing or invalid",
             ));
         } else {
-            progress(
-                "prepare_embedding_model",
-                "Preparing pinned embedding assets",
-            );
+            progress("prepare_embedding_model", "Preparing search models");
             match (|| {
                 atlas_embedding::prepare_baseline_tokenizer_cache(&paths.embedding_cache_root)?;
                 for config in &configurations {
@@ -270,7 +268,7 @@ pub(crate) fn ensure_setup(
                 "source or required embedding assets are unavailable",
             ));
         } else {
-            progress("build_index", "Building source-backed artifact");
+            progress("build_index", "Building search index");
             let result = (|| -> Result<BuildArtifactReport, String> {
                 let workspace =
                     crate::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
@@ -337,7 +335,7 @@ pub(crate) fn ensure_setup(
             SetupReadinessItem::not_ready(required, reason)
         }
     };
-    RuntimeSetupReport {
+    let report = RuntimeSetupReport {
         target: options.target,
         ready: records_ready && (!options.target.requires_embeddings() || semantic_ready),
         path_mode: paths.mode.as_str(),
@@ -406,7 +404,9 @@ pub(crate) fn ensure_setup(
             })
             .collect(),
         build,
-    }
+    };
+    tracing::info!(target:"atlas_progress", complete=true, "Setup finished");
+    report
 }
 impl From<BuildArtifactReport> for SetupBuildReport {
     fn from(r: BuildArtifactReport) -> Self {

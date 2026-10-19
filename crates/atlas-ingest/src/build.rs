@@ -40,7 +40,7 @@ pub(crate) fn prepare_build(
     reusable: Vec<atlas_index::SourceArtifactRecordInput>,
 ) -> Result<PreparedSourceBuild, IngestError> {
     crate::validate_source_compatibility(&options.source_root, options.manifest_path.as_deref())?;
-    progress("load_source", "Loading typed Foundry source");
+    progress("load_source", "Reading Foundry source");
     let capture = crate::source_fingerprint::SourceCapture::capture(
         &options.source_root,
         options.manifest_path.as_deref(),
@@ -50,7 +50,7 @@ pub(crate) fn prepare_build(
         &capture.read(&capture.manifest_path)?,
     )?;
     let fingerprint = capture.fingerprint.clone();
-    progress("load_catalog", "Loading source localization catalogs");
+    progress("load_catalog", "Loading translations");
     let catalog =
         LocalizationCatalog::load_captured(&options.source_root, &options.locale, Some(&capture))?;
     let mut search_profiles = options
@@ -96,17 +96,14 @@ pub(crate) fn prepare_build(
     let preparation_hash = context
         .preparation_sha256()
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    progress("admit_source", "Admitting captured source documents");
+    progress("admit_source", "Parsing source records");
     let loaded = crate::source_loading::load_captured_source(
         &options.source_root,
         Some(&capture.manifest_path),
         reusable,
         Some(&capture),
     )?;
-    progress(
-        "enrich_source",
-        "Preparing changed source and reference dependencies",
-    );
+    progress("enrich_source", "Preparing changed records and references");
     let source = enrich_loaded_source(
         loaded,
         SourceEnrichmentContext {
@@ -119,9 +116,9 @@ pub(crate) fn prepare_build(
     if source_report.addressed_documents == 0 {
         return Err(IngestError::NoRecordsLoaded);
     }
-    progress("trait_labels", "Resolving used trait labels");
+    progress("trait_labels", "Resolving trait names");
     context.used_trait_labels = crate::source::localization::used_trait_labels(&source, &catalog)?;
-    progress("prepare_search", "Preparing attributable search passages");
+    progress("prepare_search", "Preparing search content");
     let tokenizer = options
         .search_profiles
         .first()
@@ -129,7 +126,11 @@ pub(crate) fn prepare_build(
         .transpose()
         .map_err(embedding_error)?;
     let prepared = index_build_input(source, context, tokenizer.as_ref(), &capture)?;
-    tracing::info!(target:"atlas_progress",phase="prepare_search",records=prepared.index.records.len(),semantic_units=prepared.pending.len(),"Shared search preparation complete: {}/{} records, {} semantic units",prepared.index.records.len(),prepared.index.records.len(),prepared.pending.len());
+    tracing::info!(
+        records = prepared.index.records.len(),
+        semantic_units = prepared.pending.len(),
+        "Search preparation complete"
+    );
     Ok(PreparedSourceBuild {
         prepared,
         source_report,
@@ -173,10 +174,6 @@ pub(crate) fn build_artifact(
     atlas_index::write_requested_reference_config(&write, &requested)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     write.commit()?;
-    progress(
-        "read_previous",
-        "Reading reusable source snapshots and prepared content",
-    );
     let reusable = {
         let read = workspace.read(schema)?;
         match atlas_index::read_stored_reference_context(read.connection())
@@ -186,6 +183,7 @@ pub(crate) fn build_artifact(
                 if context.snapshot_version == atlas_foundry_model::SNAPSHOT_VERSION
                     && context.source_contract == atlas_foundry_model::SOURCE_CONTRACT_ID =>
             {
+                progress("read_previous", "Reading saved records");
                 atlas_index::read_persisted_inputs(read.connection(), &context)
                     .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
             }
@@ -217,10 +215,7 @@ pub(crate) fn build_artifact(
         let profile = atlas_embedding::profile_for_model(config.model);
         progress(
             &format!("{}:load_tokenizer", profile.id),
-            &format!(
-                "{} [{}]: loading verified tokenizer",
-                profile.label, profile.id
-            ),
+            &format!("Loading {} tokenizer", profile.label),
         );
         let native = TextEmbeddingTokenizer::load(config).map_err(embedding_error)?;
         let batch = PreparedEmbeddingBatch::prepare(
@@ -240,13 +235,7 @@ pub(crate) fn build_artifact(
             .search_profile(&profile.profile_id())
             .map_err(|e| IngestError::DocumentEmbeddingFailed(e.to_string()))?;
         if options.reuse_embeddings {
-            progress(
-                &format!("{}:read_checkpoints", profile.id),
-                &format!(
-                    "{} [{}]: reading verified embedding checkpoints",
-                    profile.label, profile.id
-                ),
-            );
+            tracing::info!(profile = profile.id, "Reading saved embeddings");
             reusable =
                 atlas_index::read_embedding_checkpoints(&workspace.read(schema)?, model, inputs)
                     .map_err(|e| IngestError::DocumentEmbeddingFailed(e.to_string()))?;
@@ -255,13 +244,6 @@ pub(crate) fn build_artifact(
             .iter()
             .map(|input| (input.reuse_key.as_str(), input))
             .collect::<BTreeMap<_, _>>();
-        progress(
-            &format!("{}:embed_source", profile.id),
-            &format!(
-                "{} [{}]: checking exact prepared inputs and inferring unique inputs",
-                profile.label, profile.id
-            ),
-        );
         let generated = generate_prepared_embeddings(
             config,
             &batch,
@@ -314,7 +296,7 @@ pub(crate) fn build_artifact(
         }
     }
     // Fail before touching the output if source changes while preparation runs.
-    progress("recheck_source", "Rechecking source and catalog freshness");
+    progress("recheck_source", "Checking source for changes");
     let final_fingerprint =
         compute_source_fingerprint(&options.source_root, options.manifest_path.as_deref())?;
     let final_catalog = LocalizationCatalog::load(&options.source_root, &options.locale)?;
@@ -326,10 +308,7 @@ pub(crate) fn build_artifact(
             "source changed during artifact preparation; retry build".into(),
         ));
     }
-    progress(
-        "write_artifact",
-        "Validating and publishing the source-backed artifact",
-    );
+    progress("write_artifact", "Saving and checking search index");
     let maintenance = update_owner.maintenance(schema, "publishing reference update")?;
     let target_hash = prepared
         .index
