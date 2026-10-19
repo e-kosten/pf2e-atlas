@@ -43,7 +43,7 @@ pub(super) fn hydrate_participant_records(
                 &[],
                 vec![],
                 r,
-            );
+            )?;
             let arithmetic_baseline = super::mechanics::arithmetic_baseline(&presentation);
             let adjustment_applicable = !matches!(
                 atlas_record::source_record::SourceQueryView::new(

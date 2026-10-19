@@ -73,6 +73,10 @@ pub struct OwnedRecordLinkView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorPresentationView {
+    pub size: FactView<String>,
+    pub hardness: NumberFactView,
+    pub ritual_difficulty_class: NumberFactView,
+    pub defense_notes: ActorDefenseNotesView,
     pub level: NumberFactView,
     pub armor_class: NumberFactView,
     pub maximum_hp: NumberFactView,
@@ -91,6 +95,20 @@ pub struct ActorPresentationView {
     pub language_details: FactView<String>,
     pub activities: FactView<Vec<ActorActivityView>>,
     pub runtime: Option<ActorRuntimeView>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ActorDefenseNotesView {
+    pub armor_class: FactView<String>,
+    pub hit_points: FactView<String>,
+    pub all_saves: FactView<String>,
+    pub fortitude: FactView<String>,
+    pub reflex: FactView<String>,
+    pub will: FactView<String>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ActivityFrequencyView {
+    pub maximum: NumberFactView,
+    pub interval: FactView<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorSavesView {
@@ -166,6 +184,10 @@ pub enum ActorActivityKindView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorActivityView {
+    pub self_effect: FactView<ActivityEffectReferenceView>,
+    pub strike_effects: FactView<Vec<String>>,
+    pub focus_capacity: NumberFactView,
+    pub frequency: FactView<ActivityFrequencyView>,
     pub casting_ranks: Vec<u8>,
     // Whether opening the selected document can add details beyond this summary.
     pub has_reference_details: bool,
@@ -326,4 +348,12 @@ pub struct TableResultPresentationView {
 pub struct RollTableRowView {
     pub link: OwnedRecordLinkView,
     pub range: FactView<[f64; 2]>,
+}
+
+/// An authored effect reference; navigation exists only for a verified destination.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ActivityEffectReferenceView {
+    pub name: FactView<String>,
+    pub authored_target: FactView<String>,
+    pub navigation: Option<RecordNavigationView>,
 }

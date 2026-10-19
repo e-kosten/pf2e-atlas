@@ -232,7 +232,7 @@ pub(crate) fn read_record_detail(
         &request.owners,
         fields,
         r,
-    );
+    )?;
     let spell_rank = crate::presentation::apply_spell_rank(
         &detail.source,
         node,

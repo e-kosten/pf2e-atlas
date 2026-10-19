@@ -1,7 +1,7 @@
 # Source-modeling Capability Follow-through
 
 Status: in_progress
-Priority: agreed sequence; CF-01 implementation approved
+Priority: agreed sequence; CF-02 implementation approved
 Owner: unassigned
 Last reviewed: 2026-10-18
 
@@ -14,7 +14,7 @@ its documentation, **not implementation of every recommendation**. Confirm the
 selected scope and unresolved product behavior before implementation. Do not
 interpret this list as ten mandatory merge blockers.
 
-CF-01 implementation is now approved by the user; CF-02 through CF-10 remain
+CF-01 merged in PR #68. CF-02 implementation is approved; CF-03 through CF-10 remain
 unapproved. Mixed-failure precedence is runtime (3), invalid input (2), domain
 miss/ambiguity (1), success (0).
 
@@ -33,8 +33,8 @@ if review warrants it; preserve its ID and record every resulting PR here.
 
 | ID | Intended PR scope | Status | Implementation approval | PR / candidate / validation |
 | --- | --- | --- | --- | --- |
-| CF-01 | CLI batches and error contracts | in_progress | Approved 2026-10-18 | [PR #68](https://github.com/e-kosten/pf2e-atlas/pull/68); accepted CLI layouts; full Rust gate passed locally; hosted CI pending |
-| CF-02 | Creature/hazard reference facts and activity details | planned | Pending | Not started |
+| CF-01 | CLI batches and error contracts | merged | Approved 2026-10-18 | [PR #68](https://github.com/e-kosten/pf2e-atlas/pull/68); merged as b6a0a684; local validation passed |
+| CF-02 | Creature/hazard reference facts and activity details | in_progress | Approved 2026-10-18 | [PR #69](https://github.com/e-kosten/pf2e-atlas/pull/69); user accepted reference layout; Rust/frontend gates and independent targeted browser review passed; awaiting merge |
 | CF-03 | Ritual/spell, feat/effect and journal/table reference completeness | planned | Pending | Not started |
 | CF-04 | Consumable presentation and nested-spell navigation | planned | Pending | Not started |
 | CF-05 | Physical query fields and labels | planned | Pending | Not started |
@@ -74,6 +74,21 @@ invent dedicated activity requirements/cost/uses fields from descriptions.
 Acceptance: Gray Master retains void healing and ability frequencies; Night Hag
 retains conditional save notes and Abyssal Plague. Optional blank facts remain
 quiet; meaningful source values and unknowns are not confused.
+
+Validation follow-up: generated source contracts are pinned to PF2e 6.12.4,
+while the vendored source used for the Aasimar Redeemer sample is 7.9.1. Bolts is
+`type: consumable`, category `ammo` at the pinned commit, but `type: ammo` in 7.9.1.
+The latter falls outside the admitted union and makes the whole actor `items`
+collection invalid before presentation. Decide source-version support/enforcement
+and per-item failure isolation separately; this is not evidence that the pinned
+6.12.4 ammo representation is unsupported. Do not drop an invalid item silently
+or synthesize a focus entry from resources. CF-02 preserves the unavailable state.
+
+User checkpoint: discuss the source-pin mismatch further before proceeding into
+phases 2 and 3. Do not start remediation now. Discussion must cover intended
+upstream support, source/model version enforcement, scope of affected records,
+and whether invalid embedded entries should isolate failure to that entry.
+Do not infer that this checkpoint authorizes a model upgrade or admission redesign.
 
 ### CF-03 — Ritual/spell, feat/effect and journal/table reference completeness
 

@@ -79,7 +79,8 @@ pub use prepared_content::{
     ContentControlKindView, ContentControlView, PreparedContentFieldView, PreparedFieldBodyView,
 };
 pub use presentation::{
-    ActionCostView, ActionGlyphView, ActorActivityKindView, ActorActivityView, ActorModifierView,
+    ActionCostView, ActionGlyphView, ActivityEffectReferenceView, ActivityFrequencyView,
+    ActorActivityKindView, ActorActivityView, ActorDefenseNotesView, ActorModifierView,
     ActorMovementView, ActorPresentationView, ActorRuntimeView, ActorSavesView, ActorSenseView,
     ActorSkillView, CastingEntryContextView, ConditionalSkillView, DamageComponentView, FactView,
     HazardPresentationView, HeighteningDamageView, IwrEntryView, NumberAdjustmentView,

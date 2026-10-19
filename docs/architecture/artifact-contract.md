@@ -291,3 +291,11 @@ with silently missing links. Non-content relationship discovery stays a separate
 bounded operation. App-service owned-reading batches check one parent, select at
 most 32 immediate Ability-class activities or table results and reuse this prepared batch without
 recursive detail projection or a second fact authority.
+
+Structured ability/feat self-effect UUIDs use the same attributed relationship
+preparation and exact identity resolution as other authored links. The relationship
+policy version invalidates old preparation when these occurrences are added; no
+SQLite schema migration is required. App-service attaches verified navigation to
+the shared activity projection with one bounded relationship read per selected
+record. Missing targets remain readable references, never inferred name matches.
+Strike-effect names remain authored labels without speculative cross-record links.

@@ -1165,3 +1165,35 @@ fn traversal_unwinds_owner_paths_between_nested_children_and_root_siblings() {
         ]
     );
 }
+
+#[test]
+fn structured_self_effect_uses_uuid_identity_and_preserves_unresolved_targets() {
+    let source = admitted(
+        "Actor",
+        json!({"_id":ROOT,"type":"npc","items":[
+            {"_id":CHILD,"type":"action","system":{"selfEffect":{"name":"Authored label","uuid":"Compendium.pf2e.effects.Item.bbbbbbbbbbbbbbbb"}}},
+            {"_id":OTHER,"type":"action","system":{"selfEffect":{"name":"Same label","uuid":"Compendium.pf2e.effects.Item.missing"}}}
+        ]}),
+    );
+    let target = admitted(
+        "Item",
+        json!({"_id":"bbbbbbbbbbbbbbbb","type":"effect","name":"Verified effect"}),
+    );
+    let mut index = SourceReferenceIndex::default();
+    index.insert_source(&source_record_key("effects", &target).unwrap(), &target);
+    let record = SourceBackedRecord::new("actors", source).unwrap();
+    let relationships = resolve_source_relationships(&record, Some(&index));
+    let effects: Vec<_> = relationships
+        .iter()
+        .filter(|r| r.kind == SourceRelationshipKind::SelfEffect)
+        .collect();
+    assert_eq!(effects.len(), 2);
+    assert!(
+        matches!(&effects[0].resolution, ContentReferenceResolution::Resolved(ContentReferenceTarget::Record{key}) if key.to_string() == "effects:bbbbbbbbbbbbbbbb")
+    );
+    assert!(matches!(
+        effects[1].resolution,
+        ContentReferenceResolution::Unresolved
+    ));
+    assert_eq!(effects[0].locator.field, "/system/selfEffect/uuid");
+}
