@@ -1,13 +1,14 @@
 # Historical snapshot manifest
 
-Each entry binds original bytes to an inert Markdown snapshot. Paths are relative
-to the repository root for sources and this research directory for archives.
+Each entry binds original bytes to an inert Markdown snapshot. Source paths or Git
+objects identify provenance; archives contain the payloads without those sources.
+Archive paths are relative to this research directory.
 
 ```json
 {
   "captured": "2026-10-19",
-  "purpose": "Preserve unique authored documentation and vocabulary, not an approved corpus or runtime input",
-  "extraction": "Read the single fenced payload; remove an added final newline only if source_final_newline is false. Check source_bytes and source_sha256.",
+  "purpose": "Preserve local-only authored knowledge and complete non-main design plans; integrated Node history is referenced by verified ancestor commit, obsolete machinery deliberately retired",
+  "extraction": "Read the single fenced payload, or zero-based payload_index among the archive file's fenced payloads. Remove an added final newline only when source_final_newline is false. Check source_bytes and source_sha256; original paths and Git refs are provenance, not dependencies.",
   "entries": [
     {
       "source": "scratch/derived-tag-ontology/derived-tag-concept-mapping-summary.md",
@@ -314,6 +315,46 @@ to the repository root for sources and this research directory for archives.
       "source_final_newline": true,
       "encoding": "single fenced UTF-8 payload",
       "provenance": "historical local archived plan; execution status not inferred"
+    },
+    {
+      "source": "7160b9c8642dd61970aa504612c1af1b5c735896:docs/backlog/history/items/rust-tagging-design-plan.md",
+      "archive": "sources/2026-06-06-rust-tagging-design.md",
+      "payload_index": 0,
+      "source_sha256": "6e50b16ab1ab0a58a7fe41ccf1f89be339b59d7eb72cdd34d449b966764bed09",
+      "source_bytes": 51389,
+      "source_final_newline": true,
+      "encoding": "indexed fenced UTF-8 payload",
+      "provenance": "Git source at 7160b9c8642dd61970aa504612c1af1b5c735896; complete payload retained on this branch, original ref not required"
+    },
+    {
+      "source": "scratch/plans/archive/undated/future-plans.md",
+      "selection": {
+        "line_start": 5,
+        "line_end": 6,
+        "original_file_sha256": "6376b3e55d60f6b76c68f9aa62cf009f2b10c7ecb7b47aa4b6537a04624df4fa"
+      },
+      "archive": "sources/earlier-local-planning.md",
+      "payload_index": 0,
+      "source_sha256": "b4c9581dbd17db7a2b7f9c8c856f2cf458036394fcd3f2bfea04dfe2c1985f74",
+      "source_bytes": 473,
+      "source_final_newline": true,
+      "encoding": "indexed fenced UTF-8 excerpt",
+      "provenance": "Complete tag-specific passages; unrelated mixed scratch content deliberately omitted"
+    },
+    {
+      "source": "scratch/plans/archive/undated/future-plans.md",
+      "selection": {
+        "line_start": 31,
+        "line_end": 34,
+        "original_file_sha256": "6376b3e55d60f6b76c68f9aa62cf009f2b10c7ecb7b47aa4b6537a04624df4fa"
+      },
+      "archive": "sources/earlier-local-planning.md",
+      "payload_index": 1,
+      "source_sha256": "7893562eb2095136e04486f46219fc1bf57bfaa72073001f84a55ca347b4dd81",
+      "source_bytes": 828,
+      "source_final_newline": true,
+      "encoding": "indexed fenced UTF-8 excerpt",
+      "provenance": "Complete tag-specific passages; unrelated mixed scratch content deliberately omitted"
     }
   ]
 }

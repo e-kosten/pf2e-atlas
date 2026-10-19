@@ -88,6 +88,31 @@ Node publication enforced one family per category/tag. The user later preferred
 multiple browse homes independent of stable concept identity. Do not revive that
 old restriction simply because the archived implementation imposed it.
 
+The mature Node commit `94ae1ef5ba9a7f9cbabcfbc847cf467db17f5ab5` is an ancestor
+of integrated main. Its detailed guidance, projection restrictions, concrete
+assignments/exemplars, legacy seed memberships, reviewed negatives, translation
+notes and old agent skills remain recoverable from main history after deleting
+local branches and worktrees. The [source map](sources-and-cleanup.md) gives exact
+paths; the mapping CSV alone does not contain that guidance. Historical claimed
+human/LLM sources and expected verdicts require fresh validation before reuse.
+
+Useful cross-category contrasts from the old fixtures are:
+
+| Area | Question worth retaining |
+| --- | --- |
+| Creature | Does evidence establish habitat, motif or identity, rather than a past location, figurative wording or incidental capability? |
+| Equipment | Does an item provide access, disguise, communication, expedition support or a hostile payload, rather than merely mentioning the subject? |
+| Spell | Is the effect infiltration, sensory support, transformation, control, remediation or protection; and is the claimed function narrow enough? |
+| Hazard | Distinguish trigger/mechanism, encounter function, environment, manifestation, lure/compulsion and the party's resolution path. |
+| Affliction | Distinguish impairment, transmission/progression, metaphysical theme and a remedy, rather than treating them as one concept. |
+| Native overlap | Does a concept add a useful question beyond existing native traits and typed facts? |
+
+For example, an illusion that changes identity differs from ordinary sensory
+support; an item that conceals a weapon differs from one that aids scouting;
+a glyph's trigger differs from how a party disables it. These are useful test
+questions, not endorsed historical assignments. Exact inputs/assertions remain in
+the six test files named in the source map, without copying the old test suite.
+
 ## Browser and discovery experiments
 
 The old ontology browser also mixed native search vocabulary with authored tags.
@@ -112,6 +137,10 @@ evidence and an agent-first workflow. It proposed unanimous automated acceptance
 after reconsideration and authoritative `record_tags` filtering. The large June
 design plan was separately preserved on `preserve/tagging-design`.
 
+Its [complete text is now included here](sources/2026-06-06-rust-tagging-design.md),
+so that preservation branch and the orphaned design worktree are unnecessary for
+recovering the plan.
+
 The integrated Rust implementation contains `atlas-tags` model types, strict YAML
 parsing, corpus merging and structural validation, plus `atlas tags validate`.
 It does **not** implement record classification, applicability evaluation,
@@ -126,6 +155,14 @@ The current integrated validator has 9 groups/36 subgroups; that experiment has
 uncommitted work expands to 104 labels in 14 files. The complete working vocabulary
 and guidance are [snapshotted](sources-and-cleanup.md#local-authored-snapshots).
 They cannot simply be loaded with today's integrated validator vocabulary.
+
+The optional registry externalized labels/descriptions but retained closed Rust
+enums: every one of the 10 groups and 61 subgroups had to appear exactly once,
+with nonempty labels/descriptions and each subgroup under its one hardcoded
+parent. Missing/duplicate entries and wrong placement were rejected. This was
+externalized presentation metadata, not extensible or multi-home organization.
+The old seed test expected the committed 54 labels; it does not demonstrate
+validation or semantic review of the later 104-label working corpus.
 
 | Historical group | Committed seed | Working snapshot |
 | --- | ---: | ---: |
