@@ -1,167 +1,122 @@
 # Getting Started With PF2e Atlas
 
-This guide walks through the first commands to run after installing `atlas`.
-It focuses on the normal user path: prepare local data, find records, inspect
-details, and switch to JSON when a script or agent needs structured output.
-
-## Install And Setup
-
-Install the CLI from the latest release:
-
-```bash
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.sh | sh
-```
-
-On Windows, use PowerShell:
-
-```powershell
-irm https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.ps1 | iex
-```
-
-Then run setup:
+[Install Atlas](../README.md#quick-start), then prepare a local workspace:
 
 ```bash
 atlas setup
 ```
 
-`atlas setup` fetches or updates PF2E source data, prepares semantic search
-support, builds local search data, and verifies that the runtime is ready.
+Setup downloads the supported Foundry PF2e source and BGE Base model, builds the
+reference data, and checks readiness. The first build includes embedding inference
+and can take a while. Later updates reuse compatible embeddings and preserve saved
+lists and encounters. For a new workspace without semantic search, use
+`atlas setup --no-embeddings`.
 
-To check readiness without changing local data:
-
-```bash
-atlas setup --check
-```
-
-Use JSON when checking setup from a script or agent:
+Check readiness without downloads or writes:
 
 ```bash
 atlas setup --check --json
 ```
 
-## First Lookup
-
-Use `record resolve` when you know a record name and want the matching Atlas
-record:
+## Browse In The Web App
 
 ```bash
-atlas record resolve "Treat Wounds" --pack-name actionspf2e
+atlas web
 ```
 
-Atlas records have canonical keys in `pack:id` form. Use `record get` once you
-already have one:
+Open the address printed by the command. Search and preview records, maintain
+saved lists, and run encounters with initiative, HP, conditions and dice controls.
+Encounter automation covers supported mechanics; it does not execute every Foundry
+rule or replace GM decisions.
+
+## Find A Record
+
+Use strict resolution for a name, then fetch a returned `pack:id` key:
 
 ```bash
+atlas record resolve 'Treat Wounds' --pack-name actionspf2e
 atlas record get actionspf2e:1kGNdIIhuglAjIp9
 ```
 
-`record get` does not resolve names. If you start from a name, resolve or
-search first, then fetch the selected key.
+`record get` accepts keys, not names. If resolution is ambiguous, inspect the
+alternatives and choose the intended record; a similar name is not proof of identity.
 
-## First Search
-
-Use `search` when you need a ranked result set:
+For concepts or partial names, use search:
 
 ```bash
-atlas search "low level healing spell" --kind spell --limit 5
+atlas search 'walk through walls' --kind spell --limit 5
+atlas search 'healing spell' --kind spell --where 'level <= 2' --limit 8
 ```
 
-When the request includes clear structured constraints, pass them as filters
-instead of relying on query text alone:
+Use filters for explicit constraints. Omit query text for alphabetical browsing:
 
 ```bash
-atlas search "healing spell" --kind spell --max-level 2 --detail preview --limit 8
+atlas search --kind creature --trait undead --where 'level <= 4'
 ```
 
-For lists where the filters fully describe the request, omit the text query:
+For text search in a lexical-only workspace, add `--retrieval fts`.
+
+## Read More Or Use JSON
+
+Human record output has three levels:
 
 ```bash
-atlas search --kind equipment --rarity uncommon --detail preview --limit 20
+atlas record get actionspf2e:1kGNdIIhuglAjIp9 --detail summary
+atlas record get actionspf2e:1kGNdIIhuglAjIp9 --detail standard
+atlas record get actionspf2e:1kGNdIIhuglAjIp9 --detail full
 ```
 
-## Details And JSON
+Standard is the default. Full also expands supported embedded records; it does
+not follow every graph link. Search returns compact matches; use `record get`
+to read a result.
 
-Use `--detail preview` to scan result sets, `--detail description` when the
-description text matters, and `--detail standard --json` when a caller needs
-structured record context.
+For structured output, use `--json` without `--detail`:
 
 ```bash
-atlas search "protect an ally" --kind feat --trait champion --detail preview --limit 8
-atlas record get feats-srd:jM72TjJ965jocBV8 --detail standard --json
+atlas record get actionspf2e:1kGNdIIhuglAjIp9 --json
 ```
 
-Most commands support a shared JSON envelope. Successful payloads are under
-`data`; command, runtime, or input failures are under `error`.
-
-## Ambiguous Names
-
-Some PF2E names identify more than one record. When strict resolution is
-ambiguous, inspect the alternatives, choose the best canonical key, then fetch
-that key:
+This returns the complete selected Atlas reference response. To inspect the
+checked source DTO, including data outside the reference presentation:
 
 ```bash
-atlas record resolve "Shield Block" --kind feat --alternatives 5 --detail preview --json
-atlas record get feats-srd:jM72TjJ965jocBV8 --detail standard --json
+atlas record source actionspf2e:1kGNdIIhuglAjIp9 --json
 ```
 
-Use narrower filters when the alternatives are too broad or when you need to
-rerun resolution in a smaller record space.
+Both work without the original source clone. The DTO export includes typed
+presence/union tags and is not the original Foundry JSON.
 
-## Similar Records And Graph Context
-
-Use `similar` when you already have a seed record and want records like it:
+## Discover Filters And References
 
 ```bash
-atlas similar "Dirge of Doom" --kind spell --limit 8
-```
-
-Use `graph links` when you want one-hop references around a known record:
-
-```bash
-atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --json
-```
-
-By default, graph links include outgoing references and omit backlinks. Use
-`graph uses` for records that reference or use a known key:
-
-```bash
-atlas graph uses conditionitems:TBSHQspnbcqxsmjL --limit 5 --json
-```
-
-## Discover Filters
-
-Use filter discovery when you are not sure which fields or values are
-available:
-
-```bash
-atlas filters fields --kind spell
+atlas filters fields
+atlas filters fields --group movement
+atlas filters fields --field movement.speeds
 atlas filters values --field traits --kind spell
-atlas filters values --field metric --kind creature --metric-query save
+atlas search --kind creature --where 'movement.speeds.exists(s, s.type == "fly" && s.feet >= 30)'
+atlas similar 'Dirge of Doom' --kind spell --limit 8
+atlas graph uses 'Frightened' --limit 5
 ```
 
-Prefer convenience filters such as `--kind`, `--rarity`, `--max-level`,
-`--trait`, `--references`, `--referenced-by`, and `--metric` when they express
-the query clearly.
+Field discovery supplies supported CEL paths, types and examples. Similar finds
+semantic neighbors using stored vectors. Graph commands follow explicit reference
+relationships instead of inferring similarity.
 
-## Agent Skill
-
-Atlas can install a first-party skill that teaches local coding agents how to
-use the CLI for PF2E research:
+## Install The Agent Skill
 
 ```bash
 atlas agent skills install
 ```
 
-For automation, provide the target and scope:
+Choose the agent target and scope, or supply them explicitly:
 
 ```bash
 atlas agent skills install --target codex --scope global --yes --json
+atlas agent skills doctor --target codex --scope global --json
 ```
 
-Inspect existing skill installs with:
+After updating Atlas, rerun the installer to update its bundled skill. A differing
+installed copy requires `--force`; check for local edits before replacing it.
 
-```bash
-atlas agent skills doctor
-```
-
+See [CLI examples](cli-examples.md) for batch JSON, embedded selections, profiles,
+filters, lists and dice. See the [README](../README.md) for upgrades and data paths.
