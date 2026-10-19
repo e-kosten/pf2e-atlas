@@ -101,6 +101,7 @@ fn price_units_and_table_collections_preserve_unavailable_and_zero_facts() {
         QueryFieldState::Invalid,
     ] {
         let table = RollTablePresentationView {
+            roll_note: "Reference rolls may repeat; results are not consumed.".into(),
             formula: known(" ".into()),
             results: FactView { state, value: None },
         };
@@ -325,6 +326,11 @@ fn damage_component() -> DamageComponentView {
 }
 fn spell() -> SpellPresentationView {
     SpellPresentationView {
+        ritual: FactView {
+            state: QueryFieldState::NotApplicable,
+            value: None,
+        },
+        counteraction: known(false),
         rank_note: None,
         base_rank: numeric(1),
         runtime_notes: None,
@@ -572,6 +578,10 @@ fn actor() -> ActorPresentationView {
         languages: known(vec!["common".into()]),
         language_details: missing(),
         activities: known(vec![ActorActivityView {
+            effect_duration: FactView {
+                state: QueryFieldState::NotApplicable,
+                value: None,
+            },
             self_effect: missing(),
             strike_effects: missing(),
             focus_capacity: absent_number(),
@@ -927,4 +937,40 @@ fn unavailable_collections_entries_and_lore_use_final_typed_contract() {
     .unwrap();
     assert!(output.contains("Spell attack: +23"));
     assert!(output.contains("DC: 33"));
+}
+
+#[test]
+fn prerequisites_render_prepared_content_once_before_description() {
+    let mut record = detail(RecordBodyView::Content);
+    record.presentation.content = vec![PreparedContentFieldView {
+        locator: atlas_record::source_content::SourceContentLocator {
+            record: atlas_domain::RecordKey::parse("feats:aaaaaaaaaaaaaaaa").unwrap(),
+            owners: vec![],
+            field: "/system/prerequisites/value/0/value".into(),
+        },
+        role: "prerequisite".into(),
+        source_fingerprint: None,
+        body: PreparedFieldBodyView::Html {
+            html: "<strong>expert</strong> in Medicine".into(),
+            controls: vec![],
+        },
+    }];
+    let mut missing = record.presentation.content[0].clone();
+    missing.locator.field = "/system/prerequisites/value/1/value".into();
+    missing.body = PreparedFieldBodyView::Unavailable {
+        state: QueryFieldState::Missing,
+    };
+    record.presentation.content.push(missing);
+    let mut description = record.presentation.content[0].clone();
+    description.locator.field = "/system/description/value".into();
+    description.role = "description".into();
+    description.body = PreparedFieldBodyView::Plain {
+        text: "Description body".into(),
+    };
+    record.presentation.content.push(description);
+    let output = render_record(&record, TerminalDetail::Standard, 80).unwrap();
+    assert_eq!(output.matches("Prerequisites:").count(), 1);
+    assert!(output.contains("in Medicine; [missing]"), "{output}");
+    assert!(!output.contains("<strong>"));
+    assert!(output.find("Prerequisites:").unwrap() < output.find("Description body").unwrap());
 }

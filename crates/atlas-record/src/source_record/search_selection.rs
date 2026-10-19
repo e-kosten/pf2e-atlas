@@ -10,7 +10,7 @@ use scraper::{ElementRef, Html};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fmt};
 
-pub const SOURCE_CONTENT_SELECTION_VERSION: &str = "structural-source-sections/v2";
+pub const SOURCE_CONTENT_SELECTION_VERSION: &str = "structural-source-sections/v3";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SourceSelectedSectionKind {

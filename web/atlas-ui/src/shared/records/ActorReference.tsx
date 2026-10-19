@@ -589,7 +589,10 @@ export function ActorActivity({
           tabIndex={-1}
           className="actor-activity__title"
         >
-          {activity.title} <ActionCost fact={activity.action_cost} />
+          {activity.title}{" "}
+          {activity.action_cost.state === "value" && (
+            <ActionCost fact={activity.action_cost} />
+          )}
           {permalink && (
             <Button
               type="link"
@@ -635,6 +638,25 @@ export function ActorActivity({
           <NumberFact fact={activity.lore_modifier} signed />
         </span>
       )}
+      {activity.effect_duration.value ? (
+        <>
+          <FactLine
+            label="Duration"
+            fact={activity.effect_duration.value.duration}
+            required
+          />
+          {activity.effect_duration.value.sustained.value !== false && (
+            <FactLine
+              label="Sustained"
+              fact={activity.effect_duration.value.sustained}
+              format={() => "Yes"}
+            />
+          )}
+          <FactLine label="Expires" fact={activity.effect_duration.value.expiry} />
+        </>
+      ) : (
+        <FactLine label="Duration" fact={activity.effect_duration} />
+      )}
       {activity.frequency.state !== "missing" &&
         activity.frequency.state !== "not_applicable" && (
           <FactLine
@@ -645,7 +667,9 @@ export function ActorActivity({
             }
           />
         )}
-      {!hideCost && !inline && <ActionCost fact={activity.action_cost} />}
+      {!hideCost && (!inline || activity.action_cost.state !== "value") && (
+        <ActionCost fact={activity.action_cost} label="Action cost" />
+      )}
       {activity.usage && !isEmptyFactValue(activity.usage) && (
         <Tag>{activity.usage}</Tag>
       )}

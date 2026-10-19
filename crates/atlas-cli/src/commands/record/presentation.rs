@@ -33,9 +33,15 @@ pub(super) fn render_record(
         }
         return Ok(out);
     }
+    render_prerequisites(&mut out, &presentation.content, width)?;
     line(&mut out, "");
     for field in presentation.content.iter().filter(|field| is_intro(field)) {
-        content_field(&mut out, field, width, true)?;
+        content_field(
+            &mut out,
+            field,
+            width,
+            !matches!(&presentation.body, RecordBodyView::JournalPage(page) if page.show_body_heading.value == Some(false)),
+        )?;
     }
     line(&mut out, "");
     match &presentation.body {
@@ -109,6 +115,7 @@ pub(super) fn render_record(
             optional_number(&mut out, "Price per", &body.price_per, false, "");
         }
         RecordBodyView::RollTable(body) => {
+            line(&mut out, &body.roll_note);
             required_text(&mut out, "Formula", &body.formula);
             if body.results.state != QueryFieldState::Value {
                 fact(&mut out, "Results", &body.results, |_| String::new());
@@ -119,10 +126,24 @@ pub(super) fn render_record(
             number(&mut out, "Weight", &body.weight, false, "");
             required_text(&mut out, "Result type", &body.result_type);
         }
+        RecordBodyView::Journal(body) => match known_value(&body.pages) {
+            Some(pages) if pages.is_empty() => line(&mut out, "No pages."),
+            Some(_) => {}
+            None => line(
+                &mut out,
+                format!("Pages unavailable {}", unavailable(body.pages.state)),
+            ),
+        },
+        RecordBodyView::JournalPage(body) => {
+            if let Some(notice) = &body.media_notice {
+                line(&mut out, notice);
+            }
+        }
         RecordBodyView::Content => {}
     }
     for field in presentation.content.iter().filter(|field| {
-        !(is_intro(field)
+        !(field.role == "prerequisite"
+            || is_intro(field)
             || matches!(presentation.body, RecordBodyView::Hazard(_))
                 && matches!(field.role.as_str(), "stealth" | "disable"))
     }) {
@@ -142,6 +163,7 @@ pub(super) fn render_record(
                 .flatten()
                 .map(|row| &row.link)
                 .collect(),
+            RecordBodyView::Journal(journal) => journal.pages.value.iter().flatten().collect(),
             _ => presentation.owned.iter().collect(),
         };
         for owned in owned {
@@ -197,6 +219,7 @@ fn content_field(
     if heading {
         let label = match field.role.as_str() {
             "description" => "Description",
+            "prerequisite" => "Prerequisites",
             "disable" => "Disable",
             "routine" => "Routine",
             "reset" => "Reset",
@@ -520,3 +543,22 @@ fn damage_components(out: &mut String, value: &FactView<Vec<DamageComponentView>
 
 #[cfg(test)]
 mod tests;
+
+fn render_prerequisites(
+    out: &mut String,
+    fields: &[PreparedContentFieldView],
+    width: TerminalLayout,
+) -> Result<(), String> {
+    let mut values = Vec::new();
+    for field in fields.iter().filter(|f| f.role == "prerequisite") {
+        let mut value = String::new();
+        content_field(&mut value, field, width, false)?;
+        if !value.trim().is_empty() {
+            values.push(value.trim().to_owned());
+        }
+    }
+    if !values.is_empty() {
+        line(out, format!("Prerequisites: {}", values.join("; ")));
+    }
+    Ok(())
+}

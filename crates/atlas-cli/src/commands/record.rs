@@ -229,6 +229,13 @@ fn render_selected_record(
                     .flatten()
                     .map(|row| &row.link.navigation)
                     .collect(),
+                RecordBodyView::Journal(journal) => journal
+                    .pages
+                    .value
+                    .iter()
+                    .flatten()
+                    .map(|page| &page.navigation)
+                    .collect(),
                 _ => record
                     .presentation
                     .owned

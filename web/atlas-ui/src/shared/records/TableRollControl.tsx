@@ -1,4 +1,5 @@
-import { Alert, Button, Space } from "antd";
+import { Alert, Button, Popover, Space } from "antd";
+import { Info } from "lucide-react";
 import { useEffect } from "react";
 import { rollTable } from "../../api/atlasApi";
 import type { RecordDetailRequest, TableRollView } from "../../generated/atlas";
@@ -10,11 +11,13 @@ export function TableRollControl({
   selection,
   artifactGeneration,
   formula,
+  rollNote,
   onResult,
 }: {
   selection: RecordDetailRequest;
   artifactGeneration: string;
   formula: string | null;
+  rollNote: string;
   onResult: (result: TableRollView | undefined) => void;
 }) {
   const roll = useDiceRoll<TableRollView>();
@@ -36,6 +39,14 @@ export function TableRollControl({
         >
           {roll.result ? "Reroll" : "Roll"}
         </Button>
+        <Popover content={rollNote} trigger={["click", "hover", "focus"]}>
+          <Button
+            type="text"
+            size="small"
+            aria-label="About table rolls"
+            icon={<Info size={16} />}
+          />
+        </Popover>
         {roll.result && (
           <RollResult outcome={roll.result.outcome} pending={roll.animating} />
         )}
@@ -50,7 +61,14 @@ export function TableRollControl({
             />
           )}
           {roll.result.matches.length === 0 && (
-            <Alert type="info" title="No result matches this roll." />
+            <Alert
+              type="info"
+              title={
+                roll.result.invalid_ranges.length
+                  ? "No valid result range matches this roll."
+                  : "No result matches this roll."
+              }
+            />
           )}
         </>
       )}

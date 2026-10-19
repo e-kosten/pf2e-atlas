@@ -1328,3 +1328,257 @@ fn reference_self_effect_navigation_survives_storage_and_selected_activity_readi
         effect.navigation
     );
 }
+
+#[test]
+fn ritual_casting_preserves_compound_checks_zero_casters_and_unavailability() {
+    for (ritual, expected) in [
+        (
+            json!({"primary":{"check":"Religion (expert) or Occultism (master)"},"secondary":{"casters":0,"checks":"Medicine; Society"}}),
+            QueryFieldState::Value,
+        ),
+        (json!(null), QueryFieldState::NotApplicable),
+        (json!(42), QueryFieldState::Invalid),
+    ] {
+        let input = record(
+            "spells",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"spell","system":{"ritual":ritual,"counteraction":true}}),
+        );
+        let SourceNodeView::Item(ItemSourceView::SpellSource(source)) =
+            SourceQueryView::new(input.record.source(), "spells", "").source
+        else {
+            panic!("spell")
+        };
+        let view = spell::authored_spell(source);
+        assert_eq!(view.ritual.state, expected);
+        assert_eq!(view.counteraction.value, Some(true));
+        if let Some(ritual) = view.ritual.value {
+            assert_eq!(
+                ritual.primary_check.value.as_deref(),
+                Some("Religion (expert) or Occultism (master)")
+            );
+            assert_eq!(ritual.secondary_casters.value, Some(0.into()));
+            assert_eq!(
+                ritual.secondary_checks.value.as_deref(),
+                Some("Medicine; Society")
+            );
+        }
+    }
+}
+
+#[test]
+fn effect_reference_duration_handles_special_units_and_invalid_timed_amounts() {
+    for (unit, value, expected, state) in [
+        (
+            "encounter",
+            -1,
+            Some("Until the encounter ends"),
+            QueryFieldState::Value,
+        ),
+        ("unlimited", -1, Some("Unlimited"), QueryFieldState::Value),
+        ("rounds", 1, Some("1 round"), QueryFieldState::Value),
+        ("minutes", 2, Some("2 minutes"), QueryFieldState::Value),
+        ("rounds", -1, None, QueryFieldState::Invalid),
+    ] {
+        let input = record(
+            "effects",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"effect","system":{"duration":{"unit":unit,"value":value,"sustained":true,"expiry":"turn-end"}}}),
+        );
+        let SourceNodeView::Item(item) =
+            SourceQueryView::new(input.record.source(), "effects", "").source
+        else {
+            panic!("item")
+        };
+        let view = item_reference::effect_duration(item).value.unwrap();
+        assert_eq!(view.duration.state, state);
+        assert_eq!(view.duration.value.as_deref(), expected);
+        assert_eq!(view.sustained.value, Some(true));
+        assert_eq!(
+            view.expiry.value.as_deref(),
+            if matches!(unit, "encounter" | "unlimited") {
+                None
+            } else {
+                Some("At the end of the turn")
+            }
+        );
+    }
+}
+
+#[test]
+fn feat_prerequisites_preserve_alternatives_and_missing_members() {
+    let input = record(
+        "feats",
+        "Item",
+        json!({"_id":"aaaaaaaaaaaaaaaa","type":"feat","system":{"prerequisites":{"value":[{"value":"trained in Medicine"},{"value":"Battle Medicine or Medic Dedication"},{}]}}}),
+    );
+    let SourceNodeView::Item(item) =
+        SourceQueryView::new(input.record.source(), "feats", "").source
+    else {
+        panic!("item")
+    };
+    let view: Vec<_> = SourceNodeView::Item(item)
+        .content_selections()
+        .into_iter()
+        .filter(|s| s.role == atlas_record::source_record::SourceContentRole::Prerequisite)
+        .collect();
+    assert_eq!(view.len(), 3);
+    assert_eq!(
+        view[0].text.value().map(String::as_str),
+        Some("trained in Medicine")
+    );
+    assert_eq!(
+        view[1].text.value().map(String::as_str),
+        Some("Battle Medicine or Medic Dedication")
+    );
+    assert!(matches!(view[2].text, SourceFieldView::Missing));
+    assert_eq!(view[2].field, "/system/prerequisites/value/2/value");
+}
+
+#[test]
+fn rich_prerequisites_are_prepared_attributed_and_keep_unavailable_entries() {
+    let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "feats",
+                        "Item",
+                        json!({"_id":"aaaaaaaaaaaaaaaa","name":"Prerequisite test","type":"feat","system":{"prerequisites":{"value":[
+                            {"value":"@UUID[Compendium.pf2e.feats.Item.bbbbbbbbbbbbbbbb]{Battle Medicine} or trained in Medicine"},
+                            {"value":"<script>bad()</script><strong>expert</strong> in Medicine"}, {}, {"value":null}, {"value":42}, {"value":""}
+                        ]}}}),
+                    ),
+                    record(
+                        "feats",
+                        "Item",
+                        json!({"_id":"bbbbbbbbbbbbbbbb","name":"Battle Medicine","type":"feat","system":{}}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let detail = fixture
+        .worker
+        .record_detail("feats:aaaaaaaaaaaaaaaa")
+        .unwrap();
+    let fields: Vec<_> = detail
+        .presentation
+        .content
+        .iter()
+        .filter(|f| f.role == "prerequisite")
+        .collect();
+    assert_eq!(fields.len(), 6);
+    for (i, field) in fields.iter().enumerate() {
+        assert_eq!(
+            field.locator.field,
+            format!("/system/prerequisites/value/{i}/value")
+        );
+    }
+    let PreparedFieldBodyView::Html { html, .. } = &fields[0].body else {
+        panic!("prepared prerequisite")
+    };
+    assert!(html.contains("Battle Medicine"));
+    assert!(html.contains("or trained in Medicine"));
+    assert!(!html.contains("@UUID"));
+    assert!(detail.relationships.iter().any(|r| {
+        r.target
+            .as_ref()
+            .is_some_and(|t| t.record_key == "feats:bbbbbbbbbbbbbbbb")
+    }));
+    let PreparedFieldBodyView::Html { html, .. } = &fields[1].body else {
+        panic!("prepared HTML")
+    };
+    assert!(html.contains("<strong>expert</strong>"));
+    assert!(!html.contains("<script"));
+    for (index, expected) in [
+        (2, QueryFieldState::Missing),
+        (3, QueryFieldState::Null),
+        (4, QueryFieldState::Invalid),
+    ] {
+        assert!(
+            matches!(fields[index].body, PreparedFieldBodyView::Unavailable { state } if state == expected)
+        );
+    }
+}
+
+#[test]
+fn journal_page_collections_distinguish_empty_missing_null_and_invalid() {
+    for (pages, expected) in [
+        (Some(json!([])), QueryFieldState::Value),
+        (None, QueryFieldState::Missing),
+        (Some(json!(null)), QueryFieldState::Null),
+        (Some(json!(42)), QueryFieldState::Invalid),
+    ] {
+        let mut journal = json!({"_id":"aaaaaaaaaaaaaaaa","name":"Journal"});
+        if let Some(pages) = pages {
+            journal["pages"] = pages;
+        }
+        let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+            1,
+            16,
+            move || {
+                Ok(open_source_fixture(
+                    vec![record("journals", "JournalEntry", journal.clone())],
+                    false,
+                )?)
+            },
+        ));
+        let detail = fixture
+            .worker
+            .record_detail("journals:aaaaaaaaaaaaaaaa")
+            .unwrap();
+        let RecordBodyView::Journal(view) = detail.presentation.body else {
+            panic!("journal")
+        };
+        assert_eq!(view.pages.state, expected);
+        if expected == QueryFieldState::Value {
+            assert!(view.pages.value.unwrap().is_empty());
+        }
+    }
+}
+
+#[test]
+fn unavailable_prerequisite_collections_remain_visible_in_selected_reference() {
+    for (prerequisites, expected) in [
+        (None, QueryFieldState::Missing),
+        (Some(json!(null)), QueryFieldState::Null),
+        (Some(json!({"value":42})), QueryFieldState::Invalid),
+    ] {
+        let mut system = json!({});
+        if let Some(value) = prerequisites {
+            system["prerequisites"] = value;
+        }
+        let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+            1,
+            16,
+            move || {
+                Ok(open_source_fixture(
+                    vec![record(
+                        "feats",
+                        "Item",
+                        json!({"_id":"aaaaaaaaaaaaaaaa","type":"feat","name":"Unavailable requirements","system":system}),
+                    )],
+                    false,
+                )?)
+            },
+        ));
+        let detail = fixture
+            .worker
+            .record_detail("feats:aaaaaaaaaaaaaaaa")
+            .unwrap();
+        let field = detail
+            .presentation
+            .content
+            .iter()
+            .find(|f| f.role == "prerequisite")
+            .unwrap();
+        assert_eq!(field.locator.field, "/system/prerequisites/value");
+        assert!(
+            matches!(field.body, PreparedFieldBodyView::Unavailable { state } if state == expected)
+        );
+    }
+}

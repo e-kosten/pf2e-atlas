@@ -100,6 +100,15 @@ from source remaining uses or saved encounter expenditure. CLI and web readers
 render these shared facts; known-empty optional notes remain quiet and malformed
 source values retain their unavailable state.
 
+Ritual reference facts preserve authored primary/secondary checks and caster counts;
+counteraction is a source capability, not a calculated target DC. Feat prerequisites
+retain authored alternatives without eligibility evaluation. Each prerequisite is
+prepared as an attributed rich field, using its source array index as the checked
+field address; CLI and browser render those fields before descriptive prose. Effect reference duration
+is separate from saved encounter timing: encounter/unlimited units ignore numeric
+sentinels and inapplicable turn-expiry metadata, matching the pinned system policy.
+These facts are projected once in app-service for CLI and shared browser readers.
+
 App-service owns product filter grouping and editor hints shared by CLI discovery
 and the web builder, including compact collection controls and short choice lists.
 Product field discovery omits source UUID references and groups unit-specific
@@ -209,3 +218,12 @@ updates preserve saved domains and stable record identities; expensive inference
 is reused by exact model/input identity. No legacy adapter, bridge or mixed old/new
 authority is retained. See ADR0051 for workspace ownership and ADR0046 for the
 source-backed reference decision.
+
+Journal presentation retains authored page order and exact checked navigation;
+empty pages differ from missing/null/invalid collections. Page identity remains
+visible even when authored title visibility suppresses an additional body heading.
+Unsupported media is identified without fetching or introducing a viewer.
+Roll-table reference rolls are stateless and may repeat, including when a source
+specifies no replacement; source drawn flags do not become saved deck history.
+All matching valid ranges remain visible with an incomplete-results warning when
+other rows have invalid ranges; a gap is not repaired or re-rolled automatically.

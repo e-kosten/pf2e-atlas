@@ -1,6 +1,6 @@
 use super::{
     content_field, damage, fact, fact_string, known_value, line, list_text, number, number_text,
-    optional_number, optional_text, unavailable,
+    optional_number, optional_text, text, unavailable,
 };
 use crate::commands::record::args::TerminalDetail;
 use atlas_app_model::{
@@ -176,7 +176,8 @@ pub(super) fn render(
                 .iter()
                 .find(|entry| entry.navigation == activity.navigation)
             {
-                for field in &entry.content {
+                super::render_prerequisites(out, &entry.content, width)?;
+                for field in entry.content.iter().filter(|f| f.role != "prerequisite") {
                     content_field(out, field, width, field.role != "description")?;
                 }
             }
@@ -217,6 +218,17 @@ pub(super) fn activity_facts(out: &mut String, activity: &ActorActivityView, sho
         }
     } else if let Some(usage) = &activity.usage {
         line(out, format!("Usage: {usage}"));
+    }
+    if let Some(duration) = known_value(&activity.effect_duration) {
+        text(out, "Duration", &duration.duration);
+        if known_value(&duration.sustained) != Some(&false) {
+            fact(out, "Sustained", &duration.sustained, |_| "Yes".into());
+        }
+        optional_text(out, "Expires", &duration.expiry);
+    } else {
+        fact(out, "Duration", &activity.effect_duration, |_| {
+            String::new()
+        });
     }
     if !matches!(
         activity.frequency.state,
