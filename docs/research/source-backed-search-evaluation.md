@@ -2,7 +2,9 @@
 
 Pinned PF2e 6.12.4 local evaluation, recorded 2026-10-13. This preserves the dated findings and evidence limits from the research backlog. Its stage descriptions and proposals are historical; current work is in the linked backlog item.
 
-Current task: [backlog item](../backlog/items/rust-search-quality-tuning.md).
+Start with the [cross-experiment synthesis](search-evaluation-synthesis.md) and
+[curated grading/ranking evidence](evaluations/2026-10-search/README.md).
+Open work: [backlog item](../backlog/items/rust-search-quality-tuning.md).
 
 ## Lexical and fusion decision, 2026-10-18
 
@@ -24,7 +26,7 @@ holdouts are now exposed; future policy tuning needs fresh evaluation cases.
 
 The sections below retain earlier dated research context, not current defaults.
 
-## Current baseline
+## Historical baseline (2026-10-13)
 
 ADR 0046 governs the source-backed artifact and search policy. Precision FTS uses
 identity, verified aliases, typed vocabulary and named definitions. Semantic units

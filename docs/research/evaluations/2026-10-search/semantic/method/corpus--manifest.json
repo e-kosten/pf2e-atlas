@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "status": "complete",
+  "createdAt": "2026-10-15T03:11:40.332Z",
+  "scope": "All stored semantic units, with no query selection or size exclusions",
+  "roots": 25560,
+  "units": 130566,
+  "uniqueDocuments": 130184,
+  "sourceCounts": {"reused":32410,"reconstructed":98156},
+  "maxStoredTokens": 286,
+  "unsupportedUnits": 0,
+  "allStoredAddressesHashesTokensMatch": true,
+  "fullAttributionPreserved": true,
+  "deduplication": "Exact SHA256 text equality, checked by byte-equivalent string and token-count equality; all semantic-unit addresses retained",
+  "smallVectors": {"dimensions":384,"dtype":"float32-le","order":"mapping.documents order, byteOffset explicit","reusedVectors":32184,"readVectors":98000,"bytes":199962624,"chunkReads":124,"cacheLimitChunks":8,"allFiniteAndL2Normalized":true,"sqliteSlotIdentity":"id ?? rowid"},
+  "timing": {"exportMs":685767.229167,"validationAndPreparationMs":10967.134208000001,"artifactPostHashExcludedFromPreparation":true},
+  "source": {"artifact":"scratch/full-corpus-search/reference.sqlite","artifactSha256":"0f13854f16c9780787c6ce105634ae95d7d72992a3968d012126a4c0701e8d4a","exportSha256":"60e6a775edf1761f294eb4b52aa7da4f175291af47110744b9801ae27ab9a1b9","exportSourceSha256":"f4273314ece2f8f4b783ff9a26aab8fe35c589af1a0f40d698470f8a45ed7402","tokenizerSha256":"d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66","reusedUnitsSha256":"589e1682de907d201122009cd199c724d8e4cd879cc4fd4c04adbb0da49845e8","oldPreparation":"scratch/full-corpus-search/embedding-design/preparation.json","oldPreparationSha256":"5d0748047ed707ecc0dd31af11cd8fe77592d3859b4671f866335c05a002737b"},
+  "queriesOpened": false,
+  "inferencePerformed": false,
+  "files": [
+    {"path":"scratch/full-corpus-search/embedding-full/corpus/keys.json","sha256":"5b9d99ef20c0ecd0ef5553cab6e3ceff0aa2d5cb12bb8c7ca89e5b6c9a3fa8a9","bytes":891096},
+    {"path":"scratch/full-corpus-search/embedding-full/corpus/missing-keys.json","sha256":"9e5e090546b5ee8f8a4b8eb148800fe824619d9c43d3dcbf83720d3acf1dcb35","bytes":802165},
+    {"path":"scratch/full-corpus-search/embedding-full/corpus/export-run.cjs","sha256":"a7a84c99c149f6c06b5eddb0337a5eb52e567406c6417971cd138937f9aca0d5","bytes":3332},
+    {"path":"scratch/full-corpus-search/embedding-full/corpus/validate-and-prepare.cjs","sha256":"4df6d564ff9fca0d0dc5623d0d9e0b7e41b6ea39b74d13fc2191b879b645515e","bytes":8146},
+    {"path":"scratch/full-corpus-search/embedding-full/corpus/export-start.json","sha256":"f28356b7b3c015a2415245ccff2b108fa4f648c1ab3ef1716aaedd80ba91dce9","bytes":826},
+    {"path":"scratch/full-corpus-search/embedding-full/corpus/export-receipt.json","sha256":"120e910cc7ae70558cb9464f7cc836131a0a24ec38fe9e6830a77b03072d7370","bytes":1090},
+    {"path":"scratch/full-corpus-search/embedding-full/corpus/missing-units.jsonl.gz","sha256":"009a57c3c1886c21087ce857af628a0588e2f7e689e5b8435347055fb5631b6a","bytes":25033051},
+    {"path":"scratch/full-corpus-search/embedding-full/corpus/units.jsonl.gz","sha256":"4d69e3cce6da338f45a578680571fed53fecb8d6c0d1c47a71dca1476500da67","bytes":34608799},
+    {"path":"scratch/full-corpus-search/embedding-full/corpus/mapping.json.gz","sha256":"500479a658d32ce52deed5036fc353e598bdb92a1a0bc36c343f309cda90cd93","bytes":21962302},
+    {"path":"scratch/full-corpus-search/embedding-full/corpus/documents.jsonl.gz","sha256":"5cb6a23a2906672494fefe79f7cae582c63c4de74f601512b331cf3041308ff8","bytes":20232585},
+    {"path":"scratch/full-corpus-search/embedding-full/corpus/small.f32","sha256":"6938715456d1e8aa1221f0361bdb4035f5210d72989971cbeb62af57d1e0dd6c","bytes":199962624}
+  ]
+}

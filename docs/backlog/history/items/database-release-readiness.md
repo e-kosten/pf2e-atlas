@@ -1,8 +1,16 @@
 # Database design and release readiness
 
-Status: planned
+Status: done
 Priority: soon
 Owner: unassigned
+
+## Completed outcome
+
+PR66 replaced the two-file design with one persistent SQLite workspace, domain-owned schemas, a coordinated migration ledger, bounded sessions and state-preserving publication. ADR0051 records the decision and upgrade guarantees. Future parties, campaigns and user roles remain separate product work.
+
+The scope below records the original task; it is not outstanding implementation.
+
+## Original scope
 
 ## Outcome
 

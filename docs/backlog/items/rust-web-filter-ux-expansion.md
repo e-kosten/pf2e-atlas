@@ -1,9 +1,9 @@
 # Rust Web Filter UX Expansion
 
-Status: in_progress
+Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-13
+Last reviewed: 2026-10-19
 
 ## Problem
 
@@ -38,8 +38,9 @@ selected values remain available. URL state and local drafts have distinct owner
 Current behavior is documented in
 [frontend guidelines](../../../web/atlas-ui/docs/frontend-guidelines.md).
 Further UX work should improve priority, labels, grouping and discoverability
-through those owners. [Option counts](web-contextual-option-counts.md) are a
-separate follow-up; current count-free vocabulary stays useful for valid filters.
+through those owners. [Option counts](../history/items/web-contextual-option-counts.md) landed in PR60. Unsupported count contexts retain usable vocabulary; additional
+query-text-aware counts remain deferred. New UX work should identify a current
+user problem rather than repeat the completed shared-query/counts pass.
 
 ## Constraints
 

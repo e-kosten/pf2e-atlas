@@ -3,6 +3,7 @@
 The local research is expensive evidence, not disposable build output. Keep its
 original bytes, versioned judgments, input bindings, and reproduction tools.
 The dated conclusions are in [source-backed evaluation notes](source-backed-search-evaluation.md);
+The [synthesis](search-evaluation-synthesis.md) connects the experiments;
 current product policy is in ADRs 0050 and 0053. Historical findings describe the
 implementation tested at the time, not necessarily today's defaults.
 
@@ -17,9 +18,7 @@ Paths below are relative to the repository root, not an individual worktree.
 | Revised relevance criteria and adjudication | `scratch/search-fusion-review/relevance-realignment/` |
 | Earlier ownership, reranking and input experiments | `scratch/full-corpus-search/{hierarchy,role-evaluation,evidence-evaluation,reranking,embedding-design,retrieval-synthesis}/` |
 | Pinned source and original reference artifact | `scratch/full-corpus-search/source/` and `reference.sqlite` |
-| Current comparison preview | `scratch/search-fusion-review/preview/` (frozen binary and dual-model workspace) |
 | Ingest performance measurements | `scratch/ingest-performance/README.md`, logs and digest receipts |
-| Worktree cleanup provenance and preserved local evidence | `scratch/release-handoff/cleanup.json` and `preserved/` |
 
 Keep the whole experiment trees, not only final reports. Rank captures, model
 vectors, blind pools, raw reviewer outputs, adjudications, uncertainty analysis,
@@ -28,12 +27,13 @@ grading pass. Some experiments share relative symlinks and inputs across these
 directories. Preserve that layout when backing them up. Model downloads remain
 in `.cache/hf-models`; experimental model assets also live inside research trees.
 
-Git carries the decision summaries and this map. Raw evidence remains ignored
+Git carries the [curated evaluation dataset](evaluations/2026-10-search/README.md),
+its export/integrity tools, decision summaries and this map. Raw evidence remains ignored
 locally, including copied source and model data; this is **not an off-machine
 backup**. Preserve it separately before moving machines or deleting `scratch/`.
-Do not add entire SQLite/vector/model archives to Git. A future small public
-evaluation dataset should be curated for source licensing, provenance and useful
-schema rather than indiscriminately committing every reviewer packet.
+Do not add entire SQLite/vector/model archives to Git. The committed subset retains individual/versioned opinions, selected judgments,
+rankings and metrics, with source pointers/hashes instead of literal source passages.
+Full-source interpretation and arbitrary re-ranking still need the local archive.
 
 ## Reanalysis rules
 
@@ -49,14 +49,3 @@ schema rather than indiscriminately committing every reviewer packet.
   warm service latency, and fresh CLI startup are different measurements.
 - Reuse exact inputs/vectors when valid. Do not rebuild the full corpus merely to
   inspect scores, judgments, or change a ranking-only hypothesis.
-
-The retained local comparison preview serves port 8838. Its frozen binary is a
-development artifact, not a certified installed nightly. From the root it can be
-started with the following command after ensuring the port is free:
-
-```sh
-scratch/search-fusion-review/preview/atlas web --port 8838 \
-  --index scratch/search-fusion-review/preview/workspace.sqlite \
-  --source scratch/full-corpus-search/source \
-  --embedding-cache-path .cache/hf-models
-```

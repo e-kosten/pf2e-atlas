@@ -14,13 +14,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
-- [Contextual filter option counts](items/web-contextual-option-counts.md)
-  Restore accurate categorical option counts using shared discovery contracts,
-  with useful count-free vocabulary in unsupported contexts. Status: in_progress.
-
 - [Source-modeling capability follow-through](items/rust-integration-recovery.md)
   Track the agreed ten-item sequence for CLI contracts, reference completeness,
-  encounter policy and discovery. CF-01 merged in PR #68; CF-02 merged in PR #69. The 6.12.4 reference pin merged in PR #70; the 8.6.1 upgrade is deferred. CF-03 reference completeness is in progress; later scopes await approval.
+  encounter policy and discovery. CF-01 merged in PR #68; CF-02 merged in PR #69. The 6.12.4 reference pin merged in PR #70; the 8.6.1 upgrade is deferred. CF-03 merged in PR #71; consult the capability tracker for later slice approval and progress.
   Status: in_progress.
 
 - [Rust CLI and skill capability follow-through](items/rust-cli-skill-capability-follow-through.md)
@@ -28,25 +24,13 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Source-backed search quality evaluation](items/rust-search-quality-tuning.md)
   Evaluate lexical evidence, associated-content influence and semantic inputs
-  against source-backed discovery tasks before changing search defaults. Status: proposed.
+  against fresh source-backed tasks; preserve completed study evidence. Status: proposed.
 
 ## Soon
 
 - [Ingest and reference build performance](items/reference-build-performance.md)
-  Optimize preparation, inference/reuse, memory, validation and publication after
-  the FTS comparison; distinguish fresh builds from incremental updates. Status: in_progress.
-
-- [Database design and release readiness](items/database-release-readiness.md)
-  Review schema, storage boundaries, migrations and future user/campaign
-  ownership before 1.0; include safe embedding reuse. Status: planned.
-
-- [Embedding reuse across preparation upgrades](items/embedding-reuse-preparation-upgrades.md)
-  Reuse verified vectors when content preparation changes but model inputs do
-  not, without weakening artifact validation. Status: proposed.
-
-- [Product filter paths and semantics](items/product-filter-shape.md)
-  Revisit source-oriented CEL paths and cross-kind semantics after shared
-  product-oriented CLI/UI discovery is established. Status: proposed.
+  PR74 completed the measured optimization; further work targets remaining
+  segmentation/tokenization and evidenced inference bottlenecks. Status: proposed.
 
 - [Downstream architecture follow-through](items/rust-downstream-architecture-follow-through.md)
   Resolve remaining bounded consumer ownership and error-contract gaps from the
@@ -63,14 +47,14 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   preserving strict name resolution and semantic discovery. Status: proposed.
 
 - [Rust web filter UX expansion](items/rust-web-filter-ux-expansion.md)
-  Refine standard and optional web filters, field grouping, labels, counts, and progressive disclosure for the search/browse workflow. Status: in_progress.
+  Refine standard and optional web filters, field grouping, labels, counts, and progressive disclosure beyond the completed shared filter/counts pass. Status: proposed.
 
 - [Rust web record detail polish](items/rust-web-record-detail-polish.md)
-  Improve record detail readability, navigation, loading states, and shared presentation-contract usage in the web UI. Status: in_progress.
+  Improve record detail readability, navigation, loading states, and shared presentation-contract usage beyond the completed reader/rank passes. Status: proposed.
 
 - [Rust web encounter runner polish](items/rust-web-encounter-runner-polish.md)
   Prioritize combat state and actions, improve roster readability, and reuse
-  shared family layouts with compact editing controls. Status: in_progress.
+  shared family layouts beyond the completed workflow/dice passes. Status: proposed.
 
 - [Spell form preview](items/rust-spell-rank-preview.md)
   Add interactive alternate-form selection over checked source, composing with
