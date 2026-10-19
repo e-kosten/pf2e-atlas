@@ -14,6 +14,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
+- [Reusable development baseline](items/development-baseline.md)
+  Publish validated executable/workspace seeds and initialize independent
+  development copies without per-workstream ingest. Status: in_progress.
+
 - [Source-modeling capability follow-through](items/rust-integration-recovery.md)
   Track the agreed ten-item sequence for CLI contracts, reference completeness,
   encounter policy and discovery. CF-01 merged in PR #68; CF-02 merged in PR #69. The 6.12.4 reference pin merged in PR #70; the 8.6.1 upgrade is deferred. CF-03 merged in PR #71; consult the capability tracker for later slice approval and progress.

@@ -124,6 +124,7 @@ source_touched=0
 release_touched=0
 research_touched=0
 skill_touched=0
+development_touched=0
 docs_only=0
 
 if [ "$mode" = all ]; then
@@ -133,6 +134,7 @@ if [ "$mode" = all ]; then
   release_touched=1
   research_touched=1
   skill_touched=1
+  development_touched=1
 elif [ ! -s "$paths_file" ]; then
   docs_only=1
 else
@@ -140,7 +142,7 @@ else
 fi
 
 if [ "$list" -eq 1 ]; then
-  for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched"; do
+  for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "development:$development_touched"; do
     value=false
     [ "${entry#*:}" -eq 0 ] || value=true
     printf '%s=%s\n' "${entry%%:*}" "$value"
@@ -179,6 +181,9 @@ fi
 
 # Contributor packages have no formatting gate; substantive checks are explicit.
 if [ "$full" -eq 1 ]; then
+  if [ "$development_touched" -eq 1 ]; then
+    run_check "development baseline" python3 -m unittest discover -s scripts/development -p 'test_*.py'
+  fi
   if [ "$skill_touched" -eq 1 ]; then
     run_check "bundled skill" node --test scripts/validation/skill.test.ts
     run_check "skill package" node scripts/validation/skill.ts
