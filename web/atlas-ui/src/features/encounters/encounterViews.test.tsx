@@ -2737,6 +2737,7 @@ function participantFixture(
 
 function searchResultsFixture(): SearchResultsPage {
   return {
+    ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",
     mode: { kind: "text_search", query: "goblin", mode: "hybrid" },

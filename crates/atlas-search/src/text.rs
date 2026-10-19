@@ -24,6 +24,7 @@ impl RetrievalMode {
     }
 }
 pub struct TextSearchRequest<'a> {
+    pub ranking: atlas_domain::SearchRanking,
     pub search_profile: Option<&'a atlas_domain::SearchProfileId>,
     pub query: &'a str,
     pub mode: RetrievalMode,
@@ -35,6 +36,7 @@ pub struct TextSearchRequest<'a> {
 impl<'a> TextSearchRequest<'a> {
     pub fn new(query: &'a str, page: SearchPage) -> Self {
         Self {
+            ranking: Default::default(),
             search_profile: None,
             query,
             mode: RetrievalMode::Hybrid,
@@ -89,7 +91,6 @@ use atlas_index::{SourceLexicalHit, SourceVectorHit, ValidatedQuery};
 use std::collections::{BTreeMap, BTreeSet};
 const SEMANTIC_WINDOWS: [usize; 3] = [1024, 2048, 4096];
 const TARGET_ROOTS: usize = 200;
-const RRF_CONSTANT: f64 = 60.0;
 #[derive(Debug, Clone)]
 pub(crate) struct RankedRoot {
     pub key: RecordKey,
@@ -100,6 +101,7 @@ pub(crate) struct RankedRoot {
     pub witnesses: Vec<SearchWitness>,
 }
 pub(crate) struct CandidateRequest<'a> {
+    pub ranking: atlas_domain::SearchRanking,
     pub search_profile: &'a atlas_domain::SearchProfileId,
     pub text: &'a str,
     pub mode: RetrievalMode,
@@ -188,6 +190,7 @@ impl AtlasRetrievalService {
             None
         };
         let (roots, window) = self.rank_candidates(CandidateRequest {
+            ranking: request.ranking,
             search_profile: &search_profile,
             text: request.query,
             mode: request.mode,
@@ -257,6 +260,7 @@ impl AtlasRetrievalService {
         request: CandidateRequest<'_>,
     ) -> Result<(Vec<RankedRoot>, Option<usize>), SearchError> {
         let CandidateRequest {
+            ranking,
             search_profile,
             text,
             mode,
@@ -278,7 +282,7 @@ impl AtlasRetrievalService {
             let mut lexical = self
                 .index
                 .lexical_root_candidates(text, query, scope.keys())?;
-            let tier = |key: &RecordKey, witnesses: &[SourceLexicalHit]| {
+            let tier = |key: &RecordKey| {
                 if identities
                     .iter()
                     .any(|m| &m.key == key && m.alias.is_none())
@@ -289,20 +293,27 @@ impl AtlasRetrievalService {
                     .any(|m| &m.key == key && m.alias.is_some())
                 {
                     1
-                } else if witnesses.iter().any(|h| h.exact_label) {
-                    2
                 } else {
                     3
                 }
             };
             lexical.sort_by(|a, b| {
-                tier(&a.record, &a.witnesses)
-                    .cmp(&tier(&b.record, &b.witnesses))
+                tier(&a.record)
+                    .cmp(&tier(&b.record))
                     .then(a.best_rank.total_cmp(&b.best_rank))
                     .then(a.record.cmp(&b.record))
             });
-            for (i, hit) in lexical.into_iter().enumerate() {
-                let t = tier(&hit.record, &hit.witnesses);
+            let scores = crate::fusion::lane_scores(
+                &lexical.iter().map(|hit| -hit.best_rank).collect::<Vec<_>>(),
+                if mode == RetrievalMode::Hybrid {
+                    ranking
+                } else {
+                    atlas_domain::SearchRanking::Rrf
+                },
+                0.25,
+            );
+            for (i, (hit, score)) in lexical.into_iter().zip(scores).enumerate() {
+                let t = tier(&hit.record);
                 let rank = i + 1;
                 roots.insert(
                     hit.record.clone(),
@@ -310,7 +321,7 @@ impl AtlasRetrievalService {
                         key: hit.record,
                         lexical_rank: Some(rank),
                         similarity: None,
-                        score: 1.0 / (RRF_CONSTANT + rank as f64),
+                        score,
                         tier: t,
                         witnesses: hit.witnesses.into_iter().map(lexical_witness).collect(),
                     },
@@ -327,13 +338,13 @@ impl AtlasRetrievalService {
             let (semantic, k) =
                 self.vector_window(search_profile, vector, query, scope, prefer, exclude)?;
             window = Some(k);
-            for (i, semantic) in semantic.into_iter().enumerate() {
-                let rank = i + 1;
-                let semantic_score = if mode == RetrievalMode::Hybrid {
-                    1.0 / (RRF_CONSTANT + rank as f64)
-                } else {
-                    semantic.score
-                };
+            let values = semantic.iter().map(|root| root.score).collect::<Vec<_>>();
+            let scores = if mode == RetrievalMode::Hybrid {
+                crate::fusion::lane_scores(&values, ranking, 0.75)
+            } else {
+                values
+            };
+            for (semantic, semantic_score) in semantic.into_iter().zip(scores) {
                 roots
                     .entry(semantic.key.clone())
                     .and_modify(|root| {

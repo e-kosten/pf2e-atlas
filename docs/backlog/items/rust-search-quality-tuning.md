@@ -20,15 +20,17 @@ is the operational default; this does not select a semantic quality winner or
 authorize a new ranking experiment. Further quality evaluation below remains open.
 
 Local full-corpus experiments exposed tradeoffs between descriptive discovery and
-useful owner capabilities. No experimental ranking policy has been selected for
-production. The [dated evaluation notes](../../research/source-backed-search-evaluation.md)
+useful owner capabilities. The approved field-aware lexical policy and temporary
+Score-based/Rank-based comparison follow [ADR0053](../../architecture/decisions/0053-field-aware-search-fusion.md).
+Score-based is the user-selected dogfooding default, not a demonstrated universal
+quality winner. The [dated evaluation notes](../../research/source-backed-search-evaluation.md)
 preserve findings, sample sizes, evidence limits and local artifact references.
 
-## Next Evaluation
+## Continuing Evaluation
 
 Evaluate FTS independently, then evaluate its fusion with semantic retrieval.
-Lexical retrieval has not received the same depth of evaluation as the semantic
-models. Separate candidate recall from ordering: inspect tokenization, partial
+The completed lexical/fusion comparison is recorded in the evaluation notes.
+For further refinement, separate candidate recall from ordering: inspect tokenization, partial
 primary-title matching, verified aliases, embedded-title matches, specificity
 tiers and candidate limits before attributing poor hybrid ranking to fusion.
 Compare FTS-only, semantic-only and hybrid results over the same full corpus and

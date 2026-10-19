@@ -21,6 +21,11 @@ pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexEr
                 name: "saved-state-baseline",
                 sql: atlas_local_state::LOCAL_STATE_SCHEMA_SQL,
             },
+            Migration {
+                version: 3,
+                name: "lexical-alias-rows",
+                sql: crate::LEXICAL_ALIAS_SCHEMA_SQL,
+            },
         ],
         |_| Ok(()),
     )?;
@@ -29,7 +34,7 @@ pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexEr
 pub fn open_reader(path: impl AsRef<Path>) -> Result<SqliteIndexReader, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
         .map_err(|e| IndexError::Operation(e.to_string()))?;
-    SqliteIndexReader::from_session(Workspace::at(path)?.read(2)?)
+    SqliteIndexReader::from_session(Workspace::at(path)?.read(3)?)
 }
 pub fn publish_input(
     path: impl AsRef<Path>,
@@ -37,7 +42,7 @@ pub fn publish_input(
 ) -> Result<ArtifactValidationReport, IndexError> {
     let workspace = initialize_workspace(path)?;
     let owner = workspace.update_owner()?;
-    let maintenance = owner.maintenance(2, "test publication")?;
+    let maintenance = owner.maintenance(3, "test publication")?;
     SqliteIndexWriter::new(&maintenance).write(input)
 }
 
@@ -66,7 +71,7 @@ fn set_preparation_policy(
     update: impl FnOnce(&mut crate::SourceArtifactBuildContext),
 ) -> Result<(), IndexError> {
     let workspace = Workspace::at(path)?;
-    let write = workspace.write(2)?;
+    let write = workspace.write(3)?;
     let c = write.connection();
     let mut context = crate::read_stored_reference_context(c)?
         .ok_or_else(|| IndexError::Invalid("fixture has no reference context".into()))?;

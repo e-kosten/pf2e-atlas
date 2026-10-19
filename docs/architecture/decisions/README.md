@@ -4,6 +4,8 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 ## Current ADRs
 
+- [`0053-field-aware-search-fusion.md`](./0053-field-aware-search-fusion.md): one field-aware lexical projection and independent temporary RRF/score comparison without re-embedding.
+
 - [`0019-rust-cli-search-record-surface.md`](./0019-rust-cli-search-record-surface.md): the CLI separates record identification from result-set search.
 - [`0021-rust-runtime-index-and-retrieval-boundaries.md`](./0021-rust-runtime-index-and-retrieval-boundaries.md): runtime/index/search ownership; historical capability interfaces are superseded by ADR0046.
 - [`0022-rust-artifact-policy-ownership.md`](./0022-rust-artifact-policy-ownership.md): index shape/vector ownership; metric authority and graph defaults are superseded by ADR0046.

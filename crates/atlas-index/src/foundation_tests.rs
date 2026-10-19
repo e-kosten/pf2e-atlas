@@ -296,37 +296,18 @@ fn synchronize_fixture_terms(input: &mut IndexBuildInput) {
             &input.context.used_trait_labels,
         )
         .unwrap();
-        let root = selection.identities.iter().find(|i| i.owners.is_empty());
-        let mut aliases = input
+        let aliases = input
             .aliases
             .iter()
-            .filter(|a| a.record == *r.record.key())
-            .map(|a| a.alias.clone())
+            .filter(|alias| alias.record == *r.record.key())
+            .map(|alias| alias.alias.clone())
             .collect::<Vec<_>>();
-        aliases.sort();
-        for unit in input
+        input
             .lexical_units
-            .iter_mut()
-            .filter(|u| u.record == *r.record.key())
-        {
-            unit.identity_terms = root.map(|i| i.name.clone()).unwrap_or_default();
-            let vocabulary = if unit.kind == SourceLexicalUnitKind::OwnedName {
-                selection
-                    .identities
-                    .iter()
-                    .find(|i| i.owners == unit.owners)
-            } else {
-                root
-            };
-            unit.structured_terms = vocabulary
-                .map(|i| i.vocabulary.join(" "))
-                .unwrap_or_default();
-            unit.alias_terms = if unit.kind == SourceLexicalUnitKind::RootName {
-                aliases.join(" ")
-            } else {
-                String::new()
-            };
-        }
+            .retain(|unit| unit.record != *r.record.key());
+        input
+            .lexical_units
+            .extend(crate::project_lexical_units(&selection, &aliases));
     }
 }
 pub(super) fn build(input: &IndexBuildInput) -> (tempfile::TempDir, std::path::PathBuf) {

@@ -32,6 +32,7 @@ impl crate::AtlasRetrievalService {
             })?;
         let predicate = self.predicate(request.filter)?;
         let (roots, window) = self.rank_candidates(crate::text::CandidateRequest {
+            ranking: Default::default(),
             search_profile: &search_profile,
             text: "",
             mode: crate::RetrievalMode::Vector,

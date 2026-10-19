@@ -123,6 +123,7 @@ impl AtlasAppService {
                 } => {
                     // Stateless paging deliberately reruns query inference and ranking.
                     let result = retrieval.search_text(TextSearchRequest {
+                        ranking: request.ranking.unwrap_or_default(),
                         search_profile: request.search_profile.as_ref(),
                         query: &query,
                         mode: retrieval_mode(mode),
@@ -142,6 +143,7 @@ impl AtlasAppService {
                 }
             };
             Ok(SearchResultsPage {
+                ranking: request.ranking.unwrap_or_default(),
                 search_profile,
                 artifact_generation,
                 mode,

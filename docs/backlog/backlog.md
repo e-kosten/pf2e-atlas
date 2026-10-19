@@ -32,6 +32,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Reference build performance without inference](items/reference-build-performance.md)
+  Profile preparation, vector reuse, validation and publication after the FTS
+  comparison slice; distinguish fresh builds from incremental updates. Status: planned.
+
 - [Database design and release readiness](items/database-release-readiness.md)
   Review schema, storage boundaries, migrations and future user/campaign
   ownership before 1.0; include safe embedding reuse. Status: planned.

@@ -78,7 +78,7 @@ impl AtlasRuntime {
             return Ok(false);
         }
         let workspace = crate::initialize_workspace(self.index_path())?;
-        Ok(atlas_index::ensure_query_projections(
+        Ok(atlas_index::ensure_reference_projections(
             &workspace,
             crate::WORKSPACE_SCHEMA_VERSION,
         )?)

@@ -26,6 +26,7 @@ pub fn recover_reference_publication(
                     crate::validate_reference(connection)?;
                 }
                 crate::component_upgrade::ReferenceUpgrade::QueryProjections
+                | crate::component_upgrade::ReferenceUpgrade::LexicalProjections
                 | crate::component_upgrade::ReferenceUpgrade::SourcePreparation => {
                     // Old derived outputs cannot be validated against new policy.
                     // Authenticate retained inputs and storage integrity; product
@@ -204,7 +205,7 @@ mod tests {
         abandoned.input_sha256 = sha256(b"unused input");
         abandoned.reuse_key = "unused-input".into();
         let target = fixture.context.sha256().unwrap();
-        let write = workspace.write(2).unwrap();
+        let write = workspace.write(3).unwrap();
         let job = start_reference_job(&write, &target).unwrap();
         save_embedding_checkpoints(
             &write,
@@ -215,7 +216,7 @@ mod tests {
         .unwrap();
         write.commit().unwrap();
         let owner = workspace.update_owner().unwrap();
-        let maintenance = owner.maintenance(2, "publication").unwrap();
+        let maintenance = owner.maintenance(3, "publication").unwrap();
         // Rejected job identity rolls the complete reference publication back.
         assert!(
             crate::SqliteIndexWriter::new(&maintenance)
@@ -239,7 +240,7 @@ mod tests {
             .unwrap();
         drop(maintenance);
         drop(owner);
-        let read = workspace.read(2).unwrap();
+        let read = workspace.read(3).unwrap();
         assert_eq!(read.reference_revision().unwrap(), 1);
         let state: String = read
             .connection()
@@ -276,13 +277,13 @@ mod tests {
         };
         let mut vector = vec![0.0; model.dimensions];
         vector[0] = 1.0;
-        let write = workspace.write(2).unwrap();
+        let write = workspace.write(3).unwrap();
         let job = start_reference_job(&write, "target").unwrap();
         save_embedding_checkpoints(&write, &job, model, &[(&input, &vector)]).unwrap();
         write.commit().unwrap();
         drop(workspace);
         let workspace = atlas_storage::Workspace::at(&path).unwrap();
-        let read = workspace.read(2).unwrap();
+        let read = workspace.read(3).unwrap();
         let restored =
             read_embedding_checkpoints(&read, model, std::slice::from_ref(&input)).unwrap();
         assert_eq!(restored[&input.reuse_key], vector);
@@ -291,18 +292,18 @@ mod tests {
         // A reused key cannot silently replace a different input identity.
         let mut conflicting = input.clone();
         conflicting.input_sha256 = sha256(b"different text");
-        let write = workspace.write(2).unwrap();
+        let write = workspace.write(3).unwrap();
         assert!(
             save_embedding_checkpoints(&write, &job, model, &[(&conflicting, &vector)]).is_err()
         );
         drop(write);
-        let write = workspace.write(2).unwrap();
+        let write = workspace.write(3).unwrap();
         write
             .connection()
             .execute("UPDATE embedding_checkpoints SET vector_hash='corrupt'", [])
             .unwrap();
         write.commit().unwrap();
-        let read = workspace.read(2).unwrap();
+        let read = workspace.read(3).unwrap();
         assert!(read_embedding_checkpoints(&read, model, &[input]).is_err());
     }
 }

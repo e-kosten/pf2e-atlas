@@ -114,6 +114,7 @@ fn sole_gemma_manifest_resolves_omitted_requests_and_readiness_without_model_ass
     let page = service
         .search_page(
             atlas_app_model::SearchResultsRequest {
+                ranking: None,
                 search_profile: None,
                 criteria: atlas_app_model::SearchCriteria::SimilarRecords {
                     seed_record_key: "items:0000000000000000".into(),

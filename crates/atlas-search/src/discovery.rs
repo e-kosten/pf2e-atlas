@@ -138,6 +138,7 @@ impl AtlasRetrievalService {
         };
         // Freeze the separate clause-removed universe before per-option pair policy.
         let (roots, _) = self.rank_candidates(crate::text::CandidateRequest {
+            ranking: Default::default(),
             search_profile: &search_profile,
             text,
             mode: context.mode,

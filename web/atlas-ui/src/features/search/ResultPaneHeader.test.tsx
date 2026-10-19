@@ -311,6 +311,7 @@ function workspace(
 
 function searchResultsPage(): SearchResultsPage {
   return {
+    ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",
     mode: { kind: "text_search", query: "", mode: "hybrid" },

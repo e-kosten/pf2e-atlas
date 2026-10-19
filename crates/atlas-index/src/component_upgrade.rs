@@ -1,4 +1,4 @@
-//! Rebuild query accelerators from retained DTOs without re-ingest or inference.
+//! Rebuild query and lexical accelerators from retained DTOs without re-ingest or inference.
 use crate::{
     IndexError, SourceArtifactBuildContext,
     codec::{checked_hash, sha256},
@@ -40,6 +40,7 @@ pub fn read_stored_reference_context(
 pub enum ReferenceUpgrade {
     Current,
     QueryProjections,
+    LexicalProjections,
     SourcePreparation,
 }
 
@@ -95,15 +96,16 @@ fn upgrade_plan(
     let mut target = original.clone();
     target.query_catalog_version = current_catalog;
     target.query_projection_version = crate::input::SOURCE_PROJECTION_VERSION.into();
+    let lexical_changed = older_policy(
+        &target.lexical_selection_version,
+        crate::input::LEXICAL_SELECTION_VERSION,
+    )?;
+    target.lexical_selection_version = crate::input::LEXICAL_SELECTION_VERSION.into();
     let mut source_changed = false;
     for (stored, current) in [
         (
             &mut target.lookup_version,
             crate::input::SOURCE_LOOKUP_VERSION,
-        ),
-        (
-            &mut target.lexical_selection_version,
-            crate::input::LEXICAL_SELECTION_VERSION,
         ),
         (
             &mut target.content_interpretation_version,
@@ -132,6 +134,9 @@ fn upgrade_plan(
     if source_changed {
         return Ok((ReferenceUpgrade::SourcePreparation, None));
     }
+    if lexical_changed {
+        return Ok((ReferenceUpgrade::LexicalProjections, Some(target)));
+    }
     if query_changed {
         return Ok((ReferenceUpgrade::QueryProjections, Some(target)));
     }
@@ -145,7 +150,10 @@ fn upgrade_context(c: &Connection) -> Result<Option<SourceArtifactBuildContext>,
 
 /// Called by runtime before admitting product sessions. A newer executable may
 /// regenerate filter rows from supported stored DTOs, never from user state.
-pub fn ensure_query_projections(workspace: &Workspace, schema: u32) -> Result<bool, IndexError> {
+pub fn ensure_reference_projections(
+    workspace: &Workspace,
+    schema: u32,
+) -> Result<bool, IndexError> {
     // Fast path permits concurrent ordinary operations when no work is needed.
     match workspace.read(schema) {
         Ok(read) => {
@@ -157,7 +165,7 @@ pub fn ensure_query_projections(workspace: &Workspace, schema: u32) -> Result<bo
         Err(error) => return Err(error.into()),
     }
     let owner = workspace.update_owner()?;
-    let maintenance = owner.maintenance(schema, "updating query projections")?;
+    let maintenance = owner.maintenance(schema, "updating reference projections")?;
     let target = upgrade_context(maintenance.connection())?;
     let Some(target) = target else {
         drop(maintenance);
@@ -165,12 +173,27 @@ pub fn ensure_query_projections(workspace: &Workspace, schema: u32) -> Result<bo
         return Ok(false);
     };
     maintenance.publish(|c| {
+        let stored = read_stored_reference_context(c)?.ok_or_else(|| IndexError::Invalid("projection upgrade lost its reference context".into()))?;
+        let query_changed = stored.query_catalog_version != target.query_catalog_version || stored.query_projection_version != target.query_projection_version;
+        let lexical_changed = stored.lexical_selection_version != target.lexical_selection_version;
         let records = crate::read_persisted_inputs(c, &target)?;
+        let mut lexical = Vec::new();
+        let mut ids = std::collections::BTreeMap::new();
         for source in records {
             let (id, label): (i64, String) = c.query_row(
                 "SELECT r.record_id,p.label FROM records r JOIN packs p USING(pack_id) WHERE r.key=?", [source.record.key().to_string()],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )?;
+            ids.insert(source.record.key().clone(), id);
+            if lexical_changed {
+            let selection = atlas_record::source_record::select_record_search(
+                &source.record, &source.content, target.audience, &label, &target.used_trait_labels,
+            ).map_err(|error| IndexError::Invalid(error.to_string()))?;
+            let aliases = c.prepare("SELECT alias FROM verified_aliases WHERE record_id=? ORDER BY alias")?
+                .query_map([id], |row| row.get::<_, String>(0))?.collect::<Result<Vec<_>, _>>()?;
+            lexical.extend(crate::project_lexical_units(&selection, &aliases));
+            }
+            if !query_changed { continue; }
             for table in ["record_traits", "actor_projection"] {
                 c.execute(&format!("DELETE FROM {table} WHERE record_id=?"), [id])?;
             }
@@ -188,12 +211,15 @@ pub fn ensure_query_projections(workspace: &Workspace, schema: u32) -> Result<bo
                 crate::writer::write_diagnostic(c, id, &diagnostic)?;
             }
         }
+        if lexical_changed { crate::publication_delta::lexical_units(c, &lexical, &ids)?; }
+        if query_changed {
         c.execute("DELETE FROM query_field_catalog", [])?;
         for definition in crate::query::query_capabilities()?.fields {
             let mut row = ProjectionRow::new("query_field_catalog");
             row.text("field", &definition.id);
             row.text("definition_json", serde_json::to_string(&definition)?);
             row.insert(c)?;
+        }
         }
         let json = serde_json::to_string(&target)?;
         c.execute("UPDATE artifact_context SET context_hash=?,context_json=? WHERE singleton=1", rusqlite::params![sha256(json.as_bytes()), json])?;

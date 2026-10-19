@@ -25,6 +25,9 @@ pub struct SearchPageView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsRequest {
+    #[serde(default)]
+    #[ts(optional)]
+    pub ranking: Option<atlas_domain::SearchRanking>,
     #[ts(optional)]
     pub search_profile: Option<atlas_domain::SearchProfileId>,
     pub criteria: SearchCriteria,
@@ -61,6 +64,7 @@ pub enum SearchModeSummary {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsPage {
+    pub ranking: atlas_domain::SearchRanking,
     pub search_profile: atlas_domain::SearchProfileId,
     pub artifact_generation: String,
     pub mode: SearchModeSummary,
