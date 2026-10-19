@@ -235,6 +235,16 @@ fn web(checkout: &Path, store: &Path, candidate: &Candidate) -> Result<ExitCode>
         );
     }
     let args = web_arguments(&index, &manifest, candidate.port);
+    let selection = if candidate.binary.is_some() {
+        "selected candidate"
+    } else {
+        "frozen baseline"
+    };
+    eprintln!(
+        "Running: {selection}\nBinary: {}\nWorkspace: {}",
+        binary.display(),
+        index.display()
+    );
     eprintln!("{}", files::quoted_command(&binary, &args));
     #[cfg(unix)]
     {
