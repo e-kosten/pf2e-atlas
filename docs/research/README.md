@@ -2,6 +2,9 @@
 
 This directory preserves durable findings from spikes and exploratory branches.
 
+For retained search experiments, grading data and reproduction entrypoints, see
+[the search evaluation handoff](search-evaluation-handoff.md).
+
 Research notes should capture:
 
 - the question the spike tried to answer;
