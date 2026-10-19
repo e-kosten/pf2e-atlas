@@ -34,7 +34,6 @@ jobs:
       release: ${{ steps.select.outputs.release }}
       research: ${{ steps.select.outputs.research }}
       skill: ${{ steps.select.outputs.skill }}
-      development: ${{ steps.select.outputs.development }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -60,20 +59,6 @@ jobs:
           node-version: 22
       - name: Validation routing regression tests
         run: sh scripts/git-hooks/test-common.sh
-
-  development:
-    name: development baseline
-    needs: changes
-    if: needs.changes.outputs.development == 'true'
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.source-ref || github.sha }}
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.9'
-      - run: python3 -m unittest discover -s scripts/development -p 'test_*.py'
 
   skill:
     name: bundled skill

@@ -162,8 +162,19 @@ worktrees. Compiled tests embed checkout-specific fixture paths, so sharing a
 
 ### Reusable Development Baseline
 
-Python 3.9+ on macOS or Linux supplies the contributor baseline commands; no
-additional Python packages or Rust build are needed to initialize a workspace.
+The existing Rust `atlas-dev` tool owns the baseline workflow. On macOS or Linux,
+run `just dev-tool-build` once from a checkout containing this tooling. It uses the
+normal Cargo build and retains the executable under the primary checkout at
+`.atlas/dev-baselines/tools/atlas-dev`. Subsequent init/status/web commands need
+no Rust build or Python runtime, even from a new worktree.
+
+Refresh with `just dev-tool-build` after changing the tooling or when publication
+reports a schema mismatch. Refreshing replaces only the retained developer tool;
+it does not change baseline executables, manifests, data, or existing previews.
+`ATLAS_DEV_BINARY=/absolute/path/to/atlas-dev` explicitly selects a candidate
+developer tool for the thin shell launchers. The selected Atlas app executable
+is a separate choice controlled by `--binary`.
+
 All linked worktrees resolve one shared store through Git's common directory:
 `<primary-checkout>/.atlas/dev-baselines`. `--store /absolute/path` overrides it.
 The store contains versioned executable/database pairs and an atomic `current.json`
@@ -247,7 +258,7 @@ The commands can be tried before merge from another checkout with
 `just --justfile /absolute/path/to/task/justfile dev-status`; they operate on the
 invoking checkout. `--checkout /absolute/path` selects a different checkout.
 `just dev-baseline-test` runs the focused snapshot/publication/isolation tests
-without models. The same tests run in the development-baseline CI job.
+without models. The same tests run in the existing Rust workspace CI gate.
 
 ### Build Profiles And Disk Budget
 

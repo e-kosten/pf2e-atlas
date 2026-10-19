@@ -14,7 +14,7 @@ Generated JavaScript lives in ignored package-local `dist/` directories. These
 packages and their Node dependencies are excluded from Atlas distributions.
 
 Operational shell and PowerShell workflows and installers live in `scripts/`.
-The standard-library Python workflow in `scripts/development` publishes reusable
-Atlas builds/database seeds and initializes isolated developer workspaces; see
+Thin shell launchers in `scripts/development` invoke the retained Rust `atlas-dev`
+baseline commands to publish builds/data and initialize private workspaces; see
 [CONTRIBUTING](../CONTRIBUTING.md#reusable-development-baseline).
 Rust diagnostics live in `crates/atlas-dev` and use the owning Rust libraries.
