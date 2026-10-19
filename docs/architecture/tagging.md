@@ -1,5 +1,29 @@
 # Tagging Architecture
 
+## Current status
+
+Derived-tag development is deferred pending concrete needs unmet by native filters
+and improved semantic search. [ADR0054](decisions/0054-derived-tag-deferral.md)
+records that decision; the [research package](../research/derived-tags/README.md)
+preserves prior implementations, vocabulary, later design discussion and sources.
+
+The implemented surface is `atlas-tags` file models, strict YAML parsing, corpus
+merging and structural validation, exposed through `atlas tags validate`. It does
+not evaluate applicability against records, check source-record existence or
+source-grounded evidence, assemble assignment contexts, reconcile/import model
+proposals, classify records or provide runtime tag filtering. Empty evidence is
+accepted; supplied evidence fields are checked structurally. Validation success
+does not establish semantic correctness or completed review.
+
+The sections below preserve the earlier file model and conditional integration
+design. Their future workflow, artifact and ownership descriptions are not
+implemented capabilities or a scheduled workstream. Existing file contracts stay
+unchanged. YAML, single-home placement, minimal assessment provenance and unanimous
+acceptance are reopened choices for any future replacement, not prerequisites for
+resuming the discussion. Saved-list grouping tags are an independent feature.
+
+## Earlier model and conditional integration
+
 PF2e Atlas tags are authored labels that add search and discovery axes not present in native Pathfinder or Foundry data. They are for predictable retrieval, discovery, encounter prep, and adjacent workflows where semantic search can approximate intent but static labels give users a more reliable filter surface.
 
 This design replaces the old node derived-tag model. The node worktree remains useful as vocabulary inspiration, but its category projections, review queues, and TypeScript facade layout are not the Rust target.

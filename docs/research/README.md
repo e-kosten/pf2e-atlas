@@ -8,6 +8,11 @@ For search conclusions and unresolved tradeoffs, start with the
 and ranked results; the [archive map](search-evaluation-handoff.md) locates the
 full local evidence.
 
+For the deferred authored-label workstream, start with [derived-tag research and
+history](derived-tags/README.md). It consolidates the Node implementation, local
+concept mappings, Rust seed experiments and ontology/assessment discussion,
+including source snapshots and cleanup boundaries.
+
 Research notes should capture:
 
 - the question the spike tried to answer;

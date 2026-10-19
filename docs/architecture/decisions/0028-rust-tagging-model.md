@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted
+Partially superseded by [ADR0054](0054-derived-tag-deferral.md) on 2026-10-19.
+The implemented file model remains unchanged. Product integration is deferred;
+the later discussion reopens storage, grouping, assessment provenance and agent
+acceptance choices for a future replacement. The original decision below records
+its historical context and must not be read as implementation authorization.
 
 ## Context
 
