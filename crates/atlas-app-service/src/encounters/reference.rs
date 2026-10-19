@@ -71,7 +71,7 @@ pub(super) fn read_encounter_reference(
         &[],
         vec![],
         r,
-    );
+    )?;
     let baseline = super::mechanics::arithmetic_baseline(&root).ok_or_else(|| {
         AppServiceError::invalid_request("this participant has no actor runtime context")
     })?;

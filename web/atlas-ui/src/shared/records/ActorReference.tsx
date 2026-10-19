@@ -19,6 +19,7 @@ import {
 } from "./presentationFacts";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { OwnedAbilityReading, type OwnedReadingContext } from "./OwnedAbilityReading";
+import { EffectReferenceLink } from "./EffectReferenceLink";
 import { ActionCost } from "./ActionCost";
 import { sentenceCase } from "../ui/labels";
 import { activityAnchor } from "./ownedNavigation";
@@ -166,6 +167,16 @@ function Iwr({ label, fact }: { label: string; fact: FactView<IwrEntryView[]> })
   );
 }
 
+function DefenseNote({ label, fact }: { label: string; fact: FactView<string> }) {
+  if (fact.state === "missing" || fact.state === "not_applicable") return null;
+  return <FactLine label={label} fact={fact} />;
+}
+
+function DefenseQualifier({ fact }: { fact: FactView<string> }) {
+  if (fact.state === "missing" || !hasReadingFact(fact)) return null;
+  return <> {factText(fact)}</>;
+}
+
 export function ActorFacts({
   actor,
   hazard = false,
@@ -185,6 +196,8 @@ export function ActorFacts({
     ...(!hidePrimaryDefenses ? [actor.armor_class] : []),
     ...(!hidePrimaryDefenses && !hideHitPoints ? [actor.maximum_hp] : []),
     ...(!hideSaves ? Object.values(actor.saves) : []),
+    actor.hardness,
+    ...Object.values(actor.defense_notes),
     actor.immunities,
     actor.weaknesses,
     actor.resistances,
@@ -196,106 +209,135 @@ export function ActorFacts({
     ...(!encounter ? [actor.languages, actor.language_details] : []),
   ];
   return (
-    <div
-      className={`actor-reference__facts${encounter ? " actor-reference__facts--combat" : ""}`}
-    >
-      {defenseFacts.some((fact) => hasReadingFact(fact)) && (
-        <section className="actor-reference__defenses">
-          <h3>Defenses</h3>
-          {!hidePrimaryDefenses && actor.armor_class.state !== "not_applicable" && (
-            <FactRow label="AC">
-              <NumberFact fact={actor.armor_class} />
-            </FactRow>
-          )}
-          {!hideSaves && (
-            <div className="record-fact-list">
-              {Object.entries(actor.saves).map(([save, fact]) =>
-                fact.state === "not_applicable" ? null : (
-                  <FactRow key={save} label={save[0].toUpperCase() + save.slice(1)}>
-                    <NumberFact fact={fact} signed />
-                  </FactRow>
-                ),
+    <>
+      <DefenseNote label="Size" fact={actor.size} />
+      <div
+        className={`actor-reference__facts${encounter ? " actor-reference__facts--combat" : ""}`}
+      >
+        {defenseFacts.some((fact) => hasReadingFact(fact)) && (
+          <section className="actor-reference__defenses">
+            <h3>Defenses</h3>
+            {actor.hardness.state !== "missing" &&
+              actor.hardness.state !== "not_applicable" && (
+                <FactRow label="Hardness">
+                  <NumberFact fact={actor.hardness} />
+                </FactRow>
               )}
-            </div>
-          )}
-          {!hidePrimaryDefenses &&
-            !hideHitPoints &&
-            actor.maximum_hp.state !== "not_applicable" && (
-              <FactRow label="HP">
-                <NumberFact fact={actor.maximum_hp} />
+            {!hidePrimaryDefenses && actor.armor_class.state !== "not_applicable" && (
+              <FactRow label="AC">
+                <NumberFact fact={actor.armor_class} />
+                <DefenseQualifier fact={actor.defense_notes.armor_class} />
               </FactRow>
             )}
-          <Iwr label="Immunities" fact={actor.immunities} />
-          <Iwr label="Weaknesses" fact={actor.weaknesses} />
-          <Iwr label="Resistances" fact={actor.resistances} />
-        </section>
-      )}
-      {!hazard && awarenessFacts.some((fact) => hasReadingFact(fact)) && (
-        <div className="actor-reference__awareness">
-          {!encounter && <h3>Awareness and communication</h3>}
-          {actor.perception.state !== "not_applicable" && (
-            <FactRow label="Perception">
-              <NumberFact fact={actor.perception} signed />
-            </FactRow>
-          )}
-          <FactLine
-            label="Senses"
-            fact={actor.senses}
-            format={(senses) =>
-              senses
-                .map((sense) =>
-                  [
-                    factText(sense.sense),
-                    sense.acuity.state === "missing" ? "" : factText(sense.acuity),
-                    sense.range_feet.state === "missing"
-                      ? ""
-                      : factText(sense.range_feet, (value) => `${value} feet`),
-                  ]
-                    .filter(Boolean)
-                    .join(" "),
-                )
-                .join(", ")
-            }
-          />
-          {!encounter && (
-            <FactLine label="Perception details" fact={actor.perception_details} />
-          )}
-          {!encounter && (
-            <>
-              <FactLine
-                label="Languages"
-                fact={actor.languages}
-                format={(value) => value.join(", ")}
-              />
-              <FactLine label="Communication" fact={actor.language_details} />
-            </>
-          )}
-        </div>
-      )}
-      {!hazard && !encounter && <ActorSkills actor={actor} />}
-      {!hazard &&
-        (hasReadingFact(actor.land_speed) || hasReadingFact(actor.movement)) && (
-          <section className="actor-reference__movement">
-            {!encounter && <h3>Movement</h3>}
-            <div className="record-fact-list">
-              {actor.land_speed.state !== "not_applicable" && (
-                <FactRow label="Speed">
-                  <NumberFact fact={actor.land_speed} unit=" feet" label="Speed" />
+            {!hideSaves && (
+              <div>
+                <div className="record-fact-list">
+                  {Object.entries(actor.saves).map(([save, fact]) =>
+                    fact.state === "not_applicable" ? null : (
+                      <FactRow key={save} label={save[0].toUpperCase() + save.slice(1)}>
+                        <NumberFact fact={fact} signed />
+                        <DefenseQualifier
+                          fact={actor.defense_notes[save as keyof typeof actor.saves]}
+                        />
+                      </FactRow>
+                    ),
+                  )}
+                </div>
+                {actor.defense_notes.all_saves.state !== "missing" &&
+                  hasReadingFact(actor.defense_notes.all_saves) && (
+                    <div className="record-fact">
+                      {factText(actor.defense_notes.all_saves)}
+                    </div>
+                  )}
+              </div>
+            )}
+            {!hidePrimaryDefenses &&
+              !hideHitPoints &&
+              actor.maximum_hp.state !== "not_applicable" && (
+                <FactRow label="HP">
+                  <NumberFact fact={actor.maximum_hp} />
+                  <DefenseQualifier fact={actor.defense_notes.hit_points} />
                 </FactRow>
               )}
-              {actor.movement.state !== "value" && (
-                <FactLine label="Other movement" fact={actor.movement} />
-              )}
-              {(actor.movement.value ?? []).map((movement, index) => (
-                <FactRow key={index} label={factText(movement.movement_type)}>
-                  <NumberFact fact={movement.feet} unit=" feet" />
-                </FactRow>
-              ))}
-            </div>
+            {(hideHitPoints || hidePrimaryDefenses) && (
+              <DefenseNote label="HP" fact={actor.defense_notes.hit_points} />
+            )}
+            <Iwr label="Immunities" fact={actor.immunities} />
+            <Iwr label="Weaknesses" fact={actor.weaknesses} />
+            <Iwr label="Resistances" fact={actor.resistances} />
           </section>
         )}
-      {encounter ? <ActorCombatBudget actor={actor} /> : <ActorRuntime actor={actor} />}
-    </div>
+        {!hazard && awarenessFacts.some((fact) => hasReadingFact(fact)) && (
+          <div className="actor-reference__awareness">
+            {!encounter && <h3>Awareness and communication</h3>}
+            {actor.perception.state !== "not_applicable" && (
+              <FactRow label="Perception">
+                <NumberFact fact={actor.perception} signed />
+              </FactRow>
+            )}
+            <FactLine
+              label="Senses"
+              fact={actor.senses}
+              format={(senses) =>
+                senses
+                  .map((sense) =>
+                    [
+                      factText(sense.sense),
+                      sense.acuity.state === "missing" ? "" : factText(sense.acuity),
+                      sense.range_feet.state === "missing"
+                        ? ""
+                        : factText(sense.range_feet, (value) => `${value} feet`),
+                    ]
+                      .filter(Boolean)
+                      .join(" "),
+                  )
+                  .join(", ")
+              }
+            />
+            {!encounter && (
+              <FactLine label="Perception details" fact={actor.perception_details} />
+            )}
+            {!encounter && (
+              <>
+                <FactLine
+                  label="Languages"
+                  fact={actor.languages}
+                  format={(value) => value.join(", ")}
+                />
+                <FactLine label="Communication" fact={actor.language_details} />
+              </>
+            )}
+          </div>
+        )}
+        {!hazard && !encounter && <ActorSkills actor={actor} />}
+        {!hazard &&
+          (hasReadingFact(actor.land_speed) || hasReadingFact(actor.movement)) && (
+            <section className="actor-reference__movement">
+              {!encounter && <h3>Movement</h3>}
+              <div className="record-fact-list">
+                {actor.land_speed.state !== "not_applicable" && (
+                  <FactRow label="Speed">
+                    <NumberFact fact={actor.land_speed} unit=" feet" label="Speed" />
+                  </FactRow>
+                )}
+                {actor.movement.state !== "value" && (
+                  <FactLine label="Other movement" fact={actor.movement} />
+                )}
+                {(actor.movement.value ?? []).map((movement, index) => (
+                  <FactRow key={index} label={factText(movement.movement_type)}>
+                    <NumberFact fact={movement.feet} unit=" feet" />
+                  </FactRow>
+                ))}
+              </div>
+            </section>
+          )}
+        {encounter ? (
+          <ActorCombatBudget actor={actor} />
+        ) : (
+          <ActorRuntime actor={actor} />
+        )}
+      </div>
+    </>
   );
 }
 
@@ -593,6 +635,16 @@ export function ActorActivity({
           <NumberFact fact={activity.lore_modifier} signed />
         </span>
       )}
+      {activity.frequency.state !== "missing" &&
+        activity.frequency.state !== "not_applicable" && (
+          <FactLine
+            label="Frequency"
+            fact={activity.frequency}
+            format={(frequency) =>
+              `${factText(frequency.maximum)} per ${factText(frequency.interval)}`
+            }
+          />
+        )}
       {!hideCost && !inline && <ActionCost fact={activity.action_cost} />}
       {activity.usage && !isEmptyFactValue(activity.usage) && (
         <Tag>{activity.usage}</Tag>
@@ -614,8 +666,46 @@ export function ActorActivity({
           <DamageComponents damage={activity.damage} />
         </>
       )}
+      {activity.strike_effects.state !== "missing" &&
+        activity.strike_effects.state !== "not_applicable" && (
+          <FactLine
+            label="Attack effects"
+            fact={activity.strike_effects}
+            format={(effects) => effects.join(", ")}
+          />
+        )}
+      {activity.self_effect.state !== "missing" &&
+        activity.self_effect.state !== "not_applicable" && (
+          <FactRow label="Self effect">
+            {activity.self_effect.value ? (
+              activity.self_effect.value.navigation ? (
+                <EffectReferenceLink
+                  label={{
+                    text: factText(activity.self_effect.value.name),
+                    title: factText(activity.self_effect.value.name),
+                  }}
+                  target={activity.self_effect.value.navigation}
+                  onReference={onReference}
+                />
+              ) : (
+                <>
+                  {factText(activity.self_effect.value.name)}
+                  {!activity.self_effect.value.navigation && " (reference unavailable)"}
+                </>
+              )
+            ) : (
+              factText(activity.self_effect)
+            )}
+          </FactRow>
+        )}
       <FactLine label="Tradition" fact={activity.casting_tradition} />
       <FactLine label="Preparation" fact={activity.preparation} />
+      {activity.focus_capacity.state !== "missing" &&
+        activity.focus_capacity.state !== "not_applicable" && (
+          <FactRow label="Focus capacity">
+            <NumberFact fact={activity.focus_capacity} />
+          </FactRow>
+        )}
       {activity.difficulty_class.state !== "not_applicable" && (
         <FactRow label="DC">
           <NumberFact fact={activity.difficulty_class} />
@@ -764,6 +854,7 @@ export function ActorActivities({
         })}
       </div>
       <CastingRoster
+        ritualDifficultyClass={actor.ritual_difficulty_class}
         annotations={castingAnnotations}
         activities={actor.activities.value ?? []}
         onReference={onReference}
@@ -823,17 +914,22 @@ function RuntimeCount({ count }: { count: RuntimeCountView }) {
 }
 
 function CastingRoster({
+  ritualDifficultyClass,
   activities,
   annotations,
   onReference,
 }: {
+  ritualDifficultyClass: ActorPresentationView["ritual_difficulty_class"];
   activities: ActorActivityView[];
   annotations?: CastingAnnotations;
   onReference: RecordReferenceHandler;
 }) {
   const entries = activities.filter((activity) => activity.kind === "casting_entry");
   const spells = activities.filter((activity) => activity.kind === "spell");
-  if (!entries.length && !spells.length) return null;
+  const showRitualDc =
+    ritualDifficultyClass.state !== "missing" &&
+    ritualDifficultyClass.state !== "not_applicable";
+  if (!entries.length && !spells.length && !showRitualDc) return null;
   const belongs = (spell: ActorActivityView, entry: ActorActivityView) =>
     spell.casting_entry !== null &&
     JSON.stringify(spell.casting_entry) === JSON.stringify(entry.navigation);
@@ -843,6 +939,11 @@ function CastingRoster({
   return (
     <section className="actor-reference__activities actor-casting">
       <h3>Spellcasting</h3>
+      {showRitualDc && (
+        <FactRow label="Ritual DC">
+          <NumberFact fact={ritualDifficultyClass} />
+        </FactRow>
+      )}
       {entries.map((entry, index) => (
         <div key={index}>
           <ActorActivity

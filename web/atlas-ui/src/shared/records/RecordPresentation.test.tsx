@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { RecordPresentation } from "./RecordPresentation";
-import { ActorActivities, DamageComponents } from "./ActorReference";
+import { ActorActivities, ActorFacts, DamageComponents } from "./ActorReference";
 import { SpellChanges, SpellReference } from "./SpellReference";
 import {
   actorFixture,
@@ -803,4 +803,87 @@ describe("optional authored reference facts", () => {
     );
     expect(screen.queryByText("Damage 0")).toBeNull();
   });
+});
+
+it("keeps authored qualifiers beside their numbers and general save notes scoped to the group", () => {
+  const presentation = actorPresentation();
+  if (presentation.body.kind !== "creature") throw new Error("creature");
+  const actor = presentation.body.value;
+  actor.defense_notes.armor_class = knownFact("21 while broken");
+  actor.defense_notes.hit_points = knownFact("void healing");
+  actor.defense_notes.all_saves = knownFact("+2 status vs. magic");
+  actor.defense_notes.fortitude = knownFact("against disease");
+  actor.hardness = numberFact(0);
+  actor.ritual_difficulty_class = numberFact(23);
+  const activity = activityFixture("Focus casting");
+  activity.focus_capacity = numberFact(3);
+  activity.frequency = knownFact({
+    maximum: numberFact(1),
+    interval: knownFact("minute"),
+  });
+  actor.activities = knownFact([activity]);
+  const { rerender } = render(
+    <RecordPresentation presentation={presentation} onReference={vi.fn()} />,
+  );
+  expect(
+    screen.getByText("AC", { selector: "strong" }).parentElement,
+  ).toHaveTextContent("AC 16 21 while broken");
+  expect(
+    screen.getByText("HP", { selector: "strong" }).parentElement,
+  ).toHaveTextContent("HP 20 void healing");
+  expect(
+    screen.getByText("Fortitude", { selector: "strong" }).parentElement,
+  ).toHaveTextContent("Fortitude +7 against disease");
+  expect(screen.queryByText("All saves")).toBeNull();
+  expect(screen.getByText("+2 status vs. magic").parentElement).toHaveTextContent(
+    "Fortitude +7 against disease",
+  );
+  expect(screen.queryByText("AC notes")).toBeNull();
+  expect(screen.queryByText("HP notes")).toBeNull();
+  for (const text of [
+    "+2 status vs. magic",
+    "Focus capacity",
+    "Ritual DC",
+    "1 per minute",
+    "Hardness",
+  ]) {
+    expect(screen.getByText(text)).toBeVisible();
+  }
+  rerender(<ActorFacts actor={actor} encounter hideHitPoints />);
+  expect(
+    screen.getByText("HP", { selector: "strong" }).parentElement,
+  ).toHaveTextContent("HP void healing");
+  expect(
+    screen.getByText("HP", { selector: "strong" }).parentElement,
+  ).not.toHaveTextContent("20");
+});
+
+it("opens verified self effects through the shared preview and leaves unverified labels as text", () => {
+  const actor = actorFixture();
+  const activity = activityFixture("Ward");
+  activity.has_reference_details = false;
+  const target = {
+    ...activity.navigation,
+    record_key: "effects:ward",
+    owners: [],
+    source_fingerprint: null,
+  };
+  activity.self_effect = knownFact({
+    name: knownFact("Ward effect"),
+    authored_target: knownFact("Compendium.pf2e.effects.Item.ward"),
+    navigation: target,
+  });
+  activity.strike_effects = knownFact(["unresolved-poison"]);
+  actor.activities = knownFact([activity]);
+  const onReference = vi.fn();
+  const { rerender } = render(
+    <ActorActivities actor={actor} onReference={onReference} />,
+  );
+  fireEvent.click(screen.getByRole("link", { name: "Preview Ward effect" }));
+  expect(onReference).toHaveBeenCalledWith("effects:ward", expect.anything(), target);
+  expect(screen.getByText("unresolved-poison")).toBeVisible();
+  activity.self_effect.value!.navigation = null;
+  rerender(<ActorActivities actor={actor} onReference={onReference} />);
+  expect(screen.queryByRole("link", { name: "Preview Ward effect" })).toBeNull();
+  expect(screen.getByText(/Ward effect.*reference unavailable/)).toBeVisible();
 });

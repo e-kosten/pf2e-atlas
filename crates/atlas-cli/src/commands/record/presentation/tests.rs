@@ -515,6 +515,17 @@ fn unavailable_spell_parents_remain_unknown_and_empty_damage_remains_known() {
 
 fn actor() -> ActorPresentationView {
     ActorPresentationView {
+        size: missing(),
+        hardness: absent_number(),
+        ritual_difficulty_class: absent_number(),
+        defense_notes: ActorDefenseNotesView {
+            armor_class: missing(),
+            hit_points: missing(),
+            all_saves: missing(),
+            fortitude: missing(),
+            reflex: missing(),
+            will: missing(),
+        },
         level: numeric(7),
         armor_class: numeric(25),
         maximum_hp: numeric(80),
@@ -561,6 +572,10 @@ fn actor() -> ActorPresentationView {
         languages: known(vec!["common".into()]),
         language_details: missing(),
         activities: known(vec![ActorActivityView {
+            self_effect: missing(),
+            strike_effects: missing(),
+            focus_capacity: absent_number(),
+            frequency: missing(),
             casting_ranks: vec![],
             has_reference_details: false,
             navigation: address(),
