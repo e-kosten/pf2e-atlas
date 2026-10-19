@@ -98,7 +98,13 @@ artifact generation binds shared preparation plus the complete profile manifest.
 Embedding checkpoints persist exact model/input identities, input hashes, token
 counts, vector checksums and dimensions independently of the active reference.
 Ingest prepares current inputs with the pinned tokenizers and accepts only exact
-checkpoint matches. Each inferred batch commits separately after computation;
+checkpoint matches. Profile-native preparation produces an immutable checked
+batch in `atlas-embedding`; checkpoint lookup and generation consume the same
+counts and execution identities without repeating full-batch token validation.
+Uncached inputs retain the inference tokenizer checks. An inference session is
+loaded only when that batch contains uncached inputs. Verified checkpoint vectors
+are borrowed during generation rather than copied into another full-profile map.
+Each inferred batch commits separately after computation;
 no SQLite write transaction remains open during inference. Final publication
 activates complete profile coverage and prunes checkpoints not used by active
 profiles. A failed preparation retains reusable batches for a retry.

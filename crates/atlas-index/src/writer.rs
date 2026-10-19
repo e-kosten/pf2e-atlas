@@ -38,6 +38,7 @@ impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
         job: &str,
         target_hash: &str,
     ) -> Result<crate::ArtifactValidationReport, IndexError> {
+        tracing::info!(target:"atlas_progress",phase="validate_build_input","Checking prepared build inputs");
         validate_input(input)?;
         if input.context.sha256()? != target_hash {
             return Err(IndexError::Invalid(
@@ -48,7 +49,9 @@ impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
             write_rows(connection, input)?;
             let report = crate::validation::validate_reference(connection)?;
+            tracing::info!(target:"atlas_progress",phase="prune_checkpoints","Pruning obsolete embedding checkpoints");
             crate::embedding_checkpoints::finish_reference_job(connection, job, target_hash)?;
+            tracing::info!(target:"atlas_progress",phase="commit_reference","Committing validated reference update");
             Ok(report)
         })
     }
@@ -281,6 +284,7 @@ fn validate_input(input: &IndexBuildInput) -> Result<(), IndexError> {
     Ok(())
 }
 fn write_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError> {
+    tracing::info!(target:"atlas_progress",phase="artifact_identity","Reconciling record identities");
     let mut canonical = input.context.clone();
     canonical.search_profiles = input.context.canonical_profiles()?;
     let json = serde_json::to_string(&canonical)?;
@@ -331,6 +335,7 @@ fn write_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError>
         .iter()
         .map(|p| (p.pack_id.as_str(), p.label.as_str()))
         .collect::<BTreeMap<_, _>>();
+    tracing::info!(target:"atlas_progress",phase="artifact_snapshots","Reconciling snapshots and query projections");
     let mut changed = std::collections::BTreeSet::new();
     let mut live = std::collections::BTreeSet::new();
     for (ordinal, source) in input.records.iter().enumerate() {
@@ -374,6 +379,7 @@ fn write_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError>
             tracing::info!(target:"atlas_progress",phase="artifact_snapshots",current=(ordinal+1) as u64,total=input.records.len() as u64,"Writing shared record snapshots");
         }
     }
+    tracing::info!(target:"atlas_progress",phase="artifact_content","Reconciling prepared content and relationships");
     for (record_ordinal, source) in input.records.iter().enumerate() {
         let id = id_for(&root_ids, source.record.key())?;
         if !changed.contains(&id) {
@@ -440,13 +446,19 @@ fn write_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError>
         r.text("definition_json", serde_json::to_string(&definition)?);
         crate::publication_delta::upsert(c, &r, "field")?;
     }
+    tracing::info!(target:"atlas_progress",phase="artifact_search","Reconciling lexical and semantic search units");
     crate::publication_delta::search_units(c, input, &product_ids)?;
+    tracing::info!(target:"atlas_progress",phase="artifact_removals","Removing records absent from the source");
     crate::publication_delta::remove_absent_roots(c, &live)?;
     c.execute(
         "DELETE FROM packs WHERE pack_id NOT IN (SELECT pack_id FROM records)",
         [],
     )?;
-
+    // Release dirty-page pressure before scanning newly populated vec0 chunks.
+    // SQLite flushes pages within this transaction; it does not commit them.
+    // Validation failure still rolls back the entire publication, including DDL.
+    tracing::info!(target:"atlas_progress",phase="flush_reference","Flushing pending reference pages before validation");
+    c.cache_flush()?;
     Ok(())
 }
 fn id_for(ids: &BTreeMap<RecordKey, i64>, key: &RecordKey) -> Result<i64, IndexError> {

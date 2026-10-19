@@ -99,7 +99,11 @@ impl Workspace {
         }
         let connection = Connection::open_with_flags(&self.path, flags)?;
         connection.busy_timeout(Duration::from_secs(5))?;
-        connection.execute_batch("PRAGMA foreign_keys=ON;")?;
+        // A default 768-dimensional vec0 chunk exceeds SQLite's usual 2 MiB
+        // cache. Keep a chunk and nearby metadata resident during sequential
+        // publication/validation. This is a demand-filled per-session target,
+        // not an eager allocation; sessions remain bounded by their callers.
+        connection.execute_batch("PRAGMA foreign_keys=ON; PRAGMA cache_size=-8192;")?;
         if writable {
             connection.execute_batch("PRAGMA synchronous=FULL;")?;
         }

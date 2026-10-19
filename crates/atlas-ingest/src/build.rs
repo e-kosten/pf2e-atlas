@@ -4,7 +4,9 @@ use crate::{
     compute_source_fingerprint, enrich_loaded_source, source_git_commit_if_clean,
 };
 use crate::{index_build_input::index_build_input, source::localization::LocalizationCatalog};
-use atlas_embedding::{TextEmbedder, TextEmbeddingTokenizer, generate_prepared_embeddings};
+use atlas_embedding::{
+    PreparedEmbeddingBatch, TextEmbeddingTokenizer, generate_prepared_embeddings,
+};
 use atlas_index::{
     ARTIFACT_FORMAT_VERSION, ASSET_POLICY_VERSION, LEXICAL_SELECTION_VERSION,
     LOCALIZATION_POLICY_VERSION, RELATIONSHIP_POLICY_VERSION, SOURCE_LOOKUP_VERSION,
@@ -48,6 +50,7 @@ pub(crate) fn prepare_build(
         &capture.read(&capture.manifest_path)?,
     )?;
     let fingerprint = capture.fingerprint.clone();
+    progress("load_catalog", "Loading source localization catalogs");
     let catalog =
         LocalizationCatalog::load_captured(&options.source_root, &options.locale, Some(&capture))?;
     let mut search_profiles = options
@@ -93,6 +96,7 @@ pub(crate) fn prepare_build(
     let preparation_hash = context
         .preparation_sha256()
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    progress("admit_source", "Admitting captured source documents");
     let loaded = crate::source_loading::load_captured_source(
         &options.source_root,
         Some(&capture.manifest_path),
@@ -115,6 +119,7 @@ pub(crate) fn prepare_build(
     if source_report.addressed_documents == 0 {
         return Err(IngestError::NoRecordsLoaded);
     }
+    progress("trait_labels", "Resolving used trait labels");
     context.used_trait_labels = crate::source::localization::used_trait_labels(&source, &catalog)?;
     progress("prepare_search", "Preparing attributable search passages");
     let tokenizer = options
@@ -168,6 +173,10 @@ pub(crate) fn build_artifact(
     atlas_index::write_requested_reference_config(&write, &requested)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     write.commit()?;
+    progress(
+        "read_previous",
+        "Reading reusable source snapshots and prepared content",
+    );
     let reusable = {
         let read = workspace.read(schema)?;
         match atlas_index::read_stored_reference_context(read.connection())
@@ -207,32 +216,23 @@ pub(crate) fn build_artifact(
     for config in &options.search_profiles {
         let profile = atlas_embedding::profile_for_model(config.model);
         progress(
-            &format!("{}:load_embeddings", profile.id),
+            &format!("{}:load_tokenizer", profile.id),
             &format!(
-                "{} [{}]: loading verified local model",
+                "{} [{}]: loading verified tokenizer",
                 profile.label, profile.id
             ),
         );
-        let mut embedder = TextEmbedder::load(config).map_err(embedding_error)?;
-        let native = embedder.tokenizer();
-        let pending = prepared
-            .pending
-            .iter()
-            .cloned()
-            .enumerate()
-            .map(|(ordinal, p)| {
-                let result = crate::index_build_input::profile_pending(p, native)?;
-                if ordinal == 0 || (ordinal + 1) % 1000 == 0 || ordinal + 1 == prepared.pending.len() {
-                    tracing::info!(target:"atlas_progress",phase=%format!("{}:native_preparation", profile.id), current=(ordinal+1) as u64, total=prepared.pending.len() as u64,
-                        "{} [{}] native input preparation: {}/{} occurrences", profile.label, profile.id, ordinal+1, prepared.pending.len());
-                }
-                Ok::<_, IngestError>(result)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let inputs = pending
-            .iter()
-            .map(|pending| pending.input.clone())
-            .collect::<Vec<_>>();
+        let native = TextEmbeddingTokenizer::load(config).map_err(embedding_error)?;
+        let batch = PreparedEmbeddingBatch::prepare(
+            &native,
+            prepared
+                .pending
+                .iter()
+                .map(|pending| pending.input.clone())
+                .collect(),
+        )
+        .map_err(embedding_error)?;
+        let inputs = batch.inputs();
         let mut reusable = BTreeMap::new();
         let model = prepared
             .index
@@ -240,8 +240,15 @@ pub(crate) fn build_artifact(
             .search_profile(&profile.profile_id())
             .map_err(|e| IngestError::DocumentEmbeddingFailed(e.to_string()))?;
         if options.reuse_embeddings {
+            progress(
+                &format!("{}:read_checkpoints", profile.id),
+                &format!(
+                    "{} [{}]: reading verified embedding checkpoints",
+                    profile.label, profile.id
+                ),
+            );
             reusable =
-                atlas_index::read_embedding_checkpoints(&workspace.read(schema)?, model, &inputs)
+                atlas_index::read_embedding_checkpoints(&workspace.read(schema)?, model, inputs)
                     .map_err(|e| IngestError::DocumentEmbeddingFailed(e.to_string()))?;
         }
         let by_key = inputs
@@ -256,8 +263,8 @@ pub(crate) fn build_artifact(
             ),
         );
         let generated = generate_prepared_embeddings(
-            &mut embedder,
-            &inputs,
+            config,
+            &batch,
             &reusable,
             options.embedding_batch_size,
             |batch| {
@@ -293,17 +300,21 @@ pub(crate) fn build_artifact(
         reused_inputs += generated.reused_inputs;
         profiles.push(crate::ProfileBuildReport {
             profile_id: atlas_embedding::profile_for_model(config.model).profile_id(),
-            semantic_units: pending.len(),
+            semantic_units: prepared.pending.len(),
             inferred_inputs: generated.inferred_inputs,
             reused_inputs: generated.reused_inputs,
         });
-        for (pending, vector) in pending.into_iter().zip(generated.vectors) {
-            let mut unit = pending.unit;
+        for ((pending, input), vector) in prepared.pending.iter().zip(inputs).zip(generated.vectors)
+        {
+            let mut unit = pending.unit.clone();
+            unit.profile_id = profile.profile_id();
+            unit.input_token_count = input.token_count;
             unit.vector = vector;
             prepared.index.semantic_units.push(unit);
         }
     }
     // Fail before touching the output if source changes while preparation runs.
+    progress("recheck_source", "Rechecking source and catalog freshness");
     let final_fingerprint =
         compute_source_fingerprint(&options.source_root, options.manifest_path.as_deref())?;
     let final_catalog = LocalizationCatalog::load(&options.source_root, &options.locale)?;

@@ -70,6 +70,7 @@ pub fn read_persisted_inputs(
             "persisted source admission contract differs".into(),
         ));
     }
+    let preparation_hash = context.preparation_sha256()?;
     let mut statement = c.prepare("SELECT r.record_id,r.key,r.pack_id,r.source_path,r.content_hash,b.codec_version,b.encoding,b.snapshot FROM records r JOIN record_bodies b USING(record_id) ORDER BY r.record_id")?;
     let mut rows = statement.query([])?;
     let mut inputs = Vec::new();
@@ -102,7 +103,7 @@ pub fn read_persisted_inputs(
                 owners: serde_json::from_str(&field.get::<_, String>(0)?)?,
                 field: field.get(1)?,
             };
-            if field.get::<_, String>(8)? != context.preparation_sha256()? {
+            if field.get::<_, String>(8)? != preparation_hash {
                 return Err(IndexError::Invalid(
                     "persisted field preparation identity differs".into(),
                 ));
@@ -220,7 +221,7 @@ pub fn read_persisted_inputs(
             record,
             source_path: row.get(3)?,
             content_hash: row.get(4)?,
-            preparation_context_hash: context.preparation_sha256()?,
+            preparation_context_hash: preparation_hash.clone(),
             content,
             relationships,
             diagnostics,

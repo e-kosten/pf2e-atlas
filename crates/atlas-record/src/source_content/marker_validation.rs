@@ -218,15 +218,16 @@ pub fn validate_prepared_markers(
     // A prepared cache must already conform to the preparation owner's exact
     // HTML/URL policy. DOM serialization tolerates harmless quote spelling.
     let sanitized = super::preparation::sanitizer().clean(html).to_string();
-    let canonical = |markup: &str| Html::parse_fragment(markup).root_element().inner_html();
-    if canonical(html) != canonical(&sanitized) {
+    let document = Html::parse_fragment(html);
+    if document.root_element().inner_html()
+        != Html::parse_fragment(&sanitized).root_element().inner_html()
+    {
         return Err(PreparedMarkerError(
             "prepared HTML violates the sanitizer policy".into(),
         ));
     }
     let selector = Selector::parse("[data-atlas-interaction], [data-atlas-interaction-kind]")
         .map_err(|error| PreparedMarkerError(error.to_string()))?;
-    let document = Html::parse_fragment(html);
     reference_markers(&document)?;
     let images = Selector::parse("img").map_err(|error| PreparedMarkerError(error.to_string()))?;
     if document.select(&images).any(|image| {
