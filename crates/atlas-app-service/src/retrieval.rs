@@ -129,7 +129,7 @@ impl AtlasAppService {
                     })?;
                 if detail.source.node_at(owners).is_none() {
                     return Err(AppServiceError::invalid_request(
-                        "graph owner is unavailable",
+                        "graph selection is unavailable",
                     ));
                 }
             }

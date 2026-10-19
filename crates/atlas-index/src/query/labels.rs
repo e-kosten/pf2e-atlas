@@ -60,6 +60,8 @@ pub(super) fn field_label(path: &str, scope: Option<&str>) -> Result<&'static st
         (_, "physical.unit_price_gp") => "Unit Price (gp)",
         (_, "physical.bulk") => "Bulk",
         (_, "physical.usage") => "Equipment Usage",
+        (_, "consumable.damage.kind") => "Consumable Damage or Healing",
+        (_, "consumable.damage.type") => "Consumable Damage / Healing Type",
         (_, "consumable.category") => "Consumable Category",
         (_, "weapon.category") => "Weapon Category",
         (_, "weapon.group") => "Weapon Group",

@@ -23,3 +23,6 @@ pub(crate) fn vector_ddl(
 
 pub const LEXICAL_ALIAS_SCHEMA_SQL: &str =
     include_str!("../migrations/00000000000002_lexical_aliases/up.sql");
+/// Consumable query fields; existing rows are refreshed from retained typed snapshots.
+pub const CONSUMABLE_FILTER_SCHEMA_SQL: &str =
+    include_str!("../migrations/00000000000003_consumable_filters/up.sql");

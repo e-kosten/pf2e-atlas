@@ -57,7 +57,7 @@ function response(request: EncounterReferenceRequest): RecordDetailView {
               {
                 locator: {
                   record: request.selection.record_key,
-                  owners: request.selection.owners,
+                  embedded_path: request.selection.embedded_path,
                   field: "/system/description/value",
                 },
                 role: "description",
@@ -225,7 +225,7 @@ it("renders a complete casting entry, its local spell roster, and one title thro
   spell.base_rank = numberFact(3);
   spell.authored_cast_rank = numberFact(5);
   entry.casting_context = {
-    parent: { ...entry.navigation, owners: [] },
+    parent: { ...entry.navigation, embedded_path: [] },
     parent_title: "Current actor",
     spells: knownFact([spell]),
   };
@@ -355,7 +355,9 @@ it("retries a failed encounter refresh through its owner and reopens an initial 
     ...activityA,
     navigation: {
       ...activityA.navigation,
-      owners: [{ collection: "/items", identity: { SnapshotLocal: { index: 11 } } }],
+      embedded_path: [
+        { collection: "/items", identity: { SnapshotLocal: { index: 11 } } },
+      ],
       source_fingerprint: "initial-conflict-snapshot-b",
     },
   };
@@ -380,7 +382,7 @@ it("retries a failed encounter refresh through its owner and reopens an initial 
     expect.objectContaining({
       artifact_generation: "generation-b",
       selection: expect.objectContaining({
-        owners: activityB.navigation.owners,
+        embedded_path: activityB.navigation.embedded_path,
         source_fingerprint: "initial-conflict-snapshot-b",
       }),
     }),

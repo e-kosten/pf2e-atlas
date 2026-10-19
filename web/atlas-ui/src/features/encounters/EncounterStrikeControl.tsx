@@ -39,7 +39,7 @@ export function EncounterStrikeControl({
     artifact_generation: generation,
     selection: {
       record_key: nav.record_key,
-      owners: nav.owners,
+      embedded_path: nav.embedded_path,
       fields: [],
       passage: null,
       source_fingerprint: nav.source_fingerprint,

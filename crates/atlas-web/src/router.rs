@@ -97,7 +97,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/encounters/{encounter_ref}/strike-rolls", post(crate::handlers::roll_encounter_strike))
         .route("/api/rolls/table", post(crate::handlers::roll_table))
         .route("/api/records/detail", post(crate::handlers::record_detail_at))
-        .route("/api/records/owned-reading", post(crate::handlers::owned_reading))
+        .route("/api/records/embedded-reading", post(crate::handlers::embedded_reading))
         .fallback(get(static_asset))
         .with_state(state)
 }

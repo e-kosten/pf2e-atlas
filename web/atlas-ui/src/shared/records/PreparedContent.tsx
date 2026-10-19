@@ -120,7 +120,10 @@ export function PreparedContent({
         }
         return;
       }
-      if (fact?.target) {
+      const readingTarget = fact?.contextual_target ?? fact?.target;
+      if (readingTarget) {
+        if (fact?.contextual_target)
+          marker.setAttribute("title", "Spell from this item");
         marker.removeAttribute("aria-disabled");
         if (marker.tagName !== "A") {
           const link = document.createElement("a");
@@ -134,8 +137,8 @@ export function PreparedContent({
           "href",
           atlasRoutePath({
             kind: "record",
-            recordKey: fact.target.record_key,
-            selection: fact.target,
+            recordKey: readingTarget.record_key,
+            selection: readingTarget,
           }),
         );
         marker.removeAttribute("role");
@@ -168,7 +171,8 @@ export function PreparedContent({
               JSON.stringify(r.source) === JSON.stringify(content.locator),
           );
           if (!fact?.target) return;
-          openReference(fact.target.record_key, marker as HTMLElement, fact.target);
+          const target = fact.contextual_target ?? fact.target;
+          openReference(target.record_key, marker as HTMLElement, target);
           return;
         }
         const ordinal = Number(marker.getAttribute("data-atlas-interaction"));

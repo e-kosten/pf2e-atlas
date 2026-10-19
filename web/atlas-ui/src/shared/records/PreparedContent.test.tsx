@@ -277,7 +277,7 @@ it("retains exact native local addresses, modifiers and target intent through li
   const detail = detailFixture("actors:parent", "Parent", "rules:linked");
   const target = {
     ...detail.relationships[0].target!,
-    owners: [{ collection: "items", identity: { SnapshotLocal: { index: 3 } } }],
+    embedded_path: [{ collection: "items", identity: { SnapshotLocal: { index: 3 } } }],
     field: "system.description.value",
     source_fingerprint: "copy-a",
   };
@@ -326,4 +326,50 @@ it("retains exact native local addresses, modifiers and target intent through li
   expect(unavailable).not.toHaveAttribute("tabindex");
   fireEvent.click(unavailable);
   expect(nextCallback).toHaveBeenCalledOnce();
+});
+
+it("opens verified item context without changing the original citation", () => {
+  const detail = detailFixture("equipment:wand", "Wand", "spells:heal");
+  const field = detail.presentation.content[0];
+  field.body = {
+    kind: "html",
+    html: '<p>Cast <span data-atlas-reference="0">Heal</span>.</p>',
+    controls: [],
+  };
+  const edge = {
+    ...detail.relationships[0],
+    contextual_target: {
+      ...detail.relationships[0].target!,
+      record_key: "equipment:wand",
+      embedded_path: [
+        { collection: "/system/spell", identity: { Stable: "localspell" } },
+      ],
+      spell_rank: 2,
+    },
+  };
+  const original = edge.target;
+  const onReference = vi.fn();
+  render(
+    <PreparedContent
+      content={field}
+      relationships={[edge]}
+      onReference={onReference}
+    />,
+  );
+  const link = screen.getByRole("link", { name: "Heal" });
+  expect(link).toHaveAttribute(
+    "href",
+    atlasRoutePath({
+      kind: "record",
+      recordKey: "equipment:wand",
+      selection: edge.contextual_target,
+    }),
+  );
+  fireEvent.click(link);
+  expect(onReference).toHaveBeenCalledWith(
+    "equipment:wand",
+    link,
+    edge.contextual_target,
+  );
+  expect(edge.target).toEqual(original);
 });

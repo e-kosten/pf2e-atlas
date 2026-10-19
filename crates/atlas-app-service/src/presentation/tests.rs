@@ -1582,3 +1582,56 @@ fn unavailable_prerequisite_collections_remain_visible_in_selected_reference() {
         );
     }
 }
+
+#[test]
+fn consumable_spell_navigation_keeps_exact_nested_identity_and_authored_rank() {
+    for nested in [false, true] {
+        let item = json!({"_id":"cccccccccccccccc","name":"Custom wand","type":"consumable","system":{
+            "category":"wand","spell":{"_id":"ssssssssssssssss","name":"Customized Heal","type":"spell","system":{
+                "level":{"value":1},"traits":{"value":["cantrip"]},"location":{"heightenedLevel":2},"description":{"value":"Local customization"}
+            }}
+        }});
+        let value = if nested {
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","system":{"details":{"level":{"value":20}}},"items":[item]})
+        } else {
+            item
+        };
+        let input = record("test", if nested { "Actor" } else { "Item" }, value);
+        let mut selected = vec![];
+        if nested {
+            input.record.visit_immediate_actor_items(|_, owner, _| {
+                selected.push(owner.clone());
+            });
+        }
+        let node = input.record.node_at(&selected).unwrap();
+        let links = owned_links(&input.record, node, &selected, "fingerprint");
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].title, "Customized Heal");
+        assert_eq!(links[0].navigation.owners.len(), selected.len() + 1);
+        let SourceNodeView::Item(ItemSourceView::SpellSource(spell)) =
+            input.record.node_at(&links[0].navigation.owners).unwrap()
+        else {
+            panic!("spell")
+        };
+        assert_eq!(spell_context::ranks(&input.record, spell), vec![2]);
+        assert_eq!(spell_context::base_rank(spell), Some(1));
+    }
+}
+
+#[test]
+fn empty_scroll_has_no_invented_spell_link() {
+    let input = record(
+        "test",
+        "Item",
+        json!({"_id":"cccccccccccccccc","type":"consumable","system":{"category":"scroll","spell":null}}),
+    );
+    assert!(
+        owned_links(
+            &input.record,
+            input.record.node_at(&[]).unwrap(),
+            &[],
+            "fingerprint"
+        )
+        .is_empty()
+    );
+}

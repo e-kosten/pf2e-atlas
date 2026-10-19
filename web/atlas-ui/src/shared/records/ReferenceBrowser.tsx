@@ -102,7 +102,7 @@ function ReferenceResult({
   const trigger = useRef<HTMLButtonElement>(null);
   const matches = row.matches.filter(
     (match) =>
-      match.navigation.owners.length ||
+      match.navigation.embedded_path.length ||
       (match.navigation.field && match.navigation.field !== "identity") ||
       match.navigation.passage,
   );

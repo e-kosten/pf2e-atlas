@@ -7,7 +7,7 @@ export function activityAddress(
 ): RecordNavigationView {
   return {
     record_key: navigation.record_key,
-    owners: navigation.owners.map((owner) => ({
+    embedded_path: navigation.embedded_path.map((owner) => ({
       collection: owner.collection,
       identity: owner.identity,
     })),
@@ -17,5 +17,5 @@ export function activityAddress(
   };
 }
 export function activityAnchor(navigation: RecordNavigationView): string {
-  return `owned-${encodeURIComponent(JSON.stringify(activityAddress(navigation)))}`;
+  return `embedded-${encodeURIComponent(JSON.stringify(activityAddress(navigation)))}`;
 }

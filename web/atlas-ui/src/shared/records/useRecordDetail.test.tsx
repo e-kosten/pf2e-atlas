@@ -1,3 +1,4 @@
+import { recordDetailRequest } from "./recordDetailQuery";
 import type { ReactNode } from "react";
 import { retireImmutableReferenceQueries } from "../queries/immutableReferenceQueries";
 import {
@@ -88,7 +89,7 @@ describe("address-safe detail refresh", () => {
 
   const initial: RecordNavigationView = {
     record_key: "actors:one",
-    owners: [],
+    embedded_path: [],
     field: "/system/description/value",
     passage: null,
     source_fingerprint: "snapshot-a",
@@ -100,7 +101,9 @@ describe("address-safe detail refresh", () => {
       "actors:one",
       {
         ...initial,
-        owners: [{ collection: "items", identity: { SnapshotLocal: { index: 0 } } }],
+        embedded_path: [
+          { collection: "items", identity: { SnapshotLocal: { index: 0 } } },
+        ],
       },
     ],
     ["field", "actors:one", { ...initial, field: "/system/details/publicNotes" }],
@@ -141,7 +144,7 @@ describe("address-safe detail refresh", () => {
       ).toBeVisible();
       expect(api.getRecordDetail.mock.calls[1]).toEqual([
         nextKey,
-        { ...nextSelection, fields: nextSelection.field ? [nextSelection.field] : [] },
+        recordDetailRequest(nextSelection),
         expect.any(AbortSignal),
       ]);
     },

@@ -13,17 +13,17 @@ const ENTRY_LIMIT: usize = 32;
 const FIELD_LIMIT: usize = 256;
 
 impl AtlasAppService {
-    pub fn owned_reading(
+    pub fn embedded_reading(
         &self,
-        request: OwnedReadingRequest,
-    ) -> AppServiceResult<OwnedReadingBatchView> {
+        request: EmbeddedReadingRequest,
+    ) -> AppServiceResult<EmbeddedReadingBatchView> {
         validate_navigation(&request.parent)?;
         if !request.parent.owners.is_empty()
             || request.parent.field.is_some()
             || request.parent.passage.is_some()
         {
             return Err(AppServiceError::invalid_request(
-                "owned reading requires the parent record address",
+                "embedded reading requires the parent record address",
             ));
         }
         let key = RecordKey::parse(&request.parent.record_key)
@@ -51,7 +51,7 @@ impl AtlasAppService {
                 .ok_or_else(|| AppServiceError::invalid_request("parent record unavailable"))?;
             let table_reading = matches!(
                 &request.selection,
-                OwnedReadingSelection::TableResults { .. }
+                EmbeddedReadingSelection::TableResults { .. }
             );
             if !(matches!(node, SourceNodeView::Actor(_)) && !table_reading
                 || matches!(node, SourceNodeView::Table(_)) && table_reading)
@@ -71,7 +71,7 @@ impl AtlasAppService {
                 activities.state
             };
             let (candidates, start, single) = match &request.selection {
-                OwnedReadingSelection::TableResults { cursor } => {
+                EmbeddedReadingSelection::TableResults { cursor } => {
                     let candidates: Vec<_> = crate::presentation::owned_links(
                         &detail.source,
                         node,
@@ -95,12 +95,12 @@ impl AtlasAppService {
                     };
                     if start > candidates.len() || (start == candidates.len() && start != 0) {
                         return Err(AppServiceError::invalid_request(
-                            "reading cursor is outside the owned collection",
+                            "reading cursor is outside the embedded collection",
                         ));
                     }
                     (candidates, start, false)
                 }
-                OwnedReadingSelection::Abilities { cursor, target } => {
+                EmbeddedReadingSelection::Abilities { cursor, target } => {
                     if cursor.is_some() && target.is_some() {
                         return Err(AppServiceError::invalid_request(
                             "select a reading cursor or target, not both",
@@ -138,12 +138,12 @@ impl AtlasAppService {
                     };
                     if start > candidates.len() || (start == candidates.len() && start != 0) {
                         return Err(AppServiceError::invalid_request(
-                            "reading cursor is outside the owned collection",
+                            "reading cursor is outside the embedded collection",
                         ));
                     }
                     (candidates, start, false)
                 }
-                OwnedReadingSelection::Activity { navigation } => {
+                EmbeddedReadingSelection::Activity { navigation } => {
                     checked_activity(navigation, &key, r.source_fingerprint())?;
                     let activity = activities
                         .value
@@ -168,7 +168,7 @@ impl AtlasAppService {
                     .take(if single { 1 } else { ENTRY_LIMIT })
             {
                 let child = detail.source.node_at(&navigation.owners).ok_or_else(|| {
-                    AppServiceError::invalid_request("owned activity unavailable")
+                    AppServiceError::invalid_request("embedded activity unavailable")
                 })?;
                 let fields: Vec<_> = child
                     .content_selections()
@@ -182,7 +182,7 @@ impl AtlasAppService {
                 if selected_fields + fields.len() > FIELD_LIMIT {
                     if selected.is_empty() {
                         return Err(AppServiceError::invalid_request(
-                            "owned activity exceeds 256 selected fields",
+                            "embedded activity exceeds 256 selected fields",
                         ));
                     }
                     break;
@@ -224,7 +224,7 @@ impl AtlasAppService {
                 } else {
                     vec![]
                 };
-                entries.push(OwnedReadingEntryView {
+                entries.push(EmbeddedReadingEntryView {
                     navigation: (*navigation).clone(),
                     content: crate::prepared_content::prepared_fields(
                         &key,
@@ -248,11 +248,11 @@ impl AtlasAppService {
                 });
             }
             let end = start + entries.len();
-            let cursor = |offset| OwnedReadingCursor {
+            let cursor = |offset| EmbeddedReadingCursor {
                 artifact_generation: generation.clone(),
                 offset,
             };
-            Ok(OwnedReadingBatchView {
+            Ok(EmbeddedReadingBatchView {
                 artifact_generation: generation.clone(),
                 parent: RecordNavigationView {
                     spell_rank: None,

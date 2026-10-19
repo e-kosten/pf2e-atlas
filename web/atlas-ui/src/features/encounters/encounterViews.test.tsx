@@ -51,7 +51,7 @@ const apiMocks = vi.hoisted(() => ({
   getEncounters: vi.fn(),
   getRecordDetail: vi.fn(),
   getEncounterReference: vi.fn(),
-  getOwnedReading: vi.fn(),
+  getEmbeddedReading: vi.fn(),
   searchPage: vi.fn(),
   removeEncounterParticipant: vi.fn(),
   removeEncounterParticipantCondition: vi.fn(),
@@ -77,7 +77,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   getEncounters: apiMocks.getEncounters,
   getRecordDetail: apiMocks.getRecordDetail,
   getEncounterReference: apiMocks.getEncounterReference,
-  getOwnedReading: apiMocks.getOwnedReading,
+  getEmbeddedReading: apiMocks.getEmbeddedReading,
   searchPage: apiMocks.searchPage,
   removeEncounterParticipant: apiMocks.removeEncounterParticipant,
   removeEncounterParticipantCondition: apiMocks.removeEncounterParticipantCondition,
@@ -851,7 +851,7 @@ describe("encounter views", () => {
       {
         locator: {
           record: "actors:goblin",
-          owners: claw.navigation.owners,
+          embedded_path: claw.navigation.embedded_path,
           field: "/system/description/value",
         },
         role: "description",
@@ -893,7 +893,7 @@ describe("encounter views", () => {
         artifact_generation: initial.artifact_generation,
         selection: {
           record_key: claw.navigation.record_key,
-          owners: claw.navigation.owners,
+          embedded_path: claw.navigation.embedded_path,
           fields: [],
           passage: claw.navigation.passage,
           source_fingerprint: claw.navigation.source_fingerprint,
@@ -931,7 +931,7 @@ describe("encounter views", () => {
       within(preview).getByText("Elite: Current source adjustment retained."),
     ).toBeVisible();
     expect(apiMocks.getEncounterReference).toHaveBeenCalledTimes(2);
-    expect(apiMocks.getOwnedReading).not.toHaveBeenCalled();
+    expect(apiMocks.getEmbeddedReading).not.toHaveBeenCalled();
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
   });
 
@@ -949,7 +949,7 @@ describe("encounter views", () => {
     parent.presentation = initial.participants[0].presentation!;
     apiMocks.getEncounterReference.mockImplementation(
       (_encounter, _participant, request) =>
-        Promise.resolve(request.selection.owners.length ? selected : parent),
+        Promise.resolve(request.selection.embedded_path.length ? selected : parent),
     );
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -2888,7 +2888,7 @@ function participantPresentationFixture({
       traits,
     },
     content: [],
-    owned: [],
+    embedded: [],
     body: { kind: "creature", value: actor },
   };
   return presentation;

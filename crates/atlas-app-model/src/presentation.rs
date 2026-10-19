@@ -48,7 +48,8 @@ pub struct RecordPresentationView {
     pub identity: RecordSummaryView,
     pub classification: String,
     pub content: Vec<PreparedContentFieldView>,
-    pub owned: Vec<OwnedRecordLinkView>,
+    #[serde(rename = "embedded")]
+    pub owned: Vec<EmbeddedRecordLinkView>,
     pub body: RecordBodyView,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -66,7 +67,7 @@ pub enum RecordBodyView {
     Content,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct OwnedRecordLinkView {
+pub struct EmbeddedRecordLinkView {
     pub navigation: RecordNavigationView,
     pub title: String,
     pub family: String,
@@ -325,6 +326,7 @@ pub struct SpellFormView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct PhysicalPresentationView {
+    pub consumable: Option<ConsumablePresentationView>,
     pub usage: FactView<String>,
     pub bulk: NumberFactView,
     pub price: FactView<PhysicalPriceView>,
@@ -336,6 +338,22 @@ pub struct PhysicalPriceView {
     pub gp: NumberFactView,
     pub sp: NumberFactView,
     pub cp: NumberFactView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ConsumablePresentationView {
+    pub spell: FactView<EmbeddedRecordLinkView>,
+    pub spell_presented_inline: bool,
+    pub category: FactView<String>,
+    pub damage: FactView<ConsumableDamageView>,
+    pub maximum_uses: NumberFactView,
+    pub source_uses: NumberFactView,
+    pub source_quantity: NumberFactView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ConsumableDamageView {
+    pub formula: FactView<String>,
+    pub kind: FactView<String>,
+    pub damage_type: FactView<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RollTablePresentationView {
@@ -352,7 +370,7 @@ pub struct TableResultPresentationView {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RollTableRowView {
-    pub link: OwnedRecordLinkView,
+    pub link: EmbeddedRecordLinkView,
     pub range: FactView<[f64; 2]>,
 }
 
@@ -381,7 +399,7 @@ pub struct EffectDurationView {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct JournalPresentationView {
-    pub pages: FactView<Vec<OwnedRecordLinkView>>,
+    pub pages: FactView<Vec<EmbeddedRecordLinkView>>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct JournalPagePresentationView {

@@ -245,7 +245,7 @@ describe("source-backed API transport", () => {
         artifact_generation: "generation-test",
         selection: {
           record_key: "actors:ghoul",
-          owners: [],
+          embedded_path: [],
           fields: [],
           passage: null,
           source_fingerprint: null,
@@ -543,11 +543,12 @@ describe("source-backed API transport", () => {
       ).rejects.toThrow("Invalid numeric field");
     }
   });
-  it("posts exact owned/passage selection without per-marker requests", async () => {
+  it("posts exact embedded/passage selection without per-marker requests", async () => {
     const controller = new AbortController();
     const detail = detailFixture("actors:ghoul", "Ghoul");
     respond(detail);
-    const request = { ...detail.selected, fields: ["system.description.value"] };
+    const { field: _field, ...address } = detail.selected;
+    const request = { ...address, fields: ["system.description.value"] };
     await getRecordDetail(request.record_key, request, controller.signal);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][0]).toContain("/api/records/detail");

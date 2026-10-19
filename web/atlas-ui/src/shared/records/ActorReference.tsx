@@ -18,11 +18,14 @@ import {
   isEmptyFactValue,
 } from "./presentationFacts";
 import type { RecordReferenceHandler } from "./PreparedContent";
-import { OwnedAbilityReading, type OwnedReadingContext } from "./OwnedAbilityReading";
+import {
+  EmbeddedAbilityReading,
+  type EmbeddedReadingContext,
+} from "./EmbeddedAbilityReading";
 import { EffectReferenceLink } from "./EffectReferenceLink";
 import { ActionCost } from "./ActionCost";
 import { sentenceCase } from "../ui/labels";
-import { activityAnchor } from "./ownedNavigation";
+import { activityAnchor } from "./embeddedNavigation";
 import {
   atlasRoutePath,
   navigateToAtlasRoute,
@@ -787,7 +790,7 @@ export function ActorActivities({
   actor: ActorPresentationView;
   onReference: RecordReferenceHandler;
   encounter?: boolean;
-  reading?: OwnedReadingContext;
+  reading?: EmbeddedReadingContext;
   castingAnnotations?: CastingAnnotations;
   activityRolls?: (activity: ActorActivityView) => React.ReactNode;
 }) {
@@ -824,7 +827,7 @@ export function ActorActivities({
     ? {
         ...reading,
         // Keep this visit's target stable through preview positioning renders.
-        // OwnedAbilityReading normalizes it for its bounded target request.
+        // EmbeddedAbilityReading normalizes it for its bounded target request.
         landing: targetActivity?.kind === "ability" ? target : undefined,
       }
     : undefined;
@@ -854,7 +857,7 @@ export function ActorActivities({
           );
           return activities.length ? (
             title === "Abilities" && !encounter ? (
-              <OwnedAbilityReading
+              <EmbeddedAbilityReading
                 key={title}
                 abilities={activities}
                 context={abilityReading}

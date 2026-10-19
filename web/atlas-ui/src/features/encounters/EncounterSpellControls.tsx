@@ -45,7 +45,8 @@ export function EncounterSpellControls({
   const spell = catalog?.spells.find(
     (s) =>
       s.navigation.record_key === selection.record_key &&
-      JSON.stringify(s.navigation.owners) === JSON.stringify(selection.owners),
+      JSON.stringify(s.navigation.embedded_path) ===
+        JSON.stringify(selection.embedded_path),
   );
   if (!spell || detail.presentation.body.kind !== "spell") return null;
   if (spell.expended !== null) {
@@ -372,13 +373,13 @@ export function encounterCastingAnnotations(props: Actions): CastingAnnotations 
     catalog?.spells.find(
       (s) =>
         s.navigation.record_key === activity.navigation.record_key &&
-        JSON.stringify(s.navigation.owners) ===
-          JSON.stringify(activity.navigation.owners),
+        JSON.stringify(s.navigation.embedded_path) ===
+          JSON.stringify(activity.navigation.embedded_path),
     );
   const entryId = (entry: import("../../generated/atlas").ActorActivityView) =>
-    entry.navigation.owners.map((o) =>
+    entry.navigation.embedded_path.map((o) =>
       "Stable" in o.identity ? o.identity.Stable : undefined,
-    )[entry.navigation.owners.length - 1];
+    )[entry.navigation.embedded_path.length - 1];
   const entryResources = (entry: import("../../generated/atlas").ActorActivityView) => {
     const id = entryId(entry);
     const sharedKeys = new Set(

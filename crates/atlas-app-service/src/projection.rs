@@ -170,7 +170,7 @@ pub(crate) fn relationship_view(
             None,
         ),
         Resolution::Resolved(Target::OwnedNode { key, owners }) => (
-            "resolved_owned",
+            "resolved_embedded",
             Some(RecordNavigationView {
                 spell_rank: None,
                 record_key: key.to_string(),
@@ -195,7 +195,7 @@ pub(crate) fn relationship_view(
             field: Some(o.locator.field.clone()),
             passage: None,
         },
-        source: o.locator,
+        source: o.locator.into(),
         ordinal: o.ordinal,
         origin: o.origin,
         kind: o.kind,
@@ -207,6 +207,7 @@ pub(crate) fn relationship_view(
         target,
         url,
         effect_label: None,
+        contextual_target: None,
     }
 }
 
@@ -473,7 +474,7 @@ mod tests {
                     },
                     "current-generation",
                 );
-                assert_eq!(view.source, locator);
+                assert_eq!(view.source, locator.into());
                 assert_eq!(view.source_navigation.record_key, source_key.to_string());
                 assert_eq!(view.source_navigation.owners, owners);
                 assert_eq!(

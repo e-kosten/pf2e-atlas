@@ -85,9 +85,9 @@ export type { ImportSavedListView } from "../../../../crates/atlas-app-model/bin
 export type { IwrEntryView } from "../../../../crates/atlas-app-model/bindings/IwrEntryView";
 export type { NumberAdjustmentView } from "../../../../crates/atlas-app-model/bindings/NumberAdjustmentView";
 export type { NumberFactView } from "../../../../crates/atlas-app-model/bindings/NumberFactView";
-export type { OwnedContentIdentity } from "../../../../crates/atlas-app-model/bindings/OwnedContentIdentity";
-export type { OwnedContentLocator } from "../../../../crates/atlas-app-model/bindings/OwnedContentLocator";
-export type { OwnedRecordLinkView } from "../../../../crates/atlas-app-model/bindings/OwnedRecordLinkView";
+export type { EmbeddedContentIdentity } from "../../../../crates/atlas-app-model/bindings/EmbeddedContentIdentity";
+export type { EmbeddedContentLocator } from "../../../../crates/atlas-app-model/bindings/EmbeddedContentLocator";
+export type { EmbeddedRecordLinkView } from "../../../../crates/atlas-app-model/bindings/EmbeddedRecordLinkView";
 export type { PhysicalPresentationView } from "../../../../crates/atlas-app-model/bindings/PhysicalPresentationView";
 export type { PhysicalPriceView } from "../../../../crates/atlas-app-model/bindings/PhysicalPriceView";
 export type { PreparedContentFieldView } from "../../../../crates/atlas-app-model/bindings/PreparedContentFieldView";
@@ -112,11 +112,11 @@ export type { RecordBadgeView } from "../../../../crates/atlas-app-model/binding
 export type { RecordBodyView } from "../../../../crates/atlas-app-model/bindings/RecordBodyView";
 export type { RecordDetailRequest } from "../../../../crates/atlas-app-model/bindings/RecordDetailRequest";
 export type { RecordDetailView } from "../../../../crates/atlas-app-model/bindings/RecordDetailView";
-export type { OwnedReadingRequest } from "../../../../crates/atlas-app-model/bindings/OwnedReadingRequest";
-export type { OwnedReadingSelection } from "../../../../crates/atlas-app-model/bindings/OwnedReadingSelection";
-export type { OwnedReadingCursor } from "../../../../crates/atlas-app-model/bindings/OwnedReadingCursor";
-export type { OwnedReadingBatchView } from "../../../../crates/atlas-app-model/bindings/OwnedReadingBatchView";
-export type { OwnedReadingEntryView } from "../../../../crates/atlas-app-model/bindings/OwnedReadingEntryView";
+export type { EmbeddedReadingRequest } from "../../../../crates/atlas-app-model/bindings/EmbeddedReadingRequest";
+export type { EmbeddedReadingSelection } from "../../../../crates/atlas-app-model/bindings/EmbeddedReadingSelection";
+export type { EmbeddedReadingCursor } from "../../../../crates/atlas-app-model/bindings/EmbeddedReadingCursor";
+export type { EmbeddedReadingBatchView } from "../../../../crates/atlas-app-model/bindings/EmbeddedReadingBatchView";
+export type { EmbeddedReadingEntryView } from "../../../../crates/atlas-app-model/bindings/EmbeddedReadingEntryView";
 export type { RecordKey } from "../../../../crates/atlas-app-model/bindings/RecordKey";
 export type { RecordListView } from "../../../../crates/atlas-app-model/bindings/RecordListView";
 export type { RecordNavigationView } from "../../../../crates/atlas-app-model/bindings/RecordNavigationView";
@@ -171,7 +171,7 @@ export type { RollInitiativeRequest } from "../../../../crates/atlas-app-model/b
 export type { InitiativeRollView } from "../../../../crates/atlas-app-model/bindings/InitiativeRollView";
 export type { SimilarRecordsView } from "../../../../crates/atlas-app-model/bindings/SimilarRecordsView";
 export type { SourceByteRange } from "../../../../crates/atlas-app-model/bindings/SourceByteRange";
-export type { SourceContentLocator } from "../../../../crates/atlas-app-model/bindings/SourceContentLocator";
+export type { ContentLocationView } from "../../../../crates/atlas-app-model/bindings/ContentLocationView";
 export type { SourcePassageAddress } from "../../../../crates/atlas-app-model/bindings/SourcePassageAddress";
 export type { SpellAreaView } from "../../../../crates/atlas-app-model/bindings/SpellAreaView";
 export type { SpellChangeView } from "../../../../crates/atlas-app-model/bindings/SpellChangeView";
@@ -221,3 +221,4 @@ export type { StrikeDamageRollView } from "../../../../crates/atlas-app-model/bi
 export type { EncounterStrikeRollView } from "../../../../crates/atlas-app-model/bindings/EncounterStrikeRollView";
 
 export type { SearchRanking } from "../../../../crates/atlas-app-model/bindings/SearchRanking";
+export type { ConsumableDamageView } from "../../../../crates/atlas-app-model/bindings/ConsumableDamageView";

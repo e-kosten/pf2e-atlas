@@ -388,7 +388,7 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["predicate"]["field"], "kind");
     let (status, body) = route_json(Method::POST, "/api/records/detail", Some(json!({
-        "record_key":"actions:testAction1","owners":[],"fields":[],"passage":null,"source_fingerprint":null
+        "record_key":"actions:testAction1","embedded_path":[],"fields":[],"passage":null,"source_fingerprint":null
     }))).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["record"]["record_key"], "actions:testAction1");
@@ -810,7 +810,7 @@ async fn hp_actions_require_explicit_contract_and_use_path_identity_and_receipt(
 
 #[tokio::test]
 async fn dice_routes_forward_typed_requests_and_conflicts() {
-    let selection = json!({"record_key":"tables:example","owners":[],"fields":[],"passage":null,"source_fingerprint":null});
+    let selection = json!({"record_key":"tables:example","embedded_path":[],"fields":[],"passage":null,"source_fingerprint":null});
     let (status, body) = route_json(Method::GET, "/api/encounters/ambush/initiative", None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["encounter_key"], "ambush");
@@ -974,11 +974,11 @@ impl AtlasWebService for MockService {
     ) -> Result<RecordDetailView, AppServiceError> {
         self.record_detail_at(request.selection)
     }
-    fn owned_reading(
+    fn embedded_reading(
         &self,
-        request: atlas_app_model::OwnedReadingRequest,
-    ) -> Result<atlas_app_model::OwnedReadingBatchView, AppServiceError> {
-        Ok(atlas_app_model::OwnedReadingBatchView {
+        request: atlas_app_model::EmbeddedReadingRequest,
+    ) -> Result<atlas_app_model::EmbeddedReadingBatchView, AppServiceError> {
+        Ok(atlas_app_model::EmbeddedReadingBatchView {
             artifact_generation: request.artifact_generation,
             parent: request.parent,
             availability: atlas_domain::QueryFieldState::Value,
@@ -1029,7 +1029,7 @@ impl AtlasWebService for MockService {
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
         let mut record = record_summary();
         record.record_key = record_key.to_string();
-        Ok(serde_json::from_value(json!({"artifact_generation":"test-generation","record":record.clone(),"presentation":{"classification":record.kind_label,"identity":record,"content":[],"owned":[],"body":{"kind":"content"}},"selected":{"record_key":record_key,"owners":[],"field":null,"passage":null,"source_fingerprint":null},"relationships":[],"relationships_truncated":false})).expect("typed record fixture"))
+        Ok(serde_json::from_value(json!({"artifact_generation":"test-generation","record":record.clone(),"presentation":{"classification":record.kind_label,"identity":record,"content":[],"embedded":[],"body":{"kind":"content"}},"selected":{"record_key":record_key,"embedded_path":[],"field":null,"passage":null,"source_fingerprint":null},"relationships":[],"relationships_truncated":false})).expect("typed record fixture"))
     }
 
     fn related_records(
@@ -1611,7 +1611,7 @@ async fn filter_discovery_transport_keeps_explicit_vocabulary_and_optional_unava
 
 #[tokio::test]
 async fn related_request_transports_complete_selection_and_generation() {
-    let selection = json!({"record_key":"actors:test000000000000","owners":[{"collection":"/items","identity":{"SnapshotLocal":{"index":0}}}],"field":"/system/description/value","passage":null,"source_fingerprint":"source-fingerprint"});
+    let selection = json!({"record_key":"actors:test000000000000","embedded_path":[{"collection":"/items","identity":{"SnapshotLocal":{"index":0}}}],"field":"/system/description/value","passage":null,"source_fingerprint":"source-fingerprint"});
     let (status, body) = route_json(
         Method::POST,
         "/api/related",

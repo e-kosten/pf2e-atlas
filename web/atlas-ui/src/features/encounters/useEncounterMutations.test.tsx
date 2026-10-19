@@ -170,7 +170,7 @@ it.each([false, true])(
   async (alreadyRestored) => {
     const selection = {
       record_key: "actors:caster",
-      owners: [],
+      embedded_path: [],
       field: null,
       passage: null,
       source_fingerprint: null,
@@ -228,7 +228,7 @@ it("shows concise action feedback for failed casts without exposing server detai
             kind: "cast",
             selection: {
               record_key: "actors:caster",
-              owners: [],
+              embedded_path: [],
               field: null,
               passage: null,
               source_fingerprint: null,

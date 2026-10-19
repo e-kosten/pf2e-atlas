@@ -4,16 +4,16 @@ import type { SpellPresentationView } from "../../generated/atlas";
 
 export function SpellRankControl({
   spell,
-  owned,
+  embedded,
   onChange,
 }: {
   spell: SpellPresentationView;
-  owned: boolean;
+  embedded: boolean;
   onChange: (rank: number | undefined) => void;
 }) {
   const base = Number(spell.base_rank.value);
   const rank = Number(spell.rank.value);
-  const [openingRank] = useState(() => (owned ? rank : base));
+  const [openingRank] = useState(() => (embedded ? rank : base));
   return (
     <div className="spell-rank-control">
       <div className="spell-rank-control__row">

@@ -195,7 +195,36 @@ pub(crate) fn record_presentation(
                 )))
             }
             SelectedItemBody::Physical => {
-                RecordBodyView::PhysicalReference(Box::new(physical(item)))
+                let mut view = physical(item);
+                if let (Some(consumable), ItemSourceView::ConsumableSource(source)) =
+                    (&mut view.consumable, item)
+                {
+                    consumable.spell = fact(
+                        SourceFieldView::from(&source.system)
+                            .and_then(|s| (&s.spell).into())
+                            .and_then(|_| match owned.pop() {
+                                Some(mut link) => {
+                                    if let Some(SourceNodeView::Item(
+                                        ItemSourceView::SpellSource(spell),
+                                    )) = record.node_at(&link.navigation.owners)
+                                    {
+                                        let ranks = spell_context::ranks(record, spell);
+                                        link.navigation.spell_rank = if ranks.len() == 1 {
+                                            Some(ranks[0])
+                                        } else {
+                                            None
+                                        };
+                                    }
+                                    SourceFieldView::Value(link)
+                                }
+                                None => SourceFieldView::ProjectionInvalid {
+                                    source_path: "/system/spell",
+                                    reason: "Embedded spell address unavailable",
+                                },
+                            }),
+                    );
+                }
+                RecordBodyView::PhysicalReference(Box::new(view))
             }
             SelectedItemBody::Content => RecordBodyView::Content,
         },
@@ -475,14 +504,38 @@ pub(crate) fn owned_links(
     node: SourceNodeView<'_>,
     owners: &[OwnedContentLocator],
     fingerprint: &str,
-) -> Vec<OwnedRecordLinkView> {
+) -> Vec<EmbeddedRecordLinkView> {
     let mut links = vec![];
+    if matches!(
+        node,
+        SourceNodeView::Item(ItemSourceView::ConsumableSource(_))
+    ) {
+        record.visit_immediate_children(owners, |path, child| {
+            if let SourceNodeView::Item(ItemSourceView::SpellSource(_)) = child {
+                links.push(EmbeddedRecordLinkView {
+                    navigation: RecordNavigationView {
+                        spell_rank: None,
+                        record_key: record.key().to_string(),
+                        source_fingerprint: navigation_fingerprint(path, fingerprint),
+                        owners: path.to_vec(),
+                        field: None,
+                        passage: None,
+                    },
+                    title: node_title(child),
+                    family: "spell".into(),
+                    usage: None,
+                    action_cost: unavailable(),
+                });
+            }
+        });
+        return links;
+    }
     if !owners.is_empty() {
         return links;
     }
     let mut add = |owner: &OwnedContentLocator, child: SourceNodeView<'_>| {
         let owners = vec![owner.clone()];
-        links.push(OwnedRecordLinkView {
+        links.push(EmbeddedRecordLinkView {
             navigation: RecordNavigationView {
                 spell_rank: None,
                 record_key: record.key().to_string(),
@@ -527,12 +580,15 @@ pub(crate) fn owned_links(
     links
 }
 pub(super) fn item_usage(item: ItemSourceView<'_>) -> Option<String> {
-    item.physical_usage().value().map(str::to_owned)
+    item.physical_usage()
+        .value()
+        .map(crate::physical_labels::usage)
 }
 fn physical(item: ItemSourceView<'_>) -> PhysicalPresentationView {
     let price = item.physical_price();
     PhysicalPresentationView {
-        usage: fact(item.physical_usage().map(str::to_owned)),
+        consumable: item_reference::consumable(item),
+        usage: fact(item.physical_usage().map(crate::physical_labels::usage)),
         bulk: number(item.physical_bulk()),
         price: fact(
             price

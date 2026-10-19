@@ -65,6 +65,7 @@ pub struct RecordListView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct GraphContextViewRequest {
     pub record_key: String,
+    #[serde(rename = "embedded_path")]
     pub owners: Option<Vec<atlas_record::source_content::OwnedContentLocator>>,
     pub source_fingerprint: Option<String>,
     pub outgoing_limit: usize,

@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { getRecordDetail } from "../../api/atlasApi";
-import type { RecordNavigationView } from "../../generated/atlas";
+import type { RecordDetailRequest, RecordNavigationView } from "../../generated/atlas";
 
 export function recordDetailQueryOptions(
   recordKey: string | null,
@@ -9,12 +9,12 @@ export function recordDetailQueryOptions(
 ) {
   const request =
     selection &&
-    (selection.owners.length ||
+    (selection.embedded_path.length ||
       selection.field ||
       selection.passage ||
       selection.spell_rank ||
       selection.source_fingerprint)
-      ? { ...selection, fields: selection.field ? [selection.field] : [] }
+      ? recordDetailRequest(selection)
       : undefined;
   return queryOptions({
     queryKey: [
@@ -26,4 +26,11 @@ export function recordDetailQueryOptions(
     queryFn: ({ signal }) => getRecordDetail(recordKey!, request, signal),
     enabled: recordKey !== null,
   });
+}
+
+export function recordDetailRequest(
+  selection: RecordNavigationView,
+): RecordDetailRequest {
+  const { field, ...address } = selection;
+  return { ...address, fields: field ? [field] : [] };
 }

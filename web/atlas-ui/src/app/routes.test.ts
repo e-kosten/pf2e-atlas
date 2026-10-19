@@ -152,7 +152,9 @@ describe("atlas routes", () => {
     const recordKey = "actors:key/with space?query#fragment%value:tail";
     const selection = {
       record_key: recordKey,
-      owners: [{ collection: "items", identity: { SnapshotLocal: { index: 2 } } }],
+      embedded_path: [
+        { collection: "items", identity: { SnapshotLocal: { index: 2 } } },
+      ],
       field: "system.description.value",
       passage: { kind: "identity" as const },
       source_fingerprint: "snapshot:full/hash",
@@ -188,12 +190,14 @@ describe("atlas routes", () => {
 });
 
 it.each(["search", "list", "reader"])(
-  "returns an owned selection to its known %s context with distinct exact landing and native href",
+  "returns an embedded selection to its known %s context with distinct exact landing and native href",
   (kind) => {
     const parent = "actors:checked";
     const selection = {
       record_key: parent,
-      owners: [{ collection: "/items", identity: { SnapshotLocal: { index: 400 } } }],
+      embedded_path: [
+        { collection: "/items", identity: { SnapshotLocal: { index: 400 } } },
+      ],
       field: null,
       passage: null,
       source_fingerprint: "checked-snapshot",
