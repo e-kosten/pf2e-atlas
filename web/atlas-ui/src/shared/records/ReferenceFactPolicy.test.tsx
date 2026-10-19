@@ -187,7 +187,11 @@ describe("reference fact reading policy", () => {
       owned: [],
       body: {
         kind: "roll_table",
-        value: { formula: knownFact(" "), results: knownFact([]) },
+        value: {
+          roll_note: "Reference rolls may repeat; results are not consumed.",
+          formula: knownFact(" "),
+          results: knownFact([]),
+        },
       },
     };
     const { rerender } = render(

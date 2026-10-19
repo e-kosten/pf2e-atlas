@@ -84,6 +84,7 @@ export function activityFixture(
 ): ActorActivityView {
   const na: NumberFactView = { state: "not_applicable", value: null, adjustment: null };
   return {
+    effect_duration: unavailableFact("not_applicable"),
     self_effect: { state: "not_applicable", value: null },
     strike_effects: { state: "not_applicable", value: null },
     focus_capacity: na,
@@ -124,6 +125,8 @@ export function activityFixture(
 }
 export function spellFixture(): SpellPresentationView {
   return {
+    ritual: unavailableFact("not_applicable"),
+    counteraction: knownFact(false),
     base_rank: numberFact(1),
     rank: numberFact(3),
     traditions: knownFact(["arcane", "primal"]),

@@ -1,7 +1,7 @@
 # Source-modeling Capability Follow-through
 
 Status: in_progress
-Priority: agreed sequence; CF-03 scope discussion next
+Priority: agreed sequence; CF-03 implementation approved
 Owner: unassigned
 Last reviewed: 2026-10-18
 
@@ -14,7 +14,7 @@ its documentation, **not implementation of every recommendation**. Confirm the
 selected scope and unresolved product behavior before implementation. Do not
 interpret this list as ten mandatory merge blockers.
 
-CF-01 merged in PR #68 and CF-02 merged in PR #69; CF-03 through CF-10 remain
+CF-01 merged in PR #68 and CF-02 merged in PR #69; CF-03 implementation is approved; CF-04 through CF-10 remain
 unapproved. Mixed-failure precedence is runtime (3), invalid input (2), domain
 miss/ambiguity (1), success (0).
 
@@ -35,7 +35,7 @@ if review warrants it; preserve its ID and record every resulting PR here.
 | --- | --- | --- | --- | --- |
 | CF-01 | CLI batches and error contracts | merged | Approved 2026-10-18 | [PR #68](https://github.com/e-kosten/pf2e-atlas/pull/68); merged as b6a0a684; local validation passed |
 | CF-02 | Creature/hazard reference facts and activity details | merged | Approved 2026-10-18 | [PR #69](https://github.com/e-kosten/pf2e-atlas/pull/69); merged as b0ac0ae5; user accepted reference layout; local validation passed |
-| CF-03 | Ritual/spell, feat/effect and journal/table reference completeness | planned | Pending | Not started |
+| CF-03 | Ritual/spell, feat/effect and journal/table reference completeness | in_progress | Approved 2026-10-18 | UI accepted; implementation and local validation complete; bounded desktop/narrow browser review passed; awaiting PR review and merge |
 | CF-04 | Consumable presentation and nested-spell navigation | planned | Pending | Not started |
 | CF-05 | Physical query fields and labels | planned | Pending | Not started |
 | CF-06 | Encounter status and action-budget policy | planned | Pending | Not started |
@@ -255,7 +255,7 @@ CF-02 investigation found model pin 6.12.4 versus local data 7.12.2. Full admiss
 census: 203 unsupported ammo roots and 712 actors with unavailable items collections
 in 7.12.2. Keep these follow-ups distinct from CF-03 through CF-10:
 
-- SV-01 (in_progress, approved; [PR #70](https://github.com/e-kosten/pf2e-atlas/pull/70), locally validated): one canonical immutable revision for default
+- SV-01 (merged; [PR #70](https://github.com/e-kosten/pf2e-atlas/pull/70), locally validated): one canonical immutable revision for default
   reference acquisition and generated model identity. Preserve supplied checkouts
   and saved state; validate source compatibility before product builds. Initial
   supported revision remains 6.12.4. ADR0052 defines the boundary.

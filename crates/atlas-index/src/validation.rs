@@ -308,7 +308,7 @@ fn validate_content(
         {
             match serde_json::to_string(owners) {
                 Ok(owners) => {
-                    expected.insert((owners, selection.field.to_owned()), selection);
+                    expected.insert((owners, selection.field.to_string()), selection);
                 }
                 Err(error) => owner_error = Some(error),
             }

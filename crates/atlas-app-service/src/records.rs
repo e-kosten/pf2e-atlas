@@ -147,7 +147,7 @@ pub(crate) fn read_record_detail(
     if request
         .fields
         .iter()
-        .any(|f| !selections.iter().any(|s| s.field == f))
+        .any(|f| !selections.iter().any(|s| s.field == f.as_str()))
     {
         return Err(AppServiceError::invalid_request(
             "selected field is not declared content of the selected owner",
@@ -157,9 +157,11 @@ pub(crate) fn read_record_detail(
         .into_iter()
         .filter(|s| {
             if request.fields.is_empty() {
-                s.role != SourceContentRole::Name && matches!(s.text, SourceFieldView::Value(_))
+                s.role != SourceContentRole::Name
+                    && (matches!(s.text, SourceFieldView::Value(_))
+                        || s.role == SourceContentRole::Prerequisite)
             } else {
-                request.fields.iter().any(|f| f == s.field)
+                request.fields.iter().any(|f| f.as_str() == s.field)
             }
         })
         .collect();
@@ -170,11 +172,14 @@ pub(crate) fn read_record_detail(
     }
     let locators: Vec<_> = selected
         .iter()
-        .filter(|s| matches!(s.format, SourceFieldView::Value(SourceContentFormat::Html)))
+        .filter(|s| {
+            matches!(s.text, SourceFieldView::Value(_))
+                && matches!(s.format, SourceFieldView::Value(SourceContentFormat::Html))
+        })
         .map(|s| SourceContentLocator {
             record: key.clone(),
             owners: request.owners.clone(),
-            field: s.field.into(),
+            field: s.field.to_string(),
         })
         .collect();
     let content = r.read_attributed_content(&locators)?;

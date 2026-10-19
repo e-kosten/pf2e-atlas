@@ -237,6 +237,34 @@ export function SpellReference({ spell }: { spell: SpellPresentationView }) {
           <FactLine label="Requirements" fact={spell.requirements} />
         )}
         {spell.cost && <FactLine label="Cost" fact={spell.cost} />}
+        {spell.ritual.value ? (
+          <>
+            <FactLine
+              label="Primary check"
+              fact={spell.ritual.value.primary_check}
+              required
+            />
+            <FactRow label="Secondary casters">
+              <NumberFact fact={spell.ritual.value.secondary_casters} />
+            </FactRow>
+            <FactLine
+              label="Secondary checks"
+              fact={spell.ritual.value.secondary_checks}
+              required
+            />
+          </>
+        ) : (
+          spell.ritual.state !== "missing" && (
+            <FactLine label="Ritual casting" fact={spell.ritual} />
+          )
+        )}
+        {spell.counteraction.value !== false && (
+          <FactLine
+            label="Counteract"
+            fact={spell.counteraction}
+            format={() => "Yes"}
+          />
+        )}
         <FactLine label="Range" fact={spell.range} />
         <FactLine label="Target" fact={spell.target} />
         {spell.area && <Area fact={spell.area} />}

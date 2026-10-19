@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 pub enum SourceContentRole {
     Name,
     Description,
+    Prerequisite,
     Notes,
     Routine,
     Disable,
@@ -65,7 +66,7 @@ impl SourceContentOutcome {
 }
 
 pub struct SourceContentSelection<'a> {
-    pub field: &'static str,
+    pub field: std::borrow::Cow<'static, str>,
     pub role: SourceContentRole,
     pub format: SourceFieldView<'a, SourceContentFormat>,
     pub visibility: SourceFieldView<'a, ContentVisibilityRule>,
@@ -160,7 +161,7 @@ pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<SourceContentSel
     let mut out = Vec::new();
     let mut add = |field, role, format, visibility, text| {
         out.push(SourceContentSelection {
-            field,
+            field: std::borrow::Cow::Borrowed(field),
             role,
             format: SourceFieldView::Value(format),
             visibility: SourceFieldView::Value(visibility),
@@ -348,7 +349,7 @@ pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<SourceContentSel
                 ),
             ] {
                 out.push(SourceContentSelection {
-                    field,
+                    field: field.into(),
                     role: Biography,
                     format: SourceFieldView::Value(Html),
                     visibility: visible,
@@ -388,7 +389,7 @@ pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<SourceContentSel
                 ),
             ] {
                 out.push(SourceContentSelection {
-                    field,
+                    field: field.into(),
                     role: Biography,
                     format: SourceFieldView::Value(Plain),
                     visibility: visible.map(|v| if *v { All } else { Owner }),
@@ -422,7 +423,8 @@ pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<SourceContentSel
                         "/text/markdown"
                     } else {
                         "/text/content"
-                    },
+                    }
+                    .into(),
                     role: Description,
                     format,
                     visibility: SourceFieldView::Value(All),
@@ -434,7 +436,7 @@ pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<SourceContentSel
                 });
             }
             out.push(SourceContentSelection {
-                field: "/image/caption",
+                field: "/image/caption".into(),
                 role: Caption,
                 format: SourceFieldView::Value(Plain),
                 visibility: SourceFieldView::Value(All),
@@ -452,6 +454,33 @@ pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<SourceContentSel
         SourceNodeView::Actor(ActorSourcePF2e::FamiliarSource(_))
         | SourceNodeView::Journal(_)
         | SourceNodeView::Macro(_) => {}
+    }
+    if let SourceNodeView::Item(super::ItemSourceView::FeatSource(feat)) = source {
+        let values = SourceFieldView::from(&feat.system)
+            .and_then(|s| (&s.prerequisites).into())
+            .and_then(|p| (&p.value).into());
+        // PF2e 6.12.4 feat embedHTMLString enriches prerequisite text. Select each
+        // entry independently to retain its exact address and link attribution.
+        match values {
+            SourceFieldView::Value(values) => {
+                for (index, value) in values.iter().enumerate() {
+                    out.push(SourceContentSelection {
+                        field: format!("/system/prerequisites/value/{index}/value").into(),
+                        role: Prerequisite,
+                        format: SourceFieldView::Value(Html),
+                        visibility: SourceFieldView::Value(All),
+                        text: (&value.value).into(),
+                    });
+                }
+            }
+            other => out.push(SourceContentSelection {
+                field: "/system/prerequisites/value".into(),
+                role: Prerequisite,
+                format: SourceFieldView::Value(Html),
+                visibility: SourceFieldView::Value(All),
+                text: other.and_then(|_| SourceFieldView::NotApplicable),
+            }),
+        }
     }
     out
 }

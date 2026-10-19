@@ -102,6 +102,20 @@ describe("authored action costs", () => {
     expect(screen.getByText("reaction")).toHaveClass("sr-only");
   });
 
+  it.each(["missing", "null", "invalid"] as const)(
+    "keeps %s action cost out of the record heading",
+    (state) => {
+      const presentation = detailFixture("feats:test", "Example feat").presentation;
+      presentation.body = {
+        kind: "activity",
+        value: { ...activityFixture(), action_cost: unavailableFact(state) },
+      };
+      render(<RecordPresentation presentation={presentation} onReference={vi.fn()} />);
+      expect(screen.getByRole("heading", { name: "Example feat" })).toBeVisible();
+      expect(screen.getByText("Action cost")).toBeVisible();
+    },
+  );
+
   it("shows a typed glyph in an authored spell patch without losing explicit clears", () => {
     const changes: SpellChangeView = {
       cast: knownFact({ glyph: "free_action", label: "free action" }),

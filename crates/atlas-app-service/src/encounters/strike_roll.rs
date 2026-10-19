@@ -237,6 +237,7 @@ mod tests {
     #[test]
     fn strike_attack_penalties_preserve_agile_and_unknown_modifiers() {
         let mut activity: ActorActivityView = serde_json::from_value(serde_json::json!({
+            "effect_duration":{"state":"not_applicable","value":null},
             "self_effect":{"state":"not_applicable","value":null},
             "strike_effects":{"state":"value","value":[]},
             "focus_capacity":{"state":"not_applicable","value":null,"adjustment":null},

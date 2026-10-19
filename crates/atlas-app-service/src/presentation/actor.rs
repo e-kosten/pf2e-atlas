@@ -390,6 +390,7 @@ pub(super) fn authored_activity(
         ),
     };
     let mut activity = ActorActivityView {
+        effect_duration: item_reference::effect_duration(item),
         self_effect: fact(
             match item.self_effect() {
                 SourceFieldView::Null => SourceFieldView::NotApplicable,
