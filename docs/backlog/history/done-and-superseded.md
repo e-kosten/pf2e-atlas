@@ -6,6 +6,18 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Contextual filter option counts](items/web-contextual-option-counts.md)
+  PR60 delivered shared contextual option counts, self-exclusion, stable picker updates and supported-context behavior. Query-text counts remain a separate deferred task.
+
+- [Database design and release readiness](items/database-release-readiness.md)
+  PR66 replaced the two-file design with one persistent SQLite workspace, domain-owned schemas, a coordinated migration ledger, bounded sessions and state-preserving publication. ADR0051 records the decision and upgrade guarantees. Future parties, campaigns and user roles remain separate product work.
+
+- [Embedding reuse across preparation upgrades](items/embedding-reuse-preparation-upgrades.md)
+  PR66 introduced durable exact-input embedding checkpoints independent of active content/projection versions. Model/input identity and vector integrity govern reuse; normal readers retain their content-version checks. ADR0051 records the boundary; later lexical upgrades and PR74 exercised unchanged-input reuse.
+
+- [Product filter paths and semantics](items/product-filter-shape.md)
+  PR66 replaced source-oriented public paths with meaningful namespaces and explicit embedded collections. Standalone spell predicates and embedded.spells are separate scopes; a kind filter does not switch their meaning. physical.unit_price_gp makes the unit explicit. Shared catalog, CEL and structured UI predicates use these semantics.
+
 - [Effect reference presentation](items/effect-reference-presentation.md)
   Compact unlabeled effect links preserve explicit source labels, distinct
   choices, native destinations and shared previews. Status: done.

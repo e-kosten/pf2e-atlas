@@ -1,9 +1,17 @@
 # Product filter paths and semantics
 
-Status: proposed
+Status: done
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-10-17
+Last reviewed: 2026-10-19
+
+## Completed outcome
+
+PR66 replaced source-oriented public paths with meaningful namespaces and explicit embedded collections. Standalone spell predicates and embedded.spells are separate scopes; a kind filter does not switch their meaning. physical.unit_price_gp makes the unit explicit. Shared catalog, CEL and structured UI predicates use these semantics.
+
+The scope below records the original task; it is not outstanding implementation.
+
+## Original scope
 
 Review the public filter vocabulary independently of Foundry's Actor/Item source
 organization. Spells, feats and actions are Items; hazards and vehicles are Actors.

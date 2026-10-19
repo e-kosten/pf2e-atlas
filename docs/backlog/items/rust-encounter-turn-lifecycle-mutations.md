@@ -3,13 +3,20 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-06-26
+Last reviewed: 2026-10-19
+
+## Current baseline
+
+Round-based condition durations and end-turn reminders landed with the encounter
+workflow. Non-round durations remain table reminders; persistent damage is not
+automatically rolled. Build further lifecycle rules on those existing contracts,
+not a second frontend event loop. The scope below concerns remaining rule effects.
 
 ## Problem
 
-Encounter runtime projection can now show action budgets, speeds, condition effects, and runtime notes, but turn progression is still mostly navigation. Several PF2E effects need mutation at specific encounter lifecycle points rather than passive projection.
+Encounter runtime projection can now show action budgets, speeds, condition effects, and runtime notes, and turn progression already supports duration/reminder events. Several PF2E effects need mutation at specific encounter lifecycle points rather than passive projection.
 
-Examples include condition durations that tick down on turn passage, stunned-with-a-value consuming regained or remaining actions, future slowed/quickened integration with turn progression, and persistent damage or recovery-check workflows. If these are added ad hoc from UI button handlers, the encounter runner will split rule timing across browser state, app-service projection, and local-state rows.
+Remaining examples include stunned-with-a-value consuming regained or remaining actions, future slowed/quickened integration with turn progression, and persistent damage or recovery-check workflows. If these are added ad hoc from UI button handlers, the encounter runner will split rule timing across browser state, app-service projection, and local-state rows.
 
 ## Desired Outcome
 

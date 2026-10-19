@@ -1,11 +1,19 @@
 # Ingest and reference build performance
 
-Status: in_progress
+Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-18
+Last reviewed: 2026-10-19
 
-## Problem
+## Remaining work
+
+PR74 completed the measured optimization below. Further work should target shared
+passage segmentation/tokenization, broader hardware measurements, and bounded
+inference/batching profiles where an actual bottleneck warrants it. Do not repeat
+the original full build or imply that its debug timing measures release behavior.
+New optimization requires a measured hypothesis and unchanged output/state checks.
+
+## Original observation
 
 The full-corpus FTS preview build took 2,139,209 ms (about 36 minutes) for
 25,641 records while reusing 260,040 unique inputs across BGE Base and
