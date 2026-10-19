@@ -48,8 +48,9 @@ if grep -Eq '^cargo (clippy|test|build)|^npm .* run (lint|typecheck|verify)$' "$
   echo "commit checks unexpectedly ran compilation, lint or tests" >&2
   exit 1
 fi
+printf 'crates/example/src/lib.rs\nweb/atlas-ui/src/example.ts\n' >"$tmp/application-paths"
 : >"$log"
-verbose_output=$(ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" "$repo_root/scripts/verify-changed.sh" --all --full --verbose 2>&1)
+verbose_output=$(ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" "$repo_root/scripts/verify-changed.sh" --paths-file "$tmp/application-paths" --full --verbose 2>&1)
 if ! printf '%s\n' "$verbose_output" | grep -Eq '(cargo|npm) detail output'; then
   echo "verbose full changed-path verification did not surface command detail output" >&2
   exit 1
@@ -76,6 +77,11 @@ sh "$repo_root/scripts/git-hooks/test-pre-push.sh"
 cp "$repo_root/.githooks/pre-commit" "$repo_root/.githooks/pre-merge-commit" "$fixture/.githooks/"
 cp "$repo_root/scripts/git-hooks/common.sh" "$fixture/scripts/git-hooks/common.sh"
 cp "$repo_root/scripts/verify-changed.sh" "$repo_root/scripts/verify.sh" "$fixture/scripts/"
+mkdir -p "$fixture/scripts/validation" "$fixture/scripts/release"
+cp "$repo_root/scripts/validation/run-check.sh" "$fixture/scripts/validation/"
+for stub in validation/research.sh release/validate-release-tooling.sh release/test-release-tools.sh release/test-prepare-release.sh; do
+  printf '#!/bin/sh\nprintf "extra check\\n" >> "$ATLAS_TEST_COMMAND_LOG"\n' >"$fixture/scripts/$stub"
+done
 git init --quiet "$fixture"
 git -C "$fixture" config user.name 'Atlas hook fixture'
 git -C "$fixture" config user.email 'atlas-hook-fixture@example.invalid'
@@ -170,3 +176,73 @@ case_count=$((case_count + 1))
 printf 'Passed hook fixture: invalid diff range fails before gates\n'
 
 printf 'git-hook common smoke tests and %s fixture cases passed\n' "$case_count"
+
+# Explicit surfaces, dependency fan-out, and conservative unknown inputs.
+for entry in \
+  'README.md:00000' \
+  'docs/research/evaluations/frozen/README.md:00001' \
+  'docs/research/evaluations/frozen/judgments.jsonl:00001' \
+  'docs/research/evaluations/frozen/verify.ts:00001' \
+  'dev-tools/source-contracts/tests/fixture.md:00100' \
+  'dev-tools/release/src/check.ts:00010' \
+  'crates/atlas-foundry-model/src/lib.rs:10100' \
+  'crates/atlas-app-model/bindings/Search.ts:11000' \
+  'Cargo.lock:11110' \
+  'crates/atlas-cli/Cargo.toml:11110' \
+  'THIRD-PARTY-NOTICES.md:00010' \
+  'skills/pf2e-atlas-cli/SKILL.md:10000' \
+  '.cargo/config.toml:11111' \
+  '.github/workflows/ci.yml:11111' \
+  'unknown.config:11111'; do
+  changed_path=${entry%:*}
+  expected=${entry##*:}
+  printf '%s\n' "$changed_path" >"$fixture/paths-input"
+  : >"$log"
+  (cd "$fixture"; scripts/verify-changed.sh --paths-file paths-input --list) >"$check_output"
+  actual=$(sed -e 's/.*=true/1/' -e 's/.*=false/0/' "$check_output" | tr -d '\n')
+  [ "$actual" = "$expected" ] || { echo "wrong selection for $changed_path: $actual" >&2; exit 1; }
+done
+# Validate the real diff path, including deleted source of a rename and file modes.
+git -C "$fixture" add .
+git -C "$fixture" commit --quiet -m 'test: fixture baseline'
+git -C "$fixture" mv crates/example/src/lib.rs docs-only.md
+git -C "$fixture" commit --quiet -m 'test: rename source to prose'
+(cd "$fixture"; scripts/verify-changed.sh --range HEAD~1...HEAD --list) >"$check_output"
+grep -q '^rust=true$' "$check_output"
+chmod +x "$fixture/README.md"
+git -C "$fixture" add README.md
+(cd "$fixture"; scripts/verify-changed.sh --staged --list) >"$check_output"
+[ "$(grep -c '=true$' "$check_output")" -eq 5 ]
+
+# The real research runner rejects missing verifiers and propagates failures.
+cp "$repo_root/scripts/validation/research.sh" "$fixture/scripts/validation/research.sh"
+mkdir -p "$fixture/docs/research/evaluations/frozen"
+if (cd "$fixture"; sh scripts/validation/research.sh) >"$check_output" 2>&1; then
+  echo 'research dataset without verifier accepted' >&2; exit 1
+fi
+printf 'throw new Error("invalid archived evidence");\n' >"$fixture/docs/research/evaluations/frozen/verify.ts"
+if (cd "$fixture"; sh scripts/validation/research.sh) >"$check_output" 2>&1; then
+  echo 'research verifier failure ignored' >&2; exit 1
+fi
+printf 'console.log("evidence verified");\n' >"$fixture/docs/research/evaluations/frozen/verify.ts"
+(cd "$fixture"; sh scripts/validation/research.sh) >"$check_output" 2>&1
+grep -q 'evidence verified' "$check_output"
+printf 'Validation surface, rename, mode and research failure regressions passed.\n'
+
+# Timed checks retain failures, replay diagnostics and report duration to CI.
+summary="$tmp/timing-summary"
+set +e
+(
+  tmp_dir="$tmp"
+  verbose=0
+  GITHUB_STEP_SUMMARY="$summary"
+  export GITHUB_STEP_SUMMARY
+  . "$repo_root/scripts/validation/run-check.sh"
+  run_check 'failure fixture' sh -c 'echo required-diagnostic; exit 23'
+) >"$check_output" 2>&1
+status=$?
+set -e
+[ "$status" -eq 23 ] || { echo 'timing wrapper changed failure status' >&2; exit 1; }
+grep -q 'required-diagnostic' "$check_output"
+grep -Eq 'failure fixture: [0-9]+s \(exit 23\)' "$summary"
+printf 'Timing failure propagation and CI summary regression passed.\n'

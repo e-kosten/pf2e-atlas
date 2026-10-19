@@ -128,6 +128,19 @@ just verify
 
 Docs-only or instruction-only changes do not require the Rust or frontend gates unless the change also affects executable examples, generated output expectations, or another validated artifact. Inspect the diff and check whitespace and any changed links or examples. See `CONTRIBUTING.md` for gate commands and hook behavior.
 
+Complete the agreed implementation scope autonomously, including integration,
+validation and documentation. Use logical commits without shrinking the requested
+outcome or creating approval checkpoints for routine implementation. Request input
+for unresolved consequential decisions, blockers or the early UX review described
+in CONTRIBUTING.md. Scale additional independent review to risk; do not impose a
+fixed multi-review ceremony on every change. Reuse valid checks for unchanged
+inputs and rerun affected checks after substantive changes.
+
+Use `just verify-changed --range <base>...HEAD --list` to discover validation
+ownership. Private tooling and research datasets have their own gates; see
+CONTRIBUTING.md. Unknown paths select all surfaces. CI checks every surface on
+main/nightlies and selects affected surfaces for PRs.
+
 ## Commit Guidelines
 
 Use trunk-based branches such as `feat/<topic>` or `fix/<topic>`. Commit messages must use Conventional Commits and include a summary line; a description body is optional, but when present it must be separated from the summary by a blank line.
@@ -184,7 +197,7 @@ For implementation work, pushing the task branch and opening or updating a PR ar
 
 Provide a stable local build when the change is useful to inspect. Identify its branch, commit, URL or command, and any sample-data limitations; disclose uncommitted differences if present. Keep the reviewed build stable while developing further changes, using a separate checkout or built artifact when necessary. Explicitly identify when an updated build replaces it. UI work requires interaction and visual review alongside automated checks; use Astra sub-agents for presentation review, including actual browser inspection.
 
-Do not merge PRs, push directly to shared integration branches or `main`, publish releases, or discard user state without explicit authorization. Do not use `scripts/land-worktree.sh` or `just land` as the normal landing path. Passing local checks, passing CI, and human acceptance are separate outcomes; report their status independently.
+Do not merge PRs, push directly to shared integration branches or `main`, publish releases, or discard user state without explicit authorization. Do not use `scripts/land-worktree.sh` or `just land-worktree` as the normal landing path. Passing local checks, passing CI, and human acceptance are separate outcomes; report their status independently.
 
 ## Configuration & Data Notes
 
