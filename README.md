@@ -18,19 +18,6 @@ With `atlas`, you can:
 
 ## Quick Start
 
-General dice rolls need no index or embedding model:
-
-```bash
-atlas roll '1d20+12'
-atlas roll '2d20kh1+12' # Keep the higher die
-atlas roll '(2d6+4)*2' --json
-```
-
-Use `kl` to keep the lowest dice. Quote expressions containing spaces or shell
-operators; use `atlas roll -- '-1d6+10'` for a leading minus sign. Human output
-shows the total and arithmetic breakdown; JSON retains every die, its sides and
-kept state, and intermediate totals. These rolls do not change encounter state.
-
 Install the latest release:
 
 ```bash
@@ -50,9 +37,25 @@ Run the standard first-time setup:
 atlas setup
 ```
 
-`atlas setup` fetches or updates the PF2E source data, prepares semantic search support, builds (and repairs) local search data, and verifies that Atlas is ready to use.
+`atlas setup` downloads the supported PF2E source and embedding model, builds
+local reference/search data, and verifies readiness. The first embedding build
+can take a while; later updates reuse compatible embeddings and retain saved
+lists and encounters.
 
-Search supports two baseline model profiles: `bge-base` (BGE Base) and
+Open the browser workspace:
+
+```bash
+atlas web
+```
+
+Use the address printed by the command to search, preview records, organize lists
+and run encounters. Encounter controls include initiative, HP, conditions, spell
+resources and dice; automation covers supported mechanics rather than every
+Foundry rule.
+
+### Search models and ranking
+
+Search supports two model profiles: `bge-base` (BGE Base) and
 `embeddinggemma` (EmbeddingGemma). Fresh setup uses BGE Base. Prepare either profile,
 or repeat the flag to keep both in one artifact:
 
@@ -66,12 +69,15 @@ atlas similar "Treat Wounds" --search-profile bge-base
 An explicit profile must be stored in the artifact; text semantic search also
 requires its verified model cache. Similar uses stored vectors without loading
 model weights. Each request uses one profile. A single-profile setup remains
-available when storage or memory is limited. `atlas setup --no-embeddings` keeps
-lexical search and reference lookup available without models.
+available when storage or memory is limited. `atlas setup --no-embeddings` creates a new
+workspace for lexical search and reference lookup without models. It preserves
+configured models in an existing workspace. Use `atlas search QUERY --retrieval fts`
+for text queries in a lexical-only workspace.
 
 Without a profile flag, search and web use the sole stored profile, or BGE Base
 when both are stored. Running setup again without profile flags preserves the
-requested set for source updates. Explicit setup flags add profiles to that set. Setup repairs selected pinned assets in revision-specific cache directories;
+requested set for source updates. Explicit setup flags add profiles to that set.
+Setup repairs selected pinned assets in revision-specific cache directories;
 switching a built profile does not download assets or rebuild the artifact.
 
 Hybrid search also offers two ranking strategies for comparison: `score` (the
@@ -80,6 +86,8 @@ Both use the same lexical projection and selected embedding model. Change the
 browser ranking picker or run `atlas search "harrowkin" --ranking score` to compare;
 switching does not rebuild search data. Ranking applies to hybrid text search,
 not alphabetical browsing or Similar records.
+
+### Platforms and versions
 
 The installer installs only the `atlas` CLI. The persistent workspace lives in user application-data storage; downloaded source and models stay in cache locations managed by `atlas setup`.
 
@@ -163,91 +171,48 @@ atlas record get equipment-srd:s1vB3HdXjMigYAnY --json
 atlas record source equipment-srd:s1vB3HdXjMigYAnY --json
 ```
 
-With `--json`, `record get` and `record resolve` return one `data.results` entry
-per input, in order, preserving duplicates. Each entry has `input` and `status`,
-plus `value` on success or `error` on failure. The outer status is `ok`, `partial`,
-or `error`, so successful siblings remain usable when another input fails.
-Runtime failures stop further work and mark remaining inputs `unprocessed`.
-Exit codes distinguish success (0), misses/ambiguity (1), invalid input (2),
-and runtime failures (3); mixed failures use the highest code. Command-wide
-failures, such as an unavailable workspace, use a top-level `error` instead.
+Human record reading supports summary, standard (default), and full detail.
+Full expands supported embedded records such as spells and journal pages.
+`record get SPELL_KEY --rank 5` previews a spell at a selected rank without
+spending encounter resources. Embedded spells retain their local casting context.
 
-Human record reading supports summary, standard (the default), and full detail.
-Use `record get <spell-key> --rank 5` to preview supported spell mechanics at a
-selected rank; `--json` carries the same effective facts. Owned spells retain
-their local customizations and use their casting context by default. Rank
-preview never spends encounter resources.
-Prepared HTML uses terminal emphasis when stdout is an interactive terminal.
-Pipes, files, `TERM=dumb` and nonempty `NO_COLOR` use plain text formatting.
-Each successful `record get --json` value has `identity` for what you are reading,
-`selected` for its exact navigation address, and `content` for prepared text
-`fields`, structured `body`, classification and embedded navigation. An embedded
-selection also includes `parent`, identifying its containing record. Root responses
-omit `parent` and serialize identity once. Rank previews report effective facts
-in the selected identity and content.
+`record get --json` returns the complete selected Atlas reference response and
+conflicts with explicit `--detail`. `record source --json` exports the checked
+Foundry DTO, including information outside Atlas's presentation. It includes typed
+presence/union tags and does not require the original source clone.
 
-`record get --json` returns the complete selected Atlas reference response;
-explicit `--detail` and `--json` conflict. `record source --json` instead exports
-the complete checked Foundry DTO from the artifact, including embedded documents
-and fields outside Atlas's presentation. Its presence/union tags describe the
-checked model; it is not original Foundry JSON and needs no source clone.
-
-Explore available filters and nearby record context:
+Discover filters and follow references:
 
 ```bash
 atlas filters fields
-atlas filters fields --text 'maximum hp'
+atlas filters fields --group movement
 atlas filters fields --field defenses.hp.maximum
-atlas filters values --field defenses.hp.maximum --kind creature
-atlas similar "Dirge of Doom" --kind spell
-atlas graph links actionspf2e:1kGNdIIhuglAjIp9
+atlas filters values --field traits --kind spell
+atlas search --kind creature --where 'movement.speeds.exists(s, s.type == "fly" && s.feet >= 30)'
+atlas similar 'Dirge of Doom' --kind spell
+atlas graph uses 'Frightened' --limit 5
 ```
 
-`filters fields` lists the same product groups used by the UI. Use `--group movement`
-to browse Movement and senses, `--field movement.speeds` to inspect a collection,
-or `--text speed` to search across groups. `--all` lists the full flat catalog.
-JSON defaults to the shared grouped editor metadata; `--group` narrows those
-groups. `--field`, `--text` and `--all` return catalog descriptors.
-`filters values` reports
-numeric ranges or collection availability for those field types; categorical
-fields provide paged values alongside availability counts.
+Filters use supported CEL expressions with discoverable types, units and examples.
+Use explicit filters for constraints such as kind, level, rarity and traits;
+omitting query text browses matching records alphabetically. Constraints inside
+one collection `exists` apply to the same entry. Similar finds semantic neighbors;
+graph commands follow explicit references.
 
-`filters fields --field ID` describes allowed choices. `filters values --field ID`
-counts records under the supplied filters: closed fields retain zero-match
-choices, while open fields enumerate observed values. Its `--text` searches values,
-not record descriptions. Use `--offset` and `--limit` to page.
-
-Value counts count each parent record once per value and respect remaster
-preference. Source-availability statistics are before remaster suppression;
-collection occurrences count entries and can exceed the number of records.
-Unsupported discovery contexts return an error, not zero counts.
-
-CEL expresses collection constraints directly:
+Roll dice without a workspace or embedding model:
 
 ```bash
-# Creatures that speak Common
-atlas search --kind creature --where '"common" in languages'
-# Flying speed of at least 30 feet
-atlas search --kind creature --where 'movement.speeds.exists(s, s.type == "fly" && s.feet >= 30)'
-# Fire resistance of at least 10
-atlas search --kind creature --where 'defenses.resistances.exists(r, r.type == "fire" && r.value >= 10)'
-# At least one embedded fire spell of rank 3 or higher
-atlas search --kind creature --where 'embedded.spells.exists(i, "fire" in i.traits && i.spell.rank >= 3)'
+atlas roll '1d20+12'
+atlas roll '2d20kh1+12' # Keep the higher die
+atlas roll '(2d6+4)*2' --json
 ```
 
-Conditions inside one `exists(...)` must match the **same entry**. Separate
-`exists(...)` expressions can match different entries—for example, flight on one
-movement entry and a high speed on another. Scoped discovery IDs such as
-`movement.speeds[].type` identify catalog fields; use `s.type` inside CEL's `exists`.
-Inspect `filters fields --field movement.speeds` to list the collection's entry fields,
-then `filters fields --field 'movement.speeds[].type'` for that field's choices and
-examples. `movement.speeds[]` alone is not a field ID. JSON `--field` output remains
-the exact requested descriptor; use `--text movement.speeds --json` to discover the
-collection and its member descriptors together.
-CLI value discovery retains the entire supplied filter rather than replacing an
-edited condition as a UI picker does. Its scoped value counts can match a different
-entry from an existing collection condition; use `search --where` to test the
-complete same-entry query.
+Use `kl` to keep the lowest dice. Human output shows the total and arithmetic;
+JSON retains individual dice and kept/dropped states. These rolls do not change
+encounter state.
+
+See [CLI examples](docs/cli-examples.md) for batch reads, embedded selections,
+filter collections, search comparison and saved lists.
 
 ## Agent Skill
 
@@ -273,6 +238,11 @@ To inspect existing installs or diagnose a changed skill directory, use:
 atlas agent skills doctor
 ```
 
+After upgrading Atlas, rerun the skill installer to update the installed copy.
+A differing copy requires `--force`; review local edits before replacing it.
+The skill is bundled with the executable, so install it from the Atlas version
+you intend the agent to use.
+
 ## Maintenance
 
 Check setup status without changing local data:
@@ -295,12 +265,6 @@ atlas setup clean --all --yes
 ```
 
 Cleanup supports `--embeddings`, `--source-checkout`, and `--all`, with `--check` for a dry run. It removes external caches, never the persistent workspace or saved lists and encounters. Cleanup that selects every cache target requires `--yes` unless `--check` is used.
-
-To remove downloaded source and model caches:
-
-```bash
-atlas setup clean --all --yes
-```
 
 To uninstall the CLI, remove the `atlas` binary from the path printed by the installer. Your workspace remains in application-data storage.
 
@@ -333,12 +297,19 @@ projections are rebuilt from stored source DTOs. Changed preparation or model
 inputs require corresponding work, while exact compatible vectors are reused
 from durable checkpoints. Interrupted work can resume without discarding saved
 state or already committed inference batches. Maintenance temporarily prevents
-normal access during publication or upgrades. Existing pre-release database
-formats require an explicit fresh workspace; they are not converted automatically.
+normal access during publication or upgrades. The older separate-index/state
+pre-release formats require a fresh workspace;
+they are not converted automatically. Do not delete a workspace to resolve a
+readiness error; inspect `atlas setup --check` first.
 
 ## Automation And JSON
 
-Most commands support `--json`. Successful command payloads are under `data`, and command failures are under `error`.
+Most commands support `--json`. Successful payloads are under `data`, and
+command-wide failures are under `error`. `record get` and `record resolve` return
+ordered `data.results` with per-input status and successful values or errors;
+the outer status may be `partial`. Preserve successful siblings and inspect both
+the payload and exit code. See [CLI examples](docs/cli-examples.md#readiness-and-json)
+for the batch and exit-code contract.
 
 Artifact validation against an invalid artifact is still a successful command invocation: it returns `status: "ok"` with `data.valid: false` and exits with code `3`.
 
@@ -350,9 +321,12 @@ atlas index validate --json
 
 ## Install From Source
 
-For source installation from a local checkout, install Rust 1.95 or newer and run:
+For source installation, install Rust 1.95 or newer and Node.js 22 (the CI version).
+Build the frontend once, then install the CLI (which embeds that frontend):
 
 ```bash
+npm --prefix web/atlas-ui ci
+npm --prefix web/atlas-ui run build
 cargo install --path crates/atlas-cli --locked
 ```
 

@@ -1,16 +1,25 @@
 ---
 name: pf2e-atlas-cli
-description: Answer Pathfinder 2e reference questions using the local Atlas CLI, with strict identity lookup, source-attributed search, typed filters, graph context and saved lists.
+description: Answer Pathfinder 2e reference questions using the local Atlas CLI, with strict identity lookup, source-attributed search, typed filters, graph context, saved lists and dice rolls.
 ---
 
 Use `atlas` for PF2e questions. It reads a local artifact built from the Foundry
 PF2e source. Product reads work without the original source clone. Run
 `atlas --help` and subcommand help when the installed version's surface is unclear.
+Use the caller's workspace (`--index PATH`) consistently across related commands;
+otherwise Atlas uses its global workspace. Encounters are managed through
+`atlas web`; there is no encounter CLI command.
+
+## Readiness and search profiles
 
 Check readiness with `atlas setup --check --json`. Use `atlas setup` to prepare
 source, the default pinned BGE Base profile and artifact, or `atlas setup
---no-embeddings` for lexical search and reference lookup. `atlas index check
---json` checks readiness; `atlas index validate --json` deeply checks the artifact.
+--no-embeddings` for a new lexical-only workspace. On an existing workspace,
+`--no-embeddings` preserves configured profiles; it does not remove them.
+Setup can download assets and run lengthy inference; inspect readiness before
+starting a build and preserve the chosen source, locale and profiles.
+`atlas index check --json` checks readiness; `atlas index validate --json` deeply
+checks the artifact.
 Use `--no-embeddings` with either index command for a lexical workspace. Supported
 workspace upgrades preserve saved state through migrations and component backfills.
 Pre-workspace artifacts are unsupported; create a new workspace rather than deleting
@@ -19,18 +28,20 @@ English by default; `atlas setup --locale fr` or `atlas index build --locale fr`
 prepares that source locale with English fallback. Changing search locale requires
 rebuilding. Setup preserves an existing locale unless explicitly overridden.
 
-The built-in profile IDs are `bge-base` and `embeddinggemma`. Repeat
+The built-in profile IDs are `bge-base` and `embeddinggemma`. Use
 `atlas setup --search-profile bge-base --search-profile embeddinggemma` to build
-both profiles into one artifact. `atlas index build` accepts the same repeated
-flag. `atlas web --search-profile ID` chooses the server default;
+both profiles in one workspace. Setup and `index build` add explicitly requested
+profiles to the configured set; omission preserves that set.
+`atlas web --search-profile ID` chooses the server default;
 `atlas search --search-profile ID` and `atlas similar --search-profile ID` select
 one request. Omitted launch selection uses the sole stored profile, or BGE Base
-when both are stored. Setup without profile flags preserves an existing stored
-set; fresh setup uses BGE Base. Explicit unavailable selections
+when both are stored; fresh setup uses BGE Base. Explicit unavailable selections
 fail; never infer a fallback or mix model scores. Similar uses stored vectors and
 does not require model weights. Search responses report the resolved profile and
 complete artifact generation. These operational choices do not establish a
 quality winner between models.
+
+## Output and exact lookup
 
 Prefer JSON output. `record get` and `record resolve` return ordered
 `data.results`, including for one input. Outer `status` is `ok`, `partial`, or
@@ -40,7 +51,8 @@ siblings when a batch fails. Whole-command failures use a top-level `error`.
 Errors expose `code`, `message`, and optional `details` and recovery hints.
 Exit classes are 0 success, 1 miss/ambiguity, 2 invalid input, 3 runtime failure;
 mixed failures use the highest class. Other data commands use the usual
-`{ "status": "ok", "data": ... }` envelope. A nonzero exit means the requested action did not complete successfully.
+`{ "status": "ok", "data": ... }` envelope. Deep index validation can return
+`status: "ok"` with `data.valid: false` and exit 3; check the payload as well as status.
 Do not treat a failure, ambiguity or bounded candidate count as a complete answer.
 
 Resolve identities before relying on a guessed key:
@@ -87,7 +99,11 @@ source path/hash. Presence tags and retained invalid/additional members are part
 of that checked representation; it is not original Foundry JSON. It works without
 the source clone and does not execute rules or macros.
 
-Search broadly, then inspect the returned record and matching passage:
+## Search and evidence
+
+Use strict resolution for a known name, search for a concept or partial name,
+and query-free search to browse records satisfying filters. Then inspect the
+returned record and matching passage:
 
 ```sh
 atlas search 'Ghoul Fever' --retrieval fts --json
@@ -99,8 +115,15 @@ atlas similar 'Dirge of Doom' --kind spell --json
 
 FTS targets names, verified aliases, typed vocabulary, embedded names and structurally
 named definitions. Semantic search independently covers selected root and embedded
-explanatory prose. Hybrid combines both lanes. Similar uses the seed's stored
-root identity vector. Semantic/hybrid candidate windows are bounded: report the
+explanatory prose. Hybrid is the default; `--retrieval fts` needs no model
+weights, and `--retrieval vector` selects semantic search alone. Hybrid
+`--ranking score` is the default; `--ranking rrf` compares rank-based fusion on
+the same data. Keep the default unless the caller asks to compare approaches.
+Ranking selection does not rebuild data and applies only to hybrid text search.
+A lexical-only workspace needs `--retrieval fts` for text queries.
+Similar uses the seed's stored root identity vector. Its filters constrain
+candidates, not seed resolution; resolve an ambiguous seed separately.
+Semantic/hybrid candidate windows are bounded: report the
 returned coverage and count basis honestly, never describe them as an exhaustive
 corpus census. Result scores are retrieval evidence, not probabilities. Inspect
 up to three supplied root, embedded-item or passage witnesses before explaining why
@@ -114,11 +137,13 @@ returned address to focus detail:
 atlas record get PACK:ID --embedded-path 'EMBEDDED_PATH_JSON' --field /system/description/value --passage 'PASSAGE_ADDRESS_JSON' --json
 ```
 
-Copy owner and passage JSON from a returned witness. If its navigation contains
+Copy embedded-path and passage JSON from a returned witness. If its navigation contains
 `source_fingerprint`, also pass `--source-fingerprint` with that exact value;
 snapshot-local embedded documents become stale when the artifact changes. Do not invent embedded IDs,
 byte ranges or synthetic affliction record keys. GM prose and check DCs are included
 by the artifact policy; unavailable source fields stay unknown instead of zero.
+
+## Filter discovery
 
 Discover filters before constructing a more specific expression:
 
@@ -131,6 +156,7 @@ atlas filters fields --field defenses.hp.maximum --json
 atlas filters values --field traits --kind spell --json
 atlas filters values --field defenses.hp.maximum --kind creature --json
 atlas search --where 'defenses.saves.fortitude >= 12' --print-filter --json
+atlas search --kind spell --where 'level <= 2' --json
 ```
 
 `filters fields` describes allowed choices; `filters values` retains all supplied
@@ -166,6 +192,8 @@ return the query catalog with complete descriptor metadata.
 Numeric and collection discovery return statistics/availability with `values: null`;
 categorical and Boolean fields return paged values plus availability counts.
 
+## Relationships and saved lists
+
 Use graph commands for actual structural context:
 
 ```sh
@@ -196,8 +224,24 @@ Lists share the persistent workspace with reference data. A missing record keeps
 its saved snapshot and explicit unresolved status after a reference update. Use
 the list commands to change saved state; source updates preserve it.
 
+## Dice and source inspection
+
+Dice rolls need no workspace, source or model:
+
+```sh
+atlas roll '1d20+12' --json
+atlas roll '2d20kh1+12' --json
+atlas roll '(2d6+4)*2' --json
+```
+
+`kh`/`kl` keep high/low dice. Quote formulas; put `--` before a formula beginning
+with a minus sign. JSON retains individual dice and kept/dropped states. Report
+the actual returned roll; these commands do not spend resources, deal damage or
+change initiative. Roll-table and encounter actions are available in the web UI.
+
 Use `atlas-dev` only for developer diagnostics: `source load`, `source analyze`,
 `source audit-paths`, `index inspect` and `index record`. These commands are a
 separate unpublished Rust bundle. Original JSON inspection requires an explicit
 `index record --original` request and a configured source clone matching the
-artifact provenance. Product commands do not emit raw DTOs or admission reports.
+artifact provenance. `atlas record source` exports the checked DTO; original file
+bytes and admission diagnostics belong to the developer tooling.
