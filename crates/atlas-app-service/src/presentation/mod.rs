@@ -3,6 +3,7 @@ mod action_cost;
 mod activity_references;
 pub(crate) mod actor;
 mod facts;
+mod item_reference;
 mod spell;
 pub(crate) mod spell_context;
 mod spell_rank;
@@ -198,8 +199,30 @@ pub(crate) fn record_presentation(
             }
             SelectedItemBody::Content => RecordBodyView::Content,
         },
+        SourceNodeView::Journal(journal) => {
+            RecordBodyView::Journal(Box::new(JournalPresentationView {
+                pages: fact(
+                    SourceFieldView::from(&journal.pages).map(|_| std::mem::take(&mut owned)),
+                ),
+            }))
+        }
+        SourceNodeView::JournalPage(page) => {
+            RecordBodyView::JournalPage(Box::new(JournalPagePresentationView {
+                show_body_heading: fact(
+                    SourceFieldView::from(&page.title)
+                        .and_then(|t| (&t.show).into())
+                        .map(|v| *v),
+                ),
+                media_notice: match page.r#type.as_value().map(String::as_str) {
+                    Some("text") => None,
+                    Some(kind) => Some(format!("Media preview unavailable ({kind}).")),
+                    None => Some("Page type unavailable.".into()),
+                },
+            }))
+        }
         SourceNodeView::Table(table) => {
             RecordBodyView::RollTable(Box::new(RollTablePresentationView {
+                roll_note: "Rolls may repeat.".into(),
                 formula: text((&table.formula).into()),
                 results: fact(SourceFieldView::from(&table.results).map(|_| {
                     std::mem::take(&mut owned)

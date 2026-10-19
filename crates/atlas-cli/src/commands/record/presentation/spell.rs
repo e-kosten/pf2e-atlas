@@ -19,6 +19,22 @@ pub(super) fn render(out: &mut String, spell: &SpellPresentationView) {
             text(out, label, value);
         }
     }
+    if let Some(ritual) = known_value(&spell.ritual) {
+        text(out, "Primary check", &ritual.primary_check);
+        super::number(
+            out,
+            "Secondary casters",
+            &ritual.secondary_casters,
+            false,
+            "",
+        );
+        text(out, "Secondary checks", &ritual.secondary_checks);
+    } else if spell.ritual.state != QueryFieldState::Missing {
+        fact(out, "Ritual casting", &spell.ritual, |_| String::new());
+    }
+    if known_value(&spell.counteraction) != Some(&false) {
+        fact(out, "Counteract", &spell.counteraction, |_| "Yes".into());
+    }
     text(out, "Range", &spell.range);
     optional_text(out, "Target", &spell.target);
     if let Some(value) = &spell.area {

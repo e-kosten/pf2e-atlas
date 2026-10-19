@@ -60,34 +60,56 @@ export function ContentFields({
   relationships = [],
   onReference,
   inlineAbility = false,
+  hideDescriptionHeading = false,
 }: {
   fields: PreparedContentFieldView[];
   relationships?: RecordRelationshipView[];
   onReference: RecordReferenceHandler;
   inlineAbility?: boolean;
+  hideDescriptionHeading?: boolean;
 }) {
   const visibleFields = fields.filter(contentFieldVisible);
+  const prerequisites = visibleFields.filter((field) => field.role === "prerequisite");
   return (
     <>
-      {visibleFields.map((field) => (
-        <section
-          className="record-reference__content"
-          key={JSON.stringify(field.locator)}
-        >
-          {inlineAbility ? (
-            field.role !== "description" && (
-              <h5>{contentRoleLabels[field.role] ?? field.role}</h5>
-            )
-          ) : (
-            <h3>{contentRoleLabels[field.role] ?? field.role}</h3>
-          )}
-          <PreparedContent
-            content={field}
-            relationships={relationships}
-            onReference={onReference}
-          />
-        </section>
-      ))}
+      {prerequisites.length > 0 && (
+        <div className="record-fact record-reference__prerequisites">
+          <strong>Prerequisites</strong>
+          <div>
+            {prerequisites.map((field) => (
+              <div key={JSON.stringify(field.locator)}>
+                <PreparedContent
+                  content={field}
+                  relationships={relationships}
+                  onReference={onReference}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {visibleFields
+        .filter((field) => field.role !== "prerequisite")
+        .map((field) => (
+          <section
+            className="record-reference__content"
+            key={JSON.stringify(field.locator)}
+          >
+            {hideDescriptionHeading &&
+            field.role === "description" ? null : inlineAbility ? (
+              field.role !== "description" && (
+                <h5>{contentRoleLabels[field.role] ?? field.role}</h5>
+              )
+            ) : (
+              <h3>{contentRoleLabels[field.role] ?? field.role}</h3>
+            )}
+            <PreparedContent
+              content={field}
+              relationships={relationships}
+              onReference={onReference}
+            />
+          </section>
+        ))}
     </>
   );
 }
@@ -167,7 +189,8 @@ export function RecordIdentity({
         <div className="record-reference__identity">
           {!hideTitle && (
             <h2>
-              {identity.title} {actionCost && <ActionCost fact={actionCost} />}
+              {identity.title}{" "}
+              {actionCost?.state === "value" && <ActionCost fact={actionCost} />}
             </h2>
           )}
           {originalRecord && (
@@ -270,9 +293,9 @@ export function RecordPresentation({
   const usedOwned =
     actor?.activities.value?.map((activity) => JSON.stringify(activity.navigation)) ??
     [];
-  const owned = presentation.owned.filter(
-    (link) => !usedOwned.includes(JSON.stringify(link.navigation)),
-  );
+  const owned = (
+    body.kind === "journal" ? (body.value.pages.value ?? []) : presentation.owned
+  ).filter((link) => !usedOwned.includes(JSON.stringify(link.navigation)));
   return (
     <article
       className={`record-reference${compact ? " record-reference--compact" : ""}${encounter ? " record-reference--encounter" : ""}`}
@@ -326,6 +349,10 @@ export function RecordPresentation({
             }
             relationships={relationships}
             onReference={onReference}
+            hideDescriptionHeading={
+              body.kind === "journal_page" &&
+              body.value.show_body_heading.value === false
+            }
           />
         </div>
       )}
@@ -403,7 +430,7 @@ export function RecordPresentation({
           activity={body.value}
           onReference={onReference}
           selected
-          hideCost={!hideIdentity}
+          hideCost={!hideIdentity && body.value.action_cost.state === "value"}
         />
       )}
       {body.kind === "physical_reference" && (
@@ -432,6 +459,15 @@ export function RecordPresentation({
         ) : (
           <FactLine label="Formula" fact={body.value.formula} required />
         ))}
+      {body.kind === "journal" &&
+        (body.value.pages.value ? (
+          body.value.pages.value.length === 0 && <p>No pages.</p>
+        ) : (
+          <p>Pages unavailable {factText(body.value.pages)}</p>
+        ))}
+      {body.kind === "journal_page" && body.value.media_notice && (
+        <p>{body.value.media_notice}</p>
+      )}
       {body.kind === "table_result" && (
         <div className="record-fact-list">
           <FactLine label="Range" fact={body.value.range} required />

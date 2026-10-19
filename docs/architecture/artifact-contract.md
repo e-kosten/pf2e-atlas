@@ -152,7 +152,7 @@ Font characters are display decoration, not canonical search or terminal text.
 Prepared unresolved references preserve an explicit authored label or a qualified
 authored root name; opaque UUIDs display as unavailable. Their exact authored
 targets and unresolved status remain in relationship evidence and diagnostics.
-The content interpretation identity is `foundry-content/v6`; older prepared
+The content interpretation identity is `foundry-content/v7`; older prepared
 content requires re-preparation even when the physical schema is unchanged.
 Exact compatible embedding checkpoints remain reusable.
 
@@ -299,3 +299,10 @@ SQLite schema migration is required. App-service attaches verified navigation to
 the shared activity projection with one bounded relationship read per selected
 record. Missing targets remain readable references, never inferred name matches.
 Strike-effect names remain authored labels without speculative cross-record links.
+
+Feat prerequisite entries are selected as individually addressed rich fields under
+`/system/prerequisites/value/<index>/value`, following pinned feat embed semantics.
+Selection identity `structural-source-sections/v3` invalidates prepared/search
+projections when these fields are added; setup re-prepares from the configured
+compatible source before readers admit the new artifact. This requires no schema or snapshot migration. Array positions and
+unavailable entries remain explicit; renderers never parse or fall back to raw markup.

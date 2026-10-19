@@ -23,7 +23,7 @@ pub(crate) fn prepared_fields(
         let locator = SourceContentLocator {
             record: key.clone(),
             owners: owners.to_vec(),
-            field: s.field.into(),
+            field: s.field.to_string(),
         };
         let visible = match s.visibility.value() {
             Some(ContentVisibilityRule::All) => true,

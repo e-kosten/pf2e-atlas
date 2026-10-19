@@ -2,4 +2,4 @@
 import type { FactView } from "./FactView";
 import type { RollTableRowView } from "./RollTableRowView";
 
-export type RollTablePresentationView = { formula: FactView<string>, results: FactView<Array<RollTableRowView>>, };
+export type RollTablePresentationView = { roll_note: string, formula: FactView<string>, results: FactView<Array<RollTableRowView>>, };

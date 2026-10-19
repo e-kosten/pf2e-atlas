@@ -175,7 +175,8 @@ impl AtlasAppService {
                     .into_iter()
                     .filter(|s| {
                         s.role != SourceContentRole::Name
-                            && matches!(s.text, SourceFieldView::Value(_))
+                            && (matches!(s.text, SourceFieldView::Value(_))
+                                || s.role == SourceContentRole::Prerequisite)
                     })
                     .collect();
                 if selected_fields + fields.len() > FIELD_LIMIT {
@@ -195,12 +196,16 @@ impl AtlasAppService {
                     fields
                         .iter()
                         .filter(|s| {
-                            matches!(s.format, SourceFieldView::Value(SourceContentFormat::Html))
+                            matches!(s.text, SourceFieldView::Value(_))
+                                && matches!(
+                                    s.format,
+                                    SourceFieldView::Value(SourceContentFormat::Html)
+                                )
                         })
                         .map(|s| SourceContentLocator {
                             record: key.clone(),
                             owners: navigation.owners.clone(),
-                            field: s.field.into(),
+                            field: s.field.to_string(),
                         })
                 })
                 .collect();

@@ -47,12 +47,30 @@ pub fn set_content_interpretation_version(
     path: impl AsRef<Path>,
     version: &str,
 ) -> Result<(), IndexError> {
+    set_preparation_policy(path, |context| {
+        context.content_interpretation_version = version.into()
+    })
+}
+
+pub fn set_content_selection_version(
+    path: impl AsRef<Path>,
+    version: &str,
+) -> Result<(), IndexError> {
+    set_preparation_policy(path, |context| {
+        context.content_selection_version = version.into()
+    })
+}
+
+fn set_preparation_policy(
+    path: impl AsRef<Path>,
+    update: impl FnOnce(&mut crate::SourceArtifactBuildContext),
+) -> Result<(), IndexError> {
     let workspace = Workspace::at(path)?;
     let write = workspace.write(2)?;
     let c = write.connection();
     let mut context = crate::read_stored_reference_context(c)?
         .ok_or_else(|| IndexError::Invalid("fixture has no reference context".into()))?;
-    context.content_interpretation_version = version.into();
+    update(&mut context);
     let json = serde_json::to_string(&context)?;
     c.execute(
         "UPDATE artifact_context SET context_hash=?1,context_json=?2",

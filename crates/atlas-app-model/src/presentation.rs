@@ -61,6 +61,8 @@ pub enum RecordBodyView {
     PhysicalReference(Box<PhysicalPresentationView>),
     RollTable(Box<RollTablePresentationView>),
     TableResult(Box<TableResultPresentationView>),
+    Journal(Box<JournalPresentationView>),
+    JournalPage(Box<JournalPagePresentationView>),
     Content,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -184,6 +186,7 @@ pub enum ActorActivityKindView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorActivityView {
+    pub effect_duration: FactView<EffectDurationView>,
     pub self_effect: FactView<ActivityEffectReferenceView>,
     pub strike_effects: FactView<Vec<String>>,
     pub focus_capacity: NumberFactView,
@@ -230,6 +233,8 @@ pub struct DamageComponentView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SpellPresentationView {
+    pub ritual: FactView<RitualCastingView>,
+    pub counteraction: FactView<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub rank_note: Option<String>,
@@ -334,6 +339,7 @@ pub struct PhysicalPriceView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RollTablePresentationView {
+    pub roll_note: String,
     pub formula: FactView<String>,
     pub results: FactView<Vec<RollTableRowView>>,
 }
@@ -356,4 +362,29 @@ pub struct ActivityEffectReferenceView {
     pub name: FactView<String>,
     pub authored_target: FactView<String>,
     pub navigation: Option<RecordNavigationView>,
+}
+
+/// Authored ritual checks; no DC or eligibility inference.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RitualCastingView {
+    pub primary_check: FactView<String>,
+    pub secondary_casters: NumberFactView,
+    pub secondary_checks: FactView<String>,
+}
+/// Reference duration, distinct from an applied effect's remaining time.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct EffectDurationView {
+    pub duration: FactView<String>,
+    pub sustained: FactView<bool>,
+    pub expiry: FactView<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct JournalPresentationView {
+    pub pages: FactView<Vec<OwnedRecordLinkView>>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct JournalPagePresentationView {
+    pub show_body_heading: FactView<bool>,
+    pub media_notice: Option<String>,
 }

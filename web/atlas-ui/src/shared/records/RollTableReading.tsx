@@ -83,6 +83,7 @@ export function RollTableReading({
         }}
         artifactGeneration={context.generation}
         formula={table.formula.value}
+        rollNote={table.roll_note}
         onResult={receiveResult}
       />
       {matches.map((match) => (
