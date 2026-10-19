@@ -3,7 +3,7 @@
 Status: deferred
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-10-13
+Last reviewed: 2026-10-19
 
 Review upstream Macro documents, enrichments and runtime hooks as inspiration for
 useful Atlas controls, such as rolling an authored formula or presenting a
@@ -23,6 +23,31 @@ Do not infer executable mechanics from trait-description prose.
 
 Define bounded action contracts and tests before adding UI behavior. Keep
 readiness, display, dice execution and contextual gameplay adjudication distinct.
+
+## Runtime callback research
+
+Before reproducing modifier-adjustment behavior, map the upstream producers and
+consumers of `ModifierAdjustment.test`, `getNewValue` and `getDamageType`, starting
+with `AdjustModifierRuleElement` and `adjustModifiers` where present in the pinned
+source. Record:
+
+- Predicate inputs and actor/item/modifier roll options used by `test`.
+- Value resolution, adjustment mode, truncation, application limits, state changes
+  and validation failures used by `getNewValue`.
+- Injected-value resolution and damage-type validation used by `getDamageType`.
+- Selector/slug matching, ordering, suppression and relabeling when applying the
+  adjustments.
+
+Identify missing inputs and required runtime context before extending models.
+Declaration signatures and serialization exclusions preserve source-shape
+evidence, not executable semantics; callback-body changes can alter behavior
+without changing the type graph. Use the current pinned source revision and cite
+the inspected implementations. Preserve older findings as versioned evidence.
+
+The deliverable is a behavior/context mapping and identified gaps, not a general
+rules engine. Coordinate with [condition mechanics](rust-encounter-condition-mechanics.md)
+to reuse work already underway. Keep source interpretation separate from runtime
+execution; see [inline content fidelity](foundry-inline-content-fidelity.md).
 
 ## Concrete encounter requests
 
