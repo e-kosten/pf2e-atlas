@@ -198,6 +198,8 @@ jobs:
         run: npm --prefix dev-tools/release ci --ignore-scripts
       - name: Verify private release tools on Windows
         if: runner.os == 'Windows'
+        # Archive fixtures also need Git Bash's XZ-capable tar.
+        shell: bash
         run: npm --prefix dev-tools/release run verify
       - name: Unix installer and preparation smoke tests
         if: runner.os != 'Windows'
