@@ -544,7 +544,7 @@ a gate.
 | Research datasets, including hash-bound Markdown | Each dataset's offline `verify.ts`, with no inference |
 | Prose documentation | Diff/links/examples review; no application builds |
 | Cargo manifests/lockfile | Rust, frontend, source contracts and release/notices |
-| Shipped agent skill | Rust (the skill is embedded in the CLI) |
+| Shipped agent skill | Metadata and bundled-file coverage checks (`node scripts/validation/skill.ts`); no application build |
 | Unknown paths, workflow or validation infrastructure | All surfaces |
 
 PR CI uses the same path classifier. Renames include the old and new paths;

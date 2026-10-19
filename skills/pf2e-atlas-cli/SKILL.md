@@ -10,6 +10,36 @@ Use the caller's workspace (`--index PATH`) consistently across related commands
 otherwise Atlas uses its global workspace. Encounters are managed through
 `atlas web`; there is no encounter CLI command.
 
+## Installing Atlas
+
+If `atlas --version` is unavailable, install the CLI before attempting lookups.
+Installing this skill with `npx skills add` installs instructions only, not the
+executable or reference data. The skill from the repository's `main` branch tracks
+the nightly CLI. For a released CLI, prefer the matching skill bundled with
+`atlas agent skills install`; consult `atlas --help` when versions differ.
+
+For the current nightly on macOS (Apple Silicon) or Linux:
+
+```sh
+curl -fL https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/atlas-installer.sh -o /tmp/atlas-installer.sh
+sh /tmp/atlas-installer.sh --version nightly
+```
+
+On Windows (PowerShell):
+
+```powershell
+Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/atlas-installer.ps1 -OutFile "$env:TEMP/atlas-installer.ps1"
+& "$env:TEMP/atlas-installer.ps1" -Version nightly
+```
+
+Follow the installer's PATH instructions, then run `atlas --version` and
+`atlas setup --check --json`. If setup is needed, choose normal semantic search
+(`atlas setup`) or a faster lexical-only start (`atlas setup --no-embeddings`)
+with the user before starting downloads and indexing. A first semantic build can
+take hours; installing the skill does not authorize that work by itself.
+For stable releases, supported platforms and manual archive installation, see
+[the installation guide](https://github.com/e-kosten/pf2e-atlas#quick-start).
+
 ## Readiness and search profiles
 
 Check readiness with `atlas setup --check --json`. Use `atlas setup` to prepare
