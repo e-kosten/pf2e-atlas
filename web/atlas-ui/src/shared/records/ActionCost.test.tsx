@@ -76,7 +76,7 @@ describe("authored action costs", () => {
     expect(screen.queryByText("[object Object]")).toBeNull();
   });
 
-  it("uses typed costs for a selected activity and an owned link", () => {
+  it("uses typed costs for a selected activity and an embedded link", () => {
     const activity = activityFixture();
     const { container, rerender } = render(
       <ActorActivity activity={activity} onReference={vi.fn()} selected />,
@@ -86,7 +86,7 @@ describe("authored action costs", () => {
     ).not.toBeNull();
     expect(screen.getByText("1 action")).toHaveClass("sr-only");
     const presentation = detailFixture("actors:party", "Party").presentation;
-    presentation.owned = [
+    presentation.embedded = [
       {
         navigation: activity.navigation,
         title: "Ready",

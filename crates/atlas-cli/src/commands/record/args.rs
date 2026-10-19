@@ -34,15 +34,15 @@ pub(crate) struct RecordGetOptions {
         help = "Human detail: summary identity, standard reference, or full expanded embedded entries; conflicts with --json"
     )]
     pub(crate) detail: TerminalDetail,
-    #[arg(long,help="Checked owner chain JSON from a search witness",value_parser=parse_owners)]
+    #[arg(long="embedded-path",help="Checked embedded path JSON from a search witness",value_parser=parse_owners)]
     pub(crate) owners: Option<OwnerChainArgument>,
-    #[arg(long, help = "Selected field path, relative to the requested owner")]
+    #[arg(long, help = "Selected field path, relative to the selected document")]
     pub(crate) field: Option<String>,
     #[arg(long,help="Exact passage address JSON from a search witness",value_parser=parse_passage,requires="field")]
     pub(crate) passage: Option<SourcePassageAddress>,
     #[arg(
         long,
-        help = "Artifact source fingerprint accompanying snapshot-local owners"
+        help = "Artifact source fingerprint accompanying snapshot-local embedded documents"
     )]
     pub(crate) source_fingerprint: Option<String>,
     #[arg(long)]

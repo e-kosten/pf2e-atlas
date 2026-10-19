@@ -110,6 +110,19 @@ impl SourceBackedRecord {
         });
     }
 
+    /// Visit immediate children of an exact checked selection without inventing addresses.
+    pub fn visit_immediate_children<'a>(
+        &'a self,
+        selected: &[OwnedContentLocator],
+        mut visit: impl FnMut(&[OwnedContentLocator], SourceNodeView<'a>),
+    ) {
+        visit_source_nodes(self.source(), |owners, node| {
+            if owners.len() == selected.len() + 1 && owners.starts_with(selected) {
+                visit(owners, node);
+            }
+        });
+    }
+
     /// Stream the immediate Actor Items with the same checked addressing policy
     /// used by content and relationships. No child bodies or address inventory
     /// are retained; unavailable whole collections yield no salvaged neighbors.

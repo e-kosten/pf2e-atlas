@@ -143,7 +143,7 @@ export function RecordDetailPane({
               generation: detail.artifact_generation,
               parent: {
                 record_key: detail.record.record_key,
-                owners: [],
+                embedded_path: [],
                 field: null,
                 passage: null,
                 source_fingerprint: null,

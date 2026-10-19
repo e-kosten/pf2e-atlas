@@ -209,8 +209,8 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
           participant?.spellcasting?.spells.some(
             (spell) =>
               spell.navigation.record_key === action.selection.record_key &&
-              JSON.stringify(spell.navigation.owners) ===
-                JSON.stringify(action.selection.owners) &&
+              JSON.stringify(spell.navigation.embedded_path) ===
+                JSON.stringify(action.selection.embedded_path) &&
               spell.expended === action.expended,
           )
         )

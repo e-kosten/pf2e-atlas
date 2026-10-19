@@ -49,7 +49,7 @@ export function usePreviewReadingPosition(
     [address, restoringHistory, restorePosition, host],
   );
   useLayoutEffect(() => {
-    // A parent landing may render an owned ability asynchronously. Its renderer
+    // A parent landing may render an embedded ability asynchronously. Its renderer
     // reports its target when ready, so only the active host scrolls or restores.
     if (
       detail &&

@@ -12,7 +12,7 @@ import { useRecordPreview } from "./useRecordPreview";
 import { RecordPreviewPopover } from "./RecordPreviewPopover";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
-import { activityAnchor } from "./ownedNavigation";
+import { activityAnchor } from "./embeddedNavigation";
 import { rootNavigation, type ReferenceReading } from "./useReferenceReading";
 import { usePreviewContentFocus } from "./usePreviewContentFocus";
 import { landReadingTarget } from "./landReadingTarget";
@@ -151,7 +151,7 @@ export function ReferenceReader({
     )
       restorePosition();
     // Landed documents restore from onLandingReady, after an immediate activity
-    // or asynchronously fetched owned ability has rendered the exact target.
+    // or asynchronously fetched embedded ability has rendered the exact target.
   }, [active, reading.detail, reading.landing, reading.request, restorePosition]);
   const hasResults = onResults !== undefined;
   const hasRequest = reading.request !== null;
@@ -162,8 +162,8 @@ export function ReferenceReader({
   useEffect(() => {
     if (
       !reading.detail ||
-      reading.detail.selected.owners.length ||
-      !reading.landing?.owners.length ||
+      reading.detail.selected.embedded_path.length ||
+      !reading.landing?.embedded_path.length ||
       !readerRef.current
     )
       return;
@@ -206,7 +206,7 @@ export function ReferenceReader({
         kind: "record" as const,
         recordKey: fullNavigation.record_key,
         selection:
-          fullNavigation.owners.length ||
+          fullNavigation.embedded_path.length ||
           fullNavigation.field ||
           fullNavigation.passage ||
           fullNavigation.spell_rank ||
@@ -304,7 +304,9 @@ export function ReferenceReader({
         <RecordPreviewPopover
           anchor={preview.anchor}
           visibleOwnerRecordKey={
-            detail?.selected.owners.length === 0 ? detail.record.record_key : undefined
+            detail?.selected.embedded_path.length === 0
+              ? detail.record.record_key
+              : undefined
           }
           detail={preview.detail}
           loading={preview.loading}

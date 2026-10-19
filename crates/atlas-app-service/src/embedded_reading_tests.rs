@@ -4,8 +4,8 @@ use atlas_search::test_support::{open_source_fixture, record};
 use serde_json::json;
 
 const ACTOR: &str = "actors:testCreature1000";
-fn request(generation: &str, selection: OwnedReadingSelection) -> OwnedReadingRequest {
-    OwnedReadingRequest {
+fn request(generation: &str, selection: EmbeddedReadingSelection) -> EmbeddedReadingRequest {
+    EmbeddedReadingRequest {
         parent: RecordNavigationView {
             spell_rank: None,
             record_key: ACTOR.into(),
@@ -50,9 +50,9 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
         .clone();
     let first = f
         .worker
-        .owned_reading(request(
+        .embedded_reading(request(
             &detail.artifact_generation,
-            OwnedReadingSelection::Abilities {
+            EmbeddedReadingSelection::Abilities {
                 cursor: None,
                 target: None,
             },
@@ -87,9 +87,9 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
     }
     let late = f
         .worker
-        .owned_reading(request(
+        .embedded_reading(request(
             &detail.artifact_generation,
-            OwnedReadingSelection::Abilities {
+            EmbeddedReadingSelection::Abilities {
                 cursor: None,
                 target: Some(last.clone()),
             },
@@ -110,9 +110,9 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
     for generation in ["old", ""] {
         let error = f
             .worker
-            .owned_reading(request(
+            .embedded_reading(request(
                 generation,
-                OwnedReadingSelection::Abilities {
+                EmbeddedReadingSelection::Abilities {
                     cursor: first.next.clone(),
                     target: None,
                 },
@@ -136,9 +136,9 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
     stale.source_fingerprint = None;
     assert!(
         f.worker
-            .owned_reading(request(
+            .embedded_reading(request(
                 &detail.artifact_generation,
-                OwnedReadingSelection::Activity { navigation: stale }
+                EmbeddedReadingSelection::Activity { navigation: stale }
             ))
             .unwrap_err()
             .to_string()
@@ -146,10 +146,10 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
     );
     assert!(
         f.worker
-            .owned_reading(request(
+            .embedded_reading(request(
                 &detail.artifact_generation,
-                OwnedReadingSelection::Abilities {
-                    cursor: Some(OwnedReadingCursor {
+                EmbeddedReadingSelection::Abilities {
+                    cursor: Some(EmbeddedReadingCursor {
                         artifact_generation: detail.artifact_generation.clone(),
                         offset: 600
                     }),
@@ -192,9 +192,9 @@ fn heavy_reference_fields_are_explicitly_bounded_without_breaking_other_fields()
     assert!(detail.relationships_truncated);
     let reading = f
         .worker
-        .owned_reading(request(
+        .embedded_reading(request(
             &detail.artifact_generation,
-            OwnedReadingSelection::Abilities {
+            EmbeddedReadingSelection::Abilities {
                 cursor: None,
                 target: None,
             },
@@ -229,9 +229,9 @@ fn requested_strike_content_has_no_baseline_activity_facts_in_response() {
         .unwrap();
     let reading = f
         .worker
-        .owned_reading(request(
+        .embedded_reading(request(
             &detail.artifact_generation,
-            OwnedReadingSelection::Activity {
+            EmbeddedReadingSelection::Activity {
                 navigation: strike.navigation.clone(),
             },
         ))
@@ -327,12 +327,12 @@ fn table_reading_batches_complete_text_and_checked_result_links() {
         .worker
         .record_detail("tables:table00000000000")
         .unwrap();
-    let mut request = OwnedReadingRequest {
+    let mut request = EmbeddedReadingRequest {
         parent: detail.selected,
         artifact_generation: detail.artifact_generation,
-        selection: OwnedReadingSelection::TableResults { cursor: None },
+        selection: EmbeddedReadingSelection::TableResults { cursor: None },
     };
-    let first = fixture.worker.owned_reading(request.clone()).unwrap();
+    let first = fixture.worker.embedded_reading(request.clone()).unwrap();
     assert_eq!(first.entries.len(), 32);
     assert_eq!(first.total, 34);
     assert!(!first.entries[0].content.is_empty());
@@ -351,13 +351,13 @@ fn table_reading_batches_complete_text_and_checked_result_links() {
         ),
         (1, 1)
     );
-    request.selection = OwnedReadingSelection::TableResults { cursor: first.next };
-    let next = fixture.worker.owned_reading(request.clone()).unwrap();
+    request.selection = EmbeddedReadingSelection::TableResults { cursor: first.next };
+    let next = fixture.worker.embedded_reading(request.clone()).unwrap();
     assert_eq!(next.entries.len(), 2);
     assert!(next.next.is_none());
     assert_ne!(first.entries[0].navigation, next.entries[0].navigation);
     request.artifact_generation = "stale".into();
-    assert!(fixture.worker.owned_reading(request).is_err());
+    assert!(fixture.worker.embedded_reading(request).is_err());
 }
 
 #[test]
@@ -386,9 +386,9 @@ fn embedded_feat_prerequisites_keep_addresses_links_and_unavailable_members() {
     let detail = f.worker.record_detail(ACTOR).unwrap();
     let batch = f
         .worker
-        .owned_reading(request(
+        .embedded_reading(request(
             &detail.artifact_generation,
-            OwnedReadingSelection::Abilities {
+            EmbeddedReadingSelection::Abilities {
                 cursor: None,
                 target: None,
             },

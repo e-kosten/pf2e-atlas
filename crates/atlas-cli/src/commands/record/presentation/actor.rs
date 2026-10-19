@@ -4,8 +4,8 @@ use super::{
 };
 use crate::commands::record::args::TerminalDetail;
 use atlas_app_model::{
-    ActorActivityKindView, ActorActivityView, ActorPresentationView, FactView, IwrEntryView,
-    NumberFactView, OwnedReadingEntryView,
+    ActorActivityKindView, ActorActivityView, ActorPresentationView, EmbeddedReadingEntryView,
+    FactView, IwrEntryView, NumberFactView,
 };
 use atlas_domain::QueryFieldState;
 
@@ -14,7 +14,7 @@ pub(super) fn render(
     actor: &ActorPresentationView,
     primary_defenses: bool,
     saves: bool,
-    reading: &[OwnedReadingEntryView],
+    reading: &[EmbeddedReadingEntryView],
     width: super::TerminalLayout,
     detail: TerminalDetail,
 ) -> Result<(), String> {
@@ -152,7 +152,7 @@ pub(super) fn render(
         (ActorActivityKindView::CastingEntry, "Spellcasting"),
         (ActorActivityKindView::Lore, "Lore"),
         (ActorActivityKindView::Gear, "Gear"),
-        (ActorActivityKindView::Other, "Other owned entries"),
+        (ActorActivityKindView::Other, "Other embedded entries"),
     ] {
         if detail == TerminalDetail::Full && kind != ActorActivityKindView::Ability {
             continue;

@@ -81,7 +81,7 @@ export function RecordView({ route }: RecordViewProps) {
       {preview.recordKey && (
         <RecordPreviewPopover
           visibleOwnerRecordKey={
-            detail.data?.selected.owners.length === 0
+            detail.data?.selected.embedded_path.length === 0
               ? detail.data.record.record_key
               : undefined
           }
@@ -198,7 +198,7 @@ export function ReaderView({ route }: ReaderViewProps) {
                     kind: "reader",
                     recordKey: navigation.record_key,
                     selection:
-                      navigation.owners.length ||
+                      navigation.embedded_path.length ||
                       navigation.field ||
                       navigation.passage ||
                       navigation.source_fingerprint

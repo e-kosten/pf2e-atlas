@@ -15,17 +15,21 @@ pub use dice::{
     InitiativeRollView, InitiativeStatisticView, ParticipantRollView, RollInitiativeRequest,
     RollMode,
 };
+mod embedded_reading;
 mod error;
 mod filter;
 mod graph;
 mod list;
-mod owned_reading;
 mod prepared_content;
 mod presentation;
 mod readiness;
 mod record;
 mod search;
 
+pub use embedded_reading::{
+    EmbeddedReadingBatchView, EmbeddedReadingCursor, EmbeddedReadingEntryView,
+    EmbeddedReadingRequest, EmbeddedReadingSelection,
+};
 pub use encounter::{
     ActionBudgetView, AddEncounterManualParticipantRequest,
     AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
@@ -71,10 +75,6 @@ pub use list::{
     SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
     SavedListUpdateView, UpdateSavedListRequest,
 };
-pub use owned_reading::{
-    OwnedReadingBatchView, OwnedReadingCursor, OwnedReadingEntryView, OwnedReadingRequest,
-    OwnedReadingSelection,
-};
 pub use prepared_content::{
     ContentControlKindView, ContentControlView, PreparedContentFieldView, PreparedFieldBodyView,
 };
@@ -82,19 +82,19 @@ pub use presentation::{
     ActionCostView, ActionGlyphView, ActivityEffectReferenceView, ActivityFrequencyView,
     ActorActivityKindView, ActorActivityView, ActorDefenseNotesView, ActorModifierView,
     ActorMovementView, ActorPresentationView, ActorRuntimeView, ActorSavesView, ActorSenseView,
-    ActorSkillView, CastingEntryContextView, ConditionalSkillView, DamageComponentView,
-    EffectDurationView, FactView, HazardPresentationView, HeighteningDamageView, IwrEntryView,
+    ActorSkillView, CastingEntryContextView, ConditionalSkillView, ConsumableDamageView,
+    ConsumablePresentationView, DamageComponentView, EffectDurationView, EmbeddedRecordLinkView,
+    FactView, HazardPresentationView, HeighteningDamageView, IwrEntryView,
     JournalPagePresentationView, JournalPresentationView, NumberAdjustmentView, NumberFactView,
-    OwnedRecordLinkView, PhysicalPresentationView, PhysicalPriceView, RecordBodyView,
-    RecordPresentationView, RitualCastingView, RollTablePresentationView, RollTableRowView,
-    SpellAreaView, SpellChangeView, SpellDefenseView, SpellFixedLevelView, SpellFormView,
-    SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView,
-    TableResultPresentationView,
+    PhysicalPresentationView, PhysicalPriceView, RecordBodyView, RecordPresentationView,
+    RitualCastingView, RollTablePresentationView, RollTableRowView, SpellAreaView, SpellChangeView,
+    SpellDefenseView, SpellFixedLevelView, SpellFormView, SpellHeighteningChangeView,
+    SpellHeighteningView, SpellPresentationView, TableResultPresentationView,
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView, SearchProfileReadinessView};
 pub use record::{
-    EffectReferenceLabelView, RecordBadgeView, RecordDetailRequest, RecordDetailView,
-    RecordNavigationView, RecordRefResolutionView, RecordRelationshipView,
+    ContentLocationView, EffectReferenceLabelView, RecordBadgeView, RecordDetailRequest,
+    RecordDetailView, RecordNavigationView, RecordRefResolutionView, RecordRelationshipView,
     RecordResolutionAmbiguousView, RecordResolutionCandidateView, RecordSummaryView,
 };
 pub use search::{
@@ -157,8 +157,8 @@ mod tests {
         AdvanceEncounterTurnRequest::export_all_to(path).expect("turn advance bindings");
         ApplyEncounterSpellActionRequest::export_all_to(path).expect("spell action bindings");
         ApplyEncounterHpActionRequest::export_all_to(path).expect("HP action bindings");
-        OwnedReadingRequest::export_all_to(path).expect("owned reading request bindings");
-        OwnedReadingBatchView::export_all_to(path).expect("owned reading response bindings");
+        EmbeddedReadingRequest::export_all_to(path).expect("owned reading request bindings");
+        EmbeddedReadingBatchView::export_all_to(path).expect("owned reading response bindings");
         RelatedRecordsView::export_all_to(path).expect("related bindings");
         RelatedRecordsRequest::export_all_to(path).expect("related request bindings");
         RecordListView::export_all_to(path).expect("graph bindings");

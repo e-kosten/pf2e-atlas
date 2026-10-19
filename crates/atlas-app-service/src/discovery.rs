@@ -83,7 +83,7 @@ pub(crate) fn filter_editor_view(
                 FilterFieldPlacement::Addable
             };
         let label = definition.label.clone();
-        let choices: Vec<_> = definition
+        let mut choices: Vec<_> = definition
             .choices
             .iter()
             .map(|value| FilterChoiceView {
@@ -109,6 +109,15 @@ pub(crate) fn filter_editor_view(
                 vec![]
             })
             .collect();
+        if definition.path == "physical.usage" {
+            choices = crate::physical_labels::USAGES
+                .iter()
+                .map(|(value, label)| FilterChoiceView {
+                    value: QueryLiteral::String((*value).into()),
+                    label: (*label).into(),
+                })
+                .collect();
+        }
         let operators = definition
             .operators
             .iter()

@@ -32,8 +32,8 @@ import {
 import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent";
 import { SpellReference } from "./SpellReference";
 import { ActionCost } from "./ActionCost";
-import type { OwnedReadingContext } from "./OwnedAbilityReading";
-import { activityAddress } from "./ownedNavigation";
+import type { EmbeddedReadingContext } from "./EmbeddedAbilityReading";
+import { activityAddress } from "./embeddedNavigation";
 import {
   ownerReturnPath,
   atlasRoutePath,
@@ -158,7 +158,7 @@ export function RecordIdentity({
         {showOwnerReturn &&
         root &&
         root.record_key !== visibleOwnerRecordKey &&
-        selection?.owners.length ? (
+        selection?.embedded_path.length ? (
           <Button
             type="link"
             size="small"
@@ -264,7 +264,7 @@ export function RecordPresentation({
   hideIdentity?: boolean;
   hideTitle?: boolean;
   showOwnerReturn?: boolean;
-  reading?: OwnedReadingContext;
+  reading?: EmbeddedReadingContext;
   visibleOwnerRecordKey?: string;
   onOwnerReturn?: (
     parent: string,
@@ -293,8 +293,8 @@ export function RecordPresentation({
   const usedOwned =
     actor?.activities.value?.map((activity) => JSON.stringify(activity.navigation)) ??
     [];
-  const owned = (
-    body.kind === "journal" ? (body.value.pages.value ?? []) : presentation.owned
+  const embedded = (
+    body.kind === "journal" ? (body.value.pages.value ?? []) : presentation.embedded
   ).filter((link) => !usedOwned.includes(JSON.stringify(link.navigation)));
   return (
     <article
@@ -317,7 +317,7 @@ export function RecordPresentation({
               <SpellRankControl
                 key={recordReadingIdentity(selection?.record_key ?? null, selection)}
                 spell={body.value}
-                owned={Boolean(selection?.owners.length)}
+                embedded={Boolean(selection?.embedded_path.length)}
                 onChange={onRankChange}
               />
             ) : undefined
@@ -328,7 +328,7 @@ export function RecordPresentation({
           selection={selection}
           onOwnerReturn={onOwnerReturn}
           originalRecord={
-            selection?.owners.length
+            selection?.embedded_path.length
               ? (relationships.find(
                   (relationship) =>
                     relationship.origin === "structured" &&
@@ -433,13 +433,95 @@ export function RecordPresentation({
           hideCost={!hideIdentity && body.value.action_cost.state === "value"}
         />
       )}
+      {body.kind === "physical_reference" && body.value.consumable && (
+        <div className="record-fact-list">
+          <FactLine label="Category" fact={body.value.consumable.category} />
+          {body.value.consumable.damage.value && (
+            <FactRow
+              label={
+                body.value.consumable.damage.value.kind.value === "healing"
+                  ? "Healing"
+                  : body.value.consumable.damage.value.kind.value === "damage"
+                    ? "Damage"
+                    : "Damage or healing"
+              }
+            >
+              {factText(body.value.consumable.damage.value.formula)}{" "}
+              {factText(body.value.consumable.damage.value.damage_type)}
+            </FactRow>
+          )}
+          {body.value.consumable.damage.state === "invalid" && (
+            <FactLine label="Damage or healing" fact={body.value.consumable.damage} />
+          )}
+          {body.value.consumable.spell.state === "invalid" && (
+            <FactLine label="Spell" fact={body.value.consumable.spell} />
+          )}
+          {((body.value.consumable.maximum_uses.value ?? 0) > 1 ||
+            body.value.consumable.maximum_uses.state === "invalid" ||
+            body.value.consumable.source_uses.state === "invalid" ||
+            (body.value.consumable.source_uses.value !== null &&
+              body.value.consumable.source_uses.value !==
+                body.value.consumable.maximum_uses.value)) && (
+            <FactRow label="Uses">
+              {body.value.consumable.source_uses.value !==
+                body.value.consumable.maximum_uses.value && (
+                <>{factText(body.value.consumable.source_uses)} / </>
+              )}
+              {factText(body.value.consumable.maximum_uses)}
+            </FactRow>
+          )}
+          {((body.value.consumable.source_quantity.value !== null &&
+            body.value.consumable.source_quantity.value !== 1) ||
+            body.value.consumable.source_quantity.state === "invalid") && (
+            <FactLine label="Quantity" fact={body.value.consumable.source_quantity} />
+          )}
+          {body.value.consumable.spell.value &&
+            !body.value.consumable.spell_presented_inline && (
+              <FactRow label="Spell">
+                <Button
+                  type="link"
+                  size="small"
+                  href={atlasRoutePath({
+                    kind: "record",
+                    recordKey: body.value.consumable.spell.value.navigation.record_key,
+                    selection: body.value.consumable.spell.value.navigation,
+                  })}
+                  onClick={(event) => {
+                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    event.preventDefault();
+                    const spell = body.value.consumable!.spell.value!;
+                    onReference(
+                      spell.navigation.record_key,
+                      event.currentTarget,
+                      spell.navigation,
+                    );
+                  }}
+                >
+                  {body.value.consumable.spell.value.title}
+                </Button>
+                {body.value.consumable.spell.value.navigation.spell_rank && (
+                  <> · Rank {body.value.consumable.spell.value.navigation.spell_rank}</>
+                )}
+              </FactRow>
+            )}
+        </div>
+      )}
       {body.kind === "physical_reference" && (
         <div className="record-fact-list">
           <FactLine label="Usage" fact={body.value.usage} />
-          <PhysicalPrice fact={body.value.price} />
-          {body.value.price_per.state !== "missing" && (
-            <FactLine label="Price per" fact={body.value.price_per} />
-          )}
+          <PhysicalPrice
+            fact={body.value.price}
+            label={
+              (body.value.price_per.value ?? 1) > 1
+                ? `Price per ${body.value.price_per.value}`
+                : "Price"
+            }
+          />
+          {body.value.price_per.state !== "missing" &&
+            (body.value.price_per.state !== "value" ||
+              (body.value.price_per.value ?? 1) < 1) && (
+              <FactLine label="Price per" fact={body.value.price_per} />
+            )}
           <FactLine
             label="Bulk"
             fact={body.value.bulk}
@@ -510,23 +592,24 @@ export function RecordPresentation({
       {!(body.kind === "roll_table" && selection && reading?.generation) &&
         (body.kind === "roll_table"
           ? (body.value.results.value ?? []).map((row) => row.link)
-          : owned
+          : embedded
         ).length > 0 && (
-          <section className="record-reference__owned">
+          <section className="record-reference__embedded">
             <h3>
               {body.kind === "roll_table"
                 ? "Results"
-                : owned.every(
+                : embedded.every(
                       (link) =>
-                        link.navigation.owners[link.navigation.owners.length - 1]
-                          ?.collection === "/pages",
+                        link.navigation.embedded_path[
+                          link.navigation.embedded_path.length - 1
+                        ]?.collection === "/pages",
                     )
                   ? "Pages"
                   : "Contents"}
             </h3>
             {(body.kind === "roll_table"
               ? (body.value.results.value ?? []).map((row) => row.link)
-              : owned
+              : embedded
             ).map((link, index) => (
               <div key={index}>
                 <Button
@@ -559,15 +642,21 @@ export function RecordPresentation({
     </article>
   );
 }
-function PhysicalPrice({ fact }: { fact: FactView<PhysicalPriceView> }) {
+function PhysicalPrice({
+  fact,
+  label = "Price",
+}: {
+  fact: FactView<PhysicalPriceView>;
+  label?: string;
+}) {
   if (!hasReadingFact(fact, { required: true })) return null;
   if (fact.state !== "value" || !fact.value)
-    return <FactLine label="Price" fact={fact} required />;
+    return <FactLine label={label} fact={fact} required />;
   const coins = Object.entries(fact.value).filter(
     ([, value]) => !["missing", "not_applicable"].includes(value.state),
   );
   return (
-    <FactRow label="Price">
+    <FactRow label={label}>
       {coins.length
         ? coins.map(([unit, value], index) => (
             <span key={unit}>

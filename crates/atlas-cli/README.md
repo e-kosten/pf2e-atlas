@@ -24,7 +24,7 @@ availability counts. Unsupported syntax fails before execution.
 Search returns root summaries and up to three source-attributed witnesses.
 Semantic counts describe bounded candidate windows. Names resolve strictly with
 verified alias evidence. Embedded definitions retain their parent keys and checked
-owner/field/passage addresses. `record get --owners JSON --field PATH --passage
+embedded-path/field/passage addresses. `record get --embedded-path JSON --field PATH --passage
 JSON` focuses a returned witness. Terminal prose is formatted from sanitized HTML
 at read time with html2text; no terminal document is stored in SQLite.
 

@@ -33,7 +33,7 @@ vi.mock("../../api/atlasApi", async (original) => ({
 function navigation(key: string): RecordNavigationView {
   return {
     record_key: key,
-    owners: [],
+    embedded_path: [],
     field: null,
     passage: null,
     source_fingerprint: null,
@@ -43,7 +43,7 @@ function graphFixture(): GraphContextView {
   const seed = summaryFixture("actors:seed", "Viewed creature");
   const source = {
     record: "actors:referrer",
-    owners: [{ collection: "items", identity: { SnapshotLocal: { index: 0 } } }],
+    embedded_path: [{ collection: "items", identity: { SnapshotLocal: { index: 0 } } }],
     field: "/system/description/value",
   };
   const incoming: RecordRelationshipView = {
@@ -51,7 +51,7 @@ function graphFixture(): GraphContextView {
     source,
     source_navigation: {
       ...navigation(source.record),
-      owners: source.owners,
+      embedded_path: source.embedded_path,
       field: source.field,
       source_fingerprint: "snapshot-current",
     },
@@ -68,7 +68,7 @@ function graphFixture(): GraphContextView {
   };
   const outgoing = {
     ...incoming,
-    source: { record: seed.record_key, owners: [], field: source.field },
+    source: { record: seed.record_key, embedded_path: [], field: source.field },
     source_navigation: { ...navigation(seed.record_key), field: source.field },
     target: navigation("spell:target"),
   };
@@ -237,11 +237,11 @@ describe("shared related disclosure", () => {
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
     expect(screen.queryByRole("tab")).toBeNull();
   });
-  it("sends complete owned selection and generation and uses root discovery separately", async () => {
+  it("sends complete embedded selection and generation and uses root discovery separately", async () => {
     const detail = detailFixture("actors:seed", "Viewed creature");
     detail.selected = {
       ...detail.selected,
-      owners: [{ collection: "items", identity: { Stable: "embedded" } }],
+      embedded_path: [{ collection: "items", identity: { Stable: "embedded" } }],
       field: "/system/description/value",
     };
     renderRelated(detail);

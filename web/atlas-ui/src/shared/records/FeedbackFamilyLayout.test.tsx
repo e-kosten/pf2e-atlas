@@ -63,7 +63,7 @@ it.each([false, true])(
       {
         locator: {
           record: detail.record.record_key,
-          owners: [],
+          embedded_path: [],
           field: "/system/details/publicNotes",
         },
         role: "notes",
@@ -163,11 +163,11 @@ it("renders selected casting membership with parent context, ranks and exact cus
     association: knownFact("raw-casting-id"),
     navigation: {
       ...entry.navigation,
-      owners: [{ collection: "items", identity: { Stable: "custom-spell" } }],
+      embedded_path: [{ collection: "items", identity: { Stable: "custom-spell" } }],
     },
   };
   entry.casting_context = {
-    parent: { ...entry.navigation, owners: [], source_fingerprint: null },
+    parent: { ...entry.navigation, embedded_path: [], source_fingerprint: null },
     parent_title: "Fabled Harrowkin",
     spells: knownFact([spell]),
   };
@@ -198,19 +198,19 @@ it("omits known-empty optional headings while preserving unavailable and control
       onReference={vi.fn()}
       fields={[
         {
-          locator: { record: "items:one", owners: [], field: "empty" },
+          locator: { record: "items:one", embedded_path: [], field: "empty" },
           role: "description",
           source_fingerprint: null,
           body: { kind: "html", html: " ", controls: [] },
         },
         {
-          locator: { record: "items:one", owners: [], field: "unknown" },
+          locator: { record: "items:one", embedded_path: [], field: "unknown" },
           role: "notes",
           source_fingerprint: null,
           body: { kind: "unavailable", state: "invalid" },
         },
         {
-          locator: { record: "items:one", owners: [], field: "controls" },
+          locator: { record: "items:one", embedded_path: [], field: "controls" },
           role: "routine",
           source_fingerprint: null,
           body: {

@@ -655,7 +655,7 @@ describe("common filter editing without predicate simplification", () => {
       },
       {
         kind: "exists" as const,
-        scope_id: "owned",
+        scope_id: "embedded",
         collection: "embedded.equipment",
         predicate: leaf,
       },
@@ -707,7 +707,7 @@ describe("common filter editing without predicate simplification", () => {
   it("preserves distinct Exists scope and clause identities in the advanced adapter", () => {
     const collection = fieldFixture("embedded.equipment", "collection");
     const child = {
-      ...fieldFixture("owned.name"),
+      ...fieldFixture("embedded.name"),
       path: "name",
       scope: collection.path,
     };

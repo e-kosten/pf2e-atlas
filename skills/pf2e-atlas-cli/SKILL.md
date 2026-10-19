@@ -78,7 +78,7 @@ the child from its parent snapshot. `--json` returns the complete selected Atlas
 reference response and conflicts with explicit `--detail`. The default `--detail standard`
 reads the main reference with inline actor abilities and compact spell rosters.
 Use `--detail full` to also read supported embedded documents, such as spells,
-journal pages and roll-table results. It expands ownership, not graph links.
+journal pages and roll-table results. It expands embedded content, not graph links.
 An explicit `--field` or `--passage` keeps human output focused on that selection
 at every human detail level. To inspect source information outside Atlas's
 presentation, use `atlas record source PACK:ID --json`. It exports the root's
@@ -97,26 +97,26 @@ atlas search --where 'defenses.hp.maximum >= 80 && "undead" in traits' --json
 atlas similar 'Dirge of Doom' --kind spell --json
 ```
 
-FTS targets names, verified aliases, typed vocabulary, owned names and structurally
-named definitions. Semantic search independently covers selected root and owned
+FTS targets names, verified aliases, typed vocabulary, embedded names and structurally
+named definitions. Semantic search independently covers selected root and embedded
 explanatory prose. Hybrid combines both lanes. Similar uses the seed's stored
 root identity vector. Semantic/hybrid candidate windows are bounded: report the
 returned coverage and count basis honestly, never describe them as an exhaustive
 corpus census. Result scores are retrieval evidence, not probabilities. Inspect
-up to three supplied root, owned-item or passage witnesses before explaining why
+up to three supplied root, embedded-item or passage witnesses before explaining why
 a result matched.
 
 A named affliction may live within a creature or effect. Atlas preserves its
-parent identity and provides an owned chain/field/passage address. Use the exact
+parent identity and provides an embedded_path/field/passage address. Use the exact
 returned address to focus detail:
 
 ```sh
-atlas record get PACK:ID --owners 'OWNER_CHAIN_JSON' --field /system/description/value --passage 'PASSAGE_ADDRESS_JSON' --json
+atlas record get PACK:ID --embedded-path 'EMBEDDED_PATH_JSON' --field /system/description/value --passage 'PASSAGE_ADDRESS_JSON' --json
 ```
 
 Copy owner and passage JSON from a returned witness. If its navigation contains
 `source_fingerprint`, also pass `--source-fingerprint` with that exact value;
-snapshot-local owners become stale when the artifact changes. Do not invent embedded IDs,
+snapshot-local embedded documents become stale when the artifact changes. Do not invent embedded IDs,
 byte ranges or synthetic affliction record keys. GM prose and check DCs are included
 by the artifact policy; unavailable source fields stay unknown instead of zero.
 

@@ -15,6 +15,8 @@ fn database() -> Connection {
         "../../migrations/00000000000001_create_artifact/up.sql"
     ))
     .unwrap();
+    db.execute_batch(crate::CONSUMABLE_FILTER_SCHEMA_SQL)
+        .unwrap();
     db.execute("INSERT INTO packs VALUES('test','Test')", [])
         .unwrap();
     db
@@ -1049,7 +1051,7 @@ fn common_level_or_rank_preserves_spell_rank_and_all_unavailable_states() {
     }
     assert_eq!(result(&db, "level == 3"), vec![1, 2]);
     assert_eq!(result(&db, "spell.rank == 7"), vec![3]);
-    assert_eq!(query_capabilities().unwrap().version, 4);
+    assert_eq!(query_capabilities().unwrap().version, 5);
     let catalog = query_capabilities().unwrap();
     assert_eq!(
         catalog
@@ -1459,4 +1461,76 @@ fn unavailable_embedded_membership_does_not_become_empty() {
         ],
     );
     assert_eq!(result(&db, "embedded.spells.exists(s,true)"), vec![1]);
+}
+
+#[test]
+fn consumable_damage_fields_share_root_and_embedded_semantics() {
+    let db = database();
+    root(&db, 1, "consumable", "common");
+    root(&db, 2, "npc", "common");
+    root(&db, 3, "consumable", "common");
+    row(
+        &db,
+        "actor_projection",
+        &[("record_id", 2.into()), ("items_state", text("value"))],
+    );
+    row(
+        &db,
+        "actor_items",
+        &[
+            ("id", 10.into()),
+            ("record_id", 2.into()),
+            ("original_index", 0.into()),
+            ("owner_selector_json", text("{}")),
+            ("source_type_state", text("value")),
+            ("source_type", text("consumable")),
+        ],
+    );
+    for (id, root_id, item_id) in [(1, 1.into(), Value::Null), (2, Value::Null, 10.into())] {
+        row(
+            &db,
+            "physical_projection",
+            &[
+                ("id", id.into()),
+                ("root_record_id", root_id),
+                ("actor_item_id", item_id),
+                ("consumable_damage_kind_state", text("value")),
+                ("consumable_damage_kind", text("healing")),
+                ("consumable_damage_type_state", text("value")),
+                ("consumable_damage_type", text("vitality")),
+            ],
+        );
+    }
+    row(
+        &db,
+        "physical_projection",
+        &[
+            ("id", 3.into()),
+            ("root_record_id", 3.into()),
+            ("consumable_damage_kind_state", text("null")),
+            ("consumable_damage_type_state", text("missing")),
+        ],
+    );
+    assert_eq!(
+        result(
+            &db,
+            "consumable.damage.kind == 'healing' && consumable.damage.type == 'vitality'"
+        ),
+        vec![1]
+    );
+    assert_eq!(
+        result(
+            &db,
+            "embedded.equipment.exists(e, e.consumable.damage.kind == 'healing' && e.consumable.damage.type == 'vitality')"
+        ),
+        vec![2]
+    );
+    assert_eq!(
+        result(&db, "!(consumable.damage.kind == 'damage')"),
+        vec![1]
+    );
+    assert_eq!(
+        result(&db, "availability['consumable.damage.kind'] == 'null'"),
+        vec![3]
+    );
 }

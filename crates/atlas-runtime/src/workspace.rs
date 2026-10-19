@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 3;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 4;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -18,6 +18,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 3,
         name: "lexical-alias-rows",
         sql: atlas_index::LEXICAL_ALIAS_SCHEMA_SQL,
+    },
+    Migration {
+        version: 4,
+        name: "consumable-filters",
+        sql: atlas_index::CONSUMABLE_FILTER_SCHEMA_SQL,
     },
 ];
 
@@ -53,11 +58,13 @@ mod tests {
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewEncounter, NewSavedList};
 
     #[test]
-    fn one_workspace_retains_saved_domains_through_reinitialization() {
+    fn version_two_workspace_upgrade_preserves_saved_domains() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("atlas.sqlite");
-        let workspace = initialize_workspace(&path).unwrap();
-        let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..2], |_| Ok(())).unwrap();
+        let write = workspace.write(2).unwrap();
         let state = LocalStateWrite::new(&write);
         state
             .saved_lists()
@@ -109,7 +116,7 @@ mod tests {
         let workspace = Workspace::at(directory.path().join("atlas.sqlite")).unwrap();
         let mut migrations = MIGRATIONS.to_vec();
         migrations.push(Migration {
-            version: 3,
+            version: 5,
             name: "invalid",
             sql: "INSERT INTO missing_table VALUES(1);",
         });

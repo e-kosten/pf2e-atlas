@@ -5,7 +5,7 @@ export const sentinel = "browser-actors:sentinel00000001";
 export const offGuard = "browser-conditions:offguard00000001";
 export const landing = {
   record_key: sentinel,
-  owners: [{ collection: "/items", identity: { Stable: "signalpulse00001" } }],
+  embedded_path: [{ collection: "/items", identity: { Stable: "signalpulse00001" } }],
   field: null,
   passage: null,
   source_fingerprint: null,

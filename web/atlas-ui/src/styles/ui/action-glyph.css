@@ -16,7 +16,7 @@
 }
 
 .actor-activity > .action-cost,
-.record-reference__owned .action-cost {
+.record-reference__embedded .action-cost {
   margin-inline: 8px;
 }
 

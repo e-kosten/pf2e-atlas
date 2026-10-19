@@ -346,7 +346,7 @@ roster in each entry. Hazard defense-block applicability is projected explicitly
 known zero AC and maximum HP suppress the primary block while original facts and
 valid zero saves remain retained. Shared reference layouts put prose first;
 encounter layouts prioritize combat state. Immediate Ability-class actions, effects and feats read inline by default through
-bounded owned-reading batches: one checked parent decode and one attributed
+bounded embedded-reading batches: one checked parent decode and one attributed
 prepared-content batch, up to 32 entries and 256 fields. Roll-table result reading
 uses the same bounded owner with range facts retained in the parent presentation.
 Table reference rolls remain non-consuming; matched results are shown even when

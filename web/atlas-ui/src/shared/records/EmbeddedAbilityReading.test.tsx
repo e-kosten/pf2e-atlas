@@ -1,20 +1,29 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider, Grid } from "antd";
-import { OwnedAbilityReading, type OwnedReadingContext } from "./OwnedAbilityReading";
+import {
+  EmbeddedAbilityReading,
+  type EmbeddedReadingContext,
+} from "./EmbeddedAbilityReading";
 import {
   activityFixture,
   actorFixture,
   detailFixture,
   knownFact,
 } from "../../test/fixtures";
-import type { OwnedReadingBatchView, OwnedReadingRequest } from "../../generated/atlas";
+import type {
+  EmbeddedReadingBatchView,
+  EmbeddedReadingRequest,
+} from "../../generated/atlas";
 import { recordDetailQueryOptions } from "./recordDetailQuery";
 import { RecordPreviewPopover } from "./RecordPreviewPopover";
 import { atlasRoutePath } from "../../app/routes";
 import { AtlasApiError } from "../../api/atlasApi";
 
-const api = vi.hoisted(() => ({ getOwnedReading: vi.fn(), getRecordDetail: vi.fn() }));
+const api = vi.hoisted(() => ({
+  getEmbeddedReading: vi.fn(),
+  getRecordDetail: vi.fn(),
+}));
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
   ...api,
@@ -25,21 +34,21 @@ const abilities = Array.from({ length: 600 }, (_, index) => ({
   navigation: {
     ...activityFixture().navigation,
     record_key: "actors:large",
-    owners: [{ collection: "items", identity: { Stable: `ability-${index}` } }],
+    embedded_path: [{ collection: "items", identity: { Stable: `ability-${index}` } }],
   },
   action_cost: knownFact({ label: "Reaction", glyph: "reaction" as const }),
 }));
-const context: OwnedReadingContext = {
+const context: EmbeddedReadingContext = {
   generation: "generation-a",
   parent: {
     record_key: "actors:large",
-    owners: [],
+    embedded_path: [],
     field: null,
     passage: null,
     source_fingerprint: null,
   },
 };
-function batch(request: OwnedReadingRequest): OwnedReadingBatchView {
+function batch(request: EmbeddedReadingRequest): EmbeddedReadingBatchView {
   if (request.selection.kind !== "abilities") throw new Error("wrong selection");
   const target = request.selection.target;
   const index = target
@@ -68,7 +77,7 @@ function batch(request: OwnedReadingRequest): OwnedReadingBatchView {
         {
           locator: {
             record: "actors:large",
-            owners: activity.navigation.owners,
+            embedded_path: activity.navigation.embedded_path,
             field: "/system/description/value",
           },
           role: "description",
@@ -84,11 +93,11 @@ function mount(readingContext = context) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  const view = (value: OwnedReadingContext) => (
+  const view = (value: EmbeddedReadingContext) => (
     <QueryClientProvider client={client}>
       <ConfigProvider theme={{ token: { motion: false } }}>
         <div data-testid="reading-host">
-          <OwnedAbilityReading
+          <EmbeddedAbilityReading
             abilities={abilities}
             context={value}
             onReference={vi.fn()}
@@ -104,17 +113,19 @@ function mount(readingContext = context) {
     ...result,
     client,
     host,
-    changeIdentity: (value: OwnedReadingContext) => result.rerender(view(value)),
+    changeIdentity: (value: EmbeddedReadingContext) => result.rerender(view(value)),
   };
 }
 beforeEach(() => {
-  api.getOwnedReading.mockReset();
+  api.getEmbeddedReading.mockReset();
   api.getRecordDetail.mockReset();
-  api.getOwnedReading.mockImplementation((request) => Promise.resolve(batch(request)));
+  api.getEmbeddedReading.mockImplementation((request) =>
+    Promise.resolve(batch(request)),
+  );
 });
 
 it("keeps a generation conflict paused until the actual parent owner reloads", async () => {
-  api.getOwnedReading.mockRejectedValue(
+  api.getEmbeddedReading.mockRejectedValue(
     new AtlasApiError(409, "The reference collection changed", {
       code: "artifact_generation_changed",
       message: "The reference collection changed",
@@ -127,10 +138,10 @@ it("keeps a generation conflict paused until the actual parent owner reloads", a
   const retry = screen.getByRole("button", { name: "Retry" });
   expect(retry).toBeDisabled();
   fireEvent.click(retry);
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(1);
+  expect(api.getEmbeddedReading).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("button", { name: "Reload encounter" }));
   expect(reloadParent).toHaveBeenCalledTimes(1);
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(1);
+  expect(api.getEmbeddedReading).toHaveBeenCalledTimes(1);
 });
 
 it("reads a finite default batch inline, preserves native permalinks and never seeds full detail", async () => {
@@ -145,7 +156,7 @@ it("reads a finite default batch inline, preserves native permalinks and never s
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 30));
   });
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(1); // Visible idle sentinel cannot drain 600.
+  expect(api.getEmbeddedReading).toHaveBeenCalledTimes(1); // Visible idle sentinel cannot drain 600.
   expect(api.getRecordDetail).not.toHaveBeenCalled();
   expect(
     client.getQueryData(
@@ -162,7 +173,7 @@ it("reads a finite default batch inline, preserves native permalinks and never s
     }),
   );
   fireEvent.click(link, { ctrlKey: true });
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(1);
+  expect(api.getEmbeddedReading).toHaveBeenCalledTimes(1);
   expect(
     document.querySelectorAll('[data-atlas-action-glyph="reaction"]'),
   ).toHaveLength(32);
@@ -175,32 +186,32 @@ it("advances only for its actual scrolling host, halts on collapse, and retains 
   document.body.append(unrelated);
   unrelated.scrollTop = 100;
   fireEvent.scroll(unrelated);
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(1);
+  expect(api.getEmbeddedReading).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("button", { name: "Abilities" }));
   host.scrollTop = 100;
   fireEvent.scroll(host);
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(1);
+  expect(api.getEmbeddedReading).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("button", { name: "Abilities" }));
   await screen.findByText("Ability 0 authored explanation");
-  api.getOwnedReading.mockRejectedValueOnce(new Error("Late batch failed"));
+  api.getEmbeddedReading.mockRejectedValueOnce(new Error("Late batch failed"));
   host.scrollTop = 200;
   fireEvent.scroll(host);
   await screen.findByText("Late batch failed");
   expect(screen.getByText("Ability 0 authored explanation")).toBeVisible();
   host.scrollTop = 300;
   fireEvent.scroll(host);
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(2);
+  expect(api.getEmbeddedReading).toHaveBeenCalledTimes(2);
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   await screen.findByText("Ability 32 authored explanation");
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(3);
+  expect(api.getEmbeddedReading).toHaveBeenCalledTimes(3);
   unrelated.remove();
 });
 
 it("lands directly on a late checked owner with a readable backward and forward path", async () => {
   const { host } = mount({ ...context, landing: abilities[400].navigation });
   await screen.findByText("Ability 400 authored explanation");
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(1);
-  expect(api.getOwnedReading.mock.calls[0][0].selection.target).toEqual(
+  expect(api.getEmbeddedReading).toHaveBeenCalledTimes(1);
+  expect(api.getEmbeddedReading.mock.calls[0][0].selection.target).toEqual(
     abilities[400].navigation,
   );
   expect(screen.queryByText("Ability 0 authored explanation")).toBeNull();
@@ -214,20 +225,20 @@ it("lands directly on a late checked owner with a readable backward and forward 
   host.scrollTop = 200;
   fireEvent.scroll(host);
   await screen.findByText("Ability 416 authored explanation");
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(3);
+  expect(api.getEmbeddedReading).toHaveBeenCalledTimes(3);
 });
 
 it("cancels a pending old-generation read when identity changes and discards its late result", async () => {
-  let resolveOld: ((value: OwnedReadingBatchView) => void) | undefined;
-  api.getOwnedReading.mockImplementationOnce(
+  let resolveOld: ((value: EmbeddedReadingBatchView) => void) | undefined;
+  api.getEmbeddedReading.mockImplementationOnce(
     () =>
-      new Promise<OwnedReadingBatchView>((resolve) => {
+      new Promise<EmbeddedReadingBatchView>((resolve) => {
         resolveOld = resolve;
       }),
   );
   const { changeIdentity } = mount();
-  await waitFor(() => expect(api.getOwnedReading).toHaveBeenCalledTimes(1));
-  const [oldRequest, signal] = api.getOwnedReading.mock.calls[0];
+  await waitFor(() => expect(api.getEmbeddedReading).toHaveBeenCalledTimes(1));
+  const [oldRequest, signal] = api.getEmbeddedReading.mock.calls[0];
   changeIdentity({ ...context, generation: "generation-b" });
   await screen.findByText("Ability 0 authored explanation");
   expect(signal.aborted).toBe(true);
@@ -235,7 +246,7 @@ it("cancels a pending old-generation read when identity changes and discards its
     resolveOld?.({ ...batch(oldRequest), entries: [] });
   });
   expect(screen.getByText("Ability 0 authored explanation")).toBeVisible();
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(2);
+  expect(api.getEmbeddedReading).toHaveBeenCalledTimes(2);
 });
 
 it.each(["popover", "drawer", "comparison"])(
@@ -255,7 +266,7 @@ it.each(["popover", "drawer", "comparison"])(
       value: { ...actorFixture(), activities: knownFact(abilities) },
     };
     const content = (
-      <OwnedAbilityReading
+      <EmbeddedAbilityReading
         abilities={abilities}
         context={context}
         onReference={vi.fn()}
@@ -295,14 +306,14 @@ it.each(["popover", "drawer", "comparison"])(
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 30));
     });
-    expect(api.getOwnedReading).toHaveBeenCalledTimes(1);
+    expect(api.getEmbeddedReading).toHaveBeenCalledTimes(1);
     host.scrollTop = 120;
     fireEvent.scroll(host);
     await screen.findByText("Ability 32 authored explanation");
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 30));
     });
-    expect(api.getOwnedReading).toHaveBeenCalledTimes(2);
+    expect(api.getEmbeddedReading).toHaveBeenCalledTimes(2);
     vi.restoreAllMocks();
   },
 );
@@ -317,7 +328,7 @@ it("reuses immutable generation content on remount without refetching every load
   render(
     <QueryClientProvider client={mounted.client}>
       <ConfigProvider theme={{ token: { motion: false } }}>
-        <OwnedAbilityReading
+        <EmbeddedAbilityReading
           abilities={abilities}
           context={context}
           onReference={vi.fn()}
@@ -329,5 +340,5 @@ it("reuses immutable generation content on remount without refetching every load
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 30));
   });
-  expect(api.getOwnedReading).toHaveBeenCalledTimes(2);
+  expect(api.getEmbeddedReading).toHaveBeenCalledTimes(2);
 });

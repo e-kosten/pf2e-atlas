@@ -32,6 +32,46 @@ macro_rules! family_field {
     };
 }
 impl<'a> ItemSourceView<'a> {
+    /// Explicit core provenance in the declared open flag namespace.
+    pub fn core_source_id(self) -> SourceFieldView<'a, &'a String> {
+        use atlas_foundry_model::SourceValue;
+        super::nodes::item_fields!(
+            self,
+            source,
+            SourceFieldView::from(&source.flags).and_then(|flags| {
+                let mut core = flags
+                    .indexed_fields
+                    .entries
+                    .iter()
+                    .filter(|(key, _)| key == "core");
+                let Some((_, core_value)) = core.next() else {
+                    return SourceFieldView::Missing;
+                };
+                if core.next().is_some() {
+                    return projection_invalid("/flags/core", "Duplicate core flag namespace");
+                }
+                let mut ids = core_value
+                    .entries
+                    .iter()
+                    .filter(|(key, _)| key == "sourceId");
+                let Some((_, value)) = ids.next() else {
+                    return SourceFieldView::Missing;
+                };
+                if ids.next().is_some() {
+                    return projection_invalid("/flags/core/sourceId", "Duplicate source identity");
+                }
+                match value {
+                    SourceValue::String(value) => SourceFieldView::Value(value),
+                    SourceValue::Null => SourceFieldView::Null,
+                    _ => projection_invalid(
+                        "/flags/core/sourceId",
+                        "Source identity must be a string",
+                    ),
+                }
+            })
+        )
+    }
+
     family_field!(
         item_level,
         &'a Number,
@@ -255,6 +295,19 @@ impl<'a> ItemSourceView<'a> {
             .and_then(|s| (&s.hp).into())
             .and_then(|s| (&s.max).into())
     );
+    family_field!(
+        consumable_damage,
+        &'a ConsumableDamageHealing,
+        [ConsumableSource],
+        s,
+        SourceFieldView::from(&s.system).and_then(|s| (&s.damage).into())
+    );
+    pub fn consumable_damage_kind(self) -> SourceFieldView<'a, &'a DamageKind> {
+        self.consumable_damage().and_then(|d| (&d.kind).into())
+    }
+    pub fn consumable_damage_type(self) -> SourceFieldView<'a, &'a ConsumableDamageHealingType> {
+        self.consumable_damage().and_then(|d| (&d.r#type).into())
+    }
     family_field!(
         consumable_category,
         &'a ConsumableSystemSourceCategory,

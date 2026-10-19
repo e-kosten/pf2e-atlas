@@ -96,7 +96,9 @@ export function activityFixture(
     has_reference_details: true,
     navigation: {
       record_key: recordKey,
-      owners: [{ collection: "items", identity: { SnapshotLocal: { index: 0 } } }],
+      embedded_path: [
+        { collection: "items", identity: { SnapshotLocal: { index: 0 } } },
+      ],
       field: null,
       passage: null,
       source_fingerprint: "snapshot",
@@ -178,13 +180,17 @@ export function detailFixture(
   target?: string,
 ): RecordDetailView {
   const record = summaryFixture(record_key, title);
-  const locator = { record: record_key, owners: [], field: "system.description.value" };
+  const locator = {
+    record: record_key,
+    embedded_path: [],
+    field: "system.description.value",
+  };
   return {
     artifact_generation: "test-generation",
     record,
     selected: {
       record_key,
-      owners: [],
+      embedded_path: [],
       field: null,
       passage: null,
       source_fingerprint: null,
@@ -197,7 +203,7 @@ export function detailFixture(
             effect_label: null,
             source_navigation: {
               record_key,
-              owners: [],
+              embedded_path: [],
               field: locator.field,
               passage: null,
               source_fingerprint: null,
@@ -212,7 +218,7 @@ export function detailFixture(
             status: "resolved_root",
             target: {
               record_key: target,
-              owners: [],
+              embedded_path: [],
               field: null,
               passage: null,
               source_fingerprint: null,
@@ -224,7 +230,7 @@ export function detailFixture(
     presentation: {
       classification: record.kind_label,
       identity: record,
-      owned: [],
+      embedded: [],
       body: { kind: "content" },
       content: target
         ? [

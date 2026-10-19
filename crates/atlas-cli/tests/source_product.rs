@@ -179,13 +179,13 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
     assert!(witness["navigation"]["field"].is_string());
     assert_eq!(results["coverage"]["exhaustive"], true);
     let navigation = &witness["navigation"];
-    let owners = serde_json::to_string(&navigation["owners"]).unwrap();
+    let owners = serde_json::to_string(&navigation["embedded_path"]).unwrap();
     let passage = serde_json::to_string(&navigation["passage"]).unwrap();
     let selected = f.data(&[
         "record",
         "get",
         "actions:aaaaaaaaaaaaaaaa",
-        "--owners",
+        "--embedded-path",
         &owners,
         "--field",
         navigation["field"].as_str().unwrap(),
@@ -357,7 +357,7 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
     for internal in [
         "atlas record get",
         "Association:",
-        "--owners",
+        "--embedded-path",
         "Authored",
         "Damage [",
     ] {
@@ -403,18 +403,18 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         .find(|activity| activity["title"] == "Local Fireball")
         .unwrap();
     let navigation = &spell["navigation"];
-    assert_eq!(navigation["owners"][0]["collection"], "/items");
+    assert_eq!(navigation["embedded_path"][0]["collection"], "/items");
     assert_eq!(
-        navigation["owners"][0]["identity"]["Stable"],
+        navigation["embedded_path"][0]["identity"]["Stable"],
         "eeeeeeeeeeeeeeee"
     );
-    let owners = serde_json::to_string(&navigation["owners"]).unwrap();
+    let owners = serde_json::to_string(&navigation["embedded_path"]).unwrap();
     let selected = f.command(
         &[
             "record",
             "get",
             "creatures:dddddddddddddddd",
-            "--owners",
+            "--embedded-path",
             &owners,
         ],
         false,
@@ -451,7 +451,7 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         "record",
         "get",
         "creatures:dddddddddddddddd",
-        "--owners",
+        "--embedded-path",
         &owners,
         "--json",
     ]);
@@ -473,7 +473,7 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         "record",
         "get",
         "creatures:dddddddddddddddd",
-        "--owners",
+        "--embedded-path",
         &owners,
         "--rank",
         "5",
@@ -491,13 +491,13 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         .iter()
         .find(|activity| activity["title"] == "Arcane Prepared Spells")
         .unwrap();
-    let entry_owners = serde_json::to_string(&entry["navigation"]["owners"]).unwrap();
+    let entry_owners = serde_json::to_string(&entry["navigation"]["embedded_path"]).unwrap();
     let output = f.command(
         &[
             "record",
             "get",
             "creatures:dddddddddddddddd",
-            "--owners",
+            "--embedded-path",
             &entry_owners,
         ],
         false,
