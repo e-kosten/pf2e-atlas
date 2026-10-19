@@ -28,7 +28,7 @@ pub(crate) fn index_build_input(
     tokenizer: Option<&TextEmbeddingTokenizer>,
     capture: &crate::source_fingerprint::SourceCapture,
 ) -> Result<PreparedBuildInput, IngestError> {
-    tracing::info!(target:"atlas_progress",phase="select_search","Selecting searchable content and identities");
+    tracing::info!("Selecting search content");
     let source_root = source.metadata.source_root.clone();
     let mut selections = Vec::new();
     let context_hash = context
@@ -95,7 +95,7 @@ pub(crate) fn index_build_input(
             });
         }
     }
-    tracing::info!(target:"atlas_progress",phase="select_aliases","Extracting verified source aliases");
+    tracing::info!("Reading alternate record names");
     crate::source_aliases::extract_source_aliases(&mut output.index, &source_root, capture)?;
     for selection in &selections {
         let aliases = output
@@ -111,7 +111,6 @@ pub(crate) fn index_build_input(
             .extend(atlas_index::project_lexical_units(selection, &aliases));
     }
     if let Some(tokenizer) = tokenizer {
-        tracing::info!(target:"atlas_progress",phase="prepare_search","Segmenting and tokenizing shared search passages");
         let total = selections.len();
         for (ordinal, mut selection) in selections.into_iter().enumerate() {
             selection.identity_optional.extend(
@@ -129,7 +128,7 @@ pub(crate) fn index_build_input(
                 &mut output.context_shortened,
             )?;
             if (ordinal + 1) % 1000 == 0 || ordinal + 1 == total {
-                tracing::info!(target:"atlas_progress",phase="prepare_search",current=(ordinal+1) as u64,total=total as u64,semantic_units=output.pending.len(),record=%selection.root,"Preparing attributable search passages: {}/{} records, {} semantic units",ordinal+1,total,output.pending.len());
+                tracing::info!(target:"atlas_progress",phase="prepare_search",current=(ordinal+1) as u64,total=total as u64,unit="records",semantic_units=output.pending.len(),record=%selection.root,"Preparing search content");
             }
         }
     }

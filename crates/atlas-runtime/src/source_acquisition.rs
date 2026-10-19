@@ -72,6 +72,7 @@ fn acquire_revision(path: &Path, repository: &str, commit: &str) -> Result<(), S
     let checkout = temporary.path().join("checkout");
     std::fs::create_dir(&checkout).map_err(|e| e.to_string())?;
     git(&checkout, &["init", "--quiet"])?;
+    tracing::info!(target:"atlas_progress", phase="fetch_source", repository, revision=commit, "Downloading Foundry source");
     git(
         &checkout,
         &[
@@ -84,6 +85,7 @@ fn acquire_revision(path: &Path, repository: &str, commit: &str) -> Result<(), S
             commit,
         ],
     )?;
+    tracing::info!(target:"atlas_progress", phase="checkout_source", "Extracting Foundry source");
     git(
         &checkout,
         &[

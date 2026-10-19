@@ -240,15 +240,17 @@ pub fn generate_prepared_embeddings(
     let mut pending = Vec::new();
     let mut reused_inputs = 0;
     let mut last_reported = 0;
-    embedding_progress(
-        spec,
-        "reuse_selection",
-        0,
-        unique.len(),
-        "unique inputs",
-        Some(0),
-        inputs.len(),
-    );
+    if !reusable.is_empty() {
+        embedding_progress(
+            spec,
+            "reuse_selection",
+            0,
+            unique.len(),
+            "unique inputs",
+            Some(0),
+            inputs.len(),
+        );
+    }
     for (ordinal, (key, text)) in unique.iter().enumerate() {
         if let Some(vector) = reusable.get(key) {
             validate_embedding_vector(vector, spec.dimensions)?;
@@ -259,7 +261,9 @@ pub fn generate_prepared_embeddings(
         } else {
             pending.push((key.clone(), *text));
         }
-        if report_embedding_progress(ordinal + 1, unique.len(), last_reported) {
+        if !reusable.is_empty()
+            && report_embedding_progress(ordinal + 1, unique.len(), last_reported)
+        {
             embedding_progress(
                 spec,
                 "reuse_selection",
@@ -273,15 +277,6 @@ pub fn generate_prepared_embeddings(
         }
     }
     let inferred_inputs = pending.len();
-    embedding_progress(
-        spec,
-        "inference",
-        0,
-        inferred_inputs,
-        "unique inputs",
-        Some(reused_inputs),
-        inputs.len(),
-    );
     let mut completed = 0;
     last_reported = 0;
     // Cached-only builds need the verified tokenizer, not inference weights or
@@ -289,9 +284,25 @@ pub fn generate_prepared_embeddings(
     let mut embedder = if pending.is_empty() {
         None
     } else {
-        tracing::info!(target:"atlas_progress",phase="load_embeddings",model=spec.model_id,"Loading verified inference model for new inputs");
+        let profile = crate::profile_for_model(config.model);
+        tracing::info!(target:"atlas_progress",phase="load_embeddings",model=spec.model_id,"Loading {} model", profile.label);
         Some(TextEmbedder::load(config)?)
     };
+    if pending.is_empty() {
+        let profile = crate::profile_for_model(config.model);
+        tracing::info!(target:"atlas_progress",phase="reuse_embeddings",reused_inputs,
+            "Using saved {} embeddings", profile.label);
+    } else {
+        embedding_progress(
+            spec,
+            "inference",
+            0,
+            inferred_inputs,
+            "unique inputs",
+            Some(reused_inputs),
+            inputs.len(),
+        );
+    }
     for batch in pending.chunks(batch_size) {
         let texts = batch.iter().map(|(_, text)| *text).collect::<Vec<_>>();
         let completed_batch = batch
@@ -356,12 +367,17 @@ pub(crate) fn embedding_progress(
     let id = profile.map_or(spec.model_id, |p| p.id);
     let phase = format!("{id}:{stage}");
     let action = match stage {
-        "native_validation" => "Validating native inputs",
-        "reuse_selection" => "Checking reusable inputs",
-        "inference" => "Inferring vectors",
-        _ => stage,
+        "native_validation" => format!("Validating {label} inputs"),
+        "reuse_selection" => format!("Checking saved {label} embeddings"),
+        "inference" => format!("Generating {label} embeddings"),
+        _ => stage.to_owned(),
     };
-    let reused = reused.map_or_else(|| "unknown".to_owned(), |count| count.to_string());
+    let display_unit = if unit == "unique inputs" {
+        "unique passages"
+    } else {
+        "passages"
+    };
     tracing::info!(target: "atlas_progress", phase = %phase, current = current as u64, total = total as u64,
-        "{label} [{id}] {action}: {current}/{total} {unit}; {reused} reused unique inputs; {occurrences} occurrences");
+        unit = display_unit, reused = ?reused, occurrences, profile = id,
+        "{action}");
 }
