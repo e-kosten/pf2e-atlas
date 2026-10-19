@@ -56,7 +56,10 @@ impl AtlasAppService {
                     AppServiceError::invalid_request("related owner is unavailable")
                 })?;
                 if let Some(field) = &selection.field
-                    && !node.content_selections().iter().any(|s| s.field == field)
+                    && !node
+                        .content_selections()
+                        .iter()
+                        .any(|s| s.field == field.as_str())
                 {
                     return Err(AppServiceError::invalid_request(
                         "related selection field is unavailable",

@@ -4,6 +4,24 @@ use atlas_foundry_model::generated::*;
 pub(super) fn authored_spell(source: &SpellSource) -> SpellPresentationView {
     let s = SourceFieldView::from(&source.system);
     SpellPresentationView {
+        ritual: fact(
+            match s.and_then(|s| (&s.ritual).into()) {
+                SourceFieldView::Null => SourceFieldView::NotApplicable,
+                other => other,
+            }
+            .map(|ritual| RitualCastingView {
+                primary_check: text(
+                    SourceFieldView::from(&ritual.primary).and_then(|p| (&p.check).into()),
+                ),
+                secondary_casters: number(
+                    SourceFieldView::from(&ritual.secondary).and_then(|p| (&p.casters).into()),
+                ),
+                secondary_checks: text(
+                    SourceFieldView::from(&ritual.secondary).and_then(|p| (&p.checks).into()),
+                ),
+            }),
+        ),
+        counteraction: fact(s.and_then(|s| (&s.counteraction).into()).map(|v| *v)),
         rank_note: None,
         base_rank: number(
             s.and_then(|s| (&s.level).into())

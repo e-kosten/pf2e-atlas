@@ -485,6 +485,7 @@ describe("semantic family presentation", () => {
           body: {
             kind: "roll_table",
             value: {
+              roll_note: "Reference rolls may repeat; results are not consumed.",
               formula: knownFact("1d100"),
               results: knownFact([
                 {

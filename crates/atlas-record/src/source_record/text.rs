@@ -15,7 +15,7 @@ pub enum SourceTextKind {
 pub struct SourceTextSource<'a> {
     pub record: &'a RecordKey,
     pub owners: Vec<OwnedContentLocator>,
-    pub field: &'a str,
+    pub field: std::borrow::Cow<'a, str>,
     pub kind: SourceTextKind,
     pub visibility: ContentVisibilityRule,
     pub text: &'a str,
@@ -70,7 +70,8 @@ impl SourceBackedRecord {
                     "/system/details/publication/title"
                 } else {
                     "/system/publication/title"
-                },
+                }
+                .into(),
                 kind: SourceTextKind::Publication,
                 visibility: ContentVisibilityRule::All,
                 text: title,
@@ -81,7 +82,7 @@ impl SourceBackedRecord {
                 out.push(SourceTextSource {
                     record: self.key(),
                     owners: vec![],
-                    field: "/system/traits/value",
+                    field: "/system/traits/value".into(),
                     kind: SourceTextKind::Trait,
                     visibility: ContentVisibilityRule::All,
                     text,
@@ -93,7 +94,7 @@ impl SourceBackedRecord {
                 out.push(SourceTextSource {
                     record: self.key(),
                     owners: content.locator.owners.clone(),
-                    field: &content.locator.field,
+                    field: content.locator.field.as_str().into(),
                     kind: if field.role == super::SourceContentRole::Name {
                         SourceTextKind::Name
                     } else {

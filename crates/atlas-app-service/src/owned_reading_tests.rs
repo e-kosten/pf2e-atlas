@@ -359,3 +359,65 @@ fn table_reading_batches_complete_text_and_checked_result_links() {
     request.artifact_generation = "stale".into();
     assert!(fixture.worker.owned_reading(request).is_err());
 }
+
+#[test]
+fn embedded_feat_prerequisites_keep_addresses_links_and_unavailable_members() {
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"testCreature1000","type":"npc","name":"Owner","items":[{"_id":"testFeat10000000","type":"feat","name":"Local feat","system":{"prerequisites":{"value":[{"value":"@UUID[Compendium.pf2e.actions.Item.testAction100000]{Target}"},{}]}}}]}),
+                    ),
+                    record(
+                        "actions",
+                        "Item",
+                        json!({"_id":"testAction100000","type":"action","name":"Target"}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let detail = f.worker.record_detail(ACTOR).unwrap();
+    let batch = f
+        .worker
+        .owned_reading(request(
+            &detail.artifact_generation,
+            OwnedReadingSelection::Abilities {
+                cursor: None,
+                target: None,
+            },
+        ))
+        .unwrap();
+    assert_eq!(batch.entries.len(), 1);
+    let entry = &batch.entries[0];
+    let fields: Vec<_> = entry
+        .content
+        .iter()
+        .filter(|f| f.role == "prerequisite")
+        .collect();
+    assert_eq!(fields.len(), 2);
+    assert_eq!(fields[0].locator.owners, entry.navigation.owners);
+    assert_eq!(
+        fields[0].locator.field,
+        "/system/prerequisites/value/0/value"
+    );
+    assert!(matches!(
+        fields[1].body,
+        PreparedFieldBodyView::Unavailable {
+            state: atlas_domain::QueryFieldState::Missing
+        }
+    ));
+    assert!(entry.relationships.iter().any(|r| {
+        r.source.owners == entry.navigation.owners
+            && r.source.field == fields[0].locator.field
+            && r.target
+                .as_ref()
+                .is_some_and(|t| t.record_key == "actions:testAction100000")
+    }));
+}

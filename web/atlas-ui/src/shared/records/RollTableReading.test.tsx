@@ -61,6 +61,7 @@ it("reads a batch of complete table text and opens its checked reference in plac
         selection={parent}
         onReference={onReference}
         table={{
+          roll_note: "Reference rolls may repeat; results are not consumed.",
           formula: knownFact("1d20"),
           results: knownFact([
             {

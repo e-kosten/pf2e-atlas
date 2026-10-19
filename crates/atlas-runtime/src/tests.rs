@@ -921,3 +921,29 @@ fn missing_managed_source_in_check_or_offline_mode_is_never_created() {
         );
     }
 }
+
+#[test]
+fn setup_reprepares_prerequisites_from_old_selection_policy() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    source(&paths);
+    fs::write(paths.source_root.join("packs/items/one.json"), r#"{"_id":"aaaaaaaaaaaaaaaa","name":"Feat","type":"feat","system":{"prerequisites":{"value":[{"value":"<strong>expert</strong> in Medicine"}]}}}"#).unwrap();
+    assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
+    atlas_index::test_support::set_content_selection_version(
+        &paths.index_path,
+        "structural-source-sections/v2",
+    )
+    .unwrap();
+    assert!(open_reader(&paths.index_path).is_err());
+    assert!(!crate::setup::ensure_setup(&paths, options(true)).ready);
+    let rebuilt = crate::setup::ensure_setup(&paths, options(false));
+    assert!(rebuilt.ready, "{:?}", rebuilt.actions);
+    assert!(rebuilt.build.is_some());
+    let reader = open_reader(&paths.index_path).unwrap();
+    assert_eq!(
+        reader.context().content_selection_version,
+        "structural-source-sections/v3"
+    );
+    let report = atlas_index::validate_reference(reader.workspace_session().connection()).unwrap();
+    assert_eq!(report.prepared_fields, 1);
+}
