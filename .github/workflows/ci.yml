@@ -33,6 +33,7 @@ jobs:
       source: ${{ steps.select.outputs.source }}
       release: ${{ steps.select.outputs.release }}
       research: ${{ steps.select.outputs.research }}
+      skill: ${{ steps.select.outputs.skill }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -58,6 +59,21 @@ jobs:
           node-version: 22
       - name: Validation routing regression tests
         run: sh scripts/git-hooks/test-common.sh
+
+  skill:
+    name: bundled skill
+    needs: changes
+    if: needs.changes.outputs.skill == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.source-ref || github.sha }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: node --test scripts/validation/skill.test.ts
+      - run: node scripts/validation/skill.ts
 
   rust:
     needs: changes
@@ -231,7 +247,7 @@ jobs:
   validation:
     name: validation complete
     if: always()
-    needs: [changes, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research]
+    needs: [changes, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill]
     runs-on: ubuntu-24.04
     steps:
       - name: Require selected jobs to succeed
@@ -243,7 +259,7 @@ jobs:
           const jobs = JSON.parse(process.env.NEEDS_JSON);
           assert.equal(jobs.changes.result, 'success', 'Validation selection must succeed');
           const flags = jobs.changes.outputs;
-          for (const key of ["rust", "web", "source", "release", "research"]) {
+          for (const key of ["rust", "web", "source", "release", "research", "skill"]) {
             assert(["true", "false"].includes(flags[key]), key);
           }
           const expected = {
@@ -254,6 +270,7 @@ jobs:
             'source-contracts': flags.source === 'true',
             'release-tools': flags.release === 'true',
             research: flags.research === 'true',
+            skill: flags.skill === 'true',
           };
           for (const [job, required] of Object.entries(expected)) {
             assert.equal(jobs[job].result, required ? 'success' : 'skipped', job);
