@@ -24,7 +24,7 @@ validation_surface_for_path() {
     # Package fixtures and executable research precede the prose exemption.
     dev-tools/source-contracts/*) printf 'source\n' ;;
     dev-tools/release/* | scripts/release/* | scripts/prepare-release.sh | scripts/install/* | THIRD-PARTY-NOTICES.md) printf 'release\n' ;;
-    skills/pf2e-atlas-cli/*) printf 'rust\n' ;;
+    skills/pf2e-atlas-cli/*) printf 'skill\n' ;;
     docs/research/evaluations/*) printf 'research\n' ;;
     AGENTS.md | CONTRIBUTING.md | README.md | docs/*.md | scratch/plans/*.md | .codex/skills/*.md | skills/*.md | crates/*/README.md | dev-tools/README.md | vendor/README.md | web/atlas-ui/AGENTS.md | web/atlas-ui/README.md | web/atlas-ui/docs/*.md)
       printf 'docs\n' ;;
@@ -33,7 +33,7 @@ validation_surface_for_path() {
     crates/atlas-foundry-model/*) printf 'rust source\n' ;;
     crates/* | src/* | tests/* | build.rs) printf 'rust\n' ;;
     web/atlas-ui/*) printf 'web\n' ;;
-    *) printf 'rust web source release research\n' ;;
+    *) printf 'rust web source release research skill\n' ;;
   esac
 }
 
@@ -43,6 +43,7 @@ classify_validation_paths() {
   source_touched=0
   release_touched=0
   research_touched=0
+  skill_touched=0
   docs_only=0
   classification_saw_path=0
   while IFS= read -r path || [ -n "$path" ]; do
@@ -55,10 +56,11 @@ classify_validation_paths() {
         source) source_touched=1 ;;
         release) release_touched=1 ;;
         research) research_touched=1 ;;
+        skill) skill_touched=1 ;;
       esac
     done
   done <"$1"
-  if [ "$classification_saw_path" -eq 1 ] && [ "$rust_touched$web_touched$source_touched$release_touched$research_touched" = 00000 ]; then
+  if [ "$classification_saw_path" -eq 1 ] && [ "$rust_touched$web_touched$source_touched$release_touched$research_touched$skill_touched" = 000000 ]; then
     docs_only=1
   fi
 }

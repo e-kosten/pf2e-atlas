@@ -82,6 +82,9 @@ cp "$repo_root/scripts/git-hooks/common.sh" "$fixture/scripts/git-hooks/common.s
 cp "$repo_root/scripts/verify-changed.sh" "$repo_root/scripts/verify.sh" "$fixture/scripts/"
 mkdir -p "$fixture/scripts/validation" "$fixture/scripts/release"
 cp "$repo_root/scripts/validation/run-check.sh" "$fixture/scripts/validation/"
+for skill_check in skill.ts skill.test.ts; do
+  printf 'import { appendFileSync } from "node:fs"; appendFileSync(process.env.ATLAS_TEST_COMMAND_LOG, "skill check\\n");\n' >"$fixture/scripts/validation/$skill_check"
+done
 for stub in validation/research.sh release/validate-release-tooling.sh release/test-release-tools.sh release/test-prepare-release.sh; do
   printf '#!/bin/sh\nprintf "extra check\\n" >> "$ATLAS_TEST_COMMAND_LOG"\n' >"$fixture/scripts/$stub"
 done
@@ -154,6 +157,23 @@ for entry in 'README.md:0:0' 'crates/example/src/lib.rs:1:0' 'web/atlas-ui/src/e
   [ "$rust_count:$web_count" = "$expected" ] || { echo "wrong formatting surface for $path" >&2; exit 1; }
 done
 
+# Skill prose runs only its focused check; mixed changes retain both surfaces.
+printf 'README.md\nskills/pf2e-atlas-cli/SKILL.md\n' >"$fixture/paths-input"
+: >"$log"
+(cd "$fixture"; ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" scripts/verify-changed.sh --paths-file paths-input --full) >"$check_output" 2>&1
+[ "$(grep -c '^skill check$' "$log")" -eq 2 ]
+! grep -Eq '^(cargo|npm) ' "$log"
+cp "$fixture/scripts/validation/skill.ts" "$tmp/valid-skill-check"
+printf 'throw new Error("invalid skill");\n' >"$fixture/scripts/validation/skill.ts"
+if (cd "$fixture"; ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" scripts/verify-changed.sh --paths-file paths-input --full) >"$check_output" 2>&1; then
+  echo 'skill validation failure ignored' >&2; exit 1
+fi
+cp "$tmp/valid-skill-check" "$fixture/scripts/validation/skill.ts"
+printf 'crates/example/src/lib.rs\n' >>"$fixture/paths-input"
+(cd "$fixture"; scripts/verify-changed.sh --paths-file paths-input --list) >"$check_output"
+grep -q '^rust=true$' "$check_output"
+grep -q '^skill=true$' "$check_output"
+
 # Literal path input must not discard a final line without a newline.
 printf 'unknown-tooling-file' >"$fixture/paths-input"
 : >"$log"
@@ -182,21 +202,21 @@ printf 'git-hook common smoke tests and %s fixture cases passed\n' "$case_count"
 
 # Explicit surfaces, dependency fan-out, and conservative unknown inputs.
 for entry in \
-  'README.md:00000' \
-  'docs/research/evaluations/frozen/README.md:00001' \
-  'docs/research/evaluations/frozen/judgments.jsonl:00001' \
-  'docs/research/evaluations/frozen/verify.ts:00001' \
-  'dev-tools/source-contracts/tests/fixture.md:00100' \
-  'dev-tools/release/src/check.ts:00010' \
-  'crates/atlas-foundry-model/src/lib.rs:10100' \
-  'crates/atlas-app-model/bindings/Search.ts:11000' \
-  'Cargo.lock:11110' \
-  'crates/atlas-cli/Cargo.toml:11110' \
-  'THIRD-PARTY-NOTICES.md:00010' \
-  'skills/pf2e-atlas-cli/SKILL.md:10000' \
-  '.cargo/config.toml:11111' \
-  '.github/workflows/ci.yml:11111' \
-  'unknown.config:11111'; do
+  'README.md:000000' \
+  'docs/research/evaluations/frozen/README.md:000010' \
+  'docs/research/evaluations/frozen/judgments.jsonl:000010' \
+  'docs/research/evaluations/frozen/verify.ts:000010' \
+  'dev-tools/source-contracts/tests/fixture.md:001000' \
+  'dev-tools/release/src/check.ts:000100' \
+  'crates/atlas-foundry-model/src/lib.rs:101000' \
+  'crates/atlas-app-model/bindings/Search.ts:110000' \
+  'Cargo.lock:111100' \
+  'crates/atlas-cli/Cargo.toml:111100' \
+  'THIRD-PARTY-NOTICES.md:000100' \
+  'skills/pf2e-atlas-cli/SKILL.md:000001' \
+  '.cargo/config.toml:111111' \
+  '.github/workflows/ci.yml:111111' \
+  'unknown.config:111111'; do
   changed_path=${entry%:*}
   expected=${entry##*:}
   printf '%s\n' "$changed_path" >"$fixture/paths-input"
@@ -215,7 +235,7 @@ grep -q '^rust=true$' "$check_output"
 chmod +x "$fixture/README.md"
 git -C "$fixture" add README.md
 (cd "$fixture"; scripts/verify-changed.sh --staged --list) >"$check_output"
-[ "$(grep -c '=true$' "$check_output")" -eq 5 ]
+[ "$(grep -c '=true$' "$check_output")" -eq 6 ]
 
 # The real research runner rejects missing verifiers and propagates failures.
 cp "$repo_root/scripts/validation/research.sh" "$fixture/scripts/validation/research.sh"

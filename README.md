@@ -218,7 +218,8 @@ filter collections, search comparison and saved lists.
 
 The CLI includes a first-party skill that teaches local coding agents how to use Atlas for PF2E lookup, search, filter discovery, and graph context.
 
-Run the interactive installer and choose the agent target you use:
+With Atlas installed, use its bundled skill (matched to that CLI version) and
+choose the agent target you use:
 
 ```bash
 atlas agent skills install
@@ -242,6 +243,26 @@ After upgrading Atlas, rerun the skill installer to update the installed copy.
 A differing copy requires `--force`; review local edits before replacing it.
 The skill is bundled with the executable, so install it from the Atlas version
 you intend the agent to use.
+
+You can also install the skill independently with Node.js and the
+[skills CLI](https://github.com/vercel-labs/skills):
+
+```bash
+npx skills add e-kosten/pf2e-atlas --skill pf2e-atlas-cli
+```
+
+The interactive installer lets you select agents and installation scope. For a
+global Codex installation:
+
+```bash
+npx skills add e-kosten/pf2e-atlas --skill pf2e-atlas-cli --agent codex --global
+```
+
+This installs only the skill, not Atlas or its data. The skill includes CLI
+installation and setup guidance. The repository's `main` skill tracks the nightly
+CLI; use the bundled installer for a release-matched copy. Use the installation
+method you chose to update that copy; Atlas's installer does not manage the
+skills CLI's symlinks or lockfiles.
 
 ## Maintenance
 
