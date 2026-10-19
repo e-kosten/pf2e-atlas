@@ -488,3 +488,17 @@ Hazards use Active/Disabled in place of creature Active/Defeated. Damage reachin
 zero disables a hazard; healing does not reactivate it. HP remains separate. Automatic turns
 skip either inactive state and continue from the current roster position. Disabled
 hazards remain readable/editable and use the creature roster's subdued fact styling.
+
+## Development baseline workflow
+
+Contributor commands under `scripts/development` publish frozen executable and
+workspace pairs outside linked worktrees. They use SQLite backup for consistent
+snapshots and copy the entire workspace, including saved state. Per-checkout
+copies remain independent; runtime still owns one database and one schema ledger.
+There is no separate shared-reference attachment or alternate product storage path.
+The scripts record workspace/context metadata verbatim for provenance, never use
+it to admit a candidate, and delegate readiness, compatibility, deep validation
+and queries to the supplied Atlas executable. They do not apply SQL migrations or
+change domain rows. Explicit normal setup owns subsequent updates. Source and model
+caches remain shared, while compiler targets stay checkout-local. See
+[the contributor baseline workflow](../../CONTRIBUTING.md#reusable-development-baseline).
