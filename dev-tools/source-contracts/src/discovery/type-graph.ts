@@ -297,7 +297,7 @@ export function extractTypeGraph(sourceRoot: string, options: { roots?: RootSele
         const fieldType=checker.getTypeOfSymbolAtLocation(property,declaration);
         const symbol=fieldType.getSymbol();
         const fieldClass=symbol?.getName();
-        const expectedFile=fieldClass==='ArrayField'?'types/foundry/common/data/fields.d.ts'
+        const expectedFile=['ArrayField','SetField'].includes(fieldClass??'')?'types/foundry/common/data/fields.d.mts'
           :fieldClass==='StrictArrayField'?'src/module/system/schema-data-fields.ts':null;
         if (!expectedFile || !symbol?.getDeclarations()?.some(declaration=>relative(declaration.getSourceFile().fileName)===expectedFile)) continue;
         const node=nodes.get(ref);

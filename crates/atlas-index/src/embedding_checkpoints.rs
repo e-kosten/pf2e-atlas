@@ -25,6 +25,23 @@ pub fn recover_reference_publication(
                 crate::component_upgrade::ReferenceUpgrade::Current => {
                     crate::validate_reference(connection)?;
                 }
+                crate::component_upgrade::ReferenceUpgrade::SourceReplacement => {
+                    // Recovery opens the workspace for an explicit source rebuild,
+                    // not for product reads of the retired snapshot contract.
+                    let integrity: String =
+                        connection.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
+                    if integrity != "ok" {
+                        return Err(IndexError::Invalid(format!(
+                            "SQLite integrity: {integrity}"
+                        )));
+                    }
+                    let mut foreign_keys = connection.prepare("PRAGMA foreign_key_check")?;
+                    if foreign_keys.query([])?.next()?.is_some() {
+                        return Err(IndexError::Invalid(
+                            "workspace foreign key violation".into(),
+                        ));
+                    }
+                }
                 crate::component_upgrade::ReferenceUpgrade::QueryProjections
                 | crate::component_upgrade::ReferenceUpgrade::LexicalProjections
                 | crate::component_upgrade::ReferenceUpgrade::SourcePreparation => {

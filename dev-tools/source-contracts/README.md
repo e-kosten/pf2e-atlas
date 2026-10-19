@@ -29,8 +29,8 @@ in `source-pin.json`. Large extraction outputs belong in ignored caches. The bui
 
 ## Source portfolio generation
 
-`generate` emits all 47 extracted roots: Actor/Item sources across eight/24
-registered families, JournalEntry, Macro, RollTable, and 42 specific rule models.
+`generate` emits all 45 extracted roots: Actor/Item sources across eight/25
+registered families, JournalEntry, Macro, RollTable, and 40 specific rule models.
 The refresh recipe in `src/generation/portfolio-selection.ts` applies the proven
 authored-input policies and retains the existing independently callable Item,
 physical/equipment and predicate components. Full sources include fields that
@@ -292,7 +292,7 @@ npm --prefix dev-tools/source-contracts run generate -- --source scratch/pf2e --
 set -o pipefail
 node dev-tools/source-contracts/dist/src/cli/sample-items.js --source scratch/pf2e | \
   target/debug/examples/item_generation_probe \
-    .cache/source-contracts/4cbdaa37d6c33e9519561bae2c59a23e0288cbce/extraction/generation-input.json \
+    .cache/source-contracts/28d9d156f252d084371d994dc359509b49eadf18/extraction/generation-input.json \
     > scratch/item-corpus-report.json
 ```
 
@@ -375,7 +375,7 @@ reported separately as not executed; parser rejection is not upstream-invalid
 evidence. See the [authored-rule report](../../docs/research/authored-rule-source.md)
 and [ADR 0039](../../docs/architecture/decisions/0039-authored-rule-inputs.md).
 
-The source directory needs upstream `src`, `types`, `package.json`, `tsconfig.json`, `static/system.json` and `static/lang/en.json`. The compiler must also resolve the upstream declaration dependencies. For a clean exported source directory in `scratch/pf2e`, use:
+The source directory needs upstream `src`, `types`, `package.json`, `tsconfig.json`, `system.pf2e.json` and `static/lang/en.json`. The compiler must also resolve the upstream declaration dependencies. For a clean exported source directory in `scratch/pf2e`, use:
 
 ```sh
 ln -s ../../dev-tools/source-contracts/node_modules scratch/pf2e/node_modules
@@ -383,7 +383,7 @@ npm --prefix dev-tools/source-contracts run extract -- \
   --source scratch/pf2e --out scratch/source-extraction
 ```
 
-Use the dependencies appropriate to the source version being inspected. The lockfile here pins TypeScript 5.9.3 and the declaration dependencies used to investigate PF2e 6.12.4 at `4cbdaa37d6c33e9519561bae2c59a23e0288cbce`. Do not replace an existing upstream dependency installation with a symlink. Inspect dependencies when changing the source pin.
+Use the dependencies appropriate to the source version being inspected. The lockfile here pins TypeScript 5.9.3 and the declaration dependencies used to investigate PF2e 8.6.1 at `28d9d156f252d084371d994dc359509b49eadf18`. Do not replace an existing upstream dependency installation with a symlink. Inspect dependencies when changing the source pin.
 
 Output files are `type-graph.json`, `trait-catalog.json` and `summary.json`. Output belongs outside the source input directories. The command prints the summary. `--strict` exits 1 when either extraction is incomplete, after writing the available discovery output and diagnostics. Without it, partial discovery exits 0 with `complete: false`. Invalid arguments, unreadable required inputs and fatal errors exit 1.
 
@@ -404,7 +404,7 @@ Descriptions and the complete discovery catalog remain developer cache evidence.
 
 A focused check of the pinned commit `4cbdaa37d6c33e9519561bae2c59a23e0288cbce` scanned 25,682 pack JSON files, including embedded records. It inspected 17,557 predicate arrays, 511 definition arrays, and 1,257 ChoiceSet predicates (including three single-statement objects). One unique upstream predicate fails the declared shape: `packs/classfeatures/revolutionary-innovation.json`, rule 0, choice 29 contains both `nor` and `not` in one object. Foundry's `StatementValidator` also requires one key for either operator, so this is a source-data discrepancy to carry into corpus comparison. The corpus has no nonempty custom modifiers; fixtures exercise their serialization instead. This focused investigation is not a full-corpus schema validator.
 
-The default document kinds come from `static/system.json` packs. Actor and Item use PF2e's aggregate Source unions; other kinds use the exported Foundry `KindSource` declaration. The graph follows embedded source documents and compares Actor/Item `type` discriminator sets with `PF2ECONFIG.documentClasses`, including registered families with no corpus records. It resolves inherited fields, shared references, recursion, generic instantiations, discriminated unions, keyed maps, tuples and field presence (`optional`, `null`, `never`). Node identities and source locations are relative to the inputs; compiler-local numeric identities are not persisted.
+The default document kinds come from `system.pf2e.json` packs. Actor and Item use PF2e's aggregate Source unions; other kinds use the exported Foundry `KindSource` declaration. The graph follows embedded source documents and compares Actor/Item `type` discriminator sets with `PF2ECONFIG.documentClasses`, including registered families with no corpus records. It resolves inherited fields, shared references, recursion, generic instantiations, discriminated unions, keyed maps, tuples and field presence (`optional`, `null`, `never`). Node identities and source locations are relative to the inputs; compiler-local numeric identities are not persisted.
 
 Built-in rules come from `RuleElements.builtin`. A memory-only TypeScript module applies Foundry's `SourceFromSchema` to each constructor's resolved `defineSchema()` return type. This handles inherited schema methods and generic runtime classes without executing upstream code or traversing prepared instance methods. Custom extension payloads remain visible as open source domains.
 
@@ -424,7 +424,7 @@ Direct family evidence is recorded separately for runtime getters, declaration v
 
 `complete` means supported extraction of the selected declaration closure and authored catalog expressions. It does not mean production models exist for every family, the whole upstream project type-checks, declarations agree with every corpus record, or every trait has metadata.
 
-The PF2e 6.12.4 pin has 47 roots: five document kinds (all 24 Item and eight Actor families), plus 42 built-in rule schemas. It produces 3,085 graph nodes with no selected compiler errors or unsupported nodes and 226 unrelated full-project diagnostics. The graph and trait catalog report `complete`; normal discovery and `--strict` both exit 0 on this pin. The explicit serialization projections above are part of the supported extraction boundary. The malformed corpus predicate remains a separate data discrepancy, not an extraction failure.
+The PF2e 8.6.1 pin has 45 roots: five document kinds (all 25 Item and eight Actor families), plus 40 built-in rule schemas. It produces 3,472 graph nodes with no selected compiler errors or unsupported nodes and 212 unrelated full-project diagnostics. The graph and trait catalog report `complete`. Foundry `ArrayField` and its `SetField` subclass retain bounded authored scalar-or-array selector forms; `StrictArrayField` stays array-only. Source packs live under `packs/pf2e`; adjacent Starfinder packs are not selected. The declaration portfolio includes ammunition as its own family. Runtime-valued computed flag namespaces follow the upstream index signatures; diagnostics retain their keyed paths. Corpus admission and product acceptance are separate checks.
 
 The summary records a source digest, source version, Git commit/dirty state when the source is a checkout, TypeScript version and dependency lock digest. Archives have no Git identity. The source digest covers relative names and bytes of `src`, `types`, the package and system manifests, compiler config and English localization; it is independent of checkout location. The lock digest identifies the intended environment; it does not attest an arbitrary external `node_modules` installation.
 

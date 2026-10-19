@@ -296,9 +296,9 @@ fn table_reading_batches_complete_text_and_checked_result_links() {
     let rows: Vec<_> = (0..34)
         .map(|i| {
             json!({
-                "_id":format!("result{i:010}"), "type":"pack", "range":[i+1,i+1],
-                "text":format!("<p>Complete result {i}</p>"),
-                "documentCollection":"pf2e.items", "documentId":"item000000000000"
+                "_id":format!("result{i:010}"), "type":"document", "range":[i+1,i+1],
+                "description":format!("<p>Complete result {i}</p>"),
+                "documentUuid":"Compendium.pf2e.items.Item.item000000000000"
             })
         })
         .collect();

@@ -269,14 +269,8 @@ fn family_applicability_is_authored_not_runtime() {
             q.languages().availability(),
             matches!(family, "npc" | "character"),
         );
-        applicable(
-            q.land_speed().availability(),
-            matches!(family, "npc" | "character"),
-        );
-        applicable(
-            q.speeds().availability(),
-            matches!(family, "npc" | "character"),
-        );
+        applicable(q.land_speed().availability(), family == "npc");
+        applicable(q.speeds().availability(), family == "npc");
         for kind in [
             ActorIwrKind::Immunity,
             ActorIwrKind::Weakness,
@@ -428,7 +422,8 @@ fn scalar_states_and_baselines_remain_distinct() {
 
 #[test]
 fn collection_members_keep_same_entry_availability_and_authored_order() {
-    for family in ["npc", "character"] {
+    {
+        let family = "npc";
         let source = actor(
             family,
             json!({"attributes":{"speed":{"value":null,"otherSpeeds":[{"type":"fly","value":10},{"type":"swim","value":40},{"type":"fly","value":null},{"type":"fly","value":0}]}}}),
@@ -440,14 +435,11 @@ fn collection_members_keep_same_entry_availability_and_authored_order() {
         let entries = query(&source).speeds().value().unwrap();
         assert_eq!(entries.len(), 4);
         assert!(!entries.iter().any(|s| {
-            matches!(
-                s.speed_type().value(),
-                Some(CharacterAttributesSourceSpeedOtherSpeedsEntryType::Fly)
-            ) && s
-                .value()
-                .value()
-                .and_then(Number::as_i64)
-                .is_some_and(|v| v >= 40)
+            matches!(s.speed_type().value(), Some(LabeledSpeedType::Fly))
+                && s.value()
+                    .value()
+                    .and_then(Number::as_i64)
+                    .is_some_and(|v| v >= 40)
         }));
         assert_eq!(
             entries.get(2).unwrap().value().availability(),
@@ -503,4 +495,17 @@ fn collection_members_keep_same_entry_availability_and_authored_order() {
         SourcePresence::Missing
     );
     assert!(query(&source).languages().value().unwrap().is_empty());
+}
+
+#[test]
+fn character_speed_is_not_an_authored_reference_fact() {
+    let source = actor("character", json!({"attributes":{"speed":{"value":30}}}));
+    assert_eq!(
+        query(&source).land_speed().availability(),
+        FieldAvailability::NotApplicable
+    );
+    assert_eq!(
+        query(&source).speeds().availability(),
+        FieldAvailability::NotApplicable
+    );
 }

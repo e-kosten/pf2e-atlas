@@ -412,7 +412,8 @@ fn item_rows(
     }
     if matches!(
         i,
-        ItemSourceView::ArmorSource(_)
+        ItemSourceView::AmmoSource(_)
+            | ItemSourceView::ArmorSource(_)
             | ItemSourceView::ContainerSource(_)
             | ItemSourceView::BookSource(_)
             | ItemSourceView::ConsumableSource(_)

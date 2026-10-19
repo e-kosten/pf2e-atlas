@@ -28,6 +28,7 @@ fn all_registered_actor_and_item_families_have_callable_full_models() {
     for family in [
         "action",
         "affliction",
+        "ammo",
         "ancestry",
         "armor",
         "background",
@@ -71,7 +72,7 @@ fn every_pinned_rule_key_dispatches_to_its_specific_model() {
         .iter()
         .filter_map(serde_json::Value::as_str)
         .collect();
-    assert_eq!(keys.len(), 42);
+    assert_eq!(keys.len(), 40);
     for key in keys {
         let value =
             parse_rule_source(context(), format!(r#"{{"key":"{key}"}}"#).as_bytes()).unwrap();
@@ -85,7 +86,7 @@ fn every_pinned_rule_key_dispatches_to_its_specific_model() {
 
 #[test]
 fn full_sources_preserve_unknown_data_and_parse_specific_rules_separately() {
-    let value = parse_item_source_pf2e(context(), br#"{"type":"action","name":null,"system":{"rules":[{"key":"FlatModifier","selector":"attack","value":2}],"future":9007199254740993,"future":null},"extra":1,"extra":2}"#).unwrap();
+    let value = parse_item_source_pf2e(context(), br#"{"type":"action","name":null,"system":{"rules":[{"key":"FlatModifier","selector":["attack"],"value":2}],"future":9007199254740993,"future":null},"extra":1,"extra":2}"#).unwrap();
     let ItemSourcePF2e::AbilitySource(item) = value else {
         panic!()
     };
@@ -99,7 +100,7 @@ fn full_sources_preserve_unknown_data_and_parse_specific_rules_separately() {
     // Specific rule dispatch is a separate callable parser, not a silent drop.
     let rule = parse_rule_source(
         context(),
-        br#"{"key":"FlatModifier","selector":"attack","value":2,"future":true}"#,
+        br#"{"key":"FlatModifier","selector":["attack"],"value":2,"future":true}"#,
     )
     .unwrap();
     assert!(matches!(rule, RuleSource::FlatModifier(_)));

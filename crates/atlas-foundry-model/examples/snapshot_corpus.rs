@@ -41,13 +41,17 @@ fn main() -> Result<(), Box<dyn Error>> {
             .nth(1)
             .ok_or("Pass the pinned PF2e source root")?,
     );
-    let manifest: Value = serde_json::from_slice(&fs::read(source.join("static/system.json"))?)?;
+    let manifest: Value = serde_json::from_slice(&fs::read(source.join("system.pf2e.json"))?)?;
     let mut counts = Counts::default();
     for pack in manifest["packs"].as_array().ok_or("Manifest packs")? {
         let kind = pack["type"].as_str().ok_or("Pack type")?;
         let mut paths = Vec::new();
         files(
-            &source.join(pack["path"].as_str().ok_or("Pack path")?),
+            &source.join("packs/pf2e").join(
+                Path::new(pack["path"].as_str().ok_or("Pack path")?)
+                    .file_name()
+                    .ok_or("Pack directory")?,
+            ),
             &mut paths,
         )?;
         paths.sort();
@@ -83,7 +87,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         counts.partial,
         counts.diagnostics,
         counts.raw_only,
-    ) != (87, 25641, 203, 267, 0)
+    ) != (98, 29894, 237, 305, 0)
     {
         return Err("Pinned corpus loading outcomes changed".into());
     }

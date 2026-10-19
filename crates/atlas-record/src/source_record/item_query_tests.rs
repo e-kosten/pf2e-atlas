@@ -1,5 +1,5 @@
 use super::*;
-use crate::source_record::SourceNodeView;
+use crate::source_record::{FieldAvailability, SourceNodeView};
 use atlas_foundry_model::{SourceContext, admit_document_source};
 use serde_json::{Value, json};
 
@@ -55,7 +55,7 @@ fn spell_authored_and_derived_fields_keep_states_and_units() {
     assert_eq!(damage[1].0, "life");
     assert_eq!(
         damage[0].1.r#type,
-        SourcePresence::Value(ConsumableDamageHealingType::Fire)
+        SourcePresence::Value(ModularConfigDamageType::Fire)
     );
     assert_eq!(
         damage[0].1.kinds,
@@ -190,7 +190,7 @@ fn physical_baselines_do_not_apply_runtime_adjustments() {
     );
     assert_eq!(
         i.weapon_damage_type().value(),
-        Some(&ConsumableDamageHealingType::Slashing)
+        Some(&ModularConfigDamageType::Slashing)
     );
     assert_eq!(i.weapon_range_increment(), SourceFieldView::Null);
     assert_eq!(
@@ -218,10 +218,10 @@ fn physical_baselines_do_not_apply_runtime_adjustments() {
         item(&s).shield_hp_maximum().value().unwrap().as_i64(),
         Some(20)
     );
-    let s = source("consumable", json!({"category":"ammo"}));
+    let s = source("consumable", json!({"category":"potion"}));
     assert_eq!(
         item(&s).consumable_category().value(),
-        Some(&ConsumableSystemSourceCategory::Ammo)
+        Some(&ConsumableSystemSourceCategory::Potion)
     );
     let s = source(
         "kit",
@@ -284,23 +284,23 @@ fn character_options_effect_condition_and_deity_borrow_authoritative_facts() {
     );
     assert_eq!(
         item(&s).effect_duration_unit().value(),
-        Some(&DurationDataUnit::Unlimited)
+        Some(&SourceFromSchemaDurationDataSchemaUnit::Unlimited)
     );
     assert_eq!(
-        item(&s).effect_duration(DurationDataUnit::Rounds),
+        item(&s).effect_duration(SourceFromSchemaDurationDataSchemaUnit::Rounds),
         SourceFieldView::NotApplicable
     );
     let s = source("effect", json!({"duration":{"unit":"hours","value":3}}));
     assert_eq!(
         item(&s)
-            .effect_duration(DurationDataUnit::Hours)
+            .effect_duration(SourceFromSchemaDurationDataSchemaUnit::Hours)
             .value()
             .unwrap()
             .as_i64(),
         Some(3)
     );
     assert_eq!(
-        item(&s).effect_duration(DurationDataUnit::Rounds),
+        item(&s).effect_duration(SourceFromSchemaDurationDataSchemaUnit::Rounds),
         SourceFieldView::NotApplicable
     );
     let s = source(
@@ -355,6 +355,7 @@ fn shared_item_level_and_physical_capabilities_have_explicit_applicability() {
     for family in [
         "action",
         "affliction",
+        "ammo",
         "ancestry",
         "armor",
         "background",
@@ -385,7 +386,8 @@ fn shared_item_level_and_physical_capabilities_have_explicit_applicability() {
         let i = item(&s);
         let physical = matches!(
             family,
-            "armor"
+            "ammo"
+                | "armor"
                 | "book"
                 | "consumable"
                 | "backpack"
@@ -452,7 +454,7 @@ fn consumable_damage_preserves_authored_kind_type_and_unavailable_states() {
     );
     assert_eq!(
         item(&known).consumable_damage_type().value(),
-        Some(&ConsumableDamageHealingType::Vitality)
+        Some(&ModularConfigDamageType::Vitality)
     );
     let missing = source("consumable", json!({}));
     assert_eq!(
@@ -471,5 +473,32 @@ fn consumable_damage_preserves_authored_kind_type_and_unavailable_states() {
     assert_eq!(
         item(&other).consumable_damage_kind(),
         SourceFieldView::NotApplicable
+    );
+}
+
+#[test]
+fn ammunition_exposes_authored_equipment_facts() {
+    let source = source(
+        "ammo",
+        json!({
+            "level":{"value":3}, "price":{"value":{"gp":4}}, "bulk":{"value":0},
+            "size":"med", "usage":{"value":"held-in-one-hand"},
+            "traits":{"value":["magical"],"rarity":"uncommon"}
+        }),
+    );
+    let ammo = item(&source);
+    assert_eq!(ammo.family(), "ammo");
+    assert_eq!(ammo.item_level().value().unwrap().as_i64(), Some(3));
+    assert!(ammo.physical_price().value().is_some());
+    assert_eq!(ammo.physical_bulk().value().unwrap().as_i64(), Some(0));
+    assert_eq!(ammo.physical_usage().value(), Some("held-in-one-hand"));
+    assert_eq!(
+        ammo.physical_size().value(),
+        Some(&PhysicalSystemSourceSize::Med)
+    );
+    assert_eq!(ammo.traits().value().unwrap(), &["magical"]);
+    assert_eq!(
+        ammo.consumable_category().availability(),
+        FieldAvailability::NotApplicable
     );
 }

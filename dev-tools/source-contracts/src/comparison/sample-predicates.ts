@@ -1,3 +1,4 @@
+import { sourcePackPath } from './source-packs.js';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -42,7 +43,7 @@ export function predicatePackets(text:string,sourcePath:string,pack:string):Pred
   walk(statement.expression,'$');return packets;
 }
 export async function* samplePredicates(source:string):AsyncGenerator<PredicatePacket> {
-  const manifest=JSON.parse(await readFile(path.join(source,'static/system.json'),'utf8')) as {packs:{name:string;path:string}[]};
+  const manifest=JSON.parse(await readFile(path.join(source,'system.pf2e.json'),'utf8')) as {packs:{name:string;path:string}[]};
   const files=async(directory:string):Promise<string[]>=>{
     const result:string[]=[];
     for(const entry of (await readdir(directory,{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))){
@@ -51,6 +52,6 @@ export async function* samplePredicates(source:string):AsyncGenerator<PredicateP
       else if(entry.isFile() && entry.name.endsWith('.json') && entry.name!=='_folders.json')result.push(file);
     }return result;
   };
-  for(const pack of manifest.packs)for(const file of await files(path.join(source,pack.path)))
+  for(const pack of manifest.packs)for(const file of await files(sourcePackPath(source,pack.path)))
     yield* predicatePackets(await readFile(file,'utf8'),path.relative(source,file).replaceAll('\\','/'),pack.name);
 }

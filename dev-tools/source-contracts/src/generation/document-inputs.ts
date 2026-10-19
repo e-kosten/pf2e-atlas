@@ -49,7 +49,7 @@ export function authoredDocumentInputs(schema: TypeGraph, openTraitArrays: strin
   addEmpty(reload.id, reload.fields.find(field => field.name === 'value'), weaponFile, 'weapon/document.ts: prepareBaseData reload.value ||= null');
   const damage = owner('WeaponDamage', weaponFile);
   addEmpty(damage.id, damage.fields.find(field => field.name === 'die'), weaponFile, 'weapon/document.ts: prepareBaseData damage.die ||= null');
-  for (const name of ['bonusDamage', 'splashDamage']) {
+  for (const name of ['splashDamage']) {
     const value = nodes.get(weapon.fields.find(field => field.name === name)?.ref ?? '');
     if (value?.kind !== 'object') throw new Error(`Weapon damage value declaration drift: ${name}`);
     addEmpty(value.id, value.fields.find(field => field.name === 'value'), weaponFile,
@@ -117,12 +117,12 @@ export function authoredDocumentInputs(schema: TypeGraph, openTraitArrays: strin
     throw new Error('Spell overlay system declaration drift');
   const partial = nodes.get(system.ref);
   const partialMembers = partial?.kind === 'union' ? partial.members.map(ref => nodes.get(ref)) : [partial];
-  const patchFields = (node: typeof partial) => node?.kind === 'object'
+  const patchFields = (node: typeof partial, omitOverlays = false) => node?.kind === 'object'
     && node.fields.every(field => field.optional)
-    && JSON.stringify(node.fields.map(field => field.name).sort()) === JSON.stringify(spell.fields.map(field => field.name).sort());
-  if (!partialMembers.some(node => patchFields(node) && node?.name === 'DeepPartial'
-    && node.declaredAt?.some(location => location.file === 'types/foundry/util.d.ts'))
-    || partialMembers.some(node => !patchFields(node) && !(node?.kind === 'primitive' && node.value === 'undefined')))
+    && JSON.stringify(node.fields.map(field => field.name).sort()) === JSON.stringify(spell.fields.filter(field => !omitOverlays || field.name !== 'overlays').map(field => field.name).sort());
+  if (!partialMembers.some(node => patchFields(node, true) && node?.name === 'Partial'
+    && node.declaredAt?.some(location => location.file === 'node_modules/typescript/lib/lib.es5.d.ts'))
+    || partialMembers.some(node => !patchFields(node, true) && !(node?.kind === 'primitive' && node.value === 'undefined')))
     throw new Error('Spell overlay partial declaration drift');
   // Start from the rule-projected spell owner so rules in a patch keep authored shapes.
   const ruleSpell = graph.nodes.find(node => node.id.startsWith(`${spell.id}#authored-input`)) ?? spell;
@@ -130,7 +130,12 @@ export function authoredDocumentInputs(schema: TypeGraph, openTraitArrays: strin
   const authoredSpell = graph.nodes.find(node => node.id === sentinels(ruleSpell.id))!;
   const authoredOverlay = graph.nodes.find(node => node.id === sentinels(ruleOverlay.id))!;
   const patch = objectPatch(graph, authoredSpell.id);
-  replace(authoredOverlay.id, system, patch, 'spell/overlay.ts: updateOverride saves diffObject; spell/document.ts: loadVariant merges system');
+  const fullPatch = graph.nodes.find(node => node.id === patch);
+  if (fullPatch?.kind !== 'object') throw new Error('Spell patch must be an object');
+  const overlayPatch = { ...structuredClone(fullPatch), id: `${patch}#overlay`, name: 'SpellOverlaySystemPatch',
+    fields: fullPatch.fields.filter(field => field.name !== 'overlays') };
+  graph.nodes.push(overlayPatch);
+  replace(authoredOverlay.id, system, overlayPatch.id, 'spell/overlay.ts: updateOverride saves diffObject; spell/document.ts: loadVariant merges system');
   const fixed = owner('SpellHeighteningFixed', spellFile);
   const levels = fixed.fields.find(field => field.name === 'levels');
   const mapped = levels && nodes.get(levels.ref);
@@ -141,7 +146,7 @@ export function authoredDocumentInputs(schema: TypeGraph, openTraitArrays: strin
     throw new Error('Fixed spell heightening levels declaration drift');
   const layer = nodes.get(mapped.fields[0].ref);
   const layerMembers = layer?.kind === 'union' ? layer.members.map(ref => nodes.get(ref)) : [layer];
-  if (!layerMembers.some(patchFields) || layerMembers.some(node => !patchFields(node) && !(node?.kind === 'primitive' && node.value === 'undefined')))
+  if (!layerMembers.some(node => patchFields(node)) || layerMembers.some(node => !patchFields(node) && !(node?.kind === 'primitive' && node.value === 'undefined')))
     throw new Error('Fixed spell heightening layer declaration drift');
   const authoredMapped = graph.nodes.find(node => node.id === sentinels(mapped.id))!;
   const authoredLevels = { ...structuredClone(authoredMapped), id: `${mapped.id}#authored-spell-levels`,

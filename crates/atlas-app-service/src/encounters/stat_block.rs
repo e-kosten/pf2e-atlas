@@ -37,6 +37,7 @@ pub struct StatValueView {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MechanicActivityView {
+    pub is_ranged: Option<bool>,
     pub activity_id: String,
     pub label: String,
     pub kind: MechanicActivityKindView,

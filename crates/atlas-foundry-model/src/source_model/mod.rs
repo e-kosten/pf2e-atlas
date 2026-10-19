@@ -22,8 +22,8 @@ pub use generated::{
     ActorSourcePF2e, ItemSourcePF2e, JournalEntrySource, MacroSource, RollTableSource, RuleSource,
 };
 pub use generated::{
-    Coins, EquipmentFields, EquippedData, EquippedDataCarryType, PartialPrice,
-    PhysicalEquipmentFields, PhysicalEquipmentFieldsUsage, PhysicalItemHPSource,
+    EquipmentFields, EquippedData, EquippedDataCarryType, PartialPrice, PhysicalEquipmentFields,
+    PhysicalEquipmentFieldsUsage, PhysicalItemHPSource, RawCoins,
 };
 pub use generated::{
     ItemDescriptionSource, ItemGranterSource, ItemSourceFlagsPF2e, ItemTraits, PublicationData,

@@ -16,6 +16,7 @@ fn every_registered_family_has_a_callable_common_slice() {
     for family in [
         "action",
         "affliction",
+        "ammo",
         "ancestry",
         "armor",
         "background",
@@ -121,12 +122,11 @@ fn keyed_grants_are_typed_ordered_and_keep_unknown_fields() {
     let value = parse(
         r#"{"type":"feat","system":{},"flags":{"pf2e":{"itemGrants":{"z":{"id":"second","onDelete":"detach","nested":null,"future":9007199254740993},"a":{"id":"first"}},"other":1},"module":{}}}"#,
     );
-    let SourcePresence::Value(flags) = value.flags else {
+    let SourcePresence::Value(mut flags) = value.flags else {
         panic!()
     };
-    let SourcePresence::Value(pf2e) = flags.pf2e else {
-        panic!()
-    };
+    let (namespace, pf2e) = flags.entries.remove(0);
+    assert_eq!(namespace, "pf2e");
     let SourcePresence::Value(grants) = pf2e.item_grants else {
         panic!()
     };
@@ -149,9 +149,8 @@ fn keyed_grants_are_typed_ordered_and_keep_unknown_fields() {
         "future"
     );
     assert_eq!(pf2e.indexed_fields.entries[0].0, "other");
-    assert_eq!(flags.indexed_fields.entries[0].0, "module");
+    assert_eq!(flags.entries[0].0, "module");
     assert!(pf2e.additional_fields.fields().is_empty());
-    assert!(flags.additional_fields.fields().is_empty());
 }
 
 #[test]
@@ -207,18 +206,18 @@ fn malformed_modeled_values_fail_with_nested_context() {
         ),
         (
             r#"{"type":"feat","system":{},"flags":{"pf2e":{"itemGrants":{"x":{"onDelete":"new"}}}}}"#,
-            "$.flags.pf2e.itemGrants[\"x\"].onDelete",
+            "$.flags[\"pf2e\"].itemGrants[\"x\"].onDelete",
         ),
         (
             r#"{"type":"feat","system":{},"flags":{"pf2e":{"itemGrants":{"x":{},"x":{}}}}}"#,
-            "$.flags.pf2e.itemGrants[\"x\"]",
+            "$.flags[\"pf2e\"].itemGrants[\"x\"]",
         ),
         (
             r#"{"type":"feat","system":{},"flags":{"pf2e":{"itemGrants":{"x":null}}}}"#,
-            "$.flags.pf2e.itemGrants[\"x\"]",
+            "$.flags[\"pf2e\"].itemGrants[\"x\"]",
         ),
         (
-            r#"{"type":"treasure","system":{"traits":{"value":["unexpected"]}}}"#,
+            r#"{"type":"treasure","system":{"traits":{"value":[42]}}}"#,
             "$.system.traits.value[0]",
         ),
         (
@@ -243,12 +242,11 @@ fn complete_flags_model_grants_selections_and_open_namespaces() {
         "rulesSelections":{"name":"choice","rank":18446744073709551615,"object":{"x":1,"x":2},"array":[null,3]},
         "future":{"x":1,"x":2}},"module":{"enabled":true,"payload":null,"values":[1,2]}}}"#,
     );
-    let SourcePresence::Value(flags) = item.flags else {
+    let SourcePresence::Value(mut flags) = item.flags else {
         panic!()
     };
-    let SourcePresence::Value(pf2e) = flags.pf2e else {
-        panic!()
-    };
+    let (namespace, pf2e) = flags.entries.remove(0);
+    assert_eq!(namespace, "pf2e");
     let SourcePresence::Value(granted) = pf2e.granted_by else {
         panic!()
     };
@@ -280,7 +278,7 @@ fn complete_flags_model_grants_selections_and_open_namespaces() {
         panic!()
     };
     assert_eq!(future.fields().len(), 2);
-    let module = &flags.indexed_fields.entries[0].1;
+    let module = &flags.entries[0].1.indexed_fields;
     assert_eq!(
         module
             .entries
@@ -300,20 +298,20 @@ fn new_flags_fields_reject_bad_declared_values_without_widening_open_data() {
     for (flags, path) in [
         (
             r#"{"pf2e":{"rulesSelections":{"x":false}}}"#,
-            r#"$.flags.pf2e.rulesSelections["x"]"#,
+            r#"$.flags["pf2e"].rulesSelections["x"]"#,
         ),
         (
             r#"{"pf2e":{"rulesSelections":{"x":null}}}"#,
-            r#"$.flags.pf2e.rulesSelections["x"]"#,
+            r#"$.flags["pf2e"].rulesSelections["x"]"#,
         ),
         (
             r#"{"pf2e":{"grantedBy":{"onDelete":"unknown"}}}"#,
-            "$.flags.pf2e.grantedBy.onDelete",
+            "$.flags[\"pf2e\"].grantedBy.onDelete",
         ),
         (r#"{"module":false}"#, r#"$.flags["module"]"#),
         (
             r#"{"pf2e":{"future":1,"future":2}}"#,
-            r#"$.flags.pf2e["future"]"#,
+            r#"$.flags["pf2e"]["future"]"#,
         ),
     ] {
         let source = format!(r#"{{"type":"feat","system":{{}},"flags":{flags}}}"#);

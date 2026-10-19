@@ -15,7 +15,7 @@ fn table_results_preserve_collection_states_and_have_one_authoritative_list() {
         (Some(json!([])), QueryFieldState::Value),
         (
             Some(
-                json!([{"_id":"aaaaaaaaaaaaaaaa","type":"text","range":[0,0],"weight":0,"text":"Zero result"}]),
+                json!([{"_id":"aaaaaaaaaaaaaaaa","type":"text","range":[0,0],"weight":0,"description":"Zero result"}]),
             ),
             QueryFieldState::Value,
         ),
@@ -141,7 +141,7 @@ fn physical_details_do_not_require_an_applicable_usage_field() {
 fn spell_physical_and_roll_table_details_display_authored_facts() {
     let spell = json!({"_id":"spell00000000000","type":"spell","name":"Authored Spell","system":{"level":{"value":2},"time":{"value":"2"},"range":{"value":"60 feet"},"target":{"value":"one creature"},"duration":{"value":"1 minute","sustained":true},"description":{"value":"<p>Spell text</p>"}}});
     let physical = json!({"_id":"item000000000000","type":"equipment","name":"Authored Equipment","system":{"usage":{"value":"held-in-one-hand"},"bulk":{"value":1},"price":{"value":{"gp":12,"sp":5},"per":2},"description":{"value":"<p>Equipment text</p>"}}});
-    let table = json!({"_id":"table00000000000","name":"Authored Table","formula":"1d4","results":[{"_id":"result0000000000","type":"pack","range":[1,2],"weight":2,"documentCollection":"pf2e.items","documentId":"item000000000000","text":"Equipment result"},{"_id":"result0000000001","type":"pack","range":[3,4],"documentCollection":"pf2e.macros","documentId":"macro00000000000","text":"Tool macro"}]});
+    let table = json!({"_id":"table00000000000","name":"Authored Table","formula":"1d4","results":[{"_id":"result0000000000","type":"document","range":[1,2],"weight":2,"documentUuid":"Compendium.pf2e.items.Item.item000000000000","description":"Equipment result"},{"_id":"result0000000001","type":"document","range":[3,4],"documentUuid":"Compendium.pf2e.macros.Macro.macro00000000000","description":"Tool macro"}]});
     let actor = json!({"_id":"actor00000000000","type":"npc","name":"Caster","items":[spell.clone(),physical.clone()]});
     let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
         Ok(open_source_fixture(
@@ -1024,7 +1024,7 @@ fn explicit_collections_share_grouping_and_movement_uses_feet() {
         &[],
     )
     .unwrap();
-    assert_eq!(editor.catalog_version, 5);
+    assert_eq!(editor.catalog_version, 6);
     let embedded = editor.groups.iter().find(|g| g.id == "embedded").unwrap();
     assert_eq!(
         embedded

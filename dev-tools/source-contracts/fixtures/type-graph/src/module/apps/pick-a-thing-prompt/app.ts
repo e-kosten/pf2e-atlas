@@ -1,4 +1,4 @@
-import type { Predicate } from '../system/predication.js';
+import type { Predicate } from '../../system/predication.js';
 
 export interface PickableThing<T = string> {
   value: T;

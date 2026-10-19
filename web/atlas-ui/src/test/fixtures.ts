@@ -84,6 +84,7 @@ export function activityFixture(
 ): ActorActivityView {
   const na: NumberFactView = { state: "not_applicable", value: null, adjustment: null };
   return {
+    is_ranged: unavailableFact("missing"),
     effect_duration: unavailableFact("not_applicable"),
     self_effect: { state: "not_applicable", value: null },
     strike_effects: { state: "not_applicable", value: null },

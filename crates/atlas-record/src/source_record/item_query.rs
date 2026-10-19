@@ -39,11 +39,7 @@ impl<'a> ItemSourceView<'a> {
             self,
             source,
             SourceFieldView::from(&source.flags).and_then(|flags| {
-                let mut core = flags
-                    .indexed_fields
-                    .entries
-                    .iter()
-                    .filter(|(key, _)| key == "core");
+                let mut core = flags.entries.iter().filter(|(key, _)| key == "core");
                 let Some((_, core_value)) = core.next() else {
                     return SourceFieldView::Missing;
                 };
@@ -51,6 +47,7 @@ impl<'a> ItemSourceView<'a> {
                     return projection_invalid("/flags/core", "Duplicate core flag namespace");
                 }
                 let mut ids = core_value
+                    .indexed_fields
                     .entries
                     .iter()
                     .filter(|(key, _)| key == "sourceId");
@@ -77,6 +74,7 @@ impl<'a> ItemSourceView<'a> {
         &'a Number,
         [
             AfflictionSource,
+            AmmoSource,
             ArmorSource,
             ContainerSource,
             BookSource,
@@ -112,6 +110,7 @@ impl<'a> ItemSourceView<'a> {
         physical_price,
         &'a PartialPrice,
         [
+            AmmoSource,
             ArmorSource,
             ContainerSource,
             BookSource,
@@ -146,6 +145,7 @@ impl<'a> ItemSourceView<'a> {
         physical_bulk,
         &'a Number,
         [
+            AmmoSource,
             ArmorSource,
             ContainerSource,
             BookSource,
@@ -178,40 +178,38 @@ impl<'a> ItemSourceView<'a> {
             .and_then(|s| (&s.bulk).into())
             .and_then(|s| (&s.value).into())
     );
-    family_field!(
-        physical_size,
-        &'a PhysicalSystemSourceSize,
-        [
-            ArmorSource,
-            ContainerSource,
-            BookSource,
-            ConsumableSource,
-            EquipmentSource,
-            ShieldSource,
-            TreasureSource,
-            WeaponSource
-        ],
-        [
-            AbilitySource,
-            AfflictionSource,
-            AncestrySource,
-            BackgroundSource,
-            CampaignFeatureSource,
-            ClassSource,
-            ConditionSource,
-            DeitySource,
-            EffectSource,
-            FeatSource,
-            HeritageSource,
-            KitSource,
-            LoreSource,
-            MeleeSource,
-            SpellSource,
-            SpellcastingEntrySource
-        ],
-        s,
-        SourceFieldView::from(&s.system).and_then(|s| (&s.size).into())
-    );
+    pub fn physical_size(self) -> SourceFieldView<'a, &'a PhysicalSystemSourceSize> {
+        match self {
+            Self::TreasureSource(s) => SourceFieldView::from(&s.system)
+                .and_then(|s| (&s.size).into())
+                .map(|size| match size {
+                    ItemSize::Grg => &PhysicalSystemSourceSize::Grg,
+                    ItemSize::Huge => &PhysicalSystemSourceSize::Huge,
+                    ItemSize::Lg => &PhysicalSystemSourceSize::Lg,
+                    ItemSize::Med => &PhysicalSystemSourceSize::Med,
+                    ItemSize::Tiny => &PhysicalSystemSourceSize::Tiny,
+                }),
+            Self::AmmoSource(s) => SourceFieldView::from(&s.system).and_then(|s| (&s.size).into()),
+            Self::ArmorSource(s) => SourceFieldView::from(&s.system).and_then(|s| (&s.size).into()),
+            Self::ContainerSource(s) => {
+                SourceFieldView::from(&s.system).and_then(|s| (&s.size).into())
+            }
+            Self::BookSource(s) => SourceFieldView::from(&s.system).and_then(|s| (&s.size).into()),
+            Self::ConsumableSource(s) => {
+                SourceFieldView::from(&s.system).and_then(|s| (&s.size).into())
+            }
+            Self::EquipmentSource(s) => {
+                SourceFieldView::from(&s.system).and_then(|s| (&s.size).into())
+            }
+            Self::ShieldSource(s) => {
+                SourceFieldView::from(&s.system).and_then(|s| (&s.size).into())
+            }
+            Self::WeaponSource(s) => {
+                SourceFieldView::from(&s.system).and_then(|s| (&s.size).into())
+            }
+            _ => SourceFieldView::NotApplicable,
+        }
+    }
     family_field!(
         ancestry_size,
         &'a PhysicalSystemSourceSize,
@@ -235,7 +233,7 @@ impl<'a> ItemSourceView<'a> {
     );
     family_field!(
         weapon_damage_type,
-        &'a ConsumableDamageHealingType,
+        &'a ModularConfigDamageType,
         [WeaponSource],
         s,
         SourceFieldView::from(&s.system)
@@ -305,7 +303,7 @@ impl<'a> ItemSourceView<'a> {
     pub fn consumable_damage_kind(self) -> SourceFieldView<'a, &'a DamageKind> {
         self.consumable_damage().and_then(|d| (&d.kind).into())
     }
-    pub fn consumable_damage_type(self) -> SourceFieldView<'a, &'a ConsumableDamageHealingType> {
+    pub fn consumable_damage_type(self) -> SourceFieldView<'a, &'a ModularConfigDamageType> {
         self.consumable_damage().and_then(|d| (&d.r#type).into())
     }
     family_field!(
@@ -322,6 +320,7 @@ impl<'a> ItemSourceView<'a> {
         [
             AfflictionSource,
             AncestrySource,
+            AmmoSource,
             ArmorSource,
             BackgroundSource,
             BookSource,
@@ -354,6 +353,7 @@ impl<'a> ItemSourceView<'a> {
         [
             AfflictionSource,
             AncestrySource,
+            AmmoSource,
             ArmorSource,
             BackgroundSource,
             BookSource,
@@ -429,7 +429,7 @@ impl<'a> ItemSourceView<'a> {
     );
     family_field!(
         effect_duration_unit,
-        &'a DurationDataUnit,
+        &'a SourceFromSchemaDurationDataSchemaUnit,
         [EffectSource],
         s,
         SourceFieldView::from(&s.system)
@@ -537,6 +537,10 @@ impl<'a> ItemSourceView<'a> {
     /// Physical usage is authored only; Armor, Shield, Treasure and Kit lack it.
     pub fn physical_usage(self) -> SourceFieldView<'a, &'a str> {
         match self {
+            Self::AmmoSource(s) => SourceFieldView::from(&s.system)
+                .and_then(|s| (&s.usage).into())
+                .and_then(|s| (&s.value).into())
+                .map(String::as_str),
             Self::WeaponSource(s) => SourceFieldView::from(&s.system)
                 .and_then(|s| (&s.usage).into())
                 .and_then(|s| (&s.value).into())
@@ -629,7 +633,10 @@ impl<'a> ItemSourceView<'a> {
         }
     }
     /// A unit-gated authored value; no conversion and no unlimited sentinel.
-    pub fn effect_duration(self, unit: DurationDataUnit) -> SourceFieldView<'a, &'a Number> {
+    pub fn effect_duration(
+        self,
+        unit: SourceFromSchemaDurationDataSchemaUnit,
+    ) -> SourceFieldView<'a, &'a Number> {
         match self {
             Self::EffectSource(s) => SourceFieldView::from(&s.system)
                 .and_then(|s| (&s.duration).into())
@@ -637,7 +644,8 @@ impl<'a> ItemSourceView<'a> {
                     SourceFieldView::from(&d.unit).and_then(|authored| {
                         if matches!(
                             unit,
-                            DurationDataUnit::Unlimited | DurationDataUnit::Encounter
+                            SourceFromSchemaDurationDataSchemaUnit::Unlimited
+                                | SourceFromSchemaDurationDataSchemaUnit::Encounter
                         ) || *authored != unit
                         {
                             SourceFieldView::NotApplicable
@@ -653,10 +661,7 @@ impl<'a> ItemSourceView<'a> {
         match self {
             Self::ConditionSource(s) => SourceFieldView::from(&s.system)
                 .and_then(|s| (&s.value).into())
-                .and_then(|v| match v {
-                    ConditionValueData::Alternative1(v) => (&v.is_valued).into(),
-                    ConditionValueData::Alternative2(v) => (&v.is_valued).into(),
-                })
+                .and_then(|v| (&v.is_valued).into())
                 .map(|v| *v),
             _ => SourceFieldView::NotApplicable,
         }

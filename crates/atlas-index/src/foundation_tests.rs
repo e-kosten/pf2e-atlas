@@ -872,7 +872,7 @@ fn shape_and_numeric_sql_constraints_reject_text_and_incoherent_states() {
 fn world_table_result_cannot_resolve_into_the_compendium_namespace() {
     use atlas_record::source_record::{SourceReferenceIndex, resolve_source_relationships};
     let mut input = fixture(false);
-    input.records.push(record("tables","RollTable",json!({"_id":"tableaaaaaaaaaaa","name":"World Table","results":[{"_id":"resultaaaaaaaaaa","type":"pack","documentCollection":"pf2e.items","documentId":"bbbbbbbbbbbbbbbb"},{"_id":"resultbbbbbbbbbb","type":"document","documentCollection":"pf2e.items","documentId":"bbbbbbbbbbbbbbbb"}]})));
+    input.records.push(record("tables","RollTable",json!({"_id":"tableaaaaaaaaaaa","name":"World Table","results":[{"_id":"resultaaaaaaaaaa","type":"document","documentUuid":"Compendium.pf2e.items.Item.bbbbbbbbbbbbbbbb"},{"_id":"resultbbbbbbbbbb","type":"document","documentUuid":"pf2e.items.bbbbbbbbbbbbbbbb"}]})));
     input.packs.push(IndexBuildPack {
         pack_id: "tables".into(),
         label: "Tables".into(),
@@ -1487,6 +1487,43 @@ fn persisted_preparation_reconstructs_exact_publication_inputs_without_query_cat
             crate::publication_delta::root_digest(restored, label).unwrap(),
             "{}",
             original.record.key()
+        );
+    }
+}
+
+#[test]
+fn ammunition_projects_physical_values_for_root_and_embedded_queries() {
+    for family in [
+        "ammo",
+        "armor",
+        "backpack",
+        "book",
+        "consumable",
+        "equipment",
+        "shield",
+        "treasure",
+        "weapon",
+    ] {
+        let input = record(
+            "items",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":family,"system":{"price":{"value":{"gp":2},"per":1},"bulk":{"value":1}}}),
+        );
+        let mut ids = crate::projections::ProjectionIds::default();
+        let rows = crate::projections::root_rows(&input, "Items", 1, &mut ids).unwrap();
+        let physical = rows
+            .iter()
+            .find(|row| row.table == "physical_projection")
+            .unwrap_or_else(|| panic!("missing physical row for {family}"));
+        let column = physical
+            .columns
+            .iter()
+            .position(|name| name == "price_per_item_cp_state")
+            .unwrap();
+        assert_eq!(
+            physical.values[column],
+            rusqlite::types::Value::Text("value".into()),
+            "{family}"
         );
     }
 }

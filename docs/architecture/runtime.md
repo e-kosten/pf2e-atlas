@@ -478,7 +478,7 @@ data does not imply runtime execution support. See the active backlog and ADR004
 ### Encounter participation and regain forecasts
 
 App-service projects current acting/reacting capability separately from a
-PF2e 6.12.4 next-regain forecast. Unknown condition values produce an unavailable
+PF2e 8.6.1 next-regain forecast. Unknown condition values produce an unavailable
 forecast. Quickened restrictions and overlapping Stunned/Slowed losses remain
 visible; reads never recover conditions. Ordinary casting uses the same backend
 capability reason as browser controls; explicit past-use and resource corrections

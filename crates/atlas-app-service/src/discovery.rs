@@ -246,8 +246,8 @@ fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
         "body" => ProductGroup::Creatures,
         "level" => ProductGroup::Common,
         "hazard" => ProductGroup::Hazards,
-        "physical" | "weapon" | "armor" | "shield" | "consumable" | "equipment" | "backpack"
-        | "treasure" => ProductGroup::Equipment,
+        "physical" | "ammo" | "weapon" | "armor" | "shield" | "consumable" | "equipment"
+        | "backpack" | "treasure" => ProductGroup::Equipment,
         "spell" => ProductGroup::Spells,
         "feat" | "action" => ProductGroup::Feats,
         "ancestry" => ProductGroup::Ancestries,
