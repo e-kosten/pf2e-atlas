@@ -29,6 +29,15 @@ flowchart TD
     browser[React and Ant UI] --> web
 ```
 
+## Pinned reference acquisition
+
+Runtime acquires the exact PF2e commit emitted by model generation from the
+canonical source pin (ADR0052). Default source caches are keyed by commit and
+published only after a detached checkout is complete and clean; setup never pulls
+upstream HEAD. Explicit or persisted user source directories are inspected without
+mutation. Ingest rejects incompatible PF2e system manifest versions before product
+preparation; developer admission reports remain usable for unsupported sources.
+
 ## Source loading and checked records
 
 Private TypeScript tooling resolves pinned Foundry declarations and emits modular

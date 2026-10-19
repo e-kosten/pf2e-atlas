@@ -10,6 +10,7 @@ mod setup;
 mod setup_clean;
 mod setup_freshness;
 mod setup_model;
+mod source_acquisition;
 mod source_configuration;
 #[cfg(test)]
 mod tests;

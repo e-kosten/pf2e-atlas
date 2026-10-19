@@ -303,9 +303,14 @@ The default setup stores the durable workspace in platform application-data stor
 
 - `--path-mode global` uses `pf2e-atlas/workspace.sqlite` under platform application data, with external caches under the platform user cache directory.
 - `--path-mode repo` is a contributor mode that uses paths inside this repository:
-  - source: `vendor/pf2e`
+  - pinned source cache: `.cache/pf2e/<supported-commit>`
   - embedding model cache: `.cache/hf-models`
   - persistent workspace: `.atlas/workspace.sqlite`
+
+Default reference data and generated models use the same immutable PF2e revision
+(currently 6.12.4). Setup fetches that revision rather than following upstream's
+latest branch. Supplied source directories are never pulled or checked out by
+Atlas; incompatible PF2e system versions produce an expected/detected version error.
 
 You can select workspace/cache paths for a command and override the source used by setup:
 

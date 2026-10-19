@@ -640,6 +640,10 @@ pub use rules::weapon_potency::WeaponPotencyRule;
 /// Upstream declaration identity; snapshot format policy is versioned separately.
 pub const SOURCE_CONTRACT_ID: &str =
     "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8";
+/// Tested reference source, emitted from the canonical generator pin.
+pub const REFERENCE_SOURCE_REPOSITORY: &str = "https://github.com/foundryvtt/pf2e.git";
+pub const REFERENCE_SOURCE_COMMIT: &str = "4cbdaa37d6c33e9519561bae2c59a23e0288cbce";
+pub const REFERENCE_SOURCE_VERSION: &str = "6.12.4";
 pub use actors::common::parse_actor_system_source;
 pub use actors::common::parse_prototype_token_source_pf2e;
 pub use actors::creature::parse_creature_system_source;

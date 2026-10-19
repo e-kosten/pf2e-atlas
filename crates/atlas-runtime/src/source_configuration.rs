@@ -126,6 +126,7 @@ mod tests {
             mode: crate::ResolvedPathMode::Global,
             repo_root: None,
             source_root: root.join("source"),
+            managed_source_root: root.join("managed-source"),
             source_root_explicit: false,
             embedding_cache_root: root.join("models"),
             index_path: root.join("workspace.sqlite"),

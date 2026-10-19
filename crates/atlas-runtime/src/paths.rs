@@ -21,6 +21,8 @@ pub struct ResolvedAtlasPaths {
     pub mode: ResolvedPathMode,
     pub repo_root: Option<PathBuf>,
     pub source_root: PathBuf,
+    /// Immutable cache destination, independent of an explicit source override.
+    pub managed_source_root: PathBuf,
     pub source_root_explicit: bool,
     pub embedding_cache_root: PathBuf,
     pub index_path: PathBuf,
@@ -75,7 +77,12 @@ pub(crate) fn resolve_atlas_paths(
                 return Err(RuntimeError::repo_mode_outside_checkout());
             };
             AtlasPathOverrides {
-                source_root: Some(repo_root.join("vendor").join("pf2e")),
+                source_root: Some(
+                    repo_root
+                        .join(".cache")
+                        .join("pf2e")
+                        .join(atlas_foundry_model::generated::REFERENCE_SOURCE_COMMIT),
+                ),
                 embedding_cache_root: Some(repo_root.join(".cache").join("hf-models")),
                 index_path: Some(repo_root.join(".atlas").join("workspace.sqlite")),
             }
@@ -83,7 +90,11 @@ pub(crate) fn resolve_atlas_paths(
         ResolvedPathMode::Global => {
             let cache_root = platform_cache_root()?.join("pf2e-atlas");
             AtlasPathOverrides {
-                source_root: Some(cache_root.join("vendor").join("pf2e")),
+                source_root: Some(
+                    cache_root
+                        .join("pf2e")
+                        .join(atlas_foundry_model::generated::REFERENCE_SOURCE_COMMIT),
+                ),
                 embedding_cache_root: Some(cache_root.join("hf-models")),
                 index_path: Some(
                     platform_data_root()?
@@ -93,12 +104,17 @@ pub(crate) fn resolve_atlas_paths(
             }
         }
     };
+    let managed_source_root = defaults
+        .source_root
+        .clone()
+        .ok_or_else(|| RuntimeError::path_default_unavailable(RuntimePathTarget::SourceRoot))?;
     let index_path = overrides
         .index_path
         .or(defaults.index_path)
         .ok_or_else(|| RuntimeError::path_default_unavailable(RuntimePathTarget::IndexPath))?;
 
     Ok(ResolvedAtlasPaths {
+        managed_source_root,
         source_root_explicit: overrides.source_root.is_some(),
         mode: resolved_mode,
         repo_root: if resolved_mode == ResolvedPathMode::Repo {

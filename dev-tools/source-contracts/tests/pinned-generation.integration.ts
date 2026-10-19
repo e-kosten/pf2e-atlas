@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { generateRustModules } from '../src/generation/source-generation.js';
 import { validateInput, nodeReferences, type GenerationInput } from '../src/generation/generation-input.js';
 import { formatRust, preparePortfolio } from '../src/generation/generate.js';
+import { readSourcePin } from '../src/generation/pinned-source.js';
 import { artifactFiles } from '../src/generation/generated-files.js';
 
 
@@ -151,4 +152,12 @@ test('unsupported shapes, unsupported indices, dangling refs and naming collisio
   assert.throws(() => generateRustModules(collision), /collision/);
   collision.selection[1].module = '../escape';
   assert.throws(() => generateRustModules(collision), /Invalid Rust module/);
+});
+
+
+test('runtime acquisition identity comes from the same canonical declaration pin', async () => {
+  const pin = await readSourcePin();
+  assert.deepEqual(input.referenceSource, { repository: pin.repository, commit: pin.commit, systemVersion: pin.systemVersion });
+  const root = rustFiles(input)['mod.rs'];
+  for (const value of [pin.repository, pin.commit, pin.systemVersion]) assert.ok(root.includes(JSON.stringify(value)));
 });
