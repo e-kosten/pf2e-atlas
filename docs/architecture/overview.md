@@ -29,7 +29,7 @@ and [ADR index](./decisions/README.md) for the relevant owner.
 | `atlas-cli` | Product grammar, terminal/JSON presentation, progress/exit behavior, web startup and agent skill installation. |
 | `atlas-dev` | Private Rust source discovery/audit/artifact inspection. Builds independently of the web UI and Node. |
 | `atlas-cli-support` | Shared path/progress argument and JSON/output primitives for both Rust CLIs. No runtime/ingest policy. |
-| `atlas-tags` | File-owned tag ontology, assignments, validation and agent contracts. Artifact tag search remains deferred. |
+| `atlas-tags` | File-owned tag definitions/assignment DTOs and structural validation. Assessment and product filtering are deferred pending demonstrated retrieval gaps (ADR0054). |
 | `atlas-sqlite-vec` | sqlite-vec registration and capability probing. |
 
 `web/atlas-ui` renders generated app contracts with React and Ant Design. Private

@@ -5,6 +5,13 @@ Priority: soon
 Owner: unassigned  
 Last reviewed: 2026-04-21
 
+Preservation update, 2026-10-19: this is historical Node design context. Its
+“approved” and “resolved” language describes that experiment, not current Rust
+requirements. The [derived-tag research package](../../../research/derived-tags/README.md)
+now preserves the local-only artifacts and later discussion. Feature development
+is [deferred](../../items/rust-derived-tag-redesign.md) pending demonstrated gaps
+in current native filters and semantic search.
+
 ## Problem
 
 This item is complete as a documentation-preservation task.
@@ -59,16 +66,17 @@ Key semantic principles:
 - `OperationalConcept` uses a bounded operation vocabulary such as `discover`, `remediate`, `remove`, `contain`, `clean_up`, `counteract`, `expel`, `appease`, `sanctify`, `resolve`, `disarm`, and `bypass`
 - `AggregateConcept` is for meaningful filterable umbrella concepts such as `communication`, `infiltration`, `reconnaissance`, `problem_discovery`, and `problem_resolution`
 
-### Current Working Artifacts
+### Preserved Working Artifacts
 
-The active scratch artifacts for this work are:
+The former local working artifacts are now preserved as inert snapshots:
 
-- [Derived Tag Canonical Concept Model](../../../../scratch/derived-tag-ontology/derived-tag-concept-model.md)
-- [Derived Tag Concept Mapping CSV](../../../../scratch/derived-tag-ontology/derived-tag-concept-mapping.csv)
-- [Derived Tag Concept Mapping Summary](../../../../scratch/derived-tag-ontology/derived-tag-concept-mapping-summary.md)
-- [Derived Tag Concept Mapping Generator](../../../../scratch/derived-tag-ontology/generate-derived-tag-concept-mapping.mjs)
+- [Derived Tag Canonical Concept Model](../../../research/derived-tags/sources/node-concept-model/derived-tag-concept-model.md)
+- [Derived Tag Concept Mapping CSV](../../../research/derived-tags/sources/node-concept-model/derived-tag-concept-mapping.csv.md)
+- [Derived Tag Concept Mapping Summary](../../../research/derived-tags/sources/node-concept-model/derived-tag-concept-mapping-summary.md)
+- [Generator provenance and retention limits](../../../research/derived-tags/sources-and-cleanup.md)
 
-Those files are the live working plans. This backlog item is the durable reminder of what that work is for and where the ontology stands.
+Those snapshots preserve the historical proposals; they are not live plans or
+an approved taxonomy for a revived implementation.
 
 ### Major Resolved Decisions
 
@@ -116,11 +124,14 @@ The main remaining review targets are:
 
 Additional remaining medium families are mostly broad utility/effect clusters in spell, equipment, and hazard spaces. Many of those may resolve through one or two family-level validation passes rather than through major model changes.
 
-The immediate pending review questions for those families are tracked separately in [Derived-tag ontology next review questions](../../items/derived-tag-ontology-next-review-questions.md).
+The retired next-review-questions item is recoverable through the
+[source map](../../../research/derived-tags/sources-and-cleanup.md). Its families
+remain historical questions, not a current work queue.
 
 ### Likely Future Implementation Work
 
-The actual implementation follow-through is now tracked separately in [Derived-tag concept model implementation](../../items/derived-tag-concept-model-implementation.md).
+The Node implementation follow-through is historical. Current capability intent
+is tracked in the [deferred Rust item](../../items/rust-derived-tag-redesign.md).
 
 When this backlog item is picked up for implementation rather than continued ontology review, the expected work will likely include:
 
@@ -132,10 +143,8 @@ When this backlog item is picked up for implementation rather than continued ont
 
 ## Related
 
-- [Derived-tag concept model implementation](../../items/derived-tag-concept-model-implementation.md)
-- [Derived-tag ontology next review questions](../../items/derived-tag-ontology-next-review-questions.md)
-- [Derived-tag assignments layout](../../items/derived-tag-assignments-layout.md)
-- [Derived tag manifest tooling metadata](../../items/derived-tag-manifest-tooling-metadata.md)
-- [Tagging tooling reorganization](../../items/tagging-tooling-reorg.md)
-- [Derived Tag Canonical Concept Model](../../../../scratch/derived-tag-ontology/derived-tag-concept-model.md)
-- [Derived Tag Concept Mapping Summary](../../../../scratch/derived-tag-ontology/derived-tag-concept-mapping-summary.md)
+- [Derived-tag research and history](../../../research/derived-tags/README.md)
+- [Historical sources and cleanup boundaries](../../../research/derived-tags/sources-and-cleanup.md)
+- [Deferred Rust derived-tag workstream](../../items/rust-derived-tag-redesign.md)
+- [Derived Tag Canonical Concept Model](../../../research/derived-tags/sources/node-concept-model/derived-tag-concept-model.md)
+- [Derived Tag Concept Mapping Summary](../../../research/derived-tags/sources/node-concept-model/derived-tag-concept-mapping-summary.md)

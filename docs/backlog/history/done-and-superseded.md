@@ -112,7 +112,9 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
   MCP, TUI, and docs now describe the same canonical `SearchRequest` contract on `mode`, optional `search`, and root `filter`, with lookup-specific sort and match-presentation behavior routed through the shared result-view path. Status: done.
 
 - [Derived-tag ontology future shape](./items/derived-tag-ontology-future-shape.md)
-  The durable documentation-preservation goal is now complete; active implementation follow-through is tracked separately under the derived-tag concept-model implementation backlog item. Status: done.
+  Historical Node concept work; the complete research package now preserves its
+  local artifacts and later designs. Feature development is deferred pending
+  demonstrated retrieval gaps. Status: done.
 
 - [Right-navigation feedback](./items/right-navigation-feedback.md)
   Failed drill intent on the shared filter explorer now routes through a shared transient footer notification instead of falling through to pane-focus behavior. Status: done.

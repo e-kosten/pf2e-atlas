@@ -4,6 +4,8 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 ## Current ADRs
 
+- [`0054-derived-tag-deferral.md`](./0054-derived-tag-deferral.md): derived-tag development is deferred pending demonstrated retrieval gaps; existing file validation remains, with history and future design preserved as research.
+
 - [`0053-field-aware-search-fusion.md`](./0053-field-aware-search-fusion.md): one field-aware lexical projection and independent temporary RRF/score comparison without re-embedding.
 
 - [`0019-rust-cli-search-record-surface.md`](./0019-rust-cli-search-record-surface.md): the CLI separates record identification from result-set search.
@@ -13,7 +15,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0025-rust-graph-context-retrieval.md`](./0025-rust-graph-context-retrieval.md): graph context retrieval is key-based, one-hop, and separate from search relationship filters.
 - [`0026-rust-cli-product-surface.md`](./0026-rust-cli-product-surface.md): CLI and first-party skill ownership; browser workflows follow ADR 0029, with TUI and derived tags as Rust-owned follow-ups.
 - [`0027-rust-runtime-lint-policy.md`](./0027-rust-runtime-lint-policy.md): runtime Rust code denies panic-oriented Clippy lints outside tests, while tests keep assertion-oriented unwrap/expect ergonomics.
-- [`0028-rust-tagging-model.md`](./0028-rust-tagging-model.md): Rust tagging is a typed authored-label subsystem with explicit crate ownership, record-centered assignments, and authoritative `record_tags` artifact rows.
+- [`0028-rust-tagging-model.md`](./0028-rust-tagging-model.md): historical Rust tagging design and implemented file model; roadmap and future design commitments partially superseded by ADR0054. Artifact tag rows remain unimplemented.
 - [`0029-local-web-app-boundary.md`](./0029-local-web-app-boundary.md): Axum/app-model/app-service ownership, generated contracts and full semantic startup; result-window state and command lifetimes are superseded by ADR0049.
 - [`0030-local-state-database.md`](./0030-local-state-database.md): durable mutable local state such as saved lists lives in a separate local-state SQLite database beside the generated artifact.
 - [`0032-ingest-product-intent.md`](./0032-ingest-product-intent.md): product-purpose requirement for derived projections; historical source retention and metric model partially superseded by ADR0046.
