@@ -88,7 +88,8 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Macro scripts or exposing Macro records in ordinary product surfaces. Status: deferred.
 
 - [Rust derived-tag runtime and editorial redesign](items/rust-derived-tag-redesign.md)
-  Redesign retained derived-tag concepts against record kinds, explicit source axes, typed filters, and Rust artifact ownership. Status: planned.
+  Preserve prior ontology/assessment research; revisit only for demonstrated gaps
+  in native filters and semantic search. Status: deferred.
 
 - [Rust CLI content output formats](items/rust-cli-content-output-formats.md)
   Evaluate unmet content-export needs against the current human, reference JSON
