@@ -6,6 +6,7 @@ use serde_json::json;
 use std::fs;
 fn paths(dir: &std::path::Path) -> ResolvedAtlasPaths {
     ResolvedAtlasPaths {
+        managed_source_root: dir.join("managed-source"),
         source_root_explicit: true,
         mode: ResolvedPathMode::Global,
         repo_root: None,
@@ -821,4 +822,102 @@ fn current_reference_startup_and_reading_continue_during_publisher_preparation()
             .unwrap(),
         before
     );
+}
+
+#[test]
+fn incompatible_supplied_source_preserves_published_reference_and_saved_state() {
+    use atlas_local_state::{LocalStateRead, LocalStateWrite, NewEncounter, NewSavedList};
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    source(&paths);
+    assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
+    let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+    let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+    LocalStateWrite::new(&write)
+        .saved_lists()
+        .create(NewSavedList {
+            slug: "keep".into(),
+            name: "Keep".into(),
+            description: None,
+            tags: vec![],
+        })
+        .unwrap();
+    LocalStateWrite::new(&write)
+        .encounters()
+        .create(NewEncounter {
+            slug: "keep-encounter".into(),
+            name: "Keep encounter".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap();
+    write.commit().unwrap();
+    let before = workspace
+        .read(WORKSPACE_SCHEMA_VERSION)
+        .unwrap()
+        .reference_revision()
+        .unwrap();
+    let manifest = paths.source_root.join("module.json");
+    let mismatched = r#"{"id":"pf2e","version":"7.9.1","packs":[]}"#;
+    fs::write(&manifest, mismatched).unwrap();
+    for check in [true, false] {
+        let mut opts = options(check);
+        opts.offline = false;
+        let report = crate::setup::ensure_setup(&paths, opts);
+        assert!(!report.ready);
+        assert!(report.readiness.source.reason.unwrap().contains("7.9.1"));
+        assert!(
+            !report
+                .actions
+                .iter()
+                .any(|a| a.kind == SetupActionKind::FetchSource)
+        );
+        assert_eq!(fs::read_to_string(&manifest).unwrap(), mismatched);
+    }
+    let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), before);
+    assert_eq!(
+        LocalStateRead::new(&read)
+            .saved_lists()
+            .list()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        LocalStateRead::new(&read)
+            .encounters()
+            .list()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(crate::workspace::open_workspace_index(&paths.index_path).is_ok());
+}
+
+#[test]
+fn missing_managed_source_in_check_or_offline_mode_is_never_created() {
+    for (check, offline) in [(true, false), (false, true)] {
+        let temp = tempfile::tempdir().unwrap();
+        let mut paths = paths(temp.path());
+        paths.source_root_explicit = false;
+        paths.managed_source_root = paths.source_root.clone();
+        let mut opts = options(check);
+        opts.offline = offline;
+        let report = crate::setup::ensure_setup(&paths, opts);
+        assert!(!report.ready);
+        assert!(!paths.source_root.exists());
+        assert!(
+            report
+                .actions
+                .iter()
+                .any(|a| a.kind == SetupActionKind::FetchSource
+                    && a.status
+                        == if offline {
+                            SetupActionStatus::Blocked
+                        } else {
+                            SetupActionStatus::Planned
+                        })
+        );
+    }
 }

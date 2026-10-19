@@ -22,7 +22,7 @@ PF2e Atlas is a Rust workspace. Core application code lives under `crates/`.
 - `crates/atlas-web`: web transport and embedded frontend hosting.
 - `crates/atlas-sqlite-vec`: sqlite-vec registration and capability probing.
 
-The first-party local-agent skill lives in `skills/pf2e-atlas-cli`. The vendored PF2E checkout is expected under `vendor/pf2e` but is not tracked in this repo.
+The first-party local-agent skill lives in `skills/pf2e-atlas-cli`. Default reference data is acquired at the model pin under `.cache/pf2e/<commit>` in repo mode. A separate `vendor/pf2e` checkout may be used for explicit developer diagnostics.
 
 Private TypeScript contributor packages live under `dev-tools/`. Keep package
 configuration at each package root, implementation in `src/`, command parsing and
@@ -188,4 +188,4 @@ Do not merge PRs, push directly to shared integration branches or `main`, publis
 
 ## Configuration & Data Notes
 
-Default repo-local paths are `vendor/pf2e`, `.cache/hf-models`, and `.atlas/workspace.sqlite` with `--path-mode repo`. Global mode stores the workspace under platform application data and source/model caches under platform cache storage, both beneath `pf2e-atlas`. Normal setup updates the existing workspace and preserves saved state. Never replace or delete that database as cache cleanup. Use bounded sessions: shared reference/state reads use one snapshot, inference runs before the consuming session, and the caller owns final commit. See ADR0051 for update ownership, maintenance and recovery.
+Default repo-local paths are `.cache/pf2e/<supported-commit>`, `.cache/hf-models`, and `.atlas/workspace.sqlite` with `--path-mode repo`. Global mode stores the workspace under platform application data and source/model caches under platform cache storage, both beneath `pf2e-atlas`. Normal setup updates the existing workspace and preserves saved state. Never replace or delete that database as cache cleanup. Use bounded sessions: shared reference/state reads use one snapshot, inference runs before the consuming session, and the caller owns final commit. See ADR0051 for update ownership, maintenance and recovery.

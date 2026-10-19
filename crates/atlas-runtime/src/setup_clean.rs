@@ -143,6 +143,7 @@ mod tests {
         ResolvedAtlasPaths {
             mode: ResolvedPathMode::Global,
             repo_root: None,
+            managed_source_root: root.join("managed-source"),
             source_root_explicit: true,
             source_root: root.join("source"),
             embedding_cache_root: root.join("models"),

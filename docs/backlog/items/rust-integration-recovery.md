@@ -1,7 +1,7 @@
 # Source-modeling Capability Follow-through
 
 Status: in_progress
-Priority: agreed sequence; CF-02 implementation approved
+Priority: agreed sequence; CF-03 scope discussion next
 Owner: unassigned
 Last reviewed: 2026-10-18
 
@@ -14,7 +14,7 @@ its documentation, **not implementation of every recommendation**. Confirm the
 selected scope and unresolved product behavior before implementation. Do not
 interpret this list as ten mandatory merge blockers.
 
-CF-01 merged in PR #68. CF-02 implementation is approved; CF-03 through CF-10 remain
+CF-01 merged in PR #68 and CF-02 merged in PR #69; CF-03 through CF-10 remain
 unapproved. Mixed-failure precedence is runtime (3), invalid input (2), domain
 miss/ambiguity (1), success (0).
 
@@ -34,7 +34,7 @@ if review warrants it; preserve its ID and record every resulting PR here.
 | ID | Intended PR scope | Status | Implementation approval | PR / candidate / validation |
 | --- | --- | --- | --- | --- |
 | CF-01 | CLI batches and error contracts | merged | Approved 2026-10-18 | [PR #68](https://github.com/e-kosten/pf2e-atlas/pull/68); merged as b6a0a684; local validation passed |
-| CF-02 | Creature/hazard reference facts and activity details | in_progress | Approved 2026-10-18 | [PR #69](https://github.com/e-kosten/pf2e-atlas/pull/69); user accepted reference layout; Rust/frontend gates and independent targeted browser review passed; awaiting merge |
+| CF-02 | Creature/hazard reference facts and activity details | merged | Approved 2026-10-18 | [PR #69](https://github.com/e-kosten/pf2e-atlas/pull/69); merged as b0ac0ae5; user accepted reference layout; local validation passed |
 | CF-03 | Ritual/spell, feat/effect and journal/table reference completeness | planned | Pending | Not started |
 | CF-04 | Consumable presentation and nested-spell navigation | planned | Pending | Not started |
 | CF-05 | Physical query fields and labels | planned | Pending | Not started |
@@ -76,9 +76,10 @@ retains conditional save notes and Abyssal Plague. Optional blank facts remain
 quiet; meaningful source values and unknowns are not confused.
 
 Validation follow-up: generated source contracts are pinned to PF2e 6.12.4,
-while the vendored source used for the Aasimar Redeemer sample is 7.9.1. Bolts is
-`type: consumable`, category `ammo` at the pinned commit, but `type: ammo` in 7.9.1.
-The latter falls outside the admitted union and makes the whole actor `items`
+while the vendored source used for the Aasimar Redeemer sample is 7.12.2. Bolts is
+`type: consumable`, category `ammo` at the pinned commit, but `type: ammo` in 7.12.2.
+The active manifest is `system.pf2e.json`; the retained `static/system.json`
+reports an older 7.9.1 and must not identify this corpus. The latter representation falls outside the admitted union and makes the whole actor `items`
 collection invalid before presentation. Decide source-version support/enforcement
 and per-item failure isolation separately; this is not evidence that the pinned
 6.12.4 ammo representation is unsupported. Do not drop an invalid item silently
@@ -247,3 +248,23 @@ remains historical context. Current ownership follows the
 [architecture overview](../../architecture/overview.md),
 [ADR0046](../../architecture/decisions/0046-source-backed-reference-artifact.md)
 and [ADR0047](../../architecture/decisions/0047-semantic-record-presentation.md).
+
+### Approved source-version follow-ups
+
+CF-02 investigation found model pin 6.12.4 versus local data 7.12.2. Full admission
+census: 203 unsupported ammo roots and 712 actors with unavailable items collections
+in 7.12.2. Keep these follow-ups distinct from CF-03 through CF-10:
+
+- SV-01 (in_progress, approved; [PR #70](https://github.com/e-kosten/pf2e-atlas/pull/70), locally validated): one canonical immutable revision for default
+  reference acquisition and generated model identity. Preserve supplied checkouts
+  and saved state; validate source compatibility before product builds. Initial
+  supported revision remains 6.12.4. ADR0052 defines the boundary.
+- SV-02 (deferred by user 2026-10-18 after approved bounded investigation): release 8.6.1 at
+  28d9d156f252d084371d994dc359509b49eadf18 needs manifest/declaration/provenance
+  tooling updates. Isolated probes achieved complete extraction, but generation
+  stops on changed authored weapon and spell-overlay policies. This exceeds a
+  simple pin/regenerate upgrade; downstream compilation/admission work is unmeasured.
+  Schedule a separate upgrade review before implementation. No 8.6.1 model changes
+  are included in SV-01.
+
+Embedded-document failure isolation is a separate unapproved policy decision.

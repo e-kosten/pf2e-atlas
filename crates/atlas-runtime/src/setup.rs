@@ -6,7 +6,6 @@ use atlas_embedding::{
     EmbeddingRuntimeConfig, prepare_embedding_model_cache, required_embedding_model_cache_files,
 };
 use atlas_ingest::{BuildArtifactOptions, BuildArtifactReport, build_artifact};
-use std::{path::Path, process::Command};
 fn progress(phase: &str, message: &str) {
     tracing::info!(target:"atlas_progress",phase,"{message}");
 }
@@ -59,6 +58,7 @@ pub(crate) fn ensure_setup(
             Ok(configuration) => configuration,
             Err(error) => return configuration_failure(paths, &options, error),
         };
+    let managed_source = configuration.source_root == paths.managed_source_root;
     let mut effective_paths = paths.clone();
     effective_paths.source_root = configuration.source_root.clone();
     let paths = &effective_paths;
@@ -97,10 +97,8 @@ pub(crate) fn ensure_setup(
             .all(|c| atlas_embedding::validate_embedding_model_cache(c).is_ok())
         && atlas_embedding::TextEmbeddingTokenizer::load_baseline(&paths.embedding_cache_root)
             .is_ok();
-    if profile_error.is_none()
-        && (!source_ready
-            || (!options.check && !options.offline && paths.source_root.join(".git").exists()))
-    {
+    let mut source_issue = None;
+    if !source_ready && managed_source && profile_error.is_none() {
         if options.check || options.offline {
             actions.push(SetupAction::with_reason(
                 SetupActionKind::FetchSource,
@@ -109,11 +107,15 @@ pub(crate) fn ensure_setup(
                 } else {
                     SetupActionStatus::Planned
                 },
-                "source checkout is missing or needs updating",
+                format!(
+                    "pinned PF2e {} reference {} is missing",
+                    atlas_foundry_model::generated::REFERENCE_SOURCE_VERSION,
+                    atlas_foundry_model::generated::REFERENCE_SOURCE_COMMIT
+                ),
             ));
         } else {
-            progress("fetch_source", "Preparing Foundry source");
-            match fetch_source(&paths.source_root) {
+            progress("fetch_source", "Preparing pinned Foundry reference source");
+            match crate::source_acquisition::acquire(&paths.source_root) {
                 Ok(()) => {
                     source_ready = true;
                     actions.push(SetupAction::new(
@@ -121,18 +123,48 @@ pub(crate) fn ensure_setup(
                         SetupActionStatus::Done,
                     ));
                 }
-                Err(e) => {
-                    source_ready = false;
+                Err(error) => {
+                    source_issue = Some(error.clone());
                     actions.push(SetupAction::with_reason(
                         SetupActionKind::FetchSource,
                         SetupActionStatus::Failed,
-                        e,
+                        error,
                     ));
                 }
             }
         }
     }
-    if prepare_embeddings && !model_ready && profile_error.is_none() {
+    if source_ready {
+        let validation = if managed_source {
+            crate::source_acquisition::validate(&paths.source_root).map_err(|error| (error, false))
+        } else {
+            Ok(())
+        }
+        .and_then(|()| {
+            atlas_ingest::validate_source_compatibility(
+                &paths.source_root,
+                configuration.manifest_path.as_deref(),
+            )
+            .map_err(|error| {
+                let failed = !matches!(error, atlas_ingest::IngestError::SourceIncompatible(_));
+                (error.to_string(), failed)
+            })
+        });
+        if let Err((error, failed)) = validation {
+            source_ready = false;
+            source_issue = Some(error.clone());
+            checks.push(SetupAction::with_reason(
+                SetupActionKind::AnalyzeSource,
+                if failed {
+                    SetupActionStatus::Failed
+                } else {
+                    SetupActionStatus::Blocked
+                },
+                error,
+            ));
+        }
+    }
+    if source_ready && prepare_embeddings && !model_ready && profile_error.is_none() {
         if options.check || options.offline {
             actions.push(SetupAction::with_reason(
                 SetupActionKind::PrepareEmbeddingModel,
@@ -214,7 +246,8 @@ pub(crate) fn ensure_setup(
     } else {
         true
     };
-    let needs_build = options.force_rebuild
+    let needs_build = source_issue.is_some()
+        || options.force_rebuild
         || profile_error.is_some()
         || old.is_err()
         || !old_semantic
@@ -315,7 +348,13 @@ pub(crate) fn ensure_setup(
         checks,
         actions,
         readiness: SetupReadiness {
-            source: readiness(source_ready, false, "source checkout is unavailable"),
+            source: readiness(
+                source_ready,
+                false,
+                source_issue
+                    .as_deref()
+                    .unwrap_or("source checkout is unavailable"),
+            ),
             embedding_model: if options.target.requires_embeddings() {
                 readiness(model_ready, true, "required pinned assets unavailable")
             } else {
@@ -383,33 +422,5 @@ impl From<BuildArtifactReport> for SetupBuildReport {
             source_fingerprint: r.source_fingerprint,
             build_duration_ms: r.build_duration_ms,
         }
-    }
-}
-fn fetch_source(path: &Path) -> Result<(), String> {
-    let mut cmd = Command::new("git");
-    if path.exists() {
-        if !path.join(".git").exists() {
-            return Err("existing source directory is not a Git checkout".into());
-        }
-        cmd.arg("-C")
-            .arg(path)
-            .args(["pull", "--ff-only", "--quiet"]);
-    } else {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-        }
-        cmd.args([
-            "clone",
-            "--depth",
-            "1",
-            "--quiet",
-            "https://github.com/foundryvtt/pf2e.git",
-        ])
-        .arg(path);
-    }
-    if cmd.status().map_err(|e| e.to_string())?.success() {
-        Ok(())
-    } else {
-        Err("Foundry source fetch failed".into())
     }
 }
