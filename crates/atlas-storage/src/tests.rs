@@ -197,6 +197,7 @@ fn maintenance_waits_for_readers_and_failed_publication_requires_recovery() {
     assert!(matches!(workspace.read(1), Err(StorageError::Busy)));
     let failed: Result<(), rusqlite::Error> = maintenance.publish(|c| {
         c.execute("UPDATE saved SET title='bad'", [])?;
+        c.cache_flush()?;
         c.execute("INSERT INTO saved VALUES(1,'duplicate')", [])?;
         Ok(())
     });
@@ -288,7 +289,7 @@ fn unknown_databases_are_not_initialized_or_erased() {
 }
 
 #[test]
-fn vec_and_fts_participate_in_the_same_rollback_as_user_state() {
+fn flushed_vec_and_fts_participate_in_the_same_rollback_as_user_state() {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
     let dir = tempfile::tempdir().unwrap();
     let workspace = Workspace::at(dir.path().join("atlas.sqlite")).unwrap();
@@ -300,8 +301,20 @@ fn vec_and_fts_participate_in_the_same_rollback_as_user_state() {
     workspace.migrate(&[FIRST, vector], |_| Ok(())).unwrap();
     let write = workspace.write(2).unwrap();
     write.connection().execute_batch("INSERT INTO vectors VALUES(1,zeroblob(16)); INSERT INTO text_search VALUES('sample'); UPDATE saved SET title='bad';").unwrap();
+    write.connection().execute_batch("CREATE VIRTUAL TABLE new_vectors USING vec0(id INTEGER PRIMARY KEY,embedding float[4]); INSERT INTO new_vectors VALUES(1,zeroblob(16));").unwrap();
+    write.connection().cache_flush().unwrap();
     drop(write);
     let read = workspace.read(2).unwrap();
+    assert!(
+        !read
+            .connection()
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='new_vectors')",
+                [],
+                |r| r.get::<_, bool>(0)
+            )
+            .unwrap()
+    );
     assert_eq!(
         read.connection()
             .query_row("SELECT count(*) FROM vectors", [], |r| r.get::<_, i64>(0))
