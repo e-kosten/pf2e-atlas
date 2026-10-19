@@ -555,6 +555,9 @@ ${hasFallback?`    let anchored = ${anchored.map(a=>a.condition).join(' || ')};\
     return value;
   };
   const rootExports: string[] = [`/// Upstream declaration identity; snapshot format policy is versioned separately.\npub const SOURCE_CONTRACT_ID: &str = ${rustString(String(input.source.source_digest))};`];
+  if (input.referenceSource) {
+    rootExports.push(`/// Tested reference source, emitted from the canonical generator pin.\npub const REFERENCE_SOURCE_REPOSITORY: &str = ${rustString(input.referenceSource.repository)};\npub const REFERENCE_SOURCE_COMMIT: &str = ${rustString(input.referenceSource.commit)};\npub const REFERENCE_SOURCE_VERSION: &str = ${rustString(input.referenceSource.systemVersion)};`);
+  }
   for (const selection of input.selection) {
     if(selection.valueRef) {
       const root=lookup(selection.valueRef);

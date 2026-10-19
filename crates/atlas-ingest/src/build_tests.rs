@@ -1076,3 +1076,20 @@ fn aliased_pack_paths_consume_previous_preparation_once_in_manifest_order() {
             .all(|d| d.provenance.pack_name == "alias")
     );
 }
+
+#[test]
+fn direct_preparation_rejects_incompatible_system_but_developer_loading_remains_available() {
+    let fixture = Fixture::new();
+    let path = fixture.0.join("module.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    manifest["id"] = serde_json::json!("pf2e");
+    manifest["version"] = serde_json::json!("7.9.1");
+    fs::write(&path, manifest.to_string()).unwrap();
+    assert!(crate::load_foundry_documents(&fixture.0, None).is_ok());
+    let result = crate::build::prepare_build(&fixture.options(), vec![]);
+    assert!(
+        matches!(result, Err(crate::IngestError::SourceIncompatible(message)) if message.contains("7.9.1") && message.contains(atlas_foundry_model::generated::REFERENCE_SOURCE_VERSION))
+    );
+    assert!(!fixture.options().output_path.exists());
+}

@@ -32,6 +32,7 @@ export async function preparePortfolio(args: { source?: string; cacheDir?: strin
   input.traitLabelKeys = traitLabelKeys(JSON.parse(await readFile(path.join(extraction, 'trait-catalog.json'), 'utf8')) as TraitCatalog);
   if (JSON.stringify(input.portfolio!.schemaRoots.flatMap(root => root.ruleKey ? [root.ruleKey] : []).sort())
     !== JSON.stringify([...pin.ruleKeys].sort())) throw new Error('Extracted rule keys do not match source-pin.json');
+  input.referenceSource = { repository: pin.repository, commit: pin.commit, systemVersion: pin.systemVersion };
   input.source = { ...input.source, git_commit: null, git_clean: null };
   await writeFile(path.join(extraction, 'generation-input.json'), JSON.stringify(input, null, 2) + '\n');
   return { input, graph, summary, source, extraction };

@@ -37,6 +37,8 @@ This index is the quickest way to scan accepted architecture decision records fo
 - [`0050-selectable-search-profiles.md`](./0050-selectable-search-profiles.md): two pinned baseline profiles, one shared artifact, profile-scoped KNN/reuse and shared retained inference sessions.
 - [`0051-persistent-workspace.md`](./0051-persistent-workspace.md): accepted persistent workspace, shared bounded sessions, one migration ledger and state-preserving incremental publication; implementation in progress.
 
+- [`0052-pinned-reference-source.md`](./0052-pinned-reference-source.md): one immutable PF2e revision drives model generation and default data acquisition; supplied sources remain user-managed.
+
 ## Historical ADRs
 
 Historical ADRs preserve earlier architecture and migration decisions. Read their
