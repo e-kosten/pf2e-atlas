@@ -18,17 +18,17 @@ fn paths(dir: &std::path::Path) -> ResolvedAtlasPaths {
 
 #[test]
 fn startup_backfills_filter_catalog_without_source_or_inference() {
-    assert_projection_backfill(true, false, 3);
+    assert_projection_backfill(true, false, crate::WORKSPACE_SCHEMA_VERSION);
 }
 
 #[test]
 fn startup_backfills_lexical_rows_without_source_or_inference() {
-    assert_projection_backfill(false, true, 3);
+    assert_projection_backfill(false, true, crate::WORKSPACE_SCHEMA_VERSION);
 }
 
 #[test]
 fn startup_backfills_query_and_lexical_rows_together() {
-    assert_projection_backfill(true, true, 3);
+    assert_projection_backfill(true, true, crate::WORKSPACE_SCHEMA_VERSION);
 }
 
 #[test]
