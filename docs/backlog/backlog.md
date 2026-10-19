@@ -20,7 +20,7 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Source-modeling capability follow-through](items/rust-integration-recovery.md)
   Track the agreed ten-item sequence for CLI contracts, reference completeness,
-  encounter policy and discovery. CF-01 has an accepted CLI layout and passes local validation; remaining scopes await approval.
+  encounter policy and discovery. CF-01 merged in PR #68; CF-02 reference completeness is in progress. Remaining scopes await approval.
   Status: in_progress.
 
 - [Rust CLI and skill capability follow-through](items/rust-cli-skill-capability-follow-through.md)

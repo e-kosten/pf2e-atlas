@@ -601,7 +601,8 @@ fn authored_arithmetic_baseline(source: serde_json::Value) -> super::mechanics::
         &[],
         vec![],
         &retrieval,
-    );
+    )
+    .unwrap();
     super::mechanics::arithmetic_baseline(&presentation).unwrap()
 }
 

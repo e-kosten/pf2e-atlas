@@ -237,6 +237,10 @@ mod tests {
     #[test]
     fn strike_attack_penalties_preserve_agile_and_unknown_modifiers() {
         let mut activity: ActorActivityView = serde_json::from_value(serde_json::json!({
+            "self_effect":{"state":"not_applicable","value":null},
+            "strike_effects":{"state":"value","value":[]},
+            "focus_capacity":{"state":"not_applicable","value":null,"adjustment":null},
+            "frequency":{"state":"not_applicable","value":null},
             "casting_ranks":[],"attack_options":[],"has_reference_details":false,
             "navigation":{"record_key":"pack:id","owners":[]},"title":"Claw","family":"melee","kind":"strike",
             "usage":null,"action_cost":{"state":"missing","value":null},"traits":[],

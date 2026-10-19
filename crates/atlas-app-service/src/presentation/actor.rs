@@ -97,6 +97,28 @@ pub(crate) fn authored_actor(
         _ => (unavailable(), unavailable(), unavailable(), unavailable()),
     };
     ActorPresentationView {
+        size: fact(a.size().map(|size| {
+            use atlas_foundry_model::generated::PhysicalSystemSourceSize::*;
+            match size {
+                Grg => "Gargantuan",
+                Huge => "Huge",
+                Lg => "Large",
+                Med => "Medium",
+                Sm => "Small",
+                Tiny => "Tiny",
+            }
+            .to_owned()
+        })),
+        hardness: number(a.creature_hardness()),
+        ritual_difficulty_class: number(a.ritual_difficulty_class()),
+        defense_notes: ActorDefenseNotesView {
+            armor_class: fact(a.armor_class_details().map(str::to_owned)),
+            hit_points: fact(a.hit_point_details().map(str::to_owned)),
+            all_saves: fact(a.general_save_details().map(str::to_owned)),
+            fortitude: fact(a.save_details(ActorSave::Fortitude).map(str::to_owned)),
+            reflex: fact(a.save_details(ActorSave::Reflex).map(str::to_owned)),
+            will: fact(a.save_details(ActorSave::Will).map(str::to_owned)),
+        },
         level: number(a.level()),
         armor_class: number(a.armor_class()),
         maximum_hp: number(a.hp_maximum()),
@@ -158,6 +180,17 @@ pub(crate) fn authored_activities(
             passage: None,
         };
         let mut activity = authored_activity(i, navigation);
+        if activity.preparation.value.as_deref() == Some("focus") {
+            activity.focus_capacity = number(
+                SourceQueryView {
+                    source: node,
+                    pack_id: "",
+                    pack_label: "",
+                }
+                .actor()
+                .focus_capacity(),
+            );
+        }
         if let ItemSourceView::SpellSource(s) = i {
             activity.casting_ranks = spell_context::ranks(record, s);
             if activity.casting_ranks.len() == 1 {
@@ -357,6 +390,20 @@ pub(super) fn authored_activity(
         ),
     };
     let mut activity = ActorActivityView {
+        self_effect: fact(
+            match item.self_effect() {
+                SourceFieldView::Null => SourceFieldView::NotApplicable,
+                other => other,
+            }
+            .map(|effect| ActivityEffectReferenceView {
+                name: text((&effect.name).into()),
+                authored_target: text((&effect.uuid).into()),
+                navigation: None,
+            }),
+        ),
+        strike_effects: fact(item.strike_effects().map(Clone::clone)),
+        focus_capacity: number(SourceFieldView::NotApplicable),
+        frequency: activity_frequency(item),
         casting_ranks: vec![],
         has_reference_details: has_reference_details(item),
         title: node_title(SourceNodeView::Item(item)),
@@ -604,6 +651,17 @@ pub(crate) fn manual_presentation(
         content: vec![],
         owned: vec![],
         body: RecordBodyView::Creature(Box::new(ActorPresentationView {
+            size: unavailable(),
+            hardness: number(SourceFieldView::NotApplicable),
+            ritual_difficulty_class: number(SourceFieldView::NotApplicable),
+            defense_notes: ActorDefenseNotesView {
+                armor_class: unavailable(),
+                hit_points: unavailable(),
+                all_saves: unavailable(),
+                fortitude: unavailable(),
+                reflex: unavailable(),
+                will: unavailable(),
+            },
             level: unknown(),
             armor_class: unknown(),
             maximum_hp: unknown(),
@@ -631,4 +689,30 @@ pub(crate) fn manual_presentation(
             }),
         })),
     }
+}
+
+fn activity_frequency(item: ItemSourceView<'_>) -> FactView<ActivityFrequencyView> {
+    use atlas_foundry_model::generated::FrequencyPer;
+    let source = match item.activity_frequency() {
+        SourceFieldView::Null => SourceFieldView::NotApplicable,
+        value => value,
+    };
+    fact(source.map(|frequency| ActivityFrequencyView {
+        maximum: number((&frequency.max).into()),
+        interval: fact(SourceFieldView::from(&frequency.per).map(|per| {
+            match per {
+                FrequencyPer::P1M => "month",
+                FrequencyPer::P1W => "week",
+                FrequencyPer::P1Y => "year",
+                FrequencyPer::PT10M => "10 minutes",
+                FrequencyPer::PT1H => "hour",
+                FrequencyPer::PT1M => "minute",
+                FrequencyPer::PT24H => "24 hours",
+                FrequencyPer::Day => "day",
+                FrequencyPer::Round => "round",
+                FrequencyPer::Turn => "turn",
+            }
+            .to_owned()
+        })),
+    }))
 }
