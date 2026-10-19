@@ -1,195 +1,203 @@
 # PF2e Atlas CLI Examples
 
-These examples are organized by research task. Use `--json` when a script or
-agent needs structured output; use human-readable output for quick manual
-scanning.
+Use `--json` for structured results and human output for reading. Examples assume
+`atlas setup` has prepared the default workspace. Add `--index /path/to/workspace.sqlite`
+to data commands to use another workspace consistently.
 
-## Find One Known Record By Name
-
-Use strict resolution when you know the record name:
+## Exact Lookup And Reading
 
 ```bash
-atlas record resolve "Treat Wounds" --pack-name actionspf2e --detail description
+atlas record resolve 'Treat Wounds' --pack-name actionspf2e --json
+atlas record resolve 'Shield Block' --kind feat --alternatives 5 --json
+atlas record get actionspf2e:1kGNdIIhuglAjIp9
+atlas record get actionspf2e:1kGNdIIhuglAjIp9 equipment-srd:s1vB3HdXjMigYAnY --json
+atlas record get equipment-srd:s1vB3HdXjMigYAnY --detail full
+atlas record source equipment-srd:s1vB3HdXjMigYAnY --json
 ```
 
-Actions such as Treat Wounds are Atlas `rule` records in the `actionspf2e`
-pack. There is no separate `action` record kind.
+Resolution accepts strict names and verified aliases. Resolve ambiguous names to
+one returned key before continuing. Treat Wounds is a `rule` in `actionspf2e`;
+`action` is not a product record kind.
 
-## Fetch A Known Canonical Key
+Human `record get` detail is `summary`, `standard` (default), or `full`. Full
+expands supported embedded documents such as spells and journal pages.
+`--json` returns the complete selected reference and conflicts with explicit
+`--detail`. `record source` exports the checked Foundry DTO, not original JSON.
+For a spell key, `record get SPELL_KEY --rank 5` previews that casting rank without
+spending resources. Embedded spells retain their local casting context.
 
-Use `record get` when you already have a `pack:id` key from a previous result:
+## Search And Browse
 
 ```bash
-atlas record get actionspf2e:1kGNdIIhuglAjIp9 --detail standard --json
+atlas search 'walk through walls' --kind spell --limit 8
+atlas search 'masked spirit' --kind creature --limit 8
+atlas search 'healing spell' --kind spell --where 'level <= 2' --page 2 --limit 10
+atlas search --kind equipment --rarity uncommon --limit 20
+atlas search --kind creature --trait undead --where 'defenses.hp.maximum >= 80'
 ```
 
-Batch exact keys in one process:
+Omitting query text browses eligible records alphabetically. Repeated `--kind`,
+`--pack-name`, and `--rarity` values accept alternatives; repeated `--trait` flags
+require every listed trait. Those constraints combine with `--where`.
+
+Search returns root records with attributed match evidence. An embedded passage
+can explain why a parent matched; it does not make the parent the embedded item.
+Semantic/hybrid counts describe bounded candidate windows, not a corpus census.
+
+To inspect a witness, copy its returned navigation JSON into these placeholders:
 
 ```bash
-atlas record get actionspf2e:1kGNdIIhuglAjIp9 equipment-srd:s1vB3HdXjMigYAnY --detail standard --json
+atlas record get PACK:ID --embedded-path 'EMBEDDED_PATH_JSON' --field /system/description/value --passage 'PASSAGE_ADDRESS_JSON' --json
 ```
 
-## Handle An Ambiguous Name
+Include `--source-fingerprint` when the returned navigation supplies one. Do not
+invent IDs or passage ranges. A snapshot-local selection may become stale after
+an update; rerun the search to get a current address.
 
-Ask for alternatives, inspect their keys and context, then fetch the chosen
-record:
+## Compare Search Profiles And Ranking
+
+Prepare both profiles once (this may download a model and run inference):
 
 ```bash
-atlas record resolve "Shield Block" --kind feat --alternatives 5 --detail preview --json
-atlas record get feats-srd:jM72TjJ965jocBV8 --detail standard --json
+atlas setup --search-profile bge-base --search-profile embeddinggemma
 ```
 
-The same pattern applies when graph or similar commands report ambiguity: pick
-one returned canonical key, then rerun with that key.
-
-## Search With Structured Constraints
-
-Translate obvious constraints into filters:
+Then compare without rebuilding:
 
 ```bash
-atlas search "healing spell" --kind spell --max-level 2 --detail preview --limit 8
-atlas search "protect an ally" --kind feat --trait champion --detail preview --limit 8
-atlas search --kind equipment --rarity uncommon --detail preview --limit 20
+atlas search 'masked spirit' --kind creature --search-profile bge-base --json
+atlas search 'masked spirit' --kind creature --search-profile embeddinggemma --json
+atlas search 'harrowkin' --ranking score --json
+atlas search 'harrowkin' --ranking rrf --json
+atlas search 'harrowkin' --retrieval fts --json
+atlas search 'masked spirit' --retrieval vector --json
 ```
 
-Use pagination when you need more than the first page:
+Default search is hybrid with score-based fusion. Ranking switches affect only
+hybrid text queries. FTS targets names, verified aliases, typed vocabulary,
+embedded names and structurally named definitions; semantic search covers selected
+root and embedded prose. Scores are retrieval evidence, not probabilities.
+
+Each request uses one stored embedding profile. BGE Base is the default when both
+are stored; a sole stored profile is selected automatically. Semantic text search
+needs that model's local assets. FTS needs no model weights, and Similar uses
+stored vectors without inference:
 
 ```bash
-atlas search "healing spell" --kind spell --max-level 2 --page 2 --limit 10
+atlas similar 'Dirge of Doom' --kind spell --search-profile embeddinggemma --limit 8
 ```
 
-## Compare Retrieval Behavior
+Similar uses the seed's root identity vector, not every passage in its document.
+Filters constrain candidate results, not the seed lookup. If the seed name is
+ambiguous, resolve it separately and pass its canonical key.
 
-Use retrieval controls only when diagnosing ranking behavior:
-
-```bash
-atlas search "low level healing spell" --kind spell --retrieval fts --explain --json
-atlas search "low level healing spell" --kind spell --retrieval vector --explain --json
-atlas search "low level healing spell" --kind spell --retrieval hybrid --explain --json
-```
-
-## Find Similar Records
-
-Use a name when it resolves strictly, or use a canonical key when the seed may
-be ambiguous:
-
-```bash
-atlas similar "Dirge of Doom" --kind spell --limit 8
-atlas similar feats-srd:jM72TjJ965jocBV8 --limit 12 --explain --json
-```
-
-Structured filters apply to the seed resolution and to the candidate result
-set:
-
-```bash
-atlas similar "Dirge of Doom" --kind spell --max-level 5 --limit 8 --json
-```
-
-## Inspect Graph Context
-
-Use `graph links` for outgoing references, with optional backlinks:
-
-```bash
-atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --json
-atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --backlinks 4 --json
-atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --outgoing 0 --backlinks 8 --json
-```
-
-Use `graph uses` for backlinks-only context:
-
-```bash
-atlas graph uses conditionitems:TBSHQspnbcqxsmjL --limit 5 --json
-```
-
-Common conditions, actions, and traits can have many backlinks, so keep limits
-small while exploring.
-
-## Use Relationship Filters
-
-Relationship filters require canonical keys:
-
-```bash
-atlas record resolve "Battle Medicine" --kind feat --detail standard --json
-atlas search --referenced-by feats-srd:wYerMk6F1RZb0Fwt --detail preview --limit 10
-atlas search --references actionspf2e:1kGNdIIhuglAjIp9 --detail preview --limit 10
-```
-
-Read the relationship from the candidate record's perspective:
-
-- `--referenced-by KEY` finds records linked from `KEY`
-- `--references KEY` finds records that link to `KEY`
-
-## Discover Filter Fields And Values
-
-List available fields:
+## Discover Filters
 
 ```bash
 atlas filters fields
-atlas filters fields --kind spell --json
+atlas filters fields --group movement --json
+atlas filters fields --text 'maximum hp' --json
+atlas filters fields --field defenses.hp.maximum --json
+atlas filters fields --all --json
+atlas filters fields --field movement.speeds
+atlas filters fields --field 'movement.speeds[].type' --json
+atlas filters values --field 'movement.speeds[].type' --kind creature --json
+atlas filters values --field traits --kind spell --text fire --limit 20 --offset 0 --json
+atlas filters values --field defenses.hp.maximum --kind creature --json
 ```
 
-Discover values for normal fields:
+Default/group field output uses the product editor groups. `--all`, `--text`
+and `--field` JSON expose query descriptors. Human collection output also lists
+entry fields; `--text movement.speeds --json` discovers the collection and members
+together. `movement.speeds[]` by itself is not a field ID.
+
+Values returns contextual counts for categorical/Boolean fields, numeric ranges
+for numeric fields, or collection availability. Closed fields retain zero-match
+choices; open fields enumerate observed values. `--text` searches values, not
+record prose. Counts retain all supplied filters and count distinct parents per
+value after remaster preference. Source-availability statistics are before that
+preference; collection occurrences may exceed the number of parents. Unavailable
+counts are not zero counts.
+
+Use one `exists` for constraints that must match the same embedded entry:
 
 ```bash
-atlas filters values --field traits --kind spell
-atlas filters values --field rarity --kind equipment --json
+atlas search --kind creature --where '"common" in languages'
+atlas search --kind creature --where 'movement.speeds.exists(s, s.type == "fly" && s.feet >= 30)'
+atlas search --kind creature --where 'defenses.resistances.exists(r, r.type == "fire" && r.value >= 10)'
+atlas search --where 'embedded.spells.exists(s, "fire" in s.traits && s.spell.rank >= 3)'
+atlas search --where 'kind == "spell" && "fire" in traits'
+atlas search --where 'defenses.saves.fortitude >= 12' --print-filter --json
 ```
 
-Discover metric keys before building metric predicates:
+`embedded.spells` matches parents containing immediate spell copies; it does not
+match a standalone spell itself. Separate `exists` expressions can match different
+entries. Scoped value discovery can also match a different entry from an existing
+collection condition; use the full `search --where` to check same-entry constraints.
+Unknown source facts do not become zero. Discover fields and their units rather
+than guessing paths; for example, `physical.unit_price_gp` is unit price in gold.
+
+## Follow References
 
 ```bash
-atlas filters values --field metric --kind creature --metric-query save --json
-atlas filters values --field metric --kind creature --metric-label "Armor Class" --json
-atlas filters values --field metric --kind creature --metric-prefix speed. --json
+atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --backlinks 4 --json
+atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --outgoing 0 --backlinks 8 --json
+atlas graph uses 'Frightened' --limit 5 --json
+atlas graph variants 'Dread Ampoule' --json
 ```
 
-Then use metric predicates in search:
+`links` exposes outgoing relationships and optional backlinks. `uses` finds
+incoming references. Use `graph remaster PACK:ID` for verified counterparts.
+Relationships retain unresolved targets and source occurrences. Suggested variants
+are bounded candidates, not aliases. Search currently has no `--references` or
+`--referenced-by` filter; use graph commands for those questions.
+
+## Saved Lists And Dice
+
+These list commands create or change saved state:
 
 ```bash
-atlas search --kind creature --metric 'ac.value>=25' --detail preview --limit 8
-atlas search --kind creature --metric 'speed.fly.value>=100' --metric 'ac.value>=30' --detail preview --limit 8
+atlas lists create undead-research --name 'Undead Research' --json
+atlas lists add undead-research 'Skeleton Guard' --json
+atlas lists show undead-research --json
+atlas lists export undead-research --output undead-research.json
+atlas lists import undead-research.json --json
 ```
 
-## Diagnose Setup Or Index Readiness
+Reference updates preserve lists and encounters in the shared workspace. Missing
+records retain saved snapshots and unresolved status. Encounters are managed in
+the web app, not through an encounter CLI command.
 
-Check setup readiness:
+General dice rolls need no setup and do not change encounter state:
+
+```bash
+atlas roll '1d20+12'
+atlas roll '2d20kh1+12' --json
+atlas roll '2d20kl1+12' --json
+atlas roll '(2d6+4)*2' --json
+atlas roll -- '-1d6+10'
+```
+
+`kh`/`kl` keep high/low dice. JSON retains individual results, kept/dropped states
+and intermediate totals. Quote expressions containing shell operators.
+
+## Readiness And JSON
 
 ```bash
 atlas setup --check --json
-```
-
-Check the current artifact:
-
-```bash
 atlas index check --json
 atlas index check --no-embeddings --json
-```
-
-Run deep validation only when diagnosing an artifact problem or when explicitly
-requested:
-
-```bash
 atlas index validate --json
 ```
 
-## Validate Authored Tag Data
+Deep validation scans the artifact; use it for diagnostics, not before every query.
+For a lexical-only workspace add `--no-embeddings` to validation too.
 
-Validate the tag catalog, assignments, and ontology suggestions before an
-index build consumes them:
-
-```bash
-atlas tags validate --path data/tags
-atlas tags validate --path data/tags --json
-```
-
-## Use JSON Safely
-
-Most JSON commands return a shared envelope:
-
-- successful command payloads are under `data`
-- top-level command, runtime, or input failures are under `error`
-- batch commands can have per-record failures inside `data.results[].error`
-- artifact validation can return `status: "ok"` with `data.valid: false`
-
-For agent workflows, check the top-level `status`, inspect `error` when
-present, and inspect per-result errors before trusting batch output.
+Most JSON commands return `status: "ok"` with `data`, or a top-level `error`.
+`record get` and `record resolve` instead return ordered `data.results` entries,
+including duplicates, with per-input success/error status. Runtime failures mark
+remaining inputs `unprocessed`; keep successful siblings. Their outer status is
+`ok`, `partial`, or `error`. Exit codes are 0 success, 1 miss/ambiguity, 2 invalid
+input and 3 runtime failure; mixed record failures use the highest code.
+Index validation can return `status: "ok"` with `data.valid: false` and exit 3.
+Check both exit status and payload before treating output as a successful answer.
