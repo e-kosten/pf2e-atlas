@@ -40,9 +40,9 @@ if review warrants it; preserve its ID and record every resulting PR here.
 | CF-03 | Ritual/spell, feat/effect and journal/table reference completeness | merged | Approved 2026-10-18 | [PR #71](https://github.com/e-kosten/pf2e-atlas/pull/71), f950b54f; UI accepted; local gates passed |
 | CF-04 | Consumable presentation and nested-spell navigation | merged | Approved together with CF-05 | Locally complete; accepted preview; Rust/UI gates and independent browser review pass; [PR #73](https://github.com/e-kosten/pf2e-atlas/pull/73); user accepted preview |
 | CF-05 | Physical query fields and labels | merged | Approved together with CF-04 | Locally complete; typed filters, migration and exact labels validated; [PR #73](https://github.com/e-kosten/pf2e-atlas/pull/73); user accepted preview |
-| CF-06 | Encounter status and action-budget policy | in_progress | Approved | Based on main 41865f60; locally complete; user accepted preview; Rust/UI gates, 20 device journeys and independent Sol browser review pass; awaiting publication |
+| CF-06 | Encounter status and action-budget policy | in_progress | Approved | Based on main 41865f60; locally complete; user accepted preview; Rust/UI gates, 20 device journeys and independent Sol browser review pass; [PR #78](https://github.com/e-kosten/pf2e-atlas/pull/78) |
 | CF-07 | Supported condition/spell adjustments and casting reminders | planned | Pending | Not started |
-| CF-08 | Hazard Active/Disabled state | in_progress | Approved with CF-06 | locally complete; single Active/Disabled state; user accepted preview; Rust/UI gates and browser reviews pass; awaiting publication |
+| CF-08 | Hazard Active/Disabled state | in_progress | Approved with CF-06 | locally complete; single Active/Disabled state; user accepted preview; Rust/UI gates and browser reviews pass; [PR #78](https://github.com/e-kosten/pf2e-atlas/pull/78) |
 | CF-09 | Browse sorting | planned | Pending | Not started |
 | CF-10 | Relationship-scoped full results and filtering | planned | Pending | Not started |
 
