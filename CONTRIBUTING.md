@@ -58,15 +58,14 @@ final gates and applicable independent reviews still follow once the UX directio
 
 Provide a stable local build when a change is useful to inspect. State its branch, commit, URL or run command, and any sample-data limitations. Disclose uncommitted differences if present. Preserve that build while developing further changes, using a separate checkout or built artifact when necessary, and explicitly identify when an updated build replaces it.
 
-Human UI previews use the existing full-corpus artifact and verified model cache,
-with all stored search profiles usable. Reuse a compatible running backend and
-its preview-local saved state when only frontend code changes; otherwise start
-the candidate backend against the same read-only artifact/cache with separate
-mutable preview state. Verify readiness and a real query with each profile before
-handoff. Keep build provenance and restart instructions in the local preview
-handoff. The small model-free browser fixture is for automated acceptance and
-targeted fault checks; do not offer it as the product preview or rebuild/copy the
-corpus for each UI branch.
+Human UI previews use a compatible full-corpus development workspace and shared
+verified model cache, with every configured profile usable. Reference data and
+saved state live in one SQLite file. Reuse an existing development backend for
+frontend-only work when shared preview state is acceptable; otherwise seed a
+private workspace with `just dev-workspace-init`. Do not attach a candidate to
+the installed personal workspace. Use Vite against the selected backend for hot
+reload. The model-free browser fixture is for automated acceptance and targeted
+fault checks, not the human product preview. See the baseline workflow below.
 
 UI changes require interaction and visual review alongside automated checks. Agents use Astra sub-agents for presentation review, including actual browser inspection. Local validation, hosted CI, and human acceptance are separate outcomes; a passing gate does not establish visual acceptance.
 
@@ -160,6 +159,106 @@ Use Cargo's default `target/` directory inside each checkout, including linked
 worktrees. Compiled tests embed checkout-specific fixture paths, so sharing a
 `CARGO_TARGET_DIR` across worktrees can reuse binaries with stale paths. Run
 `git push` directly; no Cargo environment override is needed.
+
+### Reusable Development Baseline
+
+The existing Rust `atlas-dev` tool owns the baseline workflow. On macOS or Linux,
+run `just dev-tool-build` once from a checkout containing this tooling. It uses the
+normal Cargo build and retains the executable under the primary checkout at
+`.atlas/dev-baselines/tools/atlas-dev`. Subsequent init/status/web commands need
+no Rust build or Python runtime, even from a new worktree.
+
+Refresh with `just dev-tool-build` after changing the tooling or when publication
+reports a schema mismatch. Refreshing replaces only the retained developer tool;
+it does not change baseline executables, manifests, data, or existing previews.
+`ATLAS_DEV_BINARY=/absolute/path/to/atlas-dev` explicitly selects a candidate
+developer tool for the thin shell launchers. The selected Atlas app executable
+is a separate choice controlled by `--binary`.
+
+All linked worktrees resolve one shared store through Git's common directory:
+`<primary-checkout>/.atlas/dev-baselines`. `--store /absolute/path` overrides it.
+The store contains versioned executable/database pairs and an atomic `current.json`
+pointer. It is development data, not disposable compiler output.
+
+Publish an existing build whose provenance you know, after its normal code checks.
+Publishing performs a consistent SQLite backup, checks Atlas readiness, runs deep
+artifact validation and executes a vector query with every configured profile.
+It does not compile, fetch models, migrate, or ingest. The source workspace must
+already be ready. **All saved state is copied**: use a dedicated development seed
+with controlled examples, not your personal installed workspace.
+
+```sh
+just dev-baseline-publish --binary target/debug/atlas \
+  --build-commit HEAD --build-profile dev --toolchain 1.95.0 \
+  --index .atlas/workspace.sqlite \
+  --source /absolute/shared/pf2e/PINNED_COMMIT \
+  --embedding-cache-path /absolute/shared/hf-models
+```
+
+The commit, toolchain and profile are publisher-declared build provenance; the
+command cannot infer them from an arbitrary binary. Use the actual build commit,
+not current HEAD if the executable is older. The manifest also records the copied
+binary hash/version, database hash, schema version, source/contract context,
+embedding profiles and validation reports. Default asset resolution uses global
+paths; explicit source and model paths must survive worktree retirement. Publication
+rejects assets inside registered linked worktrees. Neither Cargo targets nor the
+installed personal executable are overwritten.
+
+For main or a new worktree:
+
+```sh
+just dev-workspace-init
+just dev-status
+just dev-web --port 4727
+# Frontend-only work: point this checkout's Vite server at that backend.
+ATLAS_API_PROXY=http://127.0.0.1:4727 npm --prefix web/atlas-ui run dev
+```
+
+Initialization copies the current seed into `.atlas/workspace.sqlite`, records
+its baseline in `.atlas/dev-workspace.json`, and never replaces existing data or
+receipts. On macOS it attempts an APFS clone, falling back to a regular copy.
+Each database has independent mutable pages and stable Atlas lock files. An
+existing database without a receipt is preserved, not adopted or reset.
+
+`dev-status` and `dev-web` default to the frozen baseline executable. They do not
+claim to run the current checkout's code. For Rust changes, build in the checkout's
+own warm `target/`, then select that executable explicitly:
+
+```sh
+cargo build --locked -p atlas-cli
+just dev-status --binary target/debug/atlas
+just dev-web --binary target/debug/atlas --port 4827
+```
+
+`dev-status --json` includes the complete manifest and check reports.
+Status invokes read-only Atlas checks and prints a fully qualified setup command
+when a candidate needs migration or a reference update. It exits nonzero for
+incompatible/unready data. Run that setup command deliberately against the private
+copy; failed readiness never triggers an automatic rebuild. Setup can reuse
+compatible saved embeddings. `--binary` may point to `target/debug-full/atlas` for
+full debugger symbols or a release build for indexing/inference performance.
+
+Each working copy stays pinned to its original seed even after a new default is
+published. Initialization accepts `--baseline ID` to select an older version for
+a new workspace. Existing lists/encounters must be preserved through normal
+setup; there is intentionally no overwrite/reset flag. Do not point the web app
+at the immutable seed itself, or hard-link writable SQLite databases. Seeds retain
+the copied workspace identity; use separate preview ports and do not exchange
+saved-state generations between divergent copies.
+
+Publish new baseline versions when a validated main build or data-contract change
+makes one useful; ordinary presentation edits need no data rebuild. Retain the
+main Cargo target for incremental work. Parallel Rust branches still compile
+locally; a baseline executable serves branches that do not need backend changes.
+Keep baseline versions referenced by `.atlas/dev-workspace.json` or running
+processes. Retire unused versions only after checking those dependencies and any
+saved state. Existing previews never follow the moving default automatically.
+
+The commands can be tried before merge from another checkout with
+`just --justfile /absolute/path/to/task/justfile dev-status`; they operate on the
+invoking checkout. `--checkout /absolute/path` selects a different checkout.
+`just dev-baseline-test` runs the focused snapshot/publication/isolation tests
+without models. The same tests run in the existing Rust workspace CI gate.
 
 ### Build Profiles And Disk Budget
 

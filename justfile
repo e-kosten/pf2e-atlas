@@ -12,15 +12,44 @@ dev-setup:
 preflight:
     scripts/preflight.sh
 
+[doc('Publish an existing validated Atlas build and database as the shared development baseline')]
+[group('development')]
+[positional-arguments]
+dev-baseline-publish *args:
+    sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} publish --checkout {{ quote(invocation_directory()) }} "$@"
+
+[doc('Seed this checkout from the baseline only if its workspace is missing')]
+[group('development')]
+[positional-arguments]
+dev-workspace-init *args:
+    sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} init --checkout {{ quote(invocation_directory()) }} "$@"
+
+[doc('Show development baseline provenance and candidate compatibility without migrating')]
+[group('development')]
+[positional-arguments]
+dev-status *args:
+    sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} status --checkout {{ quote(invocation_directory()) }} "$@"
+
+[doc('Run the baseline backend or an explicit candidate with private data; default port 4727')]
+[group('development')]
+[positional-arguments]
+dev-web *args:
+    sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} web --checkout {{ quote(invocation_directory()) }} "$@"
+
+[doc('Test development baseline publication, snapshots and workspace isolation without models')]
+[group('validation')]
+dev-baseline-test:
+    cargo test -p atlas-storage -p atlas-dev
+
 [doc('Run the full Rust fmt, clippy, test, and build gate; pass --verbose for detailed output')]
 [group('validation')]
 verify *args:
-    scripts/verify.sh {{args}}
+    scripts/verify.sh {{ args }}
 
 [doc('Run path-sensitive validation for staged changes, a git range, or all surfaces')]
 [group('validation')]
 verify-changed *args:
-    scripts/verify-changed.sh {{args}}
+    scripts/verify-changed.sh {{ args }}
 
 [doc('Install frontend dependencies for the Atlas web UI')]
 [group('validation')]
@@ -54,34 +83,34 @@ land-worktree:
 [doc('Open the interactive release workflow picker')]
 [group('release')]
 release *args:
-    scripts/prepare-release.sh {{args}}
+    scripts/prepare-release.sh {{ args }}
 
 [doc('Create the release-preparation branch, version bump, notices, and notes')]
 [group('release')]
 release-prepare *args:
-    scripts/prepare-release.sh --prepare-pr {{args}}
+    scripts/prepare-release.sh --prepare-pr {{ args }}
 
 [doc('Validate, commit, push, and open the release-preparation PR')]
 [group('release')]
 release-open-pr *args:
-    scripts/prepare-release.sh --open-pr {{args}}
+    scripts/prepare-release.sh --open-pr {{ args }}
 
 [doc('Dry-run release publication from the committed crate version')]
 [group('release')]
 release-publish-dry *args:
-    scripts/prepare-release.sh --publish --dry-run {{args}}
+    scripts/prepare-release.sh --publish --dry-run {{ args }}
 
 [doc('Tag the release and create the draft GitHub release')]
 [group('release')]
 release-publish *args:
-    scripts/prepare-release.sh --publish {{args}}
+    scripts/prepare-release.sh --publish {{ args }}
 
 [doc('Install a published Atlas release/RC; optional leading version defaults to the crate version')]
 [group('release')]
 release-install *args:
     #!/usr/bin/env sh
     set -eu
-    set -- {{args}}
+    set -- {{ args }}
     case "${1:-}" in
       v[0-9]*|[0-9]*)
         version="$1"
@@ -103,3 +132,8 @@ release-install *args:
 [group('release')]
 release-check-tools:
     scripts/release/validate-release-tooling.sh
+
+[doc('Build and retain atlas-dev once for all linked worktrees')]
+[group('development')]
+dev-tool-build:
+    sh {{ quote(justfile_directory() / "scripts/development/build-tool.sh") }}

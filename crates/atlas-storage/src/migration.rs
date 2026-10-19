@@ -1,11 +1,12 @@
 use crate::{
     StorageError, StorageResult, Workspace,
+    backup::{self, Destination},
     locking::{acquire, sidecar},
     workspace::APPLICATION_ID,
 };
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 use sha2::{Digest, Sha256};
-use std::{path::PathBuf, time::Duration};
+use std::path::PathBuf;
 
 /// Ordered executable-owned SQL. Never load migration SQL from a workspace.
 #[derive(Clone, Copy)]
@@ -90,7 +91,11 @@ impl Workspace {
             // marker. Only post-migration domain recovery may reopen admission;
             // a failed migration rolls back to the old schema and marker.
             if current < target {
-                self.backup(&connection)?;
+                backup::write(
+                    &connection,
+                    &self.upgrade_backup_path(),
+                    Destination::Replace,
+                )?;
             }
         }
         connection.execute_batch("PRAGMA journal_mode=WAL;")?;
@@ -115,25 +120,6 @@ impl Workspace {
 
     pub fn upgrade_backup_path(&self) -> PathBuf {
         sidecar(&self.path, ".upgrade-backup.sqlite")
-    }
-
-    fn backup(&self, source: &Connection) -> StorageResult<()> {
-        let parent = self
-            .path
-            .parent()
-            .ok_or_else(|| StorageError::Unsupported("workspace has no parent".into()))?;
-        let file = tempfile::NamedTempFile::new_in(parent)?;
-        let mut destination = Connection::open(file.path())?;
-        let backup = rusqlite::backup::Backup::new(source, &mut destination)?;
-        backup.run_to_completion(256, Duration::from_millis(1), None)?;
-        drop(backup);
-        drop(destination);
-        file.as_file().sync_all()?;
-        file.persist(self.upgrade_backup_path())
-            .map_err(|e| StorageError::Io(e.error))?;
-        #[cfg(unix)]
-        std::fs::File::open(parent)?.sync_all()?;
-        Ok(())
     }
 }
 
