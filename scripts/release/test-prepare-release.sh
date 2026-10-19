@@ -1,6 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 
+# Fixture timings must not appear as real validation measurements in CI.
+unset GITHUB_STEP_SUMMARY
+
 repo_root=$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/atlas-prepare-release-test.XXXXXX")
 cleanup() {
@@ -14,6 +17,8 @@ log="$tmp/commands.log"
 mkdir -p "$work/dev-tools/release" "$work/scripts/release" "$work/scripts/git-hooks" "$work/crates/atlas-cli" "$work/docs/releases" "$fake_bin"
 cp "$repo_root/scripts/prepare-release.sh" "$work/scripts/prepare-release.sh"
 chmod +x "$work/scripts/prepare-release.sh"
+mkdir -p "$work/scripts/validation"
+cp "$repo_root/scripts/validation/run-check.sh" "$work/scripts/validation/run-check.sh"
 cp "$repo_root/scripts/verify.sh" "$work/scripts/verify.sh"
 chmod +x "$work/scripts/verify.sh"
 for release_check in validate-release-tooling.sh test-prepare-release.sh; do

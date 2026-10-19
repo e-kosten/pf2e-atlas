@@ -21,37 +21,44 @@ absolute_git_common_dir() {
 # Keep the path policy shared by commit hooks and changed-path verification.
 validation_surface_for_path() {
   case "$1" in
-    AGENTS.md | CONTRIBUTING.md | README.md | THIRD-PARTY-NOTICES.md | docs/*.md | scratch/plans/*.md | .codex/skills/*.md | skills/*.md | crates/*/README.md | dev-tools/README.md | dev-tools/*/README.md | vendor/README.md | web/atlas-ui/AGENTS.md | web/atlas-ui/README.md | web/atlas-ui/docs/*.md)
+    # Package fixtures and executable research precede the prose exemption.
+    dev-tools/source-contracts/*) printf 'source\n' ;;
+    dev-tools/release/* | scripts/release/* | scripts/prepare-release.sh | scripts/install/* | THIRD-PARTY-NOTICES.md) printf 'release\n' ;;
+    skills/pf2e-atlas-cli/*) printf 'rust\n' ;;
+    docs/research/evaluations/*) printf 'research\n' ;;
+    AGENTS.md | CONTRIBUTING.md | README.md | docs/*.md | scratch/plans/*.md | .codex/skills/*.md | skills/*.md | crates/*/README.md | dev-tools/README.md | vendor/README.md | web/atlas-ui/AGENTS.md | web/atlas-ui/README.md | web/atlas-ui/docs/*.md)
       printf 'docs\n' ;;
-    crates/atlas-app-model/src/* | crates/atlas-app-model/bindings/*)
-      printf 'both\n' ;;
-    Cargo.toml | Cargo.lock | crates/* | src/* | tests/* | build.rs)
-      printf 'rust\n' ;;
-    web/atlas-ui/*)
-      printf 'web\n' ;;
-    *)
-      # Unknown configuration, tooling and special file modes must not skip gates.
-      printf 'both\n' ;;
+    Cargo.toml | Cargo.lock | crates/*/Cargo.toml) printf 'rust web source release\n' ;;
+    crates/atlas-app-model/*) printf 'rust web\n' ;;
+    crates/atlas-foundry-model/*) printf 'rust source\n' ;;
+    crates/* | src/* | tests/* | build.rs) printf 'rust\n' ;;
+    web/atlas-ui/*) printf 'web\n' ;;
+    *) printf 'rust web source release research\n' ;;
   esac
 }
 
 classify_validation_paths() {
   rust_touched=0
   web_touched=0
+  source_touched=0
+  release_touched=0
+  research_touched=0
   docs_only=0
   classification_saw_path=0
-
   while IFS= read -r path || [ -n "$path" ]; do
     [ -n "$path" ] || continue
     classification_saw_path=1
-    case "$(validation_surface_for_path "$path")" in
-      rust) rust_touched=1 ;;
-      web) web_touched=1 ;;
-      both) rust_touched=1; web_touched=1 ;;
-    esac
+    for surface in $(validation_surface_for_path "$path"); do
+      case "$surface" in
+        rust) rust_touched=1 ;;
+        web) web_touched=1 ;;
+        source) source_touched=1 ;;
+        release) release_touched=1 ;;
+        research) research_touched=1 ;;
+      esac
+    done
   done <"$1"
-
-  if [ "$classification_saw_path" -eq 1 ] && [ "$rust_touched" -eq 0 ] && [ "$web_touched" -eq 0 ]; then
+  if [ "$classification_saw_path" -eq 1 ] && [ "$rust_touched$web_touched$source_touched$release_touched$research_touched" = 00000 ]; then
     docs_only=1
   fi
 }

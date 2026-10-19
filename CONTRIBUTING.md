@@ -5,7 +5,7 @@
 Implementation uses dedicated linked worktrees and feature PRs:
 
 - create a task worktree under `.worktrees/<task-slug>` on a short-lived feature branch
-- choose the base from the workstream: `main` for independent mainline work, or `integration/source-modeling` for the source-modeling workstream; dependent PRs may target the preceding feature branch
+- branch from current `main` unless the user identifies another workstream; dependent PRs may target the preceding feature branch
 - continue related feedback and revisions in the same task worktree and PR
 - preserve unrelated changes and running builds being reviewed
 - land through a reviewed PR after applicable validation and CI; merging is a separate human decision
@@ -27,6 +27,26 @@ Before removal, inspect Git status, untracked and ignored files, running preview
 
 For retained worktrees, record the path, purpose, owner, and removal condition. Stable previews retain their frozen binary, artifact, saved state, and small review evidence; they normally do not require a compiler cache. Temporary review checkouts last only as long as their review.
 
+## Development Loop
+
+Complete the agreed scope autonomously, including necessary integration, tests,
+documentation and review fixes. Logical commits organize finished parts of the
+work; they do not require tiny PRs, reduced scope or repeated user approvals.
+Ask for input when a consequential product/architecture decision is unresolved,
+a real blocker needs the user, or the early UX checkpoint below is due.
+
+During iteration, run focused tests for the behavior being changed. Before marking
+the PR ready, run the full applicable gates and review the resulting diff against
+the agreed outcome. Scale additional independent reviews to risk and explicit
+requirements; they are not a mandatory ceremony for every small change. Preserve
+the required browser/Astra review for UI changes.
+
+Reuse successful checks for unchanged code, inputs and toolchain. Record the
+candidate and commands; rerun affected checks after substantive changes. An
+unrelated documentation edit need not invalidate a completed compiler/test run.
+Local validation and CI both matter: local checks shorten feedback, while CI
+checks the published candidate in clean environments and on other platforms.
+
 ## Local Build Review
 
 User experience changes, including CLI behavior and output, get an early human
@@ -34,7 +54,7 @@ checkpoint once the core flow is functional. Provide a runnable preview or sampl
 CLI commands and output after minimal usability checks, then pause for feedback
 before broad test rewrites and final validation. Clearly identify unfinished
 behavior and validation gaps. Existing tests remain intact, and all applicable
-final gates and independent reviews still follow once the UX direction is agreed.
+final gates and applicable independent reviews still follow once the UX direction is agreed.
 
 Provide a stable local build when a change is useful to inspect. State its branch, commit, URL or run command, and any sample-data limitations. Disclose uncommitted differences if present. Preserve that build while developing further changes, using a separate checkout or built artifact when necessary, and explicitly identify when an updated build replaces it.
 
@@ -502,8 +522,43 @@ For path-sensitive formatting or explicit full validation (the range below assum
 
 ```bash
 just verify-changed --staged
+just verify-changed --range origin/main...HEAD --list
 just verify-changed --range origin/main...HEAD --full
 ```
+
+The selector prints its decisions with `--list` without running checks. Local
+`--full` dispatches to the owning validation surface; install that surface's npm
+dependencies explicitly first. Rust workspace builds also require the frontend
+bundle: the selector prepares it before Rust checks, reusing the frontend gate’s
+build when both surfaces are selected. It never installs dependencies as part of
+a gate.
+
+| Changed surface | Local full validation / PR CI coverage |
+| --- | --- |
+| Rust | Workspace gate; CI also checks Windows storage and standalone atlas-dev |
+| Frontend | Frontend gate; CI also runs the Rust/real-app browser job |
+| App-model contracts | Both Rust and frontend |
+| Foundry model | Rust and source-contract generation |
+| Source-contract tooling | Fixture tests and pinned generation |
+| Release tooling | Tool tests, notices and installer checks; CI includes three OSes |
+| Research datasets, including hash-bound Markdown | Each dataset's offline `verify.ts`, with no inference |
+| Prose documentation | Diff/links/examples review; no application builds |
+| Cargo manifests/lockfile | Rust, frontend, source contracts and release/notices |
+| Shipped agent skill | Rust (the skill is embedded in the CLI) |
+| Unknown paths, workflow or validation infrastructure | All surfaces |
+
+PR CI uses the same path classifier. Renames include the old and new paths;
+executable/symlink mode changes select all. Main pushes and nightly verification
+run every surface. The `validation complete` job rejects failed or unexpectedly
+skipped selected jobs; use it as the aggregate required check. CI selection and
+local script stages report decisions/timings in the job summary. Two Clippy passes
+retain distinct lint policies; tests and normal builds remain separate until
+measurement establishes equivalent coverage at lower cost.
+
+`test:devices` builds the frontend for standalone local use. CI invokes Playwright
+directly after its existing bundle build, so that job does not rebuild the bundle.
+`just verify-all` validates installed Rust/frontend dependencies without rerunning
+`npm ci`; use `just web-ui-install` when the lockfile or installation changes.
 
 Tracked git hooks live in `.githooks/`:
 
@@ -518,7 +573,7 @@ Domain-owned SQL is the physical schema source of truth: reference SQL lives in 
 
 Docs-only or instruction-only changes do not require the Rust or frontend gates unless they affect executable examples, generated output expectations, or another validated artifact. Inspect the diff and check whitespace and any changed links or examples.
 
-The normal landing path is a reviewed GitHub PR, with applicable local gates, CI, and human acceptance reported separately. `scripts/land-worktree.sh` and `just land` directly fast-forward local `main`; they are not the normal PR workflow and require explicit authorization to use. Do not interpret a passing gate as permission to merge.
+The normal landing path is a reviewed GitHub PR, with applicable local gates, CI, and human acceptance reported separately. `scripts/land-worktree.sh` and `just land-worktree` directly fast-forward local `main`; they are not the normal PR workflow and require explicit authorization to use. Do not interpret a passing gate as permission to merge.
 
 ## Pinned PF2E Data
 
@@ -544,14 +599,6 @@ Custom module versions are not interpreted as PF2e versions. Developer
 `atlas-dev source load` remains available for diagnosing unsupported inputs.
 Changing the pin requires regeneration and corpus/consumer validation; it is not
 an ordinary data refresh. See ADR0052.
-
-## Source Modeling Integration
-
-Source-modeling work lands through `integration/source-modeling`. The bottom
-feature PR targets that branch; dependent PRs target the preceding feature branch.
-The draft integration-to-`main` PR shows work as reviewed feature PRs land and
-remains a separate merge decision. `integration/record-refactor` is retained as
-the earlier research and product-preview reference.
 
 ## Source declaration research
 
