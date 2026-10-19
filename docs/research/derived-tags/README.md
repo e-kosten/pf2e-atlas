@@ -14,6 +14,15 @@ It is intended to stand on its own after local plans and worktrees are removed.
 The snapshots preserve research, including its mistakes and unfinished ideas;
 they are not an approved taxonomy, reviewed assignment set or implementation plan.
 
+Preservation acceptance: after this PR is merged, this chat and all local
+derived-tag scratch documents, plans, worktrees and retaining branches may be
+discarded without losing the useful design/ontology knowledge. The
+[deletion-readiness audit](deletion-readiness.md) records the coverage and
+intentional retirement of obsolete machinery. The archive is self-contained in
+the tracked tree and main's existing history; no separately retained local branch
+or worktree is required. Unique local planning is snapshotted; the integrated
+Node implementation is referenced by exact ancestor commit.
+
 ## Read by question
 
 | Question | Document |
@@ -23,6 +32,7 @@ they are not an approved taxonomy, reviewed assignment set or implementation pla
 | What research informed annotation and reviewer choices? | [Research and evaluation](research-and-evaluation.md) |
 | Where are the exact sources, and what would cleanup discard? | [Sources and cleanup](sources-and-cleanup.md) |
 | What are the preserved local-only bytes? | [Snapshot manifest](sources/manifest.md) |
+| Can the chat, scratch files, plans and old worktrees be deleted? | [Deletion-readiness audit](deletion-readiness.md) |
 
 The [deferred backlog item](../../backlog/items/rust-derived-tag-redesign.md)
 tracks the reopening condition. [ADR0054](../../architecture/decisions/0054-derived-tag-deferral.md)
