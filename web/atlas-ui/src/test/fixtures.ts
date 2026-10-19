@@ -47,6 +47,17 @@ export const numberFact = (value: number): NumberFactView => ({
 });
 export function actorFixture(): ActorPresentationView {
   return {
+    size: knownFact("Medium"),
+    hardness: { state: "not_applicable", value: null, adjustment: null },
+    ritual_difficulty_class: { state: "not_applicable", value: null, adjustment: null },
+    defense_notes: {
+      armor_class: knownFact(""),
+      hit_points: knownFact(""),
+      all_saves: knownFact(""),
+      fortitude: knownFact(""),
+      reflex: knownFact(""),
+      will: knownFact(""),
+    },
     level: numberFact(1),
     armor_class: numberFact(16),
     maximum_hp: numberFact(20),
@@ -73,6 +84,10 @@ export function activityFixture(
 ): ActorActivityView {
   const na: NumberFactView = { state: "not_applicable", value: null, adjustment: null };
   return {
+    self_effect: { state: "not_applicable", value: null },
+    strike_effects: { state: "not_applicable", value: null },
+    focus_capacity: na,
+    frequency: { state: "not_applicable", value: null },
     casting_ranks: [],
     title,
     family: "melee",

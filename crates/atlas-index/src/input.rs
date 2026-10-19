@@ -17,7 +17,7 @@ pub const SOURCE_LOOKUP_VERSION: &str = "nfc-lowercase-whitespace/v1";
 pub const LEXICAL_SELECTION_VERSION: &str = "curated-lexical/v1";
 pub const LOCALIZATION_POLICY_VERSION: &str = "selected-source-catalog/english-fallback/v1";
 pub const ASSET_POLICY_VERSION: &str = "safe-remote-images/local-unavailable/v1";
-pub const RELATIONSHIP_POLICY_VERSION: &str = "typed-authored-occurrences/v2";
+pub const RELATIONSHIP_POLICY_VERSION: &str = "typed-authored-occurrences/v3";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

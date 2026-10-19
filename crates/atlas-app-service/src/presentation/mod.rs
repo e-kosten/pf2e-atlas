@@ -1,5 +1,6 @@
 //! Selected authored facts. Renderers own density and layout; source owns meaning.
 mod action_cost;
+mod activity_references;
 pub(crate) mod actor;
 mod facts;
 mod spell;
@@ -125,7 +126,7 @@ pub(crate) fn record_presentation(
     owners: &[OwnedContentLocator],
     content: Vec<PreparedContentFieldView>,
     retrieval: &atlas_search::AtlasRetrievalService,
-) -> RecordPresentationView {
+) -> crate::AppServiceResult<RecordPresentationView> {
     let identity = selected_identity(record, node, summary, owners, retrieval);
     let mut owned = owned_links(record, node, owners, retrieval.source_fingerprint());
     let mut body = match node {
@@ -252,6 +253,17 @@ pub(crate) fn record_presentation(
                 && owners.len() == 1
                 && let Some(parent_node @ SourceNodeView::Actor(_)) = record.node_at(&[])
             {
+                if activity.preparation.value.as_deref() == Some("focus") {
+                    activity.focus_capacity = number(
+                        SourceQueryView {
+                            source: parent_node,
+                            pack_id: "",
+                            pack_label: "",
+                        }
+                        .actor()
+                        .focus_capacity(),
+                    );
+                }
                 let activities =
                     actor::authored_activities(record, parent_node, retrieval.source_fingerprint());
                 let state = activities.state;
@@ -287,13 +299,14 @@ pub(crate) fn record_presentation(
         }
         _ => {}
     }
-    RecordPresentationView {
+    activity_references::resolve(&mut body, record.key(), retrieval)?;
+    Ok(RecordPresentationView {
         classification: classification(node, &identity),
         identity,
         content,
         owned,
         body,
-    }
+    })
 }
 fn classification(node: SourceNodeView<'_>, identity: &RecordSummaryView) -> String {
     let level = match node {

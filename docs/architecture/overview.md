@@ -91,6 +91,15 @@ match executable bindings, never artifact-supplied SQL. CLI CEL and the structur
 UI builder lower independently to the shared predicate. Do not invent another
 expression parser, filter authority, per-field CLI flag set or metric EAV store.
 
+Creature/hazard reference projections retain authored defense qualifiers beside
+numeric facts. AC, HP and save notes are explanations, not modifiers inferred
+from prose. Size and meaningful hardness are reference facts; focus capacity appears
+only on an authored focus casting entry, and ritual DC remains separate from
+ordinary spell DC. Activity frequency presents authored maximum and interval separately
+from source remaining uses or saved encounter expenditure. CLI and web readers
+render these shared facts; known-empty optional notes remain quiet and malformed
+source values retain their unavailable state.
+
 App-service owns product filter grouping and editor hints shared by CLI discovery
 and the web builder, including compact collection controls and short choice lists.
 Product field discovery omits source UUID references and groups unit-specific

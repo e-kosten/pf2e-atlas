@@ -1139,3 +1139,192 @@ fn unsupported_heightening_is_visible_and_does_not_claim_effective_rank() {
         assert!(spell.rank_note.unwrap().contains("preview is unavailable"));
     }
 }
+
+#[test]
+fn reference_defense_notes_preserve_qualifiers_without_changing_statistics() {
+    let input = record(
+        "actors",
+        "Actor",
+        json!({
+            "_id":"aaaaaaaaaaaaaaaa", "type":"npc",
+            "system": {"attributes": {
+                "ac":{"value":25,"details":"21 while broken"},
+                "hp":{"max":80,"details":"void healing"},
+                "allSaves":{"value":"+2 status vs. magic"}},
+                "saves":{"fortitude":{"value":10,"saveDetail":"-2 without heartstone"},
+                         "reflex":{"value":0,"saveDetail":""},"will":{"value":8,"saveDetail":42}}}
+        }),
+    );
+    let body = actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+    assert_eq!(body.armor_class.value, Some(25.into()));
+    assert_eq!(body.saves.fortitude.value, Some(10.into()));
+    assert_eq!(
+        body.defense_notes.armor_class.value.as_deref(),
+        Some("21 while broken")
+    );
+    assert_eq!(
+        body.defense_notes.hit_points.value.as_deref(),
+        Some("void healing")
+    );
+    assert_eq!(
+        body.defense_notes.all_saves.value.as_deref(),
+        Some("+2 status vs. magic")
+    );
+    assert_eq!(
+        body.defense_notes.fortitude.value.as_deref(),
+        Some("-2 without heartstone")
+    );
+    assert_eq!(body.defense_notes.reflex.value.as_deref(), Some(""));
+    assert_eq!(body.defense_notes.will.state, QueryFieldState::Invalid);
+}
+
+#[test]
+fn reference_frequency_uses_capacity_not_remaining_uses_and_preserves_invalid_interval() {
+    for (interval, expected) in [
+        (json!("PT1M"), QueryFieldState::Value),
+        (json!("invented"), QueryFieldState::Invalid),
+    ] {
+        let input = record(
+            "actors",
+            "Actor",
+            json!({
+                "_id":"aaaaaaaaaaaaaaaa","type":"npc", "items":[{
+                    "_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Ward",
+                    "system":{"frequency":{"max":3,"value":0,"per":interval}}
+                }]
+            }),
+        );
+        let body =
+            actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+        let activities = body.activities.value.unwrap();
+        let frequency = activities[0].frequency.value.as_ref().unwrap();
+        assert_eq!(frequency.maximum.value, Some(3.into()));
+        assert_eq!(frequency.interval.state, expected);
+        if expected == QueryFieldState::Value {
+            assert_eq!(frequency.interval.value.as_deref(), Some("minute"));
+        }
+    }
+}
+
+#[test]
+fn reference_casting_capacity_requires_focus_context_and_ritual_dc_stays_separate() {
+    let input = record(
+        "actors",
+        "Actor",
+        json!({
+            "_id":"aaaaaaaaaaaaaaaa","type":"npc",
+            "system":{"traits":{"size":{"value":"lg"}},"attributes":{"hardness":{"value":0}},
+                "resources":{"focus":{"max":3,"value":0}},"spellcasting":{"rituals":{"dc":23}}},
+            "items":[
+                {"_id":"bbbbbbbbbbbbbbbb","type":"spellcastingEntry","system":{"prepared":{"value":"focus"},"spelldc":{"dc":27}}},
+                {"_id":"cccccccccccccccc","type":"spellcastingEntry","system":{"prepared":{"value":"innate"},"spelldc":{"dc":25}}}
+            ]
+        }),
+    );
+    let body = actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+    assert_eq!(body.size.value.as_deref(), Some("Large"));
+    assert_eq!(body.hardness.value, Some(0.into()));
+    assert_eq!(body.ritual_difficulty_class.value, Some(23.into()));
+    let activities = body.activities.value.unwrap();
+    assert_eq!(activities[0].focus_capacity.value, Some(3.into()));
+    assert_eq!(activities[0].difficulty_class.value, Some(27.into()));
+    assert_eq!(
+        activities[1].focus_capacity.state,
+        QueryFieldState::NotApplicable
+    );
+    assert_eq!(activities[1].difficulty_class.value, Some(25.into()));
+}
+
+#[test]
+fn reference_optional_actor_facts_keep_missing_null_invalid_and_zero_distinct() {
+    for (hardness, expected) in [
+        (None, QueryFieldState::Missing),
+        (Some(json!(null)), QueryFieldState::Null),
+        (Some(json!("bad")), QueryFieldState::Invalid),
+        (Some(json!({"value":0})), QueryFieldState::Value),
+        (Some(json!({"value":8})), QueryFieldState::Value),
+        (Some(json!({"value":null})), QueryFieldState::Null),
+        (Some(json!({"value":"bad"})), QueryFieldState::Invalid),
+        (Some(json!({})), QueryFieldState::Missing),
+        (Some(json!(8)), QueryFieldState::Invalid),
+    ] {
+        let mut attrs = json!({});
+        if let Some(value) = hardness {
+            attrs["hardness"] = value;
+        }
+        let input = record(
+            "actors",
+            "Actor",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","system":{"attributes":attrs}}),
+        );
+        let body =
+            actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+        assert_eq!(body.hardness.state, expected);
+        if let Some(value) = attrs["hardness"]["value"].as_i64() {
+            assert_eq!(body.hardness.value, Some(value.into()));
+        }
+        assert_eq!(body.ritual_difficulty_class.state, QueryFieldState::Missing);
+        assert_eq!(body.size.state, QueryFieldState::Missing);
+    }
+}
+
+#[test]
+fn reference_self_effect_navigation_survives_storage_and_selected_activity_reading() {
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[
+                            {"_id":"cccccccccccccccc","type":"action","name":"Ward","system":{"selfEffect":{"name":"Ward effect","uuid":"Compendium.pf2e.effects.Item.bbbbbbbbbbbbbbbb"}}},
+                            {"_id":"dddddddddddddddd","type":"melee","system":{"attackEffects":{"value":["unresolved-poison"]}}}
+                        ]}),
+                    ),
+                    record(
+                        "effects",
+                        "Item",
+                        json!({"_id":"bbbbbbbbbbbbbbbb","type":"effect","name":"Effect: Ward"}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let detail = f.worker.record_detail("actors:aaaaaaaaaaaaaaaa").unwrap();
+    let activities = actor(&detail.presentation)
+        .activities
+        .value
+        .as_ref()
+        .unwrap();
+    let effect = activities[0].self_effect.value.as_ref().unwrap();
+    assert_eq!(
+        effect.navigation.as_ref().unwrap().record_key,
+        "effects:bbbbbbbbbbbbbbbb"
+    );
+    assert_eq!(
+        activities[1].strike_effects.value.as_ref().unwrap(),
+        &["unresolved-poison"]
+    );
+    let selected = f
+        .worker
+        .record_detail_at(atlas_app_model::RecordDetailRequest {
+            record_key: "actors:aaaaaaaaaaaaaaaa".into(),
+            owners: activities[0].navigation.owners.clone(),
+            spell_rank: None,
+            fields: vec![],
+            passage: None,
+            source_fingerprint: activities[0].navigation.source_fingerprint.clone(),
+        })
+        .unwrap();
+    let RecordBodyView::Activity(selected) = selected.presentation.body else {
+        panic!("activity")
+    };
+    assert_eq!(
+        selected.self_effect.value.unwrap().navigation,
+        effect.navigation
+    );
+}

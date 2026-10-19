@@ -14,6 +14,7 @@ pub enum SourceRelationshipKind {
     SpellcastingEntry,
     PreparedSpell,
     TableResult,
+    SelfEffect,
 }
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceRelationshipOccurrence {
@@ -173,6 +174,12 @@ pub(super) fn collect_relationships(
     let SourceNodeView::Item(item) = source else {
         return;
     };
+    add(
+        "/system/selfEffect/uuid",
+        SourceRelationshipKind::SelfEffect,
+        item.self_effect().and_then(|e| (&e.uuid).into()),
+        false,
+    );
     let granted_by = item_fields!(
         item,
         s,

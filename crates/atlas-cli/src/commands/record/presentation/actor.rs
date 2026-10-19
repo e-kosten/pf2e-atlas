@@ -5,7 +5,7 @@ use super::{
 use crate::commands::record::args::TerminalDetail;
 use atlas_app_model::{
     ActorActivityKindView, ActorActivityView, ActorPresentationView, FactView, IwrEntryView,
-    OwnedReadingEntryView,
+    NumberFactView, OwnedReadingEntryView,
 };
 use atlas_domain::QueryFieldState;
 
@@ -18,6 +18,8 @@ pub(super) fn render(
     width: super::TerminalLayout,
     detail: TerminalDetail,
 ) -> Result<(), String> {
+    optional_text(out, "Size", &actor.size);
+    optional_number(out, "Hardness", &actor.hardness, false, "");
     number(out, "Perception", &actor.perception, true, "");
     optional_text(out, "Perception details", &actor.perception_details);
     fact(out, "Senses", &actor.senses, |senses| {
@@ -84,13 +86,44 @@ pub(super) fn render(
     }
     line(out, "");
     if primary_defenses {
-        number(out, "AC", &actor.armor_class, false, "");
-        number(out, "HP", &actor.maximum_hp, false, "");
+        defense(
+            out,
+            "AC",
+            &actor.armor_class,
+            &actor.defense_notes.armor_class,
+            false,
+        );
+        defense(
+            out,
+            "HP",
+            &actor.maximum_hp,
+            &actor.defense_notes.hit_points,
+            false,
+        );
     }
     if saves {
-        number(out, "Fortitude", &actor.saves.fortitude, true, "");
-        number(out, "Reflex", &actor.saves.reflex, true, "");
-        number(out, "Will", &actor.saves.will, true, "");
+        defense(
+            out,
+            "Fortitude",
+            &actor.saves.fortitude,
+            &actor.defense_notes.fortitude,
+            true,
+        );
+        defense(
+            out,
+            "Reflex",
+            &actor.saves.reflex,
+            &actor.defense_notes.reflex,
+            true,
+        );
+        defense(
+            out,
+            "Will",
+            &actor.saves.will,
+            &actor.defense_notes.will,
+            true,
+        );
+        optional_text(out, "All saves", &actor.defense_notes.all_saves);
     }
     iwr(out, "Immunities", &actor.immunities);
     iwr(out, "Weaknesses", &actor.weaknesses);
@@ -109,6 +142,7 @@ pub(super) fn render(
             );
         }
     }
+    optional_number(out, "Ritual DC", &actor.ritual_difficulty_class, false, "");
     let Some(activities) = collection(out, "Owned entries", &actor.activities) else {
         return Ok(());
     };
@@ -184,6 +218,18 @@ pub(super) fn activity_facts(out: &mut String, activity: &ActorActivityView, sho
     } else if let Some(usage) = &activity.usage {
         line(out, format!("Usage: {usage}"));
     }
+    if !matches!(
+        activity.frequency.state,
+        QueryFieldState::Missing | QueryFieldState::NotApplicable
+    ) {
+        fact(out, "Frequency", &activity.frequency, |frequency| {
+            format!(
+                "{} per {}",
+                number_text(&frequency.maximum, false, ""),
+                fact_string(&frequency.interval, Clone::clone)
+            )
+        });
+    }
     if activity.action_cost.state != atlas_domain::QueryFieldState::NotApplicable
         && (!show_identity || activity.action_cost.state != QueryFieldState::Value)
     {
@@ -201,6 +247,7 @@ pub(super) fn activity_facts(out: &mut String, activity: &ActorActivityView, sho
     optional_number(out, "  Lore modifier", &activity.lore_modifier, true, "");
     optional_text(out, "  Tradition", &activity.casting_tradition);
     optional_text(out, "  Preparation", &activity.preparation);
+    optional_number(out, "  Focus capacity", &activity.focus_capacity, false, "");
     if activity.kind == ActorActivityKindView::Strike
         || !matches!(
             activity.damage.state,
@@ -208,6 +255,30 @@ pub(super) fn activity_facts(out: &mut String, activity: &ActorActivityView, sho
         )
     {
         damage(out, &activity.damage);
+    }
+    if !matches!(
+        activity.strike_effects.state,
+        QueryFieldState::Missing | QueryFieldState::NotApplicable
+    ) {
+        fact(
+            out,
+            "  Attack effects",
+            &activity.strike_effects,
+            |effects| effects.join(", "),
+        );
+    }
+    if !matches!(
+        activity.self_effect.state,
+        QueryFieldState::Missing | QueryFieldState::NotApplicable
+    ) {
+        fact(out, "  Self effect", &activity.self_effect, |effect| {
+            let name = fact_string(&effect.name, Clone::clone);
+            if effect.navigation.is_some() {
+                name
+            } else {
+                format!("{name} (reference unavailable)")
+            }
+        });
     }
     optional_number(out, "  Rank", &activity.base_rank, false, "");
     optional_number(out, "  Cast rank", &activity.authored_cast_rank, false, "");
@@ -337,4 +408,26 @@ fn iwr(out: &mut String, label: &str, value: &FactView<Vec<IwrEntryView>>) {
             .collect::<Vec<_>>()
             .join("; ")
     });
+}
+
+fn defense(
+    out: &mut String,
+    label: &str,
+    value: &NumberFactView,
+    qualifier: &FactView<String>,
+    signed: bool,
+) {
+    if value.state == QueryFieldState::NotApplicable {
+        return;
+    }
+    let detail = match qualifier.state {
+        QueryFieldState::Missing | QueryFieldState::NotApplicable => String::new(),
+        _ => fact_string(qualifier, Clone::clone),
+    };
+    let number = number_text(value, signed, "");
+    if detail.trim().is_empty() {
+        line(out, format!("{label}: {number}"));
+    } else {
+        line(out, format!("{label}: {number} {detail}"));
+    }
 }
