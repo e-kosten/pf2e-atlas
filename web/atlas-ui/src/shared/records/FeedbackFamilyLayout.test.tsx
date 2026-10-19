@@ -339,7 +339,9 @@ it.each([false, true])(
     if (hasBudget) {
       expect(screen.getByText("Actions").parentElement).toHaveTextContent("0");
       expect(screen.getByText("Reactions").parentElement).toHaveTextContent("0");
-      expect(screen.queryByText("Can act")).toBeNull();
+      expect(screen.getByText("Can act").parentElement).toHaveTextContent(
+        "Unconscious blocks actions.",
+      );
       expect(screen.getByText("Can react").parentElement).toHaveTextContent(
         "Unconscious blocks reactions.",
       );
@@ -350,7 +352,7 @@ it.each([false, true])(
     );
     if (hasBudget) {
       expect(screen.getByText(/supplied action budget/)).toBeVisible();
-      for (const label of ["Actions", "Reactions", "Can react"])
+      for (const label of ["Actions", "Reactions", "Can act", "Can react"])
         expect(screen.getAllByText(label)).toHaveLength(1);
     }
     expect(screen.getAllByText("AC")).toHaveLength(1);

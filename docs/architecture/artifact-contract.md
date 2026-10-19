@@ -345,3 +345,14 @@ Consumable query kind/type live on the shared physical projection for root and
 immediate actor equipment. Workspace migration 4 adds their state/value columns;
 authored-query/v2 and catalog v5 rebuild accelerators from retained typed snapshots.
 The migration preserves saved state and does not change the source snapshot codec.
+
+### Encounter status migration
+
+Workspace migration 5 adds saved-domain `hazard_disabled`, defaulting existing
+participants to false and restricting true to hazards. This local-state-owned
+migration preserves HP, conditions, resources and reference data. It is composed
+by runtime after the immutable earlier migrations.
+
+Workspace migration 6 converts defeated hazards to disabled and prevents hazards
+from storing the creature defeated marker. It preserves HP and creature status.
+Migration 5 remains immutable because it has been applied to preview workspaces.

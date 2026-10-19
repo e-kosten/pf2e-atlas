@@ -25,7 +25,10 @@ pub fn invalidate_reference(path: impl AsRef<std::path::Path>) -> Result<(), cra
         .update_owner()
         .map_err(|e| crate::SearchError::query_failed(e.to_string()))?;
     let maintenance = owner
-        .maintenance(4, "invalid reference test fixture")
+        .maintenance(
+            atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+            "invalid reference test fixture",
+        )
         .map_err(|e| crate::SearchError::query_failed(e.to_string()))?;
     maintenance.publish(|c| {
         c.execute("DELETE FROM artifact_context", [])?;

@@ -474,3 +474,17 @@ Macro-inspired UI actions, source-local asset ingestion, independent runtime dis
 locale, broader label selection, representative root embeddings/reranking and new
 embedding models beyond the two pinned baseline profiles require separate bounded design/evidence. Their retained source
 data does not imply runtime execution support. See the active backlog and ADR0046.
+
+### Encounter participation and regain forecasts
+
+App-service projects current acting/reacting capability separately from a
+PF2e 6.12.4 next-regain forecast. Unknown condition values produce an unavailable
+forecast. Quickened restrictions and overlapping Stunned/Slowed losses remain
+visible; reads never recover conditions. Ordinary casting uses the same backend
+capability reason as browser controls; explicit past-use and resource corrections
+remain available. See ADR 0048 for the bounded policy.
+
+Hazards use Active/Disabled in place of creature Active/Defeated. Damage reaching
+zero disables a hazard; healing does not reactivate it. HP remains separate. Automatic turns
+skip either inactive state and continue from the current roster position. Disabled
+hazards remain readable/editable and use the creature roster's subdued fact styling.

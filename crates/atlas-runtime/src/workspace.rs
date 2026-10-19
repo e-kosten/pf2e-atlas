@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 4;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 6;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -23,6 +23,16 @@ const MIGRATIONS: &[Migration] = &[
         version: 4,
         name: "consumable-filters",
         sql: atlas_index::CONSUMABLE_FILTER_SCHEMA_SQL,
+    },
+    Migration {
+        version: 5,
+        name: "encounter-status",
+        sql: atlas_local_state::ENCOUNTER_STATUS_SCHEMA_SQL,
+    },
+    Migration {
+        version: 6,
+        name: "hazard-participation",
+        sql: atlas_local_state::HAZARD_PARTICIPATION_SCHEMA_SQL,
     },
 ];
 
@@ -94,6 +104,72 @@ mod tests {
     }
 
     #[test]
+    fn encounter_status_upgrade_preserves_existing_hazard_hp_and_defaults_active() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("hazard.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        // Version four is the historical input under test, not the current version.
+        workspace.migrate(&MIGRATIONS[..4], |_| Ok(())).unwrap();
+        let write = workspace.write(4).unwrap();
+        write.connection().execute_batch("INSERT INTO encounters(id,encounter_key,slug,name,status,created_at,updated_at) VALUES(1,'e','e','Encounter','draft','before','before');
+            INSERT INTO encounter_participants(encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,note,created_at,updated_at)
+            VALUES(1,'h','hazard',0,'Hazard',0,30,17,'Keep this','before','before');").unwrap();
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(&path).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let detail = LocalStateRead::new(&read)
+            .encounters()
+            .get_with_participants("e")
+            .unwrap()
+            .unwrap();
+        let p = &detail.participants[0];
+        assert!(!p.hazard_disabled);
+        assert_eq!(p.current_hp, Some(17));
+        assert_eq!(p.max_hp, Some(30));
+        assert_eq!(p.note.as_deref(), Some("Keep this"));
+        assert_eq!(p.revision, 0);
+    }
+
+    #[test]
+    fn defeated_hazard_upgrade_preserves_hp_and_creature_status() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("hazard-status.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        // Version five is the historical input under test.
+        workspace.migrate(&MIGRATIONS[..5], |_| Ok(())).unwrap();
+        let write = workspace.write(5).unwrap();
+        write.connection().execute_batch("INSERT INTO encounters(id,encounter_key,slug,name,status,created_at,updated_at) VALUES(1,'e','e','Encounter','draft','before','before');
+            INSERT INTO encounter_participants(encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,defeated,created_at,updated_at)
+            VALUES(1,'h','hazard',0,'Hazard',0,30,17,1,'before','before'),
+                  (1,'c','creature',1,'Creature',1,30,0,1,'before','before');").unwrap();
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(&path).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let detail = LocalStateRead::new(&read)
+            .encounters()
+            .get_with_participants("e")
+            .unwrap()
+            .unwrap();
+        let hazard = detail
+            .participants
+            .iter()
+            .find(|p| p.participant_key == "h")
+            .unwrap();
+        assert!(hazard.hazard_disabled);
+        assert!(!hazard.defeated);
+        assert_eq!(hazard.current_hp, Some(17));
+        let creature = detail
+            .participants
+            .iter()
+            .find(|p| p.participant_key == "c")
+            .unwrap();
+        assert!(creature.defeated);
+        assert!(!creature.hazard_disabled);
+    }
+
+    #[test]
     fn startup_can_initialize_current_workspace_during_publisher_preparation() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("atlas.sqlite");
@@ -116,7 +192,7 @@ mod tests {
         let workspace = Workspace::at(directory.path().join("atlas.sqlite")).unwrap();
         let mut migrations = MIGRATIONS.to_vec();
         migrations.push(Migration {
-            version: 5,
+            version: WORKSPACE_SCHEMA_VERSION + 1,
             name: "invalid",
             sql: "INSERT INTO missing_table VALUES(1);",
         });

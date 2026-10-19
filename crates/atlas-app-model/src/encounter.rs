@@ -120,6 +120,7 @@ pub struct AdvanceEncounterTurnRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterConditionDefinitionView {
+    pub supports_duration_instead_of_value: bool,
     pub condition_ref: String,
     pub name: String,
     pub automation_level: EncounterConditionAutomationLevelView,
@@ -223,8 +224,11 @@ pub struct ActionBudgetView {
 #[serde(rename_all = "snake_case")]
 pub struct RuntimeCountView {
     pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub explanation: Option<String>,
     pub base_value: i64,
-    pub adjusted_value: i64,
+    pub adjusted_value: Option<i64>,
     pub segments: Vec<RuntimeCountSegmentView>,
     pub adjustments: Vec<RuntimeAdjustmentView>,
     pub suppressed_adjustments: Vec<RuntimeAdjustmentView>,
@@ -365,6 +369,7 @@ pub struct EncounterMutationView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterParticipantView {
+    pub cast_unavailable_reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub spellcasting: Option<EncounterSpellcastingView>,
@@ -393,6 +398,7 @@ pub struct EncounterParticipantView {
     pub current_hp: Option<i64>,
     pub temporary_hp: i64,
     pub defeated: bool,
+    pub hazard_disabled: bool,
     pub hidden: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -487,6 +493,7 @@ pub struct UpdateEncounterParticipantRequest {
     pub current_hp: Option<i64>,
     pub temporary_hp: i64,
     pub defeated: bool,
+    pub hazard_disabled: bool,
     pub hidden: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -721,7 +728,7 @@ mod tests {
     fn participant_edit_revision_is_required_and_round_trips_as_a_json_integer() {
         let mut wire = json!({
             "participant_key":"participant_one", "display_name":"One", "side":"enemy",
-            "participant_variant":"normal", "temporary_hp":0, "defeated":false, "hidden":false,
+            "participant_variant":"normal", "temporary_hp":0, "defeated":false, "hazard_disabled":false, "hidden":false,
         });
         assert!(serde_json::from_value::<UpdateEncounterParticipantRequest>(wire.clone()).is_err());
         wire["expected_revision"] = json!(7);
@@ -798,6 +805,9 @@ pub enum EncounterSpellAction {
         expended: bool,
     },
     Cast {
+        selection: crate::RecordNavigationView,
+    },
+    RecordUse {
         selection: crate::RecordNavigationView,
     },
     Undo {

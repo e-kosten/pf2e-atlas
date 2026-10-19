@@ -171,6 +171,8 @@ function resourceParticipant() {
     status: "active",
     temporary_hp: 0n,
     defeated: false,
+    hazard_disabled: false,
+    cast_unavailable_reason: null,
     hidden: false,
     note_hint: "",
     conditions: [],
@@ -240,5 +242,44 @@ it("restores a shared rank directly while preserving other pools", async () => {
       },
       7n,
     ),
+  );
+});
+
+it("keeps ordinary Cast blocked while allowing an explicit past use", async () => {
+  const detail = detailFixture("actors:caster");
+  detail.presentation.body = { kind: "spell", value: spellFixture() };
+  detail.selected.spell_rank = 3;
+  const participant = resourceParticipant();
+  participant.defeated = true;
+  participant.cast_unavailable_reason = "Marked defeated.";
+  participant.spellcasting!.spells = [
+    {
+      navigation: detail.selected,
+      entry_id: "entry",
+      title: "Fireball",
+      expended: null,
+      ranks: [{ rank: 3, resource_key: "rank3", unavailable_reason: null }],
+    },
+  ];
+  const onAction = vi.fn().mockResolvedValue(true);
+  render(
+    <App>
+      <EncounterSpellControls
+        participant={participant}
+        detail={detail}
+        disabled={false}
+        pending={false}
+        onAction={onAction}
+      />
+    </App>,
+  );
+  expect(screen.getByRole("button", { name: "Cast" })).toBeDisabled();
+  expect(screen.getByText("Marked defeated.")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Record past use" }));
+  await waitFor(() =>
+    expect(onAction).toHaveBeenCalledWith({
+      kind: "record_use",
+      selection: detail.selected,
+    }),
   );
 });

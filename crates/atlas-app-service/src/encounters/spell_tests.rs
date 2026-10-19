@@ -508,3 +508,45 @@ fn resource_editor_saves_one_complete_entry_atomically() {
         .is_err()
     );
 }
+
+#[test]
+fn defeated_blocks_ordinary_cast_but_allows_explicit_past_use() {
+    let (fixture, encounter) = casting_fixture(focus_items());
+    let initial = fixture.worker.encounter(&encounter).unwrap();
+    let mut update = super::tests::update(&initial.participants[0]);
+    update.defeated = true;
+    fixture
+        .worker
+        .update_encounter_participant(&encounter, update)
+        .unwrap();
+    assert!(cast_spell(&fixture, &encounter, "First focus", 3).is_err());
+    let current = fixture.worker.encounter(&encounter).unwrap();
+    let p = &current.participants[0];
+    assert!(p.cast_unavailable_reason.is_some());
+    assert_eq!(remaining_for(p, "First focus", 3), 2);
+    let mut selection = p
+        .spellcasting
+        .as_ref()
+        .unwrap()
+        .spells
+        .iter()
+        .find(|s| s.title == "First focus")
+        .unwrap()
+        .navigation
+        .clone();
+    selection.spell_rank = Some(3);
+    fixture
+        .worker
+        .apply_encounter_spell_action(
+            &encounter,
+            ApplyEncounterSpellActionRequest {
+                participant_key: p.participant_key.clone(),
+                expected_revision: p.revision,
+                action: EncounterSpellAction::RecordUse { selection },
+            },
+        )
+        .unwrap();
+    let after = fixture.worker.encounter(&encounter).unwrap();
+    assert!(after.participants[0].defeated);
+    assert_eq!(remaining_for(&after.participants[0], "First focus", 3), 1);
+}

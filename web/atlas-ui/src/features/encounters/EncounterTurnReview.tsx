@@ -1,3 +1,4 @@
+import { conditionDurationLabel } from "./conditionDurationLabel";
 import { Alert, Button, Modal, Space } from "antd";
 import type {
   EncounterHpAction,
@@ -163,7 +164,7 @@ function reminderText(
     case "duration_ended":
       return "Duration ended. Confirm removal when ready.";
     case "duration_reminder":
-      return `${reminder.duration.amount} ${reminder.duration.unit}: check this duration at the table.`;
+      return `${conditionDurationLabel(reminder.duration)}: check this duration at the table.`;
     case "timing_unavailable":
       return "Round timing is not configured. Edit the condition to choose whose turn and when its rounds count down.";
   }

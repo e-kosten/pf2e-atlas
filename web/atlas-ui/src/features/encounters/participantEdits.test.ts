@@ -39,6 +39,7 @@ describe("participantEdits", () => {
       current_hp: BigInt(12),
       temporary_hp: BigInt(0),
       defeated: false,
+      hazard_disabled: false,
       hidden: false,
       note: "watch",
     });
@@ -80,6 +81,8 @@ function participantFixture(
     current_hp: BigInt(30),
     temporary_hp: BigInt(0),
     defeated: false,
+    hazard_disabled: false,
+    cast_unavailable_reason: null,
     hidden: false,
     note: "watch",
     note_hint: "watch",

@@ -1,3 +1,4 @@
+import { conditionDurationLabel } from "./conditionDurationLabel";
 import { Pencil, Plus } from "lucide-react";
 import { recordPath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import { Alert, Button, Modal } from "antd";
@@ -155,7 +156,9 @@ export function EncounterConditionControls({
             const definition = conditionDefinitions.find(
               (d) => d.condition_ref === condition.condition_key,
             );
-            const hasValue = definition?.has_value ?? condition.value !== undefined;
+            const hasValue =
+              condition.value !== undefined ||
+              (definition?.has_value && !definition.supports_duration_instead_of_value);
             return (
               <div
                 className="encounter-condition-row"
@@ -208,7 +211,7 @@ export function EncounterConditionControls({
                     {condition.duration.unit === "rounds" &&
                     condition.duration.amount === 0n
                       ? "Duration ended"
-                      : `${condition.duration.amount} ${condition.duration.unit}`}
+                      : conditionDurationLabel(condition.duration)}
                     {condition.duration.unit === "rounds" &&
                     condition.duration.timing === null
                       ? " · timing not configured"

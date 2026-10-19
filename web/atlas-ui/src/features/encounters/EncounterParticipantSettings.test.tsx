@@ -32,6 +32,8 @@ const participant: EncounterParticipantView = {
   temporary_hp: 3n,
   initiative: 14n,
   defeated: false,
+  hazard_disabled: false,
+  cast_unavailable_reason: null,
   hidden: false,
   note: "Lantern",
   note_hint: "Lantern",

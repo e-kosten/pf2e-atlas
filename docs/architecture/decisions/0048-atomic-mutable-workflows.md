@@ -235,3 +235,30 @@ Shared rank and focus counts also expose a compact immediate editor. Each change
 uses the same revision-checked entry replacement, retaining other pool values.
 Spell action conflicts refresh without replaying writes and show brief action
 feedback; an expenditure marker already in the requested state needs no error.
+
+## Encounter participation and action assistance
+
+Defeated is an encounter participation marker, not a diagnosis of death or
+unconsciousness. Damage reaching zero marks creatures defeated and hazards disabled;
+healing does not reactivate either. Hazards use Active/Disabled instead of
+Active/Defeated, with HP tracked separately. Existing defeated hazards migrate to
+disabled while preserving HP and other saved state.
+Both inactive states exclude automatic turn selection; reads, edits and explicit
+resource corrections remain available. Next turn continues from the current
+participant's position even if that participant has become inactive. No fallback
+selects defeated PCs when everyone is inactive. Reactivation never heals or
+executes authored Reset instructions.
+
+App-service owns a bounded PF2e 6.12.4 action policy. Current capability is separate
+from the next-regain forecast; Atlas does not track actions remaining. Quickened
+adds at most one restricted action before losses. Stunned losses overlap Slowed
+losses; the explanations identify the additional and overlapping portions. Which
+actions are lost remains a table decision. Numeric Stunned is an explicit value;
+a missing value with a duration means duration Stunned. Missing both is unresolved,
+never a default numeric one. Reads and turn advancement never consume numeric stun.
+Existing pending-expiry review and explicit removal govern duration stun.
+
+Ordinary Cast is blocked for defeated/disabled participants and active Stunned.
+The same backend reason drives browser controls. Record past use, resource editing
+and undo are explicit bookkeeping actions and remain available with revision guards;
+recording expenditure does not establish spell success or execute effects.

@@ -26,6 +26,7 @@ const request: UpdateEncounterParticipantRequest = {
   participant_variant: "normal",
   temporary_hp: 0n,
   defeated: false,
+  hazard_disabled: false,
   hidden: false,
   hp_edit: false,
   max_hp_edit: false,
@@ -212,32 +213,38 @@ it.each([false, true])(
   },
 );
 
-it("shows concise action feedback for failed casts without exposing server details", async () => {
-  api.applyEncounterSpellAction.mockRejectedValue(
-    new Error("Internal database details"),
-  );
-  const { result } = mount();
-  await act(async () => {
-    await expect(
-      result.current.run({
-        kind: "spell",
-        request: {
-          participant_key: "pc",
-          expected_revision: 3n,
-          action: {
-            kind: "cast",
-            selection: {
-              record_key: "actors:caster",
-              embedded_path: [],
-              field: null,
-              passage: null,
-              source_fingerprint: null,
+it.each(["cast", "record_use"] as const)(
+  "shows concise feedback for failed %s without exposing server details",
+  async (kind) => {
+    api.applyEncounterSpellAction.mockRejectedValue(
+      new Error("Internal database details"),
+    );
+    const { result } = mount();
+    await act(async () => {
+      await expect(
+        result.current.run({
+          kind: "spell",
+          request: {
+            participant_key: "pc",
+            expected_revision: 3n,
+            action: {
+              kind,
+              selection: {
+                record_key: "actors:caster",
+                embedded_path: [],
+                field: null,
+                passage: null,
+                source_fingerprint: null,
+              },
             },
           },
-        },
-      }),
-    ).rejects.toThrow();
-  });
-  expect(feedback.error).toHaveBeenCalledWith("Couldn’t cast. Try again.", 4);
-  expect(api.getEncounter).not.toHaveBeenCalled();
-});
+        }),
+      ).rejects.toThrow();
+    });
+    expect(feedback.error).toHaveBeenCalledWith(
+      "Couldn’t record spell use. Try again.",
+      4,
+    );
+    expect(api.getEncounter).not.toHaveBeenCalled();
+  },
+);
