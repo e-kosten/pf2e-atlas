@@ -1,9 +1,9 @@
 # Rust Web Record Detail Polish
 
-Status: in_progress
+Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-13
+Last reviewed: 2026-10-19
 
 ## Problem
 
@@ -25,9 +25,8 @@ search browser with explicit seed/filter state. These contracts are documented i
 [ADR 0047](../../architecture/decisions/0047-semantic-record-presentation.md) and
 [frontend guidelines](../../../web/atlas-ui/docs/frontend-guidelines.md).
 
-Creature, hazard and authored spell reference have dedicated layouts. Equipment,
-journal and table presentation and selected-rank execution remain separate design
-work. Further changes should preserve useful content, availability states,
+Creature, hazard and authored spell reference have dedicated layouts. Spell rank preview, casting resources, roll-table presentation and dice controls
+have landed; broader family work follows the capability tracker. Further changes should preserve useful content, availability states,
 source attribution and consistent behavior across hosts.
 
 ## Desired Outcome
@@ -45,13 +44,14 @@ The pass should consider:
 - meaningful casting-entry context for owned spells, resolved from their actual
   source owner through the existing service rather than displaying a raw local
   Foundry identifier or resolving it in the browser.
-- [bounded spell rank preview](rust-spell-rank-preview.md), designed separately
-  from reference layout and authored heightening display.
+- [alternate spell-form preview](rust-spell-rank-preview.md), which remains deferred
+  separately from the implemented rank preview.
 
 ## Constraints
 
-- Revisit creature spell rosters' Base rank / Cast rank presentation as a separate
-  product design discussion. It remains unchanged by the reference workspace pass.
+- Creature spell rosters already use cast-rank presentation and embedded previews;
+  standalone and embedded spell rank controls share the same reference model.
+  Reproduce any new issue against the current renderer before redesigning it.
 
 - Extend narrow app-service family facts when current consumer data is insufficient;
   keep checked source and prepared HTML authoritative under ADR 0047.

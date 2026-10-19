@@ -1,8 +1,16 @@
 # Embedding reuse across preparation upgrades
 
-Status: proposed
+Status: done
 Priority: soon
 Owner: unassigned
+
+## Completed outcome
+
+PR66 introduced durable exact-input embedding checkpoints independent of active content/projection versions. Model/input identity and vector integrity govern reuse; normal readers retain their content-version checks. ADR0051 records the boundary; later lexical upgrades and PR74 exercised unchanged-input reuse.
+
+The scope below records the original task; it is not outstanding implementation.
+
+## Original scope
 
 Review this within the [pre-1.0 database review](database-release-readiness.md)
 before choosing an independent cache or reuse-reader implementation.
