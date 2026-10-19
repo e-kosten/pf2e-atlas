@@ -101,6 +101,7 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
             .unwrap();
             let result = service
                 .search_text(TextSearchRequest {
+                    ranking: Default::default(),
                     search_profile: None,
                     query: "Ghoul",
                     mode,
@@ -138,6 +139,7 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
     .unwrap();
     let lexical = service
         .search_text(TextSearchRequest {
+            ranking: Default::default(),
             search_profile: None,
             query: "Ghoul",
             mode: RetrievalMode::Fts,

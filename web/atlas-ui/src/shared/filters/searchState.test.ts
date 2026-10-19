@@ -8,6 +8,26 @@ import {
   hasExecutableSearch,
 } from "./searchState";
 describe("source query state", () => {
+  it("preserves ranking independently of the query and rejects unknown strategies", () => {
+    for (const ranking of ["rrf", "score"] as const) {
+      const state = { ...DEFAULT_SEARCH_STATE, query: "harrowkin", ranking };
+      const restored = decodeSearchStateFromParams(
+        new URLSearchParams(searchStateQueryString(state)),
+      );
+      expect(restored.ranking).toBe(ranking);
+      expect(buildSearchRequest(restored, 1).ranking).toBe(ranking);
+      expect(buildSearchRequest(restored, 1).criteria).toMatchObject({
+        kind: "text_search",
+        query: "harrowkin",
+        mode: "hybrid",
+      });
+    }
+    expect(
+      hasExecutableSearch(
+        decodeSearchStateFromParams(new URLSearchParams("q=harrowkin&ranking=unknown")),
+      ),
+    ).toBe(false);
+  });
   it("keeps query and structured predicate across URL reload", () => {
     const state = {
       ...DEFAULT_SEARCH_STATE,

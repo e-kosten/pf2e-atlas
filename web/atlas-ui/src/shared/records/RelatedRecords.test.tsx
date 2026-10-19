@@ -123,6 +123,7 @@ describe("shared related disclosure", () => {
     vi.clearAllMocks();
     api.getRelatedRecords.mockResolvedValue(relatedFixture());
     api.searchPage.mockResolvedValue({
+      ranking: "score" as const,
       search_profile: "bge-base",
       artifact_generation: "test-generation",
       mode: { kind: "similar_records", seed: summaryFixture("actors:seed") },
@@ -317,6 +318,7 @@ describe("shared related disclosure", () => {
       expected_artifact_generation: detail.artifact_generation,
     });
     const page = (profile: string, title: string): SearchResultsPage => ({
+      ranking: "score" as const,
       search_profile: profile,
       artifact_generation: detail.artifact_generation,
       mode: { kind: "similar_records", seed: detail.record },

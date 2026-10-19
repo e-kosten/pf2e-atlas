@@ -58,6 +58,36 @@ describe("useSearchWorkspace", () => {
     history.replaceState(null, "", "/");
   });
 
+  it("switches ranking independently of the model and resets pagination", async () => {
+    history.replaceState(null, "", "/search?q=harrowkin");
+    apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>
+      Promise.resolve({
+        ...searchResultsPage([], {
+          profile: request.search_profile,
+          pageNumber: request.page.number,
+        }),
+        ranking: request.ranking ?? "score",
+      }),
+    );
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "embeddinggemma" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(result.current.resultPage?.ranking).toBe("score"));
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() => expect(result.current.resultPage?.page.number).toBe(2));
+    act(() => result.current.setSearch({ ...result.current.search, ranking: "rrf" }));
+    await waitFor(() => expect(result.current.resultPage?.ranking).toBe("rrf"));
+    expect(result.current.resultPage?.page.number).toBe(1);
+    expect(result.current.resultPage?.search_profile).toBe("embeddinggemma");
+    expect(new URLSearchParams(location.search).get("ranking")).toBe("rrf");
+    expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+      ranking: "rrf",
+      search_profile: "embeddinggemma",
+      criteria: { kind: "text_search", query: "harrowkin" },
+    });
+  });
+
   it("preserves a standalone spell's selected rank in the search URL and restores it on reload", async () => {
     history.replaceState(null, "", "/search/records/spells:fireball");
     apiMocks.getRecordDetail.mockImplementation((key, selection) => {
@@ -467,6 +497,7 @@ describe("useSearchWorkspace", () => {
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(4));
     expect(apiMocks.searchPage).toHaveBeenLastCalledWith(
       {
+        ranking: "score",
         search_profile: "bge-base",
         criteria: { kind: "text_search", query: "dirge", filter: null, mode: "hybrid" },
         page: { number: 1, size: 25 },
@@ -765,6 +796,7 @@ describe("useSearchWorkspace", () => {
     await waitFor(() =>
       expect(apiMocks.searchPage).toHaveBeenCalledWith(
         {
+          ranking: "score",
           search_profile: "bge-base",
           expected_artifact_generation: "generation-a",
           criteria: {
@@ -941,6 +973,7 @@ function searchResultsPage(
   options: { pageNumber?: number; generation?: string; profile?: string } = {},
 ): SearchResultsPage {
   return {
+    ranking: "score" as const,
     search_profile: options.profile ?? "bge-base",
     artifact_generation: options.generation ?? "generation-a",
     mode: { kind: "text_search", query: "", mode: "hybrid" },

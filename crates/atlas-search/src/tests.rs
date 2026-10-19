@@ -1,7 +1,10 @@
 use crate::test_support::{input, record};
 use crate::*;
 use atlas_domain::{RecordKey, SourcePassageAddress};
-use atlas_index::{IndexBuildInput, SourceAliasInput, SourceRemasterPairInput};
+use atlas_index::{
+    IndexBuildInput, SourceAliasInput, SourceLexicalUnitInput, SourceLexicalUnitKind,
+    SourceRemasterPairInput,
+};
 use serde_json::json;
 fn effect(id: &str, name: &str, level: i32, html: &str) -> atlas_index::SourceArtifactRecordInput {
     record(
@@ -13,6 +16,104 @@ fn effect(id: &str, name: &str, level: i32, html: &str) -> atlas_index::SourceAr
 fn service(input: IndexBuildInput) -> (test_support::FixtureArtifact, AtlasRetrievalService) {
     let (service, artifact) = test_support::open_input_fixture(input).unwrap();
     (artifact, service)
+}
+
+#[test]
+fn hybrid_choices_preserve_identity_tiers_and_single_lane_scores() {
+    use atlas_domain::SearchRanking;
+    let mut fixture = input(
+        vec![
+            effect("aaaaaaaaaaaaaaaa", "Ember", 1, ""),
+            effect("bbbbbbbbbbbbbbbb", "Cinder", 1, ""),
+            effect("cccccccccccccccc", "Ember Guard", 1, ""),
+            effect("dddddddddddddddd", "Phoenix", 1, ""),
+        ],
+        true,
+    );
+    let alias_root = fixture
+        .lexical_units
+        .iter()
+        .find(|u| u.record == key("bbbbbbbbbbbbbbbb"))
+        .unwrap()
+        .clone();
+    fixture.aliases.push(SourceAliasInput {
+        record: alias_root.record.clone(),
+        alias: "Ember".into(),
+        evidence: "source redirect".into(),
+    });
+    fixture.lexical_units.push(SourceLexicalUnitInput {
+        kind: SourceLexicalUnitKind::RootAlias,
+        identity_terms: String::new(),
+        alias_terms: "Ember".into(),
+        ..alias_root
+    });
+    for unit in &mut fixture.semantic_units {
+        unit.vector.fill(0.0);
+        let axis = if unit.record == key("dddddddddddddddd") {
+            0
+        } else {
+            1
+        };
+        unit.vector[axis] = 1.0;
+    }
+    let (_artifact, service) = service(fixture);
+    let query = service.predicate(None).unwrap();
+    let profile = atlas_domain::SearchProfileId::new("bge-base");
+    let mut vector = vec![0.0; 768];
+    vector[0] = 1.0;
+    let rank = |mode, ranking| {
+        service
+            .rank_candidates(crate::text::CandidateRequest {
+                ranking,
+                search_profile: &profile,
+                text: "Ember",
+                mode,
+                query: &query,
+                scope: RecordScope::All,
+                prefer: false,
+                suppress: false,
+                vector: Some(&vector),
+                exclude: None,
+            })
+            .unwrap()
+            .0
+    };
+    let score = rank(RetrievalMode::Hybrid, SearchRanking::Score);
+    let rrf = rank(RetrievalMode::Hybrid, SearchRanking::Rrf);
+    let keys =
+        |rows: &[crate::text::RankedRoot]| rows.iter().map(|r| r.key.clone()).collect::<Vec<_>>();
+    assert_eq!(
+        keys(&score),
+        vec![
+            key("aaaaaaaaaaaaaaaa"),
+            key("bbbbbbbbbbbbbbbb"),
+            key("dddddddddddddddd"),
+            key("cccccccccccccccc")
+        ]
+    );
+    assert_eq!(
+        keys(&rrf),
+        vec![
+            key("aaaaaaaaaaaaaaaa"),
+            key("bbbbbbbbbbbbbbbb"),
+            key("cccccccccccccccc"),
+            key("dddddddddddddddd")
+        ]
+    );
+    // Semantic-only Phoenix has the highest cosine. It receives exactly the
+    // semantic lane weight, whereas RRF assigns it semantic rank one.
+    assert!((score[2].score - 0.75).abs() < 1e-6);
+    assert!((rrf[3].score - 1.0 / 61.0).abs() < 1e-9);
+    assert!((rrf[2].score - (1.0 / 63.0 + 1.0 / 64.0)).abs() < 1e-9);
+    for mode in [RetrievalMode::Fts, RetrievalMode::Vector] {
+        let a = rank(mode, SearchRanking::Score);
+        let b = rank(mode, SearchRanking::Rrf);
+        assert_eq!(keys(&a), keys(&b));
+        assert_eq!(
+            a.iter().map(|r| r.score).collect::<Vec<_>>(),
+            b.iter().map(|r| r.score).collect::<Vec<_>>()
+        );
+    }
 }
 
 #[test]
@@ -65,6 +166,7 @@ fn key(id: &str) -> RecordKey {
 fn search(service: &mut AtlasRetrievalService, text: &str) -> TextSearchResult {
     service
         .search_text(TextSearchRequest {
+            ranking: Default::default(),
             search_profile: None,
             query: text,
             mode: RetrievalMode::Fts,
@@ -94,12 +196,19 @@ fn strict_identity_alias_ambiguity_and_macro_exclusion() {
         alias: "Verified dragon".into(),
         evidence: "source redirect".into(),
     });
-    fixture
+    let root = fixture
         .lexical_units
-        .iter_mut()
-        .find(|u| u.record == key("aaaaaaaaaaaaaaaa") && u.owners.is_empty() && u.field.is_none())
-        .unwrap()
-        .alias_terms = "Verified dragon".into();
+        .iter()
+        .find(|unit| {
+            unit.record == key("aaaaaaaaaaaaaaaa") && unit.kind == SourceLexicalUnitKind::RootName
+        })
+        .unwrap();
+    fixture.lexical_units.push(SourceLexicalUnitInput {
+        kind: SourceLexicalUnitKind::RootAlias,
+        identity_terms: String::new(),
+        alias_terms: "Verified dragon".into(),
+        ..root.clone()
+    });
     let (_dir, mut service) = service(fixture);
     assert_eq!(
         service
@@ -259,6 +368,7 @@ fn pair_preference_is_conditional_and_precedes_paging() {
     let filter = service.parse_where("level == 1").unwrap();
     let filtered = service
         .search_text(TextSearchRequest {
+            ranking: Default::default(),
             search_profile: None,
             query: "flame",
             mode: RetrievalMode::Fts,
@@ -272,6 +382,7 @@ fn pair_preference_is_conditional_and_precedes_paging() {
     assert_eq!(filtered.records[0].record.key, key("aaaaaaaaaaaaaaaa"));
     let page2 = service
         .search_text(TextSearchRequest {
+            ranking: Default::default(),
             search_profile: None,
             query: "flame",
             mode: RetrievalMode::Fts,
@@ -700,6 +811,7 @@ fn summary_browse_stays_body_free_and_plain_passages_decode_each_root_once() {
     service.index.reset_read_metrics();
     let (roots, window) = service
         .rank_candidates(crate::text::CandidateRequest {
+            ranking: Default::default(),
             search_profile: &atlas_domain::SearchProfileId::new("bge-base"),
             text: "",
             mode: RetrievalMode::Vector,
@@ -779,6 +891,7 @@ fn full_production_artifact_preserves_owned_and_gm_definition_navigation() {
         service.index.reset_read_metrics();
         let result = service
             .search_text(TextSearchRequest {
+                ranking: Default::default(),
                 search_profile: None,
                 query: text,
                 mode: RetrievalMode::Fts,
@@ -1238,4 +1351,72 @@ fn unavailable_candidate_or_truncated_verification_is_not_a_known_empty_group() 
             .unwrap(),
         VariantGroupOutcome::Empty
     ));
+}
+
+#[test]
+fn lexical_rows_cannot_combine_parent_child_or_separate_alias_terms() {
+    let creature = record(
+        "actors",
+        "Actor",
+        json!({
+            "_id":"cccccccccccccccc", "name":"Frost Warden", "type":"npc",
+            "system":{"details":{"publicNotes":"<h2>Frozen Grave</h2><p>Unindexed prose about phoenixes.</p>"}},
+            "items":[
+                {"_id":"dddddddddddddddd","name":"Flame Lance","type":"spell","system":{"traits":{"value":["fire"]}}},
+                {"_id":"eeeeeeeeeeeeeeee","name":"Ice Staff","type":"equipment"}
+            ]
+        }),
+    );
+    let mut fixture = input(vec![creature], false);
+    let aliases = ["Snow Keeper", "Ice Sentinel"];
+    let root = fixture
+        .lexical_units
+        .iter()
+        .find(|unit| unit.kind == SourceLexicalUnitKind::RootName)
+        .unwrap()
+        .clone();
+    for alias in aliases {
+        fixture.aliases.push(SourceAliasInput {
+            record: root.record.clone(),
+            alias: alias.into(),
+            evidence: "source redirect".into(),
+        });
+        fixture.lexical_units.push(SourceLexicalUnitInput {
+            kind: SourceLexicalUnitKind::RootAlias,
+            identity_terms: String::new(),
+            alias_terms: alias.into(),
+            ..root.clone()
+        });
+    }
+    let (_, mut service) = service(fixture);
+    for query in [
+        "Frost flame",
+        "Flame staff",
+        "Snow Sentinel",
+        "Frost Keeper",
+        "Frozen npc",
+        "phoenixes",
+    ] {
+        let mut request = TextSearchRequest::new(query, SearchPage::new(1, 25).unwrap());
+        request.mode = RetrievalMode::Fts;
+        assert!(
+            service.search_text(request).unwrap().records.is_empty(),
+            "unexpected cross-row match: {query}"
+        );
+    }
+    for query in [
+        "Frost Warden",
+        "Snow Keeper",
+        "Ice Sentinel",
+        "Flame fire",
+        "Frozen Grave",
+    ] {
+        let mut request = TextSearchRequest::new(query, SearchPage::new(1, 25).unwrap());
+        request.mode = RetrievalMode::Fts;
+        assert_eq!(
+            service.search_text(request).unwrap().records.len(),
+            1,
+            "missing coherent row: {query}"
+        );
+    }
 }

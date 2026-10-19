@@ -230,17 +230,6 @@ pub(crate) fn extract_source_aliases(
             evidence,
         })
         .collect();
-    let mut by_root = BTreeMap::<_, Vec<&str>>::new();
-    for alias in &input.aliases {
-        by_root.entry(&alias.record).or_default().push(&alias.alias);
-    }
-    for unit in &mut input.lexical_units {
-        if matches!(unit.kind, atlas_index::SourceLexicalUnitKind::RootName)
-            && let Some(aliases) = by_root.get(&unit.record)
-        {
-            unit.alias_terms = aliases.join(" ");
-        }
-    }
     Ok(())
 }
 fn plain(element: ElementRef<'_>) -> Result<String, IngestError> {

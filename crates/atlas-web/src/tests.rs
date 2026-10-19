@@ -1574,6 +1574,7 @@ fn record_summary() -> RecordSummaryView {
 
 fn search_results_page(page_number: u32) -> SearchResultsPage {
     SearchResultsPage {
+        ranking: Default::default(),
         search_profile: atlas_domain::SearchProfileId::new("bge-base"),
         artifact_generation: "current-generation".into(),
         coverage: None,

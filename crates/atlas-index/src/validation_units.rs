@@ -5,7 +5,7 @@ use atlas_record::{
     source_content::{CONTENT_INTERPRETATION_VERSION, PreparedSourceContent, SourceContentLocator},
     source_record::{
         FieldAvailability, SOURCE_CONTENT_SELECTION_VERSION, SourceBackedRecord,
-        SourceContentOutcome, SourceContentStatus, SourceSelectedSectionKind, select_record_search,
+        SourceContentOutcome, SourceContentStatus, select_record_search,
     },
 };
 use rusqlite::Connection;
@@ -131,40 +131,16 @@ pub(crate) fn validate_selection(
     label: &str,
 ) -> Result<(), IndexError> {
     let selection = stored_selection(c, id, record, context, label)?;
-    let mut lexical =
-        BTreeMap::<(String, Option<String>, Option<String>), (String, String, String)>::new();
-    let root = selection.identities.iter().find(|i| i.owners.is_empty());
-    let root_name = root.map(|r| r.name.as_str()).unwrap_or("");
-    let root_vocabulary = root.map(|r| r.vocabulary.join(" ")).unwrap_or_default();
     let mut aliases =
         c.prepare("SELECT alias FROM verified_aliases WHERE record_id=? ORDER BY alias")?;
     let aliases = aliases
         .query_map([id], |r| r.get::<_, String>(0))?
-        .collect::<Result<Vec<_>, _>>()?
-        .join(" ");
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut lexical = crate::project_lexical_units(&selection, &aliases)
+        .iter()
+        .map(serde_json::to_string)
+        .collect::<Result<std::collections::BTreeSet<_>, _>>()?;
     let mut sections = BTreeMap::<SectionKey, (SourcePassageAddress, &str)>::new();
-    if !selection.identity_required.is_empty() {
-        lexical.insert(
-            ("[]".into(), None, None),
-            (
-                "root_name".into(),
-                selection.identity_required.clone(),
-                root_vocabulary.clone(),
-            ),
-        );
-    }
-    for identity in &selection.identities {
-        if !identity.owners.is_empty() {
-            lexical.insert(
-                (serde_json::to_string(&identity.owners)?, None, None),
-                (
-                    "owned_name".into(),
-                    identity.name.clone(),
-                    identity.vocabulary.join(" "),
-                ),
-            );
-        }
-    }
     for field in &selection.fields {
         for section in &field.sections {
             let range = SourceByteRange {
@@ -190,30 +166,6 @@ pub(crate) fn validate_selection(
                 }
             };
             let owners = serde_json::to_string(&field.locator.owners)?;
-            if section.is_lexical_definition() {
-                let kind = match section.kind {
-                    SourceSelectedSectionKind::Heading => "heading",
-                    SourceSelectedSectionKind::DefinitionLabel => "definition_label",
-                    SourceSelectedSectionKind::Unlabeled => {
-                        return Err(invalid("unlabeled section claimed lexical definition"));
-                    }
-                };
-                lexical.insert(
-                    (
-                        owners.clone(),
-                        Some(field.locator.field.clone()),
-                        Some(serde_json::to_string(&address)?),
-                    ),
-                    (
-                        kind.into(),
-                        section
-                            .label
-                            .clone()
-                            .ok_or_else(|| invalid("lexical section lacks label"))?,
-                        root_vocabulary.clone(),
-                    ),
-                );
-            }
             sections.insert(
                 (owners, field.locator.field.clone(), section.section_ordinal),
                 (address, section.text.as_str()),
@@ -223,41 +175,23 @@ pub(crate) fn validate_selection(
     let mut s=c.prepare("SELECT owners_json,field_path,section_json,unit_kind,identity_terms,definition_terms,structured_terms,alias_terms FROM lexical_units WHERE record_id=?")?;
     let mut rows = s.query([id])?;
     while let Some(row) = rows.next()? {
-        let key = (
-            row.get::<_, String>(0)?,
-            row.get::<_, Option<String>>(1)?,
-            row.get::<_, Option<String>>(2)?,
-        );
-        let (kind, label, vocabulary) = lexical
-            .remove(&key)
-            .ok_or_else(|| invalid("unexpected lexical evidence address"))?;
-        let actual_kind: String = row.get(3)?;
-        let terms: String = if kind != "root_name" {
-            row.get(5)?
-        } else {
-            row.get(4)?
+        let address: Option<String> = row.get(2)?;
+        let unit = crate::SourceLexicalUnitInput {
+            record: record.key().clone(),
+            owners: serde_json::from_str(&row.get::<_, String>(0)?)?,
+            field: row.get(1)?,
+            address: address
+                .map(|value| serde_json::from_str(&value))
+                .transpose()?,
+            kind: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(3)?))?,
+            identity_terms: row.get(4)?,
+            definition_terms: row.get(5)?,
+            structured_terms: row.get(6)?,
+            alias_terms: row.get(7)?,
         };
-        if kind != actual_kind || terms != label {
+        if !lexical.remove(&serde_json::to_string(&unit)?) {
             return Err(invalid(
-                "lexical evidence kind/label differs from typed selection",
-            ));
-        }
-        let identity: String = row.get(4)?;
-        let structured: String = row.get(6)?;
-        let actual_aliases: String = row.get(7)?;
-        let definition: String = row.get(5)?;
-        if identity != root_name
-            || structured != vocabulary
-            || actual_aliases
-                != if kind == "root_name" {
-                    aliases.as_str()
-                } else {
-                    ""
-                }
-            || (kind == "root_name" && !definition.is_empty())
-        {
-            return Err(invalid(
-                "lexical identity/vocabulary/aliases differ from selected source policy",
+                "lexical row differs from selected source policy or is duplicated",
             ));
         }
     }

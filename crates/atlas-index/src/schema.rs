@@ -20,3 +20,6 @@ pub(crate) fn vector_ddl(
         model.dimensions
     ))
 }
+
+pub const LEXICAL_ALIAS_SCHEMA_SQL: &str =
+    include_str!("../migrations/00000000000002_lexical_aliases/up.sql");

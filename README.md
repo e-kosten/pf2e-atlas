@@ -74,6 +74,13 @@ when both are stored. Running setup again without profile flags preserves the
 requested set for source updates. Explicit setup flags add profiles to that set. Setup repairs selected pinned assets in revision-specific cache directories;
 switching a built profile does not download assets or rebuild the artifact.
 
+Hybrid search also offers two ranking strategies for comparison: `score` (the
+default, shown as **Score-based** in the browser) and `rrf` (**Rank-based**).
+Both use the same lexical projection and selected embedding model. Change the
+browser ranking picker or run `atlas search "harrowkin" --ranking score` to compare;
+switching does not rebuild search data. Ranking applies to hybrid text search,
+not alphabetical browsing or Similar records.
+
 The installer installs only the `atlas` CLI. The persistent workspace lives in user application-data storage; downloaded source and models stay in cache locations managed by `atlas setup`.
 
 Release binaries are provided for Linux x64, Linux ARM64, macOS Apple Silicon,

@@ -42,3 +42,5 @@ pub use text::{
 pub use variants::{
     VariantGroupOutcome, VariantGroupRequest, VariantGroupResult, VariantSuggestionEvidence,
 };
+
+mod fusion;

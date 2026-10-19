@@ -209,6 +209,7 @@ export function useSearchWorkspace({
     staleTime: 20_000,
     placeholderData: (previous, previousQuery) =>
       previous?.search_profile === searchProfile &&
+      previous.ranking === (activeSearch.ranking ?? "score") &&
       previousQuery?.queryKey[2] === retrieval.epoch &&
       previousQuery.queryKey[3] === retrieval.generation
         ? previous
@@ -229,6 +230,11 @@ export function useSearchWorkspace({
         signal,
       );
       assertSearchIdentity(page, searchProfile, retrieval.generation);
+      if (
+        activeSearch.query.trim() &&
+        page.ranking !== (activeSearch.ranking ?? "score")
+      )
+        throw new Error("Search response used a different ranking");
       if (retrieval.generation === null && isCurrent()) {
         // Adopt the returned generation without issuing the same search again.
         queryClient.setQueryData(
