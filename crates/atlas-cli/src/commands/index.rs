@@ -91,7 +91,7 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
         println!("source fingerprint: {}", report.source_fingerprint);
         println!(
             "duration: {}",
-            crate::output::format_duration_ms(report.build_duration_ms)
+            atlas_cli_support::format_duration_ms(report.build_duration_ms)
         );
     }
     Ok(ExitCode::SUCCESS)
