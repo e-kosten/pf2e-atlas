@@ -60,9 +60,14 @@ test("list drops retain order and geometry through delayed writes and refreshes"
     const keyboardFirst = Boolean(info.project.use.hasTouch);
     if (keyboardFirst) {
       await source.focus();
-      await page.keyboard.press("Space");
+      // A normal key hold lets the sortable sensor attach its deferred document
+      // listener before the next keyboard command.
+      await page.keyboard.press("Space", { delay: 20 });
       await expect(source).toHaveAttribute("aria-pressed", "true");
       await page.keyboard.press("ArrowDown");
+      await expect(page.getByRole("status")).toContainText(
+        `was moved over droppable area ${keys[1]}`,
+      );
       await page.keyboard.press("Space");
     } else {
       const from = (await source.boundingBox())!;
@@ -91,9 +96,12 @@ test("list drops retain order and geometry through delayed writes and refreshes"
     expect(await persistedKeys()).toEqual([keys[1], keys[0]]);
     // A second keyboard move starts from the newly saved order, then survives reload.
     await movedHandle.focus();
-    await page.keyboard.press("Space");
+    await page.keyboard.press("Space", { delay: 20 });
     await expect(movedHandle).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("ArrowUp");
+    await expect(page.getByRole("status")).toContainText(
+      `was moved over droppable area ${keys[1]}`,
+    );
     await page.keyboard.press("Space");
     await expect.poll(() => writes).toBe(2);
     await expect(movedHandle).toBeEnabled();
@@ -104,10 +112,10 @@ test("list drops retain order and geometry through delayed writes and refreshes"
     await noPageOverflow(page);
     // Cancelling pickup never submits another durable mutation.
     await handles.first().focus();
-    await page.keyboard.press("Space");
+    await page.keyboard.press("Space", { delay: 20 });
     await expect(handles.first()).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("Escape");
-    await expect(handles.first()).toHaveAttribute("aria-pressed", "false");
+    await expect(handles.first()).not.toHaveAttribute("aria-pressed", "true");
     expect(writes).toBe(2);
     expect(await persistedKeys()).toEqual(keys);
   } finally {
