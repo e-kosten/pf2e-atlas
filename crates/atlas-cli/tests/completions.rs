@@ -1,24 +1,36 @@
 use std::process::Command;
 
 #[test]
-fn completions_generate_bash_script() {
+fn completions_register_live_bash_completion_and_offer_product_commands() {
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["completions", "bash"])
         .output()
         .expect("atlas completions should run");
-
     assert!(
         output.status.success(),
-        "expected success, stderr: {}",
+        "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("_atlas"));
-    assert!(stdout.contains("record"));
-    assert!(stdout.contains("search"));
-    assert!(stdout.contains("setup"));
+    let script = String::from_utf8_lossy(&output.stdout);
+    assert!(script.contains("_atlas"));
+    assert!(script.contains("ATLAS_COMPLETE"));
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .env("ATLAS_COMPLETE", "zsh")
+        .env("_CLAP_COMPLETE_INDEX", "1")
+        .env("_CLAP_IFS", "\n")
+        .args(["--", "atlas", ""])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let output_text = String::from_utf8_lossy(&output.stdout);
+    let candidates = output_text
+        .lines()
+        .map(|line| line.split(':').next().unwrap())
+        .collect::<Vec<_>>();
+    for name in ["record", "search", "setup"] {
+        assert!(candidates.contains(&name));
+    }
     for name in ["analyze", "audit-source-paths", "inspect"] {
-        assert!(!stdout.contains(name));
+        assert!(!candidates.contains(&name));
     }
 }

@@ -19,6 +19,7 @@ export function BrowseReader({
   selectedRecordKey,
   reading,
   readerActions,
+  readerFooter,
   positions,
   onResultsScroll,
 }: {
@@ -30,6 +31,7 @@ export function BrowseReader({
   selectedRecordKey: string | null;
   reading: ReferenceReading;
   readerActions?: ReactNode;
+  readerFooter?: ReactNode;
   positions?: BrowsePositions;
   onResultsScroll?: () => void;
 }) {
@@ -113,6 +115,7 @@ export function BrowseReader({
       reading={reading}
       selectedRecordKey={selectedRecordKey}
       readerActions={readerActions}
+      readerFooter={readerFooter}
       positions={saved}
       onResults={narrow ? closeReader : undefined}
       active={!narrow || readerOpen}

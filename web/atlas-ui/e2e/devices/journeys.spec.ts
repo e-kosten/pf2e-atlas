@@ -543,3 +543,68 @@ async function expectParticipantWidth(page: Page) {
   expect(reader.x).toBeGreaterThanOrEqual(0);
   expect(reader.x + reader.width).toBeLessThanOrEqual(viewport.width + 1);
 }
+
+test("list entry notes stay beneath the reader and removal confirms in place", async ({
+  page,
+}, info) => {
+  const slug = `note-review-${info.project.name}-${Date.now()}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: "Note review" },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { list } = await created.json();
+  try {
+    const added = await page.request.post(`/api/lists/${list.list_key}/items`, {
+      data: {
+        list_ref: list.list_key,
+        record_ref: sentinel,
+        note: "A useful guardian for the garden",
+      },
+    });
+    expect(added.ok()).toBeTruthy();
+    await page.goto(`/lists/${slug}/records/${sentinel}`);
+    const footer = page.getByRole("region", { name: "List entry note" });
+    await expect(footer.getByText("A useful guardian for the garden")).toBeVisible();
+    const before = await footer.boundingBox();
+    const reader = page.locator(".reference-reader__scroll");
+    await reader.evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+    });
+    const after = await footer.boundingBox();
+    expect(Math.abs(after!.y - before!.y)).toBeLessThan(2);
+    await activate(footer.getByRole("button", { name: "Edit", exact: true }), info);
+    await footer
+      .getByRole("textbox", { name: "Note", exact: true })
+      .fill("An ally who remembers the party");
+    await activate(footer.getByRole("button", { name: "Save", exact: true }), info);
+    await expect(footer.getByText("An ally who remembers the party")).toBeVisible();
+    await page.screenshot({ path: info.outputPath("note-footer.png") });
+    await expect(
+      footer.getByRole("button", { name: "Edit", exact: true }),
+    ).toBeFocused();
+    await noPageOverflow(page);
+    const results = page.getByRole("button", { name: "Results", exact: true });
+    if (await results.isVisible()) await activate(results, info);
+    const remove = page.getByRole("button", {
+      name: "Remove Atlas Sentinel",
+      exact: true,
+    });
+    const box = await remove.boundingBox();
+    expect(box!.width).toBeGreaterThanOrEqual(44);
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+    await activate(remove, info);
+    await expect(page.getByText("Remove from list?", { exact: true })).toBeVisible();
+    await activate(page.getByRole("button", { name: "Cancel", exact: true }), info);
+    await expect(page.getByText("Remove from list?", { exact: true })).toBeHidden();
+    await activate(remove, info);
+    await activate(page.getByRole("button", { name: "Remove", exact: true }), info);
+    await expect(remove).toBeHidden();
+    expect(
+      (await (await page.request.get(`/api/lists/${list.list_key}`)).json()).items,
+    ).toHaveLength(0);
+  } finally {
+    expect(
+      (await page.request.delete(`/api/lists/${list.list_key}`)).ok(),
+    ).toBeTruthy();
+  }
+});

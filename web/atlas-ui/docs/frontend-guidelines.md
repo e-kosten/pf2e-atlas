@@ -745,3 +745,16 @@ the Rust-owned has_reference_details flag controls activity-title links: known
 complete summaries stay plain, while additional content/richer views open the
 shared preview. Condition-specific manual notices attach by exact condition ID;
 do not repeat those notes as generic Runtime diagnostics.
+
+### Saved-list entry notes
+
+The list feature supplies a footer to the shared browse reader. It stays below the
+scrolling reference content and limits its own height for long notes. Note state is
+keyed by canonical list identity and entry key. Inspecting another record hides the
+footer while retaining its draft; returning to the selection restores it. Save and
+Cancel restore focus to the entry's Edit/Add note control. Note mutations update
+their cache from the committed receipt before invalidating list reads.
+
+Lightweight entry removal uses the shared danger button's controlled popover.
+Pending writes block dismissal; failures retain the confirmation and local error
+for explicit retry. Whole-list deletion retains its modal confirmation.

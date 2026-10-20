@@ -5,7 +5,8 @@ use atlas_app_model::{
     CreateSavedListRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
     FilterSavedListRequest, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
     SearchResultsRequest, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListItemNoteRequest,
+    UpdateSavedListRequest,
 };
 use atlas_app_model::{DiscoverFilterCountsRequest, RecordDetailRequest};
 use atlas_domain::QueryPredicate;
@@ -562,5 +563,32 @@ pub(crate) async fn roll_encounter_strike(
             service.roll_encounter_strike(&encounter_ref, request)
         })
         .await?,
+    ))
+}
+
+pub(crate) async fn saved_list_item_note(
+    State(state): State<AtlasWebState>,
+    Path((list_ref, record_key)): Path<(String, String)>,
+) -> Result<impl IntoResponse, WebError> {
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.saved_list_item_note(&list_ref, &record_key)
+        })
+        .await?,
+    ))
+}
+
+pub(crate) async fn update_saved_list_item_note(
+    State(state): State<AtlasWebState>,
+    Path((list_ref, record_key)): Path<(String, String)>,
+    payload: Result<Json<UpdateSavedListItemNoteRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
+    request.list_ref = list_ref;
+    request.record_key = record_key;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.update_saved_list_item_note(request)).await?,
     ))
 }

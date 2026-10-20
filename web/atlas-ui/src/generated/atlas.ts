@@ -222,3 +222,5 @@ export type { EncounterStrikeRollView } from "../../../../crates/atlas-app-model
 
 export type { SearchRanking } from "../../../../crates/atlas-app-model/bindings/SearchRanking";
 export type { ConsumableDamageView } from "../../../../crates/atlas-app-model/bindings/ConsumableDamageView";
+export type { SavedListItemNoteView } from "../../../../crates/atlas-app-model/bindings/SavedListItemNoteView";
+export type { UpdateSavedListItemNoteRequest } from "../../../../crates/atlas-app-model/bindings/UpdateSavedListItemNoteRequest";
