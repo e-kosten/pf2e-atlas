@@ -4,7 +4,7 @@ use crate::{
 };
 use atlas_domain::{QueryPredicate, SearchProfileId};
 
-fn both() -> IndexBuildInput {
+pub(super) fn both() -> IndexBuildInput {
     let mut input = fixture(true);
     input
         .context
