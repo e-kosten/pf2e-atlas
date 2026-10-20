@@ -405,3 +405,20 @@ mod tests {
         assert_eq!(wire["already_present_count"], json!(0));
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct UpdateSavedListItemNoteRequest {
+    pub list_ref: String,
+    pub record_key: String,
+    #[serde(deserialize_with = "Option::deserialize")]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct SavedListItemNoteView {
+    pub list_key: String,
+    pub slug: String,
+    pub record_key: String,
+    pub title: String,
+    pub note: Option<String>,
+}

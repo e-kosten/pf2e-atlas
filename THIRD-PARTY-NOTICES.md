@@ -159,6 +159,7 @@ It is intended as release hygiene and is not legal advice.
 - indexmap 2.14.0: Apache-2.0 OR MIT (registry+https://github.com/rust-lang/crates.io-index)
 - indicatif 0.18.4: MIT (registry+https://github.com/rust-lang/crates.io-index)
 - inquire 0.9.4: MIT (registry+https://github.com/rust-lang/crates.io-index)
+- is_executable 1.0.6: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
 - is_terminal_polyfill 1.70.2: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
 - itertools 0.14.0: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
 - itoa 1.0.18: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
