@@ -2,9 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { ConfigProvider } from "antd";
 import { useState } from "react";
 import { ConfusionContextFields } from "./ConfusionContextFields";
-import { TargetContextFields } from "./TargetContextFields";
 import type {
-  EncounterActionTargetView,
   EncounterConfusionContextView,
   EncounterParticipantView,
 } from "../../generated/atlas";
@@ -76,40 +74,4 @@ it("requires an explicit viable list and a table-random target instead of using 
     random_target_key: "ally",
     offensive: true,
   });
-});
-it("renders only the requested precision context and retains an explicit false answer", async () => {
-  const onChange = vi.fn();
-  const target: EncounterActionTargetView = {
-    participant_key: "foe",
-    mode: "direct",
-    vision_only_precise: null,
-    distance_feet: null,
-    guessed_location_correct: null,
-    visual_effect: null,
-    auditory_effect: null,
-  };
-  render(
-    <ConfigProvider theme={{ token: { motion: false } }}>
-      <TargetContextFields
-        target={target}
-        targeting={{
-          visual_effects_immune: false,
-          auditory_effects_immune: false,
-          prevents_effect: false,
-          flat_check_dc: null,
-          source_ids: [],
-          requires_guessed_location: false,
-          required_facts: ["Confirm the usable precise sense."],
-          required_inputs: ["vision_only_precise"],
-          secret: false,
-        }}
-        onChange={onChange}
-      />
-    </ConfigProvider>,
-  );
-  expect(
-    screen.queryByRole("spinbutton", { name: "Target distance in feet" }),
-  ).not.toBeInTheDocument();
-  await choose("Vision is the only usable precise sense", "No");
-  expect(onChange).toHaveBeenCalledWith({ ...target, vision_only_precise: false });
 });

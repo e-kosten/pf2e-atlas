@@ -27,7 +27,6 @@ export function useEncounterTurnReview({
   const [readError, setReadError] = useState<Error | null>(null);
   const [receipt, setReceipt] = useState("");
   const [outcomes, setOutcomes] = useState<RollOutcome[]>([]);
-  const retained = useRef<RollOutcome[]>([]);
   const active = useRef(true);
   const advancing = useRef(false);
   useEffect(() => {
@@ -67,9 +66,8 @@ export function useEncounterTurnReview({
     setBoundaryKey(undefined);
     setReceipt("");
     setOutcomes([]);
-    retained.current = [];
     try {
-      const before = review.data ?? (await refresh().catch(() => undefined));
+      const before = review.data ?? (await refresh());
       if (!active.current || !(await onAdvance(expectedRevision)) || !active.current)
         return;
       const after = await refresh();
@@ -106,8 +104,7 @@ export function useEncounterTurnReview({
             ? result.receipt.groups.flatMap((group) => (group.roll ? [group.roll] : []))
             : [];
       if (rolls.length) {
-        retained.current = [...retained.current, ...rolls];
-        setOutcomes(retained.current);
+        setOutcomes((previous) => [...previous, ...rolls]);
       }
       if (result.refreshed) await refresh();
       return result.receipt;

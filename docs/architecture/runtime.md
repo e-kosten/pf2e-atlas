@@ -443,11 +443,11 @@ updates, using pure app-service policy. Next turn checks expected revision and r
 identity, applies old-END/new-START duration decrements and saves outgoing boundary
 context in the same transaction. It skips participants without initiative. Matching
 retries recover their receipt; stale distinct commands conflict. The browser presents
-reminders after advancement, and dismissal changes no saved state. Pending outgoing
-context retains the original participant, round and condition sources/episodes for
-late damage/recovery; explicit table acknowledgment retires it without inventing a
-roll or an HP operation. Every relevant durable
-encounter mutation advances that revision. Duration rounds store one remaining
+reminders after advancement, and dismissal changes no saved state. The latest
+completed turn retains the original participant, round and condition
+sources/episodes while its notification is open. A later advancement supersedes
+that boundary; closing the notification changes no gameplay state. There is no
+acknowledgment or past-turn queue. Every relevant durable encounter mutation advances that revision. Duration rounds store one remaining
 amount and explicit participant/event anchor; zero retains the condition until
 explicit removal, unresolved anchors never tick, and nonround units are reminders.
 Manual Set turn, reorder and removal never tick. Persistent Damage review groups
@@ -492,10 +492,12 @@ PF2e 8.6.1 next-regain forecast. Unknown condition values produce an unavailable
 forecast. Quickened restrictions and overlapping Stunned/Slowed losses remain
 visible; reads never recover conditions. Explicit Stunned action-loss events use
 the same forecast and record the GM-confirmed loss without maintaining a current
-action ledger. Ordinary strikes and casting share durable attempts, source-specific
-judgments and ordered flat checks. Checks and terminal results resume after a lost
-response without repeating costs or effects. Explicit past-use and resource
-corrections remain separate intents. See ADR 0048 and ADR 0055.
+action ledger. Ordinary strikes retain direct guarded rolls with optional reference
+checks; ordinary casting records table-resolved use from the spell popover. Optional
+evaluated attempts use source-specific judgments and ordered flat checks, with all
+pending checks discoverable separately from bounded completed history. Checks and
+terminal results resume after a lost response without repeating costs or effects.
+Explicit past-use and resource corrections remain separate intents. See ADR 0048 and ADR 0055.
 
 Hazards use Active/Disabled in place of creature Active/Defeated. Damage reaching
 zero disables a hazard; healing does not reactivate it. HP remains separate. Automatic turns

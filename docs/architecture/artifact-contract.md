@@ -402,13 +402,13 @@ independent sources or replacing the baseline. Missing-row defaults and source
 invalidation are app-service policy. Reads never create decisions or commit consequences. These
 saved-domain migrations preserve reference artifacts, lists and earlier receipts.
 
-Migration 15 stores outgoing turn boundaries and their request identities, typed
-pre-advance saved-state snapshots, and explicit table acknowledgments. The boundary
-is committed with turn advancement; frozen participant/round/source identities support
-late resolution without applying an old event to a new condition episode. These are
-saved domain facts, not serialized presentation DTOs or reference records. Dismissing
-a browser reminder does not acknowledge it. A table acknowledgment claims no dice,
-damage or recovery result.
+Outgoing turn boundaries store request identities and typed pre-advance saved-state
+snapshots. Advancement commits the boundary and the next turn together; frozen
+participant/round/source identities prevent applying an old event to a new condition
+episode. Only the latest completed boundary is actionable. These are saved domain
+facts, not serialized presentation DTOs or reference records. Closing a browser
+notification changes no saved state; no acknowledgment or past-turn queue is stored.
+Migration 16 removes the obsolete acknowledgment columns introduced in migration 15.
 
 ### PF2e 8.6.1 reference preparation
 

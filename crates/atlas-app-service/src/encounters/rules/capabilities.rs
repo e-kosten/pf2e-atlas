@@ -45,13 +45,13 @@ fn regain_forecast(p: &EncounterParticipant) -> RegainForecast {
     let mut unknown = false;
     for cause in super::causes::condition_causes(p, None) {
         let c = cause.source;
-        match Some(cause.rule) {
-            Some(ConditionRule::Quickened) => quickened = true,
-            Some(ConditionRule::Slowed) => match c.value {
+        match cause.rule {
+            ConditionRule::Quickened => quickened = true,
+            ConditionRule::Slowed => match c.value {
                 Some(v) if v >= 0 => slowed = slowed.max(v),
                 _ => unknown = true,
             },
-            Some(ConditionRule::Stunned) => match c.value {
+            ConditionRule::Stunned => match c.value {
                 Some(v) if v >= 0 => stunned = stunned.max(v),
                 None if c.duration.is_some() => duration_stun = true,
                 _ => unknown = true,

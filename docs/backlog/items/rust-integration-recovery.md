@@ -173,6 +173,11 @@ equipment management; Broken applies to eligible hazards and Petrified stays in 
 [Spell/effect application](encounter-effect-application.md) is a separate follow-up
 using the same typed condition inputs, not a second rules owner.
 
+The encounter relationship editor is deferred pending product design. Shared directed
+relationship rules, saved baselines and typed APIs remain in this slice; there is no
+relationships panel or action-context questionnaire in the current browser workflow.
+Future editing should compose the shared rules without reviving the discarded forms.
+
 This is an in-person GM aid. Derive known effects, preserve independent sources and
 scopes, request context when needed, and use specific reminders for untracked domains.
 Support explicit GM overrides with visible reasons. Keep action spending manual;

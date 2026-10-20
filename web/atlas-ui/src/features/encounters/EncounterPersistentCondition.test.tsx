@@ -10,6 +10,7 @@ import { EncounterConditionControls } from "./EncounterConditionControls";
 
 it("edits typed persistent damage while preserving its episode, origin and independent duration", async () => {
   const onUpdate = vi.fn().mockRejectedValue(new Error("Try again"));
+  const onPreview = vi.fn().mockResolvedValue({ consequences: [] });
   const current: EncounterParticipantView = {
     cast_unavailable_reason: null,
     revision: 0n,
@@ -84,14 +85,17 @@ it("edits typed persistent damage while preserving its episode, origin and indep
   render(
     <EncounterConditionControls
       encounterRef="encounter"
-      onPreviewCondition={vi.fn().mockResolvedValue({ consequences: [] })}
+      onPreviewCondition={onPreview}
       current={current}
       encounterRevision={14n}
       disabled={false}
       pending={false}
       addDisabled={false}
       conditionDefinitions={definitions}
-      damageTypes={[{ value: "fire", label: "Fire" }]}
+      damageTypes={[
+        { value: "fire", label: "Fire" },
+        { value: "cold", label: "Cold" },
+      ]}
       participants={[current]}
       onAddCondition={vi.fn()}
       onUpdateCondition={onUpdate}
@@ -125,6 +129,37 @@ it("edits typed persistent damage while preserving its episode, origin and indep
     ),
   );
   expect(screen.getByRole("textbox", { name: "Damage formula" })).toHaveValue("3d6");
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Damage type" }));
+  fireEvent.click(
+    await screen.findByText("Cold", { selector: ".ant-select-item-option-content" }),
+  );
+  await waitFor(() =>
+    expect(onPreview).toHaveBeenLastCalledWith(
+      "actor",
+      expect.objectContaining({
+        parameters: expect.objectContaining({ damage_type: "cold" }),
+      }),
+    ),
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await waitFor(() =>
+    expect(onUpdate).toHaveBeenLastCalledWith(
+      "actor",
+      expect.objectContaining({
+        parameters: {
+          ...current.conditions[0].parameters,
+          formula: "3d6",
+          damage_type: "cold",
+          episode_id: undefined,
+        },
+        origin: current.conditions[0].origin,
+        duration: current.conditions[0].duration,
+      }),
+    ),
+  );
 });
 
 it("uses the backend-selected persistent source and keeps separate source controls inside its group", async () => {

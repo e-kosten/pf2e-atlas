@@ -3,12 +3,6 @@ import { App } from "antd";
 import { useEffect, useRef, useState } from "react";
 import {
   applyEncounterHpAction,
-  worsenEncounterAttitude,
-  applyEncounterDetectionEvent,
-  setEncounterRelationship,
-  beginEncounterStrikeAttempt,
-  resolveEncounterActionCheck,
-  abandonEncounterActionAttempt,
   applyEncounterConditionLifecycle,
   rollInitiative,
   applyEncounterSpellAction,
@@ -46,53 +40,6 @@ import type {
 } from "../../generated/atlas";
 
 export type EncounterMutationCommand =
-  | {
-      kind: "attitude-event";
-      request: Omit<
-        import("../../generated/atlas").WorsenEncounterAttitudeRequest,
-        "request_id"
-      >;
-    }
-  | {
-      kind: "detection-event";
-      request: Omit<
-        import("../../generated/atlas").ApplyEncounterDetectionEventRequest,
-        "request_id"
-      >;
-    }
-  | {
-      kind: "relationship";
-      request: Omit<
-        import("../../generated/atlas").SetEncounterRelationshipRequest,
-        "request_id"
-      >;
-    }
-  | {
-      kind: "begin-strike";
-      request: Omit<
-        import("../../generated/atlas").BeginEncounterStrikeAttemptRequest,
-        "strike"
-      > & {
-        strike: Omit<
-          import("../../generated/atlas").RollEncounterStrikeRequest,
-          "request_id"
-        >;
-      };
-    }
-  | {
-      kind: "resolve-strike";
-      request: Omit<
-        import("../../generated/atlas").ResolveEncounterActionCheckRequest,
-        "request_id"
-      >;
-    }
-  | {
-      kind: "abandon-strike";
-      request: Omit<
-        import("../../generated/atlas").AbandonEncounterActionAttemptRequest,
-        "request_id"
-      >;
-    }
   | {
       kind: "condition-lifecycle";
       request: Omit<
@@ -170,6 +117,14 @@ export type EncounterMutationCommand =
     }
   | { kind: "delete" };
 
+function isEncounterConflict(error: unknown): boolean {
+  return (
+    error instanceof AtlasApiError &&
+    (error.appError?.code === "encounter_participant_conflict" ||
+      error.appError?.code === "encounter_turn_conflict")
+  );
+}
+
 export function useEncounterMutations(encounterRef: string, encounterKey?: string) {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
@@ -187,12 +142,6 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
         return `${command.kind}:${command.participantKey}:${command.request.condition_id}`;
       case "remove-condition":
         return `${command.kind}:${command.participantKey}:${command.conditionId}`;
-      case "detection-event":
-        return `${command.kind}:${command.request.subject_key}:${command.request.observer_key}:${command.request.event.kind}`;
-      case "attitude-event":
-        return `${command.kind}:${command.request.subject_key}:${command.request.other_key}`;
-      case "relationship":
-        return `${command.kind}:${command.request.subject_key}:${command.request.other_key}:${command.request.property}`;
       case "hp":
         return `${command.kind}:${command.request.participant_key}`;
       case "life-settings":
@@ -206,11 +155,6 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       case "resolve-hp-lifecycle":
       case "resolve-drained":
         return `${command.kind}:${command.request.consequence_key}`;
-      case "begin-strike":
-        return `${command.kind}:${command.request.strike.participant_key}:${JSON.stringify(command.request.strike.reference)}`;
-      case "resolve-strike":
-      case "abandon-strike":
-        return `${command.kind}:${command.request.attempt_key}`;
       default:
         return command.kind;
     }
@@ -279,7 +223,6 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       | import("../../generated/atlas").EncounterMutationView
       | import("../../generated/atlas").InitiativeRollView
       | import("../../generated/atlas").PersistentRecoveryResultView
-      | import("../../generated/atlas").EncounterActionMutationView
       | import("../../generated/atlas").PersistentDamageResultView
       | import("../../generated/atlas").ConditionLifecycleResultView
     > => {
@@ -288,21 +231,6 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
           return rollInitiative(currentRef, command.request);
         case "spell":
           return applyEncounterSpellAction(currentRef, command.request);
-        case "detection-event":
-          return applyEncounterDetectionEvent(currentRef, {
-            ...command.request,
-            request_id: eventRequestId(command),
-          });
-        case "attitude-event":
-          return worsenEncounterAttitude(currentRef, {
-            ...command.request,
-            request_id: eventRequestId(command),
-          });
-        case "relationship":
-          return setEncounterRelationship(currentRef, {
-            ...command.request,
-            request_id: eventRequestId(command),
-          });
         case "hp":
           return applyEncounterHpAction(currentRef, {
             ...command.request,
@@ -358,21 +286,6 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
               intent: "remove_effect",
             },
           );
-        case "begin-strike":
-          return beginEncounterStrikeAttempt(currentRef, {
-            ...command.request,
-            strike: { ...command.request.strike, request_id: eventRequestId(command) },
-          });
-        case "resolve-strike":
-          return resolveEncounterActionCheck(currentRef, {
-            ...command.request,
-            request_id: eventRequestId(command),
-          });
-        case "abandon-strike":
-          return abandonEncounterActionAttempt(currentRef, {
-            ...command.request,
-            request_id: eventRequestId(command),
-          });
         case "condition-lifecycle":
           return applyEncounterConditionLifecycle(currentRef, {
             ...command.request,
@@ -417,10 +330,6 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
         await queryClient.invalidateQueries({
           queryKey: ["persistent-review", currentRef],
         });
-      if (["begin-strike", "resolve-strike", "abandon-strike"].includes(command.kind))
-        await queryClient.invalidateQueries({
-          queryKey: ["strike-attempts", currentRef],
-        });
       await queryClient.invalidateQueries({ queryKey: ["hp-lifecycle", currentRef] });
       refreshKey.current = receipt.encounter_key;
       setRefreshOrigin("saved");
@@ -440,10 +349,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       }
     },
     onError: async (error, command) => {
-      const conflict =
-        error instanceof AtlasApiError &&
-        (error.appError?.code === "encounter_participant_conflict" ||
-          error.appError?.code === "encounter_turn_conflict");
+      const conflict = isEncounterConflict(error);
       if (conflict) {
         setRefreshOrigin("conflict");
         await attemptRefresh();
@@ -500,11 +406,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
         request_id: eventRequestId(command),
       });
     } catch (error) {
-      if (
-        error instanceof AtlasApiError &&
-        (error.appError?.code === "encounter_participant_conflict" ||
-          error.appError?.code === "encounter_turn_conflict")
-      ) {
+      if (isEncounterConflict(error)) {
         setRefreshOrigin("conflict");
         await attemptRefresh();
       }
@@ -539,10 +441,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       setRefreshing(false);
     }
   };
-  const conflict =
-    mutation.error instanceof AtlasApiError &&
-    (mutation.error.appError?.code === "encounter_participant_conflict" ||
-      mutation.error.appError?.code === "encounter_turn_conflict");
+  const conflict = isEncounterConflict(mutation.error);
   return {
     run,
     previewCondition,
