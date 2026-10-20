@@ -1,28 +1,24 @@
 # Reusable encounter party definitions
 
-Status: proposed
-Priority: later
-Owner: unassigned
-Last reviewed: 2026-10-13
+Status: in_progress
+Priority: now
+Owner: encounter-parties task
+Last reviewed: 2026-10-19
 
-Users currently re-enter each player character when constructing an encounter.
-Provide a place to define a party once and add its members to later encounters.
-Discuss this workflow alongside repeated creature addition and compact rosters.
+Agreed first version: multiple named parties with ordered PC names only. Manage
+parties from Encounters and add all or selected members together. No HP, initiative,
+conditions, reference-backed definitions or Foundry import. Additions copy names
+into independent manual encounter PCs; party edits/deletion do not alter existing
+encounters. Duplicate names remain independent members.
 
-Design the minimum useful party/member fields and their availability before
-implementation. Decide whether members are manual definitions, reference-backed
-participants or both, and how quantities, duplicates, missing references and
-member selection work. Distinguish reusable definitions from live encounter state:
-agree whether additions copy saved defaults and how later edits affect either
-surface. Do not silently share HP, conditions or initiative across encounters.
+Implementation: saved-domain parties/member schema and runtime migration,
+revision-guarded aggregate edits, atomic selected-member encounter addition,
+generated app contracts and thin web transport. Existing encounter mutation owner
+handles the durable write and independent refresh. Awaiting early functional UX
+review, then final Rust/frontend/browser validation and PR review.
 
-Keep durable user data separate from the generated reference artifact. Any storage
-and workflow design must follow atlas-local-state and app-service ownership; do
-not introduce a character-sheet or Foundry-world model implicitly. Review whether
-existing saved-list import primitives can help without changing lists into an
-unreviewed party model. UI and CLI should use the same product workflow if both
-expose it. No persistence schema or UI implementation is selected by this item.
+Future Foundry import is a separate capability; this version introduces no import
+format or character-sheet/world model.
 
 Related: [encounter usability](rust-web-encounter-runner-polish.md),
-[saved-list import](rust-encounter-saved-list-import.md),
 [local-state ownership](../../architecture/decisions/0030-local-state-database.md).

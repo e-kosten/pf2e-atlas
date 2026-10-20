@@ -17,6 +17,7 @@ import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
+import { PartyManager } from "../parties/PartyManager";
 import { CreateEncounterModal } from "./EncounterModals";
 
 type EncounterIndexViewProps = {
@@ -25,6 +26,7 @@ type EncounterIndexViewProps = {
 
 export function EncounterIndexView(_props: EncounterIndexViewProps) {
   const queryClient = useQueryClient();
+  const [partiesOpen, setPartiesOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const encounters = useQuery({ queryKey: ["encounters"], queryFn: getEncounters });
@@ -46,6 +48,7 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
     <EntityIndexPage
       actions={
         <div className="encounter-actions">
+          <Button onClick={() => setPartiesOpen(true)}>Parties</Button>
           <Checkbox
             checked={showArchived}
             onChange={(event) => setShowArchived(event.target.checked)}
@@ -63,14 +66,17 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
       }
       className="encounter-index-view"
       overlays={
-        <CreateEncounterModal
-          open={createOpen}
-          onCancel={() => setCreateOpen(false)}
-          onCreated={(slug) => {
-            setCreateOpen(false);
-            navigateToAtlasRoute({ kind: "encounter", slug });
-          }}
-        />
+        <>
+          {partiesOpen && <PartyManager onClose={() => setPartiesOpen(false)} />}
+          <CreateEncounterModal
+            open={createOpen}
+            onCancel={() => setCreateOpen(false)}
+            onCreated={(slug) => {
+              setCreateOpen(false);
+              navigateToAtlasRoute({ kind: "encounter", slug });
+            }}
+          />
+        </>
       }
       summary={
         encounters.data

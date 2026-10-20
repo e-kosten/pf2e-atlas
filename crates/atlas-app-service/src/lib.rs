@@ -11,6 +11,9 @@ mod executor;
 mod filter;
 mod filters;
 mod lists;
+mod parties;
+#[cfg(test)]
+mod party_tests;
 mod prepared_content;
 mod presentation;
 mod projection;

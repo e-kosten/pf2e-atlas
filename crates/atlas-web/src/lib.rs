@@ -3,6 +3,7 @@
 mod assets;
 mod error;
 mod handlers;
+mod parties;
 mod router;
 mod service;
 

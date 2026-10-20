@@ -45,6 +45,8 @@ pub enum AppErrorCode {
     RecordResolutionAmbiguous,
     SavedListNotFound,
     SavedListAlreadyExists,
+    PartyNotFound,
+    PartyConflict,
     EncounterNotFound,
     EncounterAlreadyExists,
     EncounterParticipantNotFound,

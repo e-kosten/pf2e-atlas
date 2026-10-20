@@ -24,6 +24,9 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/api/readiness", get(readiness))
+        .route("/api/parties", get(crate::parties::parties).post(crate::parties::create_party))
+        .route("/api/parties/{party_key}", axum::routing::patch(crate::parties::update_party).delete(crate::parties::delete_party))
+        .route("/api/encounters/{encounter_ref}/participants/party", post(crate::parties::add_encounter_party))
         .route("/api/related",post(crate::handlers::related_records))
         .route("/api/encounters", get(encounters).post(create_encounter))
         .route(

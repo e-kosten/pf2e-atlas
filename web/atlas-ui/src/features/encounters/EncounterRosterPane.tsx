@@ -24,6 +24,7 @@ import type {
   SearchResultsRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
+import { AddPartyModal } from "../parties/AddPartyModal";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { InitiativeValueField } from "./InitiativeValueField";
 import { participantUpdate } from "./participantEdits";
@@ -46,6 +47,7 @@ export function EncounterRosterPane({
   loading,
   onAddRecord,
   onAddManual,
+  onAddParty,
   disabled,
   error,
   recovery,
@@ -64,6 +66,9 @@ export function EncounterRosterPane({
   currentTurnParticipantKey: string | null;
   loading: boolean;
   onAddRecord: (request: AddEncounterRecordParticipantRequest) => Promise<boolean>;
+  onAddParty: (
+    request: import("../../generated/atlas").AddEncounterPartyRequest,
+  ) => Promise<void>;
   onAddManual: (request: AddEncounterManualParticipantRequest) => Promise<boolean>;
   disabled: boolean;
   error?: string;
@@ -115,6 +120,7 @@ export function EncounterRosterPane({
   const [committedPc, setCommittedPc] = useState(false);
   const pendingFormReset = useRef({ record: false, pc: false });
   const [recordOpen, setRecordOpen] = useState(false);
+  const [partyOpen, setPartyOpen] = useState(false);
   const [pcOpen, setPcOpen] = useState(false);
   const [selectedRecordKey, setSelectedRecordKey] = useState<string | null>(null);
   const [recordForm] = Form.useForm<AddRecordForm>();
@@ -278,6 +284,14 @@ export function EncounterRosterPane({
 
   return (
     <section className="encounter-pane encounter-roster">
+      {partyOpen && (
+        <AddPartyModal
+          onClose={() => setPartyOpen(false)}
+          onAdd={onAddParty}
+          disabled={disabled}
+          recovery={recovery}
+        />
+      )}
       <header className="encounter-pane__header">
         <PrimaryToolbar className="encounter-actions">
           {onRollInitiative && (
@@ -316,6 +330,9 @@ export function EncounterRosterPane({
             }}
           >
             Add PC
+          </Button>
+          <Button disabled={disabled} onClick={() => setPartyOpen(true)}>
+            Add Party
           </Button>
         </PrimaryToolbar>
       </header>

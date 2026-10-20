@@ -20,6 +20,11 @@ mod error;
 mod filter;
 mod graph;
 mod list;
+mod party;
+pub use party::{
+    AddEncounterPartyRequest, CreatePartyRequest, DeletePartyRequest, PartyIndexView,
+    PartyMemberInput, PartyMemberView, PartyMutationView, PartyView, UpdatePartyRequest,
+};
 mod prepared_content;
 mod presentation;
 mod readiness;
@@ -143,6 +148,12 @@ mod tests {
     }
 
     fn export_bindings_to(path: &Path) {
+        PartyIndexView::export_all_to(path).expect("party bindings");
+        CreatePartyRequest::export_all_to(path).expect("party create bindings");
+        UpdatePartyRequest::export_all_to(path).expect("party update bindings");
+        DeletePartyRequest::export_all_to(path).expect("party delete bindings");
+        PartyMutationView::export_all_to(path).expect("party mutation bindings");
+        AddEncounterPartyRequest::export_all_to(path).expect("party addition bindings");
         InitiativeOptionsView::export_all_to(path).expect("initiative options bindings");
         RollInitiativeRequest::export_all_to(path).expect("initiative request bindings");
         InitiativeRollView::export_all_to(path).expect("initiative receipt bindings");
