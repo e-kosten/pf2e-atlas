@@ -108,8 +108,11 @@ test("definition references retain authored labels and checked record links", as
     exact: true,
   });
   await expect(references.getByRole("link").first()).toBeVisible();
+  await expect(
+    page.getByRole("tab", { name: "References", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
   const screenshot = testInfo.outputPath("trait-throneglass.png");
-  await page.screenshot({ path: screenshot, fullPage: true });
+  await page.screenshot({ path: screenshot, fullPage: true, animations: "disabled" });
   await testInfo.attach("Throneglass trait and references", {
     path: screenshot,
     contentType: "image/png",
@@ -145,7 +148,7 @@ test("trait membership opens the exact embedded source", async ({
   await expect(link).toHaveText(`${member!.source_label} · ${member!.record.title}`);
   await link.scrollIntoViewIfNeeded();
   const screenshot = testInfo.outputPath("trait-named-embedded-member.png");
-  await page.screenshot({ path: screenshot });
+  await page.screenshot({ path: screenshot, animations: "disabled" });
   await testInfo.attach("Named embedded trait source", {
     path: screenshot,
     contentType: "image/png",
