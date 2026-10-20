@@ -7,6 +7,7 @@ import {
   applyEncounterSpellAction,
   advanceEncounterTurn,
   addEncounterManualParticipant,
+  addEncounterParty,
   addEncounterParticipantCondition,
   addEncounterRecordParticipant,
   AtlasApiError,
@@ -45,6 +46,10 @@ export type EncounterMutationCommand =
   | { kind: "metadata"; request: UpdateEncounterRequest }
   | { kind: "participant"; request: UpdateEncounterParticipantRequest }
   | { kind: "add-record"; request: AddEncounterRecordParticipantRequest }
+  | {
+      kind: "add-party";
+      request: import("../../generated/atlas").AddEncounterPartyRequest;
+    }
   | { kind: "add-manual"; request: AddEncounterManualParticipantRequest }
   | { kind: "reorder"; request: ReorderEncounterParticipantRequest }
   | { kind: "remove"; participantKey: string }
@@ -133,6 +138,8 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
             ...command.request,
             encounter_ref: currentRef,
           });
+        case "add-party":
+          return addEncounterParty(currentRef, command.request);
         case "add-manual":
           return addEncounterManualParticipant({
             ...command.request,
