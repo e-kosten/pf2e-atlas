@@ -39,11 +39,13 @@ pub(crate) fn status_for_error(code: AppErrorCode) -> StatusCode {
         | AppErrorCode::FilterInvalid
         | AppErrorCode::FilterFieldInvalid
         | AppErrorCode::FilterOptionInvalid => StatusCode::BAD_REQUEST,
-        AppErrorCode::RecordNotFound
+        AppErrorCode::PartyNotFound
+        | AppErrorCode::RecordNotFound
         | AppErrorCode::SavedListNotFound
         | AppErrorCode::EncounterNotFound
         | AppErrorCode::EncounterParticipantNotFound => StatusCode::NOT_FOUND,
-        AppErrorCode::SavedListAlreadyExists
+        AppErrorCode::PartyConflict
+        | AppErrorCode::SavedListAlreadyExists
         | AppErrorCode::EncounterTurnConflict
         | AppErrorCode::EncounterParticipantConflict
         | AppErrorCode::EncounterAlreadyExists

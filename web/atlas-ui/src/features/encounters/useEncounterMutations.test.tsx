@@ -7,6 +7,7 @@ import { useEncounterMutations } from "./useEncounterMutations";
 
 const api = vi.hoisted(() => ({
   applyEncounterSpellAction: vi.fn(),
+  addEncounterParty: vi.fn(),
   getEncounter: vi.fn(),
   updateEncounterParticipant: vi.fn(),
   updateEncounter: vi.fn(),
@@ -248,3 +249,28 @@ it.each(["cast", "record_use"] as const)(
     expect(api.getEncounter).not.toHaveBeenCalled();
   },
 );
+
+it("never resubmits a committed party addition when its refresh fails", async () => {
+  api.addEncounterParty.mockResolvedValue({ encounter_key: "encounter-key" });
+  api.getEncounter.mockRejectedValueOnce(new Error("Refresh unavailable"));
+  const { result } = mount();
+  const command = {
+    kind: "add-party" as const,
+    request: { party_key: "party", expected_revision: 2 },
+  };
+  await act(async () => {
+    const saved = await result.current.run(command);
+    expect(saved.refreshed).toBe(false);
+  });
+  await expect(result.current.run(command)).rejects.toThrow(
+    "Wait for the encounter to refresh",
+  );
+  await act(async () => {
+    await result.current.retryRefresh();
+  });
+  expect(api.addEncounterParty).toHaveBeenCalledExactlyOnceWith(
+    "encounter-key",
+    command.request,
+  );
+  expect(api.getEncounter).toHaveBeenCalledTimes(2);
+});

@@ -894,6 +894,43 @@ struct MockService {
 mod read_abandonment_tests;
 
 impl AtlasWebService for MockService {
+    fn parties(&self) -> Result<atlas_app_model::PartyIndexView, AppServiceError> {
+        Ok(atlas_app_model::PartyIndexView { parties: vec![] })
+    }
+    fn create_party(
+        &self,
+        _request: atlas_app_model::CreatePartyRequest,
+    ) -> Result<atlas_app_model::PartyView, AppServiceError> {
+        Err(AppServiceError::invalid_request(
+            "unused mock party creation",
+        ))
+    }
+    fn update_party(
+        &self,
+        _key: &str,
+        _request: atlas_app_model::UpdatePartyRequest,
+    ) -> Result<atlas_app_model::PartyView, AppServiceError> {
+        Err(AppServiceError::invalid_request("unused mock party update"))
+    }
+    fn delete_party(
+        &self,
+        key: &str,
+        _request: atlas_app_model::DeletePartyRequest,
+    ) -> Result<atlas_app_model::PartyMutationView, AppServiceError> {
+        Ok(atlas_app_model::PartyMutationView {
+            party_key: key.into(),
+        })
+    }
+    fn add_encounter_party(
+        &self,
+        encounter_ref: &str,
+        _request: atlas_app_model::AddEncounterPartyRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
+        })
+    }
+
     fn readiness(&self) -> AppReadinessView {
         AppReadinessView {
             default_search_profile: atlas_domain::SearchProfileId::new("bge-base"),
