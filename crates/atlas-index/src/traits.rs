@@ -105,22 +105,14 @@ pub(crate) fn write_traits(
         )?;
     }
     c.execute("DELETE FROM trait_memberships", [])?;
-    for (key, record, owners, source_label) in project_memberships(
-        &input.records,
-        &input
-            .packs
-            .iter()
-            .map(|p| (p.pack_id.clone(), p.label.clone()))
-            .collect(),
-        &input.context,
-    )? {
+    for membership in project_memberships(&input.records, input.context.audience)? {
         c.execute(
             "INSERT INTO trait_memberships VALUES(?1,?2,?3,?4)",
             params![
-                key,
-                record.to_string(),
-                serde_json::to_string(&owners)?,
-                source_label
+                membership.key,
+                membership.record.to_string(),
+                serde_json::to_string(&membership.owners)?,
+                membership.source_label
             ],
         )?;
     }
@@ -384,7 +376,23 @@ pub(crate) fn validate_traits(
         validate_seed(&definition, model, &hash, &vector, &chunks)?;
         let identity = serde_json::to_string(model)?;
         for chunk in &chunks {
-            let checkpoint:Option<(Vec<u8>,String)>=c.query_row("SELECT vector,vector_hash FROM embedding_checkpoints WHERE model_identity=?1 AND input_hash=?2 AND token_count=?3 AND dimensions=?4",params![identity,chunk.input_hash,chunk.token_count,model.dimensions],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+            let spec = atlas_embedding::search_profile(&model.profile_id)
+                .map_err(|e| IndexError::Unsupported(e.to_string()))?
+                .model_spec();
+            let reuse_key = spec.document_reuse_key(&chunk.input);
+            let checkpoint: Option<(Vec<u8>, String)> = c
+                .query_row(
+                    TRAIT_CHECKPOINT_SELECT,
+                    params![
+                        reuse_key,
+                        identity,
+                        chunk.input_hash,
+                        chunk.token_count,
+                        model.dimensions
+                    ],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .optional()?;
             let Some((bytes, checksum)) = checkpoint else {
                 return Err(IndexError::Invalid("trait chunk checkpoint missing".into()));
             };
@@ -430,18 +438,14 @@ pub(crate) fn validate_traits(
             "trait reference evidence differs from checked source".into(),
         ));
     }
-    let labels = c
-        .prepare("SELECT pack_id,label FROM packs")?
-        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
-        .collect::<Result<std::collections::BTreeMap<_, _>, _>>()?;
-    let expected = project_memberships(&records, &labels, context)?
+    let expected = project_memberships(&records, context.audience)?
         .into_iter()
-        .map(|(key, record, owners, label)| {
+        .map(|membership| {
             Ok((
-                key,
-                record.to_string(),
-                serde_json::to_string(&owners)?,
-                label,
+                membership.key,
+                membership.record.to_string(),
+                serde_json::to_string(&membership.owners)?,
+                membership.source_label,
             ))
         })
         .collect::<Result<std::collections::BTreeSet<_>, IndexError>>()?;
@@ -531,14 +535,41 @@ mod tests {
             format!("trait-definition-centroid/v1:{}", chunk.input_hash).as_bytes(),
         );
         let model = &input.context.search_profiles[0];
-        assert!(validate_seed(&definition, model, &hash, &vector, &[chunk.clone()]).is_ok());
+        assert!(
+            validate_seed(
+                &definition,
+                model,
+                &hash,
+                &vector,
+                std::slice::from_ref(&chunk)
+            )
+            .is_ok()
+        );
         let mut changed = vector.clone();
         changed[0] = 0.;
         changed[1] = 1.;
-        assert!(validate_seed(&definition, model, &hash, &changed, &[chunk.clone()]).is_err());
+        assert!(
+            validate_seed(
+                &definition,
+                model,
+                &hash,
+                &changed,
+                std::slice::from_ref(&chunk)
+            )
+            .is_err()
+        );
         let mut changed = definition.clone();
         changed.label = "different".into();
-        assert!(validate_seed(&changed, model, &hash, &vector, &[chunk.clone()]).is_err());
+        assert!(
+            validate_seed(
+                &changed,
+                model,
+                &hash,
+                &vector,
+                std::slice::from_ref(&chunk)
+            )
+            .is_err()
+        );
         let mut short = chunk;
         let atlas_domain::SourcePassageAddress::PlainSection { chunk_bytes, .. } =
             &mut short.address
@@ -585,6 +616,17 @@ mod tests {
             vector: vector.clone(),
             chunks: vec![chunk],
         });
+        // Multiple traits may share exact native inputs. Pruning must decode the
+        // vocabulary once, even with many unrelated retained checkpoint rows.
+        for ordinal in 0..128 {
+            let key = TraitKey::new(format!("fixture-{ordinal}")).unwrap();
+            let mut definition = input.traits[0].clone();
+            definition.key = key.clone();
+            input.traits.push(definition);
+            let mut seed = input.trait_vectors[0].clone();
+            seed.key = key;
+            input.trait_vectors.push(seed);
+        }
         crate::test_support::publish_input(&path, &input).unwrap();
         let workspace = crate::test_support::initialize_workspace(&path).unwrap();
         {
@@ -592,6 +634,16 @@ mod tests {
             let write = workspace
                 .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
                 .unwrap();
+            write.connection().execute_batch("WITH RECURSIVE obsolete(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM obsolete WHERE n<10000)
+                INSERT INTO embedding_checkpoints SELECT 'obsolete-'||n,model_identity,printf('%064x',n),token_count,dimensions,vector,vector_hash,touched_job FROM obsolete CROSS JOIN (SELECT * FROM embedding_checkpoints LIMIT 1);").unwrap();
+            assert_eq!(
+                write
+                    .connection()
+                    .query_row("SELECT count(*) FROM embedding_checkpoints", [], |r| r
+                        .get::<_, usize>(0))
+                    .unwrap(),
+                10001
+            );
             let target = input.context.sha256().unwrap();
             let job = crate::start_reference_job(&write, &target).unwrap();
             write.commit().unwrap();
@@ -611,6 +663,32 @@ mod tests {
                 .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
                 .unwrap();
             assert!(validate_traits(write.connection(), &input.context).is_ok());
+            let plan = write
+                .connection()
+                .prepare(&format!("EXPLAIN QUERY PLAN {TRAIT_CHECKPOINT_SELECT}"))
+                .unwrap()
+                .query_map(params!["key", "model", "hash", 2, 768], |r| {
+                    r.get::<_, String>(3)
+                })
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            assert!(
+                plan.iter()
+                    .any(|step| step
+                        .contains("sqlite_autoindex_embedding_checkpoints_1 (reuse_key=?)")),
+                "{plan:?}"
+            );
+
+            assert_eq!(
+                write
+                    .connection()
+                    .query_row("SELECT count(*) FROM embedding_checkpoints", [], |r| r
+                        .get::<_, usize>(0))
+                    .unwrap(),
+                1
+            );
+
             write
                 .connection()
                 .execute("DELETE FROM embedding_checkpoints", [])
@@ -847,15 +925,20 @@ pub struct TraitReference {
     pub evidence: String,
 }
 
+struct TraitMembershipRow {
+    key: String,
+    record: RecordKey,
+    owners: Vec<OwnedContentLocator>,
+    source_label: Option<String>,
+}
 fn project_memberships(
     records: &[crate::SourceArtifactRecordInput],
-    _labels: &std::collections::BTreeMap<String, String>,
-    context: &crate::SourceArtifactBuildContext,
-) -> Result<Vec<(String, RecordKey, Vec<OwnedContentLocator>, Option<String>)>, IndexError> {
+    audience: atlas_record::source_content::ContentAudience,
+) -> Result<Vec<TraitMembershipRow>, IndexError> {
     let mut result = std::collections::BTreeSet::new();
     for source in records {
         for membership in
-            atlas_record::source_record::trait_record_memberships(&source.record, context.audience)
+            atlas_record::source_record::trait_record_memberships(&source.record, audience)
         {
             result.insert((
                 membership.trait_key.to_string(),
@@ -872,7 +955,12 @@ fn project_memberships(
     result
         .into_iter()
         .map(|(key, record, owners, label)| {
-            Ok((key, record, serde_json::from_str(&owners)?, label))
+            Ok(TraitMembershipRow {
+                key,
+                record,
+                owners: serde_json::from_str(&owners)?,
+                source_label: label,
+            })
         })
         .collect()
 }
@@ -948,6 +1036,8 @@ fn project_references(
     }
     references
 }
+
+const TRAIT_CHECKPOINT_SELECT: &str = "SELECT vector,vector_hash FROM embedding_checkpoints WHERE reuse_key=?1 AND model_identity=?2 AND input_hash=?3 AND token_count=?4 AND dimensions=?5";
 
 fn validate_seed(
     definition: &TraitDefinition,
