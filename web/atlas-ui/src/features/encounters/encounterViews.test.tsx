@@ -160,8 +160,9 @@ describe("encounter views", () => {
     try {
       await disposeEncounterTest();
     } finally {
-      vi.useRealTimers();
+      // Timer spies capture the fake clock; restore them before restoring time.
       vi.restoreAllMocks();
+      vi.useRealTimers();
     }
   });
 

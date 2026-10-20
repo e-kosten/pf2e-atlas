@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest";
+import { act, cleanup } from "@testing-library/react";
 
 Object.defineProperty(window, "matchMedia", {
   writable: true,
@@ -25,3 +26,13 @@ vi.stubGlobal("ResizeObserver", TestResizeObserver);
 // Ant's NODE_ENV=test constant IDs merge distinct portals in its Escape stack.
 // Exercise normal React IDs for cross-overlay and accessible-name behavior.
 vi.stubEnv("NODE_ENV", "development");
+
+afterAll(async () => {
+  cleanup();
+  vi.useRealTimers();
+  // Ant Form debounces empty feedback for 10ms. Let queued feedback finish after
+  // unmount while jsdom still exists, before Vitest disposes this file's window.
+  await act(async () => {
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  });
+});
