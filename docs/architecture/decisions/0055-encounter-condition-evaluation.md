@@ -35,33 +35,22 @@ does not require selecting a target or supplying geometry. UI action availabilit
 and required inputs come from Rust projections; the browser does not switch on
 condition names to implement policy.
 
-`atlas-local-state` owns atomic event writes, receipts, pending consequences and
-action attempts. A write recovers an existing receipt before checking revisions,
+`atlas-local-state` owns atomic event writes, receipts and pending consequences. A write recovers an existing receipt before checking revisions,
 then validates the current snapshot before rolling or changing state. The same
 request cannot repeat HP loss, resource expenditure, checks or turn processing.
 Accepted boundaries also have unique participant/round/scope claims, so changing
 the request ID cannot repeat the boundary. Reads and manual turn selection are
 not lifecycle events.
 
-Optional evaluated spell and strike attempts share an action-attempt lifecycle.
-Ordinary table play does not require that workflow: a direct attack roll retains
-backend numerical adjustments and source/receipt guards, with relevant advisory
-context rather than mandatory target adjudication. Optional attack assistance stays alongside
-the validated original roll receipt and retains its dice through target selection and reference checks;
-it must not silently reroll or rewrite historical evidence. The spell popover shows relevant
-reminders and records a direct, guarded use. Recording use asserts resource expenditure,
-not successful targeting, completed checks or permission to act. It retains exact source
-and resource validation and retry safety. Frozen typed context for an evaluated attempt records
-the source generation, participant facts, judgments, costs and ordered checks.
-Completed checks and terminal results survive reopening. Failure or abandonment
-does not refund a committed spell cost. Atlas does not maintain a current-action
-counter: action spending remains at the table. Table-resolved use, resource correction
-and evaluated attempts are distinct explicit intents; none fabricates evidence for
-another.
-Secret targeting checks retain their evidence for the GM. A separate shareable
-summary omits the secret cause and result details. This is a GM-local presentation
-boundary, not a player access-control system. Guessed-location correctness is an
-explicit frozen table fact, never inferred from encounter roster membership.
+A direct attack roll retains backend numerical adjustments and source/receipt
+guards. Optional Target & checks assistance is read-only, stays beside the original
+roll and cannot reroll or rewrite it. The spell popover reads condition reminders
+and records a direct guarded use through the existing resource mutation owner.
+Recording use asserts expenditure, not targeting success, completed checks or
+permission to act. Reference flat checks are dice for the GM, not a saved action
+state machine. Retch has a focused preview for the judgments its lifecycle action
+actually needs. There is no general action-query API, durable attempt history,
+frozen action context or alternative cost-commit path.
 
 HP events distinguish resolved damage, resolved healing, direct loss and exact
 correction. Already mitigated table amounts never receive defenses a second time.
@@ -78,7 +67,7 @@ Persistent damage retains complete sources within typed episodes. Select the gre
 only when comparison is established; otherwise save the GM's choice. Apply active
 damage types simultaneously through one HP event, then resolve recovery separately.
 Successful recovery clears its episode; individual expiry/removal can reveal a
-weaker source. A table-success outcome records success without inventing a die result.
+weaker source. Physical-table recovery uses direct condition removal.
 Explicit recovery rolls are independent of initiative progression; durable request
 receipts deduplicate retries without imposing a once-per-round allowance. Only
 end-turn recovery claims its boundary. Recovery dice and outcomes remain in the
@@ -89,8 +78,8 @@ The compact attack roller remains immediately usable. Optional attack assistance
 projects applicable conditions and checks from the shared rules owner. Its flat-check
 rolls are reference dice and never assert that target detection, an attack, or an
 action has been resolved. Unknown table facts remain reminders instead of a required
-questionnaire. The existing durable action-attempt API remains available to evaluated
-action workflows; the reference attack UI does not enter that state machine.
+questionnaire. No action-attempt API or persistence is retained for an unused
+workflow.
 
 Next turn advances atomically before the browser presents one notification for the
 turn just completed. Closing by Escape, backdrop or the close icon finishes the
@@ -102,15 +91,15 @@ boundary is actionable; advancing again supersedes it. Receipts remain storage
 history, not a reminder inbox. Start-turn Dying, Stunned and waking checks remain
 explicit inspector actions, not silently replayed outgoing events.
 
-Directed relationships separate saved baselines from active condition causes.
-Unknown, conflicting and invalidated knowledge are explicit; absent detection never
-means Observed. Observer-specific transitions preserve other observers' sources.
-A new Invisible source invalidates an older detection assessment. Source sets are
-retained when a GM adjudicates simultaneous causes. Baseline and adjudication are
-separate durable layers: adjudicating conflicting causes preserves both sources and
-the prior baseline. The decision is valid only for its exact typed source snapshot;
-ending all causes reveals the baseline again. Formal Request eligibility
-uses resolved attitude without inventing success of its Diplomacy check.
+Observer-relative effects derive directly from active condition sources and their
+scope. Hidden/Undetected produce only the affected observer's defense and targeting
+context; absence never means Observed. Invisible alone does not establish detection.
+Controlled retains source attribution and instructions; conflicting instructions
+remain a table decision. There are no saved baseline/adjudication layers, relationship
+editing APIs or observer-event automation without a UI workflow.
+
+One condition-system migration follows the published party migration. Unpublished
+prototype states do not become historical upgrades or compatibility paths.
 
 ## Consequences
 

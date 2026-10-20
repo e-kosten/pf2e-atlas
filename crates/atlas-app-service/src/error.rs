@@ -98,8 +98,7 @@ impl From<LocalStateError> for AppServiceError {
             LocalStateError::EncounterNotFound(_) => AppErrorCode::EncounterNotFound,
             LocalStateError::EncounterAlreadyExists(_) => AppErrorCode::EncounterAlreadyExists,
             LocalStateError::ParticipantNotFound(_) => AppErrorCode::EncounterParticipantNotFound,
-            LocalStateError::StaleParticipantRevision { .. }
-            | LocalStateError::StaleActionAttemptRevision { .. } => {
+            LocalStateError::StaleParticipantRevision { .. } => {
                 AppErrorCode::EncounterParticipantConflict
             }
             LocalStateError::StaleEncounterRevision { .. } => AppErrorCode::EncounterTurnConflict,
@@ -141,17 +140,7 @@ impl From<LocalStateError> for AppServiceError {
             );
             app_error.retryable = Some(false);
         }
-        if let LocalStateError::StaleActionAttemptRevision {
-            attempt_key,
-            expected_revision,
-            actual_revision,
-        } = &error
-        {
-            app_error.details = Some(
-                serde_json::json!({"attempt_key":attempt_key,"expected_revision":expected_revision,"actual_revision":actual_revision}),
-            );
-            app_error.retryable = Some(false);
-        }
+
         Self { error: app_error }
     }
 }

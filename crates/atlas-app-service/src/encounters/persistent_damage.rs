@@ -2,9 +2,7 @@ use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::{
     DamageMultiplierView, PersistentDamageGroupView, PersistentDamageSourceView,
 };
-use atlas_app_model::{
-    PersistentRecoveryInput, PersistentRecoveryResultView, RecoverPersistentDamageRequest,
-};
+use atlas_app_model::{PersistentRecoveryResultView, RecoverPersistentDamageRequest};
 use atlas_local_state::{
     ConditionEventChange, ConditionEventOutcome, EncounterEventReceipt, PreparedConditionEvent,
 };
@@ -63,7 +61,6 @@ impl AtlasAppService {
                 if matches!(
                     claim.kind,
                     atlas_local_state::EncounterBoundaryKind::PersistentRecovery
-                        | atlas_local_state::EncounterBoundaryKind::AssistedRecovery
                 ) && let Some(receipt) =
                     store.boundary_receipt(&snapshot.encounter.encounter_key, claim)?
                 {
@@ -98,8 +95,6 @@ impl AtlasAppService {
                         } else {
                             None
                         },
-                        assisted_recovery_available: true,
-                        assisted_recovery_unavailable_reason: None,
                     }
                 })
                 .collect();
@@ -146,7 +141,6 @@ impl AtlasAppService {
             let frozen=boundary.as_ref().map(|saved|super::outgoing_turns::frozen_participant(saved,current_participant)).transpose()?;
             let participant=frozen.as_ref().unwrap_or(current_participant);
             let round=boundary.as_ref().map_or(encounter.round_number,|saved|saved.snapshot.encounter.round_number);
-            let table_success=matches!(request.outcome,PersistentRecoveryInput::TableSuccess);
             let groups = super::rules::persistent_damage::participant_groups(participant);
             let group = groups
                 .iter()
@@ -157,7 +151,6 @@ impl AtlasAppService {
             let selected = request
                 .selected_source_id
                 .or(group.selected_source_id)
-                .or_else(||table_success.then(||group.sources.first().map(|source|source.condition_id)).flatten())
                 .ok_or_else(|| {
                     AppServiceError::invalid_request("Choose the greater damage source")
                 })?;
@@ -168,30 +161,15 @@ impl AtlasAppService {
                 .ok_or_else(|| {
                     AppServiceError::invalid_request("Choose a source in this damage group")
                 })?;
-            if !table_success && group.selected_source_id.is_some_and(|id| id != selected) {
+            if group.selected_source_id.is_some_and(|id| id != selected) {
                 return Err(AppServiceError::invalid_request(
                     "Use the active damage source",
                 ));
             }
             let dc = request.dc_override.or_else(|| super::rules::persistent_damage::recovery_dc(source));
-            if !table_success && dc.is_none() {return Err(AppServiceError::invalid_request("Enter the recovery DC"));}
+            if dc.is_none() {return Err(AppServiceError::invalid_request("Enter the recovery DC"));}
             if dc.is_some_and(|dc| !(0..=100).contains(&dc)) {return Err(AppServiceError::invalid_request("Recovery DC must be between 0 and 100"));}
-            if let PersistentRecoveryInput::TableResult { result } = request.outcome
-                && !(1..=20).contains(&result)
-            {
-                return Err(AppServiceError::invalid_request(
-                    "Enter a d20 result from 1 to 20",
-                ));
-            }
-            let kind = match request.mode {
-                atlas_app_model::PersistentRecoveryMode::EndTurn => {
-                    atlas_local_state::EncounterBoundaryKind::PersistentRecovery
-                }
-                atlas_app_model::PersistentRecoveryMode::Assisted => {
-                    atlas_local_state::EncounterBoundaryKind::AssistedRecovery
-                }
-            };
-            if !table_success && request.mode == atlas_app_model::PersistentRecoveryMode::EndTurn {
+            if request.mode == atlas_app_model::PersistentRecoveryMode::EndTurn {
                 let damage = store
                     .boundary_receipt(
                         &encounter.encounter_key,
@@ -219,7 +197,7 @@ impl AtlasAppService {
             // an end-turn resolution claims that turn's recovery; request receipts
             // still deduplicate retries for either mode.
             let claims = if request.mode == atlas_app_model::PersistentRecoveryMode::EndTurn {
-                vec![boundary_claim(participant, round, kind, group.episode_id)]
+                vec![boundary_claim(participant, round, atlas_local_state::EncounterBoundaryKind::PersistentRecovery, group.episode_id)]
             } else {
                 vec![]
             };
@@ -230,18 +208,9 @@ impl AtlasAppService {
                 request.expected_encounter_revision,
                 atlas_local_state::ConditionEventBoundary { claims:&claims, outgoing_boundary_key:request.boundary_key.as_deref() },
                 || {
-                    let (roll, table_result) = match request.outcome {
-                        PersistentRecoveryInput::Roll if dc.is_some_and(|dc|(2..=20).contains(&dc)) => {
-                            (Some(atlas_dice::roll("1d20")?), None)
-                        }
-                        PersistentRecoveryInput::Roll | PersistentRecoveryInput::TableSuccess => (None, None),
-                        PersistentRecoveryInput::TableResult { result } => (None, Some(result)),
-                    };
-                    let result = roll
-                        .as_ref()
-                        .map(|roll| i64::from(roll.total))
-                        .or(table_result);
-                    let success = table_success || dc.is_some_and(|dc|dc<=1 || (dc<=20 && result.is_some_and(|result|result>=dc)));
+                    let roll = if dc.is_some_and(|dc|(2..=20).contains(&dc)) {Some(atlas_dice::roll("1d20")?)} else {None};
+                    let result = roll.as_ref().map(|roll| i64::from(roll.total));
+                    let success = dc.is_some_and(|dc|dc<=1 || (dc<=20 && result.is_some_and(|result|result>=dc)));
                     Ok(PreparedConditionEvent {
                         selection_changes: if success {
                             vec![]
@@ -277,7 +246,6 @@ impl AtlasAppService {
                             damage_type: group.damage_type.into(),
                             dc,
                             roll,
-                            table_result,
                             success,
                         }],
                         ..Default::default()
@@ -313,7 +281,6 @@ fn recovery_view(receipt: EncounterEventReceipt) -> AppServiceResult<PersistentR
                 damage_type,
                 dc,
                 roll,
-                table_result,
                 success,
             } => Some(PersistentRecoveryResultView {
                 encounter_key: receipt.encounter_key.clone(),
@@ -322,7 +289,6 @@ fn recovery_view(receipt: EncounterEventReceipt) -> AppServiceResult<PersistentR
                 damage_type,
                 dc,
                 roll,
-                table_result,
                 success,
             }),
             _ => None,

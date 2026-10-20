@@ -46,7 +46,6 @@ impl EncountersRead<'_> {
             let kind = match kind.as_str() {
                 "persistent_damage" => EncounterBoundaryKind::PersistentDamage,
                 "persistent_recovery" => EncounterBoundaryKind::PersistentRecovery,
-                "assisted_recovery" => EncounterBoundaryKind::AssistedRecovery,
                 "turn_start" => EncounterBoundaryKind::TurnStart,
                 "turn_end" => EncounterBoundaryKind::TurnEnd,
                 _ => {
@@ -323,9 +322,6 @@ impl EncountersWrite<'_> {
                         "initiative participant no longer exists",
                     ));
                 }
-            }
-            for change in changes.relationship_changes {
-                super::relationships::write(self.connection, &snapshot, change)?;
             }
             for change in changes.selection_changes {
                 if !snapshot

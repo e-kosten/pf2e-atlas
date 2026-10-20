@@ -83,18 +83,13 @@ impl AtlasAppService {
                 })
                 .filter(|modifier| (-10000..=10000).contains(modifier))
                 .ok_or_else(|| AppServiceError::invalid_request("Attack modifier unavailable."))?;
-            let action = atlas_local_state::FrozenAction::Strike {
-                activity_id: activity.activity_id,
-                attack_number: request.attack_number,
-                modifier: Some(modifier),
-                automatic_self_hit: false,
-                retained_roll: None,
-                mode: match request.mode {
-                    RollMode::Normal => atlas_local_state::ActionRollMode::Normal,
-                    RollMode::Fortune => atlas_local_state::ActionRollMode::Fortune,
-                    RollMode::Misfortune => atlas_local_state::ActionRollMode::Misfortune,
-                },
+            let die = match request.mode {
+                RollMode::Normal => "1d20",
+                RollMode::Fortune => "2d20kh1",
+                RollMode::Misfortune => "2d20kl1",
             };
+            let roll = atlas_dice::prepare(&format!("{die}{modifier:+}"))
+                .map_err(atlas_local_state::LocalStateError::from)?;
             return self.with_write(|session| {
                 let encounters = session.local_state().encounters();
                 if let Some(receipt) =
@@ -113,13 +108,7 @@ impl AtlasAppService {
                         expected_participant_revision: request.expected_participant_revision,
                     },
                     || {
-                        let atlas_local_state::ActionCompletion::StrikeRoll { roll } =
-                            super::action_attempts::complete_action(&action)?
-                        else {
-                            return Err(atlas_local_state::LocalStateError::InvalidRollRequest(
-                                "expected attack roll",
-                            ));
-                        };
+                        let roll = roll.roll()?;
                         Ok(atlas_local_state::StoredStrikeRoll {
                             title: options.title,
                             outcome: atlas_local_state::StoredStrikeOutcome::Attack {
@@ -412,10 +401,6 @@ pub(super) fn resolve_strike(
             "Selected strike does not belong to this participant.",
         ));
     }
-    let relationships = workspace
-        .local_state()
-        .encounters()
-        .relationships(&snapshot.encounter.encounter_key)?;
     let retrieval = workspace.retrieval_mut();
     let generation = retrieval.artifact_generation()?;
     if generation != request.reference.artifact_generation {
@@ -438,7 +423,7 @@ pub(super) fn resolve_strike(
     }
     let (source, selected) =
         crate::records::read_record_detail(retrieval, request.reference.selection)?;
-    let mut baseline =
+    let baseline =
         super::rules::source_baseline(&source.source, retrieval.source_fingerprint(), None)
             .ok_or_else(|| AppServiceError::invalid_request("Actor statistics are unavailable."))?;
     let adjustment_applicable = !matches!(
@@ -451,15 +436,9 @@ pub(super) fn resolve_strike(
         .authored_adjustment(),
         atlas_record::source_record::SourceFieldView::NotApplicable
     );
-    baseline.contextual_modifiers = super::rules::relationships::observer_defense_modifiers(
-        &participant.participant_key,
-        &snapshot.participants,
-        &relationships,
-    );
     let causes = super::rules::relationships::observer_defense_causes(
         &participant.participant_key,
         &snapshot.participants,
-        &relationships,
     );
     let block =
         super::rules::project_participant(participant, &baseline, adjustment_applicable, &causes);
@@ -498,43 +477,8 @@ pub(super) fn resolve_strike(
     } else {
         None
     };
-    use super::rules::action_context::{ActionContext, ActionFact, ActionJudgment, ActionKind};
-    let mut facts = vec![
-        ActionJudgment {
-            source_id: None,
-            fact: ActionFact::Attack,
-            value: true,
-        },
-        ActionJudgment {
-            source_id: None,
-            fact: ActionFact::MentalOnly,
-            value: false,
-        },
-        ActionJudgment {
-            source_id: None,
-            fact: ActionFact::Reaction,
-            value: false,
-        },
-        ActionJudgment {
-            source_id: None,
-            fact: ActionFact::VoluntaryIngestion,
-            value: false,
-        },
-    ];
-    if activity.traits_known {
-        for (fact, name) in [
-            (ActionFact::Manipulate, "manipulate"),
-            (ActionFact::Auditory, "auditory"),
-            (ActionFact::Move, "move"),
-            (ActionFact::Concentrate, "concentrate"),
-        ] {
-            facts.push(ActionJudgment {
-                source_id: None,
-                fact,
-                value: activity.traits.iter().any(|item| item == name),
-            });
-        }
-    }
+    use super::rules::action_context::{ActionContext, ActionKind};
+    let facts = super::action_projection::strike_facts(&activity);
     let evaluation = super::rules::action_context::evaluate_action(
         participant,
         &ActionContext {
@@ -542,7 +486,6 @@ pub(super) fn resolve_strike(
             reaction: Some(false),
             other_participant: None,
             confusion: None,
-            relationships: &relationships,
             facts: &facts,
         },
     );
@@ -550,7 +493,7 @@ pub(super) fn resolve_strike(
         .issues
         .into_iter()
         .map(|issue| {
-            let issue = super::action_attempts::issue_view(issue, participant, &relationships);
+            let issue = super::action_projection::issue_view(issue, participant);
             RuntimeEffectNoteView {
                 source: format!("condition:{}", issue.source_condition_id),
                 label: issue.condition_name,

@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Form, Select, Spin } from "antd";
 import { useState } from "react";
-import { previewEncounterStrikeAttempt } from "../../api/atlasApi";
+import { previewEncounterStrikeContext } from "../../api/atlasApi";
 import type {
-  EncounterActionTargetView,
   EncounterParticipantView,
   EncounterStrikeOptionsRequest,
   RollEncounterStrikeRequest,
@@ -33,17 +32,6 @@ export function useEncounterStrike({
 }) {
   const [launch, setLaunch] = useState<StrikeLaunch | null>(null);
   const [targetKey, setTargetKey] = useState<string>();
-  const target: EncounterActionTargetView | null = targetKey
-    ? {
-        participant_key: targetKey,
-        mode: "direct",
-        vision_only_precise: null,
-        distance_feet: null,
-        guessed_location_correct: null,
-        visual_effect: null,
-        auditory_effect: null,
-      }
-    : null;
   const preview = useQuery({
     queryKey: [
       "strike-assistance",
@@ -54,11 +42,9 @@ export function useEncounterStrike({
       targetKey,
     ],
     queryFn: () =>
-      previewEncounterStrikeAttempt(encounterRef, {
+      previewEncounterStrikeContext(encounterRef, {
         strike: launch!.strike,
-        judgments: [],
-        target,
-        confusion: null,
+        target_key: targetKey ?? null,
       }),
     enabled: !!launch,
   });
@@ -109,9 +95,7 @@ export function useEncounterStrike({
               {actionIssueSourceLabel(issue, participants)} · {issue.reason}
             </p>
           ))}
-          {action?.confusion && (
-            <p>Confused · Choose the attack target at the table.</p>
-          )}
+          {action?.confused && <p>Confused · Choose the attack target at the table.</p>}
           {action?.disruption && (
             <FlatCheckRoll
               key={`disruption:${revision}`}
@@ -142,18 +126,18 @@ export function useEncounterStrike({
               disabled={blocked}
             />
           )}
-          {targeting?.required_inputs.includes("vision_only_precise") && (
+          {targeting?.check_senses && (
             <p>Check detection · Consider usable senses and range.</p>
           )}
           {preview.data.options.unavailable && (
             <p>{preview.data.options.unavailable}</p>
           )}
           {!action?.issues.length &&
-            !action?.confusion &&
+            !action?.confused &&
             !action?.disruption &&
             !targeting?.prevents_effect &&
             !targeting?.requires_guessed_location &&
-            !targeting?.required_inputs.includes("vision_only_precise") &&
+            !targeting?.check_senses &&
             !preview.data.targeting_check &&
             !preview.data.options.unavailable && (
               <p>

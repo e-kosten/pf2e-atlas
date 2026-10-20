@@ -30,7 +30,7 @@ export function EncounterPersistentRecovery({
   recordedResult,
 }: {
   group: PersistentDamageGroupView;
-  mode: "end_turn" | "assisted";
+  mode: "end_turn" | "explicit";
   available: boolean;
   size?: "small" | "middle";
   unavailableReason?: string | null;
@@ -92,7 +92,6 @@ export function EncounterPersistentRecovery({
           participant_key: participantKey,
           episode_id: group.episode_id,
           selected_source_id: BigInt(selected),
-          outcome: { kind: "roll" },
           dc_override:
             values.dc === undefined ||
             values.dc === null ||

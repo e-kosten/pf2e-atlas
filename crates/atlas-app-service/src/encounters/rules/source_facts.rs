@@ -152,7 +152,6 @@ pub(in crate::encounters) fn source_baseline(
         senses: vec![],
         senses_known: false,
         sense_facts: vec![],
-        contextual_modifiers: vec![],
         contextual_armor_class: vec![],
         speeds: vec![],
         action_budget: None,

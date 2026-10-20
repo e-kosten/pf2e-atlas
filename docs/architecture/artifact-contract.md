@@ -363,52 +363,34 @@ Workspace migration 6 converts defeated hazards to disabled and prevents hazards
 from storing the creature defeated marker. It preserves HP and creature status.
 Migration 5 remains immutable because it has been applied to preview workspaces.
 
-### Contextual encounter condition inputs
+### Encounter condition system
 
-Workspace migration 7 adds typed scope and extra-action restriction payloads.
-Migration 8 replaces the initial override-reason field with an explicit
-immunity-override flag, preserving existing explanations in the optional note. Known immunity requires
-that deliberate override; notes remain optional. Source participant
-attribution remains independent of round-duration timing. Everyone and selected
-participants are distinct scopes; unspecified, unrestricted and restricted extra
-actions are distinct states. Custom restriction guidance is saved text, never
-executable rule input. Earlier migration identities remain immutable; reference
-artifacts and unrelated saved state are preserved.
+Workspace migration 8 applies the condition system directly after the published
+party migration (7). It adds scoped condition inputs, extra-action restrictions,
+immunity overrides, typed parameters and independent application origins, plus
+participant dying-tracking, mortality, level overrides and death thresholds.
+Everyone and selected participants remain distinct scopes; unspecified,
+unrestricted and restricted extra actions remain distinct states. Notes are
+optional guidance, never executable rule input. No intermediate development
+schemas or conversion of prototype fields are part of this migration.
 
-### Condition events and retained attempts
+Saved `max_hp` remains pre-condition capacity. Derived condition statistics never
+charge persistent consequences on reads. App-service prepares explicit bounded
+events; local-state applies their condition/HP changes, pending decisions and
+versioned receipts atomically. Application identities stay consumed after removal,
+so a retry cannot grant the same consequence again. Unconscious-created Prone
+remains after waking. Persistent-damage comparisons retain exact episode/source
+membership; boundary claims prevent replaying completed turn processing.
 
-Workspace migration 9 stores typed condition parameters and independent application
-origins, participant dying-tracking and mortality, event receipts, and pending
-consequences. Saved `max_hp` remains the pre-condition capacity; condition-adjusted
-maximum HP is derived. Application identities remain consumed after removing a
-condition, so a repeated originating application cannot grant again.
+Outgoing turn receipts store request identities and typed pre-advance saved-state
+snapshots. Advancement commits the boundary and next turn together. Only the latest
+completed boundary is actionable; closing the notification changes no saved state.
+There is no acknowledgment queue or persisted action-attempt/relationship workflow.
+Spell reminders and optional strike context are read-only projections. Spell
+resource writes and retained dice use their existing guarded mutation owners.
 
-Condition apply and correction are explicit intents. App-service resolves source
-facts before writing and pure rules plan persistent HP/condition consequences.
-Local-state applies the prepared bounded changes and versioned receipt atomically,
-recovering a matching request before revision checks. Missing lifecycle facts are
-saved as pending decisions; resolving one never replays the committed HP event.
-Persistent Prone created by Unconscious remains after its causing source is removed.
-
-Migration 10 stores action attempts with frozen check context and committed costs.
-Migration 11 stores explicit persistent-damage source comparisons per episode and
-source membership. Migration 12 stores accepted per-participant/episode round boundaries
-with their event receipt identity. Migration 13 stores durable participant level
-overrides and base death thresholds. Migration 14 stores directed relationship
-knowledge with a versioned typed codec and distinct baseline/adjudication layers.
-Adjudications retain the typed condition source snapshot, so changes to source
-membership, values, scope or instructions invalidate a decision without deleting
-independent sources or replacing the baseline. Missing-row defaults and source
-invalidation are app-service policy. Reads never create decisions or commit consequences. These
-saved-domain migrations preserve reference artifacts, lists and earlier receipts.
-
-Outgoing turn boundaries store request identities and typed pre-advance saved-state
-snapshots. Advancement commits the boundary and the next turn together; frozen
-participant/round/source identities prevent applying an old event to a new condition
-episode. Only the latest completed boundary is actionable. These are saved domain
-facts, not serialized presentation DTOs or reference records. Closing a browser
-notification changes no saved state; no acknowledgment or past-turn queue is stored.
-Migration 16 removes the obsolete acknowledgment columns introduced in migration 15.
+This saved-domain migration preserves reference artifacts, parties, lists and
+existing encounters. Published migrations 1–7 remain unchanged.
 
 ### PF2e 8.6.1 reference preparation
 

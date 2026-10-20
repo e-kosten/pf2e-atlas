@@ -9,14 +9,8 @@ pub(in crate::encounters) enum ActionKind {
     Cast,
     Escape,
     ForceOpen,
-    Stand,
-    Crawl,
     Seek,
-    Delay,
-    Ready,
-    Other,
     Retch,
-    Request,
     TravelingExploration,
 }
 
@@ -49,8 +43,7 @@ pub(in crate::encounters) struct ActionContext<'a> {
     pub kind: ActionKind,
     pub reaction: Option<bool>,
     pub other_participant: Option<&'a str>,
-    pub confusion: Option<&'a atlas_local_state::ConfusionChoice>,
-    pub relationships: &'a [atlas_local_state::DirectedRelationship],
+    pub confusion: Option<&'a ConfusionChoice>,
     pub facts: &'a [ActionJudgment],
 }
 
@@ -177,9 +170,7 @@ pub(in crate::encounters) fn evaluate_action(
             ConditionRule::Immobilized => {
                 result.requires(context, id, rule, ActionFact::Move, false)
             }
-            ConditionRule::Prone
-                if !matches!(context.kind, ActionKind::Stand | ActionKind::Crawl) =>
-            {
+            ConditionRule::Prone => {
                 result.requires(context, id, rule, ActionFact::Move, false);
             }
             ConditionRule::Restrained if context.kind != ActionKind::Escape => {
@@ -227,9 +218,7 @@ pub(in crate::encounters) fn evaluate_action(
                         fact: ActionFact::Reaction,
                     });
                 }
-                if matches!(context.kind, ActionKind::Delay | ActionKind::Ready) {
-                    result.prohibit(id, rule);
-                } else if context.reaction == Some(false) {
+                if context.reaction == Some(false) {
                     if matches!(
                         &cause.source.parameters,
                         atlas_local_state::ConditionParameters::Fleeing { subject: Some(_) }
@@ -250,9 +239,7 @@ pub(in crate::encounters) fn evaluate_action(
                         fact: ActionFact::Reaction,
                     });
                 }
-                if context.reaction == Some(true)
-                    || matches!(context.kind, ActionKind::Delay | ActionKind::Ready)
-                {
+                if context.reaction == Some(true) {
                     result.prohibit(id, rule);
                 } else if context.reaction == Some(false) {
                     let requirements = confusion_requirements(
@@ -271,19 +258,17 @@ pub(in crate::encounters) fn evaluate_action(
                     }
                     match context.confusion {
                         None => {}
-                        Some(atlas_local_state::ConfusionChoice::UnableToAttack) => {
-                            result.prohibit(id, rule)
-                        }
-                        Some(atlas_local_state::ConfusionChoice::Facilitate { .. })
+                        Some(ConfusionChoice::UnableToAttack) => result.prohibit(id, rule),
+                        Some(ConfusionChoice::Facilitate { .. })
                             if context.kind == ActionKind::Strike
                                 || context.fact(id, ActionFact::Attack) == Some(true) =>
                         {
                             result.prohibit(id, rule);
                         }
-                        Some(atlas_local_state::ConfusionChoice::Facilitate { .. }) => {}
+                        Some(ConfusionChoice::Facilitate { .. }) => {}
                         Some(
-                            choice @ (atlas_local_state::ConfusionChoice::Offensive { .. }
-                            | atlas_local_state::ConfusionChoice::NoViableTargets),
+                            choice @ (ConfusionChoice::Offensive { .. }
+                            | ConfusionChoice::NoViableTargets),
                         ) => {
                             match context.kind {
                                 ActionKind::Strike => {}
@@ -292,7 +277,7 @@ pub(in crate::encounters) fn evaluate_action(
                                 }
                                 _ => result.prohibit(id, rule),
                             }
-                            if let atlas_local_state::ConfusionChoice::Offensive {
+                            if let ConfusionChoice::Offensive {
                                 offensive: Some(false),
                                 ..
                             } = choice
@@ -306,26 +291,19 @@ pub(in crate::encounters) fn evaluate_action(
                 }
             }
             ConditionRule::Controlled => {
-                use atlas_local_state::{RelationshipKnowledge as K, RelationshipValue as V};
-                match control_direction(participant, cause.source, context.relationships) {
-                    K::Known {
-                        value: V::NoControl,
-                        ..
-                    } => {}
-                    K::Known {
-                        value: V::Control { .. },
-                        ..
-                    } => result.requires(
+                if control_direction(participant, cause.source).is_some() {
+                    result.requires(
                         context,
                         id,
                         rule,
                         ActionFact::FollowsControllerInstructions,
                         true,
-                    ),
-                    _ => result.issues.push(ActionIssue::NeedsContext {
+                    );
+                } else {
+                    result.issues.push(ActionIssue::NeedsContext {
                         source_id: id,
                         reason: "Resolve which controller directs this action.",
-                    }),
+                    });
                 }
             }
 
@@ -344,51 +322,6 @@ pub(in crate::encounters) fn evaluate_action(
     result
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::encounters) struct QuickenedUse {
-    pub allowed: Option<bool>,
-    pub allowing_source_ids: Vec<i64>,
-    pub unknown_source_ids: Vec<i64>,
-}
-/// This answers permitted use, independently of an action-spending ledger.
-pub(in crate::encounters) fn quickened_use(
-    participant: &atlas_local_state::EncounterParticipant,
-    action: atlas_local_state::ConditionAction,
-    other: Option<&str>,
-) -> QuickenedUse {
-    let mut result = QuickenedUse {
-        allowed: Some(false),
-        allowing_source_ids: vec![],
-        unknown_source_ids: vec![],
-    };
-    for cause in super::causes::condition_causes(participant, other)
-        .into_iter()
-        .filter(|cause| cause.rule == ConditionRule::Quickened)
-    {
-        match &cause.source.extra_action {
-            atlas_local_state::ConditionExtraAction::Unspecified => {
-                result.unknown_source_ids.push(cause.source.condition_id)
-            }
-            atlas_local_state::ConditionExtraAction::Unrestricted => {
-                result.allowing_source_ids.push(cause.source.condition_id)
-            }
-            atlas_local_state::ConditionExtraAction::Restricted { actions, .. } => {
-                if actions.contains(&action) {
-                    result.allowing_source_ids.push(cause.source.condition_id);
-                }
-            }
-        }
-    }
-    result.allowed = if !result.allowing_source_ids.is_empty() {
-        Some(true)
-    } else if !result.unknown_source_ids.is_empty() {
-        None
-    } else {
-        Some(false)
-    };
-    result
-}
-
 #[derive(Debug, Clone)]
 pub(in crate::encounters) struct ConfusionRequirements {
     pub source_ids: Vec<i64>,
@@ -399,7 +332,7 @@ pub(in crate::encounters) struct ConfusionRequirements {
 }
 pub(in crate::encounters) fn confusion_requirements(
     participant: &EncounterParticipant,
-    choice: Option<&atlas_local_state::ConfusionChoice>,
+    choice: Option<&ConfusionChoice>,
     kind: ActionKind,
     source_attack: bool,
 ) -> Option<ConfusionRequirements> {
@@ -420,15 +353,15 @@ pub(in crate::encounters) fn confusion_requirements(
     };
     match choice {
         None=>result.required_facts.push("Choose an offensive action, an action the GM permits to facilitate an attack, or the no-target procedure.".into()),
-        Some(atlas_local_state::ConfusionChoice::Offensive {viable_target_keys,random_target_key,offensive})=>{
+        Some(ConfusionChoice::Offensive {viable_target_keys,random_target_key,offensive})=>{
             if viable_target_keys.is_empty(){result.required_facts.push("Confirm viable targets, or choose no viable targets.".into());}
             if let Some(target)=random_target_key {if viable_target_keys.contains(target) {result.selected_target_key=Some(target.clone());}else{result.required_facts.push("Choose the GM’s random target from the confirmed viable targets.".into());}}
             else{result.required_facts.push("Record the GM’s random target from the confirmed viable targets.".into());}
             if kind!=ActionKind::Strike&&!source_attack&&offensive.is_none(){result.required_facts.push("Confirm this cantrip is offensive.".into());}
         }
-        Some(atlas_local_state::ConfusionChoice::Facilitate {..})=>{},
-        Some(atlas_local_state::ConfusionChoice::NoViableTargets)=>{result.selected_target_key=Some(participant.participant_key.clone());result.automatic_self_hit=true;},
-        Some(atlas_local_state::ConfusionChoice::UnableToAttack)=>result.wastes_action=true,
+        Some(ConfusionChoice::Facilitate {..})=>{},
+        Some(ConfusionChoice::NoViableTargets)=>{result.selected_target_key=Some(participant.participant_key.clone());result.automatic_self_hit=true;},
+        Some(ConfusionChoice::UnableToAttack)=>result.wastes_action=true,
     }
     Some(result)
 }
@@ -437,69 +370,18 @@ pub(in crate::encounters) fn confusion_requirements(
 pub(in crate::encounters) fn control_direction(
     participant: &EncounterParticipant,
     source: &atlas_local_state::EncounterParticipantCondition,
-    rows: &[atlas_local_state::DirectedRelationship],
-) -> atlas_local_state::RelationshipKnowledge {
-    use atlas_local_state::{
-        RelationshipKnowledge as K, RelationshipProperty as P, RelationshipValue as V,
-    };
-    if let Some(controller) = source.source_participant_key.as_deref() {
-        return super::relationships::relationship_knowledge(
-            participant,
-            controller,
-            P::Control,
-            rows,
-        );
-    }
-    let mut authorities = rows
+) -> Option<(String, Option<String>)> {
+    let controller = source.source_participant_key.as_deref()?;
+    let instructions = source.note.as_ref();
+    let conflicting = condition_causes(participant, Some(controller))
         .iter()
-        .filter(|row| row.subject_key == participant.participant_key && row.property == P::Control)
-        .map(|row| {
-            super::relationships::relationship_knowledge(
-                participant,
-                &row.other_key,
-                P::Control,
-                rows,
-            )
-        })
-        .filter(|knowledge| {
-            matches!(
-                knowledge,
-                K::Known {
-                    value: V::Control { .. },
-                    ..
-                }
-            )
-        })
-        .collect::<Vec<_>>();
-    authorities.dedup();
-    if authorities.len() == 1 {
-        authorities.remove(0)
-    } else {
-        K::Unknown {
-            required_facts: vec!["Choose which controller directs this action.".into()],
-        }
-    }
-}
-
-/// Directional ally status and condition-based flanking eligibility, without geometry.
-pub(in crate::encounters) fn affiliation(
-    participant: &EncounterParticipant,
-    other: Option<&str>,
-    normally_ally: Option<bool>,
-) -> (Option<bool>, bool) {
-    let causes = condition_causes(participant, other);
-    let confused = causes
-        .iter()
-        .any(|cause| cause.rule == ConditionRule::Confused);
-    let considers_ally = other.and(if confused { Some(false) } else { normally_ally });
-    let can_flank = super::capabilities::cannot_act_reason(participant).is_none()
-        && !causes.iter().any(|cause| {
-            matches!(
-                cause.rule,
-                ConditionRule::Confused | ConditionRule::Paralyzed | ConditionRule::Restrained
-            )
+        .any(|cause| {
+            cause.rule == ConditionRule::Controlled
+                && (cause.source.source_participant_key.is_none()
+                    || (cause.source.source_participant_key.as_deref() == Some(controller)
+                        && cause.source.note.as_ref() != instructions))
         });
-    (considers_ally, can_flank)
+    (!conflicting).then(|| (controller.to_owned(), instructions.cloned()))
 }
 
 /// The same value policy feeds individual action obligations and the aggregate hint.
@@ -524,4 +406,18 @@ pub(in crate::encounters) fn stupefied_casting_hint(
         }
     }
     result.disruption.map(|check| Ok(check.dc))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(in crate::encounters) enum ConfusionChoice {
+    Offensive {
+        viable_target_keys: Vec<String>,
+        random_target_key: Option<String>,
+        offensive: Option<bool>,
+    },
+    Facilitate {
+        note: Option<String>,
+    },
+    NoViableTargets,
+    UnableToAttack,
 }

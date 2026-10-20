@@ -58,9 +58,7 @@ const apiMocks = vi.hoisted(() => ({
   getEncounterConditionDefinitions: vi.fn(),
   previewEncounterCondition: vi.fn(),
   getEncounterConditionConsequences: vi.fn(),
-  previewEncounterCastingAttempt: vi.fn(),
-  getEncounterCastingAttempts: vi.fn(),
-  getEncounterStrikeAttempts: vi.fn(),
+  encounterCastingReminders: vi.fn(),
   getEncounters: vi.fn(),
   getRecordDetail: vi.fn(),
   getEncounterReference: vi.fn(),
@@ -96,9 +94,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   getEncounterConditionDefinitions: apiMocks.getEncounterConditionDefinitions,
   previewEncounterCondition: apiMocks.previewEncounterCondition,
   getEncounterConditionConsequences: apiMocks.getEncounterConditionConsequences,
-  previewEncounterCastingAttempt: apiMocks.previewEncounterCastingAttempt,
-  getEncounterCastingAttempts: apiMocks.getEncounterCastingAttempts,
-  getEncounterStrikeAttempts: apiMocks.getEncounterStrikeAttempts,
+  encounterCastingReminders: apiMocks.encounterCastingReminders,
   getEncounters: apiMocks.getEncounters,
   getRecordDetail: apiMocks.getRecordDetail,
   getEncounterReference: apiMocks.getEncounterReference,
@@ -208,8 +204,6 @@ function setupPersistentReview(damageApplied = false) {
               ? null
               : "Record this turn’s damage before rolling recovery.",
             end_turn_recovery_unavailable_reason: null,
-            assisted_recovery_unavailable_reason: null,
-            assisted_recovery_available: true,
           },
         ],
     damage_result: state.damageApplied ? damageResult : null,
@@ -229,7 +223,6 @@ function setupPersistentReview(damageApplied = false) {
       damage_type: "fire",
       dc: 15n,
       roll: null,
-      table_result: 18n,
       success: true,
     };
     state.recoveryResults.push(result);
@@ -278,14 +271,6 @@ describe("encounter views", () => {
     history.replaceState(null, "", "/encounters");
     apiMocks.getEncounters.mockResolvedValue(encounterIndexFixture());
     setEncounterDetail(encounterDetailFixture());
-    apiMocks.getEncounterStrikeAttempts.mockResolvedValue({
-      encounter_key: "encounter_ambush",
-      attempts: [],
-    });
-    apiMocks.getEncounterCastingAttempts.mockResolvedValue({
-      encounter_key: "encounter_ambush",
-      attempts: [],
-    });
     apiMocks.getEncounterConditionConsequences.mockResolvedValue([]);
     apiMocks.getEncounterHpLifecycle.mockResolvedValue([]);
     apiMocks.getEncounterConditionLifecycleActions.mockResolvedValue({ actions: [] });
@@ -362,7 +347,7 @@ describe("encounter views", () => {
     }
   });
 
-  it("keeps one relationship and action section through repeated inspector rerenders", async () => {
+  it("keeps the approved inspector sections stable through repeated rerenders", async () => {
     const view = render(
       <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
       { wrapper: queryClientWrapper() },
@@ -417,7 +402,7 @@ describe("encounter views", () => {
       ...detail,
       artifact_generation: initial.artifact_generation,
     });
-    apiMocks.previewEncounterCastingAttempt.mockResolvedValue({
+    apiMocks.encounterCastingReminders.mockResolvedValue({
       advisories: [],
       spell_title: "Command",
       rank: 1,
@@ -1609,7 +1594,6 @@ describe("encounter views", () => {
         mode: "end_turn",
         episode_id: "fire",
         expected_encounter_revision: 1n,
-        outcome: { kind: "roll" },
         boundary_key: "original-turn",
       }),
     );

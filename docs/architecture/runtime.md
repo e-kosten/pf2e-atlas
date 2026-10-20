@@ -505,11 +505,11 @@ forecast. Quickened restrictions and overlapping Stunned/Slowed losses remain
 visible; reads never recover conditions. Explicit Stunned action-loss events use
 the same forecast and record the GM-confirmed loss without maintaining a current
 action ledger. Ordinary strikes retain direct guarded rolls with optional reference
-checks; ordinary casting records table-resolved use from the spell popover. Optional
-evaluated attempts use source-specific judgments and ordered flat checks, with all
-pending checks discoverable separately from bounded completed history. Checks and
-terminal results resume after a lost response without repeating costs or effects.
-Explicit past-use and resource corrections remain separate intents. See ADR 0048 and ADR 0055.
+checks; ordinary casting records table-resolved use from the spell popover. Casting reminders and optional strike context are read-only, with no durable
+action-attempt workflow. Source-specific judgments support the actual Retch
+lifecycle action. Scoped detection effects derive from active conditions, without
+a saved relationship baseline or editing API. Spell use, resource corrections and
+retained dice keep their existing guarded write owners. See ADR 0048 and ADR 0055.
 
 Hazards use Active/Disabled in place of creature Active/Defeated. Damage reaching
 zero disables a hazard; healing does not reactivate it. HP remains separate. Automatic turns

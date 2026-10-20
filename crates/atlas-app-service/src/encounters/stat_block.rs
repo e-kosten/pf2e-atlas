@@ -14,7 +14,6 @@ pub(crate) struct StatBlockView {
     pub senses: Vec<EncounterSenseView>,
     pub senses_known: bool,
     pub sense_facts: Vec<super::rules::senses::SenseFacts>,
-    pub contextual_modifiers: Vec<ContextualModifier>,
     pub contextual_armor_class: Vec<EncounterContextualArmorClassView>,
     pub speeds: Vec<MovementSpeedView>,
     pub action_budget: Option<ActionBudgetView>,
@@ -240,12 +239,4 @@ impl Ability {
             Self::Charisma => "cha",
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct ContextualModifier {
-    pub target: StatisticTarget,
-    pub against: String,
-    pub modifier: Modifier,
-    pub provenance: atlas_local_state::RelationshipProvenance,
 }

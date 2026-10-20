@@ -71,7 +71,6 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
         vec![invalid],
         None,
         Default::default(),
-        vec![],
     );
     assert!(projected.artifact_generation.is_none());
     assert_eq!(
@@ -755,7 +754,6 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
                     workspace.retrieval_mut(),
                     snapshot.encounter,
                     snapshot.participants,
-                    vec![],
                 )?;
                 Ok((
                     detail,
@@ -1782,34 +1780,6 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
                 "{baseline} {immobilized_order:?}"
             );
             assert_eq!(speed.adjustment.as_ref().unwrap().notes.len(), 1);
-            if immobilized_order.is_some() {
-                let action = f
-                    .worker
-                    .preview_encounter_action(
-                        &encounter.encounter_key,
-                        PreviewEncounterActionRequest {
-                            normally_ally: None,
-                            confusion: None,
-                            participant_key: participant.participant_key.clone(),
-                            action: EncounterActionKindView::Crawl,
-                            extra_action: None,
-                            request_context: None,
-                            sensory: None,
-                            forced_movement: None,
-                            prone_cover: None,
-                            reaction: None,
-                            target: None,
-                            judgments: vec![],
-                        },
-                    )
-                    .unwrap();
-                assert!(
-                    action
-                        .issues
-                        .iter()
-                        .any(|issue| issue.kind == EncounterActionIssueKindView::Prohibited)
-                );
-            }
 
             assert_eq!(
                 participant

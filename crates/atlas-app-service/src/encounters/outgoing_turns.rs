@@ -103,7 +103,6 @@ pub(super) fn latest_review(
         if matches!(
             claim.kind,
             atlas_local_state::EncounterBoundaryKind::PersistentRecovery
-                | atlas_local_state::EncounterBoundaryKind::AssistedRecovery
         ) && let Some(receipt) = store.boundary_receipt(encounter, claim)?
         {
             for outcome in receipt.outcomes {

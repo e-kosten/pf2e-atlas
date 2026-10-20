@@ -8,7 +8,7 @@ import type {
 } from "../../generated/atlas";
 import type { useEncounterMutations } from "./useEncounterMutations";
 const api = vi.hoisted(() => ({
-  previewEncounterStrikeAttempt: vi.fn(),
+  previewEncounterStrikeContext: vi.fn(),
   rollFlatCheck: vi.fn(),
 }));
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -68,17 +68,16 @@ function Harness() {
   );
 }
 function setup(overrides = {}) {
-  api.previewEncounterStrikeAttempt.mockResolvedValue({
+  api.previewEncounterStrikeContext.mockResolvedValue({
     options: { attacks: [], unavailable: null },
     targeting_check: { dc: 11n, sources: [{ condition_id: 4n, name: "Undetected" }] },
     action: {
       issues: [],
-      confusion: null,
+      confused: false,
       disruption: null,
       targeting: {
         requires_guessed_location: true,
-        required_facts: ["Confirm location"],
-        required_inputs: ["guessed_location"],
+        check_senses: false,
         prevents_effect: false,
       },
     },
@@ -110,9 +109,9 @@ it("offers reference checks without requiring guessed-location answers or commit
   fireEvent.click(screen.getByRole("button", { name: "Roll" }));
   await waitFor(() => expect(api.rollFlatCheck).toHaveBeenCalledWith({ dc: 11n }));
   await screen.findByText("Success");
-  expect(api.previewEncounterStrikeAttempt).toHaveBeenCalledWith(
+  expect(api.previewEncounterStrikeContext).toHaveBeenCalledWith(
     "encounter",
-    expect.objectContaining({ judgments: [], target: null, confusion: null }),
+    expect.objectContaining({ target_key: null }),
   );
 });
 it("excludes the attacker from ordinary target selection", async () => {
@@ -123,10 +122,10 @@ it("excludes the attacker from ordinary target selection", async () => {
   expect(screen.queryByText("Attacker")).not.toBeInTheDocument();
   fireEvent.click(screen.getByText("Target creature"));
   await waitFor(() =>
-    expect(api.previewEncounterStrikeAttempt).toHaveBeenLastCalledWith(
+    expect(api.previewEncounterStrikeContext).toHaveBeenLastCalledWith(
       "encounter",
       expect.objectContaining({
-        target: expect.objectContaining({ participant_key: "target" }),
+        target_key: "target",
       }),
     ),
   );
@@ -137,13 +136,12 @@ it("does not ask for detection when only the untracked relationship is unknown",
     targeting_check: null,
     action: {
       issues: [],
-      confusion: null,
+      confused: false,
       disruption: null,
       targeting: {
         requires_guessed_location: false,
         prevents_effect: false,
-        required_facts: ["Choose how this observer detects the target."],
-        required_inputs: ["detection"],
+        check_senses: false,
       },
     },
   });
@@ -158,13 +156,12 @@ it("keeps the usable-senses reminder when a condition needs it", async () => {
     targeting_check: null,
     action: {
       issues: [],
-      confusion: null,
+      confused: false,
       disruption: null,
       targeting: {
         requires_guessed_location: false,
         prevents_effect: false,
-        required_facts: ["Confirm the usable precise sense."],
-        required_inputs: ["vision_only_precise", "detection"],
+        check_senses: true,
       },
     },
   });

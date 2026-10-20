@@ -85,17 +85,13 @@ impl AtlasAppService {
     }
 
     pub fn encounter(&self, encounter_ref: &str) -> AppServiceResult<EncounterDetailView> {
-        let (initial, relationships) = self.with_state(|session| {
+        let initial = self.with_state(|session| {
             let snapshot = session
                 .local_state()
                 .encounters()
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| encounter_not_found(encounter_ref))?;
-            let rows = session
-                .local_state()
-                .encounters()
-                .relationships(&snapshot.encounter.encounter_key)?;
-            Ok((snapshot, rows))
+            Ok(snapshot)
         })?;
         if !initial.participants.iter().any(|p| {
             p.record_key
@@ -107,7 +103,6 @@ impl AtlasAppService {
                 initial.participants,
                 None,
                 Default::default(),
-                relationships,
             ));
         }
         let encounter_ref = encounter_ref.to_owned();
@@ -119,15 +114,10 @@ impl AtlasAppService {
                     .encounters()
                     .get_with_participants(&encounter_ref)?
                     .ok_or_else(|| encounter_not_found(&encounter_ref))?;
-                let relationships = session
-                    .local_state()
-                    .encounters()
-                    .relationships(&detail.encounter.encounter_key)?;
                 encounter_detail_view(
                     session.retrieval_mut(),
                     detail.encounter,
                     detail.participants,
-                    relationships,
                 )
             },
         )

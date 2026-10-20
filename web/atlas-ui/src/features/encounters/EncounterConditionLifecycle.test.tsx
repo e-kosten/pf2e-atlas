@@ -8,7 +8,7 @@ import type {
 } from "../../generated/atlas";
 const api = vi.hoisted(() => ({
   getEncounterConditionLifecycleActions: vi.fn(),
-  previewEncounterAction: vi.fn(),
+  previewEncounterRetch: vi.fn(),
 }));
 vi.mock("../../api/atlasApi", () => api);
 const participant: EncounterParticipantView = {
@@ -175,7 +175,7 @@ it("rechecks source-specific action answers and keeps known prohibitions authori
     fact: "manipulate" as const,
     reason: "Does this use the affected action?",
   };
-  api.previewEncounterAction.mockImplementation(async (_ref, request) => ({
+  api.previewEncounterRetch.mockImplementation(async (_ref, request) => ({
     encounter_key: "encounter",
     participant_key: "actor",
     expected_revision: 4n,

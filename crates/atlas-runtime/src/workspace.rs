@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 17;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 8;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -41,53 +41,8 @@ const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 8,
-        name: "condition-context",
-        sql: atlas_local_state::CONDITION_CONTEXT_SCHEMA_SQL,
-    },
-    Migration {
-        version: 9,
-        name: "condition-immunity-override",
-        sql: atlas_local_state::CONDITION_IMMUNITY_OVERRIDE_SCHEMA_SQL,
-    },
-    Migration {
-        version: 10,
-        name: "condition-events",
-        sql: atlas_local_state::CONDITION_EVENTS_SCHEMA_SQL,
-    },
-    Migration {
-        version: 11,
-        name: "action-attempts",
-        sql: atlas_local_state::ACTION_ATTEMPTS_SCHEMA_SQL,
-    },
-    Migration {
-        version: 12,
-        name: "persistent-source-selections",
-        sql: atlas_local_state::PERSISTENT_SELECTIONS_SCHEMA_SQL,
-    },
-    Migration {
-        version: 13,
-        name: "encounter-boundaries",
-        sql: atlas_local_state::ENCOUNTER_BOUNDARIES_SCHEMA_SQL,
-    },
-    Migration {
-        version: 14,
-        name: "participant-facts",
-        sql: atlas_local_state::PARTICIPANT_FACTS_SCHEMA_SQL,
-    },
-    Migration {
-        version: 15,
-        name: "encounter-relationships",
-        sql: atlas_local_state::ENCOUNTER_RELATIONSHIPS_SCHEMA_SQL,
-    },
-    Migration {
-        version: 16,
-        name: "outgoing-turns",
-        sql: atlas_local_state::OUTGOING_TURNS_SCHEMA_SQL,
-    },
-    Migration {
-        version: 17,
-        name: "current-turn-notifications",
-        sql: atlas_local_state::TURN_NOTIFICATIONS_SCHEMA_SQL,
+        name: "condition-system",
+        sql: atlas_local_state::CONDITION_SYSTEM_SCHEMA_SQL,
     },
 ];
 
@@ -121,35 +76,6 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewEncounter, NewSavedList};
-
-    #[test]
-    fn turn_notification_migration_preserves_receipts_and_encounter_data() {
-        let directory = tempfile::tempdir().unwrap();
-        register_extensions().unwrap();
-        let workspace = Workspace::at(directory.path().join("atlas.sqlite")).unwrap();
-        let index = MIGRATIONS
-            .iter()
-            .position(|migration| migration.name == "current-turn-notifications")
-            .unwrap();
-        workspace.migrate(&MIGRATIONS[..index], |_| Ok(())).unwrap();
-        let write = workspace.write(MIGRATIONS[index - 1].version).unwrap();
-        write.connection().execute("INSERT INTO encounters(id,encounter_key,slug,name,note,status,created_at,updated_at) VALUES(1,'encounter','encounter','Encounter','Keep this note','draft','now','now')", []).unwrap();
-        write.connection().execute(r#"INSERT INTO encounter_outgoing_turns(encounter_id,boundary_key,request_id,intent_json,payload_json,handled_at_table,handled_request_id,handled_intent_json) VALUES(1,'turn','advance','{}','{"frozen":"context"}',1,'handled','{}')"#, []).unwrap();
-        write.commit().unwrap();
-        let upgraded = initialize_workspace(workspace.path()).unwrap();
-        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let row: (String, String, String) = read.connection().query_row("SELECT e.note,t.request_id,t.payload_json FROM encounters e JOIN encounter_outgoing_turns t ON t.encounter_id=e.id", [], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?))).unwrap();
-        assert_eq!(
-            row,
-            (
-                "Keep this note".into(),
-                "advance".into(),
-                r#"{"frozen":"context"}"#.into()
-            )
-        );
-        let retired: i64 = read.connection().query_row("SELECT count(*) FROM pragma_table_info('encounter_outgoing_turns') WHERE name LIKE 'handled_%'", [], |row| row.get(0)).unwrap();
-        assert_eq!(retired, 0);
-    }
 
     #[test]
     fn version_two_workspace_upgrade_preserves_saved_domains() {
@@ -254,46 +180,6 @@ mod tests {
     }
 
     #[test]
-    fn immunity_override_upgrade_preserves_notes_and_relative_scope() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("condition-inputs.sqlite");
-        register_extensions().unwrap();
-        let workspace = Workspace::at(&path).unwrap();
-        // Historical preview schema, intentionally before the override-intent migration.
-        let index = MIGRATIONS
-            .iter()
-            .position(|migration| migration.name == "condition-immunity-override")
-            .unwrap();
-        workspace.migrate(&MIGRATIONS[..index], |_| Ok(())).unwrap();
-        let write = workspace.write(MIGRATIONS[index - 1].version).unwrap();
-        write.connection().execute_batch(r#"
-            INSERT INTO encounters(id,encounter_key,slug,name,status,created_at,updated_at) VALUES(1,'e','e','Encounter','draft','before','before');
-            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,created_at,updated_at) VALUES(1,1,'p','creature',0,'Creature',0,'before','before');
-            INSERT INTO encounter_participant_conditions(participant_id,name,note,gm_override_reason,scope_json,created_at,updated_at) VALUES(1,'Unconscious','Existing note','GM exception','{"kind":"selected_opponents","participant_keys":["p"]}','before','before');
-        "#).unwrap();
-        write.commit().unwrap();
-        let upgraded = initialize_workspace(&path).unwrap();
-        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let detail = LocalStateRead::new(&read)
-            .encounters()
-            .get_with_participants("e")
-            .unwrap()
-            .unwrap();
-        let condition = &detail.participants[0].conditions[0];
-        assert!(condition.immunity_override);
-        assert_eq!(
-            condition.note.as_deref(),
-            Some("Existing note\nGM exception")
-        );
-        assert_eq!(
-            condition.scope,
-            atlas_local_state::ConditionScope::SelectedParticipants {
-                participant_keys: vec!["p".into()]
-            }
-        );
-    }
-
-    #[test]
     fn startup_can_initialize_current_workspace_during_publisher_preparation() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("atlas.sqlite");
@@ -372,7 +258,7 @@ mod tests {
         let workspace = Workspace::at(directory.path().join("main-upgrade.sqlite")).unwrap();
         let index = MIGRATIONS
             .iter()
-            .position(|migration| migration.name == "condition-context")
+            .position(|migration| migration.name == "condition-system")
             .unwrap();
         workspace.migrate(&MIGRATIONS[..index], |_| Ok(())).unwrap();
         let write = workspace.write(MIGRATIONS[index - 1].version).unwrap();
@@ -387,7 +273,8 @@ mod tests {
             )
             .unwrap();
         write.connection().execute_batch("INSERT INTO encounters(id,encounter_key,slug,name,status,note,created_at,updated_at) VALUES(1,'kept','kept','Kept encounter','running','Keep encounter note','before','before');
-            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,created_at,updated_at) VALUES(1,1,'pc','creature',0,'Kept PC',0,20,13,'before','before');
+            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,created_at,updated_at) VALUES(1,1,'pc','pc',0,'Kept PC',0,20,13,'before','before');
+            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,created_at,updated_at) VALUES(2,1,'creature','creature',1,'Kept creature',1,'before','before');
             INSERT INTO encounter_participant_conditions(participant_id,name,value,note,created_at,updated_at) VALUES(1,'Frightened',2,'Keep condition note','before','before');").unwrap();
         write.commit().unwrap();
         let upgraded = initialize_workspace(workspace.path()).unwrap();
@@ -409,5 +296,26 @@ mod tests {
         assert_eq!(condition.name, "Frightened");
         assert_eq!(condition.value, Some(2));
         assert_eq!(condition.note.as_deref(), Some("Keep condition note"));
+        assert!(participant.track_dying);
+        assert!(!detail.participants[1].track_dying);
+        assert_eq!(
+            participant.mortality,
+            atlas_local_state::MortalityState::Alive
+        );
+        assert_eq!(participant.base_death_threshold, 4);
+        assert_eq!(condition.scope, atlas_local_state::ConditionScope::Everyone);
+        assert_eq!(
+            condition.extra_action,
+            atlas_local_state::ConditionExtraAction::Unspecified
+        );
+        assert!(!condition.immunity_override);
+        assert_eq!(
+            condition.parameters,
+            atlas_local_state::ConditionParameters::None
+        );
+        let obsolete: i64 = read.connection().query_row("SELECT count(*) FROM sqlite_master WHERE name IN ('encounter_action_attempts','encounter_action_receipts','encounter_relationships')", [], |row| row.get(0)).unwrap();
+        assert_eq!(obsolete, 0);
+        let prototype_columns: i64 = read.connection().query_row("SELECT (SELECT count(*) FROM pragma_table_info('encounter_participant_conditions') WHERE name='gm_override_reason') + (SELECT count(*) FROM pragma_table_info('encounter_outgoing_turns') WHERE name LIKE 'handled_%')", [], |row| row.get(0)).unwrap();
+        assert_eq!(prototype_columns, 0);
     }
 }

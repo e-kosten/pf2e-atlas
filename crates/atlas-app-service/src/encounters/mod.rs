@@ -40,20 +40,11 @@ mod persistent_damage_resolution;
 #[cfg(test)]
 mod persistent_damage_tests;
 
-mod action_attempts;
-mod action_preview;
-mod strike_attempts;
+mod action_projection;
+mod casting_reminders;
+mod retch;
+mod strike_context;
 
 mod condition_recovery;
 
 pub(crate) use rules::attack_progression;
-
-mod relationship_views;
-mod relationships;
-
-mod detection_events;
-
-#[cfg(test)]
-mod relationship_tests;
-
-mod attitude_events;

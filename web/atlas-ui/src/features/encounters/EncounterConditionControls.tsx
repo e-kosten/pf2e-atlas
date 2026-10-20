@@ -655,7 +655,7 @@ export function EncounterConditionControls({
                 : undefined;
             const recovery = onRecoverPersistent ? (
               <EncounterPersistentRecovery
-                mode="assisted"
+                mode="explicit"
                 available={true}
                 group={group}
                 participantKey={current.participant_key}

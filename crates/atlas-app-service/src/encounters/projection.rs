@@ -21,7 +21,6 @@ pub(super) fn encounter_detail_view(
     retrieval: &mut atlas_search::AtlasRetrievalService,
     encounter: Encounter,
     participants: Vec<EncounterParticipant>,
-    relationships: Vec<atlas_local_state::DirectedRelationship>,
 ) -> AppServiceResult<EncounterDetailView> {
     let (artifact_generation, records_by_key) =
         hydrate_participant_records(retrieval, &participants)?;
@@ -30,7 +29,6 @@ pub(super) fn encounter_detail_view(
         participants,
         artifact_generation,
         records_by_key,
-        relationships,
     ))
 }
 
@@ -39,7 +37,6 @@ pub(super) fn encounter_detail_from_records(
     participants: Vec<EncounterParticipant>,
     artifact_generation: Option<String>,
     records_by_key: BTreeMap<String, super::hydration::HydratedParticipantRecord>,
-    relationships: Vec<atlas_local_state::DirectedRelationship>,
 ) -> EncounterDetailView {
     let participant_count = participants.len() as u32;
     let current_turn_participant_key = encounter.current_turn_participant_key.clone();
@@ -53,12 +50,7 @@ pub(super) fn encounter_detail_from_records(
         participants: participants
             .iter()
             .map(|participant| {
-                participant_view(
-                    participant.clone(),
-                    &records_by_key,
-                    &participants,
-                    &relationships,
-                )
+                participant_view(participant.clone(), &records_by_key, &participants)
             })
             .collect(),
     }
@@ -85,12 +77,10 @@ pub(super) fn participant_view(
     participant: EncounterParticipant,
     records_by_key: &BTreeMap<String, super::hydration::HydratedParticipantRecord>,
     participants: &[EncounterParticipant],
-    relationships: &[atlas_local_state::DirectedRelationship],
 ) -> EncounterParticipantView {
     let relationship_causes = super::rules::relationships::observer_defense_causes(
         &participant.participant_key,
         participants,
-        relationships,
     );
     let record_detail = participant
         .record_key
@@ -100,16 +90,9 @@ pub(super) fn participant_view(
     let stat_block = record_detail
         .and_then(|record| {
             record.arithmetic_baseline.as_ref().map(|baseline| {
-                let mut baseline = baseline.clone();
-                baseline.contextual_modifiers =
-                    super::rules::relationships::observer_defense_modifiers(
-                        &participant.participant_key,
-                        participants,
-                        relationships,
-                    );
                 project_participant(
                     &participant,
-                    &baseline,
+                    baseline,
                     record.adjustment_applicable,
                     &relationship_causes,
                 )
