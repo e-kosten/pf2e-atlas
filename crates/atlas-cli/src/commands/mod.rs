@@ -13,3 +13,5 @@ pub(crate) mod setup;
 pub(crate) mod similar;
 pub(crate) mod tags;
 pub(crate) mod web;
+
+pub(crate) mod traits;

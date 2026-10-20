@@ -1,10 +1,10 @@
+import { TraitBadge } from "./TraitBadge";
 import { RollTableReading } from "./RollTableReading";
 import { RecordRarity } from "./RecordRarity";
 import { SpellRankControl } from "./SpellRankControl";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import type { ReactNode } from "react";
-import { sentenceCase } from "../ui/labels";
-import { Button, Collapse, Tag } from "antd";
+import { Button, Collapse } from "antd";
 import type {
   PreparedContentFieldView,
   RecordNavigationView,
@@ -223,7 +223,7 @@ export function RecordIdentity({
         {identity.traits
           .filter((trait) => trait.kind !== "rarity")
           .map((trait) => (
-            <Tag key={`${trait.kind}-${trait.value}`}>{sentenceCase(trait.label)}</Tag>
+            <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
           ))}
       </div>
       {identity.publication?.trim() && <p className="muted">{identity.publication}</p>}

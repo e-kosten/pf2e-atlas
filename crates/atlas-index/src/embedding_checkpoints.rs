@@ -110,7 +110,7 @@ pub(crate) fn finish_reference_job(
     // Retain every exact active input, even if a caller did not touch its cache
     // row during this run. Abandoned inputs are pruned only after publication.
     connection.execute(
-        "DELETE FROM embedding_checkpoints AS c WHERE NOT EXISTS (SELECT 1 FROM semantic_units u JOIN search_profiles p ON p.profile_id=u.profile_id WHERE u.input_hash=c.input_hash AND u.input_token_count=c.token_count AND p.identity_json=c.model_identity AND p.dimensions=c.dimensions)",
+        "DELETE FROM embedding_checkpoints AS c WHERE NOT EXISTS (SELECT 1 FROM trait_vectors tv, json_each(tv.chunks_json) h JOIN search_profiles p ON p.profile_id=tv.profile_id WHERE json_extract(h.value,'$.input_hash')=c.input_hash AND p.identity_json=c.model_identity AND p.dimensions=c.dimensions) AND NOT EXISTS (SELECT 1 FROM semantic_units u JOIN search_profiles p ON p.profile_id=u.profile_id WHERE u.input_hash=c.input_hash AND u.input_token_count=c.token_count AND p.identity_json=c.model_identity AND p.dimensions=c.dimensions)",
         [],
     )?;
     connection.execute("DELETE FROM reference_update_jobs WHERE job_key<>?", [job])?;

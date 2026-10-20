@@ -29,11 +29,13 @@ pub fn prepare_source_content(
         <sha2::Sha256 as sha2::Digest>::digest(markup.as_bytes())
     );
     let parsed = parse_foundry_content_with_localization(markup, localization);
+    let resolve =
+        |target: &str| references.and_then(|resolver| resolver.resolve_reference(&locator, target));
     let mut projection = Projection {
-        locator: &locator,
+        origin: PreparationOrigin::Record(&locator),
         authored_hash: &authored_hash,
         audience,
-        resolver: references,
+        resolver: Some(&resolve),
         references: Vec::new(),
         interactions: Vec::new(),
         diagnostics: Vec::new(),
@@ -56,6 +58,45 @@ pub fn prepare_source_content(
     let text = super::text_projection::plain_text(&html)?;
     Ok(PreparedSourceContent {
         locator: locator.clone(),
+        interpretation_version: CONTENT_INTERPRETATION_VERSION.to_string(),
+        authored_markup_sha256: authored_hash.clone(),
+        html,
+        text,
+        references: projection.references,
+        interactions: projection.interactions,
+        diagnostics: projection.diagnostics,
+    })
+}
+
+/// Prepare a localization-backed definition using the same content interpreter as documents.
+/// The exact term identity binds reference markers without inventing a record locator.
+pub fn prepare_trait_definition(
+    key: atlas_domain::TraitKey,
+    markup: &str,
+    audience: ContentAudience,
+    localization: Option<&dyn LocalizationResolver>,
+    references: Option<&dyn Fn(&str) -> Option<super::ResolvedContentReference>>,
+) -> Result<super::PreparedTraitDefinition, html2text::Error> {
+    let authored_hash = format!(
+        "{:x}",
+        <sha2::Sha256 as sha2::Digest>::digest(markup.as_bytes())
+    );
+    let parsed = parse_foundry_content_with_localization(markup, localization);
+    let mut projection = Projection {
+        origin: PreparationOrigin::Trait(&key),
+        authored_hash: &authored_hash,
+        audience,
+        resolver: references,
+        references: Vec::new(),
+        interactions: Vec::new(),
+        diagnostics: Vec::new(),
+        block: String::new(),
+    };
+    let html = projection.nodes(&parsed.document.nodes, "", &[], true, false);
+    let html = sanitizer().clean(&html).to_string();
+    let text = super::text_projection::plain_text(&html)?;
+    Ok(super::PreparedTraitDefinition {
+        key: key.clone(),
         interpretation_version: CONTENT_INTERPRETATION_VERSION.to_string(),
         authored_markup_sha256: authored_hash.clone(),
         html,
@@ -91,17 +132,37 @@ fn escape(text: &str) -> String {
 }
 
 struct Projection<'a> {
-    locator: &'a SourceContentLocator,
+    origin: PreparationOrigin<'a>,
     authored_hash: &'a str,
     audience: ContentAudience,
-    resolver: Option<&'a dyn ContentReferenceResolver>,
+    resolver: Option<&'a dyn Fn(&str) -> Option<super::ResolvedContentReference>>,
     references: Vec<ContentReferenceOccurrence>,
     interactions: Vec<ContentInteraction>,
     diagnostics: Vec<ContentInterpretationDiagnostic>,
     block: String,
 }
 
+enum PreparationOrigin<'a> {
+    Record(&'a SourceContentLocator),
+    Trait(&'a atlas_domain::TraitKey),
+}
+
 impl Projection<'_> {
+    fn reference_binding(&self, ordinal: usize) -> String {
+        match self.origin {
+            PreparationOrigin::Record(locator) => super::marker_validation::reference_binding(
+                locator,
+                self.authored_hash,
+                &self.references[ordinal],
+            ),
+            PreparationOrigin::Trait(key) => super::marker_validation::trait_reference_binding(
+                key,
+                self.authored_hash,
+                &self.references[ordinal],
+            ),
+        }
+    }
+
     fn issue(&mut self, path: &str, code: ContentDiagnosticCode, detail: &str) {
         self.diagnostics.push(ContentInterpretationDiagnostic {
             path: path.to_string(),
@@ -202,11 +263,7 @@ impl Projection<'_> {
                         attributes.insert("data-atlas-reference".into(), Some(ordinal.to_string()));
                         attributes.insert(
                             "data-atlas-reference-binding".into(),
-                            Some(super::marker_validation::reference_binding(
-                                self.locator,
-                                self.authored_hash,
-                                &self.references[ordinal],
-                            )),
+                            Some(self.reference_binding(ordinal)),
                         );
                         if has_uuid {
                             // Product routes bind to the sidecar target at rendering.
@@ -306,15 +363,9 @@ impl Projection<'_> {
     }
 
     fn permits(&mut self, path: &str, value: &str) -> bool {
-        let rule = match value {
-            "all" => ContentVisibilityRule::All,
-            "gm" => ContentVisibilityRule::Gm,
-            "owner" => ContentVisibilityRule::Owner,
-            "none" => ContentVisibilityRule::None,
-            _ => {
-                self.issue(path, ContentDiagnosticCode::UnknownVisibility, value);
-                return false;
-            }
+        let Some(rule) = ContentVisibilityRule::from_source(value) else {
+            self.issue(path, ContentDiagnosticCode::UnknownVisibility, value);
+            return false;
         };
         self.audience.permits(rule)
     }
@@ -352,8 +403,7 @@ impl Projection<'_> {
         let resolved = if matches!(kind, ContentReferenceKind::HtmlLink) {
             None
         } else {
-            self.resolver
-                .and_then(|resolver| resolver.resolve_reference(self.locator, target))
+            self.resolver.and_then(|resolver| resolver(target))
         };
         let display = resolved
             .as_ref()
@@ -465,11 +515,7 @@ impl Projection<'_> {
             _ => String::new(),
         };
         let tag = if href.is_empty() { "span" } else { "a" };
-        let binding = super::marker_validation::reference_binding(
-            self.locator,
-            self.authored_hash,
-            &self.references[ordinal],
-        );
+        let binding = self.reference_binding(ordinal);
         format!(
             "<{tag}{href} data-atlas-reference=\"{ordinal}\" data-atlas-reference-binding=\"{binding}\">{label}</{tag}>"
         )

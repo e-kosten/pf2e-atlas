@@ -111,7 +111,16 @@ fn upgrade_plan(
         crate::input::LEXICAL_SELECTION_VERSION,
     )?;
     target.lexical_selection_version = crate::input::LEXICAL_SELECTION_VERSION.into();
-    let mut source_changed = false;
+    let mut source_changed = match target.trait_policy.as_str() {
+        "" => true,
+        "trait-definition-centroid/v1" => false,
+        other => {
+            return Err(IndexError::Unsupported(format!(
+                "unsupported trait policy {other}"
+            )));
+        }
+    };
+    target.trait_policy = "trait-definition-centroid/v1".into();
     for (stored, current) in [
         (
             &mut target.lookup_version,

@@ -1,3 +1,4 @@
+import { generateTraitDefinitionModule } from './trait-definitions.js';
 import type { GraphField, GraphNode } from '../contracts.js';
 import { validateInput, type GenerationInput } from './generation-input.js';
 import { generateTraitLabelModule } from './trait-labels.js';
@@ -675,6 +676,10 @@ ${openTraitArrays.size ? '// Explicit trait-array policies keep identifiers as s
   if (input.traitLabelKeys) {
     files['trait_labels.rs'] = generateTraitLabelModule(input.traitLabelKeys, generatedHeader + '\n// Pinned source digest: ' + input.source.source_digest);
     files['mod.rs'] += '\nmod trait_labels;\npub use trait_labels::trait_label_key;\n';
+  }
+  if (input.traitDefinitions) {
+    files['trait_definitions.rs'] = generateTraitDefinitionModule(input.traitDefinitions, generatedHeader + '\n// Pinned source digest: ' + input.source.source_digest);
+    files['mod.rs'] += '\nmod trait_definitions;\npub use trait_definitions::{FoundryTraitDefinition, FoundryTraitSourceLocation, trait_definitions, trait_definition};\n';
   }
   return files;
 }

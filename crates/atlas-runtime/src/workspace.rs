@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 7;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 8;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -38,6 +38,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 7,
         name: "encounter-parties",
         sql: atlas_local_state::PARTIES_SCHEMA_SQL,
+    },
+    Migration {
+        version: 8,
+        name: "trait-vocabulary",
+        sql: atlas_index::TRAIT_SCHEMA_SQL,
     },
 ];
 

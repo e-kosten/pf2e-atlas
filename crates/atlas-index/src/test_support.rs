@@ -6,7 +6,7 @@ use crate::{
 use atlas_storage::{Migration, Workspace};
 use std::path::Path;
 
-pub const TEST_WORKSPACE_SCHEMA_VERSION: u32 = 7;
+pub const TEST_WORKSPACE_SCHEMA_VERSION: u32 = 8;
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
         .map_err(|e| IndexError::Operation(e.to_string()))?;
@@ -48,6 +48,11 @@ pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexEr
                 name: "encounter-parties",
                 sql: atlas_local_state::PARTIES_SCHEMA_SQL,
             },
+            Migration {
+                version: 8,
+                name: "trait-vocabulary",
+                sql: crate::TRAIT_SCHEMA_SQL,
+            },
         ],
         |_| Ok(()),
     )?;
@@ -64,6 +69,36 @@ pub fn publish_input(
 ) -> Result<ArtifactValidationReport, IndexError> {
     let workspace = initialize_workspace(path)?;
     let owner = workspace.update_owner()?;
+    if !input.trait_vectors.is_empty() {
+        let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION)?;
+        for seed in &input.trait_vectors {
+            let model = input.context.search_profile(&seed.profile_id)?;
+            let spec = atlas_embedding::search_profile(&seed.profile_id)
+                .map_err(|e| IndexError::Invalid(e.to_string()))?
+                .model_spec();
+            let inputs = seed
+                .chunks
+                .iter()
+                .map(|chunk| atlas_embedding::PreparedEmbeddingInput {
+                    address: chunk.address.clone(),
+                    input: chunk.input.clone(),
+                    input_sha256: chunk.input_hash.clone(),
+                    reuse_key: spec.document_reuse_key(&chunk.input),
+                    token_count: chunk.token_count,
+                    body_token_count: chunk.token_count,
+                    overlap_token_count: 0,
+                    context_shortened: false,
+                })
+                .collect::<Vec<_>>();
+            let values = inputs
+                .iter()
+                .zip(&seed.chunks)
+                .map(|(input, chunk)| (input, chunk.vector.as_slice()))
+                .collect::<Vec<_>>();
+            crate::save_embedding_checkpoints(&write, "fixture", model, &values)?;
+        }
+        write.commit()?;
+    }
     let maintenance = owner.maintenance(TEST_WORKSPACE_SCHEMA_VERSION, "test publication")?;
     SqliteIndexWriter::new(&maintenance).write(input)
 }

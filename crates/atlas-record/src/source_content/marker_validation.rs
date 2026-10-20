@@ -18,6 +18,23 @@ pub(super) fn reference_binding(
     authored_hash: &str,
     reference: &ContentReferenceOccurrence,
 ) -> String {
+    reference_binding_origin(Some(locator), None, authored_hash, reference)
+}
+
+pub(super) fn trait_reference_binding(
+    key: &atlas_domain::TraitKey,
+    authored_hash: &str,
+    reference: &ContentReferenceOccurrence,
+) -> String {
+    reference_binding_origin(None, Some(key), authored_hash, reference)
+}
+
+fn reference_binding_origin(
+    locator: Option<&SourceContentLocator>,
+    trait_key: Option<&atlas_domain::TraitKey>,
+    authored_hash: &str,
+    reference: &ContentReferenceOccurrence,
+) -> String {
     fn text(h: &mut Sha256, s: &str) {
         h.update((s.len() as u64).to_be_bytes());
         h.update(s.as_bytes());
@@ -39,10 +56,16 @@ pub(super) fn reference_binding(
         }
     }
     let mut hash = Sha256::new();
-    text(&mut hash, "atlas-reference-binding/v2");
-    text(&mut hash, &locator.record.to_string());
-    owners(&mut hash, &locator.owners);
-    text(&mut hash, &locator.field);
+    if let Some(locator) = locator {
+        text(&mut hash, "atlas-reference-binding/v2");
+        text(&mut hash, &locator.record.to_string());
+        owners(&mut hash, &locator.owners);
+        text(&mut hash, &locator.field);
+    } else if let Some(key) = trait_key {
+        text(&mut hash, "atlas-trait-reference-binding/v1");
+        text(&mut hash, &key.to_string());
+    }
+
     text(&mut hash, authored_hash);
     text(&mut hash, &reference.ordinal.to_string());
     text(&mut hash, &reference.path);
@@ -163,6 +186,27 @@ pub fn validate_prepared_reference_bindings(
     authored_hash: &str,
     references: &[ContentReferenceOccurrence],
 ) -> Result<(), PreparedMarkerError> {
+    validate_reference_bindings(html, references, |reference| {
+        reference_binding(locator, authored_hash, reference)
+    })
+}
+
+pub fn validate_prepared_trait_reference_bindings(
+    html: &str,
+    key: &atlas_domain::TraitKey,
+    authored_hash: &str,
+    references: &[ContentReferenceOccurrence],
+) -> Result<(), PreparedMarkerError> {
+    validate_reference_bindings(html, references, |reference| {
+        trait_reference_binding(key, authored_hash, reference)
+    })
+}
+
+fn validate_reference_bindings(
+    html: &str,
+    references: &[ContentReferenceOccurrence],
+    binding: impl Fn(&ContentReferenceOccurrence) -> String,
+) -> Result<(), PreparedMarkerError> {
     let mut markers = reference_markers(&Html::parse_fragment(html))?;
     let mut seen = BTreeSet::new();
     for reference in references.iter().filter(|r| r.visible) {
@@ -174,7 +218,7 @@ pub fn validate_prepared_reference_bindings(
         let marker = markers
             .remove(&reference.ordinal)
             .ok_or_else(|| PreparedMarkerError("visible reference sidecar has no marker".into()))?;
-        if marker.0 != reference_binding(locator, authored_hash, reference) {
+        if marker.0 != binding(reference) {
             return Err(PreparedMarkerError(
                 "reference marker and visible sidecar binding disagree".into(),
             ));

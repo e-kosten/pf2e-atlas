@@ -1,3 +1,4 @@
+import type { TraitDefinition } from './trait-definitions.js';
 import type { GraphField, GraphNode, SourceIdentity, TypeGraph } from '../contracts.js';
 
 export interface GenerationRoot {
@@ -6,6 +7,7 @@ export interface GenerationRoot {
 }
 export interface GenerationInput {
   referenceSource?: { repository: string; commit: string; systemVersion: string };
+  traitDefinitions?: TraitDefinition[];
   traitLabelKeys?: Record<string, string>;
   source: SourceIdentity; selection: GenerationRoot[]; nodes: GraphNode[]; openTraitArrays?: string[];
   portfolio?: { typescript: string; schemaRoots: TypeGraph['roots']; families: NonNullable<TypeGraph['portfolio']>['families'] };

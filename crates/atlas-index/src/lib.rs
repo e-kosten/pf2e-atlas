@@ -80,3 +80,9 @@ pub use writer::{IndexArtifactWriter, SqliteIndexWriter};
 mod lexical_projection;
 pub use lexical_projection::project_lexical_units;
 pub use schema::LEXICAL_ALIAS_SCHEMA_SQL;
+
+mod traits;
+pub use traits::{
+    TRAIT_SCHEMA_SQL, TraitDefinition, TraitMembership, TraitReference, TraitReferenceInput,
+    TraitSeedChunk, TraitSourceLocation, TraitVectorInput,
+};

@@ -1099,3 +1099,63 @@ fn direct_preparation_rejects_incompatible_system_but_developer_loading_remains_
     );
     assert!(!fixture.options().output_path.exists());
 }
+
+#[test]
+fn trait_vocabulary_is_localized_persisted_and_keeps_exact_variants() {
+    let fixture = Fixture::new();
+    fs::write(fixture.0.join("static/lang/en.json"),r#"{"PF2E.TraitAgile":"Agile","PF2E.TraitDescriptionAgile":"<p>English definition.</p><script>bad()</script>","PF2E.TraitDescriptionDeadly":"<p>Shared exact authored definition.</p>","PF2E.TraitDeadlyD8":"Deadly d8","PF2E.TraitDeadlyD12":"Deadly d12"}"#).unwrap();
+    fs::write(
+        fixture.0.join("static/lang/fr.json"),
+        r#"{"PF2E.TraitAgile":"Agile traduit"}"#,
+    )
+    .unwrap();
+    let mut options = fixture.options();
+    options.locale = "fr".into();
+    let report = build_artifact(options).unwrap();
+    fs::remove_dir_all(fixture.0.join("packs")).unwrap();
+    fs::remove_dir_all(fixture.0.join("static")).unwrap();
+    let reader = atlas_index::test_support::open_reader(&report.output_path).unwrap();
+    let agile = reader
+        .trait_definition(&atlas_domain::TraitKey::new("agile").unwrap())
+        .unwrap()
+        .unwrap();
+    assert_eq!(agile.label, "Agile traduit");
+    assert!(
+        agile
+            .description_html
+            .as_ref()
+            .unwrap()
+            .contains("English definition.")
+    );
+    assert!(!agile.description_html.as_ref().unwrap().contains("script"));
+    let d8 = reader
+        .trait_definition(&atlas_domain::TraitKey::new("deadly-d8").unwrap())
+        .unwrap()
+        .unwrap();
+    let d12 = reader
+        .trait_definition(&atlas_domain::TraitKey::new("deadly-d12").unwrap())
+        .unwrap()
+        .unwrap();
+    assert_ne!(d8.key, d12.key);
+    assert_eq!(d8.description_html, d12.description_html);
+    let amp = reader
+        .trait_definition(&atlas_domain::TraitKey::new("amp").unwrap())
+        .unwrap()
+        .unwrap();
+    assert!(amp.description_html.is_none());
+    assert!(
+        reader
+            .trait_definition(&atlas_domain::TraitKey::new("common").unwrap())
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(
+        reader
+            .workspace_session()
+            .connection()
+            .query_row("SELECT count(*) FROM trait_definitions", [], |r| r
+                .get::<_, usize>(0))
+            .unwrap(),
+        atlas_foundry_model::generated::trait_definitions().len()
+    );
+}

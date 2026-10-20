@@ -85,6 +85,9 @@ pub(crate) fn apply_spell_rank(
         .flatten()
         .map(|t| RecordBadgeView {
             kind: "trait".into(),
+            trait_key: atlas_domain::TraitKey::new(t.clone())
+                .ok()
+                .map(|key| key.to_string()),
             value: t.clone(),
             label: retrieval.trait_label(t).unwrap_or(t).into(),
         })
@@ -471,6 +474,9 @@ fn selected_identity(
             .flatten()
             .map(|t| RecordBadgeView {
                 kind: "trait".into(),
+                trait_key: atlas_domain::TraitKey::new(t.clone())
+                    .ok()
+                    .map(|key| key.to_string()),
                 value: t.clone(),
                 label: retrieval.trait_label(t).unwrap_or(t).into(),
             })
