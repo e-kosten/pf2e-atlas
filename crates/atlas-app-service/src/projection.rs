@@ -98,6 +98,17 @@ pub(crate) fn coverage_view(coverage: SearchCoverage) -> SearchCoverageView {
     }
 }
 pub(crate) fn kind_label(value: &str) -> String {
+    // These source document/family tokens are finite upstream names, not product IDs.
+    // Preserve the display boundary while keeping canonical kind/source tokens exact.
+    let value = match value {
+        "campaignFeature" => "campaign_feature",
+        "TableResult" => "table_result",
+        "JournalEntryPage" => "journal_entry_page",
+        "JournalEntry" => "journal_entry",
+        "RollTable" => "roll_table",
+        "pdf" => return "PDF".into(),
+        _ => value,
+    };
     value
         .split('_')
         .map(|part| {
