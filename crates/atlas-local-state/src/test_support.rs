@@ -18,15 +18,7 @@ impl TestStore {
             conn.execute_batch(LOCAL_STATE_SCHEMA_SQL)?;
             conn.execute_batch(ENCOUNTER_STATUS_SCHEMA_SQL)?;
             conn.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
-            conn.execute_batch(CONDITION_CONTEXT_SCHEMA_SQL)?;
-            conn.execute_batch(CONDITION_IMMUNITY_OVERRIDE_SCHEMA_SQL)?;
-            conn.execute_batch(CONDITION_EVENTS_SCHEMA_SQL)?;
-            conn.execute_batch(PERSISTENT_SELECTIONS_SCHEMA_SQL)?;
-            conn.execute_batch(ACTION_ATTEMPTS_SCHEMA_SQL)?;
-            conn.execute_batch(ENCOUNTER_BOUNDARIES_SCHEMA_SQL)?;
-            conn.execute_batch(PARTICIPANT_FACTS_SCHEMA_SQL)?;
-            conn.execute_batch(ENCOUNTER_RELATIONSHIPS_SCHEMA_SQL)?;
-            conn.execute_batch(OUTGOING_TURNS_SCHEMA_SQL)?;
+            conn.execute_batch(CONDITION_SYSTEM_SCHEMA_SQL)?;
         }
         Ok(store)
     }
@@ -133,10 +125,6 @@ impl TestSavedLists<'_> {
 }
 pub(crate) struct TestEncounters<'a>(&'a TestStore);
 impl TestEncounters<'_> {
-    pub fn relationships(&self, key: &str) -> LocalStateResult<Vec<DirectedRelationship>> {
-        let connection = self.0.connection()?;
-        EncountersRead::from_connection(&connection).relationships(key)
-    }
     pub fn apply_condition_event(
         &self,
         key: &str,
@@ -445,15 +433,7 @@ mod tests {
         connection.execute_batch(LOCAL_STATE_SCHEMA_SQL)?;
         connection.execute_batch(ENCOUNTER_STATUS_SCHEMA_SQL)?;
         connection.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
-        connection.execute_batch(CONDITION_CONTEXT_SCHEMA_SQL)?;
-        connection.execute_batch(CONDITION_IMMUNITY_OVERRIDE_SCHEMA_SQL)?;
-        connection.execute_batch(CONDITION_EVENTS_SCHEMA_SQL)?;
-        connection.execute_batch(ACTION_ATTEMPTS_SCHEMA_SQL)?;
-        connection.execute_batch(PERSISTENT_SELECTIONS_SCHEMA_SQL)?;
-        connection.execute_batch(ENCOUNTER_BOUNDARIES_SCHEMA_SQL)?;
-        connection.execute_batch(PARTICIPANT_FACTS_SCHEMA_SQL)?;
-        connection.execute_batch(ENCOUNTER_RELATIONSHIPS_SCHEMA_SQL)?;
-        connection.execute_batch(OUTGOING_TURNS_SCHEMA_SQL)?;
+        connection.execute_batch(CONDITION_SYSTEM_SCHEMA_SQL)?;
         Ok(connection)
     }
 

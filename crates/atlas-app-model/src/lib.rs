@@ -1,45 +1,17 @@
 #![deny(unsafe_code)]
 pub use dice::{FlatCheckRollView, RollFlatCheckRequest};
-mod encounter_relationship;
-pub use encounter_relationship::{
-    ApplyEncounterDetectionEventRequest, DetectionCheckOutcomeView, DetectionEventView,
-};
-pub use encounter_relationship::{
-    AttitudeStateView, DetectionStateView, EncounterRelationshipView, EncounterRelationshipsView,
-    RelationshipCandidateView, RelationshipKnowledgeView, RelationshipPropertyView,
-    RelationshipProvenanceView, RelationshipValueView, SetEncounterRelationshipRequest,
-};
-pub use encounter_relationship::{
-    EncounterRequestContextView, EncounterRequestOutcomeView, EncounterRequestRequirementsView,
-};
-pub use encounter_relationship::{RelationshipLayerView, WorsenEncounterAttitudeRequest};
 mod encounter_action;
-pub use encounter_action::EncounterQuickenedUseView;
-pub use encounter_action::EncounterTargetRequiredInputView;
-pub use encounter_action::{
-    BeginEncounterStrikeAttemptRequest, EncounterStrikeAttemptPreviewView,
-    EncounterStrikeAttemptView, EncounterStrikeAttemptsView, PreviewEncounterStrikeAttemptRequest,
-};
-pub use encounter_action::{
-    EncounterActionKindView, EncounterActionPreviewView, EncounterActionTargetView,
-    EncounterTargetModeView, EncounterTargetingRequirementsView, PreviewEncounterActionRequest,
-};
 pub use encounter_action::{EncounterConfusionContextView, EncounterConfusionRequirementsView};
 pub use encounter_action::{
-    EncounterForcedMovementContextView, EncounterForcedMovementOutcomeView,
-    EncounterForcedMovementRequirementsView, EncounterPerceptionBasisView,
-    EncounterProneCoverContextView, EncounterProneCoverRequirementsView,
-    EncounterSensoryContextView, EncounterSensoryRequirementsView,
+    EncounterRetchPreviewRequest, EncounterRetchPreviewView, EncounterStrikeActionContextView,
+    EncounterTargetingRequirementsView,
 };
-mod casting_attempt;
-pub use casting_attempt::{
-    AbandonEncounterActionAttemptRequest, BeginEncounterCastingAttemptRequest,
-    CastingResourceCostView, EncounterActionAttemptStatusView, EncounterActionCheckInputView,
-    EncounterActionCheckResultView, EncounterActionCheckSourceView, EncounterActionCheckView,
-    EncounterActionFactView, EncounterActionIssueKindView, EncounterActionIssueView,
-    EncounterActionJudgmentView, EncounterActionMutationView, EncounterCastingAttemptView,
-    EncounterCastingAttemptsView, EncounterCastingPreviewView,
-    PreviewEncounterCastingAttemptRequest, ResolveEncounterActionCheckRequest,
+pub use encounter_action::{EncounterStrikeContextRequest, EncounterStrikeContextView};
+mod action_context;
+pub use action_context::{
+    EncounterActionCheckSourceView, EncounterActionCheckView, EncounterActionFactView,
+    EncounterActionIssueKindView, EncounterActionIssueView, EncounterActionJudgmentView,
+    EncounterCastingRemindersRequest, EncounterCastingRemindersView,
 };
 mod persistent_damage;
 pub use persistent_damage::{
@@ -48,8 +20,8 @@ pub use persistent_damage::{
 };
 pub use persistent_damage::{
     PersistentDamageGroupView, PersistentDamageSourceView, PersistentEpisodeReviewView,
-    PersistentRecoveryInput, PersistentRecoveryMode, PersistentRecoveryResultView,
-    PersistentReviewView, RecoverPersistentDamageRequest,
+    PersistentRecoveryMode, PersistentRecoveryResultView, PersistentReviewView,
+    RecoverPersistentDamageRequest,
 };
 mod hp_events;
 pub use hp_events::{
@@ -230,21 +202,13 @@ mod tests {
     }
 
     fn export_bindings_to(path: &Path) {
-        PreviewEncounterStrikeAttemptRequest::export_all_to(path)
-            .expect("strike attempt preview request");
-        BeginEncounterStrikeAttemptRequest::export_all_to(path)
-            .expect("strike attempt begin request");
+        EncounterStrikeContextRequest::export_all_to(path).expect("strike attempt preview request");
         FlatCheckRollView::export_all_to(path).expect("flat check result");
         RollFlatCheckRequest::export_all_to(path).expect("flat check request");
-        EncounterStrikeAttemptPreviewView::export_all_to(path).expect("strike attempt preview");
-        EncounterStrikeAttemptsView::export_all_to(path).expect("strike attempts");
-        PreviewEncounterActionRequest::export_all_to(path).expect("action request bindings");
-        WorsenEncounterAttitudeRequest::export_all_to(path).expect("attitude event bindings");
-        ApplyEncounterDetectionEventRequest::export_all_to(path).expect("detection event bindings");
-        EncounterRelationshipsView::export_all_to(path).expect("relationship bindings");
-        SetEncounterRelationshipRequest::export_all_to(path)
-            .expect("relationship request bindings");
-        EncounterActionPreviewView::export_all_to(path).expect("action preview bindings");
+        EncounterStrikeContextView::export_all_to(path).expect("strike attempt preview");
+        EncounterRetchPreviewView::export_all_to(path).expect("retch decisions");
+        EncounterRetchPreviewRequest::export_all_to(path).expect("action request bindings");
+        EncounterStrikeActionContextView::export_all_to(path).expect("action preview bindings");
         ConditionLifecycleActionsView::export_all_to(path).expect("lifecycle actions bindings");
         ApplyConditionLifecycleRequest::export_all_to(path).expect("lifecycle request bindings");
         ConditionLifecycleResultView::export_all_to(path).expect("lifecycle result bindings");
@@ -284,16 +248,9 @@ mod tests {
         EncounterTurnReviewView::export_all_to(path).expect("turn review bindings");
         AdvanceEncounterTurnRequest::export_all_to(path).expect("turn advance bindings");
         ApplyEncounterSpellActionRequest::export_all_to(path).expect("spell action bindings");
-        PreviewEncounterCastingAttemptRequest::export_all_to(path)
-            .expect("casting preview bindings");
-        BeginEncounterCastingAttemptRequest::export_all_to(path).expect("casting begin bindings");
-        ResolveEncounterActionCheckRequest::export_all_to(path).expect("casting check bindings");
-        AbandonEncounterActionAttemptRequest::export_all_to(path)
-            .expect("casting abandon bindings");
-        EncounterCastingPreviewView::export_all_to(path)
+        EncounterCastingRemindersRequest::export_all_to(path).expect("casting preview bindings");
+        EncounterCastingRemindersView::export_all_to(path)
             .expect("casting preview response bindings");
-        EncounterCastingAttemptsView::export_all_to(path).expect("saved casting attempts bindings");
-        EncounterActionMutationView::export_all_to(path).expect("casting mutation bindings");
         ApplyEncounterHpActionRequest::export_all_to(path).expect("HP action bindings");
         EmbeddedReadingRequest::export_all_to(path).expect("owned reading request bindings");
         EmbeddedReadingBatchView::export_all_to(path).expect("owned reading response bindings");

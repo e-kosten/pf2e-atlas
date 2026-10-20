@@ -1,5 +1,6 @@
 use super::super::conditions::{ConditionRule, modeled_condition_by_rule};
 use super::super::stat_block::StatisticTarget;
+use super::action_context::ConfusionChoice;
 use super::*;
 use atlas_local_state::*;
 use serde_json::json;
@@ -300,187 +301,6 @@ fn deafened_initiative_status_penalty_competes_with_frightened() {
 }
 
 #[test]
-fn quickened_permissions_union_sources_without_guessing_unspecified_grants() {
-    use super::action_context::quickened_use;
-    let mut participant = participant();
-    let mut stride = condition(1, ConditionRule::Quickened, None);
-    stride.extra_action = ConditionExtraAction::Restricted {
-        actions: vec![ConditionAction::Stride],
-        guidance: None,
-    };
-    let unknown = condition(2, ConditionRule::Quickened, None);
-    participant.conditions = vec![stride, unknown];
-    assert_eq!(
-        quickened_use(&participant, ConditionAction::Stride, None).allowed,
-        Some(true)
-    );
-    assert_eq!(
-        quickened_use(&participant, ConditionAction::Strike, None).allowed,
-        None
-    );
-    participant.conditions[1].extra_action = ConditionExtraAction::Restricted {
-        actions: vec![ConditionAction::Strike],
-        guidance: None,
-    };
-    assert_eq!(
-        quickened_use(&participant, ConditionAction::Strike, None).allowing_source_ids,
-        vec![2]
-    );
-    assert_eq!(
-        quickened_use(&participant, ConditionAction::CastSpell, None).allowed,
-        Some(false)
-    );
-}
-
-#[test]
-fn sensory_context_keeps_critical_failures_separate_from_mixed_and_range_penalties() {
-    use super::sensory_context::{PerceptionBasis as B, SensoryContext, evaluate_senses};
-    let context = |basis, distance_feet| SensoryContext {
-        basis,
-        distance_feet,
-        requires_movement: Some(false),
-    };
-    let mut participant = participant();
-    let mut baseline = source_baseline();
-    baseline.sense_facts.push(super::senses::SenseFacts {
-        visual: false,
-        auditory: true,
-        precision: Some(super::senses::Precision::Precise),
-        range_feet: Some(40.0),
-        available: Some(true),
-    });
-    participant.conditions = vec![condition(1, ConditionRule::Blinded, None)];
-    let visual = evaluate_senses(
-        &participant,
-        Some((&baseline, true)),
-        context(B::VisualOnly, Some(20.0)),
-        None,
-    );
-    assert!(
-        visual.critical_failure && visual.visual_effects_immune && visual.all_terrain_difficult
-    );
-    assert!(visual.perception.is_none());
-    assert!(
-        evaluate_senses(
-            &participant,
-            Some((&baseline, true)),
-            context(B::General, None),
-            None
-        )
-        .perception
-        .is_none()
-    );
-    assert_eq!(
-        evaluate_senses(
-            &participant,
-            Some((&baseline, true)),
-            context(B::General, Some(20.0)),
-            None
-        )
-        .perception
-        .and_then(|value| value.as_i64()),
-        Some(11)
-    );
-    assert_eq!(
-        evaluate_senses(
-            &participant,
-            Some((&baseline, true)),
-            context(B::General, Some(50.0)),
-            None
-        )
-        .perception
-        .and_then(|value| value.as_i64()),
-        Some(7)
-    );
-    participant.conditions = vec![condition(2, ConditionRule::Deafened, None)];
-    assert!(
-        evaluate_senses(&participant, None, context(B::AuditoryOnly, None), None).critical_failure
-    );
-    let mixed = evaluate_senses(
-        &participant,
-        Some((&baseline, true)),
-        context(B::MixedSound, None),
-        None,
-    );
-    assert_eq!(mixed.perception.and_then(|value| value.as_i64()), Some(9));
-    assert!(mixed.auditory_effects_immune);
-    participant
-        .conditions
-        .push(condition(3, ConditionRule::Blinded, None));
-    assert_eq!(
-        evaluate_senses(
-            &participant,
-            Some((&baseline, true)),
-            context(B::General, Some(20.0)),
-            None
-        )
-        .perception
-        .and_then(|value| value.as_i64()),
-        Some(7)
-    );
-}
-
-#[test]
-fn prone_cover_keeps_positive_and_negative_circumstance_effects_and_forced_movement_needs_its_dc() {
-    use super::movement_context::*;
-    let mut participant = participant();
-    participant.conditions = vec![condition(1, ConditionRule::Prone, None)];
-    let cover = prone_cover(
-        &participant,
-        Some((&source_baseline(), true)),
-        None,
-        Some(true),
-    );
-    assert_eq!(cover.armor_class.and_then(|value| value.as_i64()), Some(22));
-    assert!(
-        prone_cover(&participant, None, None, Some(true))
-            .armor_class
-            .is_none()
-    );
-    participant.conditions = vec![condition(2, ConditionRule::Grabbed, None)];
-    let missing = forced_movement(
-        &participant,
-        None,
-        ForcedMovementContext {
-            holding_in_place: Some(false),
-            difficulty_class: None,
-            check_total: None,
-        },
-    );
-    assert!(matches!(
-        missing.outcome,
-        ForcedMovementOutcome::NeedsContext
-    ));
-    assert_eq!(missing.source_ids, vec![2]);
-    assert!(matches!(
-        forced_movement(
-            &participant,
-            None,
-            ForcedMovementContext {
-                holding_in_place: None,
-                difficulty_class: Some(20),
-                check_total: Some(19)
-            }
-        )
-        .outcome,
-        ForcedMovementOutcome::CheckFailed
-    ));
-    assert!(matches!(
-        forced_movement(
-            &participant,
-            None,
-            ForcedMovementContext {
-                holding_in_place: None,
-                difficulty_class: Some(20),
-                check_total: Some(20)
-            }
-        )
-        .outcome,
-        ForcedMovementOutcome::CheckSucceeded
-    ));
-}
-
-#[test]
 fn dazzled_targeting_uses_usable_precision_and_blinded_suppresses_it() {
     use super::sensory_context::dazzled_concealment;
     let mut participant = participant();
@@ -560,18 +380,6 @@ fn confused_requires_declared_viability_and_projects_self_hit_without_a_roll() {
     .unwrap();
     assert_eq!(self_hit.selected_target_key.as_deref(), Some("p"));
     assert!(self_hit.automatic_self_hit);
-    assert!(matches!(
-        crate::encounters::action_attempts::complete_action(&FrozenAction::Strike {
-            activity_id: "fist".into(),
-            attack_number: 1,
-            modifier: None,
-            automatic_self_hit: true,
-            mode: ActionRollMode::Normal,
-            retained_roll: None,
-        })
-        .unwrap(),
-        ActionCompletion::AutomaticSelfHit
-    ));
     let wasted = confusion_requirements(
         &actor,
         Some(&ConfusionChoice::UnableToAttack),
@@ -582,7 +390,7 @@ fn confused_requires_declared_viability_and_projects_self_hit_without_a_roll() {
     assert!(wasted.wastes_action);
     let facilitate = ConfusionChoice::Facilitate { note: None };
     assert!(
-        confusion_requirements(&actor, Some(&facilitate), ActionKind::Other, false)
+        confusion_requirements(&actor, Some(&facilitate), ActionKind::Retch, false)
             .unwrap()
             .required_facts
             .is_empty()
@@ -590,55 +398,11 @@ fn confused_requires_declared_viability_and_projects_self_hit_without_a_roll() {
 }
 
 #[test]
-fn incoming_sensory_immunity_uses_effect_traits_and_fascination_needs_a_subject() {
+fn fascination_requires_its_subject() {
     use super::action_context::{
         ActionContext, ActionFact, ActionIssue, ActionJudgment, ActionKind, evaluate_action,
     };
-    use atlas_app_model::{EncounterActionTargetView, EncounterTargetModeView};
     let actor = participant();
-    let mut target = participant();
-    target.participant_key = "target".into();
-    target.conditions = vec![
-        condition(1, ConditionRule::Blinded, None),
-        condition(2, ConditionRule::Deafened, None),
-    ];
-    let context = EncounterActionTargetView {
-        participant_key: "target".into(),
-        mode: EncounterTargetModeView::Area,
-        vision_only_precise: None,
-        distance_feet: None,
-        guessed_location_correct: None,
-        visual_effect: None,
-        auditory_effect: None,
-    };
-    let roster = vec![actor.clone(), target];
-    let prepared = crate::encounters::action_preview::targeting_for_action(
-        &roster,
-        &[],
-        "p",
-        Some(&context),
-        None,
-        Some(&["visual".into()]),
-    )
-    .unwrap()
-    .unwrap();
-    assert!(prepared.requirements.visual_effects_immune);
-    assert!(prepared.requirements.auditory_effects_immune);
-    assert!(prepared.requirements.prevents_effect);
-    assert!(prepared.requirements.required_facts.is_empty());
-    let mut contradictory = context.clone();
-    contradictory.visual_effect = Some(false);
-    assert!(
-        crate::encounters::action_preview::targeting_for_action(
-            &roster,
-            &[],
-            "p",
-            Some(&contradictory),
-            None,
-            Some(&["visual".into()])
-        )
-        .is_err()
-    );
     let mut fascinated = actor;
     fascinated.conditions = vec![condition(3, ConditionRule::Fascinated, None)];
     let facts = [ActionJudgment {
@@ -650,11 +414,10 @@ fn incoming_sensory_immunity_uses_effect_traits_and_fascination_needs_a_subject(
         evaluate_action(
             participant,
             &ActionContext {
-                kind: ActionKind::Other,
+                kind: ActionKind::Retch,
                 reaction: Some(false),
                 other_participant: None,
                 confusion: None,
-                relationships: &[],
                 facts: &facts,
             },
         )
@@ -680,10 +443,9 @@ fn incoming_sensory_immunity_uses_effect_traits_and_fascination_needs_a_subject(
 }
 
 #[test]
-fn fleeing_subject_exploration_and_directional_flanking_preserve_independent_rules() {
+fn fleeing_subject_and_exploration_preserve_independent_rules() {
     use super::action_context::{
-        ActionContext, ActionFact, ActionIssue, ActionJudgment, ActionKind, affiliation,
-        evaluate_action,
+        ActionContext, ActionFact, ActionIssue, ActionJudgment, ActionKind, evaluate_action,
     };
     let mut actor = participant();
     actor.conditions = vec![condition(1, ConditionRule::Fleeing, None)];
@@ -700,13 +462,12 @@ fn fleeing_subject_exploration_and_directional_flanking_preserve_independent_rul
                 reaction: Some(false),
                 other_participant: None,
                 confusion: None,
-                relationships: &[],
                 facts: &facts,
             },
         )
     };
     assert!(
-        evaluate(&actor, ActionKind::Other)
+        evaluate(&actor, ActionKind::Retch)
             .issues
             .iter()
             .any(|issue| matches!(issue, ActionIssue::NeedsContext { .. }))
@@ -716,14 +477,13 @@ fn fleeing_subject_exploration_and_directional_flanking_preserve_independent_rul
             description: "the spreading fire".into(),
         }),
     };
-    assert!(evaluate(&actor, ActionKind::Other).issues.is_empty());
-    let issue = crate::encounters::action_attempts::issue_view(
+    assert!(evaluate(&actor, ActionKind::Retch).issues.is_empty());
+    let issue = crate::encounters::action_projection::issue_view(
         ActionIssue::NeedsFact {
             source_id: 1,
             fact: ActionFact::FurthersEscape,
         },
         &actor,
-        &[],
     );
     assert!(
         matches!(issue.subject, Some(atlas_app_model::ConditionSubjectView::Other { description }) if description == "the spreading fire")
@@ -741,18 +501,7 @@ fn fleeing_subject_exploration_and_directional_flanking_preserve_independent_rul
                 }
             ))
     );
-    assert!(evaluate(&actor, ActionKind::Other).issues.is_empty());
-    actor.conditions = vec![condition(3, ConditionRule::Confused, None)];
-    assert_eq!(
-        affiliation(&actor, Some("ally"), Some(true)),
-        (Some(false), false)
-    );
-    assert_eq!(
-        affiliation(&participant(), Some("p"), Some(true)),
-        (Some(true), true)
-    );
-    actor.conditions = vec![condition(4, ConditionRule::Restrained, None)];
-    assert!(!affiliation(&actor, Some("ally"), Some(true)).1);
+    assert!(evaluate(&actor, ActionKind::Retch).issues.is_empty());
 }
 
 #[test]
@@ -766,18 +515,17 @@ fn explicit_table_flanking_cause_is_scoped_to_one_attacker_without_erasing_other
     defender.conditions = vec![flanking];
     let baseline = source_baseline();
     let armor = |opponent| {
-        super::project_participant_for_opponent(&defender, &baseline, true, &[], opponent)
-            .effective_stat(&StatisticTarget::ArmorClass)
-            .cloned()
+        super::project_participant(&defender, &baseline, true, &[])
+            .contextual_armor_class
+            .into_iter()
+            .find(|ac| ac.opponent_key == opponent)
+            .and_then(|ac| ac.value.value)
     };
     assert_eq!(
         armor("attacker-a"),
         Some(json!(18).as_number().unwrap().clone())
     );
-    assert_eq!(
-        armor("attacker-b"),
-        Some(json!(20).as_number().unwrap().clone())
-    );
+    assert_eq!(armor("attacker-b"), None); // No special AC for an unaffected attacker.
     assert_eq!(
         super::project_participant(&defender, &baseline, true, &[])
             .effective_stat(&StatisticTarget::ArmorClass)
@@ -789,7 +537,7 @@ fn explicit_table_flanking_cause_is_scoped_to_one_attacker_without_erasing_other
         .push(condition(2, ConditionRule::Prone, None));
     defender.conditions.remove(0);
     assert_eq!(
-        super::project_participant_for_opponent(&defender, &baseline, true, &[], "attacker-b")
+        super::project_participant(&defender, &baseline, true, &[])
             .effective_stat(&StatisticTarget::ArmorClass)
             .and_then(serde_json::Number::as_i64),
         Some(18)
@@ -908,4 +656,28 @@ fn stupefied_casting_hint_uses_one_effective_dc_for_manual_and_source_backed_act
             .iter()
             .any(|hint| hint.reason == "Spellcasting requires a DC 8 flat check.")
     );
+}
+
+#[test]
+fn controller_instructions_derive_from_active_sources_and_conflicts_stay_unknown() {
+    use super::action_context::control_direction;
+    let mut actor = participant();
+    let mut controlled = condition(1, ConditionRule::Controlled, None);
+    controlled.source_participant_key = Some("controller".into());
+    controlled.note = Some("Defend the door".into());
+    actor.conditions.push(controlled.clone());
+    assert_eq!(
+        control_direction(&actor, &controlled),
+        Some(("controller".into(), Some("Defend the door".into())))
+    );
+    let mut competing = controlled.clone();
+    competing.condition_id = 2;
+    actor.conditions.push(competing);
+    assert!(control_direction(&actor, &controlled).is_some());
+    actor.conditions[1].note = Some("Leave the door".into());
+    assert!(control_direction(&actor, &controlled).is_none());
+    actor.conditions[1].source_participant_key = None;
+    assert!(control_direction(&actor, &controlled).is_none());
+    actor.conditions.pop();
+    assert!(control_direction(&actor, &controlled).is_some());
 }

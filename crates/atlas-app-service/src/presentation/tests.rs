@@ -885,7 +885,6 @@ fn encounter_save_adjustments_restore_an_omitted_legacy_hazard_block() {
             senses_known: false,
             senses: vec![],
             sense_facts: vec![],
-            contextual_modifiers: vec![],
             contextual_armor_class: vec![],
             record_key: detail.record.record_key.clone(),
             title: "Haunt".into(),

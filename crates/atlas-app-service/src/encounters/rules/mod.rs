@@ -5,7 +5,6 @@ mod projection;
 pub(in crate::encounters) mod senses;
 pub(super) use projection::{
     effective_hp_maximum, participant_runtime_block, project_initiative, project_participant,
-    project_participant_for_opponent,
 };
 mod applicability;
 pub(super) use applicability::{
@@ -39,5 +38,3 @@ pub(super) mod lifecycle;
 pub(crate) use modifiers::attack_progression;
 
 pub(in crate::encounters) mod sensory_context;
-
-pub(in crate::encounters) mod movement_context;

@@ -4,14 +4,6 @@ use thiserror::Error;
 pub enum LocalStateError {
     #[error("This encounter boundary has already been processed")]
     EncounterBoundaryConflict,
-    #[error(
-        "casting attempt `{attempt_key}` changed: expected revision {expected_revision}, actual revision {actual_revision}"
-    )]
-    StaleActionAttemptRevision {
-        attempt_key: String,
-        expected_revision: i64,
-        actual_revision: i64,
-    },
     #[error("Party not found: {0}")]
     PartyNotFound(String),
     #[error("Party changed. Reopen it to review the current members.")]

@@ -14,7 +14,7 @@ import {
 import { Minus, Plus, Settings2 } from "lucide-react";
 import type { CastingAnnotations } from "../../shared/records/ActorReference";
 import { useQuery } from "@tanstack/react-query";
-import { previewEncounterCastingAttempt } from "../../api/atlasApi";
+import { encounterCastingReminders } from "../../api/atlasApi";
 import { spellResourceCount, spellResourceExhausted } from "./spellResourceDisplay";
 import { useRef, useState, type ReactNode } from "react";
 import type {
@@ -174,12 +174,9 @@ function SpellCastingReminders({
       ),
     ],
     queryFn: () =>
-      previewEncounterCastingAttempt(encounterRef, {
+      encounterCastingReminders(encounterRef, {
         participant_key: participant.participant_key,
         selection,
-        judgments: [],
-        target: null,
-        confusion: null,
       }),
     retry: false,
   });

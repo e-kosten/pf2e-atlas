@@ -358,7 +358,6 @@ it("retains single and grouped rolls until the next turn begins", async () => {
         mode: "end_turn",
         episode_id: "fire",
         selected_source_id: 1n,
-        outcome: { kind: "roll" },
         dc_override: null,
       },
     });

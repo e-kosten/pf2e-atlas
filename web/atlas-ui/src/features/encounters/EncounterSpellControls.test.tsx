@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { previewEncounterCastingAttempt } from "../../api/atlasApi";
+import { encounterCastingReminders } from "../../api/atlasApi";
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
-  previewEncounterCastingAttempt: vi.fn(),
+  encounterCastingReminders: vi.fn(),
 }));
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { App } from "antd";
@@ -363,34 +363,10 @@ it("retries unavailable reminders without disabling direct Cast and renders only
       ranks: [{ rank: 3, resource_key: "rank3", unavailable_reason: null }],
     },
   ];
-  vi.mocked(previewEncounterCastingAttempt)
+  vi.mocked(encounterCastingReminders)
     .mockRejectedValueOnce(new Error("Unavailable"))
     .mockResolvedValueOnce({
-      encounter_key: "encounter",
-      participant_key: "caster",
-      expected_encounter_revision: 1n,
-      expected_participant_revision: 7n,
-      artifact_generation: "g1",
-      spell_title: "Fireball",
-      rank: 3,
-      cost: null,
-      confusion: null,
-      disruption: null,
-      pending_attempt_key: null,
-      targeting: null,
       advisories: [{ source: "condition", label: "Check", reason: "DC 8 flat check" }],
-      issues: [
-        {
-          kind: "needs_context",
-          reason: "Choose target geometry",
-          subject: null,
-          source_condition_id: 1n,
-          condition_name: "Example",
-          controller_key: null,
-          instructions: null,
-          fact: null,
-        },
-      ],
     });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const view = render(
@@ -430,19 +406,7 @@ it("retains exact-spell reminders through revision refresh and shows errors with
       ranks: [{ rank: 3, resource_key: "rank3", unavailable_reason: null }],
     },
   ];
-  const initial: Awaited<ReturnType<typeof previewEncounterCastingAttempt>> = {
-    encounter_key: "encounter",
-    participant_key: participant.participant_key,
-    expected_encounter_revision: 1n,
-    expected_participant_revision: participant.revision,
-    artifact_generation: detail.artifact_generation,
-    spell_title: "Fireball",
-    rank: 3,
-    cost: null,
-    confusion: null,
-    disruption: null,
-    pending_attempt_key: null,
-    targeting: null,
+  const initial: Awaited<ReturnType<typeof encounterCastingReminders>> = {
     advisories: [
       {
         source: "condition",
@@ -450,10 +414,9 @@ it("retains exact-spell reminders through revision refresh and shows errors with
         reason: "DC 6 flat check or the spell is disrupted",
       },
     ],
-    issues: [],
   };
   let reject: (reason: Error) => void = () => {};
-  vi.mocked(previewEncounterCastingAttempt)
+  vi.mocked(encounterCastingReminders)
     .mockReset()
     .mockResolvedValueOnce(initial)
     .mockImplementationOnce(
@@ -482,7 +445,7 @@ it("retains exact-spell reminders through revision refresh and shows errors with
   const label = "Stupefied · DC 6 flat check or the spell is disrupted";
   const reminder = await screen.findByText(label);
   rerender(view({ ...participant, revision: participant.revision + 1n }));
-  await waitFor(() => expect(previewEncounterCastingAttempt).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(encounterCastingReminders).toHaveBeenCalledTimes(2));
   expect(screen.getByText(label)).toBe(reminder);
   await act(async () => reject(new Error("Unavailable")));
   expect(await screen.findByText("Reminders unavailable")).toBeVisible();
@@ -507,25 +470,12 @@ it.each(["participant", "selection", "generation"])(
       ranks: [{ rank: 3, resource_key: "rank3", unavailable_reason: null }],
     };
     participant.spellcasting!.spells = [spell];
-    const initial: Awaited<ReturnType<typeof previewEncounterCastingAttempt>> = {
-      encounter_key: "encounter",
-      participant_key: participant.participant_key,
-      expected_encounter_revision: 1n,
-      expected_participant_revision: participant.revision,
-      artifact_generation: detail.artifact_generation,
-      spell_title: "Fireball",
-      rank: 3,
-      cost: null,
-      confusion: null,
-      disruption: null,
-      pending_attempt_key: null,
-      targeting: null,
+    const initial: Awaited<ReturnType<typeof encounterCastingReminders>> = {
       advisories: [
         { source: "condition", label: "Old", reason: "Old participant reminder" },
       ],
-      issues: [],
     };
-    vi.mocked(previewEncounterCastingAttempt)
+    vi.mocked(encounterCastingReminders)
       .mockReset()
       .mockResolvedValueOnce(initial)
       .mockImplementationOnce(() => new Promise(() => {}));

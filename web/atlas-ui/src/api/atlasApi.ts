@@ -356,87 +356,32 @@ export async function previewEncounterCondition(
   );
 }
 
-function castingCost<T extends { cost: { before: bigint; after: bigint } | null }>(
-  value: T,
-): T {
+function actionCheck(
+  value: import("../generated/atlas").EncounterActionCheckView,
+): import("../generated/atlas").EncounterActionCheckView {
   return {
     ...value,
-    cost:
-      value.cost === null
-        ? null
-        : {
-            ...value.cost,
-            before: toBigInt(value.cost.before),
-            after: toBigInt(value.cost.after),
-          },
-  };
-}
-function actionCheck<
-  T extends { dc: bigint; sources: Array<{ condition_id: bigint }> },
->(value: T): T {
-  return {
-    ...value,
-    dc: value.dc === null ? null : toBigInt(value.dc),
+    dc: toBigInt(value.dc),
     sources: value.sources.map((source) => ({
       ...source,
       condition_id: toBigInt(source.condition_id),
     })),
   };
 }
-function targetingRequirements<
-  T extends { flat_check_dc: bigint | null; source_ids: bigint[] },
->(value: T): T {
-  return {
-    ...value,
-    flat_check_dc: value.flat_check_dc === null ? null : toBigInt(value.flat_check_dc),
-    source_ids: value.source_ids.map(toBigInt),
-  };
-}
-function castingDisruption<
-  T extends {
-    disruption: { dc: bigint; sources: Array<{ condition_id: bigint }> } | null;
-  },
->(value: T): T {
-  return {
-    ...value,
-    disruption:
-      value.disruption === null
-        ? null
-        : {
-            ...value.disruption,
-            dc: toBigInt(value.disruption.dc),
-            sources: value.disruption.sources.map((source) => ({
-              ...source,
-              condition_id: toBigInt(source.condition_id),
-            })),
-          },
-  };
-}
-export async function previewEncounterCastingAttempt(
+
+export async function encounterCastingReminders(
   encounterRef: string,
-  request: import("../generated/atlas").PreviewEncounterCastingAttemptRequest,
-): Promise<import("../generated/atlas").EncounterCastingPreviewView> {
-  const value = await atlasFetch<
-    import("../generated/atlas").EncounterCastingPreviewView
-  >(`/api/encounters/${encodeURIComponent(encounterRef)}/casting-attempts/preview`, {
-    method: "POST",
-    body: jsonBody(request),
-  });
-  return {
-    ...castingCost(castingDisruption(value)),
-    confusion:
-      value.confusion === null
-        ? null
-        : { ...value.confusion, source_ids: value.confusion.source_ids.map(toBigInt) },
-    targeting: value.targeting === null ? null : targetingRequirements(value.targeting),
-    expected_encounter_revision: toBigInt(value.expected_encounter_revision),
-    expected_participant_revision: toBigInt(value.expected_participant_revision),
-    issues: value.issues.map((issue) => ({
-      ...issue,
-      source_condition_id: toBigInt(issue.source_condition_id),
-    })),
-  };
+  request: import("../generated/atlas").EncounterCastingRemindersRequest,
+): Promise<import("../generated/atlas").EncounterCastingRemindersView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/casting-reminders`,
+    {
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
 }
+
 export async function getEncounterConditionConsequences(
   encounterRef: string,
 ): Promise<import("../generated/atlas").PendingConditionConsequenceView[]> {
@@ -479,7 +424,6 @@ function persistentRecoveryResult(
   return {
     ...value,
     dc: value.dc === null ? null : toBigInt(value.dc),
-    table_result: value.table_result === null ? null : toBigInt(value.table_result),
   };
 }
 export async function getEncounterPersistentReview(
@@ -523,144 +467,26 @@ export async function recoverEncounterPersistentDamage(
   return persistentRecoveryResult(result);
 }
 
-function relationshipProvenance(
-  value: import("../generated/atlas").RelationshipProvenanceView,
-): import("../generated/atlas").RelationshipProvenanceView {
-  return value.kind === "sources"
-    ? { ...value, condition_ids: value.condition_ids.map(toBigInt) }
-    : value.kind === "source"
-      ? {
-          ...value,
-          condition_id:
-            value.condition_id === null ? null : toBigInt(value.condition_id),
-        }
-      : value;
-}
-function relationshipKnowledge(
-  value: import("../generated/atlas").RelationshipKnowledgeView,
-): import("../generated/atlas").RelationshipKnowledgeView {
-  switch (value.kind) {
-    case "known":
-      return { ...value, provenance: relationshipProvenance(value.provenance) };
-    case "invalidated":
-      return { ...value, prior_source: relationshipProvenance(value.prior_source) };
-    case "conflicting":
-      return {
-        ...value,
-        candidates: value.candidates.map((candidate) => ({
-          ...candidate,
-          provenance: relationshipProvenance(candidate.provenance),
-        })),
-      };
-    case "unknown":
-      return value;
-  }
-}
-export async function getEncounterRelationships(
-  encounterRef: string,
-  subjectKey: string,
-  otherKey: string,
-): Promise<import("../generated/atlas").EncounterRelationshipsView> {
-  const value = await atlasFetch<
-    import("../generated/atlas").EncounterRelationshipsView
-  >(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/relationships?subject_key=${encodeURIComponent(subjectKey)}&other_key=${encodeURIComponent(otherKey)}`,
-  );
+function actionPreview(
+  value: import("../generated/atlas").EncounterStrikeActionContextView,
+): import("../generated/atlas").EncounterStrikeActionContextView {
   return {
     ...value,
-    expected_revision: toBigInt(value.expected_revision),
-    relationships: value.relationships.map((row) => ({
-      ...row,
-      knowledge: relationshipKnowledge(row.knowledge),
-      baseline: row.baseline === null ? null : relationshipKnowledge(row.baseline),
-      adjudication:
-        row.adjudication === null ? null : relationshipKnowledge(row.adjudication),
-      source_condition_ids: row.source_condition_ids.map(toBigInt),
-    })),
-  };
-}
-export function applyEncounterDetectionEvent(
-  encounterRef: string,
-  request: import("../generated/atlas").ApplyEncounterDetectionEventRequest,
-): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/detection-events`,
-    { method: "POST", body: jsonBody(request) },
-  );
-}
-export function worsenEncounterAttitude(
-  encounterRef: string,
-  request: import("../generated/atlas").WorsenEncounterAttitudeRequest,
-): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/attitude-events`,
-    { method: "POST", body: jsonBody(request) },
-  );
-}
-export function setEncounterRelationship(
-  encounterRef: string,
-  request: import("../generated/atlas").SetEncounterRelationshipRequest,
-): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/relationships`,
-    { method: "PUT", body: jsonBody(request) },
-  );
-}
-
-function actionPreview(
-  value: import("../generated/atlas").EncounterActionPreviewView,
-): import("../generated/atlas").EncounterActionPreviewView {
-  return {
-    ...castingDisruption(value),
-    confusion:
-      value.confusion === null
-        ? null
-        : { ...value.confusion, source_ids: value.confusion.source_ids.map(toBigInt) },
-    expected_revision: toBigInt(value.expected_revision),
-    quickened_use:
-      value.quickened_use === null
-        ? null
-        : {
-            ...value.quickened_use,
-            allowing_source_ids: value.quickened_use.allowing_source_ids.map(toBigInt),
-            unknown_source_ids: value.quickened_use.unknown_source_ids.map(toBigInt),
-          },
-    forced_movement:
-      value.forced_movement === null
-        ? null
-        : {
-            ...value.forced_movement,
-            difficulty_class:
-              value.forced_movement.difficulty_class === null
-                ? null
-                : toBigInt(value.forced_movement.difficulty_class),
-            source_ids: value.forced_movement.source_ids.map(toBigInt),
-          },
-    expected_participant_revision: toBigInt(value.expected_participant_revision),
     issues: value.issues.map((issue) => ({
       ...issue,
       source_condition_id: toBigInt(issue.source_condition_id),
     })),
-    targeting:
-      value.targeting === null
-        ? null
-        : {
-            ...value.targeting,
-            flat_check_dc:
-              value.targeting.flat_check_dc === null
-                ? null
-                : toBigInt(value.targeting.flat_check_dc),
-            source_ids: value.targeting.source_ids.map(toBigInt),
-          },
+    disruption: value.disruption === null ? null : actionCheck(value.disruption),
   };
 }
-export async function previewEncounterStrikeAttempt(
+
+export async function previewEncounterStrikeContext(
   encounterRef: string,
-  request: import("../generated/atlas").PreviewEncounterStrikeAttemptRequest,
-): Promise<import("../generated/atlas").EncounterStrikeAttemptPreviewView> {
+  request: import("../generated/atlas").EncounterStrikeContextRequest,
+): Promise<import("../generated/atlas").EncounterStrikeContextView> {
   const value = await atlasFetch<
-    import("../generated/atlas").EncounterStrikeAttemptPreviewView
-  >(`/api/encounters/${encodeURIComponent(encounterRef)}/strike-attempts/preview`, {
+    import("../generated/atlas").EncounterStrikeContextView
+  >(`/api/encounters/${encodeURIComponent(encounterRef)}/strike-context`, {
     method: "POST",
     body: jsonBody(request),
   });
@@ -674,69 +500,32 @@ export async function previewEncounterStrikeAttempt(
       ),
     },
     action: actionPreview(value.action),
+    targeting_check:
+      value.targeting_check === null ? null : actionCheck(value.targeting_check),
   };
-}
-export async function getEncounterStrikeAttempts(
-  encounterRef: string,
-): Promise<import("../generated/atlas").EncounterStrikeAttemptsView> {
-  const value = await atlasFetch<
-    import("../generated/atlas").EncounterStrikeAttemptsView
-  >(`/api/encounters/${encodeURIComponent(encounterRef)}/strike-attempts`);
-  return {
-    ...value,
-    attempts: value.attempts.map((attempt) => ({
-      ...attempt,
-      revision: toBigInt(attempt.revision),
-      checks: attempt.checks.map(actionCheck),
-      pending_check:
-        attempt.pending_check === null ? null : actionCheck(attempt.pending_check),
-      outcomes: attempt.outcomes.map((outcome) => ({
-        ...outcome,
-        table_result:
-          outcome.table_result === null ? null : toBigInt(outcome.table_result),
-      })),
-    })),
-  };
-}
-export function beginEncounterStrikeAttempt(
-  encounterRef: string,
-  request: import("../generated/atlas").BeginEncounterStrikeAttemptRequest,
-): Promise<import("../generated/atlas").EncounterActionMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/strike-attempts`,
-    { method: "POST", body: jsonBody(request) },
-  );
-}
-export function resolveEncounterActionCheck(
-  encounterRef: string,
-  request: import("../generated/atlas").ResolveEncounterActionCheckRequest,
-): Promise<import("../generated/atlas").EncounterActionMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/action-attempts/check`,
-    { method: "POST", body: jsonBody(request) },
-  );
-}
-export function abandonEncounterActionAttempt(
-  encounterRef: string,
-  request: import("../generated/atlas").AbandonEncounterActionAttemptRequest,
-): Promise<import("../generated/atlas").EncounterActionMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/action-attempts/abandon`,
-    { method: "POST", body: jsonBody(request) },
-  );
 }
 
-export async function previewEncounterAction(
+export async function previewEncounterRetch(
   encounterRef: string,
-  request: import("../generated/atlas").PreviewEncounterActionRequest,
-): Promise<import("../generated/atlas").EncounterActionPreviewView> {
+  request: import("../generated/atlas").EncounterRetchPreviewRequest,
+): Promise<import("../generated/atlas").EncounterRetchPreviewView> {
   const value = await atlasFetch<
-    import("../generated/atlas").EncounterActionPreviewView
-  >(`/api/encounters/${encodeURIComponent(encounterRef)}/actions/preview`, {
+    import("../generated/atlas").EncounterRetchPreviewView
+  >(`/api/encounters/${encodeURIComponent(encounterRef)}/retch/preview`, {
     method: "POST",
     body: jsonBody(request),
   });
-  return actionPreview(value);
+  return {
+    ...value,
+    issues: value.issues.map((issue) => ({
+      ...issue,
+      source_condition_id: toBigInt(issue.source_condition_id),
+    })),
+    confusion:
+      value.confusion === null
+        ? null
+        : { ...value.confusion, source_ids: value.confusion.source_ids.map(toBigInt) },
+  };
 }
 
 export async function getEncounterConditionLifecycleActions(

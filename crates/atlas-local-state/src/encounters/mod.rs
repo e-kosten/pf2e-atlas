@@ -1,11 +1,5 @@
 mod outgoing_turns;
 pub use outgoing_turns::SavedOutgoingTurn;
-mod relationships;
-pub use relationships::{
-    AttitudeState, DetectionState, DirectedRelationship, RelationshipCandidate, RelationshipChange,
-    RelationshipKnowledge, RelationshipLayer, RelationshipProperty, RelationshipProvenance,
-    RelationshipSourceSnapshot, RelationshipValue,
-};
 mod persistent_selections;
 pub use persistent_selections::PersistentSourceSelection;
 mod event_model;
@@ -53,13 +47,3 @@ pub use service::{EncountersRead, EncountersWrite};
 mod tests;
 
 mod spell_resources;
-
-mod attempt_model;
-mod attempts;
-pub use attempt_model::{
-    ActionAttemptReceipt, ActionAttemptStatus, ActionCheckResult, ActionCheckSource,
-    ActionCheckStage, ActionCompletion, ActionFactKind, ActionRollMode, ActionTargetMode,
-    ConfusionChoice, FrozenAction, FrozenActionCheck, FrozenActionContext, FrozenActionJudgment,
-    FrozenActionTarget, PreparedActionAttempt, RetainedStrikeRoll, SavedActionAttempt,
-    SpellResourceCost,
-};

@@ -32,12 +32,6 @@ pub(in crate::encounters) fn project_conditions(
             }
         })
         .chain(additional.iter().filter_map(|cause| cause.against))
-        .chain(
-            block
-                .contextual_modifiers
-                .iter()
-                .map(|effect| effect.against.as_str()),
-        )
         .collect();
     let contextual = opponents
         .into_iter()
@@ -65,20 +59,6 @@ fn project_for_opponent(
     opponent: Option<&str>,
     additional: &[super::causes::ScopedConditionCause<'_>],
 ) -> StatBlockView {
-    for effect in block
-        .contextual_modifiers
-        .clone()
-        .into_iter()
-        .filter(|effect| opponent == Some(effect.against.as_str()))
-    {
-        if let Some(value) = block
-            .values
-            .iter_mut()
-            .find(|value| value.target == effect.target)
-        {
-            apply(value, effect.modifier);
-        }
-    }
     if let Some(note) = stupefied_hint(participant, opponent) {
         block.unapplied_effects.push(note);
     }
@@ -555,7 +535,6 @@ pub(in crate::encounters) fn participant_runtime_block(p: &EncounterParticipant)
         senses: vec![],
         sense_facts: vec![],
         senses_known: false,
-        contextual_modifiers: vec![],
         contextual_armor_class: vec![],
         speeds: vec![],
         action_budget: Some(super::capabilities::action_budget(p)),
@@ -759,22 +738,6 @@ pub(in crate::encounters) fn project_participant(
         additional,
     )
 }
-/// A numerical consumer evaluates a known opponent without reading projected DTOs.
-pub(in crate::encounters) fn project_participant_for_opponent(
-    participant: &EncounterParticipant,
-    baseline: &StatBlockView,
-    adjustment_applicable: bool,
-    additional: &[super::causes::ScopedConditionCause<'_>],
-    opponent: &str,
-) -> StatBlockView {
-    project_for_opponent(
-        prepare_participant(participant, baseline, adjustment_applicable),
-        participant,
-        Some(opponent),
-        additional,
-    )
-}
-
 /// Saved maximum HP is the pre-condition capacity; source/variant setup already
 /// established it. Reads never charge Drained's current-HP consequence.
 pub(in crate::encounters) fn effective_hp_maximum(

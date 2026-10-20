@@ -281,70 +281,21 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: RollInitiativeRequest,
     ) -> Result<InitiativeRollView, AppServiceError>;
 
-    fn apply_encounter_detection_event(
+    fn preview_encounter_retch(
         &self,
         encounter_ref: &str,
-        request: atlas_app_model::ApplyEncounterDetectionEventRequest,
-    ) -> Result<EncounterMutationView, AppServiceError>;
-    fn worsen_encounter_attitude(
+        request: atlas_app_model::EncounterRetchPreviewRequest,
+    ) -> Result<atlas_app_model::EncounterRetchPreviewView, AppServiceError>;
+    fn preview_encounter_strike_context(
         &self,
         encounter_ref: &str,
-        request: atlas_app_model::WorsenEncounterAttitudeRequest,
-    ) -> Result<EncounterMutationView, AppServiceError>;
-    fn encounter_relationships(
+        request: atlas_app_model::EncounterStrikeContextRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeContextView, AppServiceError>;
+    fn encounter_casting_reminders(
         &self,
         encounter_ref: &str,
-        subject_key: &str,
-        other_key: &str,
-    ) -> Result<atlas_app_model::EncounterRelationshipsView, AppServiceError>;
-    fn set_encounter_relationship(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::SetEncounterRelationshipRequest,
-    ) -> Result<EncounterMutationView, AppServiceError>;
-    fn preview_encounter_action(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::PreviewEncounterActionRequest,
-    ) -> Result<atlas_app_model::EncounterActionPreviewView, AppServiceError>;
-    fn preview_encounter_strike_attempt(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::PreviewEncounterStrikeAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterStrikeAttemptPreviewView, AppServiceError>;
-    fn preview_encounter_casting_attempt(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::PreviewEncounterCastingAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterCastingPreviewView, AppServiceError>;
-    fn begin_encounter_strike_attempt(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::BeginEncounterStrikeAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError>;
-    fn begin_encounter_casting_attempt(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::BeginEncounterCastingAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError>;
-    fn resolve_encounter_action_check(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::ResolveEncounterActionCheckRequest,
-    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError>;
-    fn abandon_encounter_action_attempt(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::AbandonEncounterActionAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError>;
-    fn encounter_strike_attempts(
-        &self,
-        encounter_ref: &str,
-    ) -> Result<atlas_app_model::EncounterStrikeAttemptsView, AppServiceError>;
-    fn encounter_casting_attempts(
-        &self,
-        encounter_ref: &str,
-    ) -> Result<atlas_app_model::EncounterCastingAttemptsView, AppServiceError>;
+        request: atlas_app_model::EncounterCastingRemindersRequest,
+    ) -> Result<atlas_app_model::EncounterCastingRemindersView, AppServiceError>;
     fn apply_encounter_spell_action(
         &self,
         encounter_ref: &str,
@@ -769,95 +720,26 @@ impl AtlasWebService for AtlasAppService {
         self.roll_encounter_initiative(encounter_ref, request)
     }
 
-    fn apply_encounter_detection_event(
+    fn preview_encounter_retch(
         &self,
         encounter_ref: &str,
-        request: atlas_app_model::ApplyEncounterDetectionEventRequest,
-    ) -> Result<EncounterMutationView, AppServiceError> {
-        self.apply_encounter_detection_event(encounter_ref, request)
+        request: atlas_app_model::EncounterRetchPreviewRequest,
+    ) -> Result<atlas_app_model::EncounterRetchPreviewView, AppServiceError> {
+        self.preview_encounter_retch(encounter_ref, request)
     }
-    fn worsen_encounter_attitude(
+    fn preview_encounter_strike_context(
         &self,
         encounter_ref: &str,
-        request: atlas_app_model::WorsenEncounterAttitudeRequest,
-    ) -> Result<EncounterMutationView, AppServiceError> {
-        self.worsen_encounter_attitude(encounter_ref, request)
+        request: atlas_app_model::EncounterStrikeContextRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeContextView, AppServiceError> {
+        self.preview_encounter_strike_context(encounter_ref, request)
     }
-    fn encounter_relationships(
+    fn encounter_casting_reminders(
         &self,
         encounter_ref: &str,
-        subject_key: &str,
-        other_key: &str,
-    ) -> Result<atlas_app_model::EncounterRelationshipsView, AppServiceError> {
-        self.encounter_relationships(encounter_ref, subject_key, other_key)
-    }
-    fn set_encounter_relationship(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::SetEncounterRelationshipRequest,
-    ) -> Result<EncounterMutationView, AppServiceError> {
-        self.set_encounter_relationship(encounter_ref, request)
-    }
-    fn preview_encounter_action(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::PreviewEncounterActionRequest,
-    ) -> Result<atlas_app_model::EncounterActionPreviewView, AppServiceError> {
-        self.preview_encounter_action(encounter_ref, request)
-    }
-    fn preview_encounter_strike_attempt(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::PreviewEncounterStrikeAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterStrikeAttemptPreviewView, AppServiceError> {
-        self.preview_encounter_strike_attempt(encounter_ref, request)
-    }
-    fn preview_encounter_casting_attempt(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::PreviewEncounterCastingAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterCastingPreviewView, AppServiceError> {
-        self.preview_encounter_casting_attempt(encounter_ref, request)
-    }
-    fn begin_encounter_strike_attempt(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::BeginEncounterStrikeAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError> {
-        self.begin_encounter_strike_attempt(encounter_ref, request)
-    }
-    fn begin_encounter_casting_attempt(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::BeginEncounterCastingAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError> {
-        self.begin_encounter_casting_attempt(encounter_ref, request)
-    }
-    fn resolve_encounter_action_check(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::ResolveEncounterActionCheckRequest,
-    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError> {
-        self.resolve_encounter_action_check(encounter_ref, request)
-    }
-    fn abandon_encounter_action_attempt(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::AbandonEncounterActionAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError> {
-        self.abandon_encounter_action_attempt(encounter_ref, request)
-    }
-    fn encounter_strike_attempts(
-        &self,
-        encounter_ref: &str,
-    ) -> Result<atlas_app_model::EncounterStrikeAttemptsView, AppServiceError> {
-        self.encounter_strike_attempts(encounter_ref)
-    }
-    fn encounter_casting_attempts(
-        &self,
-        encounter_ref: &str,
-    ) -> Result<atlas_app_model::EncounterCastingAttemptsView, AppServiceError> {
-        self.encounter_casting_attempts(encounter_ref)
+        request: atlas_app_model::EncounterCastingRemindersRequest,
+    ) -> Result<atlas_app_model::EncounterCastingRemindersView, AppServiceError> {
+        self.encounter_casting_reminders(encounter_ref, request)
     }
     fn apply_encounter_spell_action(
         &self,

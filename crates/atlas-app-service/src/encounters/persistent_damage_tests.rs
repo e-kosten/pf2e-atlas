@@ -179,15 +179,14 @@ fn end_turn_recovery_requires_damage_but_explicit_recovery_is_not_turn_limited()
         participant_key: participant.clone(),
         episode_id: "episode-fire".into(),
         selected_source_id: None,
-        outcome: PersistentRecoveryInput::TableResult { result: 1 },
-        dc_override: None,
+        dc_override: Some(100),
     };
     assert!(
         f.worker
             .recover_persistent_damage(&key, request.clone())
             .is_err()
     );
-    request.mode = PersistentRecoveryMode::Assisted;
+    request.mode = PersistentRecoveryMode::Explicit;
     let result = f
         .worker
         .recover_persistent_damage(&key, request.clone())
@@ -215,14 +214,6 @@ fn end_turn_recovery_requires_damage_but_explicit_recovery_is_not_turn_limited()
         .persistent_damage_review(&key, &participant, None)
         .unwrap();
     assert!(review.recovery_results.is_empty());
-    assert!(
-        review
-            .episodes
-            .iter()
-            .find(|episode| episode.episode_id == "episode-fire")
-            .unwrap()
-            .assisted_recovery_available
-    );
 }
 
 #[test]
@@ -352,14 +343,13 @@ fn recovery_clears_suppressed_sources_and_recovers_receipt_after_episode_is_gone
     let (f, key, participant) = fixture();
     let request = RecoverPersistentDamageRequest {
         boundary_key: None,
-        mode: PersistentRecoveryMode::Assisted,
+        mode: PersistentRecoveryMode::Explicit,
         request_id: "recover-fire".into(),
         expected_encounter_revision: snapshot(&f, &key).encounter.revision,
         participant_key: participant,
         episode_id: "episode-fire".into(),
         selected_source_id: None,
-        outcome: PersistentRecoveryInput::TableResult { result: 20 },
-        dc_override: None,
+        dc_override: Some(0),
     };
     let result = f
         .worker
@@ -404,8 +394,12 @@ fn outgoing_boundary(f: &FixtureWorker, key: &str, participant: &str) -> String 
         .clone()
 }
 #[test]
-fn late_table_recovery_never_clears_a_new_same_type_episode() {
+fn late_recovery_never_clears_a_new_same_type_episode() {
     let (f, key, participant) = fixture();
+    f.worker
+        .apply_persistent_damage(&key, batch(&f, &key, &participant))
+        .unwrap();
+    let hp_after_damage = snapshot(&f, &key).participants[0].current_hp;
     let boundary = outgoing_boundary(&f, &key, &participant);
     let old=snapshot(&f,&key).participants[0].conditions.iter().filter(|c|matches!(&c.parameters,ConditionParameters::PersistentDamage{damage_type,..} if damage_type=="fire")).map(|c|c.condition_id).collect::<Vec<_>>();
     f.worker
@@ -445,8 +439,7 @@ fn late_table_recovery_never_clears_a_new_same_type_episode() {
         participant_key: participant.clone(),
         episode_id: "episode-fire".into(),
         selected_source_id: None,
-        outcome: PersistentRecoveryInput::TableSuccess,
-        dc_override: None,
+        dc_override: Some(0),
     };
     let result = f
         .worker
@@ -454,7 +447,6 @@ fn late_table_recovery_never_clears_a_new_same_type_episode() {
         .unwrap();
     assert!(result.success);
     assert!(result.roll.is_none());
-    assert!(result.table_result.is_none());
     assert_eq!(
         f.worker
             .recover_persistent_damage(&key, request.clone())
@@ -463,7 +455,7 @@ fn late_table_recovery_never_clears_a_new_same_type_episode() {
     );
     let state = snapshot(&f, &key);
     assert!(state.participants[0].conditions.iter().any(|c|matches!(&c.parameters,ConditionParameters::PersistentDamage{episode_id,..} if episode_id=="new-fire")));
-    assert_eq!(state.participants[0].current_hp, Some(5));
+    assert_eq!(state.participants[0].current_hp, hp_after_damage);
     assert!(
         f.worker
             .recover_persistent_damage(
@@ -478,23 +470,21 @@ fn late_table_recovery_never_clears_a_new_same_type_episode() {
     );
     let manual = RecoverPersistentDamageRequest {
         boundary_key: None,
-        mode: PersistentRecoveryMode::Assisted,
+        mode: PersistentRecoveryMode::Explicit,
         request_id: "unknown-dc-success".into(),
         expected_encounter_revision: state.encounter.revision,
         participant_key: participant.clone(),
         episode_id: "new-fire".into(),
         selected_source_id: None,
-        outcome: PersistentRecoveryInput::TableSuccess,
-        dc_override: None,
+        dc_override: Some(0),
     };
     let result = f
         .worker
         .recover_persistent_damage(&key, manual.clone())
         .unwrap();
     assert!(result.success);
-    assert_eq!(result.dc, None);
+    assert_eq!(result.dc, Some(0));
     assert!(result.roll.is_none());
-    assert!(result.table_result.is_none());
     assert_eq!(
         f.worker.recover_persistent_damage(&key, manual).unwrap(),
         result

@@ -20,7 +20,6 @@ const receipt: PersistentRecoveryResultView = {
   damage_type: "fire",
   dc: 15n,
   roll: null,
-  table_result: 18n,
   success: true,
 };
 function setup(current = group) {
@@ -30,7 +29,7 @@ function setup(current = group) {
     <ConfigProvider theme={{ token: { motion: false } }}>
       <EncounterPersistentRecovery
         group={current}
-        mode="assisted"
+        mode="explicit"
         available={true}
         participantKey="actor"
         encounterRevision={11n}
@@ -50,13 +49,12 @@ it("rolls recovery without requiring a table result and preserves the episode id
   fireEvent.click(await screen.findByRole("button", { name: "Roll" }));
   await waitFor(() =>
     expect(onRecover).toHaveBeenCalledWith({
-      mode: "assisted",
+      mode: "explicit",
       boundary_key: null,
       expected_encounter_revision: 11n,
       participant_key: "actor",
       episode_id: "fire-episode",
       selected_source_id: 7n,
-      outcome: { kind: "roll" },
       dc_override: null,
     }),
   );

@@ -16,7 +16,7 @@ import {
 import { useState } from "react";
 import {
   getEncounterConditionLifecycleActions,
-  previewEncounterAction,
+  previewEncounterRetch,
 } from "../../api/atlasApi";
 import type {
   ApplyConditionLifecycleRequest,
@@ -255,18 +255,9 @@ function LifecycleForm({
       ),
     ],
     queryFn: () =>
-      previewEncounterAction(encounterRef, {
+      previewEncounterRetch(encounterRef, {
         participant_key: participant.participant_key,
-        action: "retch",
-        normally_ally: null,
         confusion,
-        reaction: null,
-        target: null,
-        extra_action: null,
-        request_context: null,
-        sensory: null,
-        forced_movement: null,
-        prone_cover: null,
         judgments,
       }),
     enabled: option.kind === "retch" && !changed,

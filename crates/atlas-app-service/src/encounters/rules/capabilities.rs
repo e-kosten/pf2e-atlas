@@ -480,7 +480,6 @@ mod tests {
         ];
         let context = ActionContext {
             confusion: None,
-            relationships: &[],
             kind: ActionKind::Cast,
             reaction: Some(false),
             other_participant: None,
@@ -506,7 +505,6 @@ mod tests {
         p.conditions = vec![condition("Paralyzed", None)];
         let context = ActionContext {
             confusion: None,
-            relationships: &[],
             kind: ActionKind::Cast,
             reaction: Some(false),
             other_participant: None,
@@ -526,14 +524,12 @@ mod tests {
         }];
         let allowed = ActionContext {
             confusion: None,
-            relationships: &[],
             facts: &facts,
             ..context
         };
         assert!(evaluate_action(&p, &allowed).issues.is_empty());
         let seek = ActionContext {
             confusion: None,
-            relationships: &[],
             kind: ActionKind::Seek,
             ..allowed
         };
@@ -573,8 +569,7 @@ mod tests {
         ];
         let context = ActionContext {
             confusion: None,
-            relationships: &[],
-            kind: ActionKind::Other,
+            kind: ActionKind::Retch,
             reaction: Some(false),
             other_participant: None,
             facts: &facts,
@@ -598,19 +593,15 @@ mod tests {
         };
         subject.conditions.push(hidden);
         let roster = vec![subject];
-        let causes = observer_defense_causes("observer", &roster, &[]);
+        let causes = observer_defense_causes("observer", &roster);
         assert_eq!(causes.len(), 1);
         assert_eq!(causes[0].against, Some("subject"));
         assert_eq!(causes[0].rule, ConditionRule::OffGuard);
-        assert!(observer_defense_causes("other", &roster, &[]).is_empty());
-        assert!(observer_defense_causes("subject", &roster, &[]).is_empty());
+        assert!(observer_defense_causes("other", &roster).is_empty());
+        assert!(observer_defense_causes("subject", &roster).is_empty());
         assert_eq!(
-            targeting_requirements(&roster[0], "observer", TargetMode::Direct).flat_check_dc,
+            targeting_requirements(&roster[0], "observer").flat_check_dc,
             Some(11)
-        );
-        assert_eq!(
-            targeting_requirements(&roster[0], "observer", TargetMode::Area).flat_check_dc,
-            None
         );
     }
 
@@ -619,12 +610,8 @@ mod tests {
         use super::super::relationships::*;
         let mut subject = participant();
         subject.conditions = vec![condition("Undetected", None), condition("Concealed", None)];
-        let direct = targeting_requirements(&subject, "observer", TargetMode::Direct);
+        let direct = targeting_requirements(&subject, "observer");
         assert!(direct.requires_guessed_location);
-        assert!(direct.secret);
         assert_eq!(direct.flat_check_dc, Some(11));
-        let guess = targeting_requirements(&subject, "observer", TargetMode::GuessedLocation);
-        assert!(!guess.requires_guessed_location);
-        assert!(guess.secret);
     }
 }

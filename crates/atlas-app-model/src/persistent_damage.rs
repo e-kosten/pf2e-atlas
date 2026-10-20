@@ -20,14 +20,6 @@ pub struct PersistentDamageGroupView {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum PersistentRecoveryInput {
-    Roll,
-    TableSuccess,
-    TableResult { result: i64 },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct RecoverPersistentDamageRequest {
     pub boundary_key: Option<String>,
@@ -37,7 +29,6 @@ pub struct RecoverPersistentDamageRequest {
     pub participant_key: String,
     pub episode_id: String,
     pub selected_source_id: Option<i64>,
-    pub outcome: PersistentRecoveryInput,
     /// Explicit GM adjudication, including assisted recovery.
     pub dc_override: Option<i64>,
 }
@@ -46,7 +37,7 @@ pub struct RecoverPersistentDamageRequest {
 #[serde(rename_all = "snake_case")]
 pub enum PersistentRecoveryMode {
     EndTurn,
-    Assisted,
+    Explicit,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -63,10 +54,8 @@ pub struct PersistentEpisodeReviewView {
     pub end_turn_recovery_unavailable_reason: Option<String>,
     pub end_turn_roll_available: bool,
     pub end_turn_roll_unavailable_reason: Option<String>,
-    pub assisted_recovery_unavailable_reason: Option<String>,
     pub episode_id: String,
     pub end_turn_recovery_available: bool,
-    pub assisted_recovery_available: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -77,7 +66,6 @@ pub struct PersistentRecoveryResultView {
     pub damage_type: String,
     pub dc: Option<i64>,
     pub roll: Option<atlas_dice::RollOutcome>,
-    pub table_result: Option<i64>,
     pub success: bool,
 }
 

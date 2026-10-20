@@ -23,7 +23,7 @@ impl AtlasAppService {
         request: ApplyConditionLifecycleRequest,
     ) -> AppServiceResult<ConditionLifecycleResultView> {
         let intent = serde_json::json!({"action":"condition_lifecycle","request":request});
-        let (snapshot, pending, relationships) = self.with_state(|session| {
+        let (snapshot, pending) = self.with_state(|session| {
             let store = session.local_state();
             let encounter = store
                 .encounters()
@@ -34,15 +34,12 @@ impl AtlasAppService {
                 &request.request_id,
                 &intent,
             )? {
-                return Ok((Err(receipt), vec![], vec![]));
+                return Ok((Err(receipt), vec![]));
             }
             let pending = store
                 .encounters()
                 .pending_condition_consequences(&encounter.encounter.encounter_key)?;
-            let relationships = store
-                .encounters()
-                .relationships(&encounter.encounter.encounter_key)?;
-            Ok((Ok(encounter), pending, relationships))
+            Ok((Ok(encounter), pending))
         })?;
         let snapshot = match snapshot {
             Err(receipt) => return Ok(receipt_view(receipt)),
@@ -117,7 +114,7 @@ impl AtlasAppService {
         let selected_pending = pending_for_action(&pending, &request.action);
         let confusion =
             if let ConditionLifecycleActionView::Retch { confusion, .. } = &request.action {
-                super::action_attempts::checked_confusion(
+                super::action_projection::checked_confusion(
                     &snapshot.participants,
                     &participant,
                     confusion.as_ref(),
@@ -125,12 +122,7 @@ impl AtlasAppService {
             } else {
                 None
             };
-        validate_action(
-            &participant,
-            &request.action,
-            confusion.as_ref(),
-            &relationships,
-        )?;
+        validate_action(&participant, &request.action, confusion.as_ref())?;
         let check = prepare_check(
             &participant,
             &request.action,
@@ -268,7 +260,7 @@ impl AtlasAppService {
         participant_key: &str,
         boundary_key: Option<&str>,
     ) -> AppServiceResult<ConditionLifecycleActionsView> {
-        let (snapshot, pending, claims, relationships, boundary) = self.with_state(|session| {
+        let (snapshot, pending, claims, boundary) = self.with_state(|session| {
             let store = session.local_state();
             let snapshot = store
                 .encounters()
@@ -292,10 +284,7 @@ impl AtlasAppService {
                         saved.snapshot.encounter.round_number
                     }),
             )?;
-            let relationships = store
-                .encounters()
-                .relationships(&snapshot.encounter.encounter_key)?;
-            Ok((snapshot, pending, claims, relationships, boundary))
+            Ok((snapshot, pending, claims, boundary))
         })?;
         let participant = snapshot
             .participants
@@ -328,12 +317,10 @@ impl AtlasAppService {
         }
         for option in &mut view.actions {
             if option.kind == ConditionLifecycleActionKindView::Retch {
-                option.issues = retch_evaluation(participant, &[], None, &relationships)?
+                option.issues = retch_evaluation(participant, &[], None)?
                     .issues
                     .into_iter()
-                    .map(|issue| {
-                        super::action_attempts::issue_view(issue, participant, &relationships)
-                    })
+                    .map(|issue| super::action_projection::issue_view(issue, participant))
                     .collect();
             }
         }
@@ -656,13 +643,12 @@ fn receipt_view(receipt: EncounterEventReceipt) -> ConditionLifecycleResultView 
 fn validate_action(
     participant: &EncounterParticipant,
     action: &ConditionLifecycleActionView,
-    confusion: Option<&atlas_local_state::ConfusionChoice>,
-    relationships: &[atlas_local_state::DirectedRelationship],
+    confusion: Option<&super::rules::action_context::ConfusionChoice>,
 ) -> AppServiceResult<()> {
     let ConditionLifecycleActionView::Retch { judgments, .. } = action else {
         return Ok(());
     };
-    let evaluation = retch_evaluation(participant, judgments, confusion, relationships)?;
+    let evaluation = retch_evaluation(participant, judgments, confusion)?;
     if !evaluation.issues.is_empty() {
         return Err(AppServiceError::invalid_request(
             "Retch is prevented or needs a decision about an active condition",
@@ -678,24 +664,21 @@ fn validate_action(
 fn retch_evaluation(
     participant: &EncounterParticipant,
     judgments: &[EncounterActionJudgmentView],
-    confusion: Option<&atlas_local_state::ConfusionChoice>,
-    relationships: &[atlas_local_state::DirectedRelationship],
+    confusion: Option<&super::rules::action_context::ConfusionChoice>,
 ) -> AppServiceResult<rules::action_context::ActionEvaluation> {
     use rules::action_context::{ActionContext, ActionKind};
-    let facts = super::action_preview::builtin_facts(ActionKind::Retch);
-    Ok(super::action_attempts::apply_judgments(
+    let facts = super::retch::retch_facts();
+    super::action_projection::apply_judgments(
         participant,
         ActionContext {
             kind: ActionKind::Retch,
             reaction: Some(false),
             other_participant: None,
             confusion,
-            relationships,
             facts: &facts,
         },
         judgments,
-    )?
-    .evaluation)
+    )
 }
 
 fn retain_outgoing_frightened(

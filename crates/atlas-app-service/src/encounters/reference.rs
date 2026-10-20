@@ -49,10 +49,6 @@ pub(super) fn read_encounter_reference(
             "selected reference does not belong to this participant",
         ));
     }
-    let relationships = workspace
-        .local_state()
-        .encounters()
-        .relationships(&encounter.encounter.encounter_key)?;
     let r = workspace.retrieval_mut();
 
     let generation = r.artifact_generation()?;
@@ -76,7 +72,7 @@ pub(super) fn read_encounter_reference(
         vec![],
         r,
     )?;
-    let mut baseline = super::rules::source_baseline(
+    let baseline = super::rules::source_baseline(
         &source.source,
         r.source_fingerprint(),
         selected
@@ -97,15 +93,9 @@ pub(super) fn read_encounter_reference(
         .authored_adjustment(),
         SourceFieldView::NotApplicable
     );
-    baseline.contextual_modifiers = super::rules::relationships::observer_defense_modifiers(
-        participant_key,
-        &encounter.participants,
-        &relationships,
-    );
     let relationship_causes = super::rules::relationships::observer_defense_causes(
         participant_key,
         &encounter.participants,
-        &relationships,
     );
     let block = super::rules::project_participant(
         participant,

@@ -1481,130 +1481,31 @@ impl AtlasWebService for MockService {
             rolls: vec![],
         })
     }
-    fn apply_encounter_detection_event(
+    fn preview_encounter_retch(
         &self,
         _encounter_ref: &str,
-        _request: atlas_app_model::ApplyEncounterDetectionEventRequest,
-    ) -> Result<atlas_app_model::EncounterMutationView, AppServiceError> {
-        Err(AppServiceError::new(
-            AppErrorCode::InvalidRequest,
-            "detection mock not configured",
-        ))
-    }
-    fn worsen_encounter_attitude(
-        &self,
-        _encounter_ref: &str,
-        _request: atlas_app_model::WorsenEncounterAttitudeRequest,
-    ) -> Result<atlas_app_model::EncounterMutationView, AppServiceError> {
-        Err(AppServiceError::new(
-            AppErrorCode::InvalidRequest,
-            "attitude mock not configured",
-        ))
-    }
-    fn encounter_relationships(
-        &self,
-        _encounter_ref: &str,
-        _subject_key: &str,
-        _other_key: &str,
-    ) -> Result<atlas_app_model::EncounterRelationshipsView, AppServiceError> {
-        Err(AppServiceError::new(
-            AppErrorCode::InvalidRequest,
-            "relationship mock not configured",
-        ))
-    }
-    fn set_encounter_relationship(
-        &self,
-        _encounter_ref: &str,
-        _request: atlas_app_model::SetEncounterRelationshipRequest,
-    ) -> Result<atlas_app_model::EncounterMutationView, AppServiceError> {
-        Err(AppServiceError::new(
-            AppErrorCode::InvalidRequest,
-            "relationship mock not configured",
-        ))
-    }
-    fn preview_encounter_action(
-        &self,
-        _encounter_ref: &str,
-        _request: atlas_app_model::PreviewEncounterActionRequest,
-    ) -> Result<atlas_app_model::EncounterActionPreviewView, AppServiceError> {
+        _request: atlas_app_model::EncounterRetchPreviewRequest,
+    ) -> Result<atlas_app_model::EncounterRetchPreviewView, AppServiceError> {
         Err(AppServiceError::new(
             AppErrorCode::InvalidRequest,
             "casting mock not configured",
         ))
     }
-    fn preview_encounter_strike_attempt(
+    fn preview_encounter_strike_context(
         &self,
         _encounter_ref: &str,
-        _request: atlas_app_model::PreviewEncounterStrikeAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterStrikeAttemptPreviewView, AppServiceError> {
+        _request: atlas_app_model::EncounterStrikeContextRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeContextView, AppServiceError> {
         Err(AppServiceError::new(
             AppErrorCode::InvalidRequest,
             "casting mock not configured",
         ))
     }
-    fn preview_encounter_casting_attempt(
+    fn encounter_casting_reminders(
         &self,
         _encounter_ref: &str,
-        _request: atlas_app_model::PreviewEncounterCastingAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterCastingPreviewView, AppServiceError> {
-        Err(AppServiceError::new(
-            AppErrorCode::InvalidRequest,
-            "casting mock not configured",
-        ))
-    }
-    fn begin_encounter_strike_attempt(
-        &self,
-        _encounter_ref: &str,
-        _request: atlas_app_model::BeginEncounterStrikeAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError> {
-        Err(AppServiceError::new(
-            AppErrorCode::InvalidRequest,
-            "casting mock not configured",
-        ))
-    }
-    fn begin_encounter_casting_attempt(
-        &self,
-        _encounter_ref: &str,
-        _request: atlas_app_model::BeginEncounterCastingAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError> {
-        Err(AppServiceError::new(
-            AppErrorCode::InvalidRequest,
-            "casting mock not configured",
-        ))
-    }
-    fn resolve_encounter_action_check(
-        &self,
-        _encounter_ref: &str,
-        _request: atlas_app_model::ResolveEncounterActionCheckRequest,
-    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError> {
-        Err(AppServiceError::new(
-            AppErrorCode::InvalidRequest,
-            "casting mock not configured",
-        ))
-    }
-    fn abandon_encounter_action_attempt(
-        &self,
-        _encounter_ref: &str,
-        _request: atlas_app_model::AbandonEncounterActionAttemptRequest,
-    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError> {
-        Err(AppServiceError::new(
-            AppErrorCode::InvalidRequest,
-            "casting mock not configured",
-        ))
-    }
-    fn encounter_strike_attempts(
-        &self,
-        _encounter_ref: &str,
-    ) -> Result<atlas_app_model::EncounterStrikeAttemptsView, AppServiceError> {
-        Err(AppServiceError::new(
-            AppErrorCode::InvalidRequest,
-            "casting mock not configured",
-        ))
-    }
-    fn encounter_casting_attempts(
-        &self,
-        _encounter_ref: &str,
-    ) -> Result<atlas_app_model::EncounterCastingAttemptsView, AppServiceError> {
+        _request: atlas_app_model::EncounterCastingRemindersRequest,
+    ) -> Result<atlas_app_model::EncounterCastingRemindersView, AppServiceError> {
         Err(AppServiceError::new(
             AppErrorCode::InvalidRequest,
             "casting mock not configured",

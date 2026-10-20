@@ -72,7 +72,6 @@ pub struct PreparedConditionEvent {
     pub resolved_pending_keys: Vec<String>,
     pub outcomes: Vec<ConditionEventOutcome>,
     pub selection_changes: Vec<PersistentSelectionChange>,
-    pub relationship_changes: Vec<super::RelationshipChange>,
     pub initiative_moves: Vec<super::ReorderEncounterParticipant>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -125,7 +124,6 @@ pub enum ConditionEventOutcome {
         damage_type: String,
         dc: Option<i64>,
         roll: Option<atlas_dice::RollOutcome>,
-        table_result: Option<i64>,
         success: bool,
     },
 }
@@ -173,7 +171,6 @@ pub struct PersistentSelectionChange {
 pub enum EncounterBoundaryKind {
     PersistentDamage,
     PersistentRecovery,
-    AssistedRecovery,
     TurnStart,
     TurnEnd,
 }
@@ -182,7 +179,6 @@ impl EncounterBoundaryKind {
         match self {
             Self::PersistentDamage => "persistent_damage",
             Self::PersistentRecovery => "persistent_recovery",
-            Self::AssistedRecovery => "assisted_recovery",
             Self::TurnStart => "turn_start",
             Self::TurnEnd => "turn_end",
         }

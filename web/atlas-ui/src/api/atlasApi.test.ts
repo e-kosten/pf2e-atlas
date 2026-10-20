@@ -1013,53 +1013,81 @@ it("reads persistent total and one shared Hardness deduction from the server", a
   );
 });
 
-it("keeps attributed relationship causes and guarded observer events separate from baseline edits", async () => {
+it("reads casting reminders without action cost or attempt contracts", async () => {
   const api = await import("./atlasApi");
-  respond({
-    encounter_key: "test",
-    expected_revision: 7,
-    relationships: [
-      {
-        subject_key: "actor",
-        other_key: "observer",
-        property: "detection",
-        baseline: null,
-        adjudication: null,
-        source_condition_ids: [7, 8],
-        knowledge: {
-          kind: "known",
-          value: { kind: "detection", value: "hidden" },
-          provenance: { kind: "sources", condition_ids: [7, 8] },
-        },
-      },
-    ],
-  });
-  const pair = await api.getEncounterRelationships("test", "actor", "observer");
-  expect(pair.expected_revision).toBe(7n);
-  expect(pair.relationships[0].knowledge).toEqual(
-    expect.objectContaining({
-      provenance: { kind: "sources", condition_ids: [7n, 8n] },
+  const selection = detailFixture("actors:a").selected;
+  const advisories = [
+    {
+      source: "condition:1",
+      label: "Stupefied",
+      reason: "DC 6 flat check or the spell is disrupted",
+    },
+  ];
+  respond({ advisories });
+  expect(
+    await api.encounterCastingReminders("ambush", {
+      participant_key: "caster",
+      selection,
     }),
-  );
-  respond({ encounter_key: "test" });
-  await api.applyEncounterDetectionEvent("test", {
-    request_id: "seek",
-    expected_encounter_revision: 7n,
-    subject_key: "actor",
-    observer_key: "observer",
-    event: { kind: "seek", prior: "hidden", outcome: "success", can_observe: false },
-  });
+  ).toEqual({ advisories });
   expect(fetchMock).toHaveBeenLastCalledWith(
-    "/api/encounters/test/detection-events",
+    "/api/encounters/ambush/casting-reminders",
     expect.objectContaining({ method: "POST" }),
   );
   expect(
     JSON.parse(fetchMock.mock.calls[fetchMock.mock.calls.length - 1][1].body),
   ).toEqual({
-    request_id: "seek",
-    expected_encounter_revision: 7,
-    subject_key: "actor",
-    observer_key: "observer",
-    event: { kind: "seek", prior: "hidden", outcome: "success", can_observe: false },
+    participant_key: "caster",
+    selection,
+  });
+});
+
+it("normalizes both reference checks while sending only the selected strike and target", async () => {
+  const api = await import("./atlasApi");
+  const strike = {
+    participant_key: "actor",
+    reference: {
+      artifact_generation: "current",
+      selection: {
+        record_key: "actors:a",
+        fields: [],
+        embedded_path: [],
+        passage: null,
+        source_fingerprint: null,
+      },
+    },
+  };
+  respond({
+    options: { expected_revision: 3, expected_participant_revision: 2 },
+    action: {
+      issues: [],
+      confused: false,
+      disruption: { dc: 5, sources: [{ condition_id: 7, name: "Grabbed" }] },
+      targeting: {
+        prevents_effect: false,
+        requires_guessed_location: true,
+        check_senses: false,
+      },
+    },
+    targeting_check: { dc: 11, sources: [{ condition_id: 8, name: "Undetected" }] },
+  });
+  const result = await api.previewEncounterStrikeContext("ambush", {
+    strike,
+    target_key: "target",
+  });
+  expect(result.action.disruption).toEqual({
+    dc: 5n,
+    sources: [{ condition_id: 7n, name: "Grabbed" }],
+  });
+  expect(result.targeting_check).toEqual({
+    dc: 11n,
+    sources: [{ condition_id: 8n, name: "Undetected" }],
+  });
+  expect(result.options.expected_revision).toBe(3n);
+  expect(
+    JSON.parse(fetchMock.mock.calls[fetchMock.mock.calls.length - 1][1].body),
+  ).toEqual({
+    strike,
+    target_key: "target",
   });
 });
