@@ -88,6 +88,19 @@ impl TestSavedLists<'_> {
         transaction.commit()?;
         Ok(result)
     }
+
+    pub fn reorder_item(
+        &self,
+        list_ref: &str,
+        reorder: ReorderSavedListItem,
+    ) -> LocalStateResult<bool> {
+        let mut connection = self.0.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let result =
+            SavedListsWrite::from_connection(&transaction).reorder_item(list_ref, reorder)?;
+        transaction.commit()?;
+        Ok(result)
+    }
     pub fn add_resolved_item(
         &self,
         list_ref: &str,

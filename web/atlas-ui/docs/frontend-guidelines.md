@@ -730,8 +730,12 @@ Cancel leaves already saved actions intact. Removing the last reminder does not
 advance; Continue uses the current review revision in the atomic advance command.
 Read-only Retry never repeats an action or advances a turn.
 
-Encounter roster handles use the sortable-list library for whole-row movement,
-touch and keyboard pickup/movement/drop, then submit one guarded reorder command.
+Encounter rosters and saved-list members share `shared/ui/sortable/SortableList`
+for pointer and keyboard pickup/movement/drop and temporary visual order while a
+reorder is saved and refreshed. Keep reorder writes serialized and refresh feedback
+outside the row layout. Saved-list handles disappear under active filters; moving
+members writes their persisted positions, including unavailable records, without
+changing their snapshots or notes. Drag previews retain the complete member layout.
 Current turn uses the strong filled row treatment; preview selection uses a
 separate outline. Play and confirmed
 delete remain direct row actions. Fade defeated and disabled-hazard names and facts without dimming

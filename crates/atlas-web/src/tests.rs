@@ -700,6 +700,50 @@ async fn encounter_routes_use_real_router_wiring() {
 }
 
 #[tokio::test]
+async fn saved_list_reorder_route_uses_path_identity_and_strict_placement() {
+    let request = json!({
+        "list_ref": "ignored-body-identity", "record_ref": "actions:testAction1",
+        "target_record_ref": "actions:testAction2", "placement": "after"
+    });
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/lists/list_research/items/reorder",
+        Some(request.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["list_key"], "list_research");
+    assert_eq!(body["record_key"], "actions:testAction1");
+    assert_eq!(body["outcome"], "reordered");
+    for invalid in [
+        {
+            let mut value = request.clone();
+            value["placement"] = json!("above");
+            value
+        },
+        {
+            let mut value = request.clone();
+            value.as_object_mut().unwrap().remove("target_record_ref");
+            value
+        },
+        {
+            let mut value = request;
+            value["unexpected"] = json!(true);
+            value
+        },
+    ] {
+        let (status, body) = route_json(
+            Method::POST,
+            "/api/lists/list_research/items/reorder",
+            Some(invalid),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(body["code"], "invalid_request");
+    }
+}
+
+#[tokio::test]
 async fn malformed_json_route_body_returns_app_error_envelope() {
     let app = test_router();
     let response = app
@@ -1476,6 +1520,24 @@ impl AtlasWebService for MockService {
             list_key: list_ref.to_string(),
             slug: "research".to_string(),
             deleted: true,
+        })
+    }
+
+    fn reorder_saved_list_item(
+        &self,
+        request: atlas_app_model::ReorderSavedListItemRequest,
+    ) -> Result<SavedListItemMutationView, AppServiceError> {
+        assert_eq!(request.target_record_ref, "actions:testAction2");
+        assert_eq!(
+            request.placement,
+            atlas_app_model::ReorderSavedListItemPlacementView::After
+        );
+        Ok(SavedListItemMutationView {
+            list_key: request.list_ref,
+            slug: "research".into(),
+            record_key: request.record_ref,
+            record_name: None,
+            outcome: atlas_app_model::SavedListItemMutationOutcomeView::Reordered,
         })
     }
 }
