@@ -7,11 +7,7 @@ use atlas_local_state::EncounterParticipant;
 pub(in crate::encounters) enum ActionKind {
     Strike,
     Cast,
-    Escape,
-    ForceOpen,
-    Seek,
     Retch,
-    TravelingExploration,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,7 +19,6 @@ pub(in crate::encounters) enum ActionFact {
     Move,
     Attack,
     MentalOnly,
-    OpensOwnBonds,
     RelatesToFascination,
     FurthersEscape,
     Cantrip,
@@ -161,25 +156,14 @@ pub(in crate::encounters) fn evaluate_action(
             ConditionRule::Unconscious | ConditionRule::Petrified => result.prohibit(id, rule),
             ConditionRule::Stunned if cause.value != Some(0) => result.prohibit(id, rule),
             ConditionRule::Paralyzed => {
-                if context.kind == ActionKind::Seek {
-                    result.prohibit(id, rule);
-                } else {
-                    result.requires(context, id, rule, ActionFact::MentalOnly, true);
-                }
+                result.requires(context, id, rule, ActionFact::MentalOnly, true);
             }
-            ConditionRule::Immobilized => {
-                result.requires(context, id, rule, ActionFact::Move, false)
-            }
-            ConditionRule::Prone => {
+            ConditionRule::Immobilized | ConditionRule::Prone => {
                 result.requires(context, id, rule, ActionFact::Move, false);
             }
-            ConditionRule::Restrained if context.kind != ActionKind::Escape => {
-                if context.kind == ActionKind::ForceOpen {
-                    result.requires(context, id, rule, ActionFact::OpensOwnBonds, true);
-                } else {
-                    result.requires(context, id, rule, ActionFact::Attack, false);
-                    result.requires(context, id, rule, ActionFact::Manipulate, false);
-                }
+            ConditionRule::Restrained => {
+                result.requires(context, id, rule, ActionFact::Attack, false);
+                result.requires(context, id, rule, ActionFact::Manipulate, false);
             }
             ConditionRule::Grabbed => result.conditional_check(context, id, ActionFact::Manipulate),
             ConditionRule::Deafened => result.conditional_check(context, id, ActionFact::Auditory),
@@ -307,9 +291,6 @@ pub(in crate::encounters) fn evaluate_action(
                 }
             }
 
-            ConditionRule::Fatigued if context.kind == ActionKind::TravelingExploration => {
-                result.prohibit(id, rule)
-            }
             ConditionRule::Sickened => {
                 result.requires(context, id, rule, ActionFact::VoluntaryIngestion, false)
             }

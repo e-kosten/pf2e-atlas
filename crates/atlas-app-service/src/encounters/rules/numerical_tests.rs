@@ -443,7 +443,7 @@ fn fascination_requires_its_subject() {
 }
 
 #[test]
-fn fleeing_subject_and_exploration_preserve_independent_rules() {
+fn fleeing_requires_its_explicit_subject() {
     use super::action_context::{
         ActionContext, ActionFact, ActionIssue, ActionJudgment, ActionKind, evaluate_action,
     };
@@ -488,20 +488,6 @@ fn fleeing_subject_and_exploration_preserve_independent_rules() {
     assert!(
         matches!(issue.subject, Some(atlas_app_model::ConditionSubjectView::Other { description }) if description == "the spreading fire")
     );
-    actor.conditions = vec![condition(2, ConditionRule::Fatigued, None)];
-    assert!(
-        evaluate(&actor, ActionKind::TravelingExploration)
-            .issues
-            .iter()
-            .any(|issue| matches!(
-                issue,
-                ActionIssue::Prohibited {
-                    rule: ConditionRule::Fatigued,
-                    ..
-                }
-            ))
-    );
-    assert!(evaluate(&actor, ActionKind::Retch).issues.is_empty());
 }
 
 #[test]
@@ -680,4 +666,95 @@ fn controller_instructions_derive_from_active_sources_and_conflicts_stay_unknown
     assert!(control_direction(&actor, &controlled).is_none());
     actor.conditions.pop();
     assert!(control_direction(&actor, &controlled).is_some());
+}
+
+#[test]
+fn retch_judgments_are_independent_scoped_and_order_independent() {
+    use atlas_app_model::{EncounterActionFactView as F, EncounterActionJudgmentView as J};
+    let mut actor = participant();
+    actor.conditions = vec![
+        condition(1, ConditionRule::Fleeing, None),
+        condition(2, ConditionRule::Fleeing, None),
+        condition(3, ConditionRule::Controlled, None),
+    ];
+    for source in &mut actor.conditions[..2] {
+        source.parameters = ConditionParameters::Fleeing {
+            subject: Some(ConditionSubject::Other {
+                description: format!("threat {}", source.condition_id),
+            }),
+        };
+    }
+    actor.conditions[2].source_participant_key = Some("controller".into());
+    let mut answers = vec![
+        J {
+            source_condition_id: Some(1),
+            fact: F::FurthersEscape,
+            value: true,
+        },
+        J {
+            source_condition_id: Some(2),
+            fact: F::FurthersEscape,
+            value: true,
+        },
+        J {
+            source_condition_id: Some(3),
+            fact: F::FollowsControllerInstructions,
+            value: true,
+        },
+    ];
+    let evaluate = |answers: &[J]| super::super::retch::evaluate(&actor, answers, None);
+    assert_eq!(evaluate(&[]).unwrap().issues.len(), 3);
+    for _ in 0..answers.len() {
+        assert!(evaluate(&answers).unwrap().issues.is_empty());
+        answers.rotate_left(1);
+    }
+    assert_eq!(evaluate(&answers[..2]).unwrap().issues.len(), 1);
+    // Repeated identical answers are harmless; a contradiction is never accepted.
+    answers.push(answers[0].clone());
+    assert!(evaluate(&answers).unwrap().issues.is_empty());
+    answers.last_mut().unwrap().value = false;
+    assert!(evaluate(&answers).is_err());
+    let unrelated = J {
+        source_condition_id: Some(99),
+        fact: F::FurthersEscape,
+        value: true,
+    };
+    assert!(evaluate(&[unrelated]).is_err());
+    assert!(
+        evaluate(&[J {
+            source_condition_id: None,
+            fact: F::FurthersEscape,
+            value: true
+        }])
+        .is_err()
+    );
+    assert!(
+        evaluate(&[J {
+            source_condition_id: Some(1),
+            fact: F::Manipulate,
+            value: true
+        }])
+        .is_err()
+    );
+    assert!(
+        evaluate(&[J {
+            source_condition_id: Some(1),
+            fact: F::Manipulate,
+            value: false
+        }])
+        .is_err()
+    );
+    let prohibited = evaluate(&[J {
+        source_condition_id: Some(1),
+        fact: F::FurthersEscape,
+        value: false,
+    }])
+    .unwrap();
+    assert!(prohibited.issues.iter().any(|issue| matches!(
+        issue,
+        super::action_context::ActionIssue::Prohibited {
+            source_id: 1,
+            rule: ConditionRule::Fleeing
+        }
+    )));
 }

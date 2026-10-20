@@ -317,7 +317,7 @@ impl AtlasAppService {
         }
         for option in &mut view.actions {
             if option.kind == ConditionLifecycleActionKindView::Retch {
-                option.issues = retch_evaluation(participant, &[], None)?
+                option.issues = super::retch::evaluate(participant, &[], None)?
                     .issues
                     .into_iter()
                     .map(|issue| super::action_projection::issue_view(issue, participant))
@@ -648,7 +648,7 @@ fn validate_action(
     let ConditionLifecycleActionView::Retch { judgments, .. } = action else {
         return Ok(());
     };
-    let evaluation = retch_evaluation(participant, judgments, confusion)?;
+    let evaluation = super::retch::evaluate(participant, judgments, confusion)?;
     if !evaluation.issues.is_empty() {
         return Err(AppServiceError::invalid_request(
             "Retch is prevented or needs a decision about an active condition",
@@ -660,25 +660,6 @@ fn validate_action(
         ));
     }
     Ok(())
-}
-fn retch_evaluation(
-    participant: &EncounterParticipant,
-    judgments: &[EncounterActionJudgmentView],
-    confusion: Option<&super::rules::action_context::ConfusionChoice>,
-) -> AppServiceResult<rules::action_context::ActionEvaluation> {
-    use rules::action_context::{ActionContext, ActionKind};
-    let facts = super::retch::retch_facts();
-    super::action_projection::apply_judgments(
-        participant,
-        ActionContext {
-            kind: ActionKind::Retch,
-            reaction: Some(false),
-            other_participant: None,
-            confusion,
-            facts: &facts,
-        },
-        judgments,
-    )
 }
 
 fn retain_outgoing_frightened(

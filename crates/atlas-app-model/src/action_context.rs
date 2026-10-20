@@ -13,7 +13,6 @@ pub enum EncounterActionFactView {
     Move,
     Attack,
     MentalOnly,
-    OpensOwnBonds,
     RelatesToFascination,
     FurthersEscape,
     Cantrip,

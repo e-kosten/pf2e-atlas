@@ -528,18 +528,6 @@ mod tests {
             ..context
         };
         assert!(evaluate_action(&p, &allowed).issues.is_empty());
-        let seek = ActionContext {
-            confusion: None,
-            kind: ActionKind::Seek,
-            ..allowed
-        };
-        assert_eq!(
-            evaluate_action(&p, &seek).issues,
-            vec![ActionIssue::Prohibited {
-                source_id: 1,
-                rule: ConditionRule::Paralyzed
-            }]
-        );
     }
 
     #[test]

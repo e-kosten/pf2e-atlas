@@ -5,7 +5,6 @@ import { previewEncounterStrikeContext } from "../../api/atlasApi";
 import type {
   EncounterParticipantView,
   EncounterStrikeOptionsRequest,
-  RollEncounterStrikeRequest,
 } from "../../generated/atlas";
 import { FlatCheckRoll } from "../../shared/dice/FlatCheckRoll";
 import { actionIssueSourceLabel } from "./actionIssueLabels";
@@ -13,7 +12,7 @@ import type { useEncounterMutations } from "./useEncounterMutations";
 export type StrikeLaunch = {
   strike: EncounterStrikeOptionsRequest;
   attackNumber: number;
-  existingRoll: RollEncounterStrikeRequest;
+  rollId: string;
   rolledModifier?: number | null;
 };
 
@@ -152,11 +151,11 @@ export function useEncounterStrike({
   );
   return {
     launch: (request: StrikeLaunch) => {
-      if (request.existingRoll.request_id === launch?.existingRoll.request_id) return;
+      if (request.rollId === launch?.rollId) return;
       setTargetKey(undefined);
       setLaunch(request);
     },
     renderContext: (requestId: string) =>
-      launch?.existingRoll.request_id === requestId ? content : null,
+      launch?.rollId === requestId ? content : null,
   };
 }

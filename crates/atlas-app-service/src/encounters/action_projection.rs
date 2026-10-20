@@ -1,24 +1,7 @@
 //! Input validation and DTO projection shared by live condition workflows.
-use super::rules::action_context::{
-    ActionContext, ActionFact, ActionIssue, ActionJudgment, ActionKind, evaluate_action,
-};
+use super::rules::action_context::{ActionFact, ActionIssue, ActionJudgment, ActionKind};
 use crate::{AppServiceError, AppServiceResult};
 use atlas_app_model::*;
-
-pub(super) fn is_intrinsic(fact: ActionFact) -> bool {
-    matches!(
-        fact,
-        ActionFact::Reaction
-            | ActionFact::Manipulate
-            | ActionFact::Auditory
-            | ActionFact::Concentrate
-            | ActionFact::Move
-            | ActionFact::Attack
-            | ActionFact::MentalOnly
-            | ActionFact::VoluntaryIngestion
-            | ActionFact::Cantrip
-    )
-}
 
 pub(super) fn issue_view(
     issue: ActionIssue,
@@ -56,48 +39,42 @@ pub(super) fn issue_view(
             fact_question(fact).into(),
         ),
     };
-    let control_source = participant.conditions.iter().find(|condition| {
-        condition.condition_id == source
-            && super::conditions::condition_rule_for_key(condition.condition_key.as_deref())
-                == Some(super::conditions::ConditionRule::Controlled)
-    });
-    let authority = control_source
-        .map(|source| super::rules::action_context::control_direction(participant, source));
-    let (controller_key, instructions) = authority
-        .flatten()
-        .map(|(key, instructions)| (Some(key), instructions))
-        .unwrap_or((None, None));
-    let subject = participant
+    let source_condition = participant
         .conditions
         .iter()
-        .find(|condition| condition.condition_id == source)
-        .and_then(|condition| match &condition.parameters {
-            atlas_local_state::ConditionParameters::Fleeing { subject }
-            | atlas_local_state::ConditionParameters::Fascinated { subject } => {
-                subject.as_ref().map(|subject| match subject {
-                    atlas_local_state::ConditionSubject::Participant { participant_key } => {
-                        ConditionSubjectView::Participant {
-                            participant_key: participant_key.clone(),
-                        }
+        .find(|condition| condition.condition_id == source);
+    let (controller_key, instructions) = source_condition
+        .filter(|condition| {
+            super::conditions::condition_rule_for_key(condition.condition_key.as_deref())
+                == Some(super::conditions::ConditionRule::Controlled)
+        })
+        .and_then(|source| super::rules::action_context::control_direction(participant, source))
+        .map(|(key, instructions)| (Some(key), instructions))
+        .unwrap_or((None, None));
+    let subject = source_condition.and_then(|condition| match &condition.parameters {
+        atlas_local_state::ConditionParameters::Fleeing { subject }
+        | atlas_local_state::ConditionParameters::Fascinated { subject } => {
+            subject.as_ref().map(|subject| match subject {
+                atlas_local_state::ConditionSubject::Participant { participant_key } => {
+                    ConditionSubjectView::Participant {
+                        participant_key: participant_key.clone(),
                     }
-                    atlas_local_state::ConditionSubject::Other { description } => {
-                        ConditionSubjectView::Other {
-                            description: description.clone(),
-                        }
+                }
+                atlas_local_state::ConditionSubject::Other { description } => {
+                    ConditionSubjectView::Other {
+                        description: description.clone(),
                     }
-                })
-            }
-            _ => None,
-        });
+                }
+            })
+        }
+        _ => None,
+    });
     EncounterActionIssueView {
         subject,
         controller_key,
         instructions,
         source_condition_id: source,
-        condition_name: participant
-            .conditions
-            .iter()
-            .find(|condition| condition.condition_id == source)
+        condition_name: source_condition
             .map(|condition| condition.name.clone())
             .unwrap_or_default(),
         kind,
@@ -118,7 +95,6 @@ fn fact_question(fact: ActionFact) -> &'static str {
         ActionFact::Move => "Does this action have the move trait?",
         ActionFact::Attack => "Does this action have the attack trait?",
         ActionFact::MentalOnly => "Does this action require only mental effort?",
-        ActionFact::OpensOwnBonds => "Does this action open these bonds?",
         ActionFact::RelatesToFascination => {
             "Does this casting relate to this fascination's subject?"
         }
@@ -140,7 +116,6 @@ pub(super) fn fact_from_view(fact: EncounterActionFactView) -> ActionFact {
         EncounterActionFactView::Move => ActionFact::Move,
         EncounterActionFactView::Attack => ActionFact::Attack,
         EncounterActionFactView::MentalOnly => ActionFact::MentalOnly,
-        EncounterActionFactView::OpensOwnBonds => ActionFact::OpensOwnBonds,
         EncounterActionFactView::RelatesToFascination => ActionFact::RelatesToFascination,
         EncounterActionFactView::FurthersEscape => ActionFact::FurthersEscape,
         EncounterActionFactView::Cantrip => ActionFact::Cantrip,
@@ -160,7 +135,6 @@ pub(super) fn fact_to_view(fact: ActionFact) -> EncounterActionFactView {
         ActionFact::Move => EncounterActionFactView::Move,
         ActionFact::Attack => EncounterActionFactView::Attack,
         ActionFact::MentalOnly => EncounterActionFactView::MentalOnly,
-        ActionFact::OpensOwnBonds => EncounterActionFactView::OpensOwnBonds,
         ActionFact::RelatesToFascination => EncounterActionFactView::RelatesToFascination,
         ActionFact::FurthersEscape => EncounterActionFactView::FurthersEscape,
         ActionFact::Cantrip => EncounterActionFactView::Cantrip,
@@ -189,99 +163,8 @@ fn prohibition_reason(rule: super::conditions::ConditionRule) -> &'static str {
             "Follow this source's confusion instruction; reactions are unavailable."
         }
         ConditionRule::Sickened => "Cannot voluntarily consume food or drink.",
-        ConditionRule::Fatigued => {
-            "Cannot perform exploration activities while traveling and Fatigued."
-        }
         _ => "This action is prohibited by its condition.",
     }
-}
-
-pub(super) fn apply_judgments(
-    participant: &atlas_local_state::EncounterParticipant,
-    context: ActionContext<'_>,
-    judgments: &[EncounterActionJudgmentView],
-) -> AppServiceResult<super::rules::action_context::ActionEvaluation> {
-    let ActionContext {
-        kind,
-        mut reaction,
-        other_participant: other,
-        confusion,
-        facts: known,
-    } = context;
-    let mut facts = known.to_vec();
-    if judgments.len() > 200 {
-        return Err(AppServiceError::invalid_request(
-            "Too many action judgments.",
-        ));
-    }
-    let initial = evaluate_action(
-        participant,
-        &ActionContext {
-            kind,
-            reaction,
-            other_participant: other,
-            confusion,
-            facts: &facts,
-        },
-    );
-    let mut remaining = judgments.iter().collect::<Vec<_>>();
-    while !remaining.is_empty() {
-        let before = remaining.len();
-        let mut next = vec![];
-        for judgment in remaining {
-            let fact = fact_from_view(judgment.fact);
-            let source_id = judgment.source_condition_id.ok_or_else(|| {
-                AppServiceError::invalid_request("Choose the condition source for this judgment.")
-            })?;
-            if facts.iter().any(|known| {
-                known.fact == fact
-                    && (known.source_id.is_none()
-                        || known.source_id == Some(source_id)
-                        || is_intrinsic(fact))
-                    && known.value != judgment.value
-            }) {
-                return Err(AppServiceError::invalid_request(
-                    "An action judgment contradicts established facts.",
-                ));
-            }
-            let current = evaluate_action(
-                participant,
-                &ActionContext {
-                    kind,
-                    reaction,
-                    other_participant: other,
-                    confusion,
-                    facts: &facts,
-                },
-            );
-            if !initial.issues.iter().chain(&current.issues).any(|issue|matches!(issue,ActionIssue::NeedsFact {source_id:id,fact:needed} if *id==source_id&&*needed==fact)) {next.push(judgment);continue;}
-            facts.push(ActionJudgment {
-                source_id: Some(source_id),
-                fact,
-                value: judgment.value,
-            });
-            if fact == ActionFact::Reaction {
-                reaction = Some(judgment.value);
-            }
-        }
-        if next.len() == before {
-            return Err(AppServiceError::invalid_request(
-                "That fact is not required for this action.",
-            ));
-        }
-        remaining = next;
-    }
-    let evaluation = evaluate_action(
-        participant,
-        &ActionContext {
-            kind,
-            reaction,
-            other_participant: other,
-            confusion,
-            facts: &facts,
-        },
-    );
-    Ok(evaluation)
 }
 
 pub(super) fn confusion_from_view(
@@ -404,11 +287,6 @@ pub(super) fn strike_facts(
         },
         ActionJudgment {
             source_id: None,
-            fact: ActionFact::Reaction,
-            value: false,
-        },
-        ActionJudgment {
-            source_id: None,
             fact: ActionFact::VoluntaryIngestion,
             value: false,
         },
@@ -448,4 +326,26 @@ pub(super) fn inactive_issue(
                 .unwrap_or("This participant cannot act.")
                 .into(),
         })
+}
+
+pub(super) fn check_view(
+    dc: i64,
+    source_ids: Vec<i64>,
+    participants: &[atlas_local_state::EncounterParticipant],
+) -> EncounterActionCheckView {
+    EncounterActionCheckView {
+        dc,
+        sources: source_ids
+            .into_iter()
+            .map(|id| EncounterActionCheckSourceView {
+                condition_id: id,
+                name: participants
+                    .iter()
+                    .flat_map(|participant| &participant.conditions)
+                    .find(|source| source.condition_id == id)
+                    .map(|source| source.name.clone())
+                    .unwrap_or_default(),
+            })
+            .collect(),
+    }
 }
