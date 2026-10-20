@@ -120,18 +120,16 @@ fn references_with_keys(
                         ParsedMacro::Localize { key, label, .. } => {
                             if let Some(identifiers) =
                                 keys.get(key.as_str()).filter(|ids| ids.len() == 1)
+                                && let Some(identifier) = identifiers.first()
+                                && let Ok(trait_key) = TraitKey::new(*identifier)
                             {
-                                if let Some(identifier) = identifiers.first() {
-                                    if let Ok(trait_key) = TraitKey::new(*identifier) {
-                                        references.push(TraitLocalizationReference {
-                                            trait_key,
-                                            locator: locator.clone(),
-                                            localization_key: key.clone(),
-                                            path: path.clone(),
-                                            visible,
-                                        });
-                                    }
-                                }
+                                references.push(TraitLocalizationReference {
+                                    trait_key,
+                                    locator: locator.clone(),
+                                    localization_key: key.clone(),
+                                    path: path.clone(),
+                                    visible,
+                                });
                             }
                             visible = false; // Custom Localize labels are ignored by preparation.
                             label
