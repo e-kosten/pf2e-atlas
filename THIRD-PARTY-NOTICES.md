@@ -5,7 +5,7 @@ It is intended as release hygiene and is not legal advice.
 
 ## Project
 
-- PF2e Atlas: MIT
+- PF2e Atlas: Apache-2.0
 
 ## PF2e-derived Source and Bundled Web Assets
 
@@ -252,25 +252,25 @@ The exact font file is redistributed unchanged. The upstream static tree include
 - antlr4rust 0.5.2: BSD-3-Clause (registry+https://github.com/rust-lang/crates.io-index)
 - anyhow 1.0.102: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
 - ar_archive_writer 0.5.3: Apache-2.0 WITH LLVM-exception (registry+https://github.com/rust-lang/crates.io-index)
-- atlas-app-model 0.1.0: MIT (workspace)
-- atlas-app-service 0.1.0: MIT (workspace)
-- atlas-cli 0.1.0-rc.6: MIT (workspace)
-- atlas-cli-support 0.1.0: MIT (workspace)
-- atlas-dev 0.1.0: MIT (workspace)
-- atlas-dice 0.1.0: MIT (workspace)
-- atlas-domain 0.1.0: MIT (workspace)
-- atlas-embedding 0.1.0: MIT (workspace)
-- atlas-foundry-model 0.1.0: MIT (workspace)
-- atlas-index 0.1.0: MIT (workspace)
-- atlas-ingest 0.1.0: MIT (workspace)
-- atlas-local-state 0.1.0: MIT (workspace)
-- atlas-record 0.1.0: MIT (workspace)
-- atlas-runtime 0.1.0: MIT (workspace)
-- atlas-search 0.1.0: MIT (workspace)
-- atlas-sqlite-vec 0.1.0: MIT (workspace)
-- atlas-storage 0.1.0: MIT (workspace)
-- atlas-tags 0.1.0: MIT (workspace)
-- atlas-web 0.1.0: MIT (workspace)
+- atlas-app-model 0.1.0: Apache-2.0 (workspace)
+- atlas-app-service 0.1.0: Apache-2.0 (workspace)
+- atlas-cli 0.1.0-rc.6: Apache-2.0 (workspace)
+- atlas-cli-support 0.1.0: Apache-2.0 (workspace)
+- atlas-dev 0.1.0: Apache-2.0 (workspace)
+- atlas-dice 0.1.0: Apache-2.0 (workspace)
+- atlas-domain 0.1.0: Apache-2.0 (workspace)
+- atlas-embedding 0.1.0: Apache-2.0 (workspace)
+- atlas-foundry-model 0.1.0: Apache-2.0 (workspace)
+- atlas-index 0.1.0: Apache-2.0 (workspace)
+- atlas-ingest 0.1.0: Apache-2.0 (workspace)
+- atlas-local-state 0.1.0: Apache-2.0 (workspace)
+- atlas-record 0.1.0: Apache-2.0 (workspace)
+- atlas-runtime 0.1.0: Apache-2.0 (workspace)
+- atlas-search 0.1.0: Apache-2.0 (workspace)
+- atlas-sqlite-vec 0.1.0: Apache-2.0 (workspace)
+- atlas-storage 0.1.0: Apache-2.0 (workspace)
+- atlas-tags 0.1.0: Apache-2.0 (workspace)
+- atlas-web 0.1.0: Apache-2.0 (workspace)
 - atomic-waker 1.1.2: Apache-2.0 OR MIT (registry+https://github.com/rust-lang/crates.io-index)
 - auto_enums 0.8.10: Apache-2.0 OR MIT (registry+https://github.com/rust-lang/crates.io-index)
 - autocfg 1.5.0: Apache-2.0 OR MIT (registry+https://github.com/rust-lang/crates.io-index)

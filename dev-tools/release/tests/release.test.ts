@@ -77,6 +77,7 @@ test('notices preserve dependency ordering, unknown licenses and native notices'
   ] }, noticeFixture, noticeFixturePin);
   assert.ok(content.indexOf('- Alpha 1.0: Apache-2.0 (workspace)') < content.indexOf('- Alpha 2.0: MIT (registry)'));
   assert.ok(content.includes('- zeta 1.0: UNKNOWN (workspace)'));
+  assert.ok(content.includes('- PF2e Atlas: Apache-2.0'));
   assert.ok(content.includes('- ONNX Runtime: MIT'));
   assert.ok(content.endsWith('section before publishing the release.\n'));
 });

@@ -17,7 +17,7 @@ export function notices(metadata: Json, pf2eNotices: string, sourcePin: Json): s
   return [
     '# Third-Party Notices', '', 'This file is generated for PF2e Atlas release artifacts.',
     'It is intended as release hygiene and is not legal advice.', '', '## Project', '',
-    '- PF2e Atlas: MIT', '', '## PF2e-derived Source and Bundled Web Assets', '',
+    '- PF2e Atlas: Apache-2.0', '', '## PF2e-derived Source and Bundled Web Assets', '',
     pf2eNotices.trimEnd(), '', '## Rust Dependencies', '',
     ...sorted.map((item) => `- ${item.name} ${item.version}: ${item.license} (${item.source})`),
     '', '## Bundled Native Libraries', '',
