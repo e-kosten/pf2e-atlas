@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
+import { AtlasApiError } from "../../api/atlasApi";
+import { RecordIdentity } from "../../shared/records/RecordPresentation";
 import { currentAtlasRoute } from "../../app/routes";
 import { TraitView } from "./TraitView";
 import type { TraitDetailView } from "../../generated/atlas";
@@ -76,8 +78,10 @@ it("loads exact membership with generation guard and native record navigation", 
 it("retains the definition and focus during failed same-trait refresh", async () => {
   const client = setup();
   expect(await screen.findByText("Multiple attack penalty is reduced.")).toBeVisible();
-  const refresh = screen.getByRole("button", { name: "Refresh" });
-  refresh.focus();
+  const member = await screen.findByRole("link", { name: "Dagger" });
+  member.focus();
+  const scroll = member.closest(".detail-panel")!;
+  scroll.scrollTop = 120;
   api.getTraitDetail.mockRejectedValueOnce(new Error("Refresh failed"));
   await act(async () => {
     await client.invalidateQueries({ queryKey: ["trait-detail"] });
@@ -86,10 +90,82 @@ it("retains the definition and focus during failed same-trait refresh", async ()
     "Previously loaded content remains below.",
   );
   expect(screen.getByText("Multiple attack penalty is reduced.")).toBeVisible();
-  expect(refresh).toHaveFocus();
+  expect(member).toHaveFocus();
+  expect(scroll.scrollTop).toBe(120);
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   expect(await screen.findByText("Multiple attack penalty is reduced.")).toBeVisible();
 });
+it("shares the normal document identity chrome without routine navigation or refresh controls", async () => {
+  setup();
+  const heading = await screen.findByRole("heading", { name: "Agile" });
+  expect(heading.tagName).toBe("H2");
+  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Refresh" })).toBeNull();
+  expect(screen.getByText("Reference", { exact: true })).toBeVisible();
+  const traitHeader = heading.closest("header")!;
+  expect(traitHeader.querySelector(".record-reference__kind")).toHaveTextContent(
+    "Trait",
+  );
+  expect(heading).not.toHaveTextContent("Trait");
+  render(
+    <RecordIdentity
+      identity={summaryFixture("weapons:rapier", "Rapier")}
+      classification="Weapon 0"
+    />,
+  );
+  const recordHeader = screen
+    .getByRole("heading", { name: "Rapier" })
+    .closest("header")!;
+  expect(recordHeader.className).toBe(traitHeader.className);
+  for (const header of [traitHeader, recordHeader]) {
+    expect(
+      header.querySelector(".record-reference__title > .record-reference__identity h2"),
+    ).not.toBeNull();
+    expect(
+      header.querySelector(
+        ".record-reference__title > .record-reference__classification > .record-reference__kind",
+      ),
+    ).not.toBeNull();
+  }
+});
+
+it("offers generation recovery only after a stale association and rereads the trait before continuing", async () => {
+  api.getTraitRecords.mockRejectedValueOnce(
+    new AtlasApiError(409, "Reference data changed", {
+      code: "artifact_generation_changed",
+      message: "Reference data changed",
+      recoverable_action: "reload_record",
+    }),
+  );
+  const client = setup();
+  const recovery = await screen.findByRole("button", {
+    name: "Reload trait",
+  });
+  expect(screen.getByRole("alert")).toHaveTextContent("Reference collection changed");
+  api.getTraitDetail.mockResolvedValue({
+    ...definition,
+    artifact_generation: "generation-two",
+  });
+  fireEvent.click(recovery);
+  await screen.findByRole("link", { name: "Dagger" });
+  expect(
+    api.getTraitRecords.mock.calls.some(
+      ([request]) => request.expected_artifact_generation === "generation-two",
+    ),
+  ).toBe(true);
+  expect(
+    client
+      .getQueryCache()
+      .findAll({ queryKey: ["trait-records"] })
+      .every(
+        (query) =>
+          (query.queryKey[1] as { expected_artifact_generation: string })
+            .expected_artifact_generation === "generation-two",
+      ),
+  ).toBe(true);
+  expect(screen.queryByRole("button", { name: "Reload trait" })).toBeNull();
+});
+
 it("keeps an unavailable source definition explicit", async () => {
   api.getTraitDetail.mockResolvedValueOnce({
     ...definition,

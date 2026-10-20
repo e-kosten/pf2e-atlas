@@ -1,4 +1,4 @@
-import { Alert, Button, Empty, Pagination, Space, Spin, Tabs, Typography } from "antd";
+import { Alert, Button, Empty, Pagination, Spin, Tabs, Typography } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { AtlasApiError, getTraitRecords } from "../../api/atlasApi";
@@ -13,7 +13,8 @@ import type {
   TraitDetailView,
   TraitRecordsRequest,
 } from "../../generated/atlas";
-import { PaneFrame } from "../../shared/layout/PaneLayout";
+import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
+import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHeader";
 import { useTraitDetail } from "../../shared/records/useTraitDetail";
 import { PreparedContentBody } from "../../shared/records/PreparedContent";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
@@ -35,25 +36,7 @@ export function TraitView({
   };
   return (
     <main className="record-view">
-      <PaneFrame
-        className="record-view__pane"
-        label="Trait"
-        headerActions={
-          <Space>
-            <Button
-              onClick={() => {
-                if (history.length > 1) history.back();
-                else navigateToAtlasRoute({ kind: "search", selectedRecordKey: null });
-              }}
-            >
-              Back
-            </Button>
-            <Button onClick={() => void query.refetch()} aria-busy={query.isFetching}>
-              Refresh
-            </Button>
-          </Space>
-        }
-      >
+      <DocumentPagePane>
         <section className="detail-panel" aria-busy={query.isFetching}>
           {query.data && query.isFetching && (
             <div className="detail-refresh" aria-label="Updating trait">
@@ -87,12 +70,7 @@ export function TraitView({
           )}
           {query.data ? (
             <article className="record-reference">
-              <header className="record-reference__header">
-                <Typography.Title level={1}>
-                  {query.data.label}{" "}
-                  <Typography.Text type="secondary">Trait</Typography.Text>
-                </Typography.Title>
-              </header>
+              <DocumentIdentityHeader title={query.data.label} classification="Trait" />
               {query.data.content ? (
                 <PreparedContentBody
                   body={query.data.content.body}
@@ -122,7 +100,7 @@ export function TraitView({
             </div>
           ) : null}
         </section>
-      </PaneFrame>
+      </DocumentPagePane>
     </main>
   );
 }
