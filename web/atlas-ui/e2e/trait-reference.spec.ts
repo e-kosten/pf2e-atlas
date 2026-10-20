@@ -43,11 +43,16 @@ test("real trait chip opens its definition and Back returns to the selected sour
   await expect(chip).toBeVisible();
   await chip.click();
   await expect(page).toHaveURL(/\/traits\/trait:deadly-d8$/);
+  await expect(page.getByRole("button", { name: "Back", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Refresh", exact: true })).toHaveCount(
+    0,
+  );
+  await expect(page.locator(".record-reference__kind")).toHaveText("Trait");
   await expect(
-    page.getByRole("heading", { name: `${detail.label} Trait`, exact: true }),
+    page.getByRole("heading", { name: detail.label, exact: true }),
   ).toBeVisible();
   await expect(page.locator(".prepared-content")).toContainText("critical hit");
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.goBack();
   await expect(page).toHaveURL(`/records/${record}`);
   await expect(
     page.getByRole("heading", { name: "Rapier", exact: true }),
@@ -71,7 +76,7 @@ test("missing definitions and exact parameter variants stay distinct", async ({
   expect(unknown.content).toBeNull();
   await page.goto("/traits/trait:atlas-unknown-trait");
   await expect(
-    page.getByRole("heading", { name: "atlas-unknown-trait Trait" }),
+    page.getByRole("heading", { name: "atlas-unknown-trait" }),
   ).toBeVisible();
   const d8 = await definition(request, "trait:deadly-d8");
   const d12 = await definition(request, "trait:deadly-d12");
@@ -81,7 +86,7 @@ test("missing definitions and exact parameter variants stay distinct", async ({
   for (const detail of [d8, d12]) {
     await page.goto(`/traits/${detail.trait_key}`);
     await expect(
-      page.getByRole("heading", { name: `${detail.label} Trait`, exact: true }),
+      page.getByRole("heading", { name: detail.label, exact: true }),
     ).toBeVisible();
     await expect(page.locator(".prepared-content")).toContainText("critical hit");
   }
@@ -175,7 +180,7 @@ for (const profile of ["embeddinggemma", "bge-base"]) {
     ).toBeTruthy();
     await page.goto(`/traits/trait:agile?search_profile=${profile}`);
     await expect(
-      page.getByRole("heading", { name: "Agile Trait", exact: true }),
+      page.getByRole("heading", { name: "Agile", exact: true }),
     ).toBeVisible();
     const response = page.waitForResponse(
       (response) =>

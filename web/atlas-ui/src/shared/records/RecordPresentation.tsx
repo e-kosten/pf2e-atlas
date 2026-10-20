@@ -1,3 +1,4 @@
+import { DocumentIdentityHeader } from "./DocumentIdentityHeader";
 import { TraitBadge } from "./TraitBadge";
 import { RollTableReading } from "./RollTableReading";
 import { RecordRarity } from "./RecordRarity";
@@ -153,9 +154,18 @@ export function RecordIdentity({
   ) => void;
 }) {
   return (
-    <header className="record-reference__header">
-      <div className="record-reference__navigation">
-        {showOwnerReturn &&
+    <DocumentIdentityHeader
+      title={
+        <>
+          {identity.title}{" "}
+          {actionCost?.state === "value" && <ActionCost fact={actionCost} />}
+        </>
+      }
+      classification={classification}
+      classificationControl={rankControl}
+      hideTitle={hideTitle}
+      navigation={
+        showOwnerReturn &&
         root &&
         root.record_key !== visibleOwnerRecordKey &&
         selection?.embedded_path.length ? (
@@ -183,41 +193,30 @@ export function RecordIdentity({
           >
             {root.title}
           </Button>
-        ) : null}
-      </div>
-      <div className="record-reference__title">
-        <div className="record-reference__identity">
-          {!hideTitle && (
-            <h2>
-              {identity.title}{" "}
-              {actionCost?.state === "value" && <ActionCost fact={actionCost} />}
-            </h2>
-          )}
-          {originalRecord && (
-            <Button
-              className="record-reference__original"
-              type="link"
-              size="small"
-              href={atlasRoutePath({
-                kind: "record",
-                recordKey: originalRecord.record_key,
-                selection: originalRecord,
-              })}
-              onClick={(event) => {
-                if (!shouldHandleAtlasRouteClick(event)) return;
-                event.preventDefault();
-                navigateToAtlasPath(event.currentTarget.getAttribute("href")!);
-              }}
-            >
-              View original
-            </Button>
-          )}
-        </div>
-        <div className="record-reference__classification">
-          <p className="record-reference__kind">{classification}</p>
-          {rankControl}
-        </div>
-      </div>
+        ) : null
+      }
+      identityActions={
+        originalRecord && (
+          <Button
+            className="record-reference__original"
+            type="link"
+            size="small"
+            href={atlasRoutePath({
+              kind: "record",
+              recordKey: originalRecord.record_key,
+              selection: originalRecord,
+            })}
+            onClick={(event) => {
+              if (!shouldHandleAtlasRouteClick(event)) return;
+              event.preventDefault();
+              navigateToAtlasPath(event.currentTarget.getAttribute("href")!);
+            }}
+          >
+            View original
+          </Button>
+        )
+      }
+    >
       <div className="badge-row">
         <RecordRarity rarity={identity.rarity} />
         {identity.traits
@@ -227,7 +226,7 @@ export function RecordIdentity({
           ))}
       </div>
       {identity.publication?.trim() && <p className="muted">{identity.publication}</p>}
-    </header>
+    </DocumentIdentityHeader>
   );
 }
 

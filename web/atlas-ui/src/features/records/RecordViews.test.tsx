@@ -61,6 +61,9 @@ describe("record route views", () => {
       "/reader/spell:heal",
     );
     expect(screen.getByText("Reader view")).toBeInTheDocument();
+    expect(screen.getByText("Reference", { exact: true })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Refresh" })).toBeNull();
   });
 
   it("adds a standalone record detail route record to a saved list", async () => {
