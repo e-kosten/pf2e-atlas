@@ -6,6 +6,105 @@ use serde_json::json;
 const ACTOR: &str = "actors:testCreature1000";
 
 #[test]
+fn saved_list_reorder_keeps_unresolved_records_and_export_import_order() {
+    let f = fixture_worker();
+    let keys = [
+        "actions:testAction100000",
+        "actions:testAction200000",
+        "actions:unavailable",
+    ];
+    f.worker
+        .with_write(|session| {
+            Ok(session
+                .local_state()
+                .saved_lists()
+                .import(atlas_local_state::ImportSavedList {
+                    slug: "reorder".into(),
+                    name: "Reorder".into(),
+                    description: None,
+                    tags: vec![],
+                    replace: false,
+                    items: keys
+                        .iter()
+                        .map(|key| atlas_local_state::ImportSavedListItem {
+                            record_key: (*key).into(),
+                            note: Some(format!("Note {key}")),
+                            record_title_snapshot: format!("Snapshot {key}"),
+                            record_kind_snapshot: Some("rule".into()),
+                        })
+                        .collect(),
+                })?)
+        })
+        .unwrap();
+    let receipt = f
+        .worker
+        .reorder_saved_list_item(ReorderSavedListItemRequest {
+            list_ref: "reorder".into(),
+            record_ref: keys[2].into(),
+            target_record_ref: keys[0].into(),
+            placement: ReorderSavedListItemPlacementView::Before,
+        })
+        .unwrap();
+    assert_eq!(receipt.outcome, SavedListItemMutationOutcomeView::Reordered);
+    let view = f.worker.saved_list(&receipt.list_key).unwrap();
+    assert_eq!(
+        view.items
+            .iter()
+            .map(|item| item.record_key.as_str())
+            .collect::<Vec<_>>(),
+        [keys[2], keys[0], keys[1]]
+    );
+    assert_eq!(view.items[0].status, SavedListItemStatusView::Unresolved);
+    assert_eq!(
+        view.items[0].snapshot.title,
+        format!("Snapshot {}", keys[2])
+    );
+    assert_eq!(view.items[0].note, Some(format!("Note {}", keys[2])));
+    let export = f.worker.export_saved_list("reorder").unwrap();
+    assert_eq!(
+        export
+            .items
+            .iter()
+            .map(|item| item.position)
+            .collect::<Vec<_>>(),
+        [1, 2, 3]
+    );
+    f.worker
+        .import_saved_list(ImportSavedListRequest {
+            document: export,
+            id: Some("reorder-copy".into()),
+            replace: false,
+        })
+        .unwrap();
+    let copied = f.worker.saved_list("reorder-copy").unwrap();
+    assert_eq!(copied.items[0], view.items[0]);
+    assert_eq!(
+        copied
+            .items
+            .iter()
+            .map(|item| (&item.record_key, item.position, &item.note))
+            .collect::<Vec<_>>(),
+        view.items
+            .iter()
+            .map(|item| (&item.record_key, item.position, &item.note))
+            .collect::<Vec<_>>()
+    );
+    for (source, target) in [(keys[0], "actions:absent"), ("actions:absent", keys[0])] {
+        let error = f
+            .worker
+            .reorder_saved_list_item(ReorderSavedListItemRequest {
+                list_ref: "reorder".into(),
+                record_ref: source.into(),
+                target_record_ref: target.into(),
+                placement: ReorderSavedListItemPlacementView::After,
+            })
+            .unwrap_err();
+        assert_eq!(error.into_app_error().code, AppErrorCode::InvalidRequest);
+        assert_eq!(f.worker.saved_list("reorder").unwrap(), view);
+    }
+}
+
+#[test]
 fn table_results_preserve_collection_states_and_have_one_authoritative_list() {
     use atlas_domain::QueryFieldState;
     for (results, expected) in [

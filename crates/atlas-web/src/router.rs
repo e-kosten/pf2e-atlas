@@ -10,8 +10,8 @@ use crate::handlers::{
     discover_filter_editor, discover_filter_values, encounter, encounter_condition_definitions,
     encounter_turn_review, encounters, filter_saved_list, readiness, record_detail,
     remove_encounter_participant, remove_encounter_participant_condition, remove_saved_list_item,
-    reorder_encounter_participant, saved_list, saved_list_item_note, saved_lists, search_page,
-    set_encounter_turn, update_encounter, update_encounter_participant,
+    reorder_encounter_participant, reorder_saved_list_item, saved_list, saved_list_item_note,
+    saved_lists, search_page, set_encounter_turn, update_encounter, update_encounter_participant,
     update_encounter_participant_condition, update_saved_list, update_saved_list_item_note,
 };
 use crate::service::AtlasWebState;
@@ -91,6 +91,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             "/api/lists/{list_ref}/items",
             post(add_saved_list_item).delete(remove_saved_list_item),
         )
+        .route("/api/lists/{list_ref}/items/reorder", post(reorder_saved_list_item))
         .route("/api/filters/editor", post(discover_filter_editor))
         .route("/api/filters/values", post(discover_filter_values))
         .route("/api/filters/counts", post(crate::handlers::discover_filter_counts))

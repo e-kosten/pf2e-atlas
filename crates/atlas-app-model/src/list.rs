@@ -115,6 +115,23 @@ pub struct RemoveSavedListItemRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ReorderSavedListItemRequest {
+    pub list_ref: String,
+    pub record_ref: String,
+    pub target_record_ref: String,
+    pub placement: ReorderSavedListItemPlacementView,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(rename_all = "snake_case")]
+pub enum ReorderSavedListItemPlacementView {
+    Before,
+    After,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListItemMutationView {
     pub list_key: String,
@@ -166,6 +183,7 @@ pub enum SavedListItemMutationOutcomeView {
     AlreadyPresent,
     Removed,
     NotPresent,
+    Reordered,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

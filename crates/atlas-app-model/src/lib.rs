@@ -74,7 +74,8 @@ pub use list::{
     AddSavedListItemRequest, BatchAddSavedListItemsRequest, BatchSavedListItemInput,
     BatchSavedListItemMutationView, BatchSavedListItemOutcomeView, BatchSavedListItemResultView,
     CreateSavedListRequest, DeleteSavedListView, FilterSavedListRequest, ImportSavedListRequest,
-    ImportSavedListView, RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView,
+    ImportSavedListView, RemoveSavedListItemRequest, ReorderSavedListItemPlacementView,
+    ReorderSavedListItemRequest, SavedListCreateView, SavedListDetailView,
     SavedListExportDocumentView, SavedListExportItemView, SavedListExportListView,
     SavedListIndexView, SavedListItemMutationOutcomeView, SavedListItemMutationView,
     SavedListItemNoteView, SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView,
@@ -280,6 +281,8 @@ mod tests {
             .expect("ImportSavedListView bindings should export");
         RemoveSavedListItemRequest::export_all_to(path)
             .expect("RemoveSavedListItemRequest bindings should export");
+        ReorderSavedListItemRequest::export_all_to(path)
+            .expect("ReorderSavedListItemRequest bindings should export");
         SavedListCreateView::export_all_to(path)
             .expect("SavedListCreateView bindings should export");
         SavedListDetailView::export_all_to(path)
