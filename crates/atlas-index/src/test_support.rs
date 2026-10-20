@@ -103,6 +103,24 @@ pub fn publish_input(
     SqliteIndexWriter::new(&maintenance).write(input)
 }
 
+/// Seed only the record component of a deliberately historical schema fixture.
+/// This does not produce a current readable artifact: ordinary publication must
+/// use `SqliteIndexWriter` after the complete migration ledger is applied.
+pub fn publish_historical_record_fixture(
+    maintenance: &atlas_storage::MaintenanceSession<'_>,
+    input: &IndexBuildInput,
+) -> Result<(), IndexError> {
+    if !input.traits.is_empty() || !input.trait_vectors.is_empty() {
+        return Err(IndexError::Invalid(
+            "historical record fixtures cannot publish trait vocabulary".into(),
+        ));
+    }
+    maintenance.publish(|connection| {
+        connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
+        crate::writer::write_record_rows(connection, input)
+    })
+}
+
 /// Model an older preparation contract coherently, including the allocation
 /// digests used to decide whether publication can retain a record's rows.
 pub fn set_content_interpretation_version(
