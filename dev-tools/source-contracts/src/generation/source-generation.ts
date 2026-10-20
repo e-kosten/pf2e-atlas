@@ -1,6 +1,6 @@
+import { generateTraitDefinitionModule } from './trait-definitions.js';
 import type { GraphField, GraphNode } from '../contracts.js';
 import { validateInput, type GenerationInput } from './generation-input.js';
-import { generateTraitLabelModule } from './trait-labels.js';
 
 interface Owner { type: string; parser: string; module?: string; allocated?:string; inline?:boolean; typeDependencies?:Owner[] }
 interface RustModule {
@@ -672,9 +672,10 @@ ${openTraitArrays.size ? '// Explicit trait-array policies keep identifiers as s
     }
     files[name ? `${name}.rs` : 'mod.rs'] = header + lines.join('\n') + '\n';
   }
-  if (input.traitLabelKeys) {
-    files['trait_labels.rs'] = generateTraitLabelModule(input.traitLabelKeys, generatedHeader + '\n// Pinned source digest: ' + input.source.source_digest);
-    files['mod.rs'] += '\nmod trait_labels;\npub use trait_labels::trait_label_key;\n';
+  if (input.traitDefinitions) {
+    if (!input.referenceSource) throw new Error('Trait metadata requires pinned source provenance');
+    files['trait_definitions.rs'] = generateTraitDefinitionModule(input.traitDefinitions, generatedHeader + '\n// Pinned source digest: ' + input.source.source_digest, input.referenceSource);
+    files['mod.rs'] += '\nmod trait_definitions;\npub use trait_definitions::{FoundryTraitDefinition, FoundryTraitSourceLocation, trait_definitions, trait_definition};\n';
   }
   return files;
 }

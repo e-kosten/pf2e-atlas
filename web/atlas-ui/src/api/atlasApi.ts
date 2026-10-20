@@ -828,3 +828,50 @@ export async function updateSavedListItemNote(
     },
   );
 }
+
+export async function getTraitDetail(
+  request: import("../generated/atlas").TraitDetailRequest,
+  signal?: AbortSignal,
+): Promise<import("../generated/atlas").TraitDetailView> {
+  const result: import("../generated/atlas").TraitDetailView = await atlasFetch(
+    "/api/traits/detail",
+    {
+      method: "POST",
+      body: jsonBody(request),
+      signal,
+    },
+  );
+  if (result.trait_key !== request.trait_key)
+    throw new Error("The trait response does not match this request. Retry.");
+  return result;
+}
+export async function getTraitRecords(
+  request: import("../generated/atlas").TraitRecordsRequest,
+  signal?: AbortSignal,
+): Promise<import("../generated/atlas").TraitRecordsPage> {
+  const result: import("../generated/atlas").TraitRecordsPage = await atlasFetch(
+    "/api/traits/records",
+    {
+      method: "POST",
+      body: jsonBody(request),
+      signal,
+    },
+  );
+  if (result.artifact_generation !== request.expected_artifact_generation)
+    throw new AtlasApiError(409, "Reference collection changed. Reload trait.", {
+      code: "artifact_generation_changed",
+      message: "Reference collection changed. Reload trait.",
+      recoverable_action: "reload_record",
+    });
+  if (result.trait_key !== request.trait_key || result.kind !== request.kind)
+    throw new Error("The trait response does not match this request. Retry.");
+  if (
+    request.kind === "similar" &&
+    request.search_profile != null &&
+    result.search_profile !== request.search_profile
+  )
+    throw new Error(
+      "The Similar response does not match the selected search model. Retry.",
+    );
+  return result;
+}

@@ -443,6 +443,9 @@ pub(super) fn authored_activity(
         .flatten()
         .map(|t| RecordBadgeView {
             kind: "trait".into(),
+            trait_key: atlas_domain::TraitKey::new(t.clone())
+                .ok()
+                .map(|key| key.to_string()),
             label: t.clone(),
             value: t.clone(),
         })

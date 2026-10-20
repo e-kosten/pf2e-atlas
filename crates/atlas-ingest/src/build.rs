@@ -70,6 +70,7 @@ pub(crate) fn prepare_build(
         ));
     }
     let mut context = SourceArtifactBuildContext {
+        trait_policy: "trait-definition-centroid/v1".into(),
         used_trait_labels: BTreeMap::new(),
         format_version: ARTIFACT_FORMAT_VERSION,
         snapshot_version: atlas_foundry_model::SNAPSHOT_VERSION,
@@ -125,7 +126,15 @@ pub(crate) fn prepare_build(
         .map(|config| TextEmbeddingTokenizer::load_baseline(&config.cache_root))
         .transpose()
         .map_err(embedding_error)?;
-    let prepared = index_build_input(source, context, tokenizer.as_ref(), &capture)?;
+    let mut prepared = index_build_input(source, context, tokenizer.as_ref(), &capture)?;
+    let (traits, trait_pending) = crate::traits::prepare_traits(
+        &catalog,
+        &prepared.index.context,
+        tokenizer.as_ref(),
+        &prepared.index.records,
+    )?;
+    prepared.index.traits = traits;
+    prepared.trait_pending = trait_pending;
     tracing::info!(
         records = prepared.index.records.len(),
         semantic_units = prepared.pending.len(),
@@ -224,6 +233,12 @@ pub(crate) fn build_artifact(
                 .pending
                 .iter()
                 .map(|pending| pending.input.clone())
+                .chain(
+                    prepared
+                        .trait_pending
+                        .iter()
+                        .map(|pending| pending.input.clone()),
+                )
                 .collect(),
         )
         .map_err(embedding_error)?;
@@ -286,6 +301,56 @@ pub(crate) fn build_artifact(
             inferred_inputs: generated.inferred_inputs,
             reused_inputs: generated.reused_inputs,
         });
+        let mut trait_chunks: BTreeMap<atlas_domain::TraitKey, Vec<atlas_index::TraitSeedChunk>> =
+            BTreeMap::new();
+        for ((pending, input), vector) in prepared
+            .trait_pending
+            .iter()
+            .zip(inputs.iter().skip(prepared.pending.len()))
+            .zip(generated.vectors.iter().skip(prepared.pending.len()))
+        {
+            trait_chunks.entry(pending.key.clone()).or_default().push(
+                atlas_index::TraitSeedChunk {
+                    input: input.input.clone(),
+                    input_hash: input.input_sha256.clone(),
+                    token_count: input.token_count,
+                    address: input.address.clone(),
+                    vector: vector.clone(),
+                },
+            );
+        }
+        for (key, chunks) in trait_chunks {
+            use sha2::{Digest, Sha256};
+            let hashes = chunks
+                .iter()
+                .map(|c| c.input_hash.as_str())
+                .collect::<Vec<_>>();
+            let input_hash = format!(
+                "{:x}",
+                Sha256::digest(format!(
+                    "{}:{}",
+                    crate::traits::TRAIT_SEED_RECIPE,
+                    hashes.join(":")
+                ))
+            );
+            let vector = atlas_embedding::normalized_centroid(
+                &chunks
+                    .iter()
+                    .map(|c| c.vector.as_slice())
+                    .collect::<Vec<_>>(),
+            )
+            .map_err(embedding_error)?;
+            prepared
+                .index
+                .trait_vectors
+                .push(atlas_index::TraitVectorInput {
+                    key,
+                    profile_id: profile.profile_id(),
+                    input_hash,
+                    vector,
+                    chunks,
+                });
+        }
         for ((pending, input), vector) in prepared.pending.iter().zip(inputs).zip(generated.vectors)
         {
             let mut unit = pending.unit.clone();

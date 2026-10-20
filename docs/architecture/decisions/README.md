@@ -4,6 +4,8 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 ## Current ADRs
 
+- [`0056-trait-reference-entities.md`](./0056-trait-reference-entities.md): typed trait identities, pinned source definitions, exact membership/reference evidence and stored-vector Similar into normal records.
+
 - [`0054-derived-tag-deferral.md`](./0054-derived-tag-deferral.md): derived-tag development is deferred pending demonstrated retrieval gaps; existing file validation remains, with history and future design preserved as research.
 
 - [`0053-field-aware-search-fusion.md`](./0053-field-aware-search-fusion.md): one field-aware lexical projection and independent temporary RRF/score comparison without re-embedding.

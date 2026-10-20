@@ -109,13 +109,39 @@ pub(crate) fn finish_reference_job(
     }
     // Retain every exact active input, even if a caller did not touch its cache
     // row during this run. Abandoned inputs are pruned only after publication.
-    connection.execute(
-        "DELETE FROM embedding_checkpoints AS c WHERE NOT EXISTS (SELECT 1 FROM semantic_units u JOIN search_profiles p ON p.profile_id=u.profile_id WHERE u.input_hash=c.input_hash AND u.input_token_count=c.token_count AND p.identity_json=c.model_identity AND p.dimensions=c.dimensions)",
-        [],
-    )?;
+    // Decode each trait's native chunk evidence once. The checkpoint corpus is
+    // much larger than the vocabulary: a correlated json_each would repeatedly
+    // parse every chunk vector for every checkpoint before testing its identity.
+    connection.execute_batch(ACTIVE_TRAIT_INPUTS_SQL)?;
+    connection.execute(PRUNE_CHECKPOINTS_SQL, [])?;
+    connection.execute_batch("DROP TABLE temp.active_trait_checkpoint_inputs")?;
     connection.execute("DELETE FROM reference_update_jobs WHERE job_key<>?", [job])?;
     Ok(())
 }
+
+const ACTIVE_TRAIT_INPUTS_SQL:&str="
+CREATE TEMP TABLE active_trait_checkpoint_inputs(
+ input_hash TEXT NOT NULL,
+ token_count INTEGER NOT NULL,
+ dimensions INTEGER NOT NULL,
+ model_identity TEXT NOT NULL,
+ PRIMARY KEY(input_hash,token_count,dimensions,model_identity)
+) WITHOUT ROWID;
+INSERT OR IGNORE INTO temp.active_trait_checkpoint_inputs
+SELECT json_extract(h.value,'$.input_hash'),json_extract(h.value,'$.token_count'),p.dimensions,p.identity_json
+FROM trait_vectors tv JOIN search_profiles p ON p.profile_id=tv.profile_id,json_each(tv.chunks_json) h;
+";
+const PRUNE_CHECKPOINTS_SQL: &str = "
+DELETE FROM embedding_checkpoints AS c
+WHERE NOT EXISTS (
+ SELECT 1 FROM temp.active_trait_checkpoint_inputs a
+ WHERE a.input_hash=c.input_hash AND a.token_count=c.token_count
+ AND a.dimensions=c.dimensions AND a.model_identity=c.model_identity
+) AND NOT EXISTS (
+ SELECT 1 FROM semantic_units u JOIN search_profiles p ON p.profile_id=u.profile_id
+ WHERE u.input_hash=c.input_hash AND u.input_token_count=c.token_count
+ AND p.identity_json=c.model_identity AND p.dimensions=c.dimensions
+)";
 
 pub fn read_embedding_checkpoints(
     session: &ReadSession,
@@ -198,6 +224,36 @@ pub fn save_embedding_checkpoints(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn trait_checkpoint_pruning_uses_materialized_identity_primary_key() {
+        let directory = tempfile::tempdir().unwrap();
+        let workspace =
+            crate::test_support::initialize_workspace(directory.path().join("workspace.sqlite"))
+                .unwrap();
+        let write = workspace
+            .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
+            .unwrap();
+        let c = write.connection();
+        c.execute_batch(ACTIVE_TRAIT_INPUTS_SQL).unwrap();
+        let plan = c
+            .prepare(&format!("EXPLAIN QUERY PLAN {PRUNE_CHECKPOINTS_SQL}"))
+            .unwrap()
+            .query_map([], |r| r.get::<_, String>(3))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(plan.iter().any(|step|step.contains("SEARCH a USING PRIMARY KEY (input_hash=? AND token_count=? AND dimensions=? AND model_identity=?)")),"{plan:?}");
+        assert!(
+            !plan.iter().any(|step| step.contains("VIRTUAL TABLE")),
+            "checkpoint deletion must not scan json_each for each checkpoint: {plan:?}"
+        );
+        assert!(
+            plan.iter()
+                .any(|step| step.contains("semantic_units_input_hash")),
+            "normal-record checkpoint lookup stays indexed: {plan:?}"
+        );
+    }
 
     #[test]
     fn publication_commits_job_and_prunes_only_inactive_inputs() {

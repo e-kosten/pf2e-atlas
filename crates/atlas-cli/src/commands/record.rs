@@ -11,7 +11,7 @@ mod batch;
 mod json;
 mod presentation;
 pub(crate) mod source;
-mod terminal;
+pub(crate) mod terminal;
 use args::{RecordGetOptions, RecordResolveOptions, TerminalDetail};
 #[cfg(test)]
 use terminal::render_html;

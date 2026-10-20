@@ -88,7 +88,8 @@ pub(crate) fn used_trait_labels(
                 if let Some(traits) = query.traits().value() {
                     for identifier in traits {
                         if let Some(key) =
-                            atlas_foundry_model::generated::trait_label_key(identifier)
+                            atlas_foundry_model::generated::trait_definition(identifier)
+                                .and_then(|definition| definition.label_key)
                             && let Some(label) = catalog
                                 .localized_value(key)
                                 .filter(|s| !s.trim().is_empty())

@@ -1201,3 +1201,30 @@ fn structured_self_effect_uses_uuid_identity_and_preserves_unresolved_targets() 
     ));
     assert_eq!(effects[0].locator.field, "/system/selfEffect/uuid");
 }
+
+#[test]
+fn trait_definition_references_resolve_only_qualified_record_targets() {
+    let mut index = SourceReferenceIndex::default();
+    let source = admitted(
+        "Item",
+        json!({"_id":ROOT,"type":"spell","name":"Known Spell"}),
+    );
+    let key = source_record_key("spells-srd", &source).unwrap();
+    index.insert_source(&key, &source);
+    let qualified = format!("Compendium.pf2e.spells-srd.Item.{ROOT}");
+    let resolved = index.resolve_global_reference(&qualified).unwrap();
+    assert!(
+        matches!(resolved.target, ContentReferenceTarget::Record { key: found } if found == key)
+    );
+    assert!(
+        index
+            .resolve_global_reference(&format!("Item.{ROOT}"))
+            .is_none()
+    );
+    assert!(
+        index
+            .resolve_global_reference(&format!(".{ROOT}"))
+            .is_none()
+    );
+    assert!(index.resolve_global_reference("Known Spell").is_none());
+}
