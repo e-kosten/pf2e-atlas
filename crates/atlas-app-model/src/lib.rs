@@ -1,4 +1,9 @@
 #![deny(unsafe_code)]
+mod traits;
+pub use traits::{
+    TraitAssociationKind, TraitContentView, TraitDetailRequest, TraitDetailView, TraitRecordView,
+    TraitRecordsPage, TraitRecordsRequest,
+};
 mod table_roll;
 pub use table_roll::{RollTableRequest, TableRollView};
 mod strike_roll;
@@ -84,6 +89,7 @@ pub use list::{
 };
 pub use prepared_content::{
     ContentControlKindView, ContentControlView, PreparedContentFieldView, PreparedFieldBodyView,
+    PreparedReferenceView,
 };
 pub use presentation::{
     ActionCostView, ActionGlyphView, ActivityEffectReferenceView, ActivityFrequencyView,
@@ -256,6 +262,10 @@ mod tests {
             .expect("UpdateEncounterParticipantRequest bindings should export");
         SearchResultsRequest::export_all_to(path)
             .expect("SearchResultsRequest bindings should export");
+        TraitDetailRequest::export_all_to(path).expect("trait request bindings");
+        TraitDetailView::export_all_to(path).expect("trait detail bindings");
+        TraitRecordsRequest::export_all_to(path).expect("trait associations request bindings");
+        TraitRecordsPage::export_all_to(path).expect("trait associations bindings");
         RecordDetailView::export_all_to(path).expect("RecordDetailView bindings should export");
 
         RecordResolutionAmbiguousView::export_all_to(path)

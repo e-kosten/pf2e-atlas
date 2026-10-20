@@ -19,15 +19,20 @@ mod text_projection;
 
 pub use marker_validation::{
     PreparedMarkerError, validate_prepared_markers, validate_prepared_reference_bindings,
+    validate_prepared_trait_reference_bindings,
 };
 pub use model::{
     CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentDiagnosticCode, ContentInteraction,
     ContentInteractionKind, ContentInterpretationDiagnostic, ContentReferenceKind,
-    ContentReferenceLabel, ContentReferenceOccurrence, ContentReferenceResolution,
-    ContentReferenceResolver, ContentReferenceTarget, ContentVisibilityRule, OwnedContentIdentity,
-    OwnedContentLocator, PreparedSourceContent, ResolvedContentReference, SourceContentLocator,
+    ContentReferenceLabel, ContentReferenceLookup, ContentReferenceOccurrence,
+    ContentReferenceResolution, ContentReferenceResolver, ContentReferenceTarget,
+    ContentVisibilityRule, OwnedContentIdentity, OwnedContentLocator, PreparedSourceContent,
+    PreparedTraitDefinition, ResolvedContentReference, SourceContentLocator,
 };
 pub use parse_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
 pub use parser::LocalizationResolver;
-pub use preparation::{is_safe_content_url, prepare_source_content};
+pub use preparation::{is_safe_content_url, prepare_source_content, prepare_trait_definition};
 pub use text_projection::plain_text as prepared_plain_text;
+
+mod trait_references;
+pub use trait_references::{TraitLocalizationReference, trait_localization_references};

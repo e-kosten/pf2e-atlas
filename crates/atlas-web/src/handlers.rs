@@ -605,3 +605,31 @@ pub(crate) async fn update_saved_list_item_note(
         call_service(state, move || service.update_saved_list_item_note(request)).await?,
     ))
 }
+
+pub(crate) async fn trait_definition(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::TraitDetailRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_read_service(state, move |execution| {
+            service.trait_definition(request, &execution)
+        })
+        .await?,
+    ))
+}
+
+pub(crate) async fn trait_records(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::TraitRecordsRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_read_service(state, move |execution| {
+            service.trait_records(request, &execution)
+        })
+        .await?,
+    ))
+}

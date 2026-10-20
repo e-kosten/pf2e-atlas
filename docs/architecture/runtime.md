@@ -65,6 +65,12 @@ the tagged checked representation with version/identity/recursion guards; it run
 no source admission, defaults or repairs. Original complete source JSON is not
 duplicated in the artifact. Developer source inspection can read the checkout;
 normal runtime reads use the checked codec and work without it.
+
+Trait reference reads likewise use published source evidence and prepared
+definitions without opening Foundry localization files. Their separate typed
+identity, exact source memberships/references and stored semantic seeds follow
+[ADR0056](./decisions/0056-trait-reference-entities.md). Publication and schema
+upgrades use the same bounded workspace and state-preserving migration owners.
 `atlas record source` explicitly exports a product record's complete checked
 snapshot and compact provenance through the existing retrieval/app-service path.
 This inspection does not use presentation projections or read the source clone.

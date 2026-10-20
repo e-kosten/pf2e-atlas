@@ -517,9 +517,14 @@ separate from this baseline/change policy; never guess emptiness from prose/HTML
 Physical prices format the supplied currency number facts without inferring free
 from empty prices; table results use their one fact-owned link collection.
 
-The shared identity header places the name and selected activity glyph on the
-left and the service-supplied compact classification on the right, wrapping to
-the actual pane. Show the title glyph once and ability modifiers before skills.
+`DocumentIdentityHeader` supplies the same identity layout for records and traits:
+the name and selected activity glyph on the left and the compact classification
+on the right, wrapping to the actual pane. Record classification labels come from
+the service; the trait document uses the title-cased Trait classification.
+`DocumentPagePane` provides their common Reference page chrome. Record-only actions
+such as Add to list and Reader view stay in the record composition. Full pages use
+native browser history for Back; they expose Retry or Reload only with a local
+error or changed collection. Recovery rereads the current local reference data. Show the title glyph once and ability modifiers before skills.
 Do not infer game semantics from prose or show ordinary technical keys.
 Compact result classification uses the supplied kind and level/rank labels;
 removing the Level/Rank display prefix does not create a typed fact. Product record

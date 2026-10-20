@@ -15,6 +15,7 @@ use crate::commands::search::args::SearchOptions;
 use crate::commands::setup::args::SetupArgs;
 use crate::commands::similar::args::SimilarOptions;
 use crate::commands::tags::args::{TagsArgs, TagsCommand};
+use crate::commands::traits::{TraitArgs, TraitCommand};
 use crate::commands::web::args::WebArgs;
 use atlas_cli_support::CliProgressMode;
 use atlas_cli_support::{ProgressOptions, init_tracing, write_json_error};
@@ -52,6 +53,8 @@ pub(crate) enum Command {
     Index(IndexArgs),
     #[command(about = "Fetch and resolve Atlas records")]
     Record(RecordArgs),
+    #[command(about = "Read Atlas trait definitions")]
+    Trait(TraitArgs),
     #[command(about = "Retrieve local record reference graph context")]
     Graph(GraphArgs),
     #[command(about = "Find records similar to a seed record")]
@@ -121,6 +124,9 @@ impl Command {
                 RecordCommand::Resolve(options) => options.json,
                 RecordCommand::Source(options) => options.json,
             },
+            Self::Trait(args) => match &args.command {
+                TraitCommand::Get(options) => options.json,
+            },
             Self::Graph(args) => match &args.command {
                 GraphCommand::Links(options) => options.json,
                 GraphCommand::Uses(options) => options.json,
@@ -172,6 +178,9 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             RecordCommand::Get(options) => commands::record::run_record_get(*options),
             RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
             RecordCommand::Source(options) => commands::record::source::run_record_source(options),
+        },
+        Command::Trait(traits) => match traits.command {
+            TraitCommand::Get(options) => commands::traits::run_trait_get(options),
         },
         Command::Graph(graph) => match graph.command {
             GraphCommand::Links(options) => commands::graph::run_graph_links(options),

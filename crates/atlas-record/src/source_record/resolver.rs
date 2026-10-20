@@ -182,17 +182,8 @@ impl ContentReferenceResolver for SourceReferenceIndex {
         source: &SourceContentLocator,
         target: &str,
     ) -> Option<ResolvedContentReference> {
-        if let Some(legacy) = target.strip_prefix("Compendium.") {
-            // Qualified authored root names are supported by PF2e's pinned
-            // build/lib/compendium-pack.ts LINK_PATTERNS and #finalize.
-            let parts = legacy.split('.').collect::<Vec<_>>();
-            if parts.len() == 3 {
-                return self.lookup_compendium(legacy);
-            }
-            return self.lookup_compendium(target);
-        }
-        if target.starts_with("pf2e.") {
-            return self.lookup_compendium(target);
+        if target.starts_with("Compendium.") || target.starts_with("pf2e.") {
+            return self.resolve_global_reference(target);
         }
         if let Some(relative) = target.strip_prefix('.') {
             // Pinned journal prose uses .PAGE_ID for a sibling page in the
@@ -217,6 +208,25 @@ impl ContentReferenceResolver for SourceReferenceIndex {
                 source.record.pack(),
                 source.record.id()
             ));
+        }
+        None
+    }
+}
+
+impl SourceReferenceIndex {
+    /// Resolve only fully qualified authored destinations; no document-relative context exists for terms.
+    pub fn resolve_global_reference(&self, target: &str) -> Option<ResolvedContentReference> {
+        if let Some(legacy) = target.strip_prefix("Compendium.") {
+            // Qualified authored root names are supported by PF2e's pinned
+            // build/lib/compendium-pack.ts LINK_PATTERNS and #finalize.
+            let parts = legacy.split('.').collect::<Vec<_>>();
+            if parts.len() == 3 {
+                return self.lookup_compendium(legacy);
+            }
+            return self.lookup_compendium(target);
+        }
+        if target.starts_with("pf2e.") {
+            return self.lookup_compendium(target);
         }
         None
     }

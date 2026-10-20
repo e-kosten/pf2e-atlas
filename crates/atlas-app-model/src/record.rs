@@ -20,6 +20,9 @@ pub struct RecordSummaryView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordBadgeView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub trait_key: Option<String>,
     pub kind: String,
     pub label: String,
     pub value: String,

@@ -236,3 +236,11 @@ export type { AddEncounterPartyRequest } from "../../../../crates/atlas-app-mode
 
 export type { SavedListItemNoteView } from "../../../../crates/atlas-app-model/bindings/SavedListItemNoteView";
 export type { UpdateSavedListItemNoteRequest } from "../../../../crates/atlas-app-model/bindings/UpdateSavedListItemNoteRequest";
+export type { TraitDetailRequest } from "../../../../crates/atlas-app-model/bindings/TraitDetailRequest";
+export type { TraitDetailView } from "../../../../crates/atlas-app-model/bindings/TraitDetailView";
+export type { TraitRecordsRequest } from "../../../../crates/atlas-app-model/bindings/TraitRecordsRequest";
+export type { TraitRecordsPage } from "../../../../crates/atlas-app-model/bindings/TraitRecordsPage";
+export type { TraitAssociationKind } from "../../../../crates/atlas-app-model/bindings/TraitAssociationKind";
+export type { TraitRecordView } from "../../../../crates/atlas-app-model/bindings/TraitRecordView";
+export type { TraitContentView } from "../../../../crates/atlas-app-model/bindings/TraitContentView";
+export type { PreparedReferenceView } from "../../../../crates/atlas-app-model/bindings/PreparedReferenceView";

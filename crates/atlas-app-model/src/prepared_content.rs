@@ -51,3 +51,18 @@ pub enum ContentControlKindView {
         options: std::collections::BTreeMap<String, String>,
     },
 }
+
+/// An attributed marker destination within one already-selected prepared body.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct PreparedReferenceView {
+    pub ordinal: usize,
+    pub status: String,
+    pub target: Option<crate::RecordNavigationView>,
+    pub url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub effect_label: Option<crate::EffectReferenceLabelView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub contextual_target: Option<crate::RecordNavigationView>,
+}

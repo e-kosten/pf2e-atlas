@@ -693,3 +693,92 @@ fn unsupported_macro_meaning_is_not_invented_and_label_references_remain_evidenc
         2
     );
 }
+
+#[test]
+fn trait_definitions_share_localization_sanitization_and_explicit_reference_evidence() {
+    struct Terms;
+    impl LocalizationResolver for Terms {
+        fn localized_value(&self, key: &str) -> Option<&str> {
+            (key == "definition").then_some("<strong>Localized definition</strong> @UUID[Compendium.pf2e.spells-srd.Item.abc]{Spell}")
+        }
+    }
+    let resolve = |_: &str| {
+        Some(ResolvedContentReference {
+            target: ContentReferenceTarget::Record {
+                key: "spells-srd:abc".parse().unwrap(),
+            },
+            display_name: Some("Spell".into()),
+            item_family: Some("spell".into()),
+        })
+    };
+    let markup = "<p>@Localize[definition]</p><script>bad()</script><a href='javascript:bad()'>unsafe</a><p data-visibility='gm'>secret</p>";
+    let audience = ContentAudience {
+        include_gm: false,
+        include_owner: false,
+        implicit_check_dc: ContentVisibilityRule::All,
+    };
+    let prepared = prepare_trait_definition(
+        atlas_domain::TraitKey::new("agile").unwrap(),
+        markup,
+        audience,
+        Some(&Terms),
+        Some(&resolve),
+    )
+    .unwrap();
+    assert!(
+        prepared
+            .html
+            .contains("<strong>Localized definition</strong>")
+    );
+    assert!(!prepared.html.contains("javascript:"));
+    assert!(!prepared.html.contains("<script"));
+    assert!(!prepared.text.contains("secret"));
+    assert!(!prepared.text.contains("bad()"));
+    assert!(prepared.references.iter().any(|reference| matches!(
+        reference.resolution,
+        ContentReferenceResolution::Resolved(ContentReferenceTarget::Record { .. })
+    )));
+    let variant = prepare_trait_definition(
+        atlas_domain::TraitKey::new("other").unwrap(),
+        markup,
+        audience,
+        Some(&Terms),
+        Some(&resolve),
+    )
+    .unwrap();
+    assert_ne!(
+        prepared.html, variant.html,
+        "reference markers bind to exact trait identity"
+    );
+    assert_eq!(prepared.text, variant.text);
+}
+
+#[test]
+fn trait_reference_markers_validate_only_against_exact_trait_identity() {
+    let key = atlas_domain::TraitKey::new("throneglass").unwrap();
+    let prepared = prepare_trait_definition(
+        key.clone(),
+        "@UUID[Compendium.pf2e.conditionitems.Item.e1XGnhKNSQIm5IXg]{Stupefied}",
+        audience(),
+        None,
+        None,
+    )
+    .unwrap();
+    validate_prepared_markers(&prepared.html, &prepared.interactions).unwrap();
+    validate_prepared_trait_reference_bindings(
+        &prepared.html,
+        &key,
+        &prepared.authored_markup_sha256,
+        &prepared.references,
+    )
+    .unwrap();
+    assert!(
+        validate_prepared_trait_reference_bindings(
+            &prepared.html,
+            &atlas_domain::TraitKey::new("agile").unwrap(),
+            &prepared.authored_markup_sha256,
+            &prepared.references
+        )
+        .is_err()
+    );
+}

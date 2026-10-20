@@ -58,6 +58,11 @@ const ListEditView = lazy(() =>
     default: module.ListEditView,
   })),
 );
+const TraitView = lazy(() =>
+  import("../features/records/TraitView").then((module) => ({
+    default: module.TraitView,
+  })),
+);
 const RecordView = lazy(() =>
   import("../features/records/RecordViews").then((module) => ({
     default: module.RecordView,
@@ -153,6 +158,9 @@ export function AtlasApp() {
                 <ListDetailView key={route.slug} route={route} />
               )}
               {route.kind === "listEdit" && <ListEditView route={route} />}
+              {route.kind === "trait" && (
+                <TraitView key={route.traitKey} route={route} />
+              )}
               {route.kind === "record" && (
                 <RecordView key={atlasRoutePath(route)} route={route} />
               )}

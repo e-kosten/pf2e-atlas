@@ -3,6 +3,7 @@ import type { RecordNavigationView } from "../generated/atlas";
 
 export type AtlasRoute =
   | { kind: "invalid"; message: string }
+  | { kind: "trait"; traitKey: string }
   | {
       kind: "search";
       selectedRecordKey: string | null;
@@ -50,6 +51,9 @@ export function parseAtlasRoute(pathname: string, search = ""): AtlasRoute {
 }
 
 function parseRoute(pathname: string, search = ""): AtlasRoute {
+  const trait = pathname.match(/^\/traits\/(.+)$/);
+  if (trait) return { kind: "trait", traitKey: decodeURIComponent(trait[1]) };
+
   const searchRecord = pathname.match(/^\/search\/records\/(.+)$/);
   if (searchRecord) {
     return {
@@ -140,6 +144,8 @@ export function currentAtlasRoute(): AtlasRoute {
 
 export function atlasRoutePath(route: AtlasRoute): string {
   switch (route.kind) {
+    case "trait":
+      return `/traits/${recordKeyPathSegment(route.traitKey)}`;
     case "invalid":
       return "/search";
     case "search":

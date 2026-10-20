@@ -238,3 +238,9 @@ it.each(["search", "list", "reader"])(
     expect(currentAtlasRoute()).toMatchObject({ kind, landing: selection });
   },
 );
+
+it("round trips exact trait variant identities independently from record keys", () => {
+  const route = { kind: "trait" as const, traitKey: "trait:deadly-d8" };
+  expect(atlasRoutePath(route)).toBe("/traits/trait:deadly-d8");
+  expect(parseAtlasRoute(atlasRoutePath(route))).toEqual(route);
+});

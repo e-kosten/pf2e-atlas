@@ -43,3 +43,6 @@ pub use prepared_batch::PreparedEmbeddingBatch;
 pub use tokenization::TextEmbeddingTokenizer;
 #[cfg(test)]
 mod tests;
+
+mod centroid;
+pub use centroid::normalized_centroid;

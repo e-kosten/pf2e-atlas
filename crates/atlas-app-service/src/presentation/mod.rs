@@ -85,6 +85,9 @@ pub(crate) fn apply_spell_rank(
         .flatten()
         .map(|t| RecordBadgeView {
             kind: "trait".into(),
+            trait_key: atlas_domain::TraitKey::new(t.clone())
+                .ok()
+                .map(|key| key.to_string()),
             value: t.clone(),
             label: retrieval.trait_label(t).unwrap_or(t).into(),
         })
@@ -455,11 +458,10 @@ fn selected_identity(
         title: node_title(node),
         kind: family.into(),
         kind_label: match family {
-            "spellcastingEntry" => "Spellcasting",
-            "action" => "Ability",
-            _ => family,
-        }
-        .into(),
+            "spellcastingEntry" => "Spellcasting".into(),
+            "action" => "Ability".into(),
+            _ => crate::projection::kind_label(family),
+        },
         source_type: Some(family.into()),
         level_label: level,
         level_basis: None,
@@ -471,6 +473,9 @@ fn selected_identity(
             .flatten()
             .map(|t| RecordBadgeView {
                 kind: "trait".into(),
+                trait_key: atlas_domain::TraitKey::new(t.clone())
+                    .ok()
+                    .map(|key| key.to_string()),
                 value: t.clone(),
                 label: retrieval.trait_label(t).unwrap_or(t).into(),
             })

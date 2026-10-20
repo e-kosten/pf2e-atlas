@@ -93,6 +93,7 @@ pub fn audience() -> ContentAudience {
 }
 pub fn context(semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        trait_policy: "trait-definition-centroid/v1".into(),
         format_version: ARTIFACT_FORMAT_VERSION,
         snapshot_version: SNAPSHOT_VERSION,
         source_contract: SOURCE_CONTRACT_ID.into(),
@@ -246,6 +247,8 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
         }
     }
     IndexBuildInput {
+        traits: vec![],
+        trait_vectors: vec![],
         records,
         packs,
         context,

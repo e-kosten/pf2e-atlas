@@ -44,3 +44,10 @@ pub use variants::{
 };
 
 mod fusion;
+
+mod traits;
+pub use traits::{
+    SimilarTraitRequest, SimilarTraitResult, TraitAssociationRequest, TraitDefinition,
+    TraitMembership, TraitMembershipResult, TraitReference, TraitReferenceResult,
+    TraitSourceLocation,
+};
