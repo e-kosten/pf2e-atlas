@@ -330,6 +330,15 @@ pub(crate) fn validate_traits(
     c: &Connection,
     context: &crate::SourceArtifactBuildContext,
 ) -> Result<(), IndexError> {
+    // Every published definition, including label-only definitions, supplies a
+    // seed for every configured profile. An artifact with no profiles remains
+    // valid metadata-only reference data.
+    let missing:Option<(String,String)>=c.query_row("SELECT d.key,p.profile_id FROM trait_definitions d CROSS JOIN search_profiles p WHERE NOT EXISTS (SELECT 1 FROM trait_vectors v WHERE v.trait_key=d.key AND v.profile_id=p.profile_id) LIMIT 1",[],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+    if let Some((key, profile)) = missing {
+        return Err(IndexError::Invalid(format!(
+            "trait `{key}` has no seed vector for configured search profile `{profile}`"
+        )));
+    }
     let mut stmt = c.prepare("SELECT key,definition_json FROM trait_definitions ORDER BY key")?;
     for row in stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))? {
         let (key, json) = row?;
@@ -662,6 +671,25 @@ mod tests {
             let write = workspace
                 .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
                 .unwrap();
+            write
+                .connection()
+                .execute(
+                    "DELETE FROM trait_vectors WHERE trait_key='trait:agile'",
+                    [],
+                )
+                .unwrap();
+            let error = validate_traits(write.connection(), &input.context).unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("has no seed vector for configured search profile"),
+                "{error}"
+            );
+        }
+        {
+            let write = workspace
+                .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
+                .unwrap();
             assert!(validate_traits(write.connection(), &input.context).is_ok());
             let plan = write
                 .connection()
@@ -731,6 +759,102 @@ mod tests {
                 .unwrap();
             assert!(validate_traits(write.connection(), &input.context).is_err());
         }
+    }
+    #[test]
+    fn trait_seed_profile_coverage_failure_retains_previous_generation() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("workspace.sqlite");
+        let mut input = crate::profile_tests::both();
+        let definition = definition(&input, "agile");
+        let key = definition.key.clone();
+        input.traits.push(definition);
+        let text = "agile\n";
+        let hash = crate::codec::sha256(text.as_bytes());
+        let mut vector = vec![0.; 768];
+        vector[0] = 1.;
+        let chunk = TraitSeedChunk {
+            input: text.into(),
+            input_hash: hash.clone(),
+            token_count: 2,
+            address: atlas_domain::SourcePassageAddress::PlainSection {
+                source_text_sha256: hash.clone(),
+                selection_version: "trait-definition-centroid/v1".into(),
+                section_ordinal: 0,
+                label: Some("agile".into()),
+                chunk_bytes: atlas_domain::SourceByteRange {
+                    start: 0,
+                    end: text.len(),
+                },
+            },
+            vector: vector.clone(),
+        };
+        for model in &input.context.search_profiles {
+            input.trait_vectors.push(TraitVectorInput {
+                key: key.clone(),
+                profile_id: model.profile_id.clone(),
+                input_hash: crate::codec::sha256(
+                    format!("trait-definition-centroid/v1:{hash}").as_bytes(),
+                ),
+                vector: vector.clone(),
+                chunks: vec![chunk.clone()],
+            });
+        }
+        crate::test_support::publish_input(&path, &input).unwrap();
+        let before = crate::validate_artifact(&path).unwrap();
+        let generation = || {
+            let connection = rusqlite::Connection::open(&path).unwrap();
+            connection
+                .query_row(
+                    "SELECT workspace_key,reference_revision FROM workspace WHERE id=1",
+                    [],
+                    |r| Ok((r.get::<_, String>(0)?, r.get::<_, u64>(1)?)),
+                )
+                .unwrap()
+        };
+        let before_generation = generation();
+        input
+            .trait_vectors
+            .retain(|seed| seed.profile_id.as_str() == "bge-base");
+        let error = crate::test_support::publish_input(&path, &input).unwrap_err();
+        assert!(error.to_string().contains("trait `trait:agile` has no seed vector for configured search profile `embeddinggemma`"),"{error}");
+        assert_eq!(generation(), before_generation);
+        assert_eq!(crate::validate_artifact(&path).unwrap(), before);
+        assert_eq!(
+            rusqlite::Connection::open(&path)
+                .unwrap()
+                .query_row("SELECT count(*) FROM trait_vectors", [], |r| r
+                    .get::<_, usize>(0))
+                .unwrap(),
+            2
+        );
+    }
+    #[test]
+    fn trait_seed_coverage_requires_each_configured_profile_but_allows_metadata_only() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut configured = crate::foundation_tests::fixture(true);
+        configured.traits.push(definition(&configured, "agile"));
+        let error = crate::test_support::publish_input(
+            directory.path().join("incomplete.sqlite"),
+            &configured,
+        )
+        .unwrap_err();
+        assert!(
+            error.to_string().contains(
+                "trait `trait:agile` has no seed vector for configured search profile `bge-base`"
+            ),
+            "{error}"
+        );
+        let mut metadata = crate::foundation_tests::fixture(false);
+        metadata.traits.push(definition(&metadata, "agile"));
+        let path = directory.path().join("metadata.sqlite");
+        crate::test_support::publish_input(&path, &metadata).unwrap();
+        let reader = crate::test_support::open_reader(&path).unwrap();
+        assert!(
+            reader
+                .trait_definition(&TraitKey::new("agile").unwrap())
+                .unwrap()
+                .is_some()
+        );
     }
     #[test]
     fn trait_reference_validation_rejects_missing_and_extra_occurrences() {

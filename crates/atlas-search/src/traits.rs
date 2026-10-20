@@ -101,7 +101,7 @@ mod tests {
             "Item",
             json!({"_id":"aaaaaaaaaaaaaaaa","name":"Flame","type":"effect","system":{"description":{"value":"Fire burns."}}}),
         );
-        let mut fixture = input(vec![record], true);
+        let mut fixture = input(vec![record], vector);
         let key = TraitKey::new("fire").unwrap();
         fixture.traits.push(TraitDefinition {
             key: key.clone(),
@@ -167,7 +167,7 @@ mod tests {
         assert_eq!(result.results.coverage.semantic_unit_window, Some(4096));
     }
     #[test]
-    fn trait_similar_without_seed_has_explicit_readiness_failure() {
+    fn trait_similar_without_configured_vectors_has_explicit_readiness_failure() {
         let (fixture, key) = fixture(false);
         let (service, _artifact) = open_input_fixture(fixture).unwrap();
         let result = service.similar_trait(SimilarTraitRequest {
