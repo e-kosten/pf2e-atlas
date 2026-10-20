@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 6;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 16;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -33,6 +33,56 @@ const MIGRATIONS: &[Migration] = &[
         version: 6,
         name: "hazard-participation",
         sql: atlas_local_state::HAZARD_PARTICIPATION_SCHEMA_SQL,
+    },
+    Migration {
+        version: 7,
+        name: "condition-context",
+        sql: atlas_local_state::CONDITION_CONTEXT_SCHEMA_SQL,
+    },
+    Migration {
+        version: 8,
+        name: "condition-immunity-override",
+        sql: atlas_local_state::CONDITION_IMMUNITY_OVERRIDE_SCHEMA_SQL,
+    },
+    Migration {
+        version: 9,
+        name: "condition-events",
+        sql: atlas_local_state::CONDITION_EVENTS_SCHEMA_SQL,
+    },
+    Migration {
+        version: 10,
+        name: "action-attempts",
+        sql: atlas_local_state::ACTION_ATTEMPTS_SCHEMA_SQL,
+    },
+    Migration {
+        version: 11,
+        name: "persistent-source-selections",
+        sql: atlas_local_state::PERSISTENT_SELECTIONS_SCHEMA_SQL,
+    },
+    Migration {
+        version: 12,
+        name: "encounter-boundaries",
+        sql: atlas_local_state::ENCOUNTER_BOUNDARIES_SCHEMA_SQL,
+    },
+    Migration {
+        version: 13,
+        name: "participant-facts",
+        sql: atlas_local_state::PARTICIPANT_FACTS_SCHEMA_SQL,
+    },
+    Migration {
+        version: 14,
+        name: "encounter-relationships",
+        sql: atlas_local_state::ENCOUNTER_RELATIONSHIPS_SCHEMA_SQL,
+    },
+    Migration {
+        version: 15,
+        name: "outgoing-turns",
+        sql: atlas_local_state::OUTGOING_TURNS_SCHEMA_SQL,
+    },
+    Migration {
+        version: 16,
+        name: "current-turn-notifications",
+        sql: atlas_local_state::TURN_NOTIFICATIONS_SCHEMA_SQL,
     },
 ];
 
@@ -66,6 +116,35 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewEncounter, NewSavedList};
+
+    #[test]
+    fn turn_notification_migration_preserves_receipts_and_encounter_data() {
+        let directory = tempfile::tempdir().unwrap();
+        register_extensions().unwrap();
+        let workspace = Workspace::at(directory.path().join("atlas.sqlite")).unwrap();
+        let index = MIGRATIONS
+            .iter()
+            .position(|migration| migration.name == "current-turn-notifications")
+            .unwrap();
+        workspace.migrate(&MIGRATIONS[..index], |_| Ok(())).unwrap();
+        let write = workspace.write(MIGRATIONS[index - 1].version).unwrap();
+        write.connection().execute("INSERT INTO encounters(id,encounter_key,slug,name,note,status,created_at,updated_at) VALUES(1,'encounter','encounter','Encounter','Keep this note','draft','now','now')", []).unwrap();
+        write.connection().execute(r#"INSERT INTO encounter_outgoing_turns(encounter_id,boundary_key,request_id,intent_json,payload_json,handled_at_table,handled_request_id,handled_intent_json) VALUES(1,'turn','advance','{}','{"frozen":"context"}',1,'handled','{}')"#, []).unwrap();
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(workspace.path()).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let row: (String, String, String) = read.connection().query_row("SELECT e.note,t.request_id,t.payload_json FROM encounters e JOIN encounter_outgoing_turns t ON t.encounter_id=e.id", [], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?))).unwrap();
+        assert_eq!(
+            row,
+            (
+                "Keep this note".into(),
+                "advance".into(),
+                r#"{"frozen":"context"}"#.into()
+            )
+        );
+        let retired: i64 = read.connection().query_row("SELECT count(*) FROM pragma_table_info('encounter_outgoing_turns') WHERE name LIKE 'handled_%'", [], |row| row.get(0)).unwrap();
+        assert_eq!(retired, 0);
+    }
 
     #[test]
     fn version_two_workspace_upgrade_preserves_saved_domains() {
@@ -167,6 +246,42 @@ mod tests {
             .unwrap();
         assert!(creature.defeated);
         assert!(!creature.hazard_disabled);
+    }
+
+    #[test]
+    fn immunity_override_upgrade_preserves_notes_and_relative_scope() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("condition-inputs.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        // Historical preview schema, intentionally before the override-intent migration.
+        workspace.migrate(&MIGRATIONS[..7], |_| Ok(())).unwrap();
+        let write = workspace.write(7).unwrap();
+        write.connection().execute_batch(r#"
+            INSERT INTO encounters(id,encounter_key,slug,name,status,created_at,updated_at) VALUES(1,'e','e','Encounter','draft','before','before');
+            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,created_at,updated_at) VALUES(1,1,'p','creature',0,'Creature',0,'before','before');
+            INSERT INTO encounter_participant_conditions(participant_id,name,note,gm_override_reason,scope_json,created_at,updated_at) VALUES(1,'Unconscious','Existing note','GM exception','{"kind":"selected_opponents","participant_keys":["p"]}','before','before');
+        "#).unwrap();
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(&path).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let detail = LocalStateRead::new(&read)
+            .encounters()
+            .get_with_participants("e")
+            .unwrap()
+            .unwrap();
+        let condition = &detail.participants[0].conditions[0];
+        assert!(condition.immunity_override);
+        assert_eq!(
+            condition.note.as_deref(),
+            Some("Existing note\nGM exception")
+        );
+        assert_eq!(
+            condition.scope,
+            atlas_local_state::ConditionScope::SelectedParticipants {
+                participant_keys: vec!["p".into()]
+            }
+        );
     }
 
     #[test]

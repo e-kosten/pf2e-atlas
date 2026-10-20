@@ -194,25 +194,28 @@ fn options_with_records(
                         {
                             add_unlisted_npc_skills(&mut baseline);
                         }
-                        super::mechanics::participant_stat_block(
+                        super::rules::project_participant(
                             p,
                             &baseline,
                             r.adjustment_applicable,
+                            &[],
                         )
                     })
                 })
                 .map(|block| {
+                    let block = super::rules::project_initiative(block, p);
                     block
                         .values
                         .into_iter()
                         .filter(|v| {
-                            v.target == "perception"
-                                || v.target.starts_with("skill.")
-                                || v.target == "hazard.stealth"
+                            v.target == super::stat_block::StatisticTarget::Perception
+                                || v.target.skill()
+                                || v.target == super::stat_block::StatisticTarget::HazardStealth
                         })
+                        .filter(|v| !block.unresolved_stats.contains(&v.target))
                         .filter_map(|v| {
                             Some(InitiativeStatisticView {
-                                key: v.target,
+                                key: v.target.key().into_owned(),
                                 label: v.label,
                                 modifier: i32::try_from(super::mechanics::integer(
                                     &v.adjusted_value,
@@ -243,31 +246,71 @@ fn options_with_records(
 // same skill policy as listed skills. This baseline is not applied to PCs/hazards.
 fn add_unlisted_npc_skills(block: &mut super::stat_block::StatBlockView) {
     for (key, label, ability) in [
-        ("acrobatics", "Acrobatics", "dex"),
-        ("arcana", "Arcana", "int"),
-        ("athletics", "Athletics", "str"),
-        ("crafting", "Crafting", "int"),
-        ("deception", "Deception", "cha"),
-        ("diplomacy", "Diplomacy", "cha"),
-        ("intimidation", "Intimidation", "cha"),
-        ("medicine", "Medicine", "wis"),
-        ("nature", "Nature", "wis"),
-        ("occultism", "Occultism", "int"),
-        ("performance", "Performance", "cha"),
-        ("religion", "Religion", "wis"),
-        ("society", "Society", "int"),
-        ("stealth", "Stealth", "dex"),
-        ("survival", "Survival", "wis"),
-        ("thievery", "Thievery", "dex"),
+        (
+            "acrobatics",
+            "Acrobatics",
+            super::stat_block::Ability::Dexterity,
+        ),
+        ("arcana", "Arcana", super::stat_block::Ability::Intelligence),
+        (
+            "athletics",
+            "Athletics",
+            super::stat_block::Ability::Strength,
+        ),
+        (
+            "crafting",
+            "Crafting",
+            super::stat_block::Ability::Intelligence,
+        ),
+        (
+            "deception",
+            "Deception",
+            super::stat_block::Ability::Charisma,
+        ),
+        (
+            "diplomacy",
+            "Diplomacy",
+            super::stat_block::Ability::Charisma,
+        ),
+        (
+            "intimidation",
+            "Intimidation",
+            super::stat_block::Ability::Charisma,
+        ),
+        ("medicine", "Medicine", super::stat_block::Ability::Wisdom),
+        ("nature", "Nature", super::stat_block::Ability::Wisdom),
+        (
+            "occultism",
+            "Occultism",
+            super::stat_block::Ability::Intelligence,
+        ),
+        (
+            "performance",
+            "Performance",
+            super::stat_block::Ability::Charisma,
+        ),
+        ("religion", "Religion", super::stat_block::Ability::Wisdom),
+        (
+            "society",
+            "Society",
+            super::stat_block::Ability::Intelligence,
+        ),
+        ("stealth", "Stealth", super::stat_block::Ability::Dexterity),
+        ("survival", "Survival", super::stat_block::Ability::Wisdom),
+        (
+            "thievery",
+            "Thievery",
+            super::stat_block::Ability::Dexterity,
+        ),
     ] {
-        let target = format!("skill.{key}");
+        let target = super::stat_block::StatisticTarget::Skill(key.into());
         if block.values.iter().any(|v| v.target == target) {
             continue;
         }
         let Some(value) = block
             .values
             .iter()
-            .find(|v| v.target == format!("ability.{ability}"))
+            .find(|v| v.target == super::stat_block::StatisticTarget::Ability(ability))
             .map(|v| v.base_value.clone())
         else {
             continue;
@@ -275,6 +318,7 @@ fn add_unlisted_npc_skills(block: &mut super::stat_block::StatBlockView) {
         block.values.push(super::stat_block::StatValueView {
             target,
             label: label.into(),
+            ability: Some(ability),
             base_value: value.clone(),
             adjusted_value: value,
             modifiers: vec![],

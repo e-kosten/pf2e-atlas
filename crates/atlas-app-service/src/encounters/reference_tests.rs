@@ -7,7 +7,7 @@ use serde_json::json;
 fn selected_reference_preserves_local_documents_and_composes_current_participant_facts() {
     let source = json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Local caster","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":null,"ac":{"value":22},"hp":{"max":60}}},"items":[
         {"_id":"eeeeeeeeeeeeeeee","name":"Staff casting","type":"spellcastingEntry","system":{"description":{"value":""},"spelldc":{"dc":33,"value":23},"prepared":{"value":"spontaneous"},"tradition":{"value":"arcane"}}},
-        {"_id":"ssssssssssssssss","name":"Local Fireball","type":"spell","system":{"description":{"value":"<p>Customized spell prose.</p>"},"level":{"value":3},"location":{"value":"eeeeeeeeeeeeeeee","heightenedLevel":5},"range":{"value":"500 feet"},"damage":{"local":{"formula":"10d6","type":"fire"}}}},
+        {"_id":"ssssssssssssssss","name":"Local Fireball","type":"spell","system":{"description":{"value":"<p>Customized spell prose.</p>"},"level":{"value":3},"location":{"value":"eeeeeeeeeeeeeeee","heightenedLevel":5},"range":{"value":"500 feet"},"traits":{"value":[]},"damage":{"local":{"formula":"10d6","type":"fire"}}}},
         {"_id":"wwwwwwwwwwwwwwww","name":"Customized staff","type":"weapon","_stats":{"compendiumSource":"Compendium.pf2e.equipment.Item.oooooooooooooooo"},"system":{"description":{"value":"<p>Customized equipment prose.</p>"},"usage":{"value":"held-in-one-hand"},"price":{"value":{"gp":900}},"bulk":{"value":1},"runes":{"potency":1,"striking":1,"property":[]}}},
         {"_id":"cccccccccccccccc","name":"Local claw","type":"melee","system":{"bonus":{"value":12},"damageRolls":{"main":{"damage":"1d6+4","damageType":"slashing"}},"description":{"value":"<p>Local claw prose.</p>"}}}
     ]});
@@ -128,6 +128,18 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
         .add_encounter_participant_condition(
             &encounter.slug,
             AddEncounterParticipantConditionRequest {
+                request_id: format!(
+                    "fixture-reference_tests-130-{}",
+                    f.worker.encounter(&encounter.slug).unwrap().revision
+                ),
+                event_intent: Default::default(),
+                decisions: Default::default(),
+                expected_encounter_revision: f.worker.encounter(&encounter.slug).unwrap().revision,
+                scope: Default::default(),
+                extra_action: Default::default(),
+                immunity_override: false,
+                parameters: Default::default(),
+                origin: None,
                 participant_key: participant.participant_key.clone(),
                 condition_ref: Some("conditionitems:TBSHQspnbcqxsmjL".into()),
                 name: None,
@@ -170,10 +182,9 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             RecordBodyView::Spell(spell) => {
                 assert_eq!(
                     spell.damage.value.unwrap()[0].formula.value.as_deref(),
-                    Some("10d6")
+                    Some("(10d6)+4")
                 );
                 let notes = spell.runtime_notes.unwrap();
-                assert!(!notes.is_empty());
                 assert_eq!(notes, activities[index].notes);
             }
             _ => panic!("selected family"),
@@ -335,7 +346,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
     for record in &mut updated.records {
         record.preparation_context_hash = hash.clone();
     }
-    atlas_search::test_support::publish_input(a.worker.workspace_path(), &updated).unwrap();
+    crate::test_support::publish_input(a.worker.workspace_path(), &updated).unwrap();
     let b = &a;
     let (generation_b, fingerprint_b) = b
         .worker

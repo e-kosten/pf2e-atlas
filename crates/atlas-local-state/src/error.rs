@@ -2,6 +2,16 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum LocalStateError {
+    #[error("This encounter boundary has already been processed")]
+    EncounterBoundaryConflict,
+    #[error(
+        "casting attempt `{attempt_key}` changed: expected revision {expected_revision}, actual revision {actual_revision}"
+    )]
+    StaleActionAttemptRevision {
+        attempt_key: String,
+        expected_revision: i64,
+        actual_revision: i64,
+    },
     #[error("Local-state mutations require a caller-owned write transaction")]
     ActionRequiresTransaction,
     #[error("Unsupported stored roll receipt version {0}")]

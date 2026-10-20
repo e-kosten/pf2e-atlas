@@ -197,6 +197,21 @@ impl<'a> ActorQueryView<'a> {
             _ => SourceFieldView::NotApplicable,
         }
     }
+    /// Known NPC perception omissions use the pinned template vision=true default.
+    /// Missing or invalid ancestors remain unknown.
+    pub fn vision(self) -> SourceFieldView<'a, bool> {
+        match self.source {
+            SourceNodeView::Actor(ActorSourcePF2e::NPCSource(s)) => {
+                SourceFieldView::from(&s.system)
+                    .and_then(|s| (&s.perception).into())
+                    .and_then(|p| match SourceFieldView::from(&p.vision) {
+                        SourceFieldView::Missing => SourceFieldView::Value(true),
+                        value => value.map(|value| *value),
+                    })
+            }
+            _ => SourceFieldView::NotApplicable,
+        }
+    }
     pub fn senses(self) -> SourceFieldView<'a, &'a [SenseConstructorParams]> {
         actor_projection!(
             self,

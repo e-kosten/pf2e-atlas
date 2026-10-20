@@ -475,7 +475,24 @@ pub(super) fn authored_activity(
         casting_context: None,
         notes: vec![],
     };
-    activity.attack_options = super::strike::attack_options(&activity);
+    activity.attack_options = if family == "melee" {
+        let traits = SourceQueryView {
+            source: SourceNodeView::Item(item),
+            pack_id: "",
+            pack_label: "",
+        }
+        .traits();
+        super::strike::project_attack_options(
+            item.melee_attack()
+                .value()
+                .and_then(serde_json::Number::as_i64),
+            traits
+                .value()
+                .map(|traits| traits.iter().any(|value| value == "agile")),
+        )
+    } else {
+        vec![]
+    };
     activity
 }
 fn has_reference_details(item: ItemSourceView<'_>) -> bool {
@@ -521,13 +538,44 @@ pub(crate) fn compose_participant(
         _ => return presentation,
     };
     let overlay = |fact: &mut NumberFactView, target: &str| {
-        if let Some(v) = block.values.iter().find(|v| v.target == target) {
+        if block
+            .unresolved_stats
+            .iter()
+            .any(|unresolved| unresolved.key() == target)
+        {
+            fact.value = None;
+            fact.adjustment = None;
+            fact.state = QueryFieldState::Missing;
+            return;
+        }
+        if let Some(replacement) = block
+            .replacements
+            .iter()
+            .find(|replacement| replacement.target.key() == target)
+        {
+            if let Some(authored) = fact.value.clone() {
+                fact.adjustment = Some(NumberAdjustmentView {
+                    authored,
+                    applied: vec![],
+                    suppressed: vec![],
+                    notes: vec![RuntimeEffectNoteView {
+                        source: format!("condition:{}", replacement.condition_id),
+                        label: replacement.condition_name.clone(),
+                        reason: format!("Sets {} to {}.", target, replacement.value),
+                    }],
+                });
+            }
+            fact.value = Some(replacement.value.clone());
+            fact.state = QueryFieldState::Value;
+            return;
+        }
+        if let Some(v) = block.values.iter().find(|v| v.target.key() == target) {
             fact.value = Some(v.adjusted_value.clone());
             if !v.modifiers.is_empty() || !v.suppressed_modifiers.is_empty() {
                 fact.adjustment = Some(NumberAdjustmentView {
                     authored: v.base_value.clone(),
-                    applied: v.modifiers.clone(),
-                    suppressed: v.suppressed_modifiers.clone(),
+                    applied: modifier_views(&v.modifiers),
+                    suppressed: modifier_views(&v.suppressed_modifiers),
                     notes: vec![],
                 });
             }
@@ -535,6 +583,7 @@ pub(crate) fn compose_participant(
     };
     overlay(&mut a.armor_class, "ac");
     overlay(&mut a.maximum_hp, "hp.max");
+    overlay(&mut a.hardness, "hazard.hardness");
     overlay(&mut a.perception, "perception");
     overlay(&mut a.saves.fortitude, "save.fortitude");
     overlay(&mut a.saves.reflex, "save.reflex");
@@ -592,30 +641,63 @@ pub(crate) fn compose_participant(
             .iter()
             .find(|v| v.navigation == activity.navigation)
         {
+            if v.calculation_unavailable.is_some() {
+                activity.attack.value = None;
+                activity.attack.state = atlas_domain::QueryFieldState::Missing;
+                activity.difficulty_class.value = None;
+                activity.difficulty_class.state = atlas_domain::QueryFieldState::Missing;
+            }
             if let Some(roll) = v.rolls.first() {
                 activity.attack.value = Some(roll.adjusted_value.clone());
                 if !roll.modifiers.is_empty() || !roll.suppressed_modifiers.is_empty() {
                     activity.attack.adjustment = Some(NumberAdjustmentView {
                         authored: roll.base_value.clone(),
-                        applied: roll.modifiers.clone(),
-                        suppressed: roll.suppressed_modifiers.clone(),
+                        applied: modifier_views(&roll.modifiers),
+                        suppressed: modifier_views(&roll.suppressed_modifiers),
+                        notes: vec![],
+                    });
+                }
+            }
+            if let Some(dc) = &v.difficulty_class {
+                activity.difficulty_class.value = Some(dc.adjusted_value.clone());
+                if !dc.modifiers.is_empty() || !dc.suppressed_modifiers.is_empty() {
+                    activity.difficulty_class.adjustment = Some(NumberAdjustmentView {
+                        authored: dc.base_value.clone(),
+                        applied: modifier_views(&dc.modifiers),
+                        suppressed: modifier_views(&dc.suppressed_modifiers),
                         notes: vec![],
                     });
                 }
             }
             for damage in activity.damage.value.iter_mut().flatten() {
-                if let Some(effective) = v.damage.iter().find(|d| d.damage_id == damage.id)
-                    && let Some(formula) = &effective.adjusted_formula
-                {
-                    damage.formula.value = Some(formula.clone());
+                if let Some(effective) = v.damage.iter().find(|d| d.damage_id == damage.id) {
+                    if effective.unavailable_reason.is_some() {
+                        damage.formula.value = None;
+                        damage.formula.state = atlas_domain::QueryFieldState::Missing;
+                    } else if let Some(formula) = &effective.adjusted_formula {
+                        damage.formula.value = Some(formula.clone());
+                    }
                 }
             }
             activity.notes.extend(v.notes.clone());
-            activity.attack_options = super::strike::attack_options(activity);
+            activity.attack_options =
+                if v.kind == crate::encounters::mechanics::MechanicActivityKindView::Strike {
+                    super::strike::project_attack_options(
+                        v.rolls
+                            .first()
+                            .and_then(|roll| roll.adjusted_value.as_i64()),
+                        v.traits_known
+                            .then(|| v.traits.iter().any(|value| value == "agile")),
+                    )
+                } else {
+                    vec![]
+                };
         }
     }
     a.runtime = Some(ActorRuntimeView {
         action_budget: block.action_budget.clone(),
+        senses: block.senses.clone(),
+        contextual_armor_class: block.contextual_armor_class.clone(),
         unapplied_effects: block.unapplied_effects.clone(),
     });
     if let RecordBodyView::Hazard(hazard) = &mut presentation.body
@@ -696,6 +778,8 @@ pub(crate) fn manual_presentation(
             activities: unavailable(),
             runtime: Some(ActorRuntimeView {
                 action_budget: block.action_budget.clone(),
+                senses: block.senses.clone(),
+                contextual_armor_class: block.contextual_armor_class.clone(),
                 unapplied_effects: block.unapplied_effects.clone(),
             }),
         })),
@@ -726,4 +810,21 @@ fn activity_frequency(item: ItemSourceView<'_>) -> FactView<ActivityFrequencyVie
             .to_owned()
         })),
     }))
+}
+
+fn modifier_views(modifiers: &[crate::encounters::mechanics::Modifier]) -> Vec<StatModifierView> {
+    use crate::encounters::mechanics::ModifierType;
+    modifiers
+        .iter()
+        .map(|modifier| StatModifierView {
+            source: modifier.source.clone(),
+            label: modifier.label.clone(),
+            modifier_type: match modifier.modifier_type {
+                ModifierType::Status => StatModifierTypeView::Status,
+                ModifierType::Circumstance => StatModifierTypeView::Circumstance,
+                ModifierType::Adjustment => StatModifierTypeView::Adjustment,
+            },
+            value: modifier.value,
+        })
+        .collect()
 }

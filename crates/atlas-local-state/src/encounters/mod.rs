@@ -1,3 +1,27 @@
+mod outgoing_turns;
+pub use outgoing_turns::SavedOutgoingTurn;
+mod relationships;
+pub use relationships::{
+    AttitudeState, DetectionState, DirectedRelationship, RelationshipCandidate, RelationshipChange,
+    RelationshipKnowledge, RelationshipLayer, RelationshipProperty, RelationshipProvenance,
+    RelationshipSourceSnapshot, RelationshipValue,
+};
+mod persistent_selections;
+pub use persistent_selections::PersistentSourceSelection;
+mod event_model;
+mod events;
+pub use event_model::{
+    CheckDegree, ConditionEventBoundary, ConditionEventChange, ConditionEventOutcome,
+    DamageLethality, EncounterBoundaryClaim, EncounterBoundaryKind, EncounterEventReceipt,
+    LifecycleCheckPurpose, ParticipantEventChange, PendingConsequence, PersistentDamageOutcome,
+    PersistentSelectionChange, PreparedConditionEvent, SavedHpEventContext,
+    SavedPendingConsequence,
+};
+mod condition_parameters;
+pub use condition_parameters::{
+    ConditionOrigin, ConditionParameters, ConditionSubject, DamageMultiplier, FrightenedRecovery,
+    MortalityState, PersistentRecovery, WakingRule,
+};
 mod strike_receipt;
 pub use strike_receipt::{
     StoredStrikeDamage, StoredStrikeDamageTotal, StoredStrikeOutcome, StoredStrikeReceipt,
@@ -15,13 +39,13 @@ mod service;
 mod storage;
 
 pub use model::{
-    AddEncounterParticipant, AddEncounterParticipantCondition, ConditionDuration,
-    ConditionDurationUnit, ConditionTiming, ConditionTurnEvent, Encounter, EncounterParticipant,
-    EncounterParticipantCondition, EncounterStatus, EncounterTurnState, EncounterTurnUpdate,
-    EncounterWithParticipants, NewEncounter, ParticipantHpOrigin, ParticipantKind, ParticipantSide,
-    ParticipantVariant, ParticipantVariantOrigin, ReorderEncounterParticipant, ReorderPlacement,
-    SpellResource, UpdateEncounter, UpdateEncounterParticipant,
-    UpdateEncounterParticipantCondition,
+    AddEncounterParticipant, AddEncounterParticipantCondition, ConditionAction, ConditionDuration,
+    ConditionDurationUnit, ConditionExtraAction, ConditionScope, ConditionTiming,
+    ConditionTurnEvent, Encounter, EncounterParticipant, EncounterParticipantCondition,
+    EncounterStatus, EncounterTurnState, EncounterTurnUpdate, EncounterWithParticipants,
+    NewEncounter, ParticipantHpOrigin, ParticipantKind, ParticipantSide, ParticipantVariant,
+    ParticipantVariantOrigin, ReorderEncounterParticipant, ReorderPlacement, SpellResource,
+    UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
 };
 pub use service::{EncountersRead, EncountersWrite};
 
@@ -29,3 +53,13 @@ pub use service::{EncountersRead, EncountersWrite};
 mod tests;
 
 mod spell_resources;
+
+mod attempt_model;
+mod attempts;
+pub use attempt_model::{
+    ActionAttemptReceipt, ActionAttemptStatus, ActionCheckResult, ActionCheckSource,
+    ActionCheckStage, ActionCompletion, ActionFactKind, ActionRollMode, ActionTargetMode,
+    ConfusionChoice, FrozenAction, FrozenActionCheck, FrozenActionContext, FrozenActionJudgment,
+    FrozenActionTarget, PreparedActionAttempt, RetainedStrikeRoll, SavedActionAttempt,
+    SpellResourceCost,
+};

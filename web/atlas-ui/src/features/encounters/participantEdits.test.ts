@@ -64,6 +64,10 @@ function participantFixture(
   overrides: Partial<EncounterParticipantView> = {},
 ): EncounterParticipantView {
   return {
+    persistent_damage_groups: [],
+    track_dying: false,
+    mortality: "alive",
+    base_death_threshold: 4n,
     revision: 0n,
     participant_key: "participant-1",
     position: BigInt(1),

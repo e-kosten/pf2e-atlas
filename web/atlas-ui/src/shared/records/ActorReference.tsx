@@ -1,3 +1,4 @@
+import { statusReasonLabel } from "./statusReasonLabel";
 import { Alert, Button, Collapse, Popover, Tag } from "antd";
 import { Link2 } from "lucide-react";
 import { useEffect, useId, useRef } from "react";
@@ -278,25 +279,50 @@ export function ActorFacts({
                 <NumberFact fact={actor.perception} signed />
               </FactRow>
             )}
-            <FactLine
-              label="Senses"
-              fact={actor.senses}
-              format={(senses) =>
-                senses
-                  .map((sense) =>
-                    [
-                      factText(sense.sense),
-                      sense.acuity.state === "missing" ? "" : factText(sense.acuity),
-                      sense.range_feet.state === "missing"
-                        ? ""
-                        : factText(sense.range_feet, (value) => `${value} feet`),
+            {encounter && actor.runtime ? (
+              <div className="record-fact-list">
+                {actor.runtime.senses.map((sense, index) => (
+                  <FactRow
+                    label={sentenceCase(sense.sense_type.replace(/-/g, " "))}
+                    key={index}
+                  >
+                    {[
+                      sense.precision,
+                      sense.range_feet === null ? null : `${sense.range_feet} feet`,
+                      sense.available === false
+                        ? `Unavailable${sense.reason ? ` (${sense.reason})` : ""}`
+                        : null,
+                      sense.perception === null ||
+                      sense.perception === actor.perception.value
+                        ? null
+                        : `Perception ${sense.perception >= 0 ? "+" : ""}${sense.perception}`,
                     ]
                       .filter(Boolean)
-                      .join(" "),
-                  )
-                  .join(", ")
-              }
-            />
+                      .join(" · ")}
+                  </FactRow>
+                ))}
+              </div>
+            ) : (
+              <FactLine
+                label="Senses"
+                fact={actor.senses}
+                format={(senses) =>
+                  senses
+                    .map((sense) =>
+                      [
+                        factText(sense.sense),
+                        sense.acuity.state === "missing" ? "" : factText(sense.acuity),
+                        sense.range_feet.state === "missing"
+                          ? ""
+                          : factText(sense.range_feet, (value) => `${value} feet`),
+                      ]
+                        .filter(Boolean)
+                        .join(" "),
+                    )
+                    .join(", ")
+                }
+              />
+            )}
             {!encounter && (
               <FactLine label="Perception details" fact={actor.perception_details} />
             )}
@@ -406,11 +432,22 @@ function ActorSkills({ actor }: { actor: ActorPresentationView }) {
     </div>
   );
 }
+function castingHint(actor: ActorPresentationView) {
+  if (
+    !actor.activities.value?.some(
+      (activity) => activity.kind === "spell" || activity.kind === "casting_entry",
+    )
+  )
+    return undefined;
+  return actor.runtime?.unapplied_effects.find(
+    (effect) => effect.source === "condition:stupefied",
+  );
+}
 function hasRuntimeDetails(actor: ActorPresentationView) {
   return (
     (actor.runtime?.action_budget?.notes.length ?? 0) > 0 ||
     (actor.runtime?.unapplied_effects.some(
-      (effect) => effect.condition_id === undefined,
+      (effect) => effect.condition_id === undefined && effect !== castingHint(actor),
     ) ??
       false)
   );
@@ -448,20 +485,29 @@ function ActorRuntime({
             )}
             {!detailsOnly &&
               actor.runtime.action_budget &&
-              !actor.runtime.action_budget.can_act.available && (
+              !actor.runtime.action_budget.can_act.available &&
+              actor.runtime.action_budget.can_act.source !== "participant_status" && (
                 <FactRow label="Can act">
-                  No; {actor.runtime.action_budget.can_act.reason}
+                  {statusReasonLabel("No", actor.runtime.action_budget.can_act.reason)}
                 </FactRow>
               )}
             {!detailsOnly &&
               actor.runtime.action_budget &&
-              !actor.runtime.action_budget.can_react.available && (
+              !actor.runtime.action_budget.can_react.available &&
+              actor.runtime.action_budget.can_react.source !== "participant_status" && (
                 <FactRow label="Can react">
-                  No; {actor.runtime.action_budget.can_react.reason}
+                  {statusReasonLabel(
+                    "No",
+                    actor.runtime.action_budget.can_react.reason,
+                  )}
                 </FactRow>
               )}
             {actor.runtime.unapplied_effects
-              .filter((effect) => !detailsOnly || effect.condition_id === undefined)
+              .filter(
+                (effect) =>
+                  (!detailsOnly || effect.condition_id === undefined) &&
+                  effect !== castingHint(actor),
+              )
               .map((effect, index) => (
                 <p key={index}>
                   {effect.label}: {effect.reason}
@@ -475,16 +521,40 @@ function ActorRuntime({
 function ActorCombatBudget({ actor }: { actor: ActorPresentationView }) {
   const budget = actor.runtime?.action_budget;
   return budget ? (
-    <div className="actor-reference__combat-budget record-fact-list">
-      <RuntimeCount count={budget.actions} />
-      <RuntimeCount count={budget.reactions} />
-      {!budget.can_act.available && (
-        <FactRow label="Can act">No; {budget.can_act.reason}</FactRow>
+    <section className="actor-reference__combat-budget" aria-label="At turn start">
+      <h3>At turn start</h3>
+      <div className="actor-reference__turn-counts">
+        <RuntimeCount count={budget.actions} />
+        <RuntimeCount count={budget.reactions} />
+      </div>
+      {budget.quickened_sources.map((source, index) => (
+        <FactRow label="Extra action" key={index}>
+          {source.kind === "unspecified"
+            ? "Unspecified"
+            : source.kind === "unrestricted"
+              ? "Unrestricted"
+              : [
+                  source.actions
+                    .map((action) => sentenceCase(action.replace(/_/g, " ")))
+                    .join(", "),
+                  source.guidance,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+        </FactRow>
+      ))}
+      {!budget.can_act.available && budget.can_act.source !== "participant_status" && (
+        <FactRow label="Can act">
+          {statusReasonLabel("No", budget.can_act.reason)}
+        </FactRow>
       )}
-      {!budget.can_react.available && (
-        <FactRow label="Can react">No; {budget.can_react.reason}</FactRow>
-      )}
-    </div>
+      {!budget.can_react.available &&
+        budget.can_react.source !== "participant_status" && (
+          <FactRow label="Can react">
+            {statusReasonLabel("No", budget.can_react.reason)}
+          </FactRow>
+        )}
+    </section>
   ) : null;
 }
 export function ActorSecondaryFacts({
@@ -880,6 +950,7 @@ export function ActorActivities({
         })}
       </div>
       <CastingRoster
+        hint={castingHint(actor)?.reason}
         ritualDifficultyClass={actor.ritual_difficulty_class}
         annotations={castingAnnotations}
         activities={actor.activities.value ?? []}
@@ -904,21 +975,23 @@ function RuntimeCount({ count }: { count: RuntimeCountView }) {
           content={
             <div>
               {count.explanation && <p>{count.explanation}</p>}
-              <p>Baseline: {String(count.base_value)}</p>
+              <p>Base: {String(count.base_value)}</p>
               <p>
-                Effective:{" "}
+                Total:{" "}
                 {count.adjusted_value === null
                   ? "Needs review"
                   : String(count.adjusted_value)}
               </p>
               {count.adjustments.map((modifier, index) => (
                 <p key={index}>
-                  {modifier.source}: {String(modifier.value)}; {modifier.reason}
+                  {modifier.label} {modifier.value > 0n ? "+" : ""}
+                  {String(modifier.value)}
+                  {modifier.reason ? ` · ${modifier.reason}` : ""}
                 </p>
               ))}
               {count.suppressed_adjustments.map((modifier, index) => (
                 <p key={index}>
-                  {modifier.source}: {modifier.reason} (suppressed)
+                  {modifier.label}: {modifier.reason} (not counted)
                 </p>
               ))}
               {count.segments.map((segment, index) => (
@@ -951,11 +1024,13 @@ function RuntimeCount({ count }: { count: RuntimeCountView }) {
 }
 
 function CastingRoster({
+  hint,
   ritualDifficultyClass,
   activities,
   annotations,
   onReference,
 }: {
+  hint?: string;
   ritualDifficultyClass: ActorPresentationView["ritual_difficulty_class"];
   activities: ActorActivityView[];
   annotations?: CastingAnnotations;
@@ -976,6 +1051,7 @@ function CastingRoster({
   return (
     <section className="actor-reference__activities actor-casting">
       <h3>Spellcasting</h3>
+      {hint && <p>{hint}</p>}
       {showRitualDc && (
         <FactRow label="Ritual DC">
           <NumberFact fact={ritualDifficultyClass} />

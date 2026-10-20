@@ -3,6 +3,13 @@ import { App } from "antd";
 import { useEffect, useRef, useState } from "react";
 import {
   applyEncounterHpAction,
+  worsenEncounterAttitude,
+  applyEncounterDetectionEvent,
+  setEncounterRelationship,
+  beginEncounterStrikeAttempt,
+  resolveEncounterActionCheck,
+  abandonEncounterActionAttempt,
+  applyEncounterConditionLifecycle,
   rollInitiative,
   applyEncounterSpellAction,
   advanceEncounterTurn,
@@ -16,6 +23,12 @@ import {
   removeEncounterParticipantCondition,
   reorderEncounterParticipant,
   setEncounterTurn,
+  setEncounterLifeSettings,
+  recoverEncounterPersistentDamage,
+  applyEncounterPersistentDamage,
+  resolveEncounterDrainedConsequence,
+  resolveEncounterHpLifecycle,
+  previewEncounterCondition,
   updateEncounter,
   updateEncounterParticipant,
   updateEncounterParticipantCondition,
@@ -34,6 +47,67 @@ import type {
 
 export type EncounterMutationCommand =
   | {
+      kind: "attitude-event";
+      request: Omit<
+        import("../../generated/atlas").WorsenEncounterAttitudeRequest,
+        "request_id"
+      >;
+    }
+  | {
+      kind: "detection-event";
+      request: Omit<
+        import("../../generated/atlas").ApplyEncounterDetectionEventRequest,
+        "request_id"
+      >;
+    }
+  | {
+      kind: "relationship";
+      request: Omit<
+        import("../../generated/atlas").SetEncounterRelationshipRequest,
+        "request_id"
+      >;
+    }
+  | {
+      kind: "begin-strike";
+      request: Omit<
+        import("../../generated/atlas").BeginEncounterStrikeAttemptRequest,
+        "strike"
+      > & {
+        strike: Omit<
+          import("../../generated/atlas").RollEncounterStrikeRequest,
+          "request_id"
+        >;
+      };
+    }
+  | {
+      kind: "resolve-strike";
+      request: Omit<
+        import("../../generated/atlas").ResolveEncounterActionCheckRequest,
+        "request_id"
+      >;
+    }
+  | {
+      kind: "abandon-strike";
+      request: Omit<
+        import("../../generated/atlas").AbandonEncounterActionAttemptRequest,
+        "request_id"
+      >;
+    }
+  | {
+      kind: "condition-lifecycle";
+      request: Omit<
+        import("../../generated/atlas").ApplyConditionLifecycleRequest,
+        "request_id"
+      >;
+    }
+  | {
+      kind: "resolve-hp-lifecycle";
+      request: Omit<
+        import("../../generated/atlas").ResolveEncounterHpLifecycleRequest,
+        "request_id"
+      >;
+    }
+  | {
       kind: "initiative";
       request: import("../../generated/atlas").RollInitiativeRequest;
     }
@@ -41,7 +115,7 @@ export type EncounterMutationCommand =
       kind: "spell";
       request: import("../../generated/atlas").ApplyEncounterSpellActionRequest;
     }
-  | { kind: "hp"; request: ApplyEncounterHpActionRequest }
+  | { kind: "hp"; request: Omit<ApplyEncounterHpActionRequest, "request_id"> }
   | { kind: "metadata"; request: UpdateEncounterRequest }
   | { kind: "participant"; request: UpdateEncounterParticipantRequest }
   | { kind: "add-record"; request: AddEncounterRecordParticipantRequest }
@@ -50,19 +124,107 @@ export type EncounterMutationCommand =
   | { kind: "remove"; participantKey: string }
   | { kind: "turn"; participantKey: string }
   | { kind: "advance"; expectedRevision: bigint }
-  | { kind: "add-condition"; request: AddEncounterParticipantConditionRequest }
+  | {
+      kind: "add-condition";
+      request: Omit<AddEncounterParticipantConditionRequest, "request_id">;
+    }
   | {
       kind: "update-condition";
       participantKey: string;
-      request: UpdateEncounterParticipantConditionRequest;
+      request: Omit<UpdateEncounterParticipantConditionRequest, "request_id">;
     }
-  | { kind: "remove-condition"; participantKey: string; conditionId: bigint }
+  | {
+      kind: "remove-condition";
+      participantKey: string;
+      conditionId: bigint;
+      expectedRevision: bigint;
+    }
+  | {
+      kind: "life-settings";
+      participantKey: string;
+      request: Omit<
+        import("../../generated/atlas").SetEncounterLifeSettingsRequest,
+        "request_id"
+      >;
+    }
+  | {
+      kind: "persistent-recovery";
+      request: Omit<
+        import("../../generated/atlas").RecoverPersistentDamageRequest,
+        "request_id"
+      >;
+    }
+  | {
+      kind: "resolve-drained";
+      request: Omit<
+        import("../../generated/atlas").ResolveDrainedConsequenceRequest,
+        "request_id"
+      >;
+    }
+  | {
+      kind: "persistent-damage";
+      request: Omit<
+        import("../../generated/atlas").ApplyPersistentDamageRequest,
+        "request_id"
+      >;
+    }
   | { kind: "delete" };
 
 export function useEncounterMutations(encounterRef: string, encounterKey?: string) {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const inFlight = useRef(false);
+  const eventRequests = useRef(new Map<string, { identity: string; id: string }>());
+  const commandIdentity = (command: EncounterMutationCommand) =>
+    JSON.stringify(command, (_key, value) =>
+      typeof value === "bigint" ? value.toString() : value,
+    );
+  const requestSlot = (command: EncounterMutationCommand) => {
+    switch (command.kind) {
+      case "add-condition":
+        return `${command.kind}:${command.request.participant_key}`;
+      case "update-condition":
+        return `${command.kind}:${command.participantKey}:${command.request.condition_id}`;
+      case "remove-condition":
+        return `${command.kind}:${command.participantKey}:${command.conditionId}`;
+      case "detection-event":
+        return `${command.kind}:${command.request.subject_key}:${command.request.observer_key}:${command.request.event.kind}`;
+      case "attitude-event":
+        return `${command.kind}:${command.request.subject_key}:${command.request.other_key}`;
+      case "relationship":
+        return `${command.kind}:${command.request.subject_key}:${command.request.other_key}:${command.request.property}`;
+      case "hp":
+        return `${command.kind}:${command.request.participant_key}`;
+      case "life-settings":
+        return `${command.kind}:${command.participantKey}`;
+      case "condition-lifecycle":
+        return `${command.kind}:${command.request.participant_key}:${command.request.action.kind}`;
+      case "persistent-damage":
+        return `${command.kind}:${command.request.participant_key}`;
+      case "persistent-recovery":
+        return `${command.kind}:${command.request.participant_key}:${command.request.episode_id}`;
+      case "resolve-hp-lifecycle":
+      case "resolve-drained":
+        return `${command.kind}:${command.request.consequence_key}`;
+      case "begin-strike":
+        return `${command.kind}:${command.request.strike.participant_key}:${JSON.stringify(command.request.strike.reference)}`;
+      case "resolve-strike":
+      case "abandon-strike":
+        return `${command.kind}:${command.request.attempt_key}`;
+      default:
+        return command.kind;
+    }
+  };
+  const eventRequestId = (command: EncounterMutationCommand) => {
+    const identity = commandIdentity(command);
+    const slot = requestSlot(command);
+    let retained = eventRequests.current.get(slot);
+    if (retained?.identity !== identity) {
+      retained = { identity, id: crypto.randomUUID() };
+      eventRequests.current.set(slot, retained);
+    }
+    return retained.id;
+  };
   const active = useRef(true);
   useEffect(() => {
     active.current = true;
@@ -116,14 +278,36 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     ): Promise<
       | import("../../generated/atlas").EncounterMutationView
       | import("../../generated/atlas").InitiativeRollView
+      | import("../../generated/atlas").PersistentRecoveryResultView
+      | import("../../generated/atlas").EncounterActionMutationView
+      | import("../../generated/atlas").PersistentDamageResultView
+      | import("../../generated/atlas").ConditionLifecycleResultView
     > => {
       switch (command.kind) {
         case "initiative":
           return rollInitiative(currentRef, command.request);
         case "spell":
           return applyEncounterSpellAction(currentRef, command.request);
+        case "detection-event":
+          return applyEncounterDetectionEvent(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
+        case "attitude-event":
+          return worsenEncounterAttitude(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
+        case "relationship":
+          return setEncounterRelationship(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
         case "hp":
-          return applyEncounterHpAction(currentRef, command.request);
+          return applyEncounterHpAction(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
         case "metadata":
           return updateEncounter(command.request);
         case "participant":
@@ -144,6 +328,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
           return removeEncounterParticipant(currentRef, command.participantKey);
         case "advance":
           return advanceEncounterTurn(currentRef, {
+            request_id: eventRequestId(command),
             expected_revision: command.expectedRevision,
           });
         case "turn":
@@ -152,24 +337,91 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
             participant_key: command.participantKey,
           });
         case "add-condition":
-          return addEncounterParticipantCondition(currentRef, command.request);
+          return addEncounterParticipantCondition(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
         case "update-condition":
           return updateEncounterParticipantCondition(
             currentRef,
             command.participantKey,
-            command.request,
+            { ...command.request, request_id: eventRequestId(command) },
           );
         case "remove-condition":
           return removeEncounterParticipantCondition(
             currentRef,
             command.participantKey,
             command.conditionId,
+            {
+              request_id: eventRequestId(command),
+              expected_encounter_revision: command.expectedRevision,
+              intent: "remove_effect",
+            },
           );
+        case "begin-strike":
+          return beginEncounterStrikeAttempt(currentRef, {
+            ...command.request,
+            strike: { ...command.request.strike, request_id: eventRequestId(command) },
+          });
+        case "resolve-strike":
+          return resolveEncounterActionCheck(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
+        case "abandon-strike":
+          return abandonEncounterActionAttempt(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
+        case "condition-lifecycle":
+          return applyEncounterConditionLifecycle(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
+        case "life-settings":
+          return setEncounterLifeSettings(currentRef, command.participantKey, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
+        case "persistent-damage":
+          return applyEncounterPersistentDamage(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
+        case "persistent-recovery":
+          return recoverEncounterPersistentDamage(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
+        case "resolve-hp-lifecycle":
+          return resolveEncounterHpLifecycle(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
+        case "resolve-drained":
+          return resolveEncounterDrainedConsequence(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
         case "delete":
           return deleteEncounter(currentRef);
       }
     },
     onSuccess: async (receipt, command) => {
+      if (
+        eventRequests.current.get(requestSlot(command))?.identity ===
+        commandIdentity(command)
+      )
+        eventRequests.current.delete(requestSlot(command));
+      if (["persistent-damage", "persistent-recovery"].includes(command.kind))
+        await queryClient.invalidateQueries({
+          queryKey: ["persistent-review", currentRef],
+        });
+      if (["begin-strike", "resolve-strike", "abandon-strike"].includes(command.kind))
+        await queryClient.invalidateQueries({
+          queryKey: ["strike-attempts", currentRef],
+        });
+      await queryClient.invalidateQueries({ queryKey: ["hp-lifecycle", currentRef] });
       refreshKey.current = receipt.encounter_key;
       setRefreshOrigin("saved");
       refreshSucceeded.current = true;
@@ -218,7 +470,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
         void message.info("Encounter updated. Try again.", 4);
       } else {
         const verb =
-          action.kind === "cast" || action.kind === "record_use"
+          action.kind === "cast"
             ? "record spell use"
             : action.kind === "undo"
               ? "undo"
@@ -234,6 +486,31 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       }
     },
   });
+  const previewCondition = async (
+    participantKey: string,
+    request: import("./useConditionEventPreview").ConditionEventInput,
+  ) => {
+    const command: EncounterMutationCommand =
+      "condition_id" in request
+        ? { kind: "update-condition", participantKey, request }
+        : { kind: "add-condition", request };
+    try {
+      return await previewEncounterCondition(currentRef, participantKey, {
+        ...request,
+        request_id: eventRequestId(command),
+      });
+    } catch (error) {
+      if (
+        error instanceof AtlasApiError &&
+        (error.appError?.code === "encounter_participant_conflict" ||
+          error.appError?.code === "encounter_turn_conflict")
+      ) {
+        setRefreshOrigin("conflict");
+        await attemptRefresh();
+      }
+      throw error;
+    }
+  };
   const run = async (command: EncounterMutationCommand) => {
     if (inFlight.current || !refreshSucceeded.current) {
       throw new Error("Wait for the encounter to refresh before editing again.");
@@ -268,6 +545,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       mutation.error.appError?.code === "encounter_turn_conflict");
   return {
     run,
+    previewCondition,
     pending: mutation.isPending || refreshing,
     error: mutation.error,
     errorKind: mutation.variables?.kind,

@@ -361,6 +361,9 @@ Reject unsafe integer input before creating numeric literals.
 
 ### Choosing an interaction surface
 
+Apply the root AGENTS.md Product UI Controls principles first. Start with a direct
+action or inline control; use an anchored popover when a small action needs context.
+A modal requires a substantial editing or focused-decision need.
 Choose the surface by the user's task, then adapt it to available space. Reuse
 the shared owner for that interaction rather than choosing independently in each
 feature.
@@ -383,6 +386,18 @@ Reference previews follow the policy below, including local Back, responsive
 hosts and delayed loading feedback. Do not change hosts after loading based on
 record length. Extended reading remains available through normal page navigation;
 a pinned reader would be a separate product feature.
+
+Substantial encounter forms use the encounter-owned modal placement policy: center
+within the visible work area bounded by the viewport, with internal scrolling for
+tall content. Do not reposition while typing or apply this policy globally to unrelated
+dialogs. Small roll and recovery interactions remain anchored.
+
+Attack modifiers roll directly in an anchored result popover. Show backend-derived
+condition hints concisely and distinguish applied from conditional effects. Optional
+Attack context switches once to a stable expanded view with internal scrolling; target
+selection does not resize the surface again. It retains the original dice through target/context edits and checks;
+only an explicit new-roll action rolls again. Do not make target adjudication a
+prerequisite for an ordinary at-table roll.
 
 ### In-place reference reading
 
@@ -569,8 +584,13 @@ Popover/Drawer. Its separate contextual cache holds the requested document view,
 keyed by participant presentation and exact selection. Rust composes current
 participant facts and explanations on each request; presentation changes trigger
 a fresh request without seeding immutable reference caches.
-Participant/generation changes, disappearance and unresolved sources remain
-explicit without baseline-detail fallback. Keep the native full reference link,
+The retained visible document uses exact participant, source generation and reading
+address identity, separately from the presentation-dependent request key. A resource
+refresh must not discard its content, move its anchor or reset reading position.
+Replace fresh facts in place; failed refresh keeps readable context with an explicit
+error and disabled gameplay actions. Genuine participant/generation/address changes
+do not reuse stale context. Disappearance and unresolved sources remain explicit
+without baseline-detail fallback. Keep the native full reference link,
 ready-lifecycle initial focus, nested source-modal Escape and original trigger
 focus recovery. Later encounter facts use visible Languages and compact Ability
 modifiers before Skills, with the shared family availability/empty-value policy.
@@ -660,7 +680,9 @@ The roster presents initiative, participant and HP in compact labelled columns,
 with distinct selected, current-turn and defeated states. Accessible movement
 actions disclose the target initiative. Phone layouts drill into a selected
 participant and restore roster focus/scroll on Back. Advancing the turn follows
-the canonical server-selected participant in the reader; ordinary selection does
+the canonical server-selected participant in the reader. Turn progression skips participants without initiative scores, as well as defeated,
+disabled and dead participants. Missing initiative must be explained where it prevents
+progression, with a direct way to assign or roll initiative; ordinary selection does
 not change the turn. Use distinct Encounter settings, Participant settings and HP
 settings. The participant pencil opens name, initiative, side, adjustment and
 notes, with subdued Original record access inside that editor. Defeated belongs
@@ -721,14 +743,14 @@ removes the duration. Full condition drafts retain their opening encounter revis
 conflict, explicit Reload condition replaces the draft with canonical remaining
 duration and a fresh revision. Do not silently refresh a retained draft's guard.
 
-Next turn reads the Rust turn review and opens a review only for its reminders.
-The browser never ticks durations, chooses timing anchors, infers persistent
-condition identity, rolls damage/recovery, or removes an expired condition.
-Immediate review actions target the reminder's participant and exact condition,
-show a saved receipt, and refresh both encounter and review before Continue.
-Cancel leaves already saved actions intact. Removing the last reminder does not
-advance; Continue uses the current review revision in the atomic advance command.
-Read-only Retry never repeats an action or advances a turn.
+Next turn commits eligible progression once, then presents one non-blocking
+notification for the just-completed turn. Closing, Escape and backdrop clicks finish
+that interaction without changing HP, conditions or initiative. There is no reminder
+queue, acknowledgment, selector or reopen action. The browser never ticks durations,
+chooses timing anchors or invents outcomes. A failed advance shows its actual failure;
+reminder loading cannot masquerade as a progression failure. Empty boundaries do not
+open a notification. Position dialogs within the work area using wrapper padding;
+keep Ant's wrapper over the full viewport so all backdrop clicks still dismiss it.
 
 Encounter roster handles use the sortable-list library for whole-row movement,
 touch and keyboard pickup/movement/drop, then submit one guarded reorder command.
@@ -745,3 +767,26 @@ the Rust-owned has_reference_details flag controls activity-title links: known
 complete summaries stay plain, while additional content/richer views open the
 shared preview. Condition-specific manual notices attach by exact condition ID;
 do not repeat those notes as generic Runtime diagnostics.
+
+Participant panels do not expose standalone Strike history, Relationships or Action
+context disclosures. Optional attack context belongs to the roll interaction; general
+relationship editing remains deferred. Condition forms accept incomplete persistent
+damage as reminders, without eager required-field errors. Group Add duration and
+Add details in the footer opposite Cancel/Apply, wrapping on narrow screens.
+
+Attack assistance shows target-specific reminders and direct optional reference
+flat checks. Exclude the attacker from ordinary target choices. Do not require a
+detection/relationship questionnaire or a preparatory resolve step to roll these
+reference checks. Keep the original attack dice and expanded view geometry stable.
+Recovery uses an anchored DC reminder and Roll; render its outcome in that popover,
+including after successful condition removal. Table recovery uses ordinary clear.
+Creature dying settings belong at the bottom, revealing compact fields directly
+when enabled; avoid nested disclosures and additional save forms.
+
+Turn reminders are one notification for the just-finished turn. Every close path
+ends the interaction; no acknowledgment button, past-turn selector, reminder inbox
+or reopen action. Conditions and HP remain independently editable on the creature.
+Target & checks is present from initial attack loading, disabled until ready, so
+revealing that action never shifts the roller. Recovery uses one inline DC input
+and shows the DC actually resolved with its result. Dying settings contain the
+threshold and an Alive/Dead segmented control, not a general level override.

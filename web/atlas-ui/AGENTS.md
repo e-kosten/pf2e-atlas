@@ -16,6 +16,7 @@ backend-projected text. Review the rendered result, not just the component code.
 
 Before creating a feature-local interaction pattern, check `src/shared/ui`.
 
+- Adjacent buttons in one action group use the same Ant `size` and aligned height; distinguish importance with button type, not size. Apply spacing to the group instead of individual button padding overrides.
 - Use `PrimaryToolbar` for wrapping primary control rows. Inherit default Ant sizes; reserve small controls for dense inline/table actions. Keep search flexible and neighboring controls top-aligned when selected choices wrap.
 - Use `IndexTable` for clickable entity/index tables.
 - Use `EntityIndexPage` for `/things` index pages with a title, summary, actions, and table body.

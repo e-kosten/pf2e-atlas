@@ -146,6 +146,25 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
         let owner_starting_first =
             current_key.is_none() && next_key == Some(participant.participant_key.as_str());
         let owner_boundary = owner_ending || owner_starting_first;
+        if owner_ending {
+            let condition_ids = participant
+                .conditions
+                .iter()
+                .filter(|condition| {
+                    super::conditions::condition_rule_for_key(condition.condition_key.as_deref())
+                        == Some(super::conditions::ConditionRule::Frightened)
+                })
+                .map(|condition| condition.condition_id)
+                .collect::<Vec<_>>();
+            if !condition_ids.is_empty() {
+                reminders.push(EncounterTurnReminderView::ConditionRecovery {
+                    participant_key: participant.participant_key.clone(),
+                    participant_name: participant.display_name.clone(),
+                    condition_ids,
+                    condition_name: "Frightened".into(),
+                });
+            }
+        }
         for condition in &participant.conditions {
             let participant_key = participant.participant_key.clone();
             let participant_name = participant.display_name.clone();
@@ -220,6 +239,18 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
         }
     }
     EncounterTurnReviewView {
+        next_turn_unavailable_reason: if update.turn.participant_key.is_some() {
+            None
+        } else if snapshot.participants.iter().any(|p| {
+            !p.defeated
+                && !p.hazard_disabled
+                && p.mortality != atlas_local_state::MortalityState::Dead
+        }) {
+            Some(atlas_app_model::EncounterNextTurnUnavailableReason::NoInitiativeParticipants)
+        } else {
+            Some(atlas_app_model::EncounterNextTurnUnavailableReason::NoActiveParticipants)
+        },
+        outgoing: None,
         encounter_key: snapshot.encounter.encounter_key.clone(),
         expected_revision: snapshot.encounter.revision,
         current_participant_key: snapshot.encounter.current_turn_participant_key.clone(),

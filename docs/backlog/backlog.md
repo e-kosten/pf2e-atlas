@@ -20,7 +20,7 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Source-modeling capability follow-through](items/rust-integration-recovery.md)
   Track the agreed ten-item sequence for CLI contracts, reference completeness,
-  encounter policy and discovery. CF-01 merged in PR #68; CF-02 merged in PR #69. The 6.12.4 reference pin merged in PR #70; the 8.6.1 upgrade is deferred. CF-03 merged in PR #71; consult the capability tracker for later slice approval and progress.
+  encounter policy and discovery. CF-01 merged in PR #68; CF-02 merged in PR #69. The 6.12.4 reference pin merged in PR #70; the 8.6.1 upgrade merged in PR #83. CF-03 merged in PR #71; consult the capability tracker for later slice approval and progress.
   Status: in_progress.
 
 - [Rust CLI and skill capability follow-through](items/rust-cli-skill-capability-follow-through.md)
@@ -31,6 +31,13 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   against fresh source-backed tasks; preserve completed study evidence. Status: proposed.
 
 ## Soon
+
+- [Apply supported effects to encounter participants](items/encounter-effect-application.md)
+  Prefill conditions from supported spells and abilities through the shared workflow.
+  Status: proposed.
+
+- [Cursebound encounter mechanics](items/encounter-cursebound.md)
+  Deferred from CF-07 pending concrete GM encounter demand. Status: deferred.
 
 - [Foundry inline content fidelity](items/foundry-inline-content-fidelity.md)
   Compare remaining rich-text syntax and context-dependent expressions with the

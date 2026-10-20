@@ -158,6 +158,8 @@ pub struct IwrEntryView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorRuntimeView {
+    pub senses: Vec<EncounterSenseView>,
+    pub contextual_armor_class: Vec<EncounterContextualArmorClassView>,
     pub action_budget: Option<ActionBudgetView>,
     pub unapplied_effects: Vec<UnappliedEffectView>,
 }
@@ -235,6 +237,8 @@ pub struct DamageComponentView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SpellPresentationView {
+    pub runtime_attack: Option<NumberFactView>,
+    pub runtime_difficulty_class: Option<NumberFactView>,
     pub ritual: FactView<RitualCastingView>,
     pub counteraction: FactView<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -406,4 +410,20 @@ pub struct JournalPresentationView {
 pub struct JournalPagePresentationView {
     pub show_body_heading: FactView<bool>,
     pub media_notice: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct EncounterSenseView {
+    pub sense_type: String,
+    pub precision: Option<String>,
+    pub range_feet: Option<serde_json::Number>,
+    pub available: Option<bool>,
+    pub perception: Option<serde_json::Number>,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct EncounterContextualArmorClassView {
+    pub opponent_key: String,
+    pub value: FactView<serde_json::Number>,
 }

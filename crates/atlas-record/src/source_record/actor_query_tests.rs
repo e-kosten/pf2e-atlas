@@ -509,3 +509,20 @@ fn character_speed_is_not_an_authored_reference_fact() {
         FieldAvailability::NotApplicable
     );
 }
+
+#[test]
+fn vision_omission_defaults_only_inside_known_npc_perception() {
+    let source = actor("npc", json!({"perception": {"senses": []}}));
+    assert_eq!(query(&source).vision().value(), Some(true));
+    let source = actor("npc", json!({"perception": {"vision": false}}));
+    assert_eq!(query(&source).vision().value(), Some(false));
+    for system in [
+        json!({}),
+        json!({"perception": null}),
+        json!({"perception": {"vision": null}}),
+        json!({"perception": {"vision": "yes"}}),
+    ] {
+        let source = actor("npc", system);
+        assert_eq!(query(&source).vision().value(), None);
+    }
+}

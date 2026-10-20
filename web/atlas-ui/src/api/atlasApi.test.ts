@@ -51,9 +51,60 @@ function respond(value: unknown, status = 200) {
   );
 }
 describe("source-backed API transport", () => {
+  it("normalizes original boundary sources and grouped recovery identities without requiring one condition ID", async () => {
+    respond({
+      encounter_key: "ambush",
+      expected_revision: 13,
+      reminders: [],
+
+      next_turn_unavailable_reason: null,
+      outgoing: {
+        boundary_key: "original",
+        participant_key: "a",
+        participant_name: "Goblin",
+        round_number: 2,
+        participant_removed: false,
+        damage_applied: false,
+        recovered_episode_ids: [],
+        reminders: [
+          {
+            kind: "condition_recovery",
+            participant_key: "a",
+            participant_name: "Goblin",
+            condition_ids: [7, 8],
+            condition_name: "Frightened",
+          },
+        ],
+        persistent_damage_groups: [
+          {
+            episode_id: "fire",
+            damage_type: "fire",
+            selected_source_id: 9,
+            sources: [
+              {
+                condition_id: 9,
+                formula: "1d6",
+                multiplier: "normal",
+                recovery_dc: 15,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const review = await getEncounterTurnReview("ambush");
+    expect(review.outgoing!).toMatchObject({
+      round_number: 2n,
+      reminders: [{ condition_ids: [7n, 8n] }],
+      persistent_damage_groups: [
+        { selected_source_id: 9n, sources: [{ condition_id: 9n, recovery_dc: 15n }] },
+      ],
+    });
+  });
   it("reads turn reviews without mutation and sends the exact advance revision", async () => {
     respond({
       encounter_key: "ambush",
+      request_id: "advance",
       expected_revision: 12,
       current_participant_key: "a",
       next_participant_key: "b",
@@ -78,11 +129,13 @@ describe("source-backed API transport", () => {
     expect(fetchMock.mock.calls[0][1].method).toBeUndefined();
     respond({ encounter_key: "ambush" });
     await advanceEncounterTurn("ambush", {
+      request_id: "advance",
       expected_revision: review.expected_revision,
     });
     expect(fetchMock.mock.calls[1][0]).toBe("/api/encounters/ambush/advance");
     expect(fetchMock.mock.calls[1][1].method).toBe("POST");
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
+      request_id: "advance",
       expected_revision: 12,
     });
   });
@@ -202,6 +255,56 @@ describe("source-backed API transport", () => {
     status: "active",
     note_hint: null,
   };
+  it("normalizes persistent source identity and recovery DCs together", async () => {
+    respond({
+      revision: 4,
+      encounter: { round_number: 1 },
+      participants: [
+        {
+          ...participantJson,
+          conditions: [
+            {
+              ...participantJson.conditions[0],
+              parameters: {
+                kind: "persistent_damage",
+                formula: "1d6",
+                damage_type: "fire",
+                multiplier: "normal",
+                recovery: { kind: "specified", dc: 12 },
+                episode_id: "fire-episode",
+              },
+            },
+          ],
+          persistent_damage_groups: [
+            {
+              episode_id: "fire-episode",
+              damage_type: "fire",
+              selected_source_id: 9,
+              sources: [
+                {
+                  condition_id: 9,
+                  formula: "1d6",
+                  multiplier: "normal",
+                  recovery_dc: 12,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const result = await getEncounter("ambush");
+    const participant = result.participants[0];
+    expect(participant.conditions[0].parameters).toMatchObject({
+      recovery: { kind: "specified", dc: 12n },
+    });
+    expect(participant.persistent_damage_groups[0]).toMatchObject({
+      selected_source_id: 9n,
+      sources: [
+        { condition_id: participant.conditions[0].condition_id, recovery_dc: 12n },
+      ],
+    });
+  });
   it.each(["creature", "hazard"] as const)(
     "preserves exact condition diagnostic identity through %s encounter and reference transport",
     async (kind) => {
@@ -413,7 +516,15 @@ describe("source-backed API transport", () => {
       call: () =>
         addEncounterParticipantCondition("test", {
           participant_key: "ghoul",
+          expected_encounter_revision: 8n,
           name: "Condition",
+          request_id: "condition-test",
+          parameters: { kind: "none" },
+          event_intent: "apply",
+          decisions: { keep_upright: false },
+          immunity_override: false,
+          scope: { kind: "everyone" },
+          extra_action: { kind: "unspecified" },
         }),
     },
     {
@@ -425,13 +536,25 @@ describe("source-backed API transport", () => {
           expected_encounter_revision: 8n,
           condition_id: 9n,
           name: "Condition",
+          request_id: "condition-test",
+          parameters: { kind: "none" },
+          event_intent: "apply",
+          decisions: { keep_upright: false },
+          immunity_override: false,
+          scope: { kind: "everyone" },
+          extra_action: { kind: "unspecified" },
         }),
     },
     {
       name: "condition removal",
       path: "/api/encounters/test/participants/ghoul/conditions/9",
       method: "DELETE",
-      call: () => removeEncounterParticipantCondition("test", "ghoul", 9n),
+      call: () =>
+        removeEncounterParticipantCondition("test", "ghoul", 9n, {
+          request_id: "condition-remove",
+          expected_encounter_revision: 8n,
+          intent: "remove_effect",
+        }),
     },
   ];
   it.each(encounterMutations)(
@@ -447,6 +570,7 @@ describe("source-backed API transport", () => {
     respond({ encounter_key: "encounter-test" });
     await expect(
       applyEncounterHpAction("test", {
+        request_id: "hp-action-test",
         participant_key: "ghoul",
         expected_revision: 7n,
         action: { kind: "damage", amount: " 10 - 3 " },
@@ -458,6 +582,7 @@ describe("source-backed API transport", () => {
       expect.objectContaining({ method: "POST" }),
     );
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      request_id: "hp-action-test",
       participant_key: "ghoul",
       expected_revision: 7,
       action: { kind: "damage", amount: " 10 - 3 " },
@@ -792,5 +917,149 @@ describe("source-backed API transport", () => {
   it("surfaces invalid success JSON and response text", async () => {
     fetchMock.mockResolvedValue(new Response("broken", { status: 200 }));
     await expect(getReadiness()).rejects.toBeInstanceOf(AtlasApiError);
+  });
+});
+
+it("normalizes saved HP decisions and sends guarded resolution without another HP event", async () => {
+  const api = await import("./atlasApi");
+  const context = {
+    lethality: null,
+    critical: null,
+    enemy_source: null,
+    responsible_participant_key: null,
+    base_death_threshold: 5,
+    keep_current_initiative: false,
+    attack_or_spell_damage: null,
+    natural_rest_healing: false,
+    keep_upright: false,
+  };
+  respond([
+    {
+      consequence_key: "pending",
+      participant_key: "actor",
+      before_hp: 9,
+      after_hp: 0,
+      initiative_only: false,
+      required_facts: ["lethality"],
+      context,
+    },
+  ]);
+  const [row] = await api.getEncounterHpLifecycle("test");
+  expect(row.before_hp).toBe(9n);
+  expect(row.context.base_death_threshold).toBe(5n);
+  const request = {
+    request_id: "hp-resolution",
+    expected_encounter_revision: 7n,
+    consequence_key: "pending",
+    resolution: "apply" as const,
+    context: { ...row.context, keep_current_initiative: true },
+  };
+  respond({
+    ...row,
+    before_hp: 9,
+    after_hp: 0,
+    context: { ...context, keep_current_initiative: true },
+    required_facts: [],
+  });
+  expect(
+    (await api.previewEncounterHpLifecycle("test", request)).required_facts,
+  ).toEqual([]);
+  respond({ encounter_key: "test" });
+  await api.resolveEncounterHpLifecycle("test", request);
+  expect(fetchMock).toHaveBeenLastCalledWith(
+    "/api/encounters/test/hp-lifecycle/resolve",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({
+        ...request,
+        expected_encounter_revision: 7,
+        context: { ...context, keep_current_initiative: true },
+      }),
+    }),
+  );
+});
+it("reads persistent total and one shared Hardness deduction from the server", async () => {
+  const api = await import("./atlasApi");
+  respond({
+    round_number: 2,
+    damage_applied: true,
+    episodes: [],
+    damage_result: {
+      encounter_key: "test",
+      request_id: "batch",
+      total: 4,
+      hardness_absorbed: 5,
+      groups: [
+        {
+          episode_id: "fire",
+          damage_type: "fire",
+          source_condition_id: 1,
+          amount: 9,
+          roll: null,
+          table_resolved: false,
+        },
+      ],
+    },
+    recovery_results: [],
+  });
+  const review = await api.getEncounterPersistentReview("test", "actor");
+  expect(review.round_number).toBe(2n);
+  expect(review.damage_result).toEqual(
+    expect.objectContaining({
+      total: 4n,
+      hardness_absorbed: 5n,
+      groups: [expect.objectContaining({ amount: 9n, source_condition_id: 1n })],
+    }),
+  );
+});
+
+it("keeps attributed relationship causes and guarded observer events separate from baseline edits", async () => {
+  const api = await import("./atlasApi");
+  respond({
+    encounter_key: "test",
+    expected_revision: 7,
+    relationships: [
+      {
+        subject_key: "actor",
+        other_key: "observer",
+        property: "detection",
+        baseline: null,
+        adjudication: null,
+        source_condition_ids: [7, 8],
+        knowledge: {
+          kind: "known",
+          value: { kind: "detection", value: "hidden" },
+          provenance: { kind: "sources", condition_ids: [7, 8] },
+        },
+      },
+    ],
+  });
+  const pair = await api.getEncounterRelationships("test", "actor", "observer");
+  expect(pair.expected_revision).toBe(7n);
+  expect(pair.relationships[0].knowledge).toEqual(
+    expect.objectContaining({
+      provenance: { kind: "sources", condition_ids: [7n, 8n] },
+    }),
+  );
+  respond({ encounter_key: "test" });
+  await api.applyEncounterDetectionEvent("test", {
+    request_id: "seek",
+    expected_encounter_revision: 7n,
+    subject_key: "actor",
+    observer_key: "observer",
+    event: { kind: "seek", prior: "hidden", outcome: "success", can_observe: false },
+  });
+  expect(fetchMock).toHaveBeenLastCalledWith(
+    "/api/encounters/test/detection-events",
+    expect.objectContaining({ method: "POST" }),
+  );
+  expect(
+    JSON.parse(fetchMock.mock.calls[fetchMock.mock.calls.length - 1][1].body),
+  ).toEqual({
+    request_id: "seek",
+    expected_encounter_revision: 7,
+    subject_key: "actor",
+    observer_key: "observer",
+    event: { kind: "seek", prior: "hidden", outcome: "success", can_observe: false },
   });
 });

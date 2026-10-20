@@ -203,3 +203,45 @@ it("bounds preview history and restores exact selected copy, landing, source lin
   host.remove();
   opener.remove();
 });
+
+it("retains an exact contextual document during canonical refresh, replaces fresh context, and isolates participant/generation changes", async () => {
+  const api = await import("../../api/atlasApi");
+  const initial = detailFixture("actors:mage", "Fear");
+  const fresh = detailFixture("actors:mage", "Updated Fear");
+  let finish: (detail: typeof initial) => void = () => {};
+  const read = vi
+    .spyOn(api, "getEncounterReference")
+    .mockResolvedValueOnce(initial)
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+  const context = {
+    encounterRef: "encounter:one",
+    identity: "participant:one",
+    generation: "generation:one",
+    parentRecordKey: "actors:mage",
+    presentation: initial.presentation,
+  };
+  const { result, rerender } = renderHook((props) => useRecordPreview(props), {
+    wrapper: queryWrapper,
+    initialProps: context,
+  });
+  act(() => result.current.open("actors:mage", undefined, initial.selected));
+  await waitFor(() => expect(result.current.detail).toBe(initial));
+  rerender({ ...context, presentation: fresh.presentation });
+  await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+  expect(result.current.loading).toBe(true);
+  expect(result.current.detail).toBe(initial);
+  await act(async () => finish(fresh));
+  await waitFor(() => expect(result.current.detail).toBe(fresh));
+  rerender({ ...context, identity: "participant:two" });
+  expect(result.current.detail).toBeUndefined();
+  expect(result.current.error?.message).toMatch(/participant has changed/);
+  rerender({ ...context, generation: "generation:two" });
+  expect(result.current.detail).toBeUndefined();
+  expect(result.current.error?.message).toMatch(/reference collection has changed/);
+  read.mockRestore();
+});

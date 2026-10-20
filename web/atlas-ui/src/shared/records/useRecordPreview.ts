@@ -108,12 +108,14 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     gcTime: 0,
     retry: false,
   });
+  // Runtime refresh is a new request, not a new source document. Retain the
+  // addressed content while Rust prepares fresh context; identity/generation and
+  // exact navigation still prevent borrowing content across sources.
   const retainedContextual = useRetainedRecord(
     JSON.stringify(
       [
         encounterContext?.encounterRef,
         requestedContext,
-        encounterContext?.presentation,
         recordReadingIdentity(recordKey, selection),
       ],
       (_key, value) => (typeof value === "bigint" ? value.toString() : value),

@@ -422,8 +422,11 @@ Exact correction formulas retain their zero floor and never acquire a maximum
 clamp. Null explicitly clears
 current/maximum availability. Formula length, arithmetic and browser-safe final
 input bounds are checked; dice and general expressions are unsupported. Damage
-absorbs temporary HP first, floors current HP at zero and marks zero HP defeated;
-healing caps at a known maximum and does not clear defeated. Missing current HP
+absorbs temporary HP first and floors current HP at zero. Participants tracking
+Dying enter the shared mortality/lifecycle planner; untracked participants retain
+Defeated/Disabled participation behavior. Healing caps at condition-adjusted maximum
+HP and resolves eligible Dying/Unconscious causes without clearing unrelated sources
+or participation markers. Missing current HP
 rejects damage/healing rather than inventing a value. These actions return the
 same durable receipt, independently of subsequent presentation refresh. The
 three-field HP editor sends SetValues with only supplied raw inputs; an explicit
@@ -436,15 +439,22 @@ place these notes on their cards without hiding unrelated runtime context.
 Local-state initialization and migrations commit schema and metadata together.
 List metadata/tags, quantity additions and removal with replacement turn each
 have one write transaction. Next turn chooses from the same locked snapshot it
-updates, using pure app-service policy. A side-effect-free turn review returns the
-encounter revision; Continue checks it in the immediate transaction before applying
-old-END/new-START duration decrements and the new turn. Every relevant durable
+updates, using pure app-service policy. Next turn checks expected revision and request
+identity, applies old-END/new-START duration decrements and saves outgoing boundary
+context in the same transaction. It skips participants without initiative. Matching
+retries recover their receipt; stale distinct commands conflict. The browser presents
+reminders after advancement, and dismissal changes no saved state. Pending outgoing
+context retains the original participant, round and condition sources/episodes for
+late damage/recovery; explicit table acknowledgment retires it without inventing a
+roll or an HP operation. Every relevant durable
 encounter mutation advances that revision. Duration rounds store one remaining
 amount and explicit participant/event anchor; zero retains the condition until
 explicit removal, unresolved anchors never tick, and nonround units are reminders.
-Manual Set turn, reorder and removal never tick. Only canonical Persistent Damage
-supplies its owner-END damage/recovery table reminder; no dice, HP, severity or
-expiry action is automatic. Participant replacements require an
+Manual Set turn, reorder and removal never tick. Persistent Damage review groups
+simultaneous types into an explicit damage event, then offers separate per-episode
+recovery. Table-resolved totals bypass mitigation; Atlas rolls use checked damage
+protections, with Hardness applied once to the combined event. Rolls and lifecycle
+recovery require explicit commands; merely opening a review changes nothing. Participant replacements require an
 expected revision and fail with a typed conflict when stale. Condition IDs are
 not reused, and condition edits check participant ownership inside the write.
 Existing-encounter mutations return a durable canonical-key receipt rather than
@@ -480,9 +490,12 @@ data does not imply runtime execution support. See the active backlog and ADR004
 App-service projects current acting/reacting capability separately from a
 PF2e 8.6.1 next-regain forecast. Unknown condition values produce an unavailable
 forecast. Quickened restrictions and overlapping Stunned/Slowed losses remain
-visible; reads never recover conditions. Ordinary casting uses the same backend
-capability reason as browser controls; explicit past-use and resource corrections
-remain available. See ADR 0048 for the bounded policy.
+visible; reads never recover conditions. Explicit Stunned action-loss events use
+the same forecast and record the GM-confirmed loss without maintaining a current
+action ledger. Ordinary strikes and casting share durable attempts, source-specific
+judgments and ordered flat checks. Checks and terminal results resume after a lost
+response without repeating costs or effects. Explicit past-use and resource
+corrections remain separate intents. See ADR 0048 and ADR 0055.
 
 Hazards use Active/Disabled in place of creature Active/Defeated. Damage reaching
 zero disables a hazard; healing does not reactivate it. HP remains separate. Automatic turns

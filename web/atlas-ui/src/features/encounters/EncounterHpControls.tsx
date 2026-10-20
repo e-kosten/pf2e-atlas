@@ -1,4 +1,5 @@
-import { Button, Modal } from "antd";
+import { EncounterModal } from "./EncounterModal";
+import { Button, Tag } from "antd";
 import { useState, type ReactNode } from "react";
 import type {
   EncounterParticipantView,
@@ -57,6 +58,7 @@ export function EncounterHpControls({
         <div className="encounter-hp-panel__identity">
           <h3>HP</h3>
           <span aria-label="HP summary">{hpSummary}</span>
+          {current.mortality === "dead" && <Tag color="error">Dead</Tag>}
         </div>
         <div className="encounter-hp-panel__actions">
           {statusControl}
@@ -108,7 +110,7 @@ export function EncounterHpControls({
           return true;
         }}
       />
-      <Modal
+      <EncounterModal
         title="Edit HP"
         open={editorOpen && !(committed && !disabled)}
         destroyOnHidden
@@ -131,7 +133,7 @@ export function EncounterHpControls({
             else setCommitted(true);
           }}
         />
-      </Modal>
+      </EncounterModal>
     </div>
   );
 }

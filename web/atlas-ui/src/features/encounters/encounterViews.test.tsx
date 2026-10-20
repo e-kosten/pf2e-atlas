@@ -1,5 +1,6 @@
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
+  spellFixture,
   detailFixture,
   summaryFixture,
   actorFixture,
@@ -38,9 +39,16 @@ import { EditEncounterForm } from "./EncounterModals";
 import { atlasRoutePath, currentAtlasRoute } from "../../app/routes";
 
 const apiMocks = vi.hoisted(() => ({
+  applyEncounterSpellAction: vi.fn(),
   applyEncounterHpAction: vi.fn(),
+  getEncounterPersistentReview: vi.fn(),
+  applyEncounterPersistentDamage: vi.fn(),
+  recoverEncounterPersistentDamage: vi.fn(),
+  getEncounterConditionLifecycleActions: vi.fn(),
+  getEncounterHpLifecycle: vi.fn(),
   getEncounterTurnReview: vi.fn(),
   advanceEncounterTurn: vi.fn(),
+  handleEncounterOutgoingTurn: vi.fn(),
   addEncounterManualParticipant: vi.fn(),
   addEncounterParticipantCondition: vi.fn(),
   addEncounterRecordParticipant: vi.fn(),
@@ -48,6 +56,11 @@ const apiMocks = vi.hoisted(() => ({
   deleteEncounter: vi.fn(),
   getEncounter: vi.fn(),
   getEncounterConditionDefinitions: vi.fn(),
+  previewEncounterCondition: vi.fn(),
+  getEncounterConditionConsequences: vi.fn(),
+  previewEncounterCastingAttempt: vi.fn(),
+  getEncounterCastingAttempts: vi.fn(),
+  getEncounterStrikeAttempts: vi.fn(),
   getEncounters: vi.fn(),
   getRecordDetail: vi.fn(),
   getEncounterReference: vi.fn(),
@@ -64,9 +77,16 @@ const apiMocks = vi.hoisted(() => ({
 
 vi.mock("../../api/atlasApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/atlasApi")>()),
+  applyEncounterSpellAction: apiMocks.applyEncounterSpellAction,
   applyEncounterHpAction: apiMocks.applyEncounterHpAction,
+  getEncounterPersistentReview: apiMocks.getEncounterPersistentReview,
+  applyEncounterPersistentDamage: apiMocks.applyEncounterPersistentDamage,
+  recoverEncounterPersistentDamage: apiMocks.recoverEncounterPersistentDamage,
+  getEncounterConditionLifecycleActions: apiMocks.getEncounterConditionLifecycleActions,
+  getEncounterHpLifecycle: apiMocks.getEncounterHpLifecycle,
   getEncounterTurnReview: apiMocks.getEncounterTurnReview,
   advanceEncounterTurn: apiMocks.advanceEncounterTurn,
+  handleEncounterOutgoingTurn: apiMocks.handleEncounterOutgoingTurn,
   addEncounterManualParticipant: apiMocks.addEncounterManualParticipant,
   addEncounterParticipantCondition: apiMocks.addEncounterParticipantCondition,
   addEncounterRecordParticipant: apiMocks.addEncounterRecordParticipant,
@@ -74,6 +94,11 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   deleteEncounter: apiMocks.deleteEncounter,
   getEncounter: apiMocks.getEncounter,
   getEncounterConditionDefinitions: apiMocks.getEncounterConditionDefinitions,
+  previewEncounterCondition: apiMocks.previewEncounterCondition,
+  getEncounterConditionConsequences: apiMocks.getEncounterConditionConsequences,
+  previewEncounterCastingAttempt: apiMocks.previewEncounterCastingAttempt,
+  getEncounterCastingAttempts: apiMocks.getEncounterCastingAttempts,
+  getEncounterStrikeAttempts: apiMocks.getEncounterStrikeAttempts,
   getEncounters: apiMocks.getEncounters,
   getRecordDetail: apiMocks.getRecordDetail,
   getEncounterReference: apiMocks.getEncounterReference,
@@ -95,6 +120,155 @@ function setEncounterDetail(view: EncounterDetailViewDto) {
   apiMocks.getEncounter.mockImplementation(() => Promise.resolve(serverEncounter));
 }
 
+function setupPersistentReview(damageApplied = false) {
+  const participant = serverEncounter.participants[0];
+  participant.conditions[0] = {
+    ...participant.conditions[0],
+    name: "Persistent Damage",
+    parameters: {
+      kind: "persistent_damage",
+      formula: "1d6",
+      damage_type: "fire",
+      multiplier: "normal",
+      recovery: { kind: "standard" },
+      episode_id: "fire",
+    },
+  };
+  participant.persistent_damage_groups = [
+    {
+      episode_id: "fire",
+      damage_type: "fire",
+      selected_source_id: 7n,
+      sources: [
+        { condition_id: 7n, formula: "1d6", multiplier: "normal", recovery_dc: 15n },
+      ],
+    },
+  ];
+  const damageResult = {
+    encounter_key: "encounter_ambush",
+    request_id: "saved-damage",
+    total: 4n,
+    hardness_absorbed: 0n,
+    groups: [
+      {
+        episode_id: "fire",
+        damage_type: "fire",
+        source_condition_id: 7n,
+        roll: null,
+        amount: 4n,
+        table_resolved: true,
+      },
+    ],
+  };
+  const state: {
+    damageApplied: boolean;
+    recoveryResults: import("../../generated/atlas").PersistentRecoveryResultView[];
+    afterSave?: () => void;
+  } = { damageApplied, recoveryResults: [] };
+  apiMocks.getEncounterTurnReview.mockImplementation(async () => ({
+    encounter_key: "encounter_ambush",
+    expected_revision: serverEncounter.revision,
+    current_participant_key: "participant_a",
+    next_participant_key: "participant_b",
+    reminders: [],
+    outgoing: apiMocks.advanceEncounterTurn.mock.calls.length
+      ? {
+          boundary_key: "original-turn",
+          participant_key: "participant_a",
+          participant_name: "Goblin",
+          round_number: 1n,
+          persistent_damage_groups: participant.persistent_damage_groups,
+          reminders: state.recoveryResults.length
+            ? []
+            : [
+                {
+                  kind: "persistent_damage",
+                  participant_key: "participant_a",
+                  participant_name: "Goblin",
+                  condition_id: 7n,
+                  condition_name: "Persistent Damage",
+                  note: null,
+                },
+              ],
+        }
+      : null,
+    next_turn_unavailable_reason: null,
+  }));
+  apiMocks.getEncounterPersistentReview.mockImplementation(async () => ({
+    round_number: 1n,
+    damage_applied: state.damageApplied,
+    episodes: state.recoveryResults.length
+      ? []
+      : [
+          {
+            episode_id: "fire",
+            end_turn_recovery_available: true,
+            end_turn_roll_available: state.damageApplied,
+            end_turn_roll_unavailable_reason: state.damageApplied
+              ? null
+              : "Record this turn’s damage before rolling recovery.",
+            end_turn_recovery_unavailable_reason: null,
+            assisted_recovery_unavailable_reason: null,
+            assisted_recovery_available: true,
+          },
+        ],
+    damage_result: state.damageApplied ? damageResult : null,
+    recovery_results: state.recoveryResults,
+  }));
+  apiMocks.applyEncounterPersistentDamage.mockImplementation(async () => {
+    state.damageApplied = true;
+    serverEncounter = { ...serverEncounter, revision: serverEncounter.revision + 1n };
+    state.afterSave?.();
+    return damageResult;
+  });
+  apiMocks.recoverEncounterPersistentDamage.mockImplementation(async () => {
+    const result = {
+      encounter_key: "encounter_ambush",
+      request_id: "saved-recovery",
+      episode_id: "fire",
+      damage_type: "fire",
+      dc: 15n,
+      roll: null,
+      table_result: 18n,
+      success: true,
+    };
+    state.recoveryResults.push(result);
+    serverEncounter = {
+      ...serverEncounter,
+      revision: serverEncounter.revision + 1n,
+      participants: serverEncounter.participants.map((p) =>
+        p.participant_key === "participant_a"
+          ? { ...p, conditions: [], persistent_damage_groups: [] }
+          : p,
+      ),
+    };
+    state.afterSave?.();
+    return result;
+  });
+  return state;
+}
+async function submitPersistentDamage(review: HTMLElement, amount: string) {
+  fireEvent.click(await within(review).findByText("Table result"));
+  fireEvent.change(await within(review).findByLabelText("fire damage amount"), {
+    target: { value: amount },
+  });
+  fireEvent.click(
+    within(review).getByRole("button", { name: "Apply persistent damage" }),
+  );
+  await within(review).findByText("Persistent damage saved.");
+}
+async function submitPersistentRecovery(review: HTMLElement) {
+  const recover = await within(review).findByRole("button", {
+    name: "Roll fire recovery",
+  });
+  await waitFor(() => expect(recover).toBeEnabled());
+  fireEvent.click(recover);
+  fireEvent.click(await screen.findByRole("button", { name: "Roll" }));
+  await waitFor(() =>
+    expect(apiMocks.recoverEncounterPersistentDamage).toHaveBeenCalledOnce(),
+  );
+}
+
 describe("encounter views", () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -104,6 +278,25 @@ describe("encounter views", () => {
     history.replaceState(null, "", "/encounters");
     apiMocks.getEncounters.mockResolvedValue(encounterIndexFixture());
     setEncounterDetail(encounterDetailFixture());
+    apiMocks.getEncounterStrikeAttempts.mockResolvedValue({
+      encounter_key: "encounter_ambush",
+      attempts: [],
+    });
+    apiMocks.getEncounterCastingAttempts.mockResolvedValue({
+      encounter_key: "encounter_ambush",
+      attempts: [],
+    });
+    apiMocks.getEncounterConditionConsequences.mockResolvedValue([]);
+    apiMocks.getEncounterHpLifecycle.mockResolvedValue([]);
+    apiMocks.getEncounterConditionLifecycleActions.mockResolvedValue({ actions: [] });
+    apiMocks.getEncounterPersistentReview.mockResolvedValue({
+      round_number: 1n,
+      damage_applied: false,
+      episodes: [],
+      damage_result: null,
+      recovery_results: [],
+    });
+    apiMocks.previewEncounterCondition.mockResolvedValue({ consequences: [] });
     apiMocks.getEncounterConditionDefinitions.mockResolvedValue(
       conditionDefinitionsFixture(),
     );
@@ -118,12 +311,15 @@ describe("encounter views", () => {
         current_participant_key: serverEncounter.current_turn_participant_key ?? null,
         next_participant_key: "participant_b",
         reminders: [],
+        outgoing: null,
+        next_turn_unavailable_reason: null,
       }),
     );
     const receipt = {
       encounter_key: encounterIndexFixture().encounters[0].encounter_key,
     };
     for (const mutation of [
+      apiMocks.applyEncounterSpellAction,
       apiMocks.applyEncounterHpAction,
       apiMocks.advanceEncounterTurn,
       apiMocks.setEncounterTurn,
@@ -163,6 +359,91 @@ describe("encounter views", () => {
       vi.useRealTimers();
       vi.restoreAllMocks();
     }
+  });
+
+  it("keeps one relationship and action section through repeated inspector rerenders", async () => {
+    const view = render(
+      <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
+      { wrapper: queryClientWrapper() },
+    );
+    await screen.findByLabelText("HP summary");
+    for (let count = 0; count < 4; count += 1) {
+      expect(screen.queryByRole("button", { name: "Relationships" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Action context" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Strike history" })).toBeNull();
+      view.rerender(
+        <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
+      );
+    }
+  });
+
+  it("casts in the existing spell reference without opening another modal", async () => {
+    const initial = encounterDetailFixture();
+    const actor = initial.participants[0].presentation!.body;
+    if (actor.kind !== "creature") throw new Error("expected creature");
+    const spell = {
+      ...actor.value.activities.value![0],
+      kind: "spell" as const,
+      title: "Command",
+      casting_ranks: [1],
+      base_rank: numberFact(1),
+      authored_cast_rank: numberFact(1),
+      casting_entry: null,
+    };
+    spell.navigation = {
+      ...spell.navigation,
+      source_fingerprint: "current-spell",
+      spell_rank: 1,
+    };
+    actor.value.activities = knownFact([spell]);
+    initial.participants[0].spellcasting = {
+      resources: [],
+      spells: [
+        {
+          navigation: spell.navigation,
+          entry_id: "entry",
+          title: "Command",
+          expended: null,
+          ranks: [{ rank: 1, resource_key: null, unavailable_reason: null }],
+        },
+      ],
+    };
+    setEncounterDetail(initial);
+    const detail = detailFixture("actors:goblin");
+    detail.selected = { ...spell.navigation, source_fingerprint: null };
+    detail.presentation.body = { kind: "spell", value: spellFixture() };
+    apiMocks.getEncounterReference.mockResolvedValue({
+      ...detail,
+      artifact_generation: initial.artifact_generation,
+    });
+    apiMocks.previewEncounterCastingAttempt.mockResolvedValue({
+      advisories: [],
+      spell_title: "Command",
+      rank: 1,
+      cost: null,
+      issues: [],
+      confusion: null,
+      targeting: null,
+      disruption: null,
+      expected_encounter_revision: 0n,
+      expected_participant_revision: 0n,
+    });
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(await screen.findByRole("link", { name: "Command" }));
+    const reference = await screen.findByLabelText("Reference preview");
+    fireEvent.click(await within(reference).findByRole("button", { name: "Cast" }));
+    await waitFor(() =>
+      expect(apiMocks.applyEncounterSpellAction).toHaveBeenCalledWith(
+        "encounter_ambush",
+        expect.objectContaining({
+          action: { kind: "cast", selection: spell.navigation },
+        }),
+      ),
+    );
+    expect(screen.getByLabelText("Reference preview")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Goblin: Command" })).toBeNull();
   });
 
   it("renders active encounter rows, hides archived rows, and routes to edit", async () => {
@@ -213,6 +494,21 @@ describe("encounter views", () => {
         slug: "ambush",
         name: "Renamed Ambush",
       }),
+    );
+  });
+
+  it("loads the participant condition catalog with a bigint encounter revision", async () => {
+    setEncounterDetail({ ...encounterDetailFixture(), revision: 9007199254740993n });
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+
+    expect(await screen.findByLabelText("HP summary")).toHaveTextContent("10/12");
+    await waitFor(() =>
+      expect(apiMocks.getEncounterConditionDefinitions).toHaveBeenCalledWith(
+        "ambush",
+        "participant_a",
+      ),
     );
   });
 
@@ -268,6 +564,7 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next turn" }));
     await waitFor(() =>
       expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledWith("encounter_ambush", {
+        request_id: expect.any(String),
         expected_revision: 0n,
       }),
     );
@@ -288,6 +585,7 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start turn" }));
     await waitFor(() =>
       expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledWith("encounter_ambush", {
+        request_id: expect.any(String),
         expected_revision: 0n,
       }),
     );
@@ -1065,6 +1363,7 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith("encounter_ambush", {
+        request_id: expect.any(String),
         participant_key: "participant_a",
         expected_revision: 0n,
         action: { kind: "set_values", current: { input: "50 - 7" } },
@@ -1272,143 +1571,72 @@ describe("encounter views", () => {
     expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledOnce();
   }, 10_000);
 
-  it("reviews outgoing reminders, saves exact actions, and keeps advancement explicit after removal", async () => {
-    let removed = false;
-    apiMocks.getEncounterTurnReview.mockImplementation(() =>
-      Promise.resolve({
-        encounter_key: "encounter_ambush",
-        expected_revision: serverEncounter.revision,
-        current_participant_key: "participant_a",
-        next_participant_key: "participant_b",
-        reminders: removed
-          ? []
-          : [
-              {
-                kind: "persistent_damage",
-                participant_key: "participant_a",
-                participant_name: "Goblin",
-                condition_id: 7n,
-                condition_name: "Persistent Damage",
-                note: "1d6 fire",
-              },
-            ],
-      }),
-    );
-    apiMocks.applyEncounterHpAction.mockImplementation(async () => {
-      serverEncounter = { ...serverEncounter, revision: 1n };
-      return { encounter_key: "encounter_ambush" };
-    });
-    apiMocks.removeEncounterParticipantCondition.mockImplementation(async () => {
-      removed = true;
-      serverEncounter = { ...serverEncounter, revision: 2n };
-      return { encounter_key: "encounter_ambush" };
-    });
-    apiMocks.advanceEncounterTurn.mockImplementation(async () => {
-      serverEncounter = {
-        ...serverEncounter,
-        revision: 3n,
-        current_turn_participant_key: "participant_b",
-      };
-      return { encounter_key: "encounter_ambush" };
-    });
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
-      wrapper: queryClientWrapper(),
-    });
-    await screen.findByLabelText("HP summary");
-    fireEvent.click(within(rosterRow("Kyra")).getByRole("button", { name: /^Kyra/ }));
-    fireEvent.click(screen.getAllByRole("button", { name: "Next turn" })[0]);
-    const review = await screen.findByRole("dialog", { name: "Review turn" });
-    expect(apiMocks.advanceEncounterTurn).not.toHaveBeenCalled();
-    fireEvent.change(within(review).getByLabelText("HP change"), {
-      target: { value: "6 - 2" },
-    });
-    fireEvent.click(within(review).getByRole("button", { name: "Damage" }));
-    await waitFor(() =>
-      expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith("encounter_ambush", {
-        participant_key: "participant_a",
-        expected_revision: 0n,
-        action: { kind: "damage", amount: "6 - 2" },
-      }),
-    );
-    expect(await within(review).findByText("HP saved for Goblin.")).toBeInTheDocument();
-    await waitFor(() =>
-      expect(
-        within(review).getByRole("button", { name: "Recovery succeeded: remove" }),
-      ).toBeEnabled(),
-    );
-    fireEvent.click(
-      within(review).getByRole("button", { name: "Recovery succeeded: remove" }),
-    );
-    fireEvent.click(
-      within(
-        await screen.findByRole("dialog", {
-          name: "Remove Persistent Damage from Goblin?",
-        }),
-      ).getByRole("button", { name: "Remove condition" }),
-    );
-    await waitFor(() =>
-      expect(apiMocks.removeEncounterParticipantCondition).toHaveBeenCalledWith(
-        "encounter_ambush",
-        "participant_a",
-        7n,
-      ),
-    );
-    expect(
-      await within(review).findByText("No remaining reminders."),
-    ).toBeInTheDocument();
-    expect(
-      within(review).getByText("Persistent Damage removed from Goblin."),
-    ).toBeInTheDocument();
-    expect(apiMocks.advanceEncounterTurn).not.toHaveBeenCalled();
-    fireEvent.click(
-      within(review).getByRole("button", { name: "Continue to next turn" }),
-    );
-    await waitFor(() =>
-      expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledWith("encounter_ambush", {
-        expected_revision: 2n,
-      }),
-    );
-    expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
-  }, 10_000);
-
-  it("Cancel after a saved review action keeps that action without advancing", async () => {
-    apiMocks.getEncounterTurnReview.mockResolvedValue({
-      encounter_key: "encounter_ambush",
-      expected_revision: 0n,
-      current_participant_key: "participant_a",
-      next_participant_key: "participant_b",
-      reminders: [
-        {
-          kind: "persistent_damage",
-          participant_key: "participant_a",
-          participant_name: "Goblin",
-          condition_id: 7n,
-          condition_name: "Persistent Damage",
-          note: null,
-        },
-      ],
-    });
+  it("advances first and applies outgoing damage and recovery to their original boundary", async () => {
+    const state = setupPersistentReview();
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
-    const review = await screen.findByRole("dialog", { name: "Review turn" });
-    fireEvent.change(within(review).getByLabelText("HP change"), {
-      target: { value: "2" },
-    });
-    fireEvent.click(within(review).getByRole("button", { name: "Damage" }));
-    await within(review).findByText("HP saved for Goblin.");
-    await waitFor(() =>
-      expect(within(review).getByRole("button", { name: "Cancel" })).toBeEnabled(),
+    const review = await screen.findByRole("dialog", { name: "Turn reminders" });
+    await submitPersistentDamage(review, "4");
+    expect(apiMocks.applyEncounterPersistentDamage).toHaveBeenCalledWith(
+      "encounter_ambush",
+      expect.objectContaining({
+        request_id: expect.any(String),
+        expected_encounter_revision: 0n,
+        groups: [
+          {
+            episode_id: "fire",
+            selected_source_id: 7n,
+            damage: { kind: "table_result", amount: 4n },
+          },
+        ],
+      }),
     );
-    fireEvent.click(within(review).getByRole("button", { name: "Cancel" }));
+    await submitPersistentRecovery(review);
     await waitFor(() =>
       expect(
-        screen.queryByRole("dialog", { name: "Review turn" }),
+        screen.queryByRole("dialog", { name: "Turn reminders" }),
       ).not.toBeInTheDocument(),
     );
-    expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledOnce();
-    expect(apiMocks.advanceEncounterTurn).not.toHaveBeenCalled();
+    expect(apiMocks.recoverEncounterPersistentDamage).toHaveBeenCalledWith(
+      "encounter_ambush",
+      expect.objectContaining({
+        mode: "end_turn",
+        episode_id: "fire",
+        expected_encounter_revision: 1n,
+        outcome: { kind: "roll" },
+        boundary_key: "original-turn",
+      }),
+    );
+    expect(state.recoveryResults).toHaveLength(1);
+    expect(apiMocks.applyEncounterHpAction).not.toHaveBeenCalled();
+    expect(apiMocks.removeEncounterParticipantCondition).not.toHaveBeenCalled();
+    expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledOnce();
+    expect(apiMocks.applyEncounterPersistentDamage.mock.calls[0][1].boundary_key).toBe(
+      "original-turn",
+    );
+  });
+
+  it("closing persistent reminders keeps saved damage and never advances twice", async () => {
+    setupPersistentReview();
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
+    const review = await screen.findByRole("dialog", { name: "Turn reminders" });
+    await submitPersistentDamage(review, "2");
+    fireEvent.click(within(review).getAllByRole("button", { name: "Close" })[0]);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Turn reminders" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Outgoing turn reminders" }),
+    ).not.toBeInTheDocument();
+    expect(apiMocks.applyEncounterPersistentDamage).toHaveBeenCalledOnce();
+    expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledOnce();
   });
 
   it("retains a stale condition draft and requires explicit reload before saving the latest remaining rounds", async () => {
@@ -1438,7 +1666,7 @@ describe("encounter views", () => {
     fireEvent.change(within(dialog).getByLabelText("Condition note"), {
       target: { value: "My stale note" },
     });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await clickConditionApply(dialog);
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
         "encounter_ambush",
@@ -1455,13 +1683,13 @@ describe("encounter views", () => {
     expect(within(dialog).getByLabelText("Condition note")).toHaveValue(
       "My stale note",
     );
-    expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Apply" })).toBeDisabled();
     fireEvent.click(reload);
     expect(within(dialog).getByLabelText("Duration amount")).toHaveValue("1");
     fireEvent.change(within(dialog).getByLabelText("Condition note"), {
       target: { value: "Reviewed note" },
     });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await clickConditionApply(dialog);
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenLastCalledWith(
         "encounter_ambush",
@@ -1481,7 +1709,7 @@ describe("encounter views", () => {
     });
     fireEvent.click(await screen.findByRole("button", { name: "Add Condition" }));
     await selectOption(conditionCombobox("Add condition"), "Sickened");
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    await clickConditionApply();
     await waitFor(() =>
       expect(apiMocks.addEncounterParticipantCondition).toHaveBeenCalledOnce(),
     );
@@ -1496,20 +1724,18 @@ describe("encounter views", () => {
     const value = await within(dialog).findByLabelText("Condition value");
     for (const invalid of ["", "1.5"]) {
       fireEvent.change(value, { target: { value: invalid } });
-      fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
-      await within(dialog).findByText(
-        invalid ? "Enter a whole number, zero or greater." : "Enter a whole number.",
-      );
+      await within(dialog).findByText("Enter a whole number, one or greater.");
       expect(apiMocks.addEncounterParticipantCondition).toHaveBeenCalledOnce();
     }
     fireEvent.change(value, { target: { value: "2" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add duration" }));
     await selectOption(conditionCombobox("Duration unit"), "minutes");
     const duration = within(dialog).getByLabelText("Duration amount");
     fireEvent.change(duration, { target: { value: "3" } });
     fireEvent.change(duration, { target: { value: "" } });
-    await selectOption(conditionCombobox("Duration unit"), "No duration");
-    await waitFor(() => expect(duration).toBeDisabled());
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Remove duration" }));
+    await waitFor(() => expect(duration).not.toBeVisible());
+    await clickConditionApply(dialog);
     await waitFor(() =>
       expect(apiMocks.addEncounterParticipantCondition).toHaveBeenCalledTimes(2),
     );
@@ -1531,12 +1757,12 @@ describe("encounter views", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Add Condition" }));
     await selectOption(conditionCombobox("Add condition"), "Sickened");
     const dialog = screen.getByRole("dialog", { name: "Add condition" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+    await clickConditionApply(dialog);
     const retry = await within(dialog).findByRole("button", {
       name: "Retry encounter refresh",
     });
     expect(within(dialog).getByLabelText("Condition value")).toHaveValue("1");
-    expect(within(dialog).getByRole("button", { name: "Add" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Apply" })).toBeDisabled();
     fireEvent.click(retry);
     await waitFor(() =>
       expect(
@@ -1547,368 +1773,167 @@ describe("encounter views", () => {
     expect(apiMocks.getEncounter).toHaveBeenCalledTimes(3);
   });
 
-  it("blocks Continue after a saved reminder action cannot refresh and retries reads without duplicate damage", async () => {
-    apiMocks.getEncounterTurnReview.mockImplementation(() =>
-      Promise.resolve({
-        encounter_key: "encounter_ambush",
-        expected_revision: serverEncounter.revision,
-        current_participant_key: "participant_a",
-        next_participant_key: "participant_b",
-        reminders: [
-          {
-            kind: "persistent_damage",
-            participant_key: "participant_a",
-            participant_name: "Goblin",
-            condition_id: 7n,
-            condition_name: "Persistent Damage",
-            note: null,
-          },
-        ],
-      }),
-    );
-    apiMocks.applyEncounterHpAction.mockImplementationOnce(async () => {
-      serverEncounter = { ...serverEncounter, revision: 4n };
+  it("keeps a saved outgoing damage write through failed canonical refresh without advancing twice", async () => {
+    const state = setupPersistentReview();
+    state.afterSave = () =>
       apiMocks.getEncounter.mockRejectedValueOnce(new Error("Owner read unavailable"));
-      return { encounter_key: "encounter_ambush" };
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
+    const dialog = await screen.findByRole("dialog", { name: "Turn reminders" });
+    await submitPersistentDamage(dialog, "3");
+    fireEvent.click(
+      await within(dialog).findByRole("button", { name: "Retry encounter refresh" }),
+    );
+    await waitFor(() =>
+      expect(
+        within(dialog).queryByRole("button", { name: "Retry encounter refresh" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(apiMocks.applyEncounterPersistentDamage).toHaveBeenCalledOnce();
+    expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledOnce();
+  });
+
+  it.each(["damage", "recovery"] as const)(
+    "retries failed reminder reads after saved %s without replaying writes or advancement",
+    async (action) => {
+      const state = setupPersistentReview(action === "recovery");
+      const originalReview = apiMocks.getEncounterTurnReview.getMockImplementation()!;
+      state.afterSave = () =>
+        apiMocks.getEncounterTurnReview.mockRejectedValue(
+          new Error("Review unavailable"),
+        );
+      render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+        wrapper: queryClientWrapper(),
+      });
+      fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
+      const dialog = await screen.findByRole("dialog", { name: "Turn reminders" });
+      if (action === "damage") await submitPersistentDamage(dialog, "4");
+      else await submitPersistentRecovery(dialog);
+      const retry = await within(dialog).findByRole("button", {
+        name: "Retry turn review",
+      });
+      apiMocks.getEncounterTurnReview.mockImplementation(originalReview);
+      fireEvent.click(retry);
+      await waitFor(() =>
+        expect(
+          within(dialog).queryByText("Review unavailable"),
+        ).not.toBeInTheDocument(),
+      );
+      expect(apiMocks.applyEncounterPersistentDamage).toHaveBeenCalledTimes(
+        action === "damage" ? 1 : 0,
+      );
+      expect(apiMocks.recoverEncounterPersistentDamage).toHaveBeenCalledTimes(
+        action === "recovery" ? 1 : 0,
+      );
+      expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("reconciles a stale turn without silently replaying advancement", async () => {
+    apiMocks.advanceEncounterTurn.mockImplementationOnce(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        revision: 8n,
+        current_turn_participant_key: "participant_b",
+      };
+      throw new AtlasApiError(409, "Stale turn", {
+        code: "encounter_turn_conflict",
+        message: "Stale turn",
+        retryable: false,
+      });
     });
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
-    const dialog = await screen.findByRole("dialog", { name: "Review turn" });
-    const amount = within(dialog).getByLabelText("HP change");
-    fireEvent.change(amount, { target: { value: "3" } });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Damage" }));
-    const retry = await within(dialog).findByRole("button", {
-      name: "Retry encounter refresh",
-    });
-    expect(
-      within(dialog).getByRole("button", { name: "Continue to next turn" }),
-    ).toBeDisabled();
-    expect(await within(dialog).findByText("HP saved for Goblin.")).toBeInTheDocument();
-    fireEvent.click(retry);
-    await waitFor(() =>
-      expect(
-        within(dialog).getByRole("button", { name: "Continue to next turn" }),
-      ).toBeEnabled(),
-    );
-    expect(amount).toHaveValue("");
-    expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledOnce();
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: "Continue to next turn" }),
-    );
-    await waitFor(() =>
-      expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledExactlyOnceWith(
-        "encounter_ambush",
-        { expected_revision: 4n },
-      ),
-    );
-  });
-
-  it.each(["damage", "remove"] as const)(
-    "recovers a failed review read after saved %s without replaying its write",
-    async (action) => {
-      const reviewResult = () => ({
-        encounter_key: "encounter_ambush",
-        expected_revision: serverEncounter.revision,
-        current_participant_key: "participant_a",
-        next_participant_key: "participant_b",
-        reminders: [
-          {
-            kind: "persistent_damage",
-            participant_key: "participant_a",
-            participant_name: "Goblin",
-            condition_id: 7n,
-            condition_name: "Persistent Damage",
-            note: null,
-          },
-        ],
-      });
-      apiMocks.getEncounterTurnReview.mockImplementation(() =>
-        Promise.resolve(reviewResult()),
-      );
-      const save = async () => {
-        serverEncounter = { ...serverEncounter, revision: 6n };
-        apiMocks.getEncounterTurnReview.mockRejectedValueOnce(
-          new Error("Review unavailable"),
-        );
-        return { encounter_key: "encounter_ambush" };
-      };
-      if (action === "damage")
-        apiMocks.applyEncounterHpAction.mockImplementationOnce(save);
-      else apiMocks.removeEncounterParticipantCondition.mockImplementationOnce(save);
-      render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
-        wrapper: queryClientWrapper(),
-      });
-      fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
-      const dialog = await screen.findByRole("dialog", { name: "Review turn" });
-      const amount = within(dialog).getByLabelText("HP change");
-      if (action === "damage") {
-        fireEvent.change(amount, { target: { value: "4" } });
-        fireEvent.click(within(dialog).getByRole("button", { name: "Damage" }));
-      } else {
-        fireEvent.click(
-          within(dialog).getByRole("button", { name: "Recovery succeeded: remove" }),
-        );
-        fireEvent.click(
-          within(
-            await screen.findByRole("dialog", {
-              name: "Remove Persistent Damage from Goblin?",
-            }),
-          ).getByRole("button", { name: "Remove condition" }),
-        );
-      }
-      const retry = await within(dialog).findByRole("button", {
-        name: "Retry turn review",
-      });
-      expect(
-        within(dialog).getByText(
-          action === "damage"
-            ? "HP saved for Goblin."
-            : "Persistent Damage removed from Goblin.",
-        ),
-      ).toBeInTheDocument();
-      await waitFor(() => expect(amount).toHaveValue(""));
-      expect(
-        within(dialog).getByRole("button", { name: "Continue to next turn" }),
-      ).toBeDisabled();
-      expect(within(dialog).getByRole("button", { name: "Damage" })).toBeDisabled();
-      expect(
-        within(dialog).getByRole("button", { name: "Recovery succeeded: remove" }),
-      ).toBeDisabled();
-      expect(apiMocks.getEncounter).toHaveBeenCalledTimes(2);
-      expect(apiMocks.getEncounterTurnReview).toHaveBeenCalledTimes(2);
-      fireEvent.click(retry);
-      await waitFor(() =>
-        expect(
-          within(dialog).getByRole("button", { name: "Continue to next turn" }),
-        ).toBeEnabled(),
-      );
-      expect(apiMocks.getEncounter).toHaveBeenCalledTimes(2);
-      expect(apiMocks.getEncounterTurnReview).toHaveBeenCalledTimes(3);
-      expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledTimes(
-        action === "damage" ? 1 : 0,
-      );
-      expect(apiMocks.removeEncounterParticipantCondition).toHaveBeenCalledTimes(
-        action === "remove" ? 1 : 0,
-      );
-      expect(apiMocks.advanceEncounterTurn).not.toHaveBeenCalled();
-      fireEvent.click(
-        within(dialog).getByRole("button", { name: "Continue to next turn" }),
-      );
-      await waitFor(() =>
-        expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledExactlyOnceWith(
-          "encounter_ambush",
-          { expected_revision: 6n },
-        ),
-      );
-    },
-  );
-
-  it("reconciles stale advancement without retrying or following until explicit fresh Continue", async () => {
-    apiMocks.getEncounterTurnReview.mockImplementation(() =>
-      Promise.resolve({
-        encounter_key: "encounter_ambush",
-        expected_revision: serverEncounter.revision,
-        current_participant_key: serverEncounter.current_turn_participant_key,
-        next_participant_key: "participant_b",
-        reminders: [
-          {
-            kind: "duration_ended",
-            participant_key: "participant_a",
-            participant_name: "Goblin",
-            condition_id: 7n,
-            condition_name: "Frightened",
-          },
-        ],
-      }),
-    );
-    apiMocks.advanceEncounterTurn
-      .mockImplementationOnce(async () => {
-        serverEncounter = {
-          ...serverEncounter,
-          revision: 8n,
-          current_turn_participant_key: "participant_b",
-        };
-        throw new AtlasApiError(409, "Stale turn", {
-          code: "encounter_turn_conflict",
-          message: "Stale turn",
-          retryable: false,
-        });
-      })
-      .mockImplementationOnce(async () => ({ encounter_key: "encounter_ambush" }));
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
-      wrapper: queryClientWrapper(),
-    });
-    await screen.findByLabelText("HP summary");
-    fireEvent.click(
-      within(rosterRow("Goblin")).getByRole("button", { name: "Goblin" }),
-    );
-    fireEvent.click(screen.getAllByRole("button", { name: "Next turn" })[0]);
-    const dialog = await screen.findByRole("dialog", { name: "Review turn" });
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: "Continue to next turn" }),
-    );
-    await within(dialog).findByText(
+    await screen.findAllByText(
       "Encounter changed. Review the refreshed values before retrying your edit.",
     );
-    await waitFor(() =>
-      expect(
-        within(dialog).getByRole("button", { name: "Continue to next turn" }),
-      ).toBeEnabled(),
-    );
-    expect(apiMocks.getEncounter).toHaveBeenCalledTimes(2);
-    expect(apiMocks.getEncounterTurnReview).toHaveBeenCalledTimes(2);
-    expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledExactlyOnceWith(
-      "encounter_ambush",
-      { expected_revision: 0n },
-    );
-    expect(rosterRow("Goblin").querySelector("[data-participant-key]")).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(rosterRow("Kyra").querySelector("[data-participant-key]")).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: "Continue to next turn" }),
-    );
+    expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByRole("dialog", { name: "Turn reminders" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next turn" }));
     await waitFor(() =>
       expect(apiMocks.advanceEncounterTurn).toHaveBeenNthCalledWith(
         2,
         "encounter_ambush",
-        { expected_revision: 8n },
+        { expected_revision: 8n, request_id: expect.any(String) },
       ),
     );
-    await waitFor(() =>
-      expect(rosterRow("Kyra").querySelector("[data-participant-key]")).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      ),
-    );
-    expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledTimes(2);
     expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["start", "participant_b", "Kyra"],
-    ["end", "participant_a", "Goblin"],
-  ] as const)(
-    "forecasts expiry at the actual %s boundary of %s",
-    async (event, participantKey, name) => {
-      apiMocks.getEncounterTurnReview.mockResolvedValue({
-        encounter_key: "encounter_ambush",
-        expected_revision: 0n,
-        current_participant_key: "participant_a",
-        next_participant_key: "participant_b",
-        reminders: [
-          {
-            kind: "duration_ending",
+  it("keeps ended, manual and unavailable timing facts with direct guarded removal after advancing", async () => {
+    const reminders = [
+      {
+        kind: "duration_ended",
+        participant_key: "participant_a",
+        participant_name: "Goblin",
+        condition_id: 7n,
+        condition_name: "Frightened",
+      },
+      {
+        kind: "duration_reminder",
+        participant_key: "participant_a",
+        participant_name: "Goblin",
+        condition_id: 8n,
+        condition_name: "Sickened",
+        duration: { amount: 5n, unit: "minutes", timing: null },
+      },
+      {
+        kind: "timing_unavailable",
+        participant_key: "participant_a",
+        participant_name: "Goblin",
+        condition_id: 9n,
+        condition_name: "Prone",
+        duration: { amount: 2n, unit: "rounds", timing: null },
+      },
+    ];
+    apiMocks.getEncounterTurnReview.mockImplementation(async () => ({
+      encounter_key: "encounter_ambush",
+      expected_revision: serverEncounter.revision,
+      current_participant_key: "participant_b",
+      next_participant_key: "participant_a",
+      reminders: [],
+      next_turn_unavailable_reason: null,
+      outgoing: apiMocks.advanceEncounterTurn.mock.calls.length
+        ? {
+            boundary_key: "outgoing",
             participant_key: "participant_a",
             participant_name: "Goblin",
-            condition_id: 7n,
-            condition_name: "Frightened",
-            timing: { participant_key: participantKey, event },
-          },
-        ],
-      });
-      render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
-        wrapper: queryClientWrapper(),
-      });
-      fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
-      const dialog = await screen.findByRole("dialog", { name: "Review turn" });
-      expect(
-        within(dialog).getByText(
-          `Expires at the ${event} of ${name}’s turn when you continue. Remove now to end this condition immediately.`,
-        ),
-      ).toBeInTheDocument();
-      expect(
-        within(dialog).getByRole("heading", { name: "Goblin: Frightened" }),
-      ).toBeInTheDocument();
-      expect(apiMocks.advanceEncounterTurn).not.toHaveBeenCalled();
-    },
-  );
-
-  it("renders ended, manual and unavailable timing reminders without inventing expiry or advancing on removal", async () => {
-    apiMocks.getEncounterTurnReview.mockResolvedValue({
-      encounter_key: "encounter_ambush",
-      expected_revision: 0n,
-      current_participant_key: "participant_a",
-      next_participant_key: "participant_b",
-      reminders: [
-        {
-          kind: "duration_ended",
-          participant_key: "participant_a",
-          participant_name: "Goblin",
-          condition_id: 7n,
-          condition_name: "Frightened",
-        },
-        {
-          kind: "duration_reminder",
-          participant_key: "participant_a",
-          participant_name: "Goblin",
-          condition_id: 8n,
-          condition_name: "Sickened",
-          duration: { amount: 5n, unit: "minutes", timing: null },
-        },
-        {
-          kind: "timing_unavailable",
-          participant_key: "participant_a",
-          participant_name: "Goblin",
-          condition_id: 9n,
-          condition_name: "Prone",
-          duration: { amount: 2n, unit: "rounds", timing: null },
-        },
-      ],
-    });
+            round_number: 1n,
+            persistent_damage_groups: [],
+            reminders,
+          }
+        : null,
+    }));
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
-    const dialog = await screen.findByRole("dialog", { name: "Review turn" });
-    const ended = within(dialog)
-      .getByRole("heading", { name: "Goblin: Frightened" })
-      .closest("section")!;
-    const manual = within(dialog)
-      .getByRole("heading", { name: "Goblin: Sickened" })
-      .closest("section")!;
-    const unavailable = within(dialog)
-      .getByRole("heading", { name: "Goblin: Prone" })
-      .closest("section")!;
+    const dialog = await screen.findByRole("dialog", { name: "Turn reminders" });
+    expect(within(dialog).getByText("Duration ended")).toBeInTheDocument();
     expect(
-      within(ended).getByText("Duration ended. Confirm removal when ready."),
+      within(dialog).getByText("5 minutes: check this duration at the table."),
     ).toBeInTheDocument();
     expect(
-      within(manual).getByText("5 minutes: check this duration at the table."),
-    ).toBeInTheDocument();
-    expect(within(manual).queryByRole("button")).not.toBeInTheDocument();
-    expect(within(manual).queryByText(/expires|ended/i)).not.toBeInTheDocument();
-    expect(
-      within(unavailable).getByText(
+      within(dialog).getByText(
         "Round timing is not configured. Edit the condition to choose whose turn and when its rounds count down.",
       ),
     ).toBeInTheDocument();
-    expect(within(unavailable).queryByRole("button")).not.toBeInTheDocument();
-    expect(
-      within(unavailable).queryByText(/start|end of|expires/i),
-    ).not.toBeInTheDocument();
-    fireEvent.click(within(ended).getByRole("button", { name: "Remove condition" }));
-    expect(apiMocks.removeEncounterParticipantCondition).not.toHaveBeenCalled();
     fireEvent.click(
-      within(
-        await screen.findByRole("dialog", { name: "Remove Frightened from Goblin?" }),
-      ).getByRole("button", { name: "Remove condition" }),
+      within(dialog).getByRole("button", { name: "Remove Frightened from Goblin" }),
     );
     await waitFor(() =>
-      expect(
-        apiMocks.removeEncounterParticipantCondition,
-      ).toHaveBeenCalledExactlyOnceWith("encounter_ambush", "participant_a", 7n),
+      expect(apiMocks.removeEncounterParticipantCondition).toHaveBeenCalledOnce(),
     );
+    expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledOnce();
     expect(
-      await within(dialog).findByText("Frightened removed from Goblin."),
-    ).toBeInTheDocument();
-    expect(apiMocks.advanceEncounterTurn).not.toHaveBeenCalled();
+      screen.queryByRole("dialog", { name: "Remove Frightened from Goblin?" }),
+    ).not.toBeInTheDocument();
   });
 
   it("adds conditions with compact fields and details", async () => {
@@ -1923,21 +1948,19 @@ describe("encounter views", () => {
     expect(await screen.findByLabelText("Condition value")).toHaveValue("1");
     const plus = within(
       screen.getByRole("dialog", { name: "Add condition" }),
-    ).getByRole("button", { name: "Increase Value" });
-    fireEvent.mouseDown(plus);
-    fireEvent.mouseUp(plus);
+    ).getByRole("button", { name: "Increase Condition value" });
+    fireEvent.click(plus);
     expect(screen.getByLabelText("Condition value")).toHaveValue("2");
-    await selectOption(conditionCombobox("Duration unit"), "rounds");
+    fireEvent.click(screen.getByRole("button", { name: "Add duration" }));
     fireEvent.change(await screen.findByLabelText("Duration amount"), {
       target: { value: "3" },
     });
-    await screen.findByLabelText("Duration turn");
-    await selectOption(conditionCombobox("Duration turn"), "Goblin");
-    await selectOption(conditionCombobox("Duration timing"), "End of turn");
+    await selectOption(conditionCombobox("Whose turn"), "Goblin’s turn");
+    fireEvent.click(screen.getByRole("button", { name: /^(Add|Hide) details$/ }));
     fireEvent.change(screen.getByLabelText("Condition note"), {
       target: { value: "poison" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    await clickConditionApply();
 
     await waitFor(() =>
       expect(apiMocks.addEncounterParticipantCondition).toHaveBeenCalledWith(
@@ -1961,6 +1984,26 @@ describe("encounter views", () => {
   }, 10_000);
 
   it("edits and removes conditions for the current participant", async () => {
+    apiMocks.updateEncounterParticipantCondition.mockImplementation(
+      async (_ref, participantKey, request) => {
+        serverEncounter = {
+          ...serverEncounter,
+          participants: serverEncounter.participants.map((participant) =>
+            participant.participant_key === participantKey
+              ? {
+                  ...participant,
+                  conditions: participant.conditions.map((condition) =>
+                    condition.condition_id === request.condition_id
+                      ? { ...condition, ...request }
+                      : condition,
+                  ),
+                }
+              : participant,
+          ),
+        };
+        return { encounter_key: serverEncounter.encounter.encounter_key };
+      },
+    );
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
@@ -1995,10 +2038,16 @@ describe("encounter views", () => {
     fireEvent.change(lastFieldByAriaLabel("Duration amount"), {
       target: { value: "4" },
     });
+    if (
+      screen
+        .getByRole("button", { name: /^(Add|Hide) details$/ })
+        .getAttribute("aria-expanded") === "false"
+    )
+      fireEvent.click(screen.getByRole("button", { name: /^(Add|Hide) details$/ }));
     fireEvent.change(lastFieldByAriaLabel("Condition note"), {
       target: { value: "aura" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await clickConditionApply();
 
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
@@ -2022,24 +2071,20 @@ describe("encounter views", () => {
         screen.queryByRole("dialog", { name: "Edit Frightened" }),
       ).not.toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Edit Frightened" }));
-    fireEvent.click(
-      within(await screen.findByRole("dialog", { name: "Edit Frightened" })).getByRole(
-        "button",
-        { name: "Remove condition" },
-      ),
-    );
-    fireEvent.click(
-      within(
-        await screen.findByRole("dialog", { name: "Remove Frightened?" }),
-      ).getByRole("button", { name: "Remove condition" }),
-    );
+    expect(screen.getByText("aura")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Remove Frightened" }));
+    expect(screen.queryByRole("dialog", { name: "Remove Frightened?" })).toBeNull();
 
     await waitFor(() =>
       expect(apiMocks.removeEncounterParticipantCondition).toHaveBeenCalledWith(
         "encounter_ambush",
         "participant_a",
         7n,
+        expect.objectContaining({
+          request_id: expect.any(String),
+          expected_encounter_revision: expect.any(BigInt),
+          intent: "remove_effect",
+        }),
       ),
     );
   }, 10_000);
@@ -2393,7 +2438,7 @@ describe("encounter views", () => {
   });
 
   it("keeps failed condition details open and preserves the note", async () => {
-    apiMocks.updateEncounterParticipantCondition.mockRejectedValueOnce(
+    apiMocks.updateEncounterParticipantCondition.mockRejectedValue(
       new Error("Condition unavailable"),
     );
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
@@ -2402,12 +2447,34 @@ describe("encounter views", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Edit Frightened" }));
     const note = await screen.findByLabelText("Condition note");
     fireEvent.change(note, { target: { value: "My note" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await clickConditionApply();
     await waitFor(() =>
       expect(screen.getAllByText("Condition unavailable").length).toBeGreaterThan(0),
     );
     expect(note).toHaveValue("My note");
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();
+    const previewCalls = apiMocks.previewEncounterCondition.mock.calls.length;
+    const firstRequest = apiMocks.updateEncounterParticipantCondition.mock.calls[0][2];
+    await clickConditionApply();
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledTimes(2),
+    );
+    expect(apiMocks.previewEncounterCondition).toHaveBeenCalledTimes(previewCalls);
+    expect(
+      apiMocks.updateEncounterParticipantCondition.mock.calls[1][2].request_id,
+    ).toBe(firstRequest.request_id);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
+    );
+    fireEvent.change(note, { target: { value: "Changed intent" } });
+    await clickConditionApply();
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledTimes(3),
+    );
+    expect(apiMocks.previewEncounterCondition).toHaveBeenCalledTimes(previewCalls + 1);
+    expect(
+      apiMocks.updateEncounterParticipantCondition.mock.calls[2][2].request_id,
+    ).not.toBe(firstRequest.request_id);
   });
   it("does not navigate an old successful Save over a newly selected editor", async () => {
     const saving = deferred<{ encounter_key: string }>();
@@ -2588,6 +2655,7 @@ function encounterIndexFixture(): EncounterIndexViewDto {
 
 function conditionDefinitionsFixture() {
   return {
+    standard_persistent_recovery_dc: 15n,
     conditions: [
       conditionDefinitionFixture(
         "conditionitems:TBSHQspnbcqxsmjL",
@@ -2625,6 +2693,7 @@ function conditionDefinitionFixture(
 ) {
   return {
     condition_ref: conditionRef,
+    editor_kind: "ordinary",
     name,
     automation_level: automationLevel,
     applies_to: ["creature"],
@@ -2633,6 +2702,14 @@ function conditionDefinitionFixture(
     has_value: hasValue,
     ...(hasValue ? { default_value: 1n } : {}),
   };
+}
+
+async function clickConditionApply(dialog?: HTMLElement) {
+  await act(async () => {});
+  const scope = dialog ? within(dialog) : screen;
+  const apply = scope.getByRole("button", { name: "Apply" });
+  await waitFor(() => expect(apply).toBeEnabled());
+  fireEvent.click(apply);
 }
 
 function encounterDetailFixture(
@@ -2671,6 +2748,10 @@ function encounterDetailFixture(
         conditions: [
           {
             condition_id: 7n,
+            immunity_override: false,
+            parameters: { kind: "none" },
+            scope: { kind: "everyone" },
+            extra_action: { kind: "unspecified" },
             condition_key: "conditionitems:TBSHQspnbcqxsmjL",
             name: "Frightened",
             value: 1n,
@@ -2717,6 +2798,10 @@ function participantFixture(
 ): EncounterParticipantView {
   return {
     revision: 0n,
+    persistent_damage_groups: [],
+    track_dying: false,
+    mortality: "alive",
+    base_death_threshold: 4n,
     participant_key: "participant",
     hp_origin: "explicit",
     variant_origin: "explicit",
@@ -2838,7 +2923,10 @@ function participantPresentationFixture({
   });
   if (actions !== undefined)
     actor.runtime = {
+      senses: [],
+      contextual_armor_class: [],
       action_budget: {
+        quickened_sources: [],
         actions: {
           ...count("Actions", actions, actionBase),
           adjustments:

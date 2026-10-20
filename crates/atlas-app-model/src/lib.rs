@@ -1,4 +1,80 @@
 #![deny(unsafe_code)]
+pub use dice::{FlatCheckRollView, RollFlatCheckRequest};
+mod encounter_relationship;
+pub use encounter_relationship::{
+    ApplyEncounterDetectionEventRequest, DetectionCheckOutcomeView, DetectionEventView,
+};
+pub use encounter_relationship::{
+    AttitudeStateView, DetectionStateView, EncounterRelationshipView, EncounterRelationshipsView,
+    RelationshipCandidateView, RelationshipKnowledgeView, RelationshipPropertyView,
+    RelationshipProvenanceView, RelationshipValueView, SetEncounterRelationshipRequest,
+};
+pub use encounter_relationship::{
+    EncounterRequestContextView, EncounterRequestOutcomeView, EncounterRequestRequirementsView,
+};
+pub use encounter_relationship::{RelationshipLayerView, WorsenEncounterAttitudeRequest};
+mod encounter_action;
+pub use encounter_action::EncounterQuickenedUseView;
+pub use encounter_action::EncounterTargetRequiredInputView;
+pub use encounter_action::{
+    BeginEncounterStrikeAttemptRequest, EncounterStrikeAttemptPreviewView,
+    EncounterStrikeAttemptView, EncounterStrikeAttemptsView, PreviewEncounterStrikeAttemptRequest,
+};
+pub use encounter_action::{
+    EncounterActionKindView, EncounterActionPreviewView, EncounterActionTargetView,
+    EncounterTargetModeView, EncounterTargetingRequirementsView, PreviewEncounterActionRequest,
+};
+pub use encounter_action::{EncounterConfusionContextView, EncounterConfusionRequirementsView};
+pub use encounter_action::{
+    EncounterForcedMovementContextView, EncounterForcedMovementOutcomeView,
+    EncounterForcedMovementRequirementsView, EncounterPerceptionBasisView,
+    EncounterProneCoverContextView, EncounterProneCoverRequirementsView,
+    EncounterSensoryContextView, EncounterSensoryRequirementsView,
+};
+mod casting_attempt;
+pub use casting_attempt::{
+    AbandonEncounterActionAttemptRequest, BeginEncounterCastingAttemptRequest,
+    CastingResourceCostView, EncounterActionAttemptStatusView, EncounterActionCheckInputView,
+    EncounterActionCheckResultView, EncounterActionCheckSourceView, EncounterActionCheckView,
+    EncounterActionFactView, EncounterActionIssueKindView, EncounterActionIssueView,
+    EncounterActionJudgmentView, EncounterActionMutationView, EncounterCastingAttemptView,
+    EncounterCastingAttemptsView, EncounterCastingPreviewView,
+    PreviewEncounterCastingAttemptRequest, ResolveEncounterActionCheckRequest,
+};
+mod persistent_damage;
+pub use persistent_damage::{
+    ApplyPersistentDamageRequest, PersistentDamageGroupInput, PersistentDamageInput,
+    PersistentDamageOutcomeView, PersistentDamageResultView,
+};
+pub use persistent_damage::{
+    PersistentDamageGroupView, PersistentDamageSourceView, PersistentEpisodeReviewView,
+    PersistentRecoveryInput, PersistentRecoveryMode, PersistentRecoveryResultView,
+    PersistentReviewView, RecoverPersistentDamageRequest,
+};
+mod hp_events;
+pub use hp_events::{
+    ApplyEncounterHpEventRequest, DamageLethalityView, HpEventContextView, HpEventInputView,
+    HpLifecycleRequiredFactView, HpLifecycleResolutionView, PendingHpLifecycleView,
+    ResolveEncounterHpLifecycleRequest,
+};
+mod condition_recovery;
+pub use condition_recovery::{
+    ApplyConditionLifecycleRequest, CheckDegreeView, ConditionLifecycleActionKindView,
+    ConditionLifecycleActionView, ConditionLifecycleActionsView, ConditionLifecycleOptionView,
+    ConditionLifecycleResultView, FrightenedRecoveryView, FrightenedSourceDecisionView,
+    LifecycleCheckInputView, LifecycleCheckResultView, LifecycleInputKindView,
+    PendingConditionRecoveryView, WakeCauseView,
+};
+mod condition_events;
+pub use condition_events::{
+    ConditionApplicationDecisionsView, ConditionEditorKindView, ConditionEventConsequenceView,
+    ConditionEventIntentView, ConditionEventPreviewView, ConditionOriginView,
+    ConditionParametersView, ConditionRemovalIntentView, ConditionSubjectView,
+    DamageMultiplierView, EncounterDamageTypeView, LevelOverrideInputView, MortalityStateView,
+    PendingConditionConsequenceView, PersistentRecoveryView,
+    RemoveEncounterParticipantConditionRequest, ResolveDrainedConsequenceRequest,
+    SetEncounterLifeSettingsRequest, WakingRuleView,
+};
 mod table_roll;
 pub use table_roll::{RollTableRequest, TableRollView};
 mod strike_roll;
@@ -34,16 +110,19 @@ pub use encounter::{
     ActionBudgetView, AddEncounterManualParticipantRequest,
     AddEncounterParticipantConditionRequest, AddEncounterRecordParticipantRequest,
     AdvanceEncounterTurnRequest, ApplyEncounterHpActionRequest, ApplyEncounterSpellActionRequest,
-    ConditionDurationUnit, ConditionDurationView, ConditionTimingView, ConditionTurnEvent,
-    CreateEncounterRequest, DeleteEncounterView, EncounterConditionApplicabilityView,
+    ConditionActionView, ConditionDurationUnit, ConditionDurationView, ConditionExtraActionView,
+    ConditionScopeView, ConditionTimingView, ConditionTurnEvent, CreateEncounterRequest,
+    DeleteEncounterView, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
-    EncounterConditionCategoryView, EncounterConditionDefinitionView, EncounterCreateView,
-    EncounterDetailView, EncounterHpAction, EncounterHpValueInput, EncounterIndexView,
-    EncounterMutationView, EncounterParticipantConditionView, EncounterParticipantKindView,
-    EncounterParticipantSideView, EncounterParticipantStatusView, EncounterParticipantVariantView,
-    EncounterParticipantView, EncounterReferenceRequest, EncounterSpellAction,
-    EncounterSpellRankView, EncounterSpellResourceScope, EncounterSpellResourceView,
-    EncounterSpellView, EncounterSpellcastingView, EncounterStatusView, EncounterSummaryView,
+    EncounterConditionCategoryView, EncounterConditionDefinitionView,
+    EncounterConditionEligibilityView, EncounterCreateView, EncounterDetailView, EncounterHpAction,
+    EncounterHpValueInput, EncounterIndexView, EncounterMutationView,
+    EncounterNextTurnUnavailableReason, EncounterOutgoingTurnView,
+    EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
+    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
+    EncounterReferenceRequest, EncounterSpellAction, EncounterSpellRankView,
+    EncounterSpellResourceScope, EncounterSpellResourceView, EncounterSpellView,
+    EncounterSpellcastingView, EncounterStatusView, EncounterSummaryView,
     EncounterTurnReminderView, EncounterTurnReviewView, ReorderEncounterParticipantPlacementView,
     ReorderEncounterParticipantRequest, RuntimeAdjustmentView, RuntimeCapabilityView,
     RuntimeCountSegmentView, RuntimeCountView, RuntimeEffectNoteView, SetEncounterTurnRequest,
@@ -84,12 +163,13 @@ pub use presentation::{
     ActorMovementView, ActorPresentationView, ActorRuntimeView, ActorSavesView, ActorSenseView,
     ActorSkillView, CastingEntryContextView, ConditionalSkillView, ConsumableDamageView,
     ConsumablePresentationView, DamageComponentView, EffectDurationView, EmbeddedRecordLinkView,
-    FactView, HazardPresentationView, HeighteningDamageView, IwrEntryView,
-    JournalPagePresentationView, JournalPresentationView, NumberAdjustmentView, NumberFactView,
-    PhysicalPresentationView, PhysicalPriceView, RecordBodyView, RecordPresentationView,
-    RitualCastingView, RollTablePresentationView, RollTableRowView, SpellAreaView, SpellChangeView,
-    SpellDefenseView, SpellFixedLevelView, SpellFormView, SpellHeighteningChangeView,
-    SpellHeighteningView, SpellPresentationView, TableResultPresentationView,
+    EncounterContextualArmorClassView, EncounterSenseView, FactView, HazardPresentationView,
+    HeighteningDamageView, IwrEntryView, JournalPagePresentationView, JournalPresentationView,
+    NumberAdjustmentView, NumberFactView, PhysicalPresentationView, PhysicalPriceView,
+    RecordBodyView, RecordPresentationView, RitualCastingView, RollTablePresentationView,
+    RollTableRowView, SpellAreaView, SpellChangeView, SpellDefenseView, SpellFixedLevelView,
+    SpellFormView, SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView,
+    TableResultPresentationView,
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView, SearchProfileReadinessView};
 pub use record::{
@@ -143,6 +223,36 @@ mod tests {
     }
 
     fn export_bindings_to(path: &Path) {
+        PreviewEncounterStrikeAttemptRequest::export_all_to(path)
+            .expect("strike attempt preview request");
+        BeginEncounterStrikeAttemptRequest::export_all_to(path)
+            .expect("strike attempt begin request");
+        FlatCheckRollView::export_all_to(path).expect("flat check result");
+        RollFlatCheckRequest::export_all_to(path).expect("flat check request");
+        EncounterStrikeAttemptPreviewView::export_all_to(path).expect("strike attempt preview");
+        EncounterStrikeAttemptsView::export_all_to(path).expect("strike attempts");
+        PreviewEncounterActionRequest::export_all_to(path).expect("action request bindings");
+        WorsenEncounterAttitudeRequest::export_all_to(path).expect("attitude event bindings");
+        ApplyEncounterDetectionEventRequest::export_all_to(path).expect("detection event bindings");
+        EncounterRelationshipsView::export_all_to(path).expect("relationship bindings");
+        SetEncounterRelationshipRequest::export_all_to(path)
+            .expect("relationship request bindings");
+        EncounterActionPreviewView::export_all_to(path).expect("action preview bindings");
+        ConditionLifecycleActionsView::export_all_to(path).expect("lifecycle actions bindings");
+        ApplyConditionLifecycleRequest::export_all_to(path).expect("lifecycle request bindings");
+        ConditionLifecycleResultView::export_all_to(path).expect("lifecycle result bindings");
+        PendingConditionRecoveryView::export_all_to(path).expect("pending recovery bindings");
+        ApplyEncounterHpEventRequest::export_all_to(path).expect("HP event bindings");
+        ResolveEncounterHpLifecycleRequest::export_all_to(path)
+            .expect("HP lifecycle resolution bindings");
+        PendingHpLifecycleView::export_all_to(path).expect("pending HP lifecycle bindings");
+        ConditionEventPreviewView::export_all_to(path).expect("condition preview bindings");
+        RemoveEncounterParticipantConditionRequest::export_all_to(path)
+            .expect("condition removal bindings");
+        ResolveDrainedConsequenceRequest::export_all_to(path)
+            .expect("condition consequence resolution bindings");
+        PendingConditionConsequenceView::export_all_to(path).expect("pending consequence bindings");
+        SetEncounterLifeSettingsRequest::export_all_to(path).expect("life settings bindings");
         InitiativeOptionsView::export_all_to(path).expect("initiative options bindings");
         RollInitiativeRequest::export_all_to(path).expect("initiative request bindings");
         InitiativeRollView::export_all_to(path).expect("initiative receipt bindings");
@@ -153,9 +263,24 @@ mod tests {
         RollEncounterStrikeRequest::export_all_to(path).expect("strike request");
         EncounterStrikeRollView::export_all_to(path).expect("strike result");
         fs::create_dir_all(path).expect("binding export directory should be creatable");
+        ApplyPersistentDamageRequest::export_all_to(path).expect("persistent damage request");
+        PersistentDamageResultView::export_all_to(path).expect("persistent damage result");
+        RecoverPersistentDamageRequest::export_all_to(path).expect("persistent recovery request");
+        PersistentRecoveryResultView::export_all_to(path).expect("persistent recovery result");
+        PersistentReviewView::export_all_to(path).expect("persistent review");
         EncounterTurnReviewView::export_all_to(path).expect("turn review bindings");
         AdvanceEncounterTurnRequest::export_all_to(path).expect("turn advance bindings");
         ApplyEncounterSpellActionRequest::export_all_to(path).expect("spell action bindings");
+        PreviewEncounterCastingAttemptRequest::export_all_to(path)
+            .expect("casting preview bindings");
+        BeginEncounterCastingAttemptRequest::export_all_to(path).expect("casting begin bindings");
+        ResolveEncounterActionCheckRequest::export_all_to(path).expect("casting check bindings");
+        AbandonEncounterActionAttemptRequest::export_all_to(path)
+            .expect("casting abandon bindings");
+        EncounterCastingPreviewView::export_all_to(path)
+            .expect("casting preview response bindings");
+        EncounterCastingAttemptsView::export_all_to(path).expect("saved casting attempts bindings");
+        EncounterActionMutationView::export_all_to(path).expect("casting mutation bindings");
         ApplyEncounterHpActionRequest::export_all_to(path).expect("HP action bindings");
         EmbeddedReadingRequest::export_all_to(path).expect("owned reading request bindings");
         EmbeddedReadingBatchView::export_all_to(path).expect("owned reading response bindings");
@@ -281,6 +406,18 @@ mod tests {
             .expect("SavedListUpdateView bindings should export");
         UpdateSavedListRequest::export_all_to(path)
             .expect("UpdateSavedListRequest bindings should export");
+
+        // ts-rs can emit trailing spaces before field documentation comments.
+        // Normalize at export so freshness checks and Git's whitespace gate agree.
+        for (name, contents) in read_binding_dir(path) {
+            let normalized = contents
+                .lines()
+                .map(str::trim_end)
+                .collect::<Vec<_>>()
+                .join("\n");
+            fs::write(path.join(name), format!("{normalized}\n"))
+                .expect("normalized binding should be writable");
+        }
     }
 
     fn read_binding_dir(path: &Path) -> BTreeMap<String, String> {

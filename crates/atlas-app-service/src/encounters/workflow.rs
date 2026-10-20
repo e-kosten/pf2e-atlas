@@ -9,10 +9,9 @@ use atlas_app_model::{
 };
 use atlas_domain::RecordKind;
 use atlas_local_state::{
-    AddEncounterParticipant, AddEncounterParticipantCondition, EncounterParticipantCondition,
-    EncounterStatus, NewEncounter, ParticipantKind, ParticipantSide, ReorderEncounterParticipant,
-    UpdateEncounter as LocalUpdateEncounter, UpdateEncounterParticipant,
-    UpdateEncounterParticipantCondition, derive_slug,
+    AddEncounterParticipant, EncounterParticipantCondition, EncounterStatus, NewEncounter,
+    ParticipantKind, ParticipantSide, ReorderEncounterParticipant,
+    UpdateEncounter as LocalUpdateEncounter, UpdateEncounterParticipant, derive_slug,
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
@@ -25,7 +24,7 @@ use super::projection::{
     encounter_detail_view, encounter_not_found, encounter_status_local, encounter_summary,
     participant_side, participant_variant, reorder_placement,
 };
-use super::timing::{duration_input, turn_review, turn_update};
+use super::timing::{turn_review, turn_update};
 use super::turns::next_turn_after_removed;
 
 const MAX_ADD_QUANTITY: u32 = 50;
@@ -35,6 +34,32 @@ impl AtlasAppService {
         &self,
     ) -> AppServiceResult<atlas_app_model::EncounterConditionCatalogView> {
         Ok(condition_catalog())
+    }
+
+    pub fn participant_encounter_condition_definitions(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+    ) -> AppServiceResult<atlas_app_model::EncounterConditionCatalogView> {
+        let context = condition_subject_context(self, encounter_ref, participant_key)?;
+        let mut catalog = condition_catalog();
+        catalog.conditions.retain_mut(|definition| {
+            let Some(modeled) = modeled_condition_by_ref(&definition.condition_ref) else {
+                return false;
+            };
+            match super::rules::condition_applicability(
+                modeled,
+                &context.participant,
+                &context.facts,
+            ) {
+                None => false,
+                Some(eligibility) => {
+                    definition.eligibility = eligibility;
+                    true
+                }
+            }
+        });
+        Ok(catalog)
     }
 
     pub fn encounters(&self) -> AppServiceResult<EncounterIndexView> {
@@ -60,12 +85,17 @@ impl AtlasAppService {
     }
 
     pub fn encounter(&self, encounter_ref: &str) -> AppServiceResult<EncounterDetailView> {
-        let initial = self.with_state(|session| {
-            session
+        let (initial, relationships) = self.with_state(|session| {
+            let snapshot = session
                 .local_state()
                 .encounters()
                 .get_with_participants(encounter_ref)?
-                .ok_or_else(|| encounter_not_found(encounter_ref))
+                .ok_or_else(|| encounter_not_found(encounter_ref))?;
+            let rows = session
+                .local_state()
+                .encounters()
+                .relationships(&snapshot.encounter.encounter_key)?;
+            Ok((snapshot, rows))
         })?;
         if !initial.participants.iter().any(|p| {
             p.record_key
@@ -77,6 +107,7 @@ impl AtlasAppService {
                 initial.participants,
                 None,
                 Default::default(),
+                relationships,
             ));
         }
         let encounter_ref = encounter_ref.to_owned();
@@ -88,10 +119,15 @@ impl AtlasAppService {
                     .encounters()
                     .get_with_participants(&encounter_ref)?
                     .ok_or_else(|| encounter_not_found(&encounter_ref))?;
+                let relationships = session
+                    .local_state()
+                    .encounters()
+                    .relationships(&detail.encounter.encounter_key)?;
                 encounter_detail_view(
                     session.retrieval_mut(),
                     detail.encounter,
                     detail.participants,
+                    relationships,
                 )
             },
         )
@@ -552,157 +588,24 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: AddEncounterParticipantConditionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        let (condition, reference_revision) =
-            prepare_condition_input(self, request.condition_ref, request.name)?;
-        self.with_write(move |session| {
-            if let Some(revision) = reference_revision {
-                session.require_reference_revision(revision)?;
-            }
-
-            let receipt = encounter_receipt(&session.local_state().encounters(), encounter_ref)?;
-            ensure_participant_in_encounter(
-                &session.local_state().encounters(),
-                &receipt.encounter_key,
-                &request.participant_key,
-            )?;
-            if let Some(source) = &request.source_participant_key {
-                ensure_participant_in_encounter(
-                    &session.local_state().encounters(),
-                    &receipt.encounter_key,
-                    source,
-                )?;
-            }
-            let snapshot = session
-                .local_state()
-                .encounters()
-                .get_with_participants(&receipt.encounter_key)?
-                .ok_or_else(|| encounter_not_found(encounter_ref))?;
-            let duration = duration_input(request.duration, None, &snapshot)?;
-
-            session
-                .local_state()
-                .encounters()
-                .add_condition(AddEncounterParticipantCondition {
-                    participant_key: request.participant_key,
-                    condition_key: condition.key,
-                    name: condition.name,
-                    value: request.value,
-                    source_participant_key: request.source_participant_key,
-                    duration,
-                    note: request.note,
-                })?;
-            Ok(receipt)
-        })
+        self.commit_condition_add(encounter_ref, request)
     }
-
     pub fn update_encounter_participant_condition(
         &self,
         encounter_ref: &str,
         participant_key: &str,
         request: UpdateEncounterParticipantConditionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        let (prepared_condition, reference_revision) = if let Some(condition_ref) =
-            request.condition_ref.clone()
-        {
-            let (condition, revision) = prepare_condition_input(self, Some(condition_ref), None)?;
-            (Some(condition), revision)
-        } else {
-            (None, None)
-        };
-        self.with_write(move |session| {
-            if let Some(revision) = reference_revision {
-                session.require_reference_revision(revision)?;
-            }
-
-            if request.expected_encounter_revision < 0 {
-                return Err(AppServiceError::invalid_request(
-                    "expected encounter revision must be nonnegative",
-                ));
-            }
-            let receipt = encounter_receipt(&session.local_state().encounters(), encounter_ref)?;
-            let snapshot = session
-                .local_state()
-                .encounters()
-                .get_with_participants(&receipt.encounter_key)?
-                .ok_or_else(|| encounter_not_found(encounter_ref))?;
-            let existing = condition_in_snapshot(&snapshot, participant_key, request.condition_id)?;
-            if request.expected_encounter_revision != snapshot.encounter.revision {
-                return Err(atlas_local_state::LocalStateError::StaleEncounterRevision {
-                    encounter_key: snapshot.encounter.encounter_key,
-                    expected_revision: request.expected_encounter_revision,
-                    actual_revision: snapshot.encounter.revision,
-                }
-                .into());
-            }
-            let duration = duration_input(request.duration, existing.duration.as_ref(), &snapshot)?;
-            let condition = prepared_condition.unwrap_or(ConditionInput {
-                key: existing.condition_key,
-                name: request.name.trim().to_string(),
-            });
-            if condition.name.is_empty() {
-                return Err(AppServiceError::invalid_request(
-                    "condition name must not be empty",
-                ));
-            }
-            if let Some(source) = &request.source_participant_key {
-                ensure_participant_in_encounter(
-                    &session.local_state().encounters(),
-                    &receipt.encounter_key,
-                    source,
-                )?;
-            }
-            let updated = session.local_state().encounters().update_condition(
-                UpdateEncounterParticipantCondition {
-                    expected_encounter_revision: request.expected_encounter_revision,
-                    participant_key: participant_key.to_string(),
-                    condition_id: request.condition_id,
-                    condition_key: condition.key,
-                    name: condition.name,
-                    value: request.value,
-                    source_participant_key: request.source_participant_key,
-                    duration,
-                    note: request.note,
-                },
-            )?;
-            if updated.is_none() {
-                return Err(AppServiceError::new(
-                    AppErrorCode::EncounterParticipantNotFound,
-                    format!(
-                        "encounter participant condition `{}` was not found",
-                        request.condition_id
-                    ),
-                ));
-            }
-            Ok(receipt)
-        })
+        self.commit_condition_update(encounter_ref, participant_key, request)
     }
-
     pub fn remove_encounter_participant_condition(
         &self,
         encounter_ref: &str,
         participant_key: &str,
         condition_id: i64,
+        request: atlas_app_model::RemoveEncounterParticipantConditionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        self.with_write(move |session| {
-            let receipt = encounter_receipt(&session.local_state().encounters(), encounter_ref)?;
-            condition_in_participant(
-                &session.local_state().encounters(),
-                &receipt.encounter_key,
-                participant_key,
-                condition_id,
-            )?;
-            if !session
-                .local_state()
-                .encounters()
-                .remove_condition(participant_key, condition_id)?
-            {
-                return Err(AppServiceError::new(
-                    AppErrorCode::EncounterParticipantNotFound,
-                    format!("encounter participant condition `{condition_id}` was not found"),
-                ));
-            }
-            Ok(receipt)
-        })
+        self.commit_condition_remove(encounter_ref, participant_key, condition_id, request)
     }
 
     pub fn set_encounter_turn(
@@ -736,7 +639,12 @@ impl AtlasAppService {
                 .encounters()
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| encounter_not_found(encounter_ref))?;
-            Ok(turn_review(&snapshot))
+            let mut view = turn_review(&snapshot);
+            view.outgoing = super::outgoing_turns::latest_review(
+                &session.local_state().encounters(),
+                &snapshot.encounter.encounter_key,
+            )?;
+            Ok(view)
         })
     }
 
@@ -751,10 +659,23 @@ impl AtlasAppService {
                     "expected revision must be nonnegative",
                 ));
             }
+            let intent = serde_json::to_value(&request)
+                .map_err(|error| AppServiceError::invalid_request(error.to_string()))?;
             let encounter = session
                 .local_state()
                 .encounters()
-                .advance_reviewed_turn(encounter_ref, request.expected_revision, turn_update)?
+                .advance_turn_once(
+                    encounter_ref,
+                    &request.request_id,
+                    &intent,
+                    request.expected_revision,
+                    |snapshot| {
+                        (
+                            turn_update(snapshot),
+                            !turn_review(snapshot).reminders.is_empty(),
+                        )
+                    },
+                )?
                 .ok_or_else(|| encounter_not_found(encounter_ref))?;
             Ok(EncounterMutationView {
                 encounter_key: encounter.encounter_key,
@@ -763,19 +684,7 @@ impl AtlasAppService {
     }
 }
 
-fn condition_in_participant(
-    encounters: &atlas_local_state::EncountersRead<'_>,
-    encounter_ref: &str,
-    participant_key: &str,
-    condition_id: i64,
-) -> AppServiceResult<EncounterParticipantCondition> {
-    let detail = encounters
-        .get_with_participants(encounter_ref)?
-        .ok_or_else(|| encounter_not_found(encounter_ref))?;
-    condition_in_snapshot(&detail, participant_key, condition_id)
-}
-
-fn condition_in_snapshot(
+pub(super) fn condition_in_snapshot(
     detail: &atlas_local_state::EncounterWithParticipants,
     participant_key: &str,
     condition_id: i64,
@@ -804,12 +713,12 @@ fn condition_in_snapshot(
         })
 }
 
-struct ConditionInput {
-    key: Option<String>,
-    name: String,
+pub(super) struct ConditionInput {
+    pub(super) key: Option<String>,
+    pub(super) name: String,
 }
 
-fn prepare_condition_input(
+pub(super) fn prepare_condition_input(
     service: &AtlasAppService,
     condition_ref: Option<String>,
     name: Option<String>,
@@ -893,4 +802,474 @@ fn encounter_receipt(
     Ok(EncounterMutationView {
         encounter_key: encounter.encounter_key,
     })
+}
+
+pub(super) fn condition_scope_input(
+    value: atlas_app_model::ConditionScopeView,
+    snapshot: &atlas_local_state::EncounterWithParticipants,
+) -> AppServiceResult<atlas_local_state::ConditionScope> {
+    match value {
+        atlas_app_model::ConditionScopeView::Everyone => {
+            Ok(atlas_local_state::ConditionScope::Everyone)
+        }
+        atlas_app_model::ConditionScopeView::SelectedParticipants {
+            mut participant_keys,
+        } => {
+            participant_keys.sort();
+            participant_keys.dedup();
+            if participant_keys.is_empty() {
+                return Err(AppServiceError::invalid_request(
+                    "select at least one participant",
+                ));
+            }
+            for key in &participant_keys {
+                if !snapshot
+                    .participants
+                    .iter()
+                    .any(|p| &p.participant_key == key)
+                {
+                    return Err(AppServiceError::invalid_request(
+                        "selected participant must belong to this encounter",
+                    ));
+                }
+            }
+            Ok(atlas_local_state::ConditionScope::SelectedParticipants { participant_keys })
+        }
+    }
+}
+
+pub(super) fn condition_extra_action_input(
+    value: atlas_app_model::ConditionExtraActionView,
+) -> AppServiceResult<atlas_local_state::ConditionExtraAction> {
+    use atlas_app_model::{ConditionActionView as A, ConditionExtraActionView as View};
+    use atlas_local_state::{ConditionAction as L, ConditionExtraAction as Local};
+    Ok(match value {
+        View::Unspecified => Local::Unspecified,
+        View::Unrestricted => Local::Unrestricted,
+        View::Restricted { actions, guidance } => {
+            let guidance = guidance
+                .map(|s| s.trim().to_owned())
+                .filter(|s| !s.is_empty());
+            if actions.is_empty() && guidance.is_none() {
+                return Err(AppServiceError::invalid_request(
+                    "restricted extra action requires an action or guidance",
+                ));
+            }
+            Local::Restricted {
+                actions: actions
+                    .into_iter()
+                    .map(|a| match a {
+                        A::Stride => L::Stride,
+                        A::Strike => L::Strike,
+                        A::Step => L::Step,
+                        A::Leap => L::Leap,
+                        A::Stand => L::Stand,
+                        A::Interact => L::Interact,
+                        A::CastSpell => L::CastSpell,
+                        A::Sustain => L::Sustain,
+                        A::Escape => L::Escape,
+                        A::Crawl => L::Crawl,
+                        A::Fly => L::Fly,
+                        A::Swim => L::Swim,
+                        A::Climb => L::Climb,
+                        A::Burrow => L::Burrow,
+                    })
+                    .collect(),
+                guidance,
+            }
+        }
+    })
+}
+
+pub(super) struct ConditionSubjectContext {
+    pub(super) participant: atlas_local_state::EncounterParticipant,
+    pub(super) facts: super::rules::ConditionApplicabilityFacts,
+    pub(super) reference_revision: Option<u64>,
+    pub(super) level: Option<i64>,
+    pub(super) fortitude: Option<i64>,
+    pub(super) perception: Option<i64>,
+}
+
+pub(super) fn condition_subject_context(
+    service: &AtlasAppService,
+    encounter_ref: &str,
+    participant_key: &str,
+) -> AppServiceResult<ConditionSubjectContext> {
+    let participant = service.with_state(|session| {
+        let snapshot = session
+            .local_state()
+            .encounters()
+            .get_with_participants(encounter_ref)?
+            .ok_or_else(|| encounter_not_found(encounter_ref))?;
+        snapshot
+            .participants
+            .into_iter()
+            .find(|p| p.participant_key == participant_key)
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::EncounterParticipantNotFound,
+                    "encounter participant was not found",
+                )
+            })
+    })?;
+    if participant.record_key.is_none() {
+        let level = participant.level_override;
+        return Ok(ConditionSubjectContext {
+            participant,
+            facts: super::rules::ConditionApplicabilityFacts::default(),
+            level,
+            fortitude: None,
+            perception: None,
+            reference_revision: None,
+        });
+    }
+    service.with_workspace(
+        &crate::ReadExecutionContext::uncancellable(),
+        move |session| {
+            let (_, records) = hydrate_participant_records(
+                session.retrieval_mut(),
+                std::slice::from_ref(&participant),
+            )?;
+            let record = participant
+                .record_key
+                .as_ref()
+                .and_then(|key| records.get(key));
+            let actor = record.and_then(|record| match &record.presentation.body {
+                atlas_app_model::RecordBodyView::Creature(actor) => Some(actor.as_ref()),
+                atlas_app_model::RecordBodyView::Hazard(hazard) => Some(&hazard.actor),
+                _ => None,
+            });
+            let immunities = record.and_then(|record| {
+                use atlas_record::source_record::{ActorIwrEntry, ActorIwrKind};
+                let pack = record.detail.summary.key.pack();
+                let query = atlas_record::source_record::SourceQueryView::new(
+                    record.detail.source.source(),
+                    pack.as_str(),
+                    "",
+                );
+                query
+                    .actor()
+                    .iwr(ActorIwrKind::Immunity)
+                    .value()
+                    .map(|entries| {
+                        entries
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(index, entry)| {
+                                let projected = actor
+                                    .and_then(|actor| actor.immunities.value.as_ref())
+                                    .and_then(|entries| entries.get(index));
+                                let (source_type, exceptions) = match entry {
+                                    ActorIwrEntry::Immunity(source) => (
+                                        source.r#type.as_value(),
+                                        authored_immunity_exceptions(
+                                            &source.exceptions,
+                                            projected
+                                                .and_then(|entry| entry.exceptions.value.clone()),
+                                            true,
+                                        ),
+                                    ),
+                                    ActorIwrEntry::SchemaImmunity(source) => (
+                                        source.r#type.as_value(),
+                                        authored_immunity_exceptions(
+                                            &source.exceptions,
+                                            projected
+                                                .and_then(|entry| entry.exceptions.value.clone()),
+                                            false,
+                                        ),
+                                    ),
+                                    _ => return None,
+                                };
+                                // Generated enum serialization owns the canonical source identifier.
+                                let token = serde_json::to_value(source_type?).ok()?;
+                                let slug = token
+                                    .as_str()
+                                    .or_else(|| {
+                                        token.get("$value").and_then(serde_json::Value::as_str)
+                                    })?
+                                    .to_owned();
+                                Some(super::rules::ConditionImmunity { slug, exceptions })
+                            })
+                            .collect()
+                    })
+            });
+            // Pinned hazard/document.ts prepareBaseData derives BT=floor(max/2)
+            // and hasHealth=max>0; this is derived source policy, not an authored BT field.
+            let hazard_maximum = record
+                .filter(|_| {
+                    participant.participant_kind == atlas_local_state::ParticipantKind::Hazard
+                })
+                .and_then(|record| {
+                    let pack = record.detail.summary.key.pack();
+                    atlas_record::source_record::SourceQueryView::new(
+                        record.detail.source.source(),
+                        pack.as_str(),
+                        "",
+                    )
+                    .actor()
+                    .hp_maximum()
+                    .value()
+                    .cloned()
+                });
+            let broken_threshold_known_absent = hazard_maximum
+                .as_ref()
+                .and_then(serde_json::Number::as_f64)
+                .is_some_and(|max| max <= 0.0);
+            let broken_threshold = hazard_maximum
+                .as_ref()
+                .and_then(serde_json::Number::as_f64)
+                .filter(|max| *max > 0.0)
+                .filter(|max| *max <= 9_007_199_254_740_991.0)
+                .map(|max| serde_json::Number::from((max / 2.0).floor() as i64));
+            let facts = super::rules::ConditionApplicabilityFacts {
+                immunities,
+                broken_threshold,
+                broken_threshold_known_absent,
+            };
+            let block = record.and_then(|record| {
+                record.arithmetic_baseline.as_ref().map(|baseline| {
+                    super::rules::project_participant(
+                        &participant,
+                        baseline,
+                        record.adjustment_applicable,
+                        &[],
+                    )
+                })
+            });
+            let level = participant.level_override.or_else(|| {
+                block
+                    .as_ref()
+                    .and_then(|block| block.adjusted_level.as_ref().or(block.level.as_ref()))
+                    .and_then(|number| number.as_i64())
+            });
+            use super::stat_block::{StatisticSave, StatisticTarget};
+            let fortitude = block
+                .as_ref()
+                .and_then(|block| {
+                    block.effective_stat(&StatisticTarget::Save(StatisticSave::Fortitude))
+                })
+                .and_then(|number| number.as_i64());
+            let perception = block
+                .as_ref()
+                .and_then(|block| block.effective_stat(&StatisticTarget::Perception))
+                .and_then(|number| number.as_i64());
+            let reference_revision = Some(session.reference_revision()?);
+            Ok(ConditionSubjectContext {
+                participant,
+                facts,
+                level,
+                fortitude,
+                perception,
+                reference_revision,
+            })
+        },
+    )
+}
+
+pub(super) fn validate_condition_subject(
+    context: &ConditionSubjectContext,
+    snapshot: &atlas_local_state::EncounterWithParticipants,
+    condition_key: Option<&str>,
+    immunity_override: bool,
+) -> AppServiceResult<()> {
+    let current = snapshot
+        .participants
+        .iter()
+        .find(|p| p.participant_key == context.participant.participant_key)
+        .ok_or_else(|| {
+            AppServiceError::new(
+                AppErrorCode::EncounterParticipantNotFound,
+                "encounter participant was not found",
+            )
+        })?;
+    if current.revision != context.participant.revision {
+        return Err(
+            atlas_local_state::LocalStateError::StaleParticipantRevision {
+                participant_key: current.participant_key.clone(),
+                expected_revision: context.participant.revision,
+                actual_revision: current.revision,
+            }
+            .into(),
+        );
+    }
+    let Some(modeled) = condition_key.and_then(modeled_condition_by_ref) else {
+        return Ok(());
+    };
+    match super::rules::condition_applicability(modeled, current, &context.facts) {
+        None => Err(AppServiceError::invalid_request(
+            "condition does not apply to this participant kind",
+        )),
+        Some(atlas_app_model::EncounterConditionEligibilityView::Immune { reason })
+            if !immunity_override =>
+        {
+            Err(AppServiceError::invalid_request(format!(
+                "{reason} Choose Add anyway to override this immunity."
+            )))
+        }
+        _ => Ok(()),
+    }
+}
+
+pub(super) fn validate_condition_parameters(
+    condition_key: Option<&str>,
+    scope: &atlas_app_model::ConditionScopeView,
+    extra_action: &atlas_app_model::ConditionExtraActionView,
+) -> AppServiceResult<()> {
+    use super::conditions::ConditionRule;
+    let rule = condition_key
+        .and_then(modeled_condition_by_ref)
+        .and_then(|condition| condition.rule);
+    if !matches!(scope, atlas_app_model::ConditionScopeView::Everyone)
+        && condition_key
+            .and_then(modeled_condition_by_ref)
+            .and_then(|condition| condition.scope_label())
+            .is_none()
+    {
+        return Err(AppServiceError::invalid_request(
+            "this condition does not support a participant scope",
+        ));
+    }
+    if !matches!(
+        extra_action,
+        atlas_app_model::ConditionExtraActionView::Unspecified
+    ) && rule != Some(ConditionRule::Quickened)
+    {
+        return Err(AppServiceError::invalid_request(
+            "extra-action restrictions are supported for Quickened",
+        ));
+    }
+    Ok(())
+}
+
+fn authored_immunity_exceptions<T>(
+    source: &atlas_foundry_model::SourcePresence<T>,
+    projected: Option<Vec<String>>,
+    optional_exceptions: bool,
+) -> Option<Vec<String>> {
+    use atlas_foundry_model::SourcePresence;
+    match source {
+        // Pinned actor/data/iwr.ts defaults omitted optional exceptions with `?? []`.
+        SourcePresence::Missing if optional_exceptions => Some(Vec::new()),
+        SourcePresence::Value(_) => projected,
+        SourcePresence::Missing | SourcePresence::Null | SourcePresence::Invalid(_) => None,
+    }
+}
+
+#[cfg(test)]
+mod immunity_source_defaults_tests {
+    use super::authored_immunity_exceptions;
+    use atlas_foundry_model::SourcePresence;
+
+    #[test]
+    fn only_omitted_optional_exceptions_gain_the_source_default() {
+        let missing: SourcePresence<Vec<String>> = SourcePresence::Missing;
+        let null: SourcePresence<Vec<String>> = SourcePresence::Null;
+        assert_eq!(
+            authored_immunity_exceptions(&missing, None, true),
+            Some(vec![])
+        );
+        assert_eq!(authored_immunity_exceptions(&missing, None, false), None);
+        assert_eq!(authored_immunity_exceptions(&null, None, true), None);
+        let conditional = SourcePresence::Value(vec!["critical-hits".to_owned()]);
+        assert_eq!(
+            authored_immunity_exceptions(&conditional, Some(vec!["critical-hits".into()]), true),
+            Some(vec!["critical-hits".into()])
+        );
+        assert_eq!(authored_immunity_exceptions(&conditional, None, true), None);
+    }
+}
+
+#[cfg(test)]
+mod condition_scope_tests {
+    use super::*;
+    #[test]
+    fn relative_conditions_accept_named_participants_but_global_conditions_do_not() {
+        use atlas_app_model::{ConditionExtraActionView, ConditionScopeView};
+        let scope = ConditionScopeView::SelectedParticipants {
+            participant_keys: vec!["observer".into()],
+        };
+        for condition in super::super::conditions::condition_catalog().conditions {
+            let accepts = validate_condition_parameters(
+                Some(&condition.condition_ref),
+                &scope,
+                &ConditionExtraActionView::Unspecified,
+            )
+            .is_ok();
+            assert_eq!(
+                accepts,
+                matches!(
+                    condition.name.as_str(),
+                    "Off-Guard" | "Concealed" | "Hidden" | "Undetected" | "Unnoticed"
+                ),
+                "{}",
+                condition.name
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod immunity_override_tests {
+    use super::*;
+
+    #[test]
+    fn known_immunity_requires_explicit_override_but_no_note() {
+        let worker = crate::test_support::encounter_fixture_worker().worker;
+        let encounter = worker
+            .create_encounter(CreateEncounterRequest {
+                name: "Immunity override".into(),
+                description: None,
+                note: None,
+            })
+            .unwrap()
+            .encounter;
+        worker
+            .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
+                encounter_ref: encounter.encounter_key.clone(),
+                display_name: "Immune participant".into(),
+                max_hp: Some(10),
+                current_hp: Some(10),
+                initiative: None,
+            })
+            .unwrap();
+        let snapshot = worker
+            .with_state(|session| {
+                Ok(session
+                    .local_state()
+                    .encounters()
+                    .get_with_participants(&encounter.encounter_key)?
+                    .unwrap())
+            })
+            .unwrap();
+        let context = ConditionSubjectContext {
+            participant: snapshot.participants[0].clone(),
+            reference_revision: None,
+            level: None,
+            fortitude: None,
+            perception: None,
+            facts: super::super::rules::ConditionApplicabilityFacts {
+                immunities: Some(vec![super::super::rules::ConditionImmunity {
+                    slug: "unconscious".into(),
+                    exceptions: Some(vec![]),
+                }]),
+                broken_threshold: None,
+                broken_threshold_known_absent: false,
+            },
+        };
+        let catalog = condition_catalog();
+        let condition = catalog
+            .conditions
+            .iter()
+            .find(|condition| condition.name == "Unconscious")
+            .unwrap();
+        assert!(
+            validate_condition_subject(&context, &snapshot, Some(&condition.condition_ref), false)
+                .is_err()
+        );
+        assert!(
+            validate_condition_subject(&context, &snapshot, Some(&condition.condition_ref), true)
+                .is_ok()
+        );
+        assert_eq!(context.participant.note, None);
+    }
 }

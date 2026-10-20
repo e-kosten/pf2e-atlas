@@ -1,5 +1,6 @@
 use super::*;
-use atlas_search::test_support::{input, open_input_fixture, publish_input, record};
+use crate::test_support::publish_input;
+use atlas_search::test_support::{input, open_input_fixture, record};
 use serde_json::json;
 
 macro_rules! source { ($name:expr) => { input(vec![record("actions", "Item", json!({"_id":"testAction100000","type":"action","name":$name}))], false) }; }
@@ -8,6 +9,7 @@ macro_rules! source { ($name:expr) => { input(vec![record("actions", "Item", jso
 fn idle_workers_release_snapshots_and_next_job_sees_publication() {
     let (reader, artifact) = open_input_fixture(source!("Original")).unwrap();
     drop(reader);
+    atlas_runtime::initialize_workspace(artifact.path()).unwrap();
     let artifact = Arc::new(artifact);
     let retained = Arc::clone(&artifact);
     let executor = RetrievalExecutor::start_with_factory(2, 16, move |_| {

@@ -20,6 +20,8 @@
 .encounter-reference__identity {
   flex: 1;
   min-width: 0;
+  display: grid;
+  gap: 6px;
 }
 
 .encounter-reference__identity h2,
@@ -166,4 +168,30 @@
 .encounter-record-pane:focus-visible {
   outline: 2px solid var(--active-border);
   outline-offset: -2px;
+}
+
+.encounter-life-settings {
+  display: grid;
+  gap: 16px;
+  margin-block: 24px;
+}
+.encounter-life-settings__fields {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+}
+
+.encounter-reference__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.encounter-reference__name h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.encounter-reference__name > button {
+  flex-shrink: 0;
 }

@@ -41,6 +41,33 @@ fn manual(max: Option<i64>, current: Option<i64>) -> (FixtureWorker, String, Str
     (f, key, participant)
 }
 
+fn disable_dying_tracking(worker: &AtlasAppService, key: &str, participant: &str) {
+    let revision = worker
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get(key)?
+                .unwrap()
+                .revision)
+        })
+        .unwrap();
+    worker
+        .set_encounter_life_settings(
+            key,
+            participant,
+            SetEncounterLifeSettingsRequest {
+                mortality: None,
+                request_id: crate::test_support::next_request_id(),
+                expected_encounter_revision: revision,
+                track_dying: false,
+                level_override: None,
+                base_death_threshold: None,
+            },
+        )
+        .unwrap();
+}
+
 fn saved(worker: &AtlasAppService, key: &str) -> EncounterParticipant {
     worker
         .with_state(|session| {
@@ -66,6 +93,8 @@ fn apply(
         .apply_encounter_hp_action(
             key,
             ApplyEncounterHpActionRequest {
+                request_id: crate::test_support::next_request_id(),
+                context: None,
                 participant_key: participant.into(),
                 expected_revision: revision,
                 action,
@@ -81,6 +110,7 @@ fn apply(
 #[test]
 fn damage_absorbs_temporary_hp_then_floors_and_healing_preserves_defeated() {
     let (f, key, p) = manual(Some(30), Some(25));
+    disable_dying_tracking(&f.worker, &key, &p);
     apply(
         &f.worker,
         &key,
@@ -195,6 +225,7 @@ fn signed_amounts_reverse_operations_through_actual_hp_policy() {
 #[test]
 fn negative_heal_floors_and_marks_defeated_while_negative_damage_caps_without_clearing_it() {
     let (f, key, p) = manual(Some(30), Some(5));
+    disable_dying_tracking(&f.worker, &key, &p);
     apply(
         &f.worker,
         &key,
@@ -323,6 +354,8 @@ fn exact_corrections_preserve_outliers_availability_and_maximum_intent() {
                 .apply_encounter_hp_action(
                     &key,
                     ApplyEncounterHpActionRequest {
+                        request_id: crate::test_support::next_request_id(),
+                        context: None,
                         participant_key: p.clone(),
                         expected_revision: before.revision,
                         action
@@ -378,6 +411,8 @@ fn invalid_or_stale_actions_leave_every_field_unchanged() {
                 .apply_encounter_hp_action(
                     &key,
                     ApplyEncounterHpActionRequest {
+                        request_id: crate::test_support::next_request_id(),
+                        context: None,
                         participant_key: p.clone(),
                         expected_revision: before.revision,
                         action
@@ -395,6 +430,8 @@ fn invalid_or_stale_actions_leave_every_field_unchanged() {
             .apply_encounter_hp_action(
                 &key,
                 ApplyEncounterHpActionRequest {
+                    request_id: crate::test_support::next_request_id(),
+                    context: None,
                     participant_key: p,
                     expected_revision: before.revision - 1,
                     action: EncounterHpAction::Damage {
@@ -414,15 +451,19 @@ fn invalid_or_stale_actions_leave_every_field_unchanged() {
 fn concurrent_amount_actions_cannot_overwrite_from_the_same_revision() {
     let (f, key, p) = manual(Some(30), Some(25));
     let request = ApplyEncounterHpActionRequest {
+        request_id: crate::test_support::next_request_id(),
+        context: None,
         participant_key: p,
         expected_revision: saved(&f.worker, &key).revision,
         action: EncounterHpAction::Heal {
             amount: "-5".into(),
         },
     };
+    let mut other_request = request.clone();
+    other_request.request_id = crate::test_support::next_request_id();
     let outcomes = std::thread::scope(|scope| {
         let first = scope.spawn(|| f.worker.apply_encounter_hp_action(&key, request.clone()));
-        let second = scope.spawn(|| f.worker.apply_encounter_hp_action(&key, request.clone()));
+        let second = scope.spawn(|| f.worker.apply_encounter_hp_action(&key, other_request));
         [first.join().unwrap(), second.join().unwrap()]
     });
     assert_eq!(outcomes.iter().filter(|r| r.is_ok()).count(), 1);
@@ -533,6 +574,8 @@ fn healing_overflow_and_wrong_encounter_owner_do_not_write() {
     let (f, key, p) = manual(None, Some(i64::MAX));
     let before = saved(&f.worker, &key);
     let action = ApplyEncounterHpActionRequest {
+        request_id: crate::test_support::next_request_id(),
+        context: None,
         participant_key: p.clone(),
         expected_revision: before.revision,
         action: EncounterHpAction::Heal { amount: "1".into() },
@@ -705,6 +748,8 @@ fn atomic_corrections_reject_any_invalid_or_stale_field_without_partial_write() 
                 .apply_encounter_hp_action(
                     &key,
                     ApplyEncounterHpActionRequest {
+                        request_id: crate::test_support::next_request_id(),
+                        context: None,
                         participant_key: p.clone(),
                         expected_revision: before.revision,
                         action
@@ -722,6 +767,8 @@ fn atomic_corrections_reject_any_invalid_or_stale_field_without_partial_write() 
             .apply_encounter_hp_action(
                 &key,
                 ApplyEncounterHpActionRequest {
+                    request_id: crate::test_support::next_request_id(),
+                    context: None,
                     participant_key: p,
                     expected_revision: before.revision - 1,
                     action: EncounterHpAction::SetValues {

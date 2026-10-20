@@ -22,6 +22,8 @@ pub(super) fn fixture_worker_with_workers(count: usize) -> FixtureWorker {
 pub(super) fn encounter_fixture_worker() -> FixtureWorker {
     fixture_worker()
 }
+
+pub(super) use atlas_runtime::test_support::publish_input;
 pub(super) fn fixture_worker_with_executor(executor: RetrievalExecutor) -> FixtureWorker {
     let path = executor
         .runtime
@@ -83,7 +85,7 @@ pub(super) fn fixture_retrieval() -> Result<
             record(
                 "actors",
                 "Actor",
-                json!({"_id":"testCreature1000","type":"npc","name":"Test Creature 1","system":{"details":{"level":{"value":5},"publicNotes":"<p>Creature prose</p>"},"attributes":{"adjustment":null,"ac":{"value":22},"hp":{"max":60},"speed":{"value":25,"otherSpeeds":[]}},"saves":{"fortitude":{"value":15},"reflex":{"value":12},"will":{"value":12}},"perception":{"mod":13},"abilities":{"str":{"mod":4},"dex":{"mod":3},"con":{"mod":2},"int":{"mod":1},"wis":{"mod":2},"cha":{"mod":0}},"skills":{"athletics":{"base":9},"stealth":{"base":8},"arcana":{"base":7,"special":[{"base":11,"label":"Identifying spells","predicate":["identify-magic"]}]}}},"items":[{"_id":"claw000000000000","type":"melee","name":"Claw","system":{"range":null,"bonus":{"value":12},"damageRolls":{"main":{"damage":"1d6+4","damageType":"slashing"}},"description":{"value":"<p>Claw prose</p>"}}},{"_id":"breath0000000000","type":"action","name":"Breath Weapon","system":{"description":{"value":"<h2>Ghoul Fever</h2><p>Affliction stages</p>"}}}]}),
+                json!({"_id":"testCreature1000","type":"npc","name":"Test Creature 1","system":{"details":{"level":{"value":5},"publicNotes":"<p>Creature prose</p>"},"attributes":{"adjustment":null,"ac":{"value":22},"hp":{"max":60},"speed":{"value":25,"otherSpeeds":[]}},"saves":{"fortitude":{"value":15},"reflex":{"value":12},"will":{"value":12}},"perception":{"mod":13},"abilities":{"str":{"mod":4},"dex":{"mod":3},"con":{"mod":2},"int":{"mod":1},"wis":{"mod":2},"cha":{"mod":0}},"skills":{"athletics":{"base":9},"stealth":{"base":8},"arcana":{"base":7,"special":[{"base":11,"label":"Identifying spells","predicate":["identify-magic"]}]}}},"items":[{"_id":"claw000000000000","type":"melee","name":"Claw","system":{"range":null,"traits":{"value":[]},"bonus":{"value":12},"damageRolls":{"main":{"damage":"1d6+4","damageType":"slashing"}},"description":{"value":"<p>Claw prose</p>"}}},{"_id":"breath0000000000","type":"action","name":"Breath Weapon","system":{"description":{"value":"<h2>Ghoul Fever</h2><p>Affliction stages</p>"}}}]}),
             ),
             record(
                 "hazards",
@@ -93,4 +95,12 @@ pub(super) fn fixture_retrieval() -> Result<
         ],
         false,
     )?)
+}
+
+pub(crate) fn next_request_id() -> String {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    format!(
+        "test-command-{}",
+        NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    )
 }

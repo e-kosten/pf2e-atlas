@@ -3,4 +3,4 @@ import type { RollOutcome } from "./RollOutcome";
 import type { StrikeDamageRollView } from "./StrikeDamageRollView";
 import type { StrikeDamageTotalView } from "./StrikeDamageTotalView";
 
-export type EncounterStrikeRollView = { request_id: string, encounter_key: string, participant_key: string, title: string, attack: RollOutcome | null, damage: Array<StrikeDamageRollView>, damage_totals: Array<StrikeDamageTotalView>, damage_total: number | null, persistent_total: number | null, damage_minimum_adjustment: number, persistent_minimum_adjustment: number, };
+export type EncounterStrikeRollView = { attack_modifier: number | null, request_id: string, encounter_key: string, participant_key: string, title: string, attack: RollOutcome | null, damage: Array<StrikeDamageRollView>, damage_totals: Array<StrikeDamageTotalView>, damage_total: number | null, persistent_total: number | null, damage_minimum_adjustment: number, persistent_minimum_adjustment: number, };

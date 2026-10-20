@@ -10,7 +10,6 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: ApplyEncounterSpellActionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        let ordinary_cast = matches!(&request.action, EncounterSpellAction::Cast { .. });
         let encounter_ref = encounter_ref.to_owned();
         let (encounter_key, participant_key, expected_revision, reference_revision, change) = self
             .with_workspace(
@@ -49,6 +48,7 @@ impl AtlasAppService {
                         &record.source,
                         &participant.spell_resources,
                         &participant.expended_spells,
+                        Some(session.retrieval_mut().source_fingerprint()),
                     );
                     // Retain saved pools even when the current source no longer exposes them.
                     let mut resources = participant.spell_resources.clone();
@@ -61,11 +61,6 @@ impl AtlasAppService {
                                 undo_remaining: None,
                             });
                         }
-                    }
-                    if ordinary_cast
-                        && let Some(reason) = super::action_budget::cannot_act_reason(participant)
-                    {
-                        return Err(AppServiceError::invalid_request(reason));
                     }
                     match request.action {
                         EncounterSpellAction::SetExpended {
@@ -109,8 +104,14 @@ impl AtlasAppService {
                                 },
                             ));
                         }
-                        EncounterSpellAction::Cast { selection }
-                        | EncounterSpellAction::RecordUse { selection } => {
+                        EncounterSpellAction::Cast { selection } => {
+                            if selection.source_fingerprint.as_deref()
+                                != Some(session.retrieval_mut().source_fingerprint())
+                            {
+                                return Err(AppServiceError::invalid_request(
+                                    "Spell source changed; reopen the spell.",
+                                ));
+                            }
                             if selection.record_key != record_key
                                 || selection.field.is_some()
                                 || selection.passage.is_some()
@@ -231,35 +232,6 @@ impl AtlasAppService {
         self.with_write(move |session| {
             session.require_reference_revision(reference_revision)?;
             let encounters = session.local_state().encounters();
-            // Conditions advance the encounter revision rather than the participant
-            // revision. Recheck current permission under the write transaction.
-            if ordinary_cast {
-                let snapshot = encounters
-                    .get_with_participants(&encounter_key)?
-                    .ok_or_else(|| super::projection::encounter_not_found(&encounter_key))?;
-                let current = snapshot
-                    .participants
-                    .iter()
-                    .find(|p| p.participant_key == participant_key)
-                    .ok_or_else(|| {
-                        AppServiceError::invalid_request(
-                            "Participant is no longer in this encounter",
-                        )
-                    })?;
-                if current.revision != expected_revision {
-                    return Err(
-                        atlas_local_state::LocalStateError::StaleParticipantRevision {
-                            participant_key: participant_key.clone(),
-                            expected_revision,
-                            actual_revision: current.revision,
-                        }
-                        .into(),
-                    );
-                }
-                if let Some(reason) = super::action_budget::cannot_act_reason(current) {
-                    return Err(AppServiceError::invalid_request(reason));
-                }
-            }
             match change {
                 PreparedSpellAction::Marker { spell, expended } => encounters.set_spell_expended(
                     &participant_key,

@@ -90,7 +90,7 @@ fn patch_system(
 }
 
 /// Produce a transient checked source for projection; source snapshot is immutable.
-pub(super) fn heighten(source: &SpellSource, rank: u8) -> Result<SpellSource, String> {
+pub(crate) fn heighten(source: &SpellSource, rank: u8) -> Result<SpellSource, String> {
     let mut result = source.clone();
     let SourcePresence::Value(system) = &mut result.system else {
         return Err("Spell mechanics are unavailable.".into());
