@@ -59,5 +59,4 @@ pub struct AddEncounterPartyRequest {
     pub party_key: String,
     #[ts(type = "number")]
     pub expected_revision: i64,
-    pub member_keys: Vec<String>,
 }

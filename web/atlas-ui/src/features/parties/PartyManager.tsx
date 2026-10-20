@@ -10,10 +10,19 @@ import type {
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { useParties } from "./useParties";
 
-export function PartyManager({ onClose }: { onClose: () => void }) {
+export function PartyManager({
+  onClose,
+  initialCreate = false,
+}: {
+  onClose: () => void;
+  initialCreate?: boolean;
+}) {
   const parties = useParties();
   const client = useQueryClient();
-  const [editor, setEditor] = useState<PartyView | "new" | null>(null);
+  const [closing, setClosing] = useState(false);
+  const [editor, setEditor] = useState<PartyView | "new" | null>(
+    initialCreate ? "new" : null,
+  );
   const remove = useMutation({
     retry: false,
     mutationFn: (party: PartyView) => deleteParty(party.party_key, party.revision),
@@ -26,103 +35,132 @@ export function PartyManager({ onClose }: { onClose: () => void }) {
       void client.invalidateQueries({ queryKey: ["parties"] });
     },
   });
-  if (editor)
-    return (
-      <PartyEditor
-        party={editor === "new" ? undefined : editor}
-        onClose={() => setEditor(null)}
-      />
-    );
+  if (initialCreate) return <PartyEditor onClose={onClose} />;
   return (
-    <Modal
-      open
-      title="Parties"
-      onCancel={onClose}
-      closable={!remove.isPending}
-      keyboard={!remove.isPending}
-      mask={{ closable: !remove.isPending }}
-      footer={
-        <Space>
-          <Button disabled={remove.isPending} onClick={onClose}>
-            Done
-          </Button>
-          <Button
-            type="primary"
-            disabled={remove.isPending}
-            onClick={() => setEditor("new")}
-          >
-            New Party
-          </Button>
-        </Space>
-      }
-    >
-      {parties.error && (
-        <Alert
-          type="error"
-          title="Parties could not load"
-          description={parties.error.message}
-          action={
-            <Button loading={parties.isFetching} onClick={() => void parties.refetch()}>
-              Retry
+    <>
+      <Modal
+        open={!closing}
+        afterClose={onClose}
+        title="Parties"
+        onCancel={() => setClosing(true)}
+        closable={!remove.isPending && !editor}
+        keyboard={!remove.isPending && !editor}
+        mask={{ closable: !remove.isPending && !editor }}
+        footer={
+          <Space>
+            <Button disabled={remove.isPending} onClick={() => setClosing(true)}>
+              Done
             </Button>
-          }
-        />
-      )}
-      {remove.error && (
-        <Alert
-          type="error"
-          title="Party could not be deleted"
-          description={remove.error.message}
-        />
-      )}
-      <Table<PartyView>
-        rowKey="party_key"
-        pagination={false}
-        loading={parties.isLoading}
-        dataSource={parties.data?.parties ?? []}
-        locale={{
-          emptyText: parties.error ? "Parties unavailable" : "No parties yet.",
-        }}
-        columns={[
-          {
-            title: "Party",
-            dataIndex: "name",
-            render: (_value, party) => (
+            <Button
+              type="primary"
+              disabled={remove.isPending}
+              onClick={(event) => {
+                event.currentTarget.focus();
+                setEditor("new");
+              }}
+            >
+              New Party
+            </Button>
+          </Space>
+        }
+      >
+        {parties.error && (
+          <Alert
+            type="error"
+            title="Parties could not load"
+            description={parties.error.message}
+            action={
               <Button
-                type="link"
-                disabled={remove.isPending}
-                onClick={() => setEditor(party)}
+                loading={parties.isFetching}
+                onClick={() => void parties.refetch()}
               >
-                {party.name}
+                Retry
               </Button>
-            ),
-          },
-          { title: "PCs", render: (_value, party) => party.members.length },
-          {
-            title: "",
-            render: (_value, party) => (
-              <DangerActionButton
-                disabled={remove.isPending}
-                aria-label={`Delete ${party.name}`}
-                confirmTitle={`Delete ${party.name}?`}
-                confirmContent="PCs already added to encounters will remain."
-                confirmOkText="Delete"
-                onConfirm={async () => {
-                  await remove.mutateAsync(party);
-                }}
-              >
-                Delete
-              </DangerActionButton>
-            ),
-          },
-        ]}
-      />
-    </Modal>
+            }
+          />
+        )}
+        {remove.error && (
+          <Alert
+            type="error"
+            title="Party could not be deleted"
+            description={remove.error.message}
+          />
+        )}
+        <Table<PartyView>
+          rowKey="party_key"
+          size="small"
+          tableLayout="fixed"
+          pagination={false}
+          loading={parties.isLoading}
+          dataSource={parties.data?.parties ?? []}
+          locale={{
+            emptyText: parties.error ? "Parties unavailable" : "No parties yet.",
+          }}
+          columns={[
+            {
+              title: "Party",
+              dataIndex: "name",
+              render: (_value, party) => (
+                <Button
+                  type="link"
+                  block
+                  style={{
+                    height: "auto",
+                    paddingInline: 0,
+                    whiteSpace: "normal",
+                    overflowWrap: "anywhere",
+                    textAlign: "start",
+                    justifyContent: "start",
+                  }}
+                  disabled={remove.isPending}
+                  onClick={(event) => {
+                    event.currentTarget.focus();
+                    setEditor(party);
+                  }}
+                >
+                  {party.name}
+                </Button>
+              ),
+            },
+            {
+              title: "PCs",
+              width: 48,
+              render: (_value, party) => party.members.length,
+            },
+            {
+              title: "",
+              width: 84,
+              render: (_value, party) => (
+                <DangerActionButton
+                  disabled={remove.isPending}
+                  aria-label={`Delete ${party.name}`}
+                  confirmTitle={`Delete ${party.name}?`}
+                  confirmContent="PCs already added to encounters will remain."
+                  confirmOkText="Delete"
+                  onConfirm={async () => {
+                    await remove.mutateAsync(party);
+                  }}
+                >
+                  Delete
+                </DangerActionButton>
+              ),
+            },
+          ]}
+        />
+      </Modal>
+      {editor && (
+        <PartyEditor
+          party={editor === "new" ? undefined : editor}
+          onClose={() => setEditor(null)}
+        />
+      )}
+    </>
   );
 }
 
 function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => void }) {
   const [form] = Form.useForm<CreatePartyRequest>();
+  const [closing, setClosing] = useState(false);
   const id = useId();
   const inFlight = useRef(false);
   const client = useQueryClient();
@@ -140,7 +178,7 @@ function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => voi
         ],
       }));
       void client.invalidateQueries({ queryKey: ["parties"] });
-      onClose();
+      setClosing(true);
     },
   });
   const submit = async (values: CreatePartyRequest) => {
@@ -156,11 +194,12 @@ function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => voi
   };
   return (
     <Modal
-      open
+      open={!closing}
+      afterClose={onClose}
       title={party ? "Edit Party" : "New Party"}
       okText="Save"
       onOk={() => form.submit()}
-      onCancel={onClose}
+      onCancel={() => setClosing(true)}
       confirmLoading={save.isPending}
       cancelButtonProps={{ disabled: save.isPending }}
       closable={!save.isPending}

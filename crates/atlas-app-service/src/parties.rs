@@ -71,14 +71,9 @@ impl AtlasAppService {
             let party = state
                 .parties()
                 .get_at_revision(&request.party_key, request.expected_revision)?;
-            let mut selected = std::collections::HashSet::new();
-            if request.member_keys.is_empty()
-                || request.member_keys.iter().any(|key| {
-                    !selected.insert(key) || !party.members.iter().any(|m| &m.member_key == key)
-                })
-            {
+            if party.members.is_empty() {
                 return Err(AppServiceError::invalid_request(
-                    "Select at least one PC from this party, without duplicate members.",
+                    "Add a PC to this party before adding it to an encounter.",
                 ));
             }
             let encounter = state.encounters().get(encounter_ref)?.ok_or_else(|| {
@@ -87,7 +82,6 @@ impl AtlasAppService {
             let participants = party
                 .members
                 .into_iter()
-                .filter(|member| selected.contains(&member.member_key))
                 .map(|member| AddEncounterParticipant {
                     spell_resources: vec![],
                     participant_variant: ParticipantVariant::Normal,

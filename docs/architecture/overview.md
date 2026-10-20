@@ -172,8 +172,8 @@ separate from condition cards.
 Do not implement a Foundry world/rule/macro execution engine through presentation.
 
 Saved parties are ordered, name-only reusable PC definitions owned by local-state.
-App-service copies selected members into independent manual encounter participants
-in one workspace write, checking the reviewed party revision and exact member keys.
+App-service copies every member into independent manual encounter participants
+in one workspace write, checking the reviewed party revision.
 Party edits and deletion do not affect existing encounters. Party/member identities
 are independent of names; no live HP, conditions, initiative or reference records
 are stored on parties. Web exposes party management through shared app contracts.

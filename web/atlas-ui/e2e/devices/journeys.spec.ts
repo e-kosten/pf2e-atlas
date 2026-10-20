@@ -543,3 +543,128 @@ async function expectParticipantWidth(page: Page) {
   expect(reader.x).toBeGreaterThanOrEqual(0);
   expect(reader.x + reader.width).toBeLessThanOrEqual(viewport.width + 1);
 }
+
+test("named parties add everyone directly and archive views stay separate", async ({
+  page,
+}, info) => {
+  const name = `Device party ${info.project.name} ${Date.now()}`;
+  const created = await page.request.post("/api/encounters", { data: { name } });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  let partyKey: string | undefined;
+  try {
+    await page.goto("/encounters");
+    await activate(page.getByRole("button", { name: "Parties", exact: true }), info);
+    await activate(page.getByRole("button", { name: "New Party", exact: true }), info);
+    let editor = page.getByRole("dialog", { name: "New Party", exact: true });
+    await activate(editor.getByRole("button", { name: "Cancel", exact: true }), info);
+    await expect(
+      page.getByRole("button", { name: "New Party", exact: true }),
+    ).toBeFocused();
+    await activate(page.getByRole("button", { name: "New Party", exact: true }), info);
+    editor = page.getByRole("dialog", { name: "New Party", exact: true });
+    await editor.getByLabel("Party name", { exact: true }).fill(name);
+    for (const [index, pc] of ["Aster", "Bram", "Cora", "Dain"].entries()) {
+      await activate(editor.getByRole("button", { name: "Add PC", exact: true }), info);
+      await editor.getByLabel(`PC ${index + 1}`, { exact: true }).fill(pc);
+    }
+    await noPageOverflow(page);
+    await activate(editor.getByRole("button", { name: "Save", exact: true }), info);
+    await expect(
+      page
+        .getByRole("dialog", { name: "Parties", exact: true })
+        .getByRole("button", { name, exact: true }),
+    ).toBeVisible();
+    const parties = await (await page.request.get("/api/parties")).json();
+    partyKey = parties.parties.find(
+      (party: { name: string }) => party.name === name,
+    ).party_key;
+    const manager = page.getByRole("dialog", { name: "Parties", exact: true });
+    if (!info.project.use.hasTouch) {
+      const initialSize = page.viewportSize()!;
+      await page.setViewportSize({ width: 320, height: 720 });
+      const deletion = manager.getByRole("button", {
+        name: `Delete ${name}`,
+        exact: true,
+      });
+      const bounds = await deletion.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320);
+      await page.setViewportSize(initialSize);
+    }
+    await activate(page.getByRole("button", { name: "Done", exact: true }), info);
+    await expect(
+      page.getByRole("button", { name: "Parties", exact: true }),
+    ).toBeFocused();
+    await page.goto(`/encounters/${encounter.slug}`);
+    const add = page.getByRole("button", { name: "Add Party", exact: true });
+    if (!info.project.use.hasTouch) {
+      await add.focus();
+      await page.keyboard.press("Enter");
+      await expect(
+        page.getByRole("menu", { name: "Parties", exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(
+        page.getByRole("menu", { name: "Parties", exact: true }),
+      ).toBeHidden();
+      await expect(add).toBeFocused();
+    }
+    await activate(add, info);
+    const item = page.getByRole("menuitem", { name: new RegExp(`${name}.*Aster`) });
+    await expect(item).toBeEnabled();
+    await activate(item, info);
+    await expect(
+      page.getByRole("dialog", { name: "Add Party", exact: true }),
+    ).toHaveCount(0);
+    await expect(page.locator("[data-participant-key]")).toHaveCount(4);
+    const detail = await (await page.request.get(path)).json();
+    expect(
+      detail.participants.map((p: { display_name: string }) => p.display_name),
+    ).toEqual(["Aster", "Bram", "Cora", "Dain"]);
+    expect(
+      detail.participants.every(
+        (p: { max_hp?: number; current_hp?: number; initiative?: number }) =>
+          p.max_hp == null && p.current_hp == null && p.initiative == null,
+      ),
+    ).toBe(true);
+    await noPageOverflow(page);
+    await activate(
+      page.getByRole("button", { name: "Remove Dain", exact: true }),
+      info,
+    );
+    const removal = page.getByRole("dialog", { name: "Remove Dain?", exact: true });
+    await activate(removal.getByRole("button", { name: "Remove", exact: true }), info);
+    await expect(page.locator("[data-participant-key]")).toHaveCount(3);
+    await page.reload();
+    await expect(page.locator("[data-participant-key]")).toHaveCount(3);
+    expect(
+      (
+        await page.request.patch(path, {
+          data: {
+            encounter_key: encounter.encounter_key,
+            slug: encounter.slug,
+            name,
+            status: "archived",
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto("/encounters");
+    await expect(
+      page.getByRole("tab", { name: "Active", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("link", { name, exact: true })).toHaveCount(0);
+    await activate(page.getByRole("tab", { name: "Archived", exact: true }), info);
+    await expect(page.getByRole("link", { name, exact: true })).toBeVisible();
+    await noPageOverflow(page);
+  } finally {
+    await page.request.delete(path);
+    if (partyKey)
+      await page.request.delete(`/api/parties/${partyKey}`, {
+        data: { expected_revision: 0 },
+      });
+  }
+});

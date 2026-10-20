@@ -59,10 +59,6 @@ fn party_addition_is_source_free_ordered_and_independent_of_later_edits_and_dele
             AddEncounterPartyRequest {
                 party_key: party.party_key.clone(),
                 expected_revision: party.revision,
-                member_keys: vec![
-                    party.members[2].member_key.clone(),
-                    party.members[0].member_key.clone(),
-                ],
             },
         )
         .unwrap();
@@ -96,7 +92,7 @@ fn party_addition_is_source_free_ordered_and_independent_of_later_edits_and_dele
             .iter()
             .map(|p| p.display_name.as_str())
             .collect::<Vec<_>>(),
-        ["First PC", "Second PC"]
+        ["First PC", "Second PC", "Second PC"]
     );
     for pc in detail.participants {
         assert_eq!(pc.participant_kind, EncounterParticipantKindView::Pc);
@@ -108,27 +104,10 @@ fn party_addition_is_source_free_ordered_and_independent_of_later_edits_and_dele
     }
 }
 #[test]
-fn stale_invalid_and_deleted_party_selections_add_nothing() {
+fn stale_empty_and_deleted_parties_add_nothing() {
     let (_directory, service) = service();
     let party = create(&service, "Campaign");
     let key = encounter(&service);
-    for selected in [
-        vec![],
-        vec!["unknown".into()],
-        vec![party.members[0].member_key.clone(); 2],
-    ] {
-        let error = service
-            .add_encounter_party(
-                &key,
-                AddEncounterPartyRequest {
-                    party_key: party.party_key.clone(),
-                    expected_revision: party.revision,
-                    member_keys: selected,
-                },
-            )
-            .unwrap_err();
-        assert_eq!(error.into_app_error().code, AppErrorCode::InvalidRequest);
-    }
     let updated = service
         .update_party(
             &party.party_key,
@@ -139,10 +118,23 @@ fn stale_invalid_and_deleted_party_selections_add_nothing() {
             },
         )
         .unwrap();
+    assert_eq!(
+        service
+            .add_encounter_party(
+                &key,
+                AddEncounterPartyRequest {
+                    party_key: updated.party_key.clone(),
+                    expected_revision: updated.revision
+                }
+            )
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::InvalidRequest
+    );
     let request = AddEncounterPartyRequest {
         party_key: party.party_key.clone(),
         expected_revision: party.revision,
-        member_keys: vec![party.members[0].member_key.clone()],
     };
     assert_eq!(
         service
