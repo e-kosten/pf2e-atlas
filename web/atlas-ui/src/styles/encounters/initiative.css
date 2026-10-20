@@ -59,6 +59,13 @@
 }
 .initiative-roster-input {
   width: 36px;
+  text-align: center;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.initiative-roster-input:focus {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 1px;
 }
 .initiative-total-editor {
   display: inline-flex;

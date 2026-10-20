@@ -9,7 +9,7 @@ import {
 } from "@testing-library/react";
 import { App, ConfigProvider } from "antd";
 import type { ReactNode } from "react";
-import { AddPartyMenu } from "./AddPartyMenu";
+import { EncounterAddMenu } from "../encounters/EncounterAddMenu";
 import { PartyManager } from "./PartyManager";
 const api = vi.hoisted(() => ({
   getParties: vi.fn(),
@@ -49,9 +49,17 @@ beforeEach(() => {
 afterEach(cleanup);
 it("adds the whole chosen party in one click without a modal or subset fields", async () => {
   const onAdd = vi.fn().mockResolvedValue(undefined);
-  render(<AddPartyMenu disabled={false} onAdd={onAdd} />, { wrapper });
+  render(
+    <EncounterAddMenu
+      onAddCreature={vi.fn()}
+      onAddPc={vi.fn()}
+      disabled={false}
+      onAdd={onAdd}
+    />,
+    { wrapper },
+  );
   expect(api.getParties).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: /Add Party/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
   const item = await screen.findByRole("menuitem", { name: /Campaign.*Aster, Bram/ });
   await waitFor(() => expect(item).not.toHaveAttribute("aria-disabled", "true"));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -72,23 +80,39 @@ it("prevents duplicate additions while the write and refresh remain pending", as
         finish = resolve;
       }),
   );
-  render(<AddPartyMenu disabled={false} onAdd={onAdd} />, { wrapper });
-  fireEvent.click(screen.getByRole("button", { name: /Add Party/ }));
+  render(
+    <EncounterAddMenu
+      onAddCreature={vi.fn()}
+      onAddPc={vi.fn()}
+      disabled={false}
+      onAdd={onAdd}
+    />,
+    { wrapper },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
   const item = await screen.findByRole("menuitem", { name: /Campaign.*Aster, Bram/ });
   await waitFor(() => expect(item).not.toHaveAttribute("aria-disabled", "true"));
   fireEvent.click(item);
   fireEvent.click(item);
   expect(onAdd).toHaveBeenCalledTimes(1);
-  expect(screen.getByRole("button", { name: /Add Party/ })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Add participants" })).toBeDisabled();
   finish();
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: /Add Party/ })).toBeEnabled(),
+    expect(screen.getByRole("button", { name: "Add participants" })).toBeEnabled(),
   );
 });
 it("offers a local read retry when parties cannot load", async () => {
   api.getParties.mockRejectedValueOnce(new Error("Offline"));
-  render(<AddPartyMenu disabled={false} onAdd={vi.fn()} />, { wrapper });
-  fireEvent.click(screen.getByRole("button", { name: /Add Party/ }));
+  render(
+    <EncounterAddMenu
+      onAddCreature={vi.fn()}
+      onAddPc={vi.fn()}
+      disabled={false}
+      onAdd={vi.fn()}
+    />,
+    { wrapper },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
   fireEvent.click(
     await screen.findByRole("menuitem", { name: "Parties could not load. Retry" }),
   );
@@ -96,8 +120,16 @@ it("offers a local read retry when parties cannot load", async () => {
 });
 it("opens party creation directly from an empty menu", async () => {
   api.getParties.mockResolvedValue({ parties: [] });
-  render(<AddPartyMenu disabled={false} onAdd={vi.fn()} />, { wrapper });
-  fireEvent.click(screen.getByRole("button", { name: /Add Party/ }));
+  render(
+    <EncounterAddMenu
+      onAddCreature={vi.fn()}
+      onAddPc={vi.fn()}
+      disabled={false}
+      onAdd={vi.fn()}
+    />,
+    { wrapper },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
   fireEvent.click(await screen.findByRole("menuitem", { name: "Create Party…" }));
   expect(await screen.findByRole("dialog", { name: "New Party" })).toBeInTheDocument();
 });

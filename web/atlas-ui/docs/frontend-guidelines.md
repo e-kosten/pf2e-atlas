@@ -676,8 +676,14 @@ for a negative result. Enter in participant HP change submits Heal intent once
 review. Unknown current HP disables amount operations
 and remains unknown until explicitly set. Display-only HP meter ratios stay local.
 
+The roster separates current-turn progression from participant management. Keep
+the current participant and primary Start/Next turn control together above a
+single Add menu and secondary Roll initiative action. The Add menu offers
+creatures/hazards, individual PCs and whole saved parties.
 The roster presents initiative, participant and HP in compact labelled columns,
-with distinct selected, current-turn and defeated states. Accessible movement
+with distinct selected, current-turn and defeated states. PC initiative uses a
+borderless, centered inline field with a visible focus outline; creature totals
+use the same numeric alignment and retain their roll/set popover. Accessible movement
 actions disclose the target initiative. Phone layouts drill into a selected
 participant and restore roster focus/scroll on Back. Advancing the turn follows
 the canonical server-selected participant in the reader. Turn progression skips participants without initiative scores, as well as defeated,
@@ -758,9 +764,10 @@ reorder is saved and refreshed. Keep reorder writes serialized and refresh feedb
 outside the row layout. Saved-list handles disappear under active filters; moving
 members writes their persisted positions, including unavailable records, without
 changing their snapshots or notes. Drag previews retain the complete member layout.
-Current turn uses the strong filled row treatment; preview selection uses a
-separate outline. Play and confirmed
-delete remain direct row actions. Fade defeated and disabled-hazard names and facts without dimming
+Current turn uses the strong filled row treatment with `aria-current` and
+an accessible label; preview selection uses a separate outline. Each row's
+actions menu offers Set turn and confirmed removal. Cancelling a secondary dialog
+returns focus to its visible menu trigger. Fade defeated and disabled-hazard names and facts without dimming
 controls. Hazard Active/Disabled controls live beside the same participant HP/status
 controls; no HP display is required to disable or reactivate a hazard. Encounter-owned section spacing belongs under encounter styles; shared
 record CSS must not override HP borders, padding or encounter control spacing.
