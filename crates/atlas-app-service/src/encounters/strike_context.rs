@@ -51,31 +51,13 @@ fn prepare(
         .map(|issue| super::action_projection::issue_view(issue, participant))
         .collect::<Vec<_>>();
     issues.extend(super::action_projection::inactive_issue(participant));
-    let disruption = evaluated.disruption.map(|check| EncounterActionCheckView {
-        dc: check.dc,
-        sources: check
-            .source_ids
-            .into_iter()
-            .map(|id| EncounterActionCheckSourceView {
-                condition_id: id,
-                name: participant
-                    .conditions
-                    .iter()
-                    .find(|source| source.condition_id == id)
-                    .map(|source| source.name.clone())
-                    .unwrap_or_default(),
-            })
-            .collect(),
+    let disruption = evaluated.disruption.map(|check| {
+        super::action_projection::check_view(
+            check.dc,
+            check.source_ids,
+            std::slice::from_ref(participant),
+        )
     });
-    let observer_source = super::hydration::resolve_record_ref(
-        workspace.retrieval_mut(),
-        &request.strike.reference.selection.record_key,
-    )?;
-    let sensory_baseline = super::rules::source_baseline(
-        &observer_source.source,
-        workspace.retrieval_mut().source_fingerprint(),
-        None,
-    );
     let (targeting, targeting_check) = match request.target_key.as_deref() {
         Some(key) => {
             let subject = snapshot
@@ -91,6 +73,15 @@ fn prepare(
             let requirements = super::rules::relationships::targeting_requirements(
                 subject,
                 &participant.participant_key,
+            );
+            let observer_source = super::hydration::resolve_record_ref(
+                workspace.retrieval_mut(),
+                &request.strike.reference.selection.record_key,
+            )?;
+            let sensory_baseline = super::rules::source_baseline(
+                &observer_source.source,
+                workspace.retrieval_mut().source_fingerprint(),
+                None,
             );
             let dazzled = super::rules::sensory_context::dazzled_concealment(
                 participant,
@@ -114,22 +105,8 @@ fn prepare(
                         || (cause.rule == super::conditions::ConditionRule::Deafened
                             && activity.traits.iter().any(|name| name == "auditory"))
                 });
-            let check = dc.map(|dc| EncounterActionCheckView {
-                dc,
-                sources: ids
-                    .iter()
-                    .map(|id| EncounterActionCheckSourceView {
-                        condition_id: *id,
-                        name: snapshot
-                            .participants
-                            .iter()
-                            .flat_map(|p| &p.conditions)
-                            .find(|c| c.condition_id == *id)
-                            .map(|c| c.name.clone())
-                            .unwrap_or_default(),
-                    })
-                    .collect(),
-            });
+            let check =
+                dc.map(|dc| super::action_projection::check_view(dc, ids, &snapshot.participants));
             (
                 Some(EncounterTargetingRequirementsView {
                     prevents_effect,

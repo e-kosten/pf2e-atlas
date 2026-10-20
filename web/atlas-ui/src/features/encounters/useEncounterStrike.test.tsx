@@ -2,10 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEncounterStrike } from "./useEncounterStrike";
-import type {
-  EncounterParticipantView,
-  RollEncounterStrikeRequest,
-} from "../../generated/atlas";
+import type { EncounterParticipantView } from "../../generated/atlas";
 import type { useEncounterMutations } from "./useEncounterMutations";
 const api = vi.hoisted(() => ({
   previewEncounterStrikeContext: vi.fn(),
@@ -24,17 +21,6 @@ const reference = {
     passage: null,
     source_fingerprint: null,
   },
-};
-const original: RollEncounterStrikeRequest = {
-  request_id: "original",
-  participant_key: "actor",
-  reference,
-  expected_revision: 4n,
-  expected_participant_revision: 2n,
-  attack_number: 2,
-  mode: "normal",
-  modifier_override: null,
-  roll_kind: "attack",
 };
 const participants = [
   { participant_key: "actor", display_name: "Attacker" },
@@ -57,7 +43,7 @@ function Harness() {
           strike.launch({
             strike: { participant_key: "actor", reference },
             attackNumber: 2,
-            existingRoll: original,
+            rollId: "original",
           })
         }
       >

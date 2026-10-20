@@ -919,7 +919,7 @@ describe("encounter views", () => {
     await waitFor(() => expect(dialog).not.toBeVisible());
   });
 
-  it("preserves maximum override and adjustment intent through secondary controls", async () => {
+  it("preserves maximum override and reset intent through HP controls", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
@@ -954,6 +954,12 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Edit HP" })).not.toBeInTheDocument(),
     );
+  });
+
+  it("preserves adjustment intent through participant settings", async () => {
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
     fireEvent.click(
       await screen.findByRole("button", { name: "Participant settings" }),
     );

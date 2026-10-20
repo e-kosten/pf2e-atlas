@@ -273,7 +273,7 @@ function StrikeRollPopover({
                       onBeginStrike?.({
                         strike: { participant_key: participantKey, reference },
                         attackNumber: attackNumber!,
-                        existingRoll: original,
+                        rollId: original.request_id,
                         rolledModifier: roll.result?.attack_modifier,
                       });
                   }}

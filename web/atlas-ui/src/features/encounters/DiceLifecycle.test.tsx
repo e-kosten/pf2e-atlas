@@ -348,7 +348,7 @@ it("attack rolls immediately with selected MAP, preserves retry intent, and cont
   expect(calls[1][1]).toEqual(calls[0][1]);
   fireEvent.click(screen.getByRole("button", { name: "Target & checks" }));
   expect(beginContext).toHaveBeenCalledWith(
-    expect.objectContaining({ existingRoll: calls[1][1] }),
+    expect.objectContaining({ rollId: calls[1][1].request_id }),
   );
   expect(screen.getByText("Target questions")).toBeInTheDocument();
   expect(rollEncounterStrike).toHaveBeenCalledTimes(2);

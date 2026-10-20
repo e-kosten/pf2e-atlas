@@ -99,13 +99,6 @@ fn reminders(
             | "one_to_three" | "two_or_three" | "two_rounds" => Some(false),
             _ => None,
         });
-    if let Some(value) = reaction {
-        facts.push(ActionJudgment {
-            source_id: None,
-            fact: ActionFact::Reaction,
-            value,
-        });
-    }
 
     let evaluated = evaluate_action(
         participant,
@@ -122,21 +115,12 @@ fn reminders(
         .into_iter()
         .map(|issue| super::action_projection::issue_view(issue, participant))
         .collect::<Vec<_>>();
-    let check = evaluated.disruption.map(|check| EncounterActionCheckView {
-        dc: check.dc,
-        sources: check
-            .source_ids
-            .into_iter()
-            .map(|id| EncounterActionCheckSourceView {
-                condition_id: id,
-                name: participant
-                    .conditions
-                    .iter()
-                    .find(|source| source.condition_id == id)
-                    .map(|source| source.name.clone())
-                    .unwrap_or_default(),
-            })
-            .collect(),
+    let check = evaluated.disruption.map(|check| {
+        super::action_projection::check_view(
+            check.dc,
+            check.source_ids,
+            std::slice::from_ref(participant),
+        )
     });
     Ok(EncounterCastingRemindersView {
         advisories: casting_advisories(

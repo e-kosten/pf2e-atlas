@@ -49,7 +49,11 @@ and records a direct guarded use through the existing resource mutation owner.
 Recording use asserts expenditure, not targeting success, completed checks or
 permission to act. Reference flat checks are dice for the GM, not a saved action
 state machine. Retch has a focused preview for the judgments its lifecycle action
-actually needs. There is no general action-query API, durable attempt history,
+actually needs. Its fixed action traits are not editable judgments; independent
+source-specific answers are evaluated once and shared by preview and commit.
+The action evaluator covers the live Strike, Cast and Retch workflows. Actions
+the product cannot initiate do not have query branches.
+There is no general action-query API, durable attempt history,
 frozen action context or alternative cost-commit path.
 
 HP events distinguish resolved damage, resolved healing, direct loss and exact
