@@ -4,9 +4,9 @@ use atlas_app_model::{
     ApplyEncounterHpActionRequest, ApplyEncounterSpellActionRequest, CreateEncounterRequest,
     CreateSavedListRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
     FilterSavedListRequest, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
-    SearchResultsRequest, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListItemNoteRequest,
-    UpdateSavedListRequest,
+    ReorderSavedListItemRequest, SearchResultsRequest, SetEncounterTurnRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterRequest, UpdateSavedListItemNoteRequest, UpdateSavedListRequest,
 };
 use atlas_app_model::{DiscoverFilterCountsRequest, RecordDetailRequest};
 use atlas_domain::QueryPredicate;
@@ -134,6 +134,19 @@ pub(crate) async fn remove_saved_list_item(
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || service.remove_saved_list_item(request)).await?,
+    ))
+}
+
+pub(crate) async fn reorder_saved_list_item(
+    State(state): State<AtlasWebState>,
+    Path(list_ref): Path<String>,
+    payload: Result<Json<ReorderSavedListItemRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
+    request.list_ref = list_ref;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.reorder_saved_list_item(request)).await?,
     ))
 }
 

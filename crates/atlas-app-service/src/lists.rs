@@ -5,18 +5,18 @@ use atlas_app_model::{
     BatchSavedListItemMutationView, BatchSavedListItemOutcomeView, BatchSavedListItemResultView,
     CreateSavedListRequest, DeleteSavedListView, FilterSavedListRequest, ImportSavedListRequest,
     ImportSavedListView, RecordResolutionAmbiguousView, RecordResolutionCandidateView,
-    RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView,
-    SavedListExportDocumentView, SavedListExportItemView, SavedListExportListView,
-    SavedListIndexView, SavedListItemMutationOutcomeView, SavedListItemMutationView,
-    SavedListItemNoteView, SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView,
-    SavedListSummaryView, SavedListUpdateView, UpdateSavedListItemNoteRequest,
-    UpdateSavedListRequest,
+    RemoveSavedListItemRequest, ReorderSavedListItemPlacementView, ReorderSavedListItemRequest,
+    SavedListCreateView, SavedListDetailView, SavedListExportDocumentView, SavedListExportItemView,
+    SavedListExportListView, SavedListIndexView, SavedListItemMutationOutcomeView,
+    SavedListItemMutationView, SavedListItemNoteView, SavedListItemSnapshotView,
+    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
+    UpdateSavedListItemNoteRequest, UpdateSavedListRequest,
 };
 use atlas_domain::RecordKey;
 use atlas_local_state::{
     AddSavedListItemOutcome, HydratedSavedListItem, ImportSavedList, ImportSavedListItem,
-    NewSavedList, ResolvedSavedListItem, SavedList, SavedListItem, SavedListItemStatus,
-    UpdateSavedList, hydrate_saved_list_item,
+    NewSavedList, ReorderSavedListItem, ResolvedSavedListItem, SavedList, SavedListItem,
+    SavedListItemPlacement, SavedListItemStatus, UpdateSavedList, hydrate_saved_list_item,
 };
 use atlas_search::{
     GetRecordsRequest, ListRecordsRequest, RecordRefResolutionResult, RecordScope,
@@ -406,6 +406,42 @@ impl AtlasAppService {
                 } else {
                     SavedListItemMutationOutcomeView::NotPresent
                 },
+            })
+        })
+    }
+
+    pub fn reorder_saved_list_item(
+        &self,
+        request: ReorderSavedListItemRequest,
+    ) -> AppServiceResult<SavedListItemMutationView> {
+        self.with_write(move |session| {
+            let lists = session.local_state().saved_lists();
+            let list = lists
+                .get(&request.list_ref)?
+                .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
+            let placement = match request.placement {
+                ReorderSavedListItemPlacementView::Before => SavedListItemPlacement::Before,
+                ReorderSavedListItemPlacementView::After => SavedListItemPlacement::After,
+            };
+            let moved = lists.reorder_item(
+                &list.list_key,
+                ReorderSavedListItem {
+                    record_key: request.record_ref.clone(),
+                    target_record_key: request.target_record_ref,
+                    placement,
+                },
+            )?;
+            if !moved {
+                return Err(AppServiceError::invalid_request(
+                    "saved-list item or reorder target was not found",
+                ));
+            }
+            Ok(SavedListItemMutationView {
+                list_key: list.list_key,
+                slug: list.slug,
+                record_key: request.record_ref,
+                record_name: None,
+                outcome: SavedListItemMutationOutcomeView::Reordered,
             })
         })
     }

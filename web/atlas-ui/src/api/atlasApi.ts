@@ -29,6 +29,7 @@ import type {
   EmbeddedReadingBatchView,
   RemoveSavedListItemRequest,
   ReorderEncounterParticipantRequest,
+  ReorderSavedListItemRequest,
   SavedListCreateView,
   SearchResultsPage,
   SavedListDetailView,
@@ -408,6 +409,15 @@ export async function removeSavedListItem(
     method: "DELETE",
     body: jsonBody(request),
   });
+}
+
+export async function reorderSavedListItem(
+  request: ReorderSavedListItemRequest,
+): Promise<SavedListItemMutationView> {
+  return atlasFetch(
+    `/api/lists/${encodeURIComponent(request.list_ref)}/items/reorder`,
+    { method: "POST", body: jsonBody(request) },
+  );
 }
 
 async function atlasFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
