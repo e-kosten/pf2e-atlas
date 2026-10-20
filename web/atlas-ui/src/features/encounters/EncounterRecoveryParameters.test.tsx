@@ -65,6 +65,18 @@ function setup(
   };
   const onUpdate = vi.fn().mockRejectedValue(new Error("Connection lost"));
   const onPreview = vi.fn().mockResolvedValue({ consequences: [] });
+  const applyWhenPreviewed = async (expectedParameters: typeof parameters) => {
+    await waitFor(() =>
+      expect(onPreview).toHaveBeenLastCalledWith(
+        "actor",
+        expect.objectContaining({ parameters: expectedParameters }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  };
   render(
     <EncounterConditionControls
       encounterRef="encounter"
@@ -83,10 +95,10 @@ function setup(
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Edit Source effect" }));
-  return { onUpdate, onPreview };
+  return { onUpdate, applyWhenPreviewed };
 }
 it("edits typed recovery behavior and floor while preserving the source condition value", async () => {
-  const { onUpdate, onPreview } = setup(
+  const { onUpdate, applyWhenPreviewed } = setup(
     { kind: "frightened", recovery: { kind: "held" } },
     "frightened",
   );
@@ -102,18 +114,10 @@ it("edits typed recovery behavior and floor while preserving the source conditio
     await screen.findByRole("spinbutton", { name: "Frightened minimum" }),
     { target: { value: "2" } },
   );
-  await waitFor(() =>
-    expect(onPreview).toHaveBeenLastCalledWith(
-      "actor",
-      expect.objectContaining({
-        parameters: { kind: "frightened", recovery: { kind: "end_turn", minimum: 2n } },
-      }),
-    ),
-  );
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await applyWhenPreviewed({
+    kind: "frightened",
+    recovery: { kind: "end_turn", minimum: 2n },
+  });
   await waitFor(() =>
     expect(onUpdate).toHaveBeenCalledWith(
       "actor",
@@ -125,13 +129,16 @@ it("edits typed recovery behavior and floor while preserving the source conditio
   );
 });
 it("retains a failed typed broken-threshold draft without deriving it from HP", async () => {
-  const { onUpdate } = setup({ kind: "broken", threshold: 6n }, "broken");
+  const { onUpdate, applyWhenPreviewed } = setup(
+    { kind: "broken", threshold: 6n },
+    "broken",
+  );
   const threshold = await screen.findByRole("spinbutton", { name: "Broken threshold" });
-  fireEvent.change(threshold, { target: { value: "8" } });
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  fireEvent.change(threshold, { target: { value: "8" } });
+  await applyWhenPreviewed({ kind: "broken", threshold: 8n });
   await waitFor(() =>
     expect(onUpdate).toHaveBeenCalledWith(
       "actor",
@@ -155,7 +162,10 @@ it("uses the decrement remove action at one without a zero draft", async () => {
 });
 
 it("keeps waking normal unless the source restricts it", async () => {
-  const { onUpdate } = setup({ kind: "unconscious", waking: "normal" }, "unconscious");
+  const { onUpdate, applyWhenPreviewed } = setup(
+    { kind: "unconscious", waking: "normal" },
+    "unconscious",
+  );
   const restriction = await screen.findByRole("checkbox", {
     name: "Wake automatically",
   });
@@ -167,11 +177,11 @@ it("keeps waking normal unless the source restricts it", async () => {
   );
   fireEvent.click(info);
   expect(restriction).toBeChecked();
-  fireEvent.click(restriction);
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  fireEvent.click(restriction);
+  await applyWhenPreviewed({ kind: "unconscious", waking: "source_controlled" });
   await waitFor(() =>
     expect(onUpdate).toHaveBeenCalledWith(
       "actor",
