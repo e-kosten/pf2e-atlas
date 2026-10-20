@@ -100,6 +100,16 @@ impl SqliteIndexReader {
             read_metrics: std::cell::Cell::new(SourceReadMetrics::default()),
         })
     }
+    /// Bounded canonical product keys for shell completion; never decodes bodies.
+    pub fn complete_record_keys(&self, prefix: &str) -> Result<Vec<String>, IndexError> {
+        let mut statement = self.session.connection().prepare(
+            "SELECT key FROM records WHERE document_kind <> 'Macro' AND key >= ?1 AND key < ?1 || char(1114111) ORDER BY key LIMIT 100",
+        )?;
+        Ok(statement
+            .query_map([prefix], |row| row.get(0))?
+            .collect::<Result<Vec<_>, _>>()?)
+    }
+
     pub fn workspace_session(&self) -> &atlas_storage::ReadSession {
         &self.session
     }

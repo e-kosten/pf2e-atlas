@@ -10,7 +10,11 @@ export function invalidateSavedListQueries(
     predicate: ({ queryKey }) => {
       const [kind, scope] = queryKey;
       if (kind === "saved-lists") return true;
-      if (kind === "saved-list" || kind === "saved-list-filter-discovery")
+      if (
+        kind === "saved-list" ||
+        kind === "saved-list-item-note" ||
+        kind === "saved-list-filter-discovery"
+      )
         return typeof scope === "string" && refs.has(scope);
       return (
         kind === "filter-vocabulary" &&

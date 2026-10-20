@@ -92,7 +92,7 @@ it("allows cancellation and awaits failed member removal in one retryable confir
   trigger.focus();
   fireEvent.click(trigger);
   fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
-  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
   expect(onRemove).not.toHaveBeenCalled();
   expect(trigger).toHaveFocus();
   fireEvent.click(trigger);
@@ -101,9 +101,9 @@ it("allows cancellation and awaits failed member removal in one retryable confir
   expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
   expect(screen.getByText("Retained unavailable record")).toBeVisible();
   await act(async () => reject(new Error("Removal unavailable")));
-  expect(await screen.findByText("Removal unavailable")).toBeVisible();
-  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByText("Removal unavailable")).toBeVisible());
+  expect(screen.getByRole("tooltip")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Remove" }));
-  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
   expect(onRemove).toHaveBeenCalledTimes(2);
 });

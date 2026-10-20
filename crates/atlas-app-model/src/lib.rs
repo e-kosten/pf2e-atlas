@@ -77,8 +77,9 @@ pub use list::{
     ImportSavedListView, RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView,
     SavedListExportDocumentView, SavedListExportItemView, SavedListExportListView,
     SavedListIndexView, SavedListItemMutationOutcomeView, SavedListItemMutationView,
-    SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
-    SavedListUpdateView, UpdateSavedListRequest,
+    SavedListItemNoteView, SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView,
+    SavedListSummaryView, SavedListUpdateView, UpdateSavedListItemNoteRequest,
+    UpdateSavedListRequest,
 };
 pub use prepared_content::{
     ContentControlKindView, ContentControlView, PreparedContentFieldView, PreparedFieldBodyView,
@@ -288,6 +289,8 @@ mod tests {
         SavedListIndexView::export_all_to(path).expect("SavedListIndexView bindings should export");
         SavedListItemMutationView::export_all_to(path)
             .expect("SavedListItemMutationView bindings should export");
+        SavedListItemNoteView::export_all_to(path).expect("list note bindings");
+        UpdateSavedListItemNoteRequest::export_all_to(path).expect("list note request bindings");
         SavedListUpdateView::export_all_to(path)
             .expect("SavedListUpdateView bindings should export");
         UpdateSavedListRequest::export_all_to(path)

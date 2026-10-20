@@ -138,6 +138,19 @@ impl SavedListsWrite<'_> {
         })
     }
 
+    pub fn update_item_note(
+        &self,
+        list_ref: &str,
+        record_key: &str,
+        note: Option<&str>,
+    ) -> LocalStateResult<bool> {
+        crate::atomic_action::run(self.connection, || {
+            storage::validate_list_ref(list_ref)?;
+            storage::validate_record_key(record_key)?;
+            storage::update_item_note(self.connection, list_ref, record_key, note)
+        })
+    }
+
     pub fn remove_item(&self, list_ref: &str, record_key: &str) -> LocalStateResult<bool> {
         crate::atomic_action::run(self.connection, || {
             storage::validate_list_ref(list_ref)?;

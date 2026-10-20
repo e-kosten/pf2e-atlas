@@ -10,10 +10,10 @@ use atlas_app_model::{
     EncounterDetailView, EncounterIndexView, EncounterMutationView, EncounterTurnReviewView,
     FilterEditorView, FilterSavedListRequest, FilterValueListView, RecordDetailView,
     RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, SavedListCreateView,
-    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListUpdateView,
-    SearchResultsPage, SearchResultsRequest, SetEncounterTurnRequest,
+    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemNoteView,
+    SavedListUpdateView, SearchResultsPage, SearchResultsRequest, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
-    UpdateEncounterRequest, UpdateSavedListRequest,
+    UpdateEncounterRequest, UpdateSavedListItemNoteRequest, UpdateSavedListRequest,
 };
 use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
@@ -245,6 +245,16 @@ pub(crate) trait AtlasWebService: Send + Sync {
         participant_key: &str,
         condition_id: i64,
     ) -> Result<EncounterMutationView, AppServiceError>;
+
+    fn saved_list_item_note(
+        &self,
+        list_ref: &str,
+        record_key: &str,
+    ) -> Result<SavedListItemNoteView, AppServiceError>;
+    fn update_saved_list_item_note(
+        &self,
+        request: UpdateSavedListItemNoteRequest,
+    ) -> Result<SavedListItemNoteView, AppServiceError>;
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError>;
 
@@ -549,6 +559,20 @@ impl AtlasWebService for AtlasAppService {
         condition_id: i64,
     ) -> Result<EncounterMutationView, AppServiceError> {
         self.remove_encounter_participant_condition(encounter_ref, participant_key, condition_id)
+    }
+
+    fn saved_list_item_note(
+        &self,
+        list_ref: &str,
+        record_key: &str,
+    ) -> Result<SavedListItemNoteView, AppServiceError> {
+        self.saved_list_item_note(list_ref, record_key)
+    }
+    fn update_saved_list_item_note(
+        &self,
+        request: UpdateSavedListItemNoteRequest,
+    ) -> Result<SavedListItemNoteView, AppServiceError> {
+        self.update_saved_list_item_note(request)
     }
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {

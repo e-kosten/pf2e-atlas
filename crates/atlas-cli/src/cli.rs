@@ -73,6 +73,9 @@ pub(crate) enum Command {
 }
 
 pub(crate) fn main() -> ExitCode {
+    clap_complete::CompleteEnv::with_factory(Cli::command)
+        .var("ATLAS_COMPLETE")
+        .complete();
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(error) => {
@@ -141,6 +144,7 @@ impl Command {
                 ListsCommand::Edit(options) => options.json,
                 ListsCommand::Remove(options) => options.json,
                 ListsCommand::Delete(options) => options.json,
+                ListsCommand::Note(options) => options.json,
             },
             Self::Tags(tags) => match &tags.command {
                 TagsCommand::Validate(options) => options.json,
@@ -196,6 +200,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             ListsCommand::Edit(options) => commands::lists::run_lists_edit(options),
             ListsCommand::Remove(options) => commands::lists::run_lists_remove(options),
             ListsCommand::Delete(options) => commands::lists::run_lists_delete(options),
+            ListsCommand::Note(options) => commands::lists::run_lists_note(options),
         },
         Command::Tags(tags) => match tags.command {
             TagsCommand::Validate(options) => commands::tags::run_tags_validate(options),

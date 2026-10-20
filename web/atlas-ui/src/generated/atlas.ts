@@ -231,3 +231,6 @@ export type { CreatePartyRequest } from "../../../../crates/atlas-app-model/bind
 export type { UpdatePartyRequest } from "../../../../crates/atlas-app-model/bindings/UpdatePartyRequest";
 export type { DeletePartyRequest } from "../../../../crates/atlas-app-model/bindings/DeletePartyRequest";
 export type { AddEncounterPartyRequest } from "../../../../crates/atlas-app-model/bindings/AddEncounterPartyRequest";
+
+export type { SavedListItemNoteView } from "../../../../crates/atlas-app-model/bindings/SavedListItemNoteView";
+export type { UpdateSavedListItemNoteRequest } from "../../../../crates/atlas-app-model/bindings/UpdateSavedListItemNoteRequest";
