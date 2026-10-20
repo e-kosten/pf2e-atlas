@@ -15,7 +15,10 @@ test("narrow preview restores focus after closing during opening, reopening and 
   await expect(page).toHaveURL(/\/encounters\/preview-lifecycle-/);
   const slug = new URL(page.url()).pathname.split("/")[2];
   try {
-    await page.getByRole("button", { name: "Add Creature", exact: true }).click();
+    await page.getByRole("button", { name: "Add participants", exact: true }).click();
+    await page
+      .getByRole("menuitem", { name: "Add creature or hazard…", exact: true })
+      .click();
     const picker = page.getByRole("dialog");
     await picker
       .getByRole("searchbox", { name: "Search records", exact: true })
@@ -60,7 +63,10 @@ test("narrow preview restores focus after closing during opening, reopening and 
 
     // Requested Seize prose links to Grabbed, whose prepared description has a real
     // flat-check control; this exercises a modal nested inside the native Drawer.
-    await page.getByRole("button", { name: "Add Creature", exact: true }).click();
+    await page.getByRole("button", { name: "Add participants", exact: true }).click();
+    await page
+      .getByRole("menuitem", { name: "Add creature or hazard…", exact: true })
+      .click();
     const hazardPicker = page.getByRole("dialog");
     await hazardPicker
       .getByRole("searchbox", { name: "Search records", exact: true })
@@ -256,7 +262,8 @@ test("saved list creation and unknown manual participant HP use actual local-sta
     .fill("Browser Encounter " + suffix);
   await encounterDialog.getByRole("button", { name: "OK", exact: true }).click();
   await expect(page).toHaveURL(/\/encounters\/browser-encounter-/);
-  await page.getByRole("button", { name: "Add PC", exact: true }).click();
+  await page.getByRole("button", { name: "Add participants", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Add PC…", exact: true }).click();
   const pcDialog = page.getByRole("dialog");
   await pcDialog.getByLabel("Name", { exact: true }).fill("Unknown Hero");
   await pcDialog.getByRole("button", { name: "OK", exact: true }).click();
@@ -280,7 +287,10 @@ test("saved list creation and unknown manual participant HP use actual local-sta
     path: "../../scratch/browser-validation/manual-hp.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Add Creature", exact: true }).click();
+  await page.getByRole("button", { name: "Add participants", exact: true }).click();
+  await page
+    .getByRole("menuitem", { name: "Add creature or hazard…", exact: true })
+    .click();
   const creatureDialog = page.getByRole("dialog");
   await creatureDialog
     .getByRole("searchbox", { name: "Search records", exact: true })

@@ -22,6 +22,7 @@ export function InitiativeValueField({
         className={compact ? "initiative-roster-input" : "initiative-roll-total"}
         inputMode="numeric"
         size={compact ? "small" : undefined}
+        variant={compact ? "borderless" : undefined}
         stopPropagation
         disabled={disabled}
         value={value?.toString() ?? ""}
