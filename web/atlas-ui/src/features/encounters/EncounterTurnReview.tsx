@@ -204,7 +204,11 @@ export function EncounterTurnReview({
                       type="text"
                       icon={<DeleteOutlined />}
                       aria-label={`Remove ${reminder.condition_name} from ${reminder.participant_name}`}
-                      onClick={() => void onRemove(reminder, outgoing!.boundary_key)}
+                      onClick={() => {
+                        void onRemove(reminder, outgoing!.boundary_key).catch(() => {
+                          // The mutation owner shows the failure and retains retry state.
+                        });
+                      }}
                     />
                   )}
                 </div>

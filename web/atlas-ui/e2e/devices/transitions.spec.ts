@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { creatureFilter, landedSearch, noPageOverflow, sentinel } from "./reading";
 
 test("an open reference and unfinished query survive crossing the reader breakpoint", async ({

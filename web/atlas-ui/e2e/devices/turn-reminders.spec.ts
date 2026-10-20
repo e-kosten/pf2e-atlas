@@ -1,19 +1,4 @@
-import { expect, test } from "@playwright/test";
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-test.beforeEach(async ({ request }) => {
-  const served = await (await request.get("/")).text();
-  const local = readFileSync(
-    resolve(import.meta.dirname, "../../dist/index.html"),
-    "utf8",
-  );
-  expect(createHash("sha256").update(served).digest("hex")).toBe(
-    createHash("sha256").update(local).digest("hex"),
-  );
-});
-
+import { expect, test } from "./fixtures";
 for (const outcome of ["table", "roll"] as const) {
   test(`Next turn presents one notification and ${outcome} recovery uses the current turn`, async ({
     page,
@@ -381,6 +366,123 @@ test("single source exposes edit and remove without disclosure or phone overflow
             .persistent_damage_groups.length,
       )
       .toBe(0);
+  } finally {
+    await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
+  }
+});
+
+test("expired condition removal reports failure and retries without an uncaught error", async ({
+  page,
+}, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const { encounter } = await (
+    await page.request.post("/api/encounters", {
+      data: { name: `Expiry failure ${Date.now()}` },
+    })
+  ).json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    for (const [display_name, initiative] of [
+      ["Outgoing hero", 20],
+      ["Incoming hero", 10],
+    ] as const) {
+      expect(
+        (
+          await page.request.post(`${path}/participants/manual`, {
+            data: {
+              encounter_ref: encounter.encounter_key,
+              display_name,
+              initiative,
+              max_hp: 30,
+              current_hp: 30,
+            },
+          })
+        ).ok(),
+      ).toBeTruthy();
+    }
+    let detail = await (await page.request.get(path)).json();
+    const actor = detail.participants.find(
+      (p: { display_name: string }) => p.display_name === "Outgoing hero",
+    );
+    await page.request.post(`${path}/turn`, {
+      data: {
+        encounter_ref: encounter.encounter_key,
+        participant_key: actor.participant_key,
+      },
+    });
+    detail = await (await page.request.get(path)).json();
+    const catalog = await (
+      await page.request.get(
+        `${path}/participants/${actor.participant_key}/condition-definitions`,
+      )
+    ).json();
+    const hidden = catalog.conditions.find(
+      (c: { name: string }) => c.name === "Hidden",
+    );
+    expect(
+      (
+        await page.request.post(
+          `${path}/participants/${actor.participant_key}/conditions`,
+          {
+            data: {
+              request_id: crypto.randomUUID(),
+              expected_encounter_revision: detail.revision,
+              participant_key: actor.participant_key,
+              condition_ref: hidden.condition_ref,
+              event_intent: "apply",
+              decisions: { keep_upright: false },
+              scope: { kind: "everyone" },
+              extra_action: { kind: "unspecified" },
+              immunity_override: false,
+              parameters: { kind: "none" },
+              duration: {
+                amount: 1,
+                unit: "rounds",
+                timing: { participant_key: actor.participant_key, event: "end" },
+              },
+            },
+          },
+        )
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    await page.getByRole("button", { name: "Next turn", exact: true }).click();
+    const popup = page.getByRole("dialog", { name: "Turn reminders", exact: true });
+    const remove = popup.getByRole("button", {
+      name: "Remove Hidden from Outgoing hero",
+      exact: true,
+    });
+    await expect(remove).toBeEnabled();
+    let attempts = 0;
+    await page.route("**/conditions/*", async (route) => {
+      if (route.request().method() === "DELETE" && attempts++ === 0) {
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: { code: "service_busy", message: "Injected removal failure" },
+          }),
+        });
+      } else await route.continue();
+    });
+    if (info.project.use.hasTouch) await remove.tap();
+    else await remove.click();
+    await expect(popup.getByText("Turn action failed", { exact: true })).toBeVisible();
+    await expect(remove).toBeEnabled();
+    expect(attempts).toBe(1);
+    expect(errors).toEqual([]);
+    if (info.project.use.hasTouch) await remove.tap();
+    else await remove.click();
+    await expect(remove).toBeHidden();
+    expect(attempts).toBe(2);
+    const after = await (await page.request.get(path)).json();
+    expect(
+      after.participants.find(
+        (p: { participant_key: string }) => p.participant_key === actor.participant_key,
+      ).conditions,
+    ).toEqual([]);
+    expect(errors).toEqual([]);
   } finally {
     await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
   }

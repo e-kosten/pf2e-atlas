@@ -323,3 +323,72 @@ it("clears an expired reminder without inserting a success banner before the ref
   expect(result.current.receipt).toBe("");
   await waitFor(() => expect(result.current.data?.outgoing?.reminders).toEqual([]));
 });
+
+it("retains single and grouped rolls until the next turn begins", async () => {
+  const { result, run } = setup(vi.fn().mockResolvedValue(true));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  const first = {
+    formula: "3",
+    total: 3,
+    expression: { kind: "number" as const, value: 3 },
+  };
+  const second = {
+    formula: "8",
+    total: 8,
+    expression: { kind: "number" as const, value: 8 },
+  };
+  run.mockResolvedValueOnce({
+    active: true,
+    refreshed: true,
+    receipt: { encounter_key: "encounter", roll: first },
+  });
+  run.mockResolvedValueOnce({
+    active: true,
+    refreshed: true,
+    receipt: { encounter_key: "encounter", groups: [{ roll: null }, { roll: second }] },
+  });
+  // Both updates may complete before React renders. Neither may replace the other.
+  await act(async () => {
+    await result.current.execute({
+      kind: "persistent-recovery",
+      request: {
+        participant_key: "actor",
+        expected_encounter_revision: 7n,
+        boundary_key: "outgoing",
+        mode: "end_turn",
+        episode_id: "fire",
+        selected_source_id: 1n,
+        outcome: { kind: "roll" },
+        dc_override: null,
+      },
+    });
+    await result.current.execute({
+      kind: "persistent-damage",
+      request: {
+        participant_key: "actor",
+        expected_encounter_revision: 8n,
+        boundary_key: "outgoing",
+        artifact_generation: null,
+        groups: [
+          { episode_id: "cold", selected_source_id: 2n, damage: { kind: "roll" } },
+        ],
+        context: {
+          keep_current_initiative: null,
+          keep_upright: null,
+          natural_rest_healing: null,
+          attack_or_spell_damage: null,
+          lethality: null,
+          critical: null,
+          enemy_source: null,
+          responsible_participant_key: null,
+          base_death_threshold: null,
+        },
+      },
+    });
+  });
+  expect(result.current.outcomes).toEqual([first, second]);
+  await act(async () => {
+    await result.current.begin();
+  });
+  expect(result.current.outcomes).toEqual([]);
+});

@@ -177,7 +177,7 @@ impl EncountersWrite<'_> {
                 .flatten();
             if outgoing_boundary_key.is_some() && outgoing.is_none() {
                 return Err(LocalStateError::InvalidRollRequest(
-                    "outgoing boundary is unavailable or handled at the table",
+                    "outgoing boundary is no longer current",
                 ));
             }
             for claim in claims {

@@ -190,26 +190,20 @@ impl AtlasAppService {
                 PersistentDamageInput::Roll => None,
             })
             .unwrap_or(i64::MAX);
-        let subject = Some(super::hp_events::hp_subject_context(
+        let subject = super::hp_events::hp_subject_context(
             self,
             encounter_ref,
             participant,
             &HpEventInputView::ResolvedDamage {
                 amount: possible_damage,
             },
-        )?);
-        if subject
-            .as_ref()
-            .is_some_and(|subject| subject.participant.revision != participant.revision)
-        {
+        )?;
+        if subject.participant.revision != participant.revision {
             return Err(AppServiceError::invalid_request(
                 "Participant changed; review the damage",
             ));
         }
-        let context = subject.as_ref().map_or_else(
-            || super::hp_events::hp_context_input(request.context.clone()),
-            |subject| super::hp_events::hp_context_for_subject(request.context.clone(), subject),
-        );
+        let context = super::hp_events::hp_context_for_subject(request.context.clone(), &subject);
         self.with_write(|session| {
             let store = session.local_state().encounters();
             if let Some(receipt) = store.condition_event_receipt(
@@ -222,10 +216,7 @@ impl AtlasAppService {
             if let Some(revision) = reference_revision {
                 session.require_reference_revision(revision)?;
             }
-            if let Some(revision) = subject
-                .as_ref()
-                .and_then(|subject| subject.reference_revision)
-            {
+            if let Some(revision) = subject.reference_revision {
                 session.require_reference_revision(revision)?;
             }
             let current = store

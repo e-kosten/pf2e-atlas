@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { activate, noPageOverflow } from "./reading";
 test("persistent form uses visible workarea, flat DC, accessible damage row and stable focused editing", async ({
   page,
@@ -202,6 +202,33 @@ test("incomplete persistent damage is a reminder without eager errors or automat
     await activate(edit.getByRole("button", { name: "Apply", exact: true }), info);
     await expect(edit).toBeHidden();
     detail = await (await page.request.get(path)).json();
+    expect(detail.participants[0].persistent_damage_groups).toHaveLength(1);
+    expect(detail.participants[0].conditions[0].note).toBe(
+      "Burning until the blessing ends",
+    );
+    const previousEpisode = detail.participants[0].conditions[0].parameters.episode_id;
+    await activate(
+      page.getByRole("button", { name: "Edit Persistent Damage", exact: true }),
+      info,
+    );
+    await edit.getByRole("combobox", { name: "Damage type" }).fill("Cold");
+    await page
+      .locator(".ant-select-dropdown:visible")
+      .getByText("Cold", { exact: true })
+      .click();
+    await expect(
+      edit.getByRole("button", { name: "Apply", exact: true }),
+    ).toBeEnabled();
+    await activate(edit.getByRole("button", { name: "Apply", exact: true }), info);
+    await expect(edit).toBeHidden();
+    detail = await (await page.request.get(path)).json();
+    expect(detail.participants[0].conditions[0].parameters).toMatchObject({
+      formula: "1d6",
+      damage_type: "cold",
+    });
+    expect(detail.participants[0].conditions[0].parameters.episode_id).not.toBe(
+      previousEpisode,
+    );
     expect(detail.participants[0].persistent_damage_groups).toHaveLength(1);
     expect(detail.participants[0].conditions[0].note).toBe(
       "Burning until the blessing ends",

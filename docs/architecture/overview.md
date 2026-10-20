@@ -184,9 +184,10 @@ Participant replacements require the revision the caller read; stale writes
 receive a conflict without changing state. App-service owns pure turn selection
 over the local-state transaction snapshot. Next turn checks revision and request
 identity, decrements explicitly anchored round durations, and retains outgoing reminder
-context with the turn in one transaction. Reminders appear after progression and can
-be dismissed or reopened without changing turn state. Zero duration retains the condition for explicit
-removal, and nonround durations remain table reminders. Existing-encounter mutations return
+context with the turn in one transaction. The browser shows reminders for the latest
+completed boundary after progression; closing them changes neither turn state nor
+gameplay. Zero duration retains the condition for explicit removal, and nonround
+durations remain table reminders. Existing-encounter mutations return
 a canonical identity receipt without postcommit reference hydration; explicit
 reads independently refresh presentation. See
 [ADR0048](./decisions/0048-atomic-mutable-workflows.md).

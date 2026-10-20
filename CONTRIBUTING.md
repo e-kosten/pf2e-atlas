@@ -597,6 +597,11 @@ npm --prefix web/atlas-ui exec -- playwright install chromium webkit
 npm --prefix web/atlas-ui run test:devices
 ```
 
+Concurrent worktrees must use separate device fixture ports, for example
+`ATLAS_DEVICE_PORT=18867 npm --prefix web/atlas-ui run test:devices`. The suite
+checks the served frontend against that checkout's build before every test.
+
+
 The command builds the frontend and launches `atlas-web`'s developer-only
 `browser_fixture` example on 127.0.0.1:8796. The first run compiles Rust using the
 normal checkout-local target; later runs reuse it. Port 8796 must be free: the

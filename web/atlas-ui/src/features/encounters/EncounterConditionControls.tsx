@@ -207,7 +207,8 @@ export function EncounterConditionControls({
                   formula: values.persistentFormula.trim(),
                   damage_type: values.persistentDamageType,
                   episode_id:
-                    selected?.parameters.kind === "persistent_damage"
+                    selected?.parameters.kind === "persistent_damage" &&
+                    selected.parameters.damage_type === values.persistentDamageType
                       ? selected.parameters.episode_id
                       : undefined,
                 }

@@ -69,14 +69,7 @@ export function EncounterPersistentRecovery({
     form.setFieldsValue({ dc: dc == null ? null : Number(dc) });
   };
   const run = async () => {
-    const outcome = "roll" as const;
-    if (
-      disabled ||
-      pending ||
-      (changed && !result) ||
-      !available ||
-      (outcome === "roll" && !rollAvailable)
-    )
+    if (disabled || pending || (changed && !result) || !available || !rollAvailable)
       return;
     try {
       const values = await form.validateFields(["source", "dc"]);
@@ -98,8 +91,8 @@ export function EncounterPersistentRecovery({
           expected_encounter_revision: result ? encounterRevision : revision,
           participant_key: participantKey,
           episode_id: group.episode_id,
-          selected_source_id: selected ? BigInt(selected) : null,
-          outcome: { kind: outcome },
+          selected_source_id: BigInt(selected),
+          outcome: { kind: "roll" },
           dc_override:
             values.dc === undefined ||
             values.dc === null ||

@@ -620,6 +620,11 @@ fn validate_value(
             "condition value must be positive",
         ));
     }
+    if value.is_some_and(|v| v > 9_007_199_254_740_991) {
+        return Err(AppServiceError::invalid_request(
+            "condition value must be a safe integer",
+        ));
+    }
     if rule == Some(ConditionRule::Stunned) && value.is_some() && duration.is_some() {
         return Err(AppServiceError::invalid_request(
             "Stunned uses an action value or a duration",
@@ -1121,6 +1126,43 @@ mod lifecycle_event_tests {
                 },
             )
             .unwrap();
+    }
+    #[test]
+    fn unsafe_condition_values_are_rejected_before_persistence() {
+        let (worker, key, participant) = fixture();
+        let before = worker.encounter(&key).unwrap();
+        let definition =
+            super::super::conditions::modeled_condition_by_rule(ConditionRule::Frightened).unwrap();
+        for value in [9_007_199_254_740_992, i64::MAX] {
+            let result = worker.add_encounter_participant_condition(
+                &key,
+                AddEncounterParticipantConditionRequest {
+                    request_id: format!("unsafe-value-{value}"),
+                    expected_encounter_revision: before.revision,
+                    participant_key: participant.clone(),
+                    condition_ref: Some(definition.condition_ref.into()),
+                    name: None,
+                    value: Some(value),
+                    source_participant_key: None,
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    parameters: Default::default(),
+                    origin: None,
+                    duration: None,
+                    note: None,
+                    event_intent: ConditionEventIntentView::Apply,
+                    decisions: Default::default(),
+                },
+            );
+            assert!(
+                result.is_err(),
+                "unsafe condition value {value} must not enter saved state"
+            );
+            let after = worker.encounter(&key).unwrap();
+            assert_eq!(after.revision, before.revision);
+            assert!(after.participants[0].conditions.is_empty());
+        }
     }
     #[test]
     fn missing_level_defers_drained_loss_and_resolution_retry_never_charges_twice() {

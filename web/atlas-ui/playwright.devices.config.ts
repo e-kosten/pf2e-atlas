@@ -1,7 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 import { resolve } from "node:path";
 
-const baseURL = "http://127.0.0.1:8796";
+const port = Number(process.env.ATLAS_DEVICE_PORT ?? 8796);
+if (!Number.isInteger(port) || port < 1 || port > 65535)
+  throw new Error("ATLAS_DEVICE_PORT must be a port from 1 through 65535.");
+const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   testDir: "./e2e/devices",
@@ -63,8 +66,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command:
-      "cargo run --locked -p atlas-web --example browser_fixture -- 127.0.0.1:8796",
+    command: `cargo run --locked -p atlas-web --example browser_fixture -- 127.0.0.1:${port}`,
     cwd: resolve(import.meta.dirname, "../.."),
     url: `${baseURL}/api/readiness`,
     reuseExistingServer: false,

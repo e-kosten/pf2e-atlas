@@ -15,7 +15,21 @@ impl EncountersRead<'_> {
         recover(self.connection, encounter, request, intent)
     }
     pub fn action_attempts(&self, encounter: &str) -> LocalStateResult<Vec<SavedActionAttempt>> {
-        let mut statement = self.connection.prepare("SELECT a.attempt_key,a.revision,a.status,a.payload_json FROM encounter_action_attempts a JOIN encounters e ON e.id=a.encounter_id WHERE e.encounter_key=?1 ORDER BY a.rowid DESC LIMIT 200")?;
+        // Pending work must remain discoverable even after other participants fill
+        // the recent history window; only terminal history is bounded.
+        let mut statement = self.connection.prepare(
+            "WITH recent AS (
+                SELECT rowid FROM encounter_action_attempts
+                WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1)
+                  AND status <> 'awaiting_check'
+                ORDER BY rowid DESC LIMIT 200
+             )
+             SELECT a.attempt_key,a.revision,a.status,a.payload_json
+             FROM encounter_action_attempts a JOIN encounters e ON e.id=a.encounter_id
+             WHERE e.encounter_key=?1
+               AND (a.status='awaiting_check' OR a.rowid IN (SELECT rowid FROM recent))
+             ORDER BY a.rowid DESC",
+        )?;
         let rows = statement
             .query_map([encounter], |row| {
                 Ok((
@@ -641,6 +655,105 @@ mod tests {
             participant.participant_key,
             prepared,
         )
+    }
+    #[test]
+    fn pending_attempt_remains_discoverable_beyond_recent_history_limit() {
+        let (connection, key, participant, mut prepared) = fixture();
+        let store = EncountersWrite::from_connection(&connection);
+        let snapshot = store.get_with_participants(&key).unwrap().unwrap();
+        let pending = store
+            .begin_action_attempt(
+                &key,
+                "pending",
+                &serde_json::json!({"action":"pending"}),
+                ParticipantRollGuard {
+                    expected_revision: snapshot.encounter.revision,
+                    participant_key: &participant,
+                    expected_participant_revision: snapshot.participants[0].revision,
+                },
+                &prepared,
+                complete,
+            )
+            .unwrap();
+        let other = store
+            .add_participant(
+                &key,
+                AddEncounterParticipant {
+                    record_key: Some(
+                        atlas_domain::RecordKey::parse("actors:aaaaaaaaaaaaaaaa").unwrap(),
+                    ),
+                    participant_kind: ParticipantKind::Creature,
+                    participant_variant: ParticipantVariant::Normal,
+                    hp_origin: ParticipantHpOrigin::Explicit,
+                    variant_origin: ParticipantVariantOrigin::Explicit,
+                    display_name: "Other caster".into(),
+                    record_title_snapshot: None,
+                    record_kind_snapshot: None,
+                    side: ParticipantSide::Enemy,
+                    initiative: None,
+                    max_hp: Some(20),
+                    current_hp: Some(20),
+                    temporary_hp: 0,
+                    note: None,
+                    spell_resources: vec![],
+                },
+            )
+            .unwrap();
+        prepared.context.participant_key = other.participant_key.clone();
+        prepared.context.cost = None;
+        prepared.context.checks.clear();
+        prepared.resources = None;
+        for index in 0..201 {
+            let snapshot = store.get_with_participants(&key).unwrap().unwrap();
+            let actor = snapshot
+                .participants
+                .iter()
+                .find(|p| p.participant_key == other.participant_key)
+                .unwrap();
+            store
+                .begin_action_attempt(
+                    &key,
+                    &format!("ready-{index}"),
+                    &serde_json::json!({"action":"ready","index":index}),
+                    ParticipantRollGuard {
+                        expected_revision: snapshot.encounter.revision,
+                        participant_key: &other.participant_key,
+                        expected_participant_revision: actor.revision,
+                    },
+                    &prepared,
+                    complete,
+                )
+                .unwrap();
+        }
+        let attempts = store.action_attempts(&key).unwrap();
+        assert!(
+            attempts.iter().any(|a| a.attempt_key == pending.attempt_key
+                && a.status == ActionAttemptStatus::AwaitingCheck),
+            "pending checks must not disappear behind completed history"
+        );
+        assert_eq!(
+            attempts
+                .iter()
+                .filter(|a| a.status != ActionAttemptStatus::AwaitingCheck)
+                .count(),
+            200
+        );
+        store
+            .abandon_action_attempt(
+                &key,
+                "abandon",
+                &serde_json::json!({"action":"abandon"}),
+                &pending.attempt_key,
+                0,
+            )
+            .unwrap();
+        let attempts = store.action_attempts(&key).unwrap();
+        assert_eq!(attempts.len(), 200);
+        assert!(
+            attempts
+                .iter()
+                .all(|a| a.status != ActionAttemptStatus::AwaitingCheck)
+        );
     }
     #[test]
     fn successful_check_is_retained_before_later_targeting_check() {
