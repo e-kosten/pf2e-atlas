@@ -89,6 +89,7 @@ pub(crate) fn report_app_error(
         write_json_failure(&error)?;
     } else {
         eprintln!("{}", error.message);
+        print_error_hint(&error);
         if let Some(details) = &error.details {
             eprintln!(
                 "{}",
@@ -133,4 +134,24 @@ pub(crate) fn exit_class(code: atlas_app_model::AppErrorCode) -> u8 {
         | OperationTimeout
         | InternalError => 3,
     }
+}
+
+pub(crate) fn print_error_hint(error: &atlas_app_model::AppError) {
+    use atlas_app_model::AppErrorCode;
+    let hint = match error.code {
+        AppErrorCode::SavedListAlreadyExists => {
+            "Choose another list id, or use `atlas lists add <ID> --record <RECORD>` to add to the existing list."
+        }
+        AppErrorCode::SavedListNotFound => {
+            "Run `atlas lists ls` to see existing list ids, or `atlas lists create <ID> --name <NAME>` to create one. Use the same --index and --path-mode options."
+        }
+        AppErrorCode::RecordResolutionMiss | AppErrorCode::RecordResolutionAmbiguous => {
+            "Run `atlas record resolve <NAME>` and use a returned pack:id key with --record. Use the same --index and --path-mode options."
+        }
+        AppErrorCode::InvalidRecordKey => {
+            "Use a canonical pack:id key returned by `atlas record resolve <NAME>`."
+        }
+        _ => return,
+    };
+    eprintln!("{hint}");
 }

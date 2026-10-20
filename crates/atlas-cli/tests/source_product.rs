@@ -1117,3 +1117,190 @@ fn record_source_errors_keep_the_same_class_in_json_and_terminal_modes() {
         }
     }
 }
+
+#[test]
+fn lists_create_batch_preserves_input_outcomes_and_rejects_existing_slug() {
+    let f = Fixture::new();
+    let out = f.command(
+        &[
+            "lists",
+            "create",
+            "research",
+            "--name",
+            "Research",
+            "--record",
+            "actions:aaaaaaaaaaaaaaaa",
+            "--record",
+            "Treat Wounds",
+            "--record",
+            "No such action",
+            "--json",
+        ],
+        false,
+    );
+    assert_eq!(out.status.code(), Some(1));
+    let result: Value = serde_json::from_slice(&out.stdout).unwrap();
+    let data = &result["data"];
+    assert_eq!(data["added_count"], 1);
+    assert_eq!(data["already_present_count"], 1);
+    assert_eq!(data["failed_count"], 1);
+    assert_eq!(data["items"][2]["input"], "No such action");
+    let before = f.data(&["lists", "show", "research", "--json"]);
+    let duplicate = f.command(
+        &[
+            "lists",
+            "create",
+            "research",
+            "--name",
+            "Replacement",
+            "--record",
+            "actions:aaaaaaaaaaaaaaaa",
+            "--json",
+        ],
+        false,
+    );
+    assert_eq!(duplicate.status.code(), Some(2));
+    assert_eq!(f.data(&["lists", "show", "research", "--json"]), before);
+}
+
+#[test]
+fn lists_create_rolls_back_list_when_item_storage_fails() {
+    let f = Fixture::new();
+    rusqlite::Connection::open(&f.index).unwrap().execute_batch(
+        "CREATE TRIGGER reject_saved_item BEFORE INSERT ON saved_list_items BEGIN SELECT RAISE(ABORT, 'injected item failure'); END;"
+    ).unwrap();
+    let out = f.command(
+        &[
+            "lists",
+            "create",
+            "research",
+            "--name",
+            "Research",
+            "--record",
+            "actions:aaaaaaaaaaaaaaaa",
+            "--json",
+        ],
+        false,
+    );
+    assert_eq!(out.status.code(), Some(3));
+    assert!(
+        f.data(&["lists", "ls", "--json"])["lists"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn list_notes_edit_clear_and_preserve_unavailable_entries_and_exports() {
+    let f = Fixture::new();
+    f.data(&[
+        "lists",
+        "create",
+        "research",
+        "--name",
+        "Research",
+        "--record",
+        "Treat Wounds",
+        "--json",
+    ]);
+    let saved = f.data(&[
+        "lists",
+        "note",
+        "research",
+        "actions:aaaaaaaaaaaaaaaa",
+        "--text",
+        "Useful for recovery",
+        "--json",
+    ]);
+    assert_eq!(saved["note"], "Useful for recovery");
+    let before = f.data(&["lists", "show", "research", "--json"]);
+    fs::remove_file(f.root.join("packs/actions/heal.json")).unwrap();
+    assert!(
+        f.command(&["index", "build", "--no-embeddings", "--json"], true)
+            .status
+            .success()
+    );
+    f.data(&[
+        "lists",
+        "note",
+        "research",
+        "actions:aaaaaaaaaaaaaaaa",
+        "--text",
+        "Still useful context",
+        "--json",
+    ]);
+    let after = f.data(&["lists", "show", "research", "--json"]);
+    assert_eq!(
+        after["items"][0]["position"],
+        before["items"][0]["position"]
+    );
+    assert_eq!(after["items"][0]["status"], "unresolved");
+    assert_eq!(after["items"][0]["note"], "Still useful context");
+    let exported = f.command(&["lists", "export", "research"], false);
+    let document: Value = serde_json::from_slice(&exported.stdout).unwrap();
+    assert_eq!(document["items"][0]["note"], "Still useful context");
+    f.data(&[
+        "lists",
+        "note",
+        "research",
+        "actions:aaaaaaaaaaaaaaaa",
+        "--clear",
+        "--json",
+    ]);
+    assert!(
+        f.data(&["lists", "show", "research", "--json"])["items"][0]
+            .get("note")
+            .is_none()
+    );
+}
+
+#[test]
+fn dynamic_completion_uses_the_explicit_workspace_and_excludes_macros() {
+    let f = Fixture::new();
+    f.data(&[
+        "lists", "create", "research", "--name", "Research", "--json",
+    ]);
+    let complete = |words: &[&str], index: &str| {
+        let out = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .env("ATLAS_COMPLETE", "zsh")
+            .env("_CLAP_COMPLETE_INDEX", index)
+            .args(["--", "atlas"])
+            .args(words)
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8(out.stdout).unwrap()
+    };
+    let path = f.index.to_str().unwrap();
+    assert!(complete(&["lists", "show", "--index", path, "res"], "5").contains("research"));
+    let keys = complete(
+        &[
+            "lists", "add", "research", "--index", path, "--record", "actions:",
+        ],
+        "7",
+    );
+    assert!(keys.contains("aaaaaaaaaaaaaaaa"));
+    assert!(
+        !complete(
+            &[
+                "lists", "add", "research", "--index", path, "--record", "macros:"
+            ],
+            "7"
+        )
+        .contains("bbbbbbbbbbbbbbbb")
+    );
+    let missing = f.root.join("missing.sqlite");
+    assert!(
+        complete(
+            &["lists", "show", "--index", missing.to_str().unwrap(), "res"],
+            "5"
+        )
+        .is_empty()
+    );
+    assert!(!missing.exists());
+}

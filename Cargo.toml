@@ -51,7 +51,7 @@ atlas-tags = { path = "crates/atlas-tags" }
 ammonia = "=4.2.1"
 axum = "0.8.7"
 clap = { version = "4.5.53", features = ["derive"] }
-clap_complete = "4.5.60"
+clap_complete = { version = "4.5.60", features = ["unstable-dynamic"] }
 indicatif = "0.18.3"
 inquire = { version = "0.9.4", default-features = false, features = ["crossterm"] }
 ego-tree = "0.10.0"

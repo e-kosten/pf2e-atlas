@@ -242,6 +242,28 @@ pub(crate) fn remove_item(
     Ok(removed > 0)
 }
 
+pub(crate) fn update_item_note(
+    connection: &Connection,
+    list_ref: &str,
+    record_key: &str,
+    note: Option<&str>,
+) -> LocalStateResult<bool> {
+    let Some(list_id) = list_id(connection, list_ref)? else {
+        return Err(LocalStateError::ListNotFound(list_ref.to_string()));
+    };
+    let changed = connection.execute(
+        "UPDATE saved_list_items SET note = ?3, updated_at = ?4 WHERE list_id = ?1 AND record_key = ?2",
+        params![list_id, record_key, note, now_rfc3339()?],
+    )?;
+    if changed > 0 {
+        connection.execute(
+            "UPDATE saved_lists SET revision = revision + 1, updated_at = ?1 WHERE id = ?2",
+            params![now_rfc3339()?, list_id],
+        )?;
+    }
+    Ok(changed > 0)
+}
+
 pub(crate) fn validate_list_ref(list_ref: &str) -> LocalStateResult<()> {
     if list_ref.trim().is_empty() {
         return Err(LocalStateError::InvalidListRef {
