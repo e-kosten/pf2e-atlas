@@ -82,7 +82,6 @@ pub struct SourceContentSelection<'a> {
 /// Results are specific to this source snapshot and the supplied audience,
 /// localization and reference context. Callers retain those identities when
 /// storing/reusing results; a RecordKey alone cannot identify a prepared cache.
-
 pub fn prepare_record_content(
     record: &SourceBackedRecord,
     audience: ContentAudience,

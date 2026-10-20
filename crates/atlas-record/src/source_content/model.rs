@@ -82,6 +82,9 @@ pub trait ContentReferenceResolver {
     ) -> Option<ResolvedContentReference>;
 }
 
+/// Source-independent lookup for explicit authored reference targets.
+pub type ContentReferenceLookup<'a> = dyn Fn(&str) -> Option<ResolvedContentReference> + 'a;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedContentReference {
     pub target: ContentReferenceTarget,

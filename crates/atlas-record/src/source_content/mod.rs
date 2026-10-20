@@ -24,10 +24,10 @@ pub use marker_validation::{
 pub use model::{
     CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentDiagnosticCode, ContentInteraction,
     ContentInteractionKind, ContentInterpretationDiagnostic, ContentReferenceKind,
-    ContentReferenceLabel, ContentReferenceOccurrence, ContentReferenceResolution,
-    ContentReferenceResolver, ContentReferenceTarget, ContentVisibilityRule, OwnedContentIdentity,
-    OwnedContentLocator, PreparedSourceContent, PreparedTraitDefinition, ResolvedContentReference,
-    SourceContentLocator,
+    ContentReferenceLabel, ContentReferenceLookup, ContentReferenceOccurrence,
+    ContentReferenceResolution, ContentReferenceResolver, ContentReferenceTarget,
+    ContentVisibilityRule, OwnedContentIdentity, OwnedContentLocator, PreparedSourceContent,
+    PreparedTraitDefinition, ResolvedContentReference, SourceContentLocator,
 };
 pub use parse_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
 pub use parser::LocalizationResolver;

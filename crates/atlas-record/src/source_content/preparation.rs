@@ -75,7 +75,7 @@ pub fn prepare_trait_definition(
     markup: &str,
     audience: ContentAudience,
     localization: Option<&dyn LocalizationResolver>,
-    references: Option<&dyn Fn(&str) -> Option<super::ResolvedContentReference>>,
+    references: Option<&super::ContentReferenceLookup<'_>>,
 ) -> Result<super::PreparedTraitDefinition, html2text::Error> {
     let authored_hash = format!(
         "{:x}",
@@ -135,7 +135,7 @@ struct Projection<'a> {
     origin: PreparationOrigin<'a>,
     authored_hash: &'a str,
     audience: ContentAudience,
-    resolver: Option<&'a dyn Fn(&str) -> Option<super::ResolvedContentReference>>,
+    resolver: Option<&'a super::ContentReferenceLookup<'a>>,
     references: Vec<ContentReferenceOccurrence>,
     interactions: Vec<ContentInteraction>,
     diagnostics: Vec<ContentInterpretationDiagnostic>,
