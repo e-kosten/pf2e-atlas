@@ -387,12 +387,18 @@ Use the dependencies appropriate to the source version being inspected. The lock
 
 Output files are `type-graph.json`, `trait-catalog.json` and `summary.json`. Output belongs outside the source input directories. The command prints the summary. `--strict` exits 1 when either extraction is incomplete, after writing the available discovery output and diagnostics. Without it, partial discovery exits 0 with `complete: false`. Invalid arguments, unreadable required inputs and fatal errors exit 1.
 
-Pinned Rust generation also emits `trait_labels.rs`: a key-only map from verified
-trait identifiers to authored localization keys. Repeated equal memberships share
-one entry; conflicting keys or incomplete catalogs fail generation. Runtime ingest
-resolves only labels used by selected source records with the indexing locale and
-English fallback. Unknown valid trait identifiers stay open, with no guessed key.
-Descriptions and the complete discovery catalog remain developer cache evidence.
+Pinned Rust generation emits `trait_definitions.rs`: one trait-namespace catalog
+of exact identifiers, optional authored label/description localization keys,
+catalog memberships and compact source locations. Repeated memberships share one
+identity; conflicting keys or incomplete catalogs fail generation. The generated
+header retains the pinned upstream source/license links, copyright and the
+transformation performed. It includes no localized prose.
+
+Runtime ingest uses this same catalog for used record labels and addressable trait
+definitions, resolving text with the indexing locale and English fallback. Unknown
+valid identifiers stay open, with no guessed key; missing mappings remain absent.
+Resolved text and the complete discovery catalog remain developer cache evidence,
+while prepared selected definitions are published through ordinary reference ingest.
 
 ## Declaration graph
 
