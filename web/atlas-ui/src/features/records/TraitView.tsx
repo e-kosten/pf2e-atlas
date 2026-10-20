@@ -86,7 +86,7 @@ export function TraitView({
             />
           )}
           {query.data ? (
-            <>
+            <article className="record-reference">
               <header className="record-reference__header">
                 <Typography.Title level={1}>
                   {query.data.label}{" "}
@@ -115,7 +115,7 @@ export function TraitView({
                 detail={query.data}
                 onReload={() => void reload()}
               />
-            </>
+            </article>
           ) : query.isLoading ? (
             <div className="detail-empty">
               <Spin delay={500} description="Loading trait…" />
