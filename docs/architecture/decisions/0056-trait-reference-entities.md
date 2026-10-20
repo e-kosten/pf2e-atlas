@@ -24,6 +24,19 @@ It does not infer keys, definitions, aliases or trait hierarchies. Generated
 metadata is source evidence; localized selected content is prepared at ingest.
 Missing labels or definitions and unknown admitted identifiers remain explicit.
 
+The generated trait catalog is the single authority for label-key lookup as well
+as definition metadata. PF2e system pin updates regenerate it with the rest of the
+source models; whole-output freshness checks reject stale files, and incomplete
+or conflicting extraction stops generation. Upstream identifier changes still
+require review rather than inferred aliases. Foundry platform version changes
+alone do not define a new trait vocabulary.
+
+Generated metadata retains the upstream system attribution and Apache 2.0
+license information in source and distribution notices. Localized rules prose
+is loaded at ingest, not compiled into the metadata catalog. Its content licenses
+remain separate from the system code license and from Atlas's own license;
+Foundry's partnership permissions are not assumed to transfer to Atlas.
+
 Foundry-model owns generated source evidence. Domain owns trait identity.
 Record owns pure content interpretation and attribution policies. Ingest resolves
 the selected locale with the established English fallback, prepares selected

@@ -26,7 +26,7 @@ test('exact variants retain shared mappings and sorted catalog memberships witho
   assert.equal(definitions[1].descriptionKey, definitions[2].descriptionKey);
   assert.deepEqual(definitions[2].catalogs, ['npcAttackTraits', 'weaponTraits']);
   assert.deepEqual(definitions[2].sourceLocations, [source]);
-  const rust = generateTraitDefinitionModule(definitions, '// generated');
+  const rust = generateTraitDefinitionModule(definitions, '// generated', { repository: 'https://github.com/foundryvtt/pf2e.git', commit: 'a'.repeat(40) });
   assert.match(rust, /description_key: None/);
   assert.match(rust, /binary_search_by_key/);
   assert(!rust.includes('DO NOT EMIT'));
@@ -40,4 +40,15 @@ test('conflicting label or definition mappings and incomplete catalogs fail befo
   }
   assert.throws(() => traitDefinitions({ ...catalog([]), complete: false }), /incomplete/);
   assert.throws(() => traitDefinitions(catalog([{ ...group('one', []), complete: false }])), /Incomplete/);
+});
+
+
+test('generated trait metadata retains pinned source attribution and transformation notice', () => {
+  const commit = 'b'.repeat(40);
+  const rust = generateTraitDefinitionModule([], '// generated', { repository: 'https://github.com/foundryvtt/pf2e.git', commit });
+  assert(rust.includes(`https://github.com/foundryvtt/pf2e/blob/${commit}/src/scripts/config/traits.ts`));
+  assert(rust.includes(`Apache-2.0 (https://github.com/foundryvtt/pf2e/blob/${commit}/LICENSE)`));
+  assert(rust.includes('Copyright 2019 Hooking'));
+  assert(rust.includes('Generated transformation: exact trait identifiers, localization-key mappings,'));
+  assert(rust.includes('Localized prose is not included.'));
 });

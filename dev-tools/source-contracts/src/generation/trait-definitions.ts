@@ -37,10 +37,18 @@ export function traitDefinitions(catalog: TraitCatalog): TraitDefinition[] {
     sourceLocations: definition.sourceLocations.sort((a, b) => compare(a.file, b.file) || a.line - b.line || a.column - b.column),
   }));
 }
-export function generateTraitDefinitionModule(definitions: TraitDefinition[], header: string): string {
+export function generateTraitDefinitionModule(definitions: TraitDefinition[], header: string,
+  source: { repository: string; commit: string }): string {
   const quote = JSON.stringify;
   const optional = (value: string | null) => value === null ? 'None' : `Some(${quote(value)})`;
+  const repository = source.repository.replace(/\.git$/, '');
   return `${header}
+// Derived from PF2e system configuration:
+// ${repository}/blob/${source.commit}/src/scripts/config/traits.ts
+// Upstream copyright: Copyright 2019 Hooking.
+// Upstream license: Apache-2.0 (${repository}/blob/${source.commit}/LICENSE).
+// Generated transformation: exact trait identifiers, localization-key mappings,
+// catalog memberships and source locations. Localized prose is not included.
 /// Exact authored vocabulary metadata from the pinned Foundry source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FoundryTraitDefinition {
