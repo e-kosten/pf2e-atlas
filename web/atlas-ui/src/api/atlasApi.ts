@@ -1,4 +1,6 @@
 import type {
+  SavedListItemNoteView,
+  UpdateSavedListItemNoteRequest,
   AddEncounterManualParticipantRequest,
   AddEncounterParticipantConditionRequest,
   AddEncounterRecordParticipantRequest,
@@ -756,4 +758,25 @@ export async function rollEncounterStrike(
     method: "POST",
     body: jsonBody(request),
   });
+}
+
+export async function getSavedListItemNote(
+  listRef: string,
+  recordKey: string,
+): Promise<SavedListItemNoteView> {
+  return atlasFetch(
+    `/api/lists/${encodeURIComponent(listRef)}/items/${encodeURIComponent(recordKey)}/note`,
+  );
+}
+
+export async function updateSavedListItemNote(
+  request: UpdateSavedListItemNoteRequest,
+): Promise<SavedListItemNoteView> {
+  return atlasFetch(
+    `/api/lists/${encodeURIComponent(request.list_ref)}/items/${encodeURIComponent(request.record_key)}/note`,
+    {
+      method: "PATCH",
+      body: jsonBody(request),
+    },
+  );
 }
