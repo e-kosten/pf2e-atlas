@@ -53,7 +53,8 @@ atlas web
 Use the address printed by the command to search, preview records, organize lists
 and run encounters. Encounter controls include initiative, HP, conditions, spell
 resources and dice; automation covers supported mechanics rather than every
-Foundry rule.
+Foundry rule. Save named parties of PCs from Encounters, then use Add Party to
+add everyone together. Party members need only a name.
 
 ### Search models and ranking
 
@@ -215,6 +216,41 @@ encounter state.
 
 See [CLI examples](docs/cli-examples.md) for batch reads, embedded selections,
 filter collections, search comparison and saved lists.
+
+### Saved lists
+
+Create a list with resolved record keys, then add entries as needed:
+
+```sh
+atlas lists create fey-options --name "Fey Options" \
+  --record pathfinder-monster-core:lUBkzsSqMfQBczU1 \
+  --record pathfinder-monster-core:Ehtm5k9iBYTvSUcZ
+atlas lists show fey-options
+atlas lists add fey-options --record pathfinder-monster-core:lUBkzsSqMfQBczU1
+atlas lists note fey-options pathfinder-monster-core:lUBkzsSqMfQBczU1 \
+  --text "A potential garden ally"
+```
+
+Creation rejects an existing list id; use `lists add` to extend it. Batches report
+added, already present and failed inputs. Valid entries are saved together; any
+failed input gives a nonzero exit status. If every input fails resolution, the
+new list is empty. A storage failure rolls back the complete action.
+
+Notes belong to an entry in one list and survive reference updates and list
+export/import. Use `lists note <ID> <KEY> --clear` to clear one. In the web app,
+the selected entry's note stays beneath the scrolling preview.
+
+Install shell completion with `atlas completions zsh` (or `bash`, `fish`,
+`powershell`, `elvish`). For example, in zsh:
+
+```sh
+source <(atlas completions zsh)
+```
+
+Supported live completion shells suggest saved-list ids and canonical record keys
+from the selected workspace, including `--index` and `--path-mode` overrides.
+Completion skips workspace upgrades and model loading; an unavailable workspace
+returns no saved-value suggestions. Regenerate completion scripts after upgrading.
 
 ## Agent Skill
 

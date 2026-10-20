@@ -101,3 +101,64 @@ describe("contextual danger confirmations", () => {
     },
   );
 });
+
+it("keeps the removal popover open through pending and failed writes, then permits retry", async () => {
+  let reject!: (error: Error) => void;
+  const confirm = vi
+    .fn()
+    .mockReturnValueOnce(
+      new Promise<void>((_yes, no) => {
+        reject = no;
+      }),
+    )
+    .mockResolvedValue(undefined);
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <App>
+        <DangerActionButton
+          confirmation="popover"
+          confirmTitle="Remove from list?"
+          confirmOkText="Remove"
+          onConfirm={confirm}
+        >
+          Remove entry
+        </DangerActionButton>
+      </App>
+    </ConfigProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Remove entry" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  await waitFor(() => expect(screen.getByText("Remove from list?")).toBeVisible());
+  await act(async () => reject(new Error("Cannot remove")));
+  expect(await screen.findByText("Cannot remove")).toBeVisible();
+  await waitFor(() => expect(screen.getByText("Remove from list?")).toBeVisible());
+  fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+  await waitFor(() =>
+    expect(screen.queryByText("Remove from list?")).not.toBeVisible(),
+  );
+  expect(confirm).toHaveBeenCalledTimes(2);
+});
+
+it("retains synchronous removal failures for explicit retry", async () => {
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <App>
+        <DangerActionButton
+          confirmation="popover"
+          confirmTitle="Remove from list?"
+          confirmOkText="Remove"
+          onConfirm={() => {
+            throw new Error("Synchronous failure");
+          }}
+        >
+          Remove entry
+        </DangerActionButton>
+      </App>
+    </ConfigProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Remove entry" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+  await waitFor(() => expect(screen.getByText("Synchronous failure")).toBeVisible());
+  expect(screen.getByText("Remove from list?")).toBeVisible();
+});

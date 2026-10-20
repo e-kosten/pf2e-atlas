@@ -1,4 +1,6 @@
 import type {
+  SavedListItemNoteView,
+  UpdateSavedListItemNoteRequest,
   AddEncounterManualParticipantRequest,
   AddEncounterParticipantConditionRequest,
   AddEncounterRecordParticipantRequest,
@@ -27,6 +29,7 @@ import type {
   EmbeddedReadingBatchView,
   RemoveSavedListItemRequest,
   ReorderEncounterParticipantRequest,
+  ReorderSavedListItemRequest,
   SavedListCreateView,
   SearchResultsPage,
   SavedListDetailView,
@@ -922,6 +925,15 @@ export async function removeSavedListItem(
   });
 }
 
+export async function reorderSavedListItem(
+  request: ReorderSavedListItemRequest,
+): Promise<SavedListItemMutationView> {
+  return atlasFetch(
+    `/api/lists/${encodeURIComponent(request.list_ref)}/items/reorder`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
+
 async function atlasFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -1366,4 +1378,62 @@ export function rollFlatCheck(
     method: "POST",
     body: jsonBody(request),
   });
+}
+export async function getParties(): Promise<
+  import("../generated/atlas").PartyIndexView
+> {
+  return atlasFetch("/api/parties");
+}
+export async function createParty(
+  request: import("../generated/atlas").CreatePartyRequest,
+): Promise<import("../generated/atlas").PartyView> {
+  return atlasFetch("/api/parties", { method: "POST", body: jsonBody(request) });
+}
+export async function updateParty(
+  key: string,
+  request: import("../generated/atlas").UpdatePartyRequest,
+): Promise<import("../generated/atlas").PartyView> {
+  return atlasFetch(`/api/parties/${encodeURIComponent(key)}`, {
+    method: "PATCH",
+    body: jsonBody(request),
+  });
+}
+export async function deleteParty(
+  key: string,
+  expectedRevision: number,
+): Promise<import("../generated/atlas").PartyMutationView> {
+  return atlasFetch(`/api/parties/${encodeURIComponent(key)}`, {
+    method: "DELETE",
+    body: jsonBody({ expected_revision: expectedRevision }),
+  });
+}
+export async function addEncounterParty(
+  encounterRef: string,
+  request: import("../generated/atlas").AddEncounterPartyRequest,
+): Promise<EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/party`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
+
+export async function getSavedListItemNote(
+  listRef: string,
+  recordKey: string,
+): Promise<SavedListItemNoteView> {
+  return atlasFetch(
+    `/api/lists/${encodeURIComponent(listRef)}/items/${encodeURIComponent(recordKey)}/note`,
+  );
+}
+
+export async function updateSavedListItemNote(
+  request: UpdateSavedListItemNoteRequest,
+): Promise<SavedListItemNoteView> {
+  return atlasFetch(
+    `/api/lists/${encodeURIComponent(request.list_ref)}/items/${encodeURIComponent(request.record_key)}/note`,
+    {
+      method: "PATCH",
+      body: jsonBody(request),
+    },
+  );
 }

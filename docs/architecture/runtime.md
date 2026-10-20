@@ -177,6 +177,18 @@ and transaction. Source-free lists and encounters can operate before reference
 publication. App-service receives typed `WorkspaceRead`, `StateRead` and
 `WorkspaceWrite` capabilities; it does not open databases or coordinate raw SQL.
 
+Saved-list creation with initial entries resolves inputs against one reference
+revision, then creates the list and applies successful inputs in one bounded write.
+Input resolution failures are per-item outcomes; systemic errors roll back the
+whole action. Entry-note reads and writes use saved-state sessions without reference
+hydration, returning the committed note and canonical list/entry identity. Notes
+remain editable when their reference records are unavailable.
+
+Shell completion uses separate app-service read functions over resolved runtime
+paths. It never runs normal service startup migrations or loads inference. Index
+owns the bounded product-key prefix SQL; search forwards the typed read. Completion
+failures produce no saved-value candidates and never fall back to another workspace.
+
 Web retains a bounded worker queue and runtime/inference owners. Idle workers hold
 no reader. Each operation observes one coherent reference revision; later
 operations can see a completed publication without restarting the service.

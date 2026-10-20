@@ -752,8 +752,12 @@ reminder loading cannot masquerade as a progression failure. Empty boundaries do
 open a notification. Position dialogs within the work area using wrapper padding;
 keep Ant's wrapper over the full viewport so all backdrop clicks still dismiss it.
 
-Encounter roster handles use the sortable-list library for whole-row movement,
-touch and keyboard pickup/movement/drop, then submit one guarded reorder command.
+Encounter rosters and saved-list members share `shared/ui/sortable/SortableList`
+for pointer and keyboard pickup/movement/drop and temporary visual order while a
+reorder is saved and refreshed. Keep reorder writes serialized and refresh feedback
+outside the row layout. Saved-list handles disappear under active filters; moving
+members writes their persisted positions, including unavailable records, without
+changing their snapshots or notes. Drag previews retain the complete member layout.
 Current turn uses the strong filled row treatment; preview selection uses a
 separate outline. Play and confirmed
 delete remain direct row actions. Fade defeated and disabled-hazard names and facts without dimming
@@ -790,3 +794,16 @@ Target & checks is present from initial attack loading, disabled until ready, so
 revealing that action never shifts the roller. Recovery uses one inline DC input
 and shows the DC actually resolved with its result. Dying settings contain the
 threshold and an Alive/Dead segmented control, not a general level override.
+
+### Saved-list entry notes
+
+The list feature supplies a footer to the shared browse reader. It stays below the
+scrolling reference content and limits its own height for long notes. Note state is
+keyed by canonical list identity and entry key. Inspecting another record hides the
+footer while retaining its draft; returning to the selection restores it. Save and
+Cancel restore focus to the entry's Edit/Add note control. Note mutations update
+their cache from the committed receipt before invalidating list reads.
+
+Lightweight entry removal uses the shared danger button's controlled popover.
+Pending writes block dismissal; failures retain the confirmation and local error
+for explicit retry. Whole-list deletion retains its modal confirmation.

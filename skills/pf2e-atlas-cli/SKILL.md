@@ -244,11 +244,19 @@ Keep durable collections in saved lists:
 
 ```sh
 atlas lists create undead-research --name 'Undead Research' --json
-atlas lists add undead-research 'Skeleton Guard' --json
+atlas lists add undead-research --record 'Skeleton Guard' --note 'A basic guard option' --json
 atlas lists show undead-research --json
 atlas lists export undead-research --output undead-research.json
 atlas lists import undead-research.json --json
 ```
+
+`lists create` also accepts repeated `--record` inputs to initialize a new list.
+Use already resolved keys when names are ambiguous. Existing ids fail without
+changing the list; use `lists add` for later batches. Batch receipts preserve input
+order and report added/already-present/failed results. Any failed input exits
+nonzero while valid entries are saved; an all-miss create leaves an empty list.
+System errors roll back creation and additions together. `lists note <ID> <KEY>
+--text <TEXT>` edits a note; `--clear` removes it, including for unavailable entries.
 
 Lists share the persistent workspace with reference data. A missing record keeps
 its saved snapshot and explicit unresolved status after a reference update. Use

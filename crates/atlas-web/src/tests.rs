@@ -12,11 +12,12 @@ use atlas_app_model::{
     EncounterStatusView, EncounterSummaryView, EncounterTurnReviewView, FilterEditorView,
     FilterSavedListRequest, FilterValueListView, RecordDetailView, RecordSummaryView,
     RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, SavedListCreateView,
-    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
-    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
-    SearchModeSummary, SearchPageView, SearchResultsPage, SearchResultsRequest,
-    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
+    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemNoteView,
+    SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
+    SavedListUpdateView, SearchModeSummary, SearchPageView, SearchResultsPage,
+    SearchResultsRequest, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListItemNoteRequest,
+    UpdateSavedListRequest,
 };
 use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
@@ -703,6 +704,50 @@ async fn encounter_routes_use_real_router_wiring() {
 }
 
 #[tokio::test]
+async fn saved_list_reorder_route_uses_path_identity_and_strict_placement() {
+    let request = json!({
+        "list_ref": "ignored-body-identity", "record_ref": "actions:testAction1",
+        "target_record_ref": "actions:testAction2", "placement": "after"
+    });
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/lists/list_research/items/reorder",
+        Some(request.clone()),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["list_key"], "list_research");
+    assert_eq!(body["record_key"], "actions:testAction1");
+    assert_eq!(body["outcome"], "reordered");
+    for invalid in [
+        {
+            let mut value = request.clone();
+            value["placement"] = json!("above");
+            value
+        },
+        {
+            let mut value = request.clone();
+            value.as_object_mut().unwrap().remove("target_record_ref");
+            value
+        },
+        {
+            let mut value = request;
+            value["unexpected"] = json!(true);
+            value
+        },
+    ] {
+        let (status, body) = route_json(
+            Method::POST,
+            "/api/lists/list_research/items/reorder",
+            Some(invalid),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(body["code"], "invalid_request");
+    }
+}
+
+#[tokio::test]
 async fn malformed_json_route_body_returns_app_error_envelope() {
     let app = test_router();
     let response = app
@@ -918,6 +963,43 @@ struct MockService {
 mod read_abandonment_tests;
 
 impl AtlasWebService for MockService {
+    fn parties(&self) -> Result<atlas_app_model::PartyIndexView, AppServiceError> {
+        Ok(atlas_app_model::PartyIndexView { parties: vec![] })
+    }
+    fn create_party(
+        &self,
+        _request: atlas_app_model::CreatePartyRequest,
+    ) -> Result<atlas_app_model::PartyView, AppServiceError> {
+        Err(AppServiceError::invalid_request(
+            "unused mock party creation",
+        ))
+    }
+    fn update_party(
+        &self,
+        _key: &str,
+        _request: atlas_app_model::UpdatePartyRequest,
+    ) -> Result<atlas_app_model::PartyView, AppServiceError> {
+        Err(AppServiceError::invalid_request("unused mock party update"))
+    }
+    fn delete_party(
+        &self,
+        key: &str,
+        _request: atlas_app_model::DeletePartyRequest,
+    ) -> Result<atlas_app_model::PartyMutationView, AppServiceError> {
+        Ok(atlas_app_model::PartyMutationView {
+            party_key: key.into(),
+        })
+    }
+    fn add_encounter_party(
+        &self,
+        encounter_ref: &str,
+        _request: atlas_app_model::AddEncounterPartyRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
+        })
+    }
+
     fn readiness(&self) -> AppReadinessView {
         AppReadinessView {
             default_search_profile: atlas_domain::SearchProfileId::new("bge-base"),
@@ -1668,6 +1750,32 @@ impl AtlasWebService for MockService {
         })
     }
 
+    fn saved_list_item_note(
+        &self,
+        list_ref: &str,
+        record_key: &str,
+    ) -> Result<SavedListItemNoteView, AppServiceError> {
+        Ok(SavedListItemNoteView {
+            list_key: list_ref.into(),
+            slug: "research".into(),
+            record_key: record_key.into(),
+            title: "Test Action 1".into(),
+            note: Some("fixture note".into()),
+        })
+    }
+    fn update_saved_list_item_note(
+        &self,
+        request: UpdateSavedListItemNoteRequest,
+    ) -> Result<SavedListItemNoteView, AppServiceError> {
+        Ok(SavedListItemNoteView {
+            list_key: request.list_ref,
+            slug: "research".into(),
+            record_key: request.record_key,
+            title: "Test Action 1".into(),
+            note: request.note,
+        })
+    }
+
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {
         Ok(SavedListIndexView {
             lists: vec![saved_list_summary()],
@@ -1771,6 +1879,24 @@ impl AtlasWebService for MockService {
             list_key: list_ref.to_string(),
             slug: "research".to_string(),
             deleted: true,
+        })
+    }
+
+    fn reorder_saved_list_item(
+        &self,
+        request: atlas_app_model::ReorderSavedListItemRequest,
+    ) -> Result<SavedListItemMutationView, AppServiceError> {
+        assert_eq!(request.target_record_ref, "actions:testAction2");
+        assert_eq!(
+            request.placement,
+            atlas_app_model::ReorderSavedListItemPlacementView::After
+        );
+        Ok(SavedListItemMutationView {
+            list_key: request.list_ref,
+            slug: "research".into(),
+            record_key: request.record_ref,
+            record_name: None,
+            outcome: atlas_app_model::SavedListItemMutationOutcomeView::Reordered,
         })
     }
 }
@@ -1974,4 +2100,34 @@ async fn similar_page_transport_carries_exact_seed_and_body_free_summary() {
     assert_eq!(body["mode"]["seed"]["record_key"], "items:seed000000000000");
     assert!(body["mode"]["seed"].get("presentation").is_none());
     assert_eq!(body["page"]["number"], 2);
+}
+
+#[tokio::test]
+async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() {
+    let (status, body) = route_json(
+        Method::GET,
+        "/api/lists/list_research/items/actions:testAction1/note",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["note"], "fixture note");
+    let (status, body) = route_json(
+        Method::PATCH,
+        "/api/lists/list_research/items/actions:testAction1/note",
+        Some(json!({"list_ref":"ignored", "record_key":"ignored", "note":"Purpose"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["list_key"], "list_research");
+    assert_eq!(body["record_key"], "actions:testAction1");
+    assert_eq!(body["note"], "Purpose");
+    let (status, body) = route_json(
+        Method::PATCH,
+        "/api/lists/list_research/items/actions:testAction1/note",
+        Some(json!({"list_ref":"ignored", "record_key":"ignored", "note":null})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body["note"].is_null());
 }

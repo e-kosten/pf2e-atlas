@@ -9,11 +9,12 @@ use atlas_app_model::{
     DiscoverFilterValuesRequest, EncounterConditionCatalogView, EncounterCreateView,
     EncounterDetailView, EncounterIndexView, EncounterMutationView, EncounterTurnReviewView,
     FilterEditorView, FilterSavedListRequest, FilterValueListView, RecordDetailView,
-    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, SavedListCreateView,
-    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListUpdateView,
-    SearchResultsPage, SearchResultsRequest, SetEncounterTurnRequest,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
-    UpdateEncounterRequest, UpdateSavedListRequest,
+    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, ReorderSavedListItemRequest,
+    SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
+    SavedListItemNoteView, SavedListUpdateView, SearchResultsPage, SearchResultsRequest,
+    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListItemNoteRequest,
+    UpdateSavedListRequest,
 };
 use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
@@ -60,6 +61,27 @@ pub(crate) trait AtlasWebService: Send + Sync {
         &self,
         request: atlas_app_model::RollFlatCheckRequest,
     ) -> Result<atlas_app_model::FlatCheckRollView, AppServiceError>;
+    fn parties(&self) -> Result<atlas_app_model::PartyIndexView, AppServiceError>;
+    fn create_party(
+        &self,
+        request: atlas_app_model::CreatePartyRequest,
+    ) -> Result<atlas_app_model::PartyView, AppServiceError>;
+    fn update_party(
+        &self,
+        key: &str,
+        request: atlas_app_model::UpdatePartyRequest,
+    ) -> Result<atlas_app_model::PartyView, AppServiceError>;
+    fn delete_party(
+        &self,
+        key: &str,
+        request: atlas_app_model::DeletePartyRequest,
+    ) -> Result<atlas_app_model::PartyMutationView, AppServiceError>;
+    fn add_encounter_party(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::AddEncounterPartyRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+
     fn roll_table(
         &self,
         request: atlas_app_model::RollTableRequest,
@@ -377,6 +399,16 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: atlas_app_model::RemoveEncounterParticipantConditionRequest,
     ) -> Result<EncounterMutationView, AppServiceError>;
 
+    fn saved_list_item_note(
+        &self,
+        list_ref: &str,
+        record_key: &str,
+    ) -> Result<SavedListItemNoteView, AppServiceError>;
+    fn update_saved_list_item_note(
+        &self,
+        request: UpdateSavedListItemNoteRequest,
+    ) -> Result<SavedListItemNoteView, AppServiceError>;
+
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError>;
 
     fn saved_list(&self, list_ref: &str) -> Result<SavedListDetailView, AppServiceError>;
@@ -406,10 +438,46 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: RemoveSavedListItemRequest,
     ) -> Result<SavedListItemMutationView, AppServiceError>;
 
+    fn reorder_saved_list_item(
+        &self,
+        request: ReorderSavedListItemRequest,
+    ) -> Result<SavedListItemMutationView, AppServiceError>;
+
     fn delete_saved_list(&self, list_ref: &str) -> Result<DeleteSavedListView, AppServiceError>;
 }
 
 impl AtlasWebService for AtlasAppService {
+    fn parties(&self) -> Result<atlas_app_model::PartyIndexView, AppServiceError> {
+        self.parties()
+    }
+    fn create_party(
+        &self,
+        request: atlas_app_model::CreatePartyRequest,
+    ) -> Result<atlas_app_model::PartyView, AppServiceError> {
+        self.create_party(request)
+    }
+    fn update_party(
+        &self,
+        key: &str,
+        request: atlas_app_model::UpdatePartyRequest,
+    ) -> Result<atlas_app_model::PartyView, AppServiceError> {
+        self.update_party(key, request)
+    }
+    fn delete_party(
+        &self,
+        key: &str,
+        request: atlas_app_model::DeletePartyRequest,
+    ) -> Result<atlas_app_model::PartyMutationView, AppServiceError> {
+        self.delete_party(key, request)
+    }
+    fn add_encounter_party(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::AddEncounterPartyRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.add_encounter_party(encounter_ref, request)
+    }
+
     fn roll_encounter_strike(
         &self,
         encounter_ref: &str,
@@ -868,6 +936,20 @@ impl AtlasWebService for AtlasAppService {
         )
     }
 
+    fn saved_list_item_note(
+        &self,
+        list_ref: &str,
+        record_key: &str,
+    ) -> Result<SavedListItemNoteView, AppServiceError> {
+        self.saved_list_item_note(list_ref, record_key)
+    }
+    fn update_saved_list_item_note(
+        &self,
+        request: UpdateSavedListItemNoteRequest,
+    ) -> Result<SavedListItemNoteView, AppServiceError> {
+        self.update_saved_list_item_note(request)
+    }
+
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {
         self.saved_lists()
     }
@@ -909,6 +991,13 @@ impl AtlasWebService for AtlasAppService {
         request: RemoveSavedListItemRequest,
     ) -> Result<SavedListItemMutationView, AppServiceError> {
         self.remove_saved_list_item(request)
+    }
+
+    fn reorder_saved_list_item(
+        &self,
+        request: ReorderSavedListItemRequest,
+    ) -> Result<SavedListItemMutationView, AppServiceError> {
+        self.reorder_saved_list_item(request)
     }
 
     fn delete_saved_list(&self, list_ref: &str) -> Result<DeleteSavedListView, AppServiceError> {

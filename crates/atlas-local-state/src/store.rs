@@ -10,6 +10,9 @@ pub struct LocalStateWrite<'a> {
     session: &'a WriteSession,
 }
 impl<'a> LocalStateRead<'a> {
+    pub fn parties(&self) -> crate::PartiesRead<'a> {
+        crate::PartiesRead::from_connection(self.session.connection())
+    }
     pub fn new(session: &'a ReadSession) -> Self {
         Self { session }
     }
@@ -21,6 +24,9 @@ impl<'a> LocalStateRead<'a> {
     }
 }
 impl<'a> LocalStateWrite<'a> {
+    pub fn parties(&self) -> crate::PartiesWrite<'a> {
+        crate::PartiesWrite::from_connection(self.session.connection())
+    }
     pub fn new(session: &'a WriteSession) -> Self {
         Self { session }
     }

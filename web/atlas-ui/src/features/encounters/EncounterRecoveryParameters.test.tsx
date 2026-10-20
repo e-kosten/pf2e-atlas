@@ -64,6 +64,7 @@ function setup(
     ],
   };
   const onUpdate = vi.fn().mockRejectedValue(new Error("Connection lost"));
+  const onPreview = vi.fn().mockResolvedValue({ consequences: [] });
   render(
     <EncounterConditionControls
       encounterRef="encounter"
@@ -78,14 +79,14 @@ function setup(
       onUpdateCondition={onUpdate}
       onRemoveCondition={onRemove}
       onReference={vi.fn()}
-      onPreviewCondition={vi.fn().mockResolvedValue({ consequences: [] })}
+      onPreviewCondition={onPreview}
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Edit Source effect" }));
-  return onUpdate;
+  return { onUpdate, onPreview };
 }
 it("edits typed recovery behavior and floor while preserving the source condition value", async () => {
-  const onUpdate = setup(
+  const { onUpdate, onPreview } = setup(
     { kind: "frightened", recovery: { kind: "held" } },
     "frightened",
   );
@@ -102,6 +103,14 @@ it("edits typed recovery behavior and floor while preserving the source conditio
     { target: { value: "2" } },
   );
   await waitFor(() =>
+    expect(onPreview).toHaveBeenLastCalledWith(
+      "actor",
+      expect.objectContaining({
+        parameters: { kind: "frightened", recovery: { kind: "end_turn", minimum: 2n } },
+      }),
+    ),
+  );
+  await waitFor(() =>
     expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
   );
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
@@ -116,7 +125,7 @@ it("edits typed recovery behavior and floor while preserving the source conditio
   );
 });
 it("retains a failed typed broken-threshold draft without deriving it from HP", async () => {
-  const onUpdate = setup({ kind: "broken", threshold: 6n }, "broken");
+  const { onUpdate } = setup({ kind: "broken", threshold: 6n }, "broken");
   const threshold = await screen.findByRole("spinbutton", { name: "Broken threshold" });
   fireEvent.change(threshold, { target: { value: "8" } });
   await waitFor(() =>
@@ -134,7 +143,7 @@ it("retains a failed typed broken-threshold draft without deriving it from HP", 
 
 it("uses the decrement remove action at one without a zero draft", async () => {
   const onRemove = vi.fn().mockResolvedValue(false);
-  const onUpdate = setup({ kind: "none" }, "ordinary", onRemove);
+  const { onUpdate } = setup({ kind: "none" }, "ordinary", onRemove);
   const dialog = screen.getByRole("dialog");
   fireEvent.click(
     within(dialog).getByRole("button", { name: "Remove Condition value" }),
@@ -146,7 +155,7 @@ it("uses the decrement remove action at one without a zero draft", async () => {
 });
 
 it("keeps waking normal unless the source restricts it", async () => {
-  const onUpdate = setup({ kind: "unconscious", waking: "normal" }, "unconscious");
+  const { onUpdate } = setup({ kind: "unconscious", waking: "normal" }, "unconscious");
   const restriction = await screen.findByRole("checkbox", {
     name: "Wake automatically",
   });

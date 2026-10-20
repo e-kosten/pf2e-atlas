@@ -6,8 +6,9 @@ mod storage;
 pub use hydration::hydrate_saved_list_item;
 pub use model::{
     AddSavedListItemOutcome, HydratedSavedListItem, ImportSavedList, ImportSavedListItem,
-    NewSavedList, ResolvedSavedListItem, SavedList, SavedListItem, SavedListItemSnapshot,
-    SavedListItemStatus, SavedListWithItems, UpdateSavedList,
+    NewSavedList, ReorderSavedListItem, ResolvedSavedListItem, SavedList, SavedListItem,
+    SavedListItemPlacement, SavedListItemSnapshot, SavedListItemStatus, SavedListWithItems,
+    UpdateSavedList,
 };
 pub use service::{SavedListsRead, SavedListsWrite};
 

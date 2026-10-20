@@ -7,7 +7,7 @@ use crate::{
 use atlas_storage::{Migration, Workspace};
 use std::path::Path;
 
-pub const TEST_WORKSPACE_SCHEMA_VERSION: u32 = 6;
+pub const TEST_WORKSPACE_SCHEMA_VERSION: u32 = 7;
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
         .map_err(|e| IndexError::Operation(e.to_string()))?;
@@ -43,6 +43,11 @@ pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexEr
                 version: 6,
                 name: "hazard-participation",
                 sql: atlas_local_state::HAZARD_PARTICIPATION_SCHEMA_SQL,
+            },
+            Migration {
+                version: 7,
+                name: "encounter-parties",
+                sql: atlas_local_state::PARTIES_SCHEMA_SQL,
             },
         ],
         |_| Ok(()),

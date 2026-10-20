@@ -263,3 +263,9 @@ impl AtlasRetrievalService {
         Ok(records)
     }
 }
+
+impl crate::AtlasRetrievalService {
+    pub fn complete_record_keys(&self, prefix: &str) -> Result<Vec<String>, crate::SearchError> {
+        Ok(self.index.complete_record_keys(prefix)?)
+    }
+}

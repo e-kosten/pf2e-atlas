@@ -10,9 +10,9 @@ use crate::handlers::{
     discover_filter_editor, discover_filter_values, encounter, encounter_condition_definitions,
     encounter_turn_review, encounters, filter_saved_list, readiness, record_detail,
     remove_encounter_participant, remove_encounter_participant_condition, remove_saved_list_item,
-    reorder_encounter_participant, saved_list, saved_lists, search_page, set_encounter_turn,
-    update_encounter, update_encounter_participant, update_encounter_participant_condition,
-    update_saved_list,
+    reorder_encounter_participant, reorder_saved_list_item, saved_list, saved_list_item_note,
+    saved_lists, search_page, set_encounter_turn, update_encounter, update_encounter_participant,
+    update_encounter_participant_condition, update_saved_list, update_saved_list_item_note,
 };
 use crate::service::AtlasWebState;
 
@@ -27,6 +27,9 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/encounters/{encounter_ref}/attitude-events",post(crate::handlers::worsen_encounter_attitude))
         .route("/api/encounters/{encounter_ref}/detection-events",post(crate::handlers::apply_encounter_detection_event))
         .route("/api/encounters/{encounter_ref}/relationships",get(crate::handlers::encounter_relationships).put(crate::handlers::set_encounter_relationship))
+        .route("/api/parties", get(crate::parties::parties).post(crate::parties::create_party))
+        .route("/api/parties/{party_key}", axum::routing::patch(crate::parties::update_party).delete(crate::parties::delete_party))
+        .route("/api/encounters/{encounter_ref}/participants/party", post(crate::parties::add_encounter_party))
         .route("/api/related",post(crate::handlers::related_records))
         .route("/api/encounters/{encounter_ref}/casting-attempts", get(crate::handlers::encounter_casting_attempts).post(crate::handlers::begin_encounter_casting_attempt))
         .route("/api/encounters/{encounter_ref}/actions/preview", post(crate::handlers::preview_encounter_action))
@@ -104,6 +107,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             "/api/encounters/{encounter_ref}/turn",
             post(set_encounter_turn),
         )
+        .route("/api/lists/{list_ref}/items/{record_key}/note", get(saved_list_item_note).patch(update_saved_list_item_note))
         .route("/api/lists", get(saved_lists).post(create_saved_list))
         .route(
             "/api/lists/{list_ref}",
@@ -116,6 +120,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             "/api/lists/{list_ref}/items",
             post(add_saved_list_item).delete(remove_saved_list_item),
         )
+        .route("/api/lists/{list_ref}/items/reorder", post(reorder_saved_list_item))
         .route("/api/filters/editor", post(discover_filter_editor))
         .route("/api/filters/values", post(discover_filter_values))
         .route("/api/filters/counts", post(crate::handlers::discover_filter_counts))

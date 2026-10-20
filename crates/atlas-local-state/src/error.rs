@@ -12,6 +12,12 @@ pub enum LocalStateError {
         expected_revision: i64,
         actual_revision: i64,
     },
+    #[error("Party not found: {0}")]
+    PartyNotFound(String),
+    #[error("Party changed. Reopen it to review the current members.")]
+    PartyConflict,
+    #[error("{0}")]
+    InvalidParty(&'static str),
     #[error("Local-state mutations require a caller-owned write transaction")]
     ActionRequiresTransaction,
     #[error("Unsupported stored roll receipt version {0}")]
