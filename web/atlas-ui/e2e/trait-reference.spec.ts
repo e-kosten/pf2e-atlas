@@ -35,12 +35,21 @@ function recordPath(navigation: RecordNavigationView) {
 test("real trait chip opens its definition and Back returns to the selected source", async ({
   page,
   request,
-}) => {
+}, testInfo) => {
   const detail = await definition(request, "trait:deadly-d8");
   const record = "equipment-srd:tH5GirEy7YB3ZgCk";
   await page.goto(`/records/${record}`);
   const chip = page.locator('a[href="/traits/trait:deadly-d8"]').first();
   await expect(chip).toBeVisible();
+  await expect(page.locator(".record-reference__kind").first()).toHaveText(
+    "Equipment 0",
+  );
+  const screenshot = testInfo.outputPath("record-rapier-kind.png");
+  await page.screenshot({ path: screenshot, animations: "disabled" });
+  await testInfo.attach("Rapier document classification", {
+    path: screenshot,
+    contentType: "image/png",
+  });
   await chip.click();
   await expect(page).toHaveURL(/\/traits\/trait:deadly-d8$/);
   await expect(page.getByRole("button", { name: "Back", exact: true })).toHaveCount(0);
@@ -163,6 +172,15 @@ test("trait membership opens the exact embedded source", async ({
     .poll(() => JSON.parse(new URL(page.url()).searchParams.get("selection") ?? "null"))
     .toEqual(member!.navigation);
   await expect(page.locator('a[href="/traits/trait:agile"]').first()).toBeVisible();
+  await expect(page.locator(".record-reference__kind").first()).toHaveText(
+    /^Melee(?:$|\s)/,
+  );
+  const selectedScreenshot = testInfo.outputPath("record-embedded-melee-kind.png");
+  await page.screenshot({ path: selectedScreenshot, animations: "disabled" });
+  await testInfo.attach("Selected embedded source classification", {
+    path: selectedScreenshot,
+    contentType: "image/png",
+  });
 });
 
 for (const profile of ["embeddinggemma", "bge-base"]) {
