@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use super::model::{
     AddSavedListItemOutcome, ImportSavedList, NewSavedList, NewSavedListItem, ResolvedSavedListItem,
 };
-use super::model::{SavedList, SavedListWithItems, UpdateSavedList};
+use super::model::{ReorderSavedListItem, SavedList, SavedListWithItems, UpdateSavedList};
 use super::storage;
 use crate::slug::validate_slug;
 use crate::{LocalStateError, LocalStateResult};
@@ -138,6 +138,19 @@ impl SavedListsWrite<'_> {
         })
     }
 
+    pub fn update_item_note(
+        &self,
+        list_ref: &str,
+        record_key: &str,
+        note: Option<&str>,
+    ) -> LocalStateResult<bool> {
+        crate::atomic_action::run(self.connection, || {
+            storage::validate_list_ref(list_ref)?;
+            storage::validate_record_key(record_key)?;
+            storage::update_item_note(self.connection, list_ref, record_key, note)
+        })
+    }
+
     pub fn remove_item(&self, list_ref: &str, record_key: &str) -> LocalStateResult<bool> {
         crate::atomic_action::run(self.connection, || {
             storage::validate_list_ref(list_ref)?;
@@ -146,6 +159,19 @@ impl SavedListsWrite<'_> {
             let removed = storage::remove_item(transaction, list_ref, record_key)?;
 
             Ok(removed)
+        })
+    }
+
+    pub fn reorder_item(
+        &self,
+        list_ref: &str,
+        reorder: ReorderSavedListItem,
+    ) -> LocalStateResult<bool> {
+        crate::atomic_action::run(self.connection, || {
+            storage::validate_list_ref(list_ref)?;
+            storage::validate_record_key(&reorder.record_key)?;
+            storage::validate_record_key(&reorder.target_record_key)?;
+            storage::reorder_item(self.connection, list_ref, reorder)
         })
     }
 }

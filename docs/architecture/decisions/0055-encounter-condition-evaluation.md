@@ -1,6 +1,6 @@
 # ADR 0055: Shared Encounter Condition Evaluation
 
-Status: accepted; implementation and validation in progress.
+Status: accepted.
 Date: 2026-10-19
 
 ## Context

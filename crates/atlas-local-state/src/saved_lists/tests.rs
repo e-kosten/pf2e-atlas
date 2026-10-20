@@ -98,6 +98,167 @@ fn failed_tag_insert_rolls_back_creation_and_metadata_replacement()
 }
 
 #[test]
+fn saved_list_reorders_persist_snapshots_and_contiguous_positions()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = TestStore::open(temp_path("list-reorder"))?;
+    let lists = store.saved_lists();
+    let list = lists.import(ImportSavedList {
+        slug: "ordered".into(),
+        name: "Ordered".into(),
+        description: None,
+        tags: vec![],
+        replace: false,
+        items: ["first", "second", "missing", "last"]
+            .into_iter()
+            .map(|key| ImportSavedListItem {
+                record_key: format!("actions:{key}"),
+                note: Some(format!("Note {key}")),
+                record_title_snapshot: format!("Snapshot {key}"),
+                record_kind_snapshot: Some("rule".into()),
+            })
+            .collect(),
+    })?;
+    assert!(lists.reorder_item(
+        "ordered",
+        ReorderSavedListItem {
+            record_key: "actions:missing".into(),
+            target_record_key: "actions:first".into(),
+            placement: SavedListItemPlacement::Before,
+        }
+    )?);
+    assert!(lists.reorder_item(
+        &list.list.list_key,
+        ReorderSavedListItem {
+            record_key: "actions:first".into(),
+            target_record_key: "actions:last".into(),
+            placement: SavedListItemPlacement::After,
+        }
+    )?);
+    let reopened = TestStore::open(store.path())?;
+    let moved = reopened
+        .saved_lists()
+        .get_with_items("ordered")?
+        .expect("persisted list");
+    assert_eq!(
+        moved
+            .items
+            .iter()
+            .map(|item| item.record_key.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "actions:missing",
+            "actions:second",
+            "actions:last",
+            "actions:first"
+        ]
+    );
+    assert_eq!(
+        moved
+            .items
+            .iter()
+            .map(|item| item.position)
+            .collect::<Vec<_>>(),
+        [1, 2, 3, 4]
+    );
+    assert_eq!(moved.list.revision, list.list.revision + 2);
+    for item in &moved.items {
+        let original = list
+            .items
+            .iter()
+            .find(|before| before.record_key == item.record_key)
+            .expect("same members");
+        assert_eq!(item.note, original.note);
+        assert_eq!(item.record_title_snapshot, original.record_title_snapshot);
+        assert_eq!(item.record_kind_snapshot, original.record_kind_snapshot);
+        assert_eq!(item.added_at, original.added_at);
+    }
+    // Invalid anchors and self drops leave the entire persisted snapshot intact.
+    for (source, target, expected) in [
+        ("actions:first", "actions:absent", false),
+        ("actions:absent", "actions:first", false),
+        ("actions:first", "actions:first", true),
+    ] {
+        assert_eq!(
+            lists.reorder_item(
+                "ordered",
+                ReorderSavedListItem {
+                    record_key: source.into(),
+                    target_record_key: target.into(),
+                    placement: SavedListItemPlacement::After,
+                }
+            )?,
+            expected
+        );
+        assert_eq!(lists.get_with_items("ordered")?.expect("list"), moved);
+    }
+    assert!(lists.remove_item("ordered", "actions:second")?);
+    lists.add_resolved_item(
+        "ordered",
+        resolved_item("actions:new", None, "New", Some("rule")),
+    )?;
+    let appended = lists.get_with_items("ordered")?.expect("list");
+    assert_eq!(
+        appended
+            .items
+            .iter()
+            .map(|item| (item.record_key.as_str(), item.position))
+            .collect::<Vec<_>>(),
+        [
+            ("actions:missing", 1),
+            ("actions:last", 2),
+            ("actions:first", 3),
+            ("actions:new", 4)
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn failed_saved_list_reorder_rolls_back_inside_the_callers_transaction()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = TestStore::open(temp_path("list-reorder-rollback"))?;
+    let before = store.saved_lists().import(ImportSavedList {
+        slug: "atomic".into(),
+        name: "Atomic".into(),
+        description: None,
+        tags: vec![],
+        replace: false,
+        items: ["first", "second", "third"]
+            .into_iter()
+            .map(|key| ImportSavedListItem {
+                record_key: format!("actions:{key}"),
+                note: Some(format!("Note {key}")),
+                record_title_snapshot: key.into(),
+                record_kind_snapshot: None,
+            })
+            .collect(),
+    })?;
+    let mut connection = store.connection()?;
+    connection.execute_batch("CREATE TRIGGER reject_position BEFORE UPDATE OF position ON saved_list_items WHEN NEW.position=2 BEGIN SELECT RAISE(ABORT,'injected reorder failure'); END;")?;
+    let transaction = connection.transaction()?;
+    let lists = SavedListsWrite::from_connection(&transaction);
+    assert!(
+        lists
+            .reorder_item(
+                "atomic",
+                ReorderSavedListItem {
+                    record_key: "actions:third".into(),
+                    target_record_key: "actions:first".into(),
+                    placement: SavedListItemPlacement::Before,
+                }
+            )
+            .is_err()
+    );
+    assert_eq!(lists.get_with_items("atomic")?.expect("list"), before);
+    transaction.commit()?;
+    assert_eq!(
+        store.saved_lists().get_with_items("atomic")?.expect("list"),
+        before
+    );
+    Ok(())
+}
+
+#[test]
 fn list_key_can_identify_saved_lists() -> Result<(), Box<dyn std::error::Error>> {
     let store = TestStore::open(temp_path("saved-lists-key"))?;
     let lists = store.saved_lists();

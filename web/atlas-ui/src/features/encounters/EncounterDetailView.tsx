@@ -313,6 +313,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 const result = await mutations.run({ kind: "add-record", request });
                 return result.active && result.refreshed;
               }}
+              onAddParty={async (request) => {
+                await mutations.run({ kind: "add-party", request });
+              }}
               onAddManual={async (request) => {
                 const result = await mutations.run({ kind: "add-manual", request });
                 return result.active && result.refreshed;

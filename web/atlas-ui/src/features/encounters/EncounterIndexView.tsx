@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Checkbox } from "antd";
+import { Alert, Button, Tabs } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -17,6 +17,7 @@ import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
+import { PartyManager } from "../parties/PartyManager";
 import { CreateEncounterModal } from "./EncounterModals";
 
 type EncounterIndexViewProps = {
@@ -25,11 +26,12 @@ type EncounterIndexViewProps = {
 
 export function EncounterIndexView(_props: EncounterIndexViewProps) {
   const queryClient = useQueryClient();
+  const [partiesOpen, setPartiesOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
+  const [view, setView] = useState("active");
   const encounters = useQuery({ queryKey: ["encounters"], queryFn: getEncounters });
   const visible = (encounters.data?.encounters ?? []).filter(
-    (encounter) => showArchived || encounter.status !== "archived",
+    (encounter) => (view === "archived") === (encounter.status === "archived"),
   );
   const deleteMutation = useMutation({
     retry: false,
@@ -46,12 +48,14 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
     <EntityIndexPage
       actions={
         <div className="encounter-actions">
-          <Checkbox
-            checked={showArchived}
-            onChange={(event) => setShowArchived(event.target.checked)}
+          <Button
+            onClick={(event) => {
+              event.currentTarget.focus();
+              setPartiesOpen(true);
+            }}
           >
-            Archived
-          </Checkbox>
+            Parties
+          </Button>
           <Button
             icon={<Plus size={16} />}
             onClick={() => setCreateOpen(true)}
@@ -63,19 +67,33 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
       }
       className="encounter-index-view"
       overlays={
-        <CreateEncounterModal
-          open={createOpen}
-          onCancel={() => setCreateOpen(false)}
-          onCreated={(slug) => {
-            setCreateOpen(false);
-            navigateToAtlasRoute({ kind: "encounter", slug });
-          }}
-        />
+        <>
+          {partiesOpen && <PartyManager onClose={() => setPartiesOpen(false)} />}
+          <CreateEncounterModal
+            open={createOpen}
+            onCancel={() => setCreateOpen(false)}
+            onCreated={(slug) => {
+              setCreateOpen(false);
+              navigateToAtlasRoute({ kind: "encounter", slug });
+            }}
+          />
+        </>
       }
       summary={
         encounters.data
-          ? `${visible.length} ${showArchived ? "encounters" : "active encounters"}`
+          ? `${visible.length} ${view === "archived" ? "archived encounters" : "active encounters"}`
           : undefined
+      }
+      toolbar={
+        <Tabs
+          aria-label="Encounter views"
+          activeKey={view}
+          onChange={setView}
+          items={[
+            { key: "active", label: "Active" },
+            { key: "archived", label: "Archived" },
+          ]}
+        />
       }
       title="Encounters"
     >
@@ -116,9 +134,9 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
             ? "Loading encounters…"
             : encounters.error && !encounters.data
               ? "Encounters unavailable"
-              : !showArchived && encounters.data?.encounters.length
-                ? "No active encounters. Show archived encounters to see more."
-                : "No encounters. Create an encounter to get started.",
+              : view === "archived"
+                ? "No archived encounters."
+                : "No active encounters. Create an encounter to get started.",
         }}
         onActivateRow={(encounter) =>
           navigateToAtlasRoute({ kind: "encounter", slug: encounter.slug })

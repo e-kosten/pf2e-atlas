@@ -96,6 +96,11 @@ mod error;
 mod filter;
 mod graph;
 mod list;
+mod party;
+pub use party::{
+    AddEncounterPartyRequest, CreatePartyRequest, DeletePartyRequest, PartyIndexView,
+    PartyMemberInput, PartyMemberView, PartyMutationView, PartyView, UpdatePartyRequest,
+};
 mod prepared_content;
 mod presentation;
 mod readiness;
@@ -148,11 +153,13 @@ pub use list::{
     AddSavedListItemRequest, BatchAddSavedListItemsRequest, BatchSavedListItemInput,
     BatchSavedListItemMutationView, BatchSavedListItemOutcomeView, BatchSavedListItemResultView,
     CreateSavedListRequest, DeleteSavedListView, FilterSavedListRequest, ImportSavedListRequest,
-    ImportSavedListView, RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView,
+    ImportSavedListView, RemoveSavedListItemRequest, ReorderSavedListItemPlacementView,
+    ReorderSavedListItemRequest, SavedListCreateView, SavedListDetailView,
     SavedListExportDocumentView, SavedListExportItemView, SavedListExportListView,
     SavedListIndexView, SavedListItemMutationOutcomeView, SavedListItemMutationView,
-    SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
-    SavedListUpdateView, UpdateSavedListRequest,
+    SavedListItemNoteView, SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView,
+    SavedListSummaryView, SavedListUpdateView, UpdateSavedListItemNoteRequest,
+    UpdateSavedListRequest,
 };
 pub use prepared_content::{
     ContentControlKindView, ContentControlView, PreparedContentFieldView, PreparedFieldBodyView,
@@ -253,6 +260,12 @@ mod tests {
             .expect("condition consequence resolution bindings");
         PendingConditionConsequenceView::export_all_to(path).expect("pending consequence bindings");
         SetEncounterLifeSettingsRequest::export_all_to(path).expect("life settings bindings");
+        PartyIndexView::export_all_to(path).expect("party bindings");
+        CreatePartyRequest::export_all_to(path).expect("party create bindings");
+        UpdatePartyRequest::export_all_to(path).expect("party update bindings");
+        DeletePartyRequest::export_all_to(path).expect("party delete bindings");
+        PartyMutationView::export_all_to(path).expect("party mutation bindings");
+        AddEncounterPartyRequest::export_all_to(path).expect("party addition bindings");
         InitiativeOptionsView::export_all_to(path).expect("initiative options bindings");
         RollInitiativeRequest::export_all_to(path).expect("initiative request bindings");
         InitiativeRollView::export_all_to(path).expect("initiative receipt bindings");
@@ -393,6 +406,8 @@ mod tests {
             .expect("ImportSavedListView bindings should export");
         RemoveSavedListItemRequest::export_all_to(path)
             .expect("RemoveSavedListItemRequest bindings should export");
+        ReorderSavedListItemRequest::export_all_to(path)
+            .expect("ReorderSavedListItemRequest bindings should export");
         SavedListCreateView::export_all_to(path)
             .expect("SavedListCreateView bindings should export");
         SavedListDetailView::export_all_to(path)
@@ -402,6 +417,8 @@ mod tests {
         SavedListIndexView::export_all_to(path).expect("SavedListIndexView bindings should export");
         SavedListItemMutationView::export_all_to(path)
             .expect("SavedListItemMutationView bindings should export");
+        SavedListItemNoteView::export_all_to(path).expect("list note bindings");
+        UpdateSavedListItemNoteRequest::export_all_to(path).expect("list note request bindings");
         SavedListUpdateView::export_all_to(path)
             .expect("SavedListUpdateView bindings should export");
         UpdateSavedListRequest::export_all_to(path)

@@ -1,9 +1,9 @@
 use super::product::{app_result, emit};
 use crate::client::{ClientOptions, connect};
 use atlas_app_model::{
-    BatchAddSavedListItemsRequest, BatchSavedListItemInput, CreateSavedListRequest,
-    ImportSavedListRequest, RemoveSavedListItemRequest, SavedListDetailView,
-    UpdateSavedListRequest,
+    BatchAddSavedListItemsRequest, BatchSavedListItemInput, BatchSavedListItemMutationView,
+    CreateSavedListRequest, ImportSavedListRequest, RemoveSavedListItemRequest,
+    SavedListDetailView, UpdateSavedListRequest,
 };
 use atlas_app_service::AtlasAppService;
 use atlas_cli_support::write_json_data;
@@ -28,19 +28,86 @@ pub(crate) fn run_lists_create(o: ListCreateOptions) -> Result<ExitCode, String>
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
-    emit(
-        app_result(
-            s.create_saved_list(CreateSavedListRequest {
-                slug: o.slug,
-                name: o.name,
-                description: o.description,
-                tags: o.tags,
-            }),
-            o.json,
-        )?,
-        o.json,
-    )
+    let request = CreateSavedListRequest {
+        slug: o.slug,
+        name: o.name,
+        description: o.description,
+        tags: o.tags,
+    };
+    if o.records.is_empty() {
+        emit(app_result(s.create_saved_list(request), o.json)?, o.json)
+    } else {
+        let items = o
+            .records
+            .into_iter()
+            .map(|record_ref| BatchSavedListItemInput {
+                record_ref,
+                note: None,
+            })
+            .collect();
+        emit_batch(s.create_saved_list_with_items(request, items), o.json)
+    }
 }
+
+fn emit_batch(
+    result: atlas_app_service::AppServiceResult<BatchSavedListItemMutationView>,
+    json: bool,
+) -> Result<ExitCode, String> {
+    let view = match app_result(result, json)? {
+        std::ops::ControlFlow::Continue(value) => value,
+        std::ops::ControlFlow::Break(exit) => return Ok(exit),
+    };
+    let failed = view.failed_count > 0;
+    if json {
+        write_json_data(&view)?;
+    } else {
+        println!(
+            "{}: {} added, {} already present, {} failed",
+            view.slug, view.added_count, view.already_present_count, view.failed_count
+        );
+        for item in &view.items {
+            if let Some(error) = &item.error {
+                eprintln!("{}: {}", item.input, error.message);
+                super::product::print_error_hint(error);
+                if let Some(matches) = error
+                    .details
+                    .as_ref()
+                    .and_then(|details| details.get("matches"))
+                    .and_then(serde_json::Value::as_array)
+                {
+                    for candidate in matches {
+                        if let Some(record) = candidate.get("record") {
+                            eprintln!(
+                                "  {} — {} ({})",
+                                record["title"].as_str().unwrap_or(""),
+                                record["pack"].as_str().unwrap_or(""),
+                                record["record_key"].as_str().unwrap_or("")
+                            );
+                        }
+                    }
+                }
+            } else {
+                println!(
+                    "  {}: {} ({})",
+                    match item.outcome {
+                        atlas_app_model::BatchSavedListItemOutcomeView::Added => "Added",
+                        atlas_app_model::BatchSavedListItemOutcomeView::AlreadyPresent =>
+                            "Already present",
+                        atlas_app_model::BatchSavedListItemOutcomeView::Failed => "Failed",
+                    },
+                    item.record_name.as_deref().unwrap_or(&item.input),
+                    item.record_key.as_deref().unwrap_or("")
+                );
+            }
+        }
+    }
+    Ok(if failed {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    })
+}
+
 pub(crate) fn run_lists_ls(o: ListLsOptions) -> Result<ExitCode, String> {
     let s = match client(o.paths) {
         Ok(service) => service,
@@ -96,6 +163,7 @@ fn print_list(v: &SavedListDetailView) {
     }
 }
 pub(crate) fn run_lists_add(mut o: ListAddOptions) -> Result<ExitCode, String> {
+    o.record_refs.extend(o.records);
     if o.stdin {
         let mut text = String::new();
         io::stdin()
@@ -123,17 +191,15 @@ pub(crate) fn run_lists_add(mut o: ListAddOptions) -> Result<ExitCode, String> {
             note: o.note.clone(),
         })
         .collect();
-    emit(
-        app_result(
-            s.add_saved_list_items(BatchAddSavedListItemsRequest {
-                list_ref: o.slug,
-                items,
-            }),
-            o.json,
-        )?,
+    emit_batch(
+        s.add_saved_list_items(BatchAddSavedListItemsRequest {
+            list_ref: o.slug,
+            items,
+        }),
         o.json,
     )
 }
+
 pub(crate) fn run_lists_remove(o: ListRemoveOptions) -> Result<ExitCode, String> {
     let s = match client(o.paths) {
         Ok(service) => service,
@@ -221,6 +287,24 @@ pub(crate) fn run_lists_import(o: ListImportOptions) -> Result<ExitCode, String>
                 document,
                 id: o.id,
                 replace: o.replace,
+            }),
+            o.json,
+        )?,
+        o.json,
+    )
+}
+
+pub(crate) fn run_lists_note(o: ListNoteOptions) -> Result<ExitCode, String> {
+    let s = match client(o.paths) {
+        Ok(service) => service,
+        Err(error) => return super::product::report_app_error(error, o.json),
+    };
+    emit(
+        app_result(
+            s.update_saved_list_item_note(atlas_app_model::UpdateSavedListItemNoteRequest {
+                list_ref: o.slug,
+                record_key: o.record_key,
+                note: o.text.filter(|text| !text.trim().is_empty()),
             }),
             o.json,
         )?,

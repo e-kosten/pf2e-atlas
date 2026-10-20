@@ -9,6 +9,126 @@ import {
   sentinel,
 } from "./reading";
 
+test("list drops retain order and geometry through delayed writes and refreshes", async ({
+  page,
+}, info) => {
+  const slug = `reorder-${info.project.name}-${Date.now()}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: "Reorder check", tags: [] },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { list } = await created.json();
+  const keys = [sentinel, "browser-conditions:offguard00000001"];
+  let releaseWrite = () => {};
+  let releaseRead = () => {};
+  const writeGate = new Promise<void>((resolve) => {
+    releaseWrite = resolve;
+  });
+  const readGate = new Promise<void>((resolve) => {
+    releaseRead = resolve;
+  });
+  let writes = 0;
+  let refreshStarted = false;
+  try {
+    for (const key of keys) {
+      const added = await page.request.post(`/api/lists/${slug}/items`, {
+        data: { list_ref: slug, record_ref: key },
+      });
+      expect(added.ok()).toBeTruthy();
+    }
+    await page.goto(`/lists/${slug}`);
+    const rows = page.locator("[data-sortable-key]");
+    const handles = page.locator(".list-member__drag-handle");
+    await expect(handles).toHaveCount(2);
+    const source = handles.first();
+    const sourceName = (await source.getAttribute("aria-label"))!;
+    const persistedKeys = async () =>
+      (
+        (await (await page.request.get(`/api/lists/${slug}`)).json()).items as {
+          record_key: string;
+        }[]
+      ).map((item) => item.record_key);
+    await page.route(`**/api/lists/${slug}/items/reorder`, async (route) => {
+      writes += 1;
+      await writeGate;
+      await route.continue();
+    });
+    await page.route(`**/api/lists/${slug}/filter`, async (route) => {
+      refreshStarted = true;
+      await readGate;
+      await route.continue();
+    });
+    const keyboardFirst = Boolean(info.project.use.hasTouch);
+    if (keyboardFirst) {
+      await source.focus();
+      // A normal key hold lets the sortable sensor attach its deferred document
+      // listener before the next keyboard command.
+      await page.keyboard.press("Space", { delay: 20 });
+      await expect(source).toHaveAttribute("aria-pressed", "true");
+      await page.keyboard.press("ArrowDown");
+      await expect(page.getByRole("status")).toContainText(
+        `was moved over droppable area ${keys[1]}`,
+      );
+      await page.keyboard.press("Space");
+    } else {
+      const from = (await source.boundingBox())!;
+      const to = (await handles.nth(1).boundingBox())!;
+      await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
+      await page.mouse.up();
+    }
+    await expect.poll(() => writes).toBe(1);
+    await expect(rows.first()).toHaveAttribute("data-sortable-key", keys[1]);
+    await expect(handles.first()).toBeDisabled();
+    await expect(page.getByRole("button", { name: /^Remove / }).first()).toBeDisabled();
+    const top = (await page.getByLabel("List items", { exact: true }).boundingBox())!.y;
+    releaseWrite();
+    await expect.poll(() => refreshStarted).toBe(true);
+    await expect(
+      page.getByLabel("Updating saved records").locator(".ant-spin-spinning"),
+    ).toBeVisible();
+    expect(Math.abs((await rows.first().boundingBox())!.y - top)).toBeLessThan(1);
+    expect(writes).toBe(1);
+    releaseRead();
+    const movedHandle = page.getByRole("button", { name: sourceName, exact: true });
+    await expect(movedHandle).toBeEnabled();
+    if (keyboardFirst) await expect(movedHandle).toBeFocused();
+    expect(await persistedKeys()).toEqual([keys[1], keys[0]]);
+    // A second keyboard move starts from the newly saved order, then survives reload.
+    await movedHandle.focus();
+    await page.keyboard.press("Space", { delay: 20 });
+    await expect(movedHandle).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("ArrowUp");
+    await expect(page.getByRole("status")).toContainText(
+      `was moved over droppable area ${keys[1]}`,
+    );
+    await page.keyboard.press("Space");
+    await expect.poll(() => writes).toBe(2);
+    await expect(movedHandle).toBeEnabled();
+    await expect(movedHandle).toBeFocused();
+    expect(await persistedKeys()).toEqual(keys);
+    await page.reload();
+    await expect(rows.first()).toHaveAttribute("data-sortable-key", keys[0]);
+    await noPageOverflow(page);
+    // Cancelling pickup never submits another durable mutation.
+    await handles.first().focus();
+    await page.keyboard.press("Space", { delay: 20 });
+    await expect(handles.first()).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("Escape");
+    await expect(handles.first()).not.toHaveAttribute("aria-pressed", "true");
+    expect(writes).toBe(2);
+    expect(await persistedKeys()).toEqual(keys);
+  } finally {
+    releaseWrite();
+    releaseRead();
+    await page.unrouteAll({ behavior: "wait" });
+    expect(
+      (await page.request.delete(`/api/lists/${list.list_key}`)).ok(),
+    ).toBeTruthy();
+  }
+});
+
 test("filters, exact late activity, preview dismissal and Results remain usable", async ({
   page,
 }, info) => {
@@ -544,3 +664,193 @@ async function expectParticipantWidth(page: Page) {
   expect(reader.x).toBeGreaterThanOrEqual(0);
   expect(reader.x + reader.width).toBeLessThanOrEqual(viewport.width + 1);
 }
+
+test("named parties add everyone directly and archive views stay separate", async ({
+  page,
+}, info) => {
+  const name = `Device party ${info.project.name} ${Date.now()}`;
+  const created = await page.request.post("/api/encounters", { data: { name } });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  let partyKey: string | undefined;
+  try {
+    await page.goto("/encounters");
+    await activate(page.getByRole("button", { name: "Parties", exact: true }), info);
+    await activate(page.getByRole("button", { name: "New Party", exact: true }), info);
+    let editor = page.getByRole("dialog", { name: "New Party", exact: true });
+    await activate(editor.getByRole("button", { name: "Cancel", exact: true }), info);
+    await expect(
+      page.getByRole("button", { name: "New Party", exact: true }),
+    ).toBeFocused();
+    await activate(page.getByRole("button", { name: "New Party", exact: true }), info);
+    editor = page.getByRole("dialog", { name: "New Party", exact: true });
+    await editor.getByLabel("Party name", { exact: true }).fill(name);
+    for (const [index, pc] of ["Aster", "Bram", "Cora", "Dain"].entries()) {
+      await activate(editor.getByRole("button", { name: "Add PC", exact: true }), info);
+      await editor.getByLabel(`PC ${index + 1}`, { exact: true }).fill(pc);
+    }
+    await noPageOverflow(page);
+    await activate(editor.getByRole("button", { name: "Save", exact: true }), info);
+    await expect(
+      page
+        .getByRole("dialog", { name: "Parties", exact: true })
+        .getByRole("button", { name, exact: true }),
+    ).toBeVisible();
+    const parties = await (await page.request.get("/api/parties")).json();
+    partyKey = parties.parties.find(
+      (party: { name: string }) => party.name === name,
+    ).party_key;
+    const manager = page.getByRole("dialog", { name: "Parties", exact: true });
+    if (!info.project.use.hasTouch) {
+      const initialSize = page.viewportSize()!;
+      await page.setViewportSize({ width: 320, height: 720 });
+      const deletion = manager.getByRole("button", {
+        name: `Delete ${name}`,
+        exact: true,
+      });
+      const bounds = await deletion.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320);
+      await page.setViewportSize(initialSize);
+    }
+    await activate(page.getByRole("button", { name: "Done", exact: true }), info);
+    await expect(
+      page.getByRole("button", { name: "Parties", exact: true }),
+    ).toBeFocused();
+    await page.goto(`/encounters/${encounter.slug}`);
+    const add = page.getByRole("button", { name: "Add Party", exact: true });
+    if (!info.project.use.hasTouch) {
+      await add.focus();
+      await page.keyboard.press("Enter");
+      await expect(
+        page.getByRole("menu", { name: "Parties", exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(
+        page.getByRole("menu", { name: "Parties", exact: true }),
+      ).toBeHidden();
+      await expect(add).toBeFocused();
+    }
+    await activate(add, info);
+    const item = page.getByRole("menuitem", { name: new RegExp(`${name}.*Aster`) });
+    await expect(item).toBeEnabled();
+    await activate(item, info);
+    await expect(
+      page.getByRole("dialog", { name: "Add Party", exact: true }),
+    ).toHaveCount(0);
+    await expect(page.locator("[data-participant-key]")).toHaveCount(4);
+    const detail = await (await page.request.get(path)).json();
+    expect(
+      detail.participants.map((p: { display_name: string }) => p.display_name),
+    ).toEqual(["Aster", "Bram", "Cora", "Dain"]);
+    expect(
+      detail.participants.every(
+        (p: { max_hp?: number; current_hp?: number; initiative?: number }) =>
+          p.max_hp == null && p.current_hp == null && p.initiative == null,
+      ),
+    ).toBe(true);
+    await noPageOverflow(page);
+    await activate(
+      page.getByRole("button", { name: "Remove Dain", exact: true }),
+      info,
+    );
+    const removal = page.getByRole("dialog", { name: "Remove Dain?", exact: true });
+    await activate(removal.getByRole("button", { name: "Remove", exact: true }), info);
+    await expect(page.locator("[data-participant-key]")).toHaveCount(3);
+    await page.reload();
+    await expect(page.locator("[data-participant-key]")).toHaveCount(3);
+    expect(
+      (
+        await page.request.patch(path, {
+          data: {
+            encounter_key: encounter.encounter_key,
+            slug: encounter.slug,
+            name,
+            status: "archived",
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto("/encounters");
+    await expect(
+      page.getByRole("tab", { name: "Active", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("link", { name, exact: true })).toHaveCount(0);
+    await activate(page.getByRole("tab", { name: "Archived", exact: true }), info);
+    await expect(page.getByRole("link", { name, exact: true })).toBeVisible();
+    await noPageOverflow(page);
+  } finally {
+    await page.request.delete(path);
+    if (partyKey)
+      await page.request.delete(`/api/parties/${partyKey}`, {
+        data: { expected_revision: 0 },
+      });
+  }
+});
+
+test("list entry notes stay beneath the reader and removal confirms in place", async ({
+  page,
+}, info) => {
+  const slug = `note-review-${info.project.name}-${Date.now()}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: "Note review" },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { list } = await created.json();
+  try {
+    const added = await page.request.post(`/api/lists/${list.list_key}/items`, {
+      data: {
+        list_ref: list.list_key,
+        record_ref: sentinel,
+        note: "A useful guardian for the garden",
+      },
+    });
+    expect(added.ok()).toBeTruthy();
+    await page.goto(`/lists/${slug}/records/${sentinel}`);
+    const footer = page.getByRole("region", { name: "List entry note" });
+    await expect(footer.getByText("A useful guardian for the garden")).toBeVisible();
+    const before = await footer.boundingBox();
+    const reader = page.locator(".reference-reader__scroll");
+    await reader.evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+    });
+    const after = await footer.boundingBox();
+    expect(Math.abs(after!.y - before!.y)).toBeLessThan(2);
+    await activate(footer.getByRole("button", { name: "Edit", exact: true }), info);
+    await footer
+      .getByRole("textbox", { name: "Note", exact: true })
+      .fill("An ally who remembers the party");
+    await activate(footer.getByRole("button", { name: "Save", exact: true }), info);
+    await expect(footer.getByText("An ally who remembers the party")).toBeVisible();
+    await page.screenshot({ path: info.outputPath("note-footer.png") });
+    await expect(
+      footer.getByRole("button", { name: "Edit", exact: true }),
+    ).toBeFocused();
+    await noPageOverflow(page);
+    const results = page.getByRole("button", { name: "Results", exact: true });
+    if (await results.isVisible()) await activate(results, info);
+    const remove = page.getByRole("button", {
+      name: "Remove Atlas Sentinel",
+      exact: true,
+    });
+    const box = await remove.boundingBox();
+    expect(box!.width).toBeGreaterThanOrEqual(44);
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+    await activate(remove, info);
+    await expect(page.getByText("Remove from list?", { exact: true })).toBeVisible();
+    await activate(page.getByRole("button", { name: "Cancel", exact: true }), info);
+    await expect(page.getByText("Remove from list?", { exact: true })).toBeHidden();
+    await activate(remove, info);
+    await activate(page.getByRole("button", { name: "Remove", exact: true }), info);
+    await expect(remove).toBeHidden();
+    expect(
+      (await (await page.request.get(`/api/lists/${list.list_key}`)).json()).items,
+    ).toHaveLength(0);
+  } finally {
+    expect(
+      (await page.request.delete(`/api/lists/${list.list_key}`)).ok(),
+    ).toBeTruthy();
+  }
+});

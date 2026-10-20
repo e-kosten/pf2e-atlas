@@ -5,8 +5,9 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
 use super::model::{
-    AddSavedListItemOutcome, ImportSavedListItem, NewSavedList, NewSavedListItem, SavedList,
-    SavedListItem, SavedListWithItems, UpdateSavedList,
+    AddSavedListItemOutcome, ImportSavedListItem, NewSavedList, NewSavedListItem,
+    ReorderSavedListItem, SavedList, SavedListItem, SavedListItemPlacement, SavedListWithItems,
+    UpdateSavedList,
 };
 use crate::{LocalStateError, LocalStateResult};
 
@@ -240,6 +241,81 @@ pub(crate) fn remove_item(
         )?;
     }
     Ok(removed > 0)
+}
+
+pub(crate) fn reorder_item(
+    connection: &Connection,
+    list_ref: &str,
+    reorder: ReorderSavedListItem,
+) -> LocalStateResult<bool> {
+    let Some(list_id) = list_id(connection, list_ref)? else {
+        return Err(LocalStateError::ListNotFound(list_ref.to_string()));
+    };
+    let mut statement = connection.prepare(
+        "SELECT record_key FROM saved_list_items WHERE list_id = ?1 ORDER BY position, record_key",
+    )?;
+    let mut keys = statement
+        .query_map(params![list_id], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    drop(statement);
+    let Some(from) = keys.iter().position(|key| key == &reorder.record_key) else {
+        return Ok(false);
+    };
+    if reorder.record_key == reorder.target_record_key {
+        return Ok(true);
+    }
+    keys.remove(from);
+    let Some(target) = keys
+        .iter()
+        .position(|key| key == &reorder.target_record_key)
+    else {
+        return Ok(false);
+    };
+    let index = match reorder.placement {
+        SavedListItemPlacement::Before => target,
+        SavedListItemPlacement::After => target + 1,
+    };
+    keys.insert(index, reorder.record_key);
+    // Move through a disjoint range so the unique (list_id, position) index
+    // cannot collide while positions are rewritten.
+    connection.execute(
+        "UPDATE saved_list_items SET position = -position WHERE list_id = ?1",
+        params![list_id],
+    )?;
+    let now = now_rfc3339()?;
+    for (index, key) in keys.iter().enumerate() {
+        connection.execute(
+            "UPDATE saved_list_items SET position = ?1, updated_at = ?2 WHERE list_id = ?3 AND record_key = ?4",
+            params![index as i64 + 1, now, list_id, key],
+        )?;
+    }
+    connection.execute(
+        "UPDATE saved_lists SET revision = revision + 1, updated_at = ?1 WHERE id = ?2",
+        params![now, list_id],
+    )?;
+    Ok(true)
+}
+
+pub(crate) fn update_item_note(
+    connection: &Connection,
+    list_ref: &str,
+    record_key: &str,
+    note: Option<&str>,
+) -> LocalStateResult<bool> {
+    let Some(list_id) = list_id(connection, list_ref)? else {
+        return Err(LocalStateError::ListNotFound(list_ref.to_string()));
+    };
+    let changed = connection.execute(
+        "UPDATE saved_list_items SET note = ?3, updated_at = ?4 WHERE list_id = ?1 AND record_key = ?2",
+        params![list_id, record_key, note, now_rfc3339()?],
+    )?;
+    if changed > 0 {
+        connection.execute(
+            "UPDATE saved_lists SET revision = revision + 1, updated_at = ?1 WHERE id = ?2",
+            params![now_rfc3339()?, list_id],
+        )?;
+    }
+    Ok(changed > 0)
 }
 
 pub(crate) fn validate_list_ref(list_ref: &str) -> LocalStateResult<()> {

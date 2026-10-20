@@ -8,6 +8,7 @@ import { useEncounterMutations } from "./useEncounterMutations";
 const api = vi.hoisted(() => ({
   applyEncounterSpellAction: vi.fn(),
   applyEncounterHpAction: vi.fn(),
+  addEncounterParty: vi.fn(),
   getEncounter: vi.fn(),
   updateEncounterParticipant: vi.fn(),
   updateEncounter: vi.fn(),
@@ -319,4 +320,29 @@ it("keeps an uncertain raw HP intent id and gives a later deliberate click a fre
   const calls = api.applyEncounterHpAction.mock.calls;
   expect(calls[0][1].request_id).toBe(calls[1][1].request_id);
   expect(calls[2][1].request_id).not.toBe(calls[1][1].request_id);
+});
+
+it("never resubmits a committed party addition when its refresh fails", async () => {
+  api.addEncounterParty.mockResolvedValue({ encounter_key: "encounter-key" });
+  api.getEncounter.mockRejectedValueOnce(new Error("Refresh unavailable"));
+  const { result } = mount();
+  const command = {
+    kind: "add-party" as const,
+    request: { party_key: "party", expected_revision: 2 },
+  };
+  await act(async () => {
+    const saved = await result.current.run(command);
+    expect(saved.refreshed).toBe(false);
+  });
+  await expect(result.current.run(command)).rejects.toThrow(
+    "Wait for the encounter to refresh",
+  );
+  await act(async () => {
+    await result.current.retryRefresh();
+  });
+  expect(api.addEncounterParty).toHaveBeenCalledExactlyOnceWith(
+    "encounter-key",
+    command.request,
+  );
+  expect(api.getEncounter).toHaveBeenCalledTimes(2);
 });

@@ -1,3 +1,4 @@
+import { ListEntryNote } from "./ListEntryNote";
 import { ListRecordPicker } from "./ListRecordPicker";
 import {
   keepPreviousData,
@@ -6,7 +7,11 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { filterSavedList, removeSavedListItem } from "../../api/atlasApi";
+import {
+  filterSavedList,
+  removeSavedListItem,
+  reorderSavedListItem,
+} from "../../api/atlasApi";
 import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
 import {
   buildFilter,
@@ -98,6 +103,21 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       }
     },
   });
+  const reorderItem = useMutation({
+    mutationFn: (input: {
+      recordKey: string;
+      targetRecordKey: string;
+      placement: "before" | "after";
+    }) =>
+      reorderSavedListItem({
+        list_ref: route.slug,
+        record_ref: input.recordKey,
+        target_record_ref: input.targetRecordKey,
+        placement: input.placement,
+      }),
+    onSuccess: async (view) =>
+      invalidateSavedListQueries(queryClient, [route.slug, view.slug, view.list_key]),
+  });
 
   return (
     <main className="list-workspace">
@@ -128,6 +148,22 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       <BrowseReader
         reading={reading}
         selectedRecordKey={route.selectedRecordKey}
+        readerFooter={
+          route.selectedRecordKey &&
+          list.data &&
+          (list.data.list.slug === route.slug ||
+            list.data.list.list_key === route.slug) ? (
+            <ListEntryNote
+              key={JSON.stringify([list.data.list.list_key, route.selectedRecordKey])}
+              listRef={list.data.list.list_key}
+              recordKey={route.selectedRecordKey}
+              hidden={Boolean(
+                reading.request &&
+                reading.request.navigation.record_key !== route.selectedRecordKey,
+              )}
+            />
+          ) : undefined
+        }
         resultsLabel="Saved records"
         resultsIdentity={list.data?.items}
         resultsLoading={list.isLoading || list.isFetching}
@@ -141,6 +177,13 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       >
         <ListItemsPane
           error={removeItem.error}
+          reorderError={reorderItem.error}
+          mutating={
+            reorderItem.isPending ||
+            removeItem.isPending ||
+            list.isPlaceholderData ||
+            Boolean(list.error)
+          }
           items={list.data?.items ?? []}
           loading={list.isLoading || list.isFetching}
           unavailable={Boolean(list.error && !list.data)}
@@ -148,6 +191,10 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           removingKey={removeItem.isPending ? removeItem.variables : null}
           selectedRecordKey={route.selectedRecordKey}
           onRemove={(key) => removeItem.mutateAsync(key)}
+          onReorder={async (recordKey, targetRecordKey, placement) => {
+            await reorderItem.mutateAsync({ recordKey, targetRecordKey, placement });
+            return true;
+          }}
           onSelect={(recordKey) => {
             reading.select({ navigation: rootNavigation(recordKey) });
             navigateToAtlasRoute({

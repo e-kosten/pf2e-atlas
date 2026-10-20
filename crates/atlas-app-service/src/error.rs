@@ -82,7 +82,8 @@ impl From<LocalStateError> for AppServiceError {
     fn from(error: LocalStateError) -> Self {
         let code = match &error {
             LocalStateError::EncounterBoundaryConflict => AppErrorCode::EncounterTurnConflict,
-            LocalStateError::InvalidSlug { .. }
+            LocalStateError::InvalidParty(_)
+            | LocalStateError::InvalidSlug { .. }
             | LocalStateError::InvalidRollRequest(_)
             | LocalStateError::RollRequestConflict
             | LocalStateError::Dice(_)
@@ -90,6 +91,8 @@ impl From<LocalStateError> for AppServiceError {
             | LocalStateError::InvalidEncounterRef { .. }
             | LocalStateError::InvalidRecordKey { .. }
             | LocalStateError::InvalidListImport(_) => AppErrorCode::InvalidRequest,
+            LocalStateError::PartyNotFound(_) => AppErrorCode::PartyNotFound,
+            LocalStateError::PartyConflict => AppErrorCode::PartyConflict,
             LocalStateError::ListNotFound(_) => AppErrorCode::SavedListNotFound,
             LocalStateError::ListAlreadyExists(_) => AppErrorCode::SavedListAlreadyExists,
             LocalStateError::EncounterNotFound(_) => AppErrorCode::EncounterNotFound,

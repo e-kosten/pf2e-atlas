@@ -179,6 +179,14 @@ unknown/conflicting states. See [ADR0055](./decisions/0055-encounter-condition-e
 
 Do not implement a Foundry world/rule/macro execution engine through presentation.
 
+Saved parties are ordered, name-only reusable PC definitions owned by local-state.
+App-service copies every member into independent manual encounter participants
+in one workspace write, checking the reviewed party revision.
+Party edits and deletion do not affect existing encounters. Party/member identities
+are independent of names; no live HP, conditions, initiative or reference records
+are stored on parties. Web exposes party management through shared app contracts.
+Foundry import and character sheets remain separate future capabilities.
+
 Local-state owns complete atomic user actions and coherent aggregate reads.
 Participant replacements require the revision the caller read; stale writes
 receive a conflict without changing state. App-service owns pure turn selection

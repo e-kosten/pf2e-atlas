@@ -356,8 +356,9 @@ describe("encounter views", () => {
     try {
       await disposeEncounterTest();
     } finally {
-      vi.useRealTimers();
+      // Timer spies capture the fake clock; restore them before restoring time.
       vi.restoreAllMocks();
+      vi.useRealTimers();
     }
   });
 
@@ -465,8 +466,11 @@ describe("encounter views", () => {
     await waitFor(() => expect(window.location.pathname).toBe("/encounters/ambush"));
 
     history.replaceState(null, "", "/encounters");
-    fireEvent.click(screen.getByRole("checkbox", { name: "Archived" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Archived" }));
     expect(await screen.findByText("Old Fight")).toBeInTheDocument();
+    expect(screen.queryByText("Ambush")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Active" }));
+    expect(await screen.findByText("Ambush")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("link", { name: "Edit Ambush" }));
     await waitFor(() =>
