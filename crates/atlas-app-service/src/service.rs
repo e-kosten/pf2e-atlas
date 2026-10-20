@@ -232,7 +232,7 @@ impl Default for AtlasAppServiceOptions {
     }
 }
 
-fn runtime_options(options: &AtlasAppServiceOptions) -> AtlasRuntimeOptions {
+pub(super) fn runtime_options(options: &AtlasAppServiceOptions) -> AtlasRuntimeOptions {
     AtlasRuntimeOptions {
         default_search_profile: options.default_search_profile.clone(),
         path_mode: options.path_mode,

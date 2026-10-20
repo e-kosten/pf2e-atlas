@@ -45,6 +45,8 @@ const apiMocks = vi.hoisted(() => ({
   filterSavedList: vi.fn(),
   getRecordDetail: vi.fn(),
   getSavedList: vi.fn(),
+  getSavedListItemNote: vi.fn(),
+  updateSavedListItemNote: vi.fn(),
   getSavedLists: vi.fn(),
   removeSavedListItem: vi.fn(),
   updateSavedList: vi.fn(),
@@ -62,6 +64,8 @@ vi.mock("../../api/atlasApi", async (original) => ({
   filterSavedList: apiMocks.filterSavedList,
   getRecordDetail: apiMocks.getRecordDetail,
   getSavedList: apiMocks.getSavedList,
+  getSavedListItemNote: apiMocks.getSavedListItemNote,
+  updateSavedListItemNote: apiMocks.updateSavedListItemNote,
   getSavedLists: apiMocks.getSavedLists,
   removeSavedListItem: apiMocks.removeSavedListItem,
   updateSavedList: apiMocks.updateSavedList,
@@ -74,6 +78,15 @@ describe("list views", () => {
     history.replaceState(null, "", "/lists");
     apiMocks.getSavedLists.mockResolvedValue(savedListIndexFixture());
     apiMocks.getSavedList.mockResolvedValue(savedListDetailFixture());
+    apiMocks.getSavedListItemNote.mockImplementation((_list, key) =>
+      Promise.resolve({
+        list_key: "list_research",
+        slug: "research",
+        record_key: key,
+        title: "Test Action",
+        note: null,
+      }),
+    );
     apiMocks.filterSavedList.mockResolvedValue(savedListDetailFixture());
     apiMocks.discoverFilterEditor.mockResolvedValue(filterEditorFixture());
     apiMocks.discoverFilterCounts.mockResolvedValue({

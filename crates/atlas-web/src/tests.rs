@@ -12,11 +12,12 @@ use atlas_app_model::{
     EncounterStatusView, EncounterSummaryView, EncounterTurnReviewView, FilterEditorView,
     FilterSavedListRequest, FilterValueListView, RecordDetailView, RecordSummaryView,
     RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, SavedListCreateView,
-    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemSnapshotView,
-    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
-    SearchModeSummary, SearchPageView, SearchResultsPage, SearchResultsRequest,
-    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
-    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListRequest,
+    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemNoteView,
+    SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
+    SavedListUpdateView, SearchModeSummary, SearchPageView, SearchResultsPage,
+    SearchResultsRequest, SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListItemNoteRequest,
+    UpdateSavedListRequest,
 };
 use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
@@ -1383,6 +1384,32 @@ impl AtlasWebService for MockService {
         })
     }
 
+    fn saved_list_item_note(
+        &self,
+        list_ref: &str,
+        record_key: &str,
+    ) -> Result<SavedListItemNoteView, AppServiceError> {
+        Ok(SavedListItemNoteView {
+            list_key: list_ref.into(),
+            slug: "research".into(),
+            record_key: record_key.into(),
+            title: "Test Action 1".into(),
+            note: Some("fixture note".into()),
+        })
+    }
+    fn update_saved_list_item_note(
+        &self,
+        request: UpdateSavedListItemNoteRequest,
+    ) -> Result<SavedListItemNoteView, AppServiceError> {
+        Ok(SavedListItemNoteView {
+            list_key: request.list_ref,
+            slug: "research".into(),
+            record_key: request.record_key,
+            title: "Test Action 1".into(),
+            note: request.note,
+        })
+    }
+
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {
         Ok(SavedListIndexView {
             lists: vec![saved_list_summary()],
@@ -1679,4 +1706,34 @@ async fn similar_page_transport_carries_exact_seed_and_body_free_summary() {
     assert_eq!(body["mode"]["seed"]["record_key"], "items:seed000000000000");
     assert!(body["mode"]["seed"].get("presentation").is_none());
     assert_eq!(body["page"]["number"], 2);
+}
+
+#[tokio::test]
+async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() {
+    let (status, body) = route_json(
+        Method::GET,
+        "/api/lists/list_research/items/actions:testAction1/note",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["note"], "fixture note");
+    let (status, body) = route_json(
+        Method::PATCH,
+        "/api/lists/list_research/items/actions:testAction1/note",
+        Some(json!({"list_ref":"ignored", "record_key":"ignored", "note":"Purpose"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["list_key"], "list_research");
+    assert_eq!(body["record_key"], "actions:testAction1");
+    assert_eq!(body["note"], "Purpose");
+    let (status, body) = route_json(
+        Method::PATCH,
+        "/api/lists/list_research/items/actions:testAction1/note",
+        Some(json!({"list_ref":"ignored", "record_key":"ignored", "note":null})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body["note"].is_null());
 }

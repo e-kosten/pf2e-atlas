@@ -5,6 +5,9 @@ use clap::{Args, Subcommand};
 use atlas_cli_support::CliPathMode;
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas lists create fey-options --name \"Fey Options\"\n  atlas lists add fey-options --record pathfinder-monster-core:lUBkzsSqMfQBczU1\n  atlas lists show fey-options\n\nResolve ambiguous names with `atlas record resolve <NAME>` and use a returned record key."
+)]
 pub(crate) struct ListsArgs {
     #[command(subcommand)]
     pub(crate) command: ListsCommand,
@@ -28,12 +31,16 @@ pub(crate) enum ListsCommand {
     Edit(ListEditOptions),
     #[command(about = "Remove a record from a saved list")]
     Remove(ListRemoveOptions),
+    #[command(about = "Set or clear a note on an existing list entry")]
+    Note(ListNoteOptions),
     #[command(about = "Delete a saved list")]
     Delete(ListDeleteOptions),
 }
 
 #[derive(Debug, Args)]
-#[command(after_help = "Example:\n  atlas lists create undead-research --name \"Undead Research\"")]
+#[command(
+    after_help = "Example:\n  atlas lists create fey-options --name \"Fey Options\" --record pathfinder-monster-core:lUBkzsSqMfQBczU1 --record pathfinder-monster-core:Ehtm5k9iBYTvSUcZ"
+)]
 pub(crate) struct ListCreateOptions {
     #[arg(help = "Stable saved-list id, using lowercase letters, digits, and '-'")]
     pub(crate) slug: String,
@@ -43,6 +50,12 @@ pub(crate) struct ListCreateOptions {
     pub(crate) description: Option<String>,
     #[arg(long = "tag", help = "Add a saved-list tag; repeat for multiple tags")]
     pub(crate) tags: Vec<String>,
+    #[arg(
+        long = "record",
+        help = "Initial record key or strict name; repeat for multiple records"
+    )]
+    #[arg(add = clap_complete::ArgValueCompleter::new(crate::commands::completions::record_keys))]
+    pub(crate) records: Vec<String>,
     #[command(flatten)]
     pub(crate) paths: ListsPathOptions,
     #[arg(long, help = "Emit the standard JSON envelope")]
@@ -59,7 +72,7 @@ pub(crate) struct ListLsOptions {
 
 #[derive(Debug, Args)]
 pub(crate) struct ListShowOptions {
-    #[arg(help = "Saved-list id")]
+    #[arg(help = "Saved-list id", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_slugs))]
     pub(crate) slug: String,
     #[arg(long, help = "Emit only saved-list record keys")]
     pub(crate) keys_only: bool,
@@ -72,12 +85,18 @@ pub(crate) struct ListShowOptions {
 }
 
 #[derive(Debug, Args)]
-#[command(after_help = "Example:\n  atlas lists add undead-research \"Skeleton Guard\"")]
+#[command(after_help = "Example:\n  atlas lists add undead-research --record \"Skeleton Guard\"")]
 pub(crate) struct ListAddOptions {
-    #[arg(help = "Saved-list id")]
+    #[arg(help = "Saved-list id", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_slugs))]
     pub(crate) slug: String,
-    #[arg(help = "Canonical record key, strict name, or verified alias")]
+    #[arg(help = "Canonical record key, strict name, or verified alias", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::record_keys))]
     pub(crate) record_refs: Vec<String>,
+    #[arg(
+        long = "record",
+        help = "Record key or strict name; repeat for multiple records"
+    )]
+    #[arg(add = clap_complete::ArgValueCompleter::new(crate::commands::completions::record_keys))]
+    pub(crate) records: Vec<String>,
     #[arg(long, help = "Read record refs from stdin, one per line")]
     pub(crate) stdin: bool,
     #[arg(long, help = "Optional note for this saved-list item")]
@@ -90,7 +109,7 @@ pub(crate) struct ListAddOptions {
 
 #[derive(Debug, Args)]
 pub(crate) struct ListExportOptions {
-    #[arg(help = "Saved-list id")]
+    #[arg(help = "Saved-list id", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_slugs))]
     pub(crate) slug: String,
     #[arg(long, help = "Write the export JSON document to this path")]
     pub(crate) output: Option<PathBuf>,
@@ -114,7 +133,7 @@ pub(crate) struct ListImportOptions {
 
 #[derive(Debug, Args)]
 pub(crate) struct ListEditOptions {
-    #[arg(help = "Saved-list id or stable list key")]
+    #[arg(help = "Saved-list id or stable list key", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_slugs))]
     pub(crate) list_ref: String,
     #[arg(long, help = "Set a new saved-list id")]
     pub(crate) id: Option<String>,
@@ -139,9 +158,9 @@ pub(crate) struct ListEditOptions {
 
 #[derive(Debug, Args)]
 pub(crate) struct ListRemoveOptions {
-    #[arg(help = "Saved-list id")]
+    #[arg(help = "Saved-list id", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_slugs))]
     pub(crate) slug: String,
-    #[arg(help = "Canonical record key, strict name, or verified alias")]
+    #[arg(help = "Canonical record key, strict name, or verified alias", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::record_keys))]
     pub(crate) record_ref: String,
     #[command(flatten)]
     pub(crate) paths: ListsPathOptions,
@@ -151,7 +170,7 @@ pub(crate) struct ListRemoveOptions {
 
 #[derive(Debug, Args)]
 pub(crate) struct ListDeleteOptions {
-    #[arg(help = "Saved-list id")]
+    #[arg(help = "Saved-list id", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_slugs))]
     pub(crate) slug: String,
     #[command(flatten)]
     pub(crate) paths: ListsPathOptions,
@@ -168,4 +187,28 @@ pub(crate) struct ListsPathOptions {
     pub(crate) index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     pub(crate) path_mode: CliPathMode,
+}
+
+#[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas lists note fey-options bestiary:RECORD_ID --text \"An ally for the garden encounter\"\n  atlas lists note fey-options bestiary:RECORD_ID --clear"
+)]
+pub(crate) struct ListNoteOptions {
+    #[arg(help = "Saved-list id", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_slugs))]
+    pub(crate) slug: String,
+    #[arg(help = "Canonical record key of an existing list entry", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::record_keys))]
+    pub(crate) record_key: String,
+    #[arg(
+        long,
+        required_unless_present = "clear",
+        conflicts_with = "clear",
+        help = "Set the entry note"
+    )]
+    pub(crate) text: Option<String>,
+    #[arg(long, help = "Remove the entry note")]
+    pub(crate) clear: bool,
+    #[command(flatten)]
+    pub(crate) paths: ListsPathOptions,
+    #[arg(long, help = "Emit the standard JSON envelope")]
+    pub(crate) json: bool,
 }

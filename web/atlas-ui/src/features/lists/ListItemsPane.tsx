@@ -83,14 +83,13 @@ export function ListItemsPane({
             <DangerActionButton
               className="list-member__remove"
               type="text"
-              size="small"
+              confirmation="popover"
               aria-label={`Remove ${title}`}
               title="Remove"
               icon={<Trash2 size={15} />}
               disabled={removingKey !== null}
               loading={removingKey === item.record_key}
-              confirmTitle={`Remove ${title}?`}
-              confirmContent="This removes the record from this list."
+              confirmTitle="Remove from list?"
               confirmOkText="Remove"
               onConfirm={() => onRemove(item.record_key)}
             />
