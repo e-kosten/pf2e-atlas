@@ -37,6 +37,12 @@ TypeScript compiler research/generation lives under `dev-tools`; Rust developer
 commands do not dispatch those scripts. Product record identity remains Foundry
 pack plus source ID. Embedded documents stay in one checked parent snapshot.
 
+Trait reference entities use a separate typed `trait:<identifier>` identity over
+the pinned system catalogs. They retain exact variant identifiers, localized
+definitions and attributed memberships/references without fabricating compendium
+documents. Similar uses stored trait seed vectors and the existing eligible
+record corpus. See [ADR0056](./decisions/0056-trait-reference-entities.md).
+
 ## Data flow
 
 1. Ingest loads the source checkout into admitted authored DTOs with compact

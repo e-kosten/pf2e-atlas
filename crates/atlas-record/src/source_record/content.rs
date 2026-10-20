@@ -82,6 +82,7 @@ pub struct SourceContentSelection<'a> {
 /// Results are specific to this source snapshot and the supplied audience,
 /// localization and reference context. Callers retain those identities when
 /// storing/reusing results; a RecordKey alone cannot identify a prepared cache.
+
 pub fn prepare_record_content(
     record: &SourceBackedRecord,
     audience: ContentAudience,
@@ -152,6 +153,40 @@ impl<'a> SourceNodeView<'a> {
     pub fn content_selections(self) -> Vec<SourceContentSelection<'a>> {
         select_content(self)
     }
+}
+
+/// Explicit authored term references from exactly the same selected HTML fields as preparation.
+pub fn trait_record_localization_references(
+    record: &SourceBackedRecord,
+    audience: ContentAudience,
+) -> Vec<crate::source_content::TraitLocalizationReference> {
+    let mut output = Vec::new();
+    visit_source_nodes(record.source(), |owners, source| {
+        for selection in select_content(source) {
+            if !matches!(
+                selection.format,
+                SourceFieldView::Value(SourceContentFormat::Html)
+            ) {
+                continue;
+            }
+            let SourceFieldView::Value(text) = selection.text else {
+                continue;
+            };
+            let locator = SourceContentLocator {
+                record: record.key().clone(),
+                owners: owners.to_vec(),
+                field: selection.field.into(),
+            };
+            let visibility = selection
+                .visibility
+                .value()
+                .unwrap_or(ContentVisibilityRule::None);
+            output.extend(crate::source_content::trait_localization_references(
+                locator, text, audience, visibility,
+            ));
+        }
+    });
+    output
 }
 
 pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<SourceContentSelection<'_>> {

@@ -50,6 +50,18 @@ pub enum ContentVisibilityRule {
     None,
 }
 
+impl ContentVisibilityRule {
+    pub(crate) fn from_source(value: &str) -> Option<Self> {
+        match value {
+            "all" => Some(Self::All),
+            "gm" => Some(Self::Gm),
+            "owner" => Some(Self::Owner),
+            "none" => Some(Self::None),
+            _ => None,
+        }
+    }
+}
+
 impl ContentAudience {
     pub(crate) fn permits(self, rule: ContentVisibilityRule) -> bool {
         match rule {
@@ -98,6 +110,22 @@ pub enum ContentReferenceTarget {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PreparedSourceContent {
     pub locator: SourceContentLocator,
+    pub interpretation_version: String,
+    /// Hash of the exact authored field interpreted by this preparation call.
+    pub authored_markup_sha256: String,
+    pub html: String,
+    /// Unwrapped plain text derived from the same audience-filtered HTML.
+    pub text: String,
+    pub references: Vec<ContentReferenceOccurrence>,
+    /// Only visible interactions, referenced by data-atlas-interaction markers.
+    pub interactions: Vec<ContentInteraction>,
+    pub diagnostics: Vec<ContentInterpretationDiagnostic>,
+}
+
+/// Prepared localization-backed term content with its exact vocabulary identity.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PreparedTraitDefinition {
+    pub key: atlas_domain::TraitKey,
     pub interpretation_version: String,
     /// Hash of the exact authored field interpreted by this preparation call.
     pub authored_markup_sha256: String,

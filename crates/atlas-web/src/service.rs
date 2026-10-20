@@ -57,6 +57,17 @@ impl AtlasWebState {
 }
 
 pub(crate) trait AtlasWebService: Send + Sync {
+    fn trait_definition(
+        &self,
+        request: atlas_app_model::TraitDetailRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::TraitDetailView, AppServiceError>;
+    fn trait_records(
+        &self,
+        request: atlas_app_model::TraitRecordsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::TraitRecordsPage, AppServiceError>;
+
     fn parties(&self) -> Result<atlas_app_model::PartyIndexView, AppServiceError>;
     fn create_party(
         &self,
@@ -295,6 +306,21 @@ pub(crate) trait AtlasWebService: Send + Sync {
 }
 
 impl AtlasWebService for AtlasAppService {
+    fn trait_definition(
+        &self,
+        request: atlas_app_model::TraitDetailRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::TraitDetailView, AppServiceError> {
+        self.trait_definition(request, execution)
+    }
+    fn trait_records(
+        &self,
+        request: atlas_app_model::TraitRecordsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::TraitRecordsPage, AppServiceError> {
+        self.trait_records(request, execution)
+    }
+
     fn parties(&self) -> Result<atlas_app_model::PartyIndexView, AppServiceError> {
         self.parties()
     }

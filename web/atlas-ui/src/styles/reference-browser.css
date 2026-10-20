@@ -120,6 +120,9 @@ body:has(:is(.search-workspace, .list-workspace)) {
   color: var(--muted);
   font-size: 12px;
 }
+.reference-result > .reference-result__traits {
+  padding: 0 16px 10px;
+}
 .reference-result__traits {
   grid-column: 1 / -1;
   grid-row: 3;

@@ -14,6 +14,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
+- [Rust localization-backed rules terms](items/rust-localization-backed-rules-terms.md)
+  Add trait definition pages with exact membership/reference navigation and
+  stored-vector Similar; glossary namespaces remain separate. Status: in_progress.
+
 - [Reusable encounter party definitions](items/encounter-party-presets.md)
   Define a party once and add its members to encounters without repeatedly
   entering their details. Name-only implementation in progress; awaiting UX review. Status: in_progress.
@@ -72,8 +76,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Add interactive alternate-form selection over checked source, composing with
   rank preview and preserving embedded customizations. Status: deferred.
 
-- [Rust localization-backed rules terms](items/rust-localization-backed-rules-terms.md)
-  Persist selected localization-backed rules vocabulary such as traits and NPC ability glossary entries as canonical hoverable/linkable terms. Status: proposed.
 
 - [Rust web keyboard navigation and focus](items/rust-web-keyboard-navigation-focus.md)
   Define a coherent keyboard-driven web workflow across search, filters, results, detail panes, and editable controls. Status: proposed.

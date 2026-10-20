@@ -59,42 +59,7 @@ pub(crate) fn prepared_fields(
                 match &cached.html {
                     Some(html) => PreparedFieldBodyView::Html {
                         html: html.clone(),
-                        controls: cached
-                            .interactions
-                            .iter()
-                            .map(|i| ContentControlView {
-                                ordinal: i.ordinal,
-                                control: match &i.kind {
-                                    ContentInteractionKind::Check { statistic, options } => {
-                                        ContentControlKindView::Check {
-                                            statistic: statistic.clone(),
-                                            options: options.clone(),
-                                        }
-                                    }
-                                    ContentInteractionKind::Damage { formula, options } => {
-                                        ContentControlKindView::Damage {
-                                            formula: formula.clone(),
-                                            options: options.clone(),
-                                        }
-                                    }
-                                    ContentInteractionKind::Command {
-                                        command,
-                                        arguments,
-                                        options,
-                                    } => ContentControlKindView::Command {
-                                        command: command.clone(),
-                                        arguments: arguments.clone(),
-                                        options: options.clone(),
-                                    },
-                                    ContentInteractionKind::Template { shape, options } => {
-                                        ContentControlKindView::Template {
-                                            shape: shape.clone(),
-                                            options: options.clone(),
-                                        }
-                                    }
-                                },
-                            })
-                            .collect(),
+                        controls: content_controls(&cached.interactions),
                     },
                     None if cached.outcome == "empty" => PreparedFieldBodyView::Html {
                         html: String::new(),
@@ -126,4 +91,44 @@ pub(crate) fn prepared_fields(
         });
     }
     Ok(fields)
+}
+
+pub(crate) fn content_controls(
+    interactions: &[atlas_record::source_content::ContentInteraction],
+) -> Vec<ContentControlView> {
+    interactions
+        .iter()
+        .map(|i| ContentControlView {
+            ordinal: i.ordinal,
+            control: match &i.kind {
+                ContentInteractionKind::Check { statistic, options } => {
+                    ContentControlKindView::Check {
+                        statistic: statistic.clone(),
+                        options: options.clone(),
+                    }
+                }
+                ContentInteractionKind::Damage { formula, options } => {
+                    ContentControlKindView::Damage {
+                        formula: formula.clone(),
+                        options: options.clone(),
+                    }
+                }
+                ContentInteractionKind::Command {
+                    command,
+                    arguments,
+                    options,
+                } => ContentControlKindView::Command {
+                    command: command.clone(),
+                    arguments: arguments.clone(),
+                    options: options.clone(),
+                },
+                ContentInteractionKind::Template { shape, options } => {
+                    ContentControlKindView::Template {
+                        shape: shape.clone(),
+                        options: options.clone(),
+                    }
+                }
+            },
+        })
+        .collect()
 }

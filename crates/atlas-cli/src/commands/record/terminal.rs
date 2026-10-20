@@ -7,7 +7,7 @@ use scraper::{
 use std::io::IsTerminal;
 
 #[derive(Clone, Copy)]
-pub(super) struct TerminalLayout {
+pub(crate) struct TerminalLayout {
     pub width: usize,
     pub styled: bool,
 }
@@ -31,7 +31,7 @@ fn selector(value: &str) -> Result<Selector, String> {
     Selector::parse(value)
         .map_err(|error| format!("cannot select prepared HTML formatting: {error}"))
 }
-pub(super) fn render_html(html: &str, layout: TerminalLayout) -> Result<String, String> {
+pub(crate) fn render_html(html: &str, layout: TerminalLayout) -> Result<String, String> {
     let mut fragment = Html::parse_fragment(html);
     let rules = fragment
         .select(&selector("hr")?)

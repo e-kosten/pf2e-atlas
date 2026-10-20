@@ -261,6 +261,15 @@ never change identity or suppression.
 
 ## Publication, readers and validation
 
+Trait vocabulary publication retains exact typed trait identity, source catalog
+and localization-key evidence, selected localized definitions and prepared HTML.
+Membership retains the actual source owner; explicit references remain separate
+from membership and arbitrary label matches. Stored trait seeds bind their
+complete selected input, versioned recipe and profile. Trait Similar uses the
+existing normal-record candidate ranking and eligibility. None of these rows
+create fabricated Foundry records or replace authored trait filter values; see
+[ADR0056](./decisions/0056-trait-reference-entities.md).
+
 Ingest fingerprints the deterministic actual relevant input set, including pack
 definitions, manifests and excluded inputs. Local edits therefore change identity
 even if a Git revision is unchanged. Locale, catalog and preparation/model policy

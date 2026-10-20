@@ -1,3 +1,4 @@
+import { sanitizePreparedHtml } from "./PreparedHtml";
 import DOMPurify from "dompurify";
 import { Alert, Modal } from "antd";
 import {
@@ -12,6 +13,8 @@ import { createPortal } from "react-dom";
 import { EffectReferenceLink } from "./EffectReferenceLink";
 import type {
   PreparedContentFieldView,
+  PreparedFieldBodyView,
+  PreparedReferenceView,
   RecordRelationshipView,
   RecordNavigationView,
 } from "../../generated/atlas";
@@ -32,6 +35,27 @@ export function PreparedContent({
   relationships?: RecordRelationshipView[];
   onReference: RecordReferenceHandler;
 }) {
+  return (
+    <PreparedContentBody
+      body={content.body}
+      references={relationships.filter(
+        (reference) =>
+          JSON.stringify(reference.source) === JSON.stringify(content.locator),
+      )}
+      onReference={onReference}
+    />
+  );
+}
+
+export function PreparedContentBody({
+  body,
+  references,
+  onReference,
+}: {
+  body: PreparedFieldBodyView;
+  references: (PreparedReferenceView | RecordRelationshipView)[];
+  onReference: RecordReferenceHandler;
+}) {
   const [modal, contextHolder] = Modal.useModal();
   const container = useRef<HTMLDivElement>(null);
   const [effectLinks, setEffectLinks] = useState<ReactPortal[]>([]);
@@ -43,16 +67,8 @@ export function PreparedContent({
     (...args) => referenceHandler.current(...args),
     [],
   );
-  const body = content.body;
   const html = useMemo(
-    () =>
-      body.kind === "html"
-        ? DOMPurify.sanitize(body.html, {
-            FORBID_TAGS: ["script", "iframe", "object", "embed", "form"],
-            FORBID_ATTR: ["style"],
-            ALLOW_DATA_ATTR: true,
-          })
-        : "",
+    () => (body.kind === "html" ? sanitizePreparedHtml(body.html) : ""),
     [body],
   );
   // Native links must exist before parent reading hosts restore a bookmark.
@@ -67,13 +83,7 @@ export function PreparedContent({
       let marker = originalMarker;
       const ref = marker.getAttribute("data-atlas-reference");
       const fact =
-        ref === null
-          ? null
-          : relationships.find(
-              (r) =>
-                r.ordinal === Number(ref) &&
-                JSON.stringify(r.source) === JSON.stringify(content.locator),
-            );
+        ref === null ? null : references.find((r) => r.ordinal === Number(ref));
       const control =
         ref === null
           ? body.controls.find(
@@ -165,11 +175,7 @@ export function PreparedContent({
         const reference = marker.getAttribute("data-atlas-reference");
         if (reference !== null) {
           const ordinal = Number(reference);
-          const fact = relationships.find(
-            (r) =>
-              r.ordinal === ordinal &&
-              JSON.stringify(r.source) === JSON.stringify(content.locator),
-          );
+          const fact = references.find((r) => r.ordinal === ordinal);
           if (!fact?.target) return;
           const target = fact.contextual_target ?? fact.target;
           openReference(target.record_key, marker as HTMLElement, target);
@@ -214,7 +220,7 @@ export function PreparedContent({
     });
     setEffectLinks(effects);
     return () => listeners.forEach((remove) => remove());
-  }, [body, content.locator, relationships, openReference, html, modal]);
+  }, [body, references, openReference, html, modal]);
   if (body.kind === "unavailable")
     return (
       <Alert

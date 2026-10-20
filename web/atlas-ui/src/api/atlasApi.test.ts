@@ -5,6 +5,8 @@ import {
   getReadiness,
   getRecordDetail,
   getRelatedRecords,
+  getTraitDetail,
+  getTraitRecords,
   searchPage,
   discoverFilterValues,
   discoverFilterEditor,
@@ -793,4 +795,38 @@ describe("source-backed API transport", () => {
     fetchMock.mockResolvedValue(new Response("broken", { status: 200 }));
     await expect(getReadiness()).rejects.toBeInstanceOf(AtlasApiError);
   });
+});
+
+it("rejects trait responses from another identity, artifact generation or Similar profile", async () => {
+  respond({ trait_key: "trait:deadly-d12" });
+  await expect(
+    getTraitDetail({
+      trait_key: "trait:deadly-d8",
+      expected_artifact_generation: null,
+    }),
+  ).rejects.toThrow("does not match");
+  const request = {
+    trait_key: "trait:agile",
+    kind: "similar" as const,
+    expected_artifact_generation: "current",
+    search_profile: "bge-base",
+    ranking: "score" as const,
+    page: { number: 1, size: 20 },
+  };
+  respond({
+    trait_key: "trait:agile",
+    kind: "similar",
+    artifact_generation: "old",
+    search_profile: "bge-base",
+  });
+  await expect(getTraitRecords(request)).rejects.toMatchObject({
+    appError: { code: "artifact_generation_changed" },
+  });
+  respond({
+    trait_key: "trait:agile",
+    kind: "similar",
+    artifact_generation: "current",
+    search_profile: "embeddinggemma",
+  });
+  await expect(getTraitRecords(request)).rejects.toThrow("selected search model");
 });

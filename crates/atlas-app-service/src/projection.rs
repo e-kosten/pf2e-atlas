@@ -48,6 +48,9 @@ pub fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
             .flatten()
             .map(|value| RecordBadgeView {
                 kind: "trait".into(),
+                trait_key: atlas_domain::TraitKey::new(value.clone())
+                    .ok()
+                    .map(|key| key.to_string()),
                 label: value.clone(),
                 value: value.clone(),
             })
@@ -149,14 +152,14 @@ pub(crate) fn search_results_view(
         coverage: coverage_view(result.coverage),
     }
 }
-pub(crate) fn relationship_view(
-    o: atlas_search::SourceStoredRelationship,
+pub(crate) fn content_reference_destination(
+    resolution: atlas_record::source_content::ContentReferenceResolution,
     fingerprint: &str,
-) -> atlas_app_model::RecordRelationshipView {
+) -> (&'static str, Option<RecordNavigationView>, Option<String>) {
     use atlas_record::source_content::{
         ContentReferenceResolution as Resolution, ContentReferenceTarget as Target,
     };
-    let (status, target, url) = match o.resolution {
+    match resolution {
         Resolution::Resolved(Target::Record { key }) => (
             "resolved_record",
             Some(RecordNavigationView {
@@ -185,7 +188,14 @@ pub(crate) fn relationship_view(
         Resolution::UnverifiedUrl { url } => ("unverified_url", None, Some(url)),
         Resolution::Unresolved => ("unresolved", None, None),
         Resolution::Blocked => ("blocked", None, None),
-    };
+    }
+}
+
+pub(crate) fn relationship_view(
+    o: atlas_search::SourceStoredRelationship,
+    fingerprint: &str,
+) -> atlas_app_model::RecordRelationshipView {
+    let (status, target, url) = content_reference_destination(o.resolution, fingerprint);
     atlas_app_model::RecordRelationshipView {
         source_navigation: RecordNavigationView {
             spell_rank: None,

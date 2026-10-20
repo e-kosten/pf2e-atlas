@@ -1,9 +1,22 @@
 # Rust Localization-Backed Rules Terms
 
-Status: proposed
-Priority: later
-Owner: unassigned
-Last reviewed: 2026-10-13
+Status: in_progress
+Priority: now
+Owner: trait-click-through task
+Last reviewed: 2026-10-20
+
+## Current delivery
+
+Trait click-through is approved for implementation. The first delivery gives
+exact trait identifiers addressable definitions, authored membership/reference
+navigation and stored-vector Similar into normal records. It preserves existing
+trait filters, parameterized identities and missing definitions. Rarity,
+otherTags, NPC glossary pages and arbitrary prose linking are outside this first
+delivery. See [ADR0056](../../architecture/decisions/0056-trait-reference-entities.md).
+
+Implementation and focused checks are in progress; no functional UX acceptance or
+final gate result has been established yet. The shared reference catalog already
+extracts the pinned trait mappings; catalog extraction alone is not product lookup.
 
 ## Problem
 
