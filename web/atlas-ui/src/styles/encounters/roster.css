@@ -5,6 +5,51 @@
   flex-wrap: wrap;
 }
 
+.encounter-roster {
+  container: encounter-roster / inline-size;
+}
+
+.encounter-roster__header {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.encounter-roster__turn-bar {
+  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.encounter-roster__turn-summary {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.encounter-roster__turn-caption {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.encounter-roster__management {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+@container encounter-roster (max-width: 260px) {
+  .encounter-roster__management {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .encounter-roster__list {
   display: grid;
   gap: 4px;
@@ -15,13 +60,25 @@
   font-size: 12px;
 }
 
+.encounter-roster__initiative-heading {
+  text-align: center;
+}
+
+.encounter-roster__name-heading {
+  padding-left: 4px;
+}
+
+.encounter-roster__hp-heading {
+  text-align: right;
+}
+
 .encounter-roster__columns,
 .encounter-roster__row {
   display: grid;
-  grid-template-columns: 24px 36px minmax(0, 1fr) 44px 52px;
+  grid-template-columns: 24px 36px minmax(0, 1fr) 40px 28px;
   align-items: center;
   gap: 4px;
-  padding: 4px;
+  padding: 6px 4px;
 }
 
 .encounter-roster__row {
@@ -66,6 +123,10 @@
   font-size: 12px;
 }
 
+.encounter-roster__more {
+  min-height: 36px;
+}
+
 .encounter-roster__initiative-input,
 .encounter-roster__hp {
   white-space: nowrap;
@@ -94,11 +155,6 @@
 
 .encounter-add-receipt {
   flex: 1 1 160px;
-}
-
-.encounter-roster__row-actions {
-  display: flex;
-  gap: 4px;
 }
 
 .encounter-roster__drag-handle {
