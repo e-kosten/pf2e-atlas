@@ -104,14 +104,13 @@ fn validate(
                 "Enter a PC name of 1 to 255 characters.",
             ));
         }
-        if let Some(key) = &member.member_key {
-            if !keys.insert(key)
-                || !existing.is_some_and(|p| p.members.iter().any(|m| &m.member_key == key))
-            {
-                return Err(LocalStateError::InvalidParty(
-                    "Member does not belong to this party or was supplied twice.",
-                ));
-            }
+        if let Some(key) = &member.member_key
+            && (!keys.insert(key)
+                || !existing.is_some_and(|p| p.members.iter().any(|m| &m.member_key == key)))
+        {
+            return Err(LocalStateError::InvalidParty(
+                "Member does not belong to this party or was supplied twice.",
+            ));
         }
     }
     Ok(())
