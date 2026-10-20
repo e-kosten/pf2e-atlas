@@ -49,6 +49,7 @@ const apiMocks = vi.hoisted(() => ({
   getEncounter: vi.fn(),
   getEncounterConditionDefinitions: vi.fn(),
   getEncounters: vi.fn(),
+  getParties: vi.fn(),
   getRecordDetail: vi.fn(),
   getEncounterReference: vi.fn(),
   getEmbeddedReading: vi.fn(),
@@ -75,6 +76,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   getEncounter: apiMocks.getEncounter,
   getEncounterConditionDefinitions: apiMocks.getEncounterConditionDefinitions,
   getEncounters: apiMocks.getEncounters,
+  getParties: apiMocks.getParties,
   getRecordDetail: apiMocks.getRecordDetail,
   getEncounterReference: apiMocks.getEncounterReference,
   getEmbeddedReading: apiMocks.getEmbeddedReading,
@@ -100,6 +102,7 @@ describe("encounter views", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.clearAllMocks();
     Object.values(apiMocks).forEach((mock) => mock.mockReset());
+    apiMocks.getParties.mockResolvedValue({ parties: [] });
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true, xl: true });
     history.replaceState(null, "", "/encounters");
     apiMocks.getEncounters.mockResolvedValue(encounterIndexFixture());
@@ -244,7 +247,8 @@ describe("encounter views", () => {
       };
       return { encounter_key: "encounter_ambush" };
     });
-    fireEvent.click(screen.getByRole("button", { name: "Set turn to Kyra" }));
+    fireEvent.click(screen.getByRole("button", { name: "Actions for Kyra" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Set turn to Kyra" }));
     await waitFor(() =>
       expect(apiMocks.setEncounterTurn).toHaveBeenCalledWith({
         encounter_ref: "encounter_ambush",
@@ -446,9 +450,10 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Add PC" })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: "Add participants" })).toBeEnabled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Add PC" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Add PC…" }));
     const add = await screen.findByRole("dialog", { name: "Add PC" });
     const previousId = within(add).getByLabelText("Name").id;
     fireEvent.click(within(add).getByRole("button", { name: "Cancel" }));
@@ -501,6 +506,9 @@ describe("encounter views", () => {
     const goblinRow = rosterRow("Goblin");
     expect(goblinRow).toHaveClass("encounter-roster__row--current");
     expect(within(goblinRow).queryByText("Current turn")).not.toBeInTheDocument();
+    expect(
+      within(goblinRow).getByRole("button", { name: "Goblin, Current turn" }),
+    ).toHaveAttribute("aria-current", "true");
     expect(within(goblinRow).getByLabelText("Goblin HP")).toHaveTextContent(/^15$/);
   });
 
@@ -794,7 +802,11 @@ describe("encounter views", () => {
       expect(screen.queryByLabelText("Reference preview")).not.toBeInTheDocument(),
     );
 
-    fireEvent.click(await screen.findByText("Goblin"));
+    fireEvent.click(
+      within(rosterRow("Goblin")).getByRole("button", {
+        name: /^Goblin(?:, Current turn)?$/,
+      }),
+    );
 
     fireEvent.click(
       await screen.findByRole("button", { name: "Participant settings" }),
@@ -1132,9 +1144,16 @@ describe("encounter views", () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Add Creature" })).not.toBeDisabled(),
+      expect(
+        screen.getByRole("button", { name: "Add participants" }),
+      ).not.toBeDisabled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Add Creature" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
+    fireEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "Add creature or hazard…",
+      }),
+    );
     const dialog = await screen.findByRole("dialog", {
       name: "Add creature or hazard",
     });
@@ -1219,9 +1238,14 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Add Creature" })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: "Add participants" })).toBeEnabled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Add Creature" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
+    fireEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "Add creature or hazard…",
+      }),
+    );
     const dialog = await screen.findByRole("dialog", {
       name: "Add creature or hazard",
     });
@@ -1266,9 +1290,14 @@ describe("encounter views", () => {
       expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledOnce(),
     );
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Add Creature" })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: "Add participants" })).toBeEnabled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Add Creature" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
+    fireEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "Add creature or hazard…",
+      }),
+    );
     await waitFor(() => expect(dialog).toBeVisible());
     expect(within(dialog).getByLabelText("Quantity")).toHaveValue("4");
     expect(within(dialog).getByLabelText("Initiative")).toHaveValue("9");
@@ -1746,7 +1775,9 @@ describe("encounter views", () => {
     });
     await screen.findByLabelText("HP summary");
     fireEvent.click(
-      within(rosterRow("Goblin")).getByRole("button", { name: "Goblin" }),
+      within(rosterRow("Goblin")).getByRole("button", {
+        name: /^Goblin(?:, Current turn)?$/,
+      }),
     );
     fireEvent.click(screen.getAllByRole("button", { name: "Next turn" })[0]);
     const dialog = await screen.findByRole("dialog", { name: "Review turn" });
@@ -2062,7 +2093,7 @@ describe("encounter views", () => {
       screen.getByRole("button", { name: "Goblin initiative: 18" }),
     ).toBeDisabled();
     expect(screen.getByRole("button", { name: "Next turn" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Set turn to Goblin" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Actions for Goblin" })).toBeDisabled();
     fireEvent.click(
       within(screen.getByRole("dialog", { name: "Edit HP" })).getByRole("button", {
         name: /Save/,
@@ -2320,7 +2351,8 @@ describe("encounter views", () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-    fireEvent.click(await screen.findByRole("button", { name: "Add PC" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add participants" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Add PC…" }));
     const dialog = await screen.findByRole("dialog", { name: "Add PC" });
     fireEvent.change(within(dialog).getByLabelText("Name"), {
       target: { value: "Mira" },
@@ -2378,9 +2410,12 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Add PC" })).not.toBeDisabled(),
+      expect(
+        screen.getByRole("button", { name: "Add participants" }),
+      ).not.toBeDisabled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Add PC" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add participants" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Add PC…" }));
     const dialog = await screen.findByRole("dialog", { name: "Add PC" });
     const name = within(dialog).getByLabelText("Name");
     fireEvent.change(name, { target: { value: "My PC" } });

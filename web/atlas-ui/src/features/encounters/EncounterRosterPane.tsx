@@ -1,8 +1,8 @@
-import { Alert, Button, Form, Input, InputNumber, Modal } from "antd";
+import { Alert, Button, Dropdown, Form, Input, InputNumber, Modal } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableRow, useSortableList } from "../../shared/ui/sortable/SortableList";
-import { Dice5, GripVertical, Play, Trash2 } from "lucide-react";
+import { Dice5, Ellipsis, GripVertical, Play, Trash2 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type {
   AddEncounterManualParticipantRequest,
@@ -11,7 +11,7 @@ import type {
   SearchResultsRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
-import { AddPartyMenu } from "../parties/AddPartyMenu";
+import { EncounterAddMenu } from "./EncounterAddMenu";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { InitiativeValueField } from "./InitiativeValueField";
 import { participantUpdate } from "./participantEdits";
@@ -79,6 +79,9 @@ export function EncounterRosterPane({
   slug: string;
 }) {
   const formId = useId();
+  const currentParticipant = participants.find(
+    (participant) => participant.participant_key === currentTurnParticipantKey,
+  );
   const sortable = useSortableList({
     items: participants,
     getKey: (participant) => participant.participant_key,
@@ -201,6 +204,15 @@ export function EncounterRosterPane({
               type="text"
               className="encounter-roster__select"
               data-participant-key={participant.participant_key}
+              aria-label={[
+                participant.display_name,
+                participant.participant_key === currentTurnParticipantKey &&
+                  "Current turn",
+                participant.hazard_disabled && "Disabled",
+                participant.defeated && "Defeated",
+              ]
+                .filter(Boolean)
+                .join(", ")}
               aria-pressed={participant.participant_key === selectedParticipantKey}
               aria-current={
                 participant.participant_key === currentTurnParticipantKey
@@ -225,27 +237,12 @@ export function EncounterRosterPane({
                 ? "—"
                 : (participant.current_hp + participant.temporary_hp).toString()}
             </span>
-            <div className="encounter-roster__row-actions">
-              <Button
-                type="text"
-                size="small"
-                disabled={disabled}
-                aria-label={`Set turn to ${participant.display_name}`}
-                title={`Set turn to ${participant.display_name}`}
-                icon={<Play size={14} aria-hidden="true" />}
-                onClick={() => onSetTurn(participant)}
-              />
-              <Button
-                type="text"
-                size="small"
-                danger
-                disabled={disabled}
-                aria-label={`Remove ${participant.display_name}`}
-                title={`Remove ${participant.display_name}`}
-                icon={<Trash2 size={14} aria-hidden="true" />}
-                onClick={() => onRemove(participant)}
-              />
-            </div>
+            <ParticipantActions
+              participant={participant}
+              disabled={disabled}
+              onSetTurn={() => onSetTurn(participant)}
+              onRemove={() => onRemove(participant)}
+            />
           </>
         )}
       </SortableRow>
@@ -254,46 +251,49 @@ export function EncounterRosterPane({
 
   return (
     <section className="encounter-pane encounter-roster">
-      <header className="encounter-pane__header">
-        <PrimaryToolbar className="encounter-actions">
+      <header className="encounter-roster__header">
+        <PrimaryToolbar className="encounter-roster__turn-bar">
+          <div className="encounter-roster__turn-summary">
+            <span className="encounter-roster__turn-caption">Current turn</span>
+            <strong>
+              {currentParticipant?.display_name ??
+                (loading ? "Loading…" : "Not started")}
+            </strong>
+          </div>
+          <Button
+            disabled={disabled || loading || participants.length === 0}
+            icon={<Play size={14} aria-hidden="true" />}
+            type="primary"
+            onClick={onAdvanceTurn}
+          >
+            {currentTurnParticipantKey ? "Next turn" : "Start turn"}
+          </Button>
+        </PrimaryToolbar>
+        <PrimaryToolbar className="encounter-roster__management">
+          <EncounterAddMenu
+            onAdd={onAddParty}
+            disabled={disabled}
+            onAddCreature={() => {
+              setAdded("");
+              setRecordOpen(true);
+            }}
+            onAddPc={() => {
+              setCommittedPc(false);
+              setPcOpen(true);
+            }}
+          />
           {onRollInitiative && (
             <Button
               disabled={
                 disabled || participants.every((p) => p.participant_kind === "pc")
               }
               icon={<Dice5 size={14} />}
+              type="text"
               onClick={() => onRollInitiative()}
             >
-              Initiative
+              Roll initiative
             </Button>
           )}
-          <Button
-            disabled={disabled}
-            icon={<Play size={14} />}
-            type="primary"
-            onClick={onAdvanceTurn}
-          >
-            {currentTurnParticipantKey ? "Next turn" : "Start turn"}
-          </Button>
-          <Button
-            disabled={disabled}
-            onClick={() => {
-              setAdded("");
-              setRecordOpen(true);
-            }}
-          >
-            Add Creature
-          </Button>
-          <Button
-            disabled={disabled}
-            onClick={() => {
-              setCommittedPc(false);
-              setPcOpen(true);
-            }}
-          >
-            Add PC
-          </Button>
-          <AddPartyMenu onAdd={onAddParty} disabled={disabled} />
         </PrimaryToolbar>
       </header>
       {loading ? (
@@ -309,9 +309,9 @@ export function EncounterRosterPane({
             <div className="encounter-roster__list">
               <div className="encounter-roster__columns" aria-hidden="true">
                 <span />
-                <span>Init</span>
-                <span>Participant</span>
-                <span>HP</span>
+                <span className="encounter-roster__initiative-heading">Init</span>
+                <span className="encounter-roster__name-heading">Participant</span>
+                <span className="encounter-roster__hp-heading">HP</span>
                 <span />
               </div>
               {sortable.items.map(renderParticipant)}
@@ -336,10 +336,7 @@ export function EncounterRosterPane({
                         sortable.activeItem.temporary_hp
                       ).toString()}
                 </span>
-                <span className="encounter-roster__row-actions">
-                  <Play size={14} />
-                  <Trash2 size={14} />
-                </span>
+                <Ellipsis size={16} />
               </div>
             )}
           </DragOverlay>
@@ -498,4 +495,61 @@ function rosterRowClass(
   ]
     .filter(Boolean)
     .join(" ");
+}
+
+function ParticipantActions({
+  participant,
+  disabled,
+  onSetTurn,
+  onRemove,
+}: {
+  participant: EncounterParticipantView;
+  disabled: boolean;
+  onSetTurn: () => void;
+  onRemove: () => void;
+}) {
+  const trigger = useRef<HTMLButtonElement>(null);
+  return (
+    <Dropdown
+      trigger={["click"]}
+      menu={{
+        "aria-label": `${participant.display_name} actions`,
+        items: [
+          {
+            key: "turn",
+            label: `Set turn to ${participant.display_name}`,
+            icon: <Play size={14} aria-hidden="true" />,
+            disabled,
+            onClick: () => {
+              trigger.current?.focus();
+              onSetTurn();
+            },
+          },
+          { type: "divider" },
+          {
+            key: "remove",
+            label: `Remove ${participant.display_name}`,
+            icon: <Trash2 size={14} aria-hidden="true" />,
+            danger: true,
+            disabled,
+            onClick: () => {
+              trigger.current?.focus();
+              onRemove();
+            },
+          },
+        ],
+      }}
+    >
+      <Button
+        ref={trigger}
+        type="text"
+        size="small"
+        disabled={disabled}
+        className="encounter-roster__more"
+        aria-label={`Actions for ${participant.display_name}`}
+        aria-haspopup="menu"
+        icon={<Ellipsis size={16} aria-hidden="true" />}
+      />
+    </Dropdown>
+  );
 }

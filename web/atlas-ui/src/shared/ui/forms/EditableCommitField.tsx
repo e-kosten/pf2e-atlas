@@ -12,6 +12,7 @@ export function EditableCommitField({
   size,
   stopPropagation = false,
   value,
+  variant,
 }: {
   ariaLabel: string;
   className?: string;
@@ -22,6 +23,7 @@ export function EditableCommitField({
   size?: InputProps["size"];
   stopPropagation?: boolean;
   value: string;
+  variant?: InputProps["variant"];
 }) {
   const [draftState, setDraftState] = useState({
     committedValue: value,
@@ -92,6 +94,7 @@ export function EditableCommitField({
       placeholder={placeholder}
       size={size}
       value={draft}
+      variant={variant}
     />
   );
 }

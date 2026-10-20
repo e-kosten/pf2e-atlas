@@ -47,7 +47,7 @@ test("committed edits keep refresh feedback compact and Retry only reloads", asy
     });
     await expect(feedback).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Add PC", exact: true }),
+      page.getByRole("button", { name: "Add participants", exact: true }),
     ).toBeDisabled();
     await expect
       .poll(async () => (await feedback.boundingBox())?.height)
@@ -64,7 +64,7 @@ test("committed edits keep refresh feedback compact and Retry only reloads", asy
       page.getByRole("textbox", { name: "Recovery Hero current HP" }),
     ).toHaveValue("25");
     await expect(
-      page.getByRole("button", { name: "Add PC", exact: true }),
+      page.getByRole("button", { name: "Add participants", exact: true }),
     ).toBeEnabled();
     expect(writes).toBe(1);
   } finally {

@@ -566,9 +566,13 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
       })
       .toBe(0);
     await expect(
-      page.getByRole("button", { name: "Add PC", exact: true }),
+      page.getByRole("button", { name: "Add participants", exact: true }),
     ).toBeEnabled();
-    await activate(page.getByRole("button", { name: "Add PC", exact: true }), info);
+    await activate(
+      page.getByRole("button", { name: "Add participants", exact: true }),
+      info,
+    );
+    await activate(page.getByRole("menuitem", { name: "Add PC…", exact: true }), info);
     await activate(
       page
         .getByRole("dialog", { name: "Add PC", exact: true })
@@ -586,7 +590,11 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
     ).toBeFocused();
     await activate(settings.getByRole("button", { name: "Cancel", exact: true }), info);
     await activate(
-      page.getByRole("button", { name: "Add Creature", exact: true }),
+      page.getByRole("button", { name: "Add participants", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("menuitem", { name: "Add creature or hazard…", exact: true }),
       info,
     );
     const picker = page.getByRole("dialog", {
@@ -719,16 +727,16 @@ test("named parties add everyone directly and archive views stay separate", asyn
       page.getByRole("button", { name: "Parties", exact: true }),
     ).toBeFocused();
     await page.goto(`/encounters/${encounter.slug}`);
-    const add = page.getByRole("button", { name: "Add Party", exact: true });
+    const add = page.getByRole("button", { name: "Add participants", exact: true });
     if (!info.project.use.hasTouch) {
       await add.focus();
       await page.keyboard.press("Enter");
       await expect(
-        page.getByRole("menu", { name: "Parties", exact: true }),
+        page.getByRole("menu", { name: "Add participants", exact: true }),
       ).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(
-        page.getByRole("menu", { name: "Parties", exact: true }),
+        page.getByRole("menu", { name: "Add participants", exact: true }),
       ).toBeHidden();
       await expect(add).toBeFocused();
     }
@@ -752,7 +760,11 @@ test("named parties add everyone directly and archive views stay separate", asyn
     ).toBe(true);
     await noPageOverflow(page);
     await activate(
-      page.getByRole("button", { name: "Remove Dain", exact: true }),
+      page.getByRole("button", { name: "Actions for Dain", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("menuitem", { name: "Remove Dain", exact: true }),
       info,
     );
     const removal = page.getByRole("dialog", { name: "Remove Dain?", exact: true });
