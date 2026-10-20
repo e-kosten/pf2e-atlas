@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test, { type TestContext } from 'node:test';
@@ -11,7 +11,7 @@ import { generateManifest } from '../src/generate-release-manifest.js';
 import { notices } from '../src/generate-notices.js';
 import { pruneManifest } from '../src/prune-dist-manifest.js';
 import { fixture, writeZip } from './release-fixtures.js';
-import { jsonText, object, readJson, sha256, targets, writeJson } from '../src/release-data.js';
+import { jsonText, object, readJson, repoRoot, sha256, targets, writeJson } from '../src/release-data.js';
 import { validateAssets } from '../src/validate-release-assets.js';
 
 function temporary(t: TestContext): string {
@@ -19,6 +19,8 @@ function temporary(t: TestContext): string {
   t.after(() => rmSync(root, { recursive: true, force: true }));
   return root;
 }
+const noticeFixturePin = { commit: 'fixture-pin', systemVersion: '1.0' };
+const noticeFixture = 'Source commit: fixture-pin (PF2e 1.0)\n';
 const command = (name: string) => fileURLToPath(new URL(`../src/cli/${name}.js`, import.meta.url));
 
 test('manifest and checksums cover supported packages and release extras deterministically', async (t) => {
@@ -72,11 +74,60 @@ test('notices preserve dependency ordering, unknown licenses and native notices'
     { name: 'zeta', version: '1.0', license: null, source: null },
     { name: 'Alpha', version: '2.0', license: 'MIT', source: 'registry' },
     { name: 'Alpha', version: '1.0', license: 'Apache-2.0', source: null },
-  ] });
+  ] }, noticeFixture, noticeFixturePin);
   assert.ok(content.indexOf('- Alpha 1.0: Apache-2.0 (workspace)') < content.indexOf('- Alpha 2.0: MIT (registry)'));
   assert.ok(content.includes('- zeta 1.0: UNKNOWN (workspace)'));
   assert.ok(content.includes('- ONNX Runtime: MIT'));
   assert.ok(content.endsWith('section before publishing the release.\n'));
+});
+
+test('release notices preserve both PF2e provenances and the complete applicable license text', () => {
+  const upstream = readFileSync(path.join(repoRoot, 'web/atlas-ui/public/third-party-notices.txt'), 'utf8');
+  const pin = readJson(path.join(repoRoot, 'dev-tools/source-contracts/source-pin.json'));
+  assert.ok(upstream.includes(`Source commit: ${object(pin).commit}`), 'generated-model attribution must track the source pin');
+  assert.ok(upstream.includes('Copyright 2019 Hooking and contributors'));
+  assert.ok(upstream.includes('extracts and transforms'));
+  assert.ok(upstream.includes('localization-key mappings'));
+  assert.ok(upstream.includes('does not cover separately acquired game rules descriptions'));
+  assert.ok(upstream.includes('Source commit: 4cbdaa37d6c33e9519561bae2c59a23e0288cbce'), 'retain the distinct action-font source pin');
+  assert.ok(upstream.includes('235ad1a4540736c4521e07d5c8d3445b68dbe1398e8b32b7d7a5b2551a15fcee'));
+  assert.ok(upstream.includes('Version 2.0, January 2004'));
+  assert.ok(upstream.includes('9. Accepting Warranty or Additional Liability.'));
+  assert.ok(upstream.includes('END OF TERMS AND CONDITIONS'));
+  const composed = notices({ packages: [] }, upstream, pin);
+  assert.ok(composed.includes(upstream.trimEnd()), 'release recipients receive the entire committed upstream notice');
+  assert.throws(() => notices({ packages: [] }, upstream, { ...object(pin), commit: 'different-pin' }), /does not match source-contracts/);
+  assert.throws(() => notices({ packages: [] }, upstream, { ...object(pin), systemVersion: 'different-version' }), /does not match source-contracts/);
+});
+
+test('release notice composition rejects empty upstream notices', () => {
+  assert.throws(() => notices({ packages: [] }, '', noticeFixturePin), /PF2e notices are empty/);
+  assert.throws(() => notices({ packages: [] }, ' \n\t', noticeFixturePin), /PF2e notices are empty/);
+});
+
+test('notice CLI fails without writing output when upstream notices are missing or empty', (t) => {
+  const root = realpathSync(temporary(t)), modules = path.join(root, 'dev-tools/release/dist/src');
+  mkdirSync(path.join(modules, 'cli'), { recursive: true });
+  for (const name of ['generate-notices.js', 'release-data.js', 'cli/generate-notices.js']) {
+    cpSync(fileURLToPath(new URL(`../src/${name}`, import.meta.url)), path.join(modules, name));
+  }
+  writeFileSync(path.join(root, 'package.json'), '{"type":"module"}');
+  writeFileSync(path.join(root, 'Cargo.toml'), '[package]\nname = "notice-fixture"\nversion = "0.1.0"\nedition = "2024"\n');
+  mkdirSync(path.join(root, 'src'));
+  writeFileSync(path.join(root, 'src/main.rs'), 'fn main() {}\n');
+  writeFileSync(path.join(root, 'Cargo.lock'), 'version = 4\n[[package]]\nname = "notice-fixture"\nversion = "0.1.0"\n');
+  mkdirSync(path.join(root, 'dev-tools/source-contracts'), { recursive: true });
+  writeFileSync(path.join(root, 'dev-tools/source-contracts/source-pin.json'), JSON.stringify(noticeFixturePin));
+  const notice = path.join(root, 'web/atlas-ui/public/third-party-notices.txt');
+  mkdirSync(path.dirname(notice), { recursive: true });
+  for (const empty of [false, true]) {
+    if (empty) writeFileSync(notice, ' \n\t');
+    const result = spawnSync(process.execPath, [path.join(modules, 'cli/generate-notices.js')],
+      { cwd: root, encoding: 'utf8', env: { ...process.env, CARGO_NET_OFFLINE: 'true' } });
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, empty ? /PF2e notices are empty/ : /ENOENT.*third-party-notices.txt/);
+    assert.equal(existsSync(path.join(root, 'THIRD-PARTY-NOTICES.md')), false);
+  }
 });
 
 test('commands preserve usage exit 2 and fatal-input exit 1', (t) => {
