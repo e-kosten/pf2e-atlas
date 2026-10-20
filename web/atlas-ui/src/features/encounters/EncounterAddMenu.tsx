@@ -2,14 +2,18 @@ import { Button, Dropdown, type MenuProps } from "antd";
 import { ChevronDown } from "lucide-react";
 import { useRef, useState } from "react";
 import type { AddEncounterPartyRequest, PartyView } from "../../generated/atlas";
-import { PartyManager } from "./PartyManager";
-import { useParties } from "./useParties";
+import { PartyManager } from "../parties/PartyManager";
+import { useParties } from "../parties/useParties";
 
-export function AddPartyMenu({
+export function EncounterAddMenu({
   onAdd,
+  onAddCreature,
+  onAddPc,
   disabled,
 }: {
   onAdd: (request: AddEncounterPartyRequest) => Promise<void>;
+  onAddCreature: () => void;
+  onAddPc: () => void;
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -65,13 +69,37 @@ export function AddPartyMenu({
         setCreating(true);
       },
     });
+  const menuItems: MenuProps["items"] = [
+    {
+      key: "creature",
+      label: "Add creature or hazard…",
+      disabled: disabled || adding,
+      onClick: () => {
+        setOpen(false);
+        trigger.current?.focus();
+        onAddCreature();
+      },
+    },
+    {
+      key: "pc",
+      label: "Add PC…",
+      disabled: disabled || adding,
+      onClick: () => {
+        setOpen(false);
+        trigger.current?.focus();
+        onAddPc();
+      },
+    },
+    { type: "divider" },
+    { key: "parties", type: "group", label: "Add party", children: items },
+  ];
   return (
     <>
       <Dropdown
         trigger={["click"]}
         open={open && !disabled && !adding}
         onOpenChange={setOpen}
-        menu={{ items, "aria-label": "Parties" }}
+        menu={{ items: menuItems, "aria-label": "Add participants" }}
       >
         <Button
           ref={(node) => {
@@ -79,10 +107,11 @@ export function AddPartyMenu({
           }}
           disabled={disabled || adding}
           loading={adding}
+          aria-label="Add participants"
           aria-haspopup="menu"
           aria-expanded={open && !disabled && !adding}
         >
-          Add Party <ChevronDown size={14} aria-hidden="true" />
+          Add <ChevronDown size={14} aria-hidden="true" />
         </Button>
       </Dropdown>
       {creating && (
