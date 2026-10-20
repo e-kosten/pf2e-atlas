@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { RollOutcome } from "../../generated/atlas";
 import { useEffect, useRef, useState } from "react";
 import { getEncounterTurnReview } from "../../api/atlasApi";
 import type {
@@ -6,18 +7,29 @@ import type {
   useEncounterMutations,
 } from "./useEncounterMutations";
 
+/** One notification for the turn just completed; closing has no gameplay effect. */
 export function useEncounterTurnReview({
   encounterRef,
   mutations,
   onAdvance,
+  expectedRevision,
 }: {
   encounterRef: string;
+  expectedRevision: bigint;
   mutations: ReturnType<typeof useEncounterMutations>;
   onAdvance: (expectedRevision: bigint) => Promise<boolean>;
 }) {
+  const client = useQueryClient();
+  const key = ["encounter-turn-review", encounterRef, expectedRevision.toString()];
   const [open, setOpen] = useState(false);
+  const [boundaryKey, setBoundaryKey] = useState<string>();
+  const [contextKey, setContextKey] = useState(0);
+  const [readError, setReadError] = useState<Error | null>(null);
   const [receipt, setReceipt] = useState("");
+  const [outcomes, setOutcomes] = useState<RollOutcome[]>([]);
+  const retained = useRef<RollOutcome[]>([]);
   const active = useRef(true);
+  const advancing = useRef(false);
   useEffect(() => {
     active.current = true;
     return () => {
@@ -25,39 +37,81 @@ export function useEncounterTurnReview({
     };
   }, []);
   const review = useQuery({
-    queryKey: ["encounter-turn-review", encounterRef],
+    queryKey: key,
     queryFn: () => getEncounterTurnReview(encounterRef),
-    enabled: false,
     retry: false,
+    placeholderData: (previous, query) =>
+      query?.queryKey[1] === encounterRef ? previous : undefined,
   });
   const refresh = async () => {
-    const result = await review.refetch();
-    return active.current && !result.isError ? result.data : undefined;
+    try {
+      const data = await client.fetchQuery({
+        queryKey: key,
+        queryFn: () => getEncounterTurnReview(encounterRef),
+        staleTime: 0,
+      });
+      if (active.current) setReadError(null);
+      return data;
+    } catch (cause) {
+      if (active.current)
+        setReadError(
+          cause instanceof Error ? cause : new Error("Could not load turn reminders."),
+        );
+      return undefined;
+    }
   };
   const begin = async () => {
-    if (mutations.pending || review.isFetching) return;
+    if (mutations.pending || advancing.current) return;
+    advancing.current = true;
+    setOpen(false);
+    setBoundaryKey(undefined);
     setReceipt("");
-    const result = await refresh();
-    if (!result) return;
-    if (result.reminders.length) setOpen(true);
-    else await onAdvance(result.expected_revision);
+    setOutcomes([]);
+    retained.current = [];
+    try {
+      const before = review.data ?? (await refresh().catch(() => undefined));
+      if (!active.current || !(await onAdvance(expectedRevision)) || !active.current)
+        return;
+      const after = await refresh();
+      if (!active.current) return;
+      const outgoing = after?.outgoing;
+      setContextKey((value) => value + 1);
+      if (
+        before &&
+        outgoing &&
+        outgoing.boundary_key !== before.outgoing?.boundary_key &&
+        outgoing.reminders.length > 0
+      ) {
+        setBoundaryKey(outgoing.boundary_key);
+        setOpen(true);
+      }
+    } finally {
+      advancing.current = false;
+    }
   };
-  const advance = async () => {
-    if (!review.data || review.isFetching || review.error || mutations.pending) return;
-    if (await onAdvance(review.data.expected_revision)) setOpen(false);
-  };
-  const execute = async (command: EncounterMutationCommand, savedMessage: string) => {
+  const execute = async (
+    command: EncounterMutationCommand,
+    savedMessage = "",
+  ): Promise<Awaited<ReturnType<typeof mutations.run>>["receipt"] | undefined> => {
     try {
       const result = await mutations.run(command);
-      if (!result.active || !active.current) return false;
+      if (!result.active || !active.current) return;
       setReceipt(savedMessage);
+      const rolls =
+        "roll" in result.receipt
+          ? result.receipt.roll
+            ? [result.receipt.roll]
+            : []
+          : "groups" in result.receipt
+            ? result.receipt.groups.flatMap((group) => (group.roll ? [group.roll] : []))
+            : [];
+      if (rolls.length) {
+        retained.current = [...retained.current, ...rolls];
+        setOutcomes(retained.current);
+      }
       if (result.refreshed) await refresh();
-      // The receipt confirms this action is saved even when a following read fails.
-      // Clear its amount draft; recovery re-reads state and never repeats the write.
-      return true;
+      return result.receipt;
     } catch (error) {
-      // Reconcile current data and the review token after a rejected action;
-      // this read never retries the write or advances the turn.
       const current = await mutations.retryRefresh();
       if (current && active.current) await refresh();
       throw error;
@@ -65,14 +119,19 @@ export function useEncounterTurnReview({
   };
   return {
     open,
-    close: () => setOpen(false),
+    contextKey,
+    boundaryKey,
     begin,
-    advance,
     execute,
     refresh,
     receipt,
+    outcomes,
     data: review.data,
-    error: review.error,
+    error: readError ?? review.error,
     loading: review.isFetching,
+    close: () => {
+      setOpen(false);
+      setBoundaryKey(undefined);
+    },
   };
 }

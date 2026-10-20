@@ -76,11 +76,39 @@ and clearly distinguish retained content from a successful update. Never reuse
 content across different source identities or invalidated generations. See the
 frontend guidelines for the shared reading implementation.
 
+## Product UI Controls
+
+- Default to a direct action, then inline or anchored context for small frequent
+  tasks. Reserve modals for substantial editing or decisions that require focus.
+  Keep the pointer, keyboard focus and reading position near the initiating control.
+- Rules reminders support play; they must not become mandatory completion checklists.
+  Accept outcomes resolved at the table without demanding a raw die result or
+  creating fictitious roll history. Optional rolls use the shared dice surface.
+- Keep condition identity and essential mechanics visible. Use disclosures only
+  for genuinely secondary details such as provenance or additional sources.
+- Show predictable consequences and supported opt-outs before the first submission.
+  One task has one submission; moving a second step into the same modal is not a
+  single-step flow. Compute previews while editing rather than after clicking Apply.
+- Prevent invalid input at the control. Disabled actions need an understandable,
+  actionable reason; never strand the user behind an unexplained disabled button.
+- Adjacent buttons in the same action group must use the same size and aligned
+  height. Express primary/secondary importance with variant or emphasis, not a
+  smaller secondary button. Dense inline actions may use small buttons only when
+  the whole group uses that size. Align adjacent inputs and buttons consistently.
+- Keep encounter workflows visually stable. Do not use expanding disclosures as
+  the default container for unrelated controls or introduce animated layout shifts
+  around frequently used actions. Place contextual information beside its action;
+  choose an overlay only for a focused task that needs one.
+
 ## Product UI Copy
 
 These rules apply to all user-visible copy, including text projected by Rust into
 web and CLI responses.
 
+- Prefer icons for familiar compact actions when their meaning is clear in context,
+  with accessible names and concise hover/focus tooltips. This is a contextual
+  preference, not an icons-only rule: use text when it improves comprehension,
+  distinguishes choices, or makes an unfamiliar action clear.
 - Prefer no helper text when the label, value, control or visible state already
   communicates the behavior. Do not add a sentence merely to explain the feature.
 - Every note must give a concrete fact, consequence or useful next action. Avoid
@@ -144,6 +172,10 @@ Rust workspace tests are the primary validation surface. Add or update tests und
 Before each logical commit, inspect the scoped diff and run checks appropriate to the change. Before marking a PR ready for review, run the full applicable gates: the Rust gate for Rust changes and the frontend gate for web UI changes. Respect the tracked hooks; do not bypass them. Reuse successful validation for an unchanged candidate rather than manually repeating expensive checks without a reason.
 
 Commit and merge hooks enforce formatting and staged whitespace only. Pre-push checks third-party notices offline when outgoing dependency or release-tooling inputs change; it does not rerun the substantive validation gates. Run substantive checks explicitly, report their candidate and results, and confirm CI passes on the published PR head before declaring it ready to merge.
+
+Use the compiler pinned in `rust-toolchain.toml` and verify `rustc --version`
+before running the gate. Standalone Cargo installations, including Homebrew's,
+do not automatically select that pin; use a matching toolchain on `PATH`.
 
 The Rust gate is:
 

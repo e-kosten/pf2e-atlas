@@ -6,6 +6,10 @@ import type { EncounterParticipantView } from "../../generated/atlas";
 it("shows updated derived HP after a submitted edit and variant capacity change", async () => {
   const current: EncounterParticipantView = {
     revision: 0n,
+    persistent_damage_groups: [],
+    track_dying: false,
+    mortality: "alive",
+    base_death_threshold: 4n,
     participant_key: "ghoul",
     position: 1n,
     initiative_order: 1n,

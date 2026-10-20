@@ -56,6 +56,10 @@ impl AtlasWebState {
 }
 
 pub(crate) trait AtlasWebService: Send + Sync {
+    fn roll_flat_check(
+        &self,
+        request: atlas_app_model::RollFlatCheckRequest,
+    ) -> Result<atlas_app_model::FlatCheckRollView, AppServiceError>;
     fn roll_table(
         &self,
         request: atlas_app_model::RollTableRequest,
@@ -119,7 +123,90 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: atlas_app_model::RelatedRecordsRequest,
     ) -> Result<atlas_app_model::RelatedRecordsView, AppServiceError>;
 
+    fn preview_encounter_condition_add(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::AddEncounterParticipantConditionRequest,
+    ) -> Result<atlas_app_model::ConditionEventPreviewView, AppServiceError>;
+    fn preview_encounter_condition_update(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::UpdateEncounterParticipantConditionRequest,
+    ) -> Result<atlas_app_model::ConditionEventPreviewView, AppServiceError>;
+    fn pending_encounter_condition_consequences(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingConditionConsequenceView>, AppServiceError>;
+    fn resolve_encounter_drained_consequence(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveDrainedConsequenceRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+    fn set_encounter_life_settings(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::SetEncounterLifeSettingsRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+
+    fn recover_persistent_damage(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::RecoverPersistentDamageRequest,
+    ) -> Result<atlas_app_model::PersistentRecoveryResultView, AppServiceError>;
+    fn apply_encounter_hp_event(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyEncounterHpEventRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+    fn pending_encounter_hp_lifecycle(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingHpLifecycleView>, AppServiceError>;
+    fn resolve_encounter_hp_lifecycle(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveEncounterHpLifecycleRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+    fn apply_persistent_damage(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyPersistentDamageRequest,
+    ) -> Result<atlas_app_model::PersistentDamageResultView, AppServiceError>;
+    fn apply_condition_lifecycle(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyConditionLifecycleRequest,
+    ) -> Result<atlas_app_model::ConditionLifecycleResultView, AppServiceError>;
+    fn condition_lifecycle_actions(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        boundary_key: Option<&str>,
+    ) -> Result<atlas_app_model::ConditionLifecycleActionsView, AppServiceError>;
+    fn pending_condition_recoveries(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingConditionRecoveryView>, AppServiceError>;
+    fn persistent_damage_review(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        boundary_key: Option<&str>,
+    ) -> Result<atlas_app_model::PersistentReviewView, AppServiceError>;
+    fn preview_encounter_hp_lifecycle(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveEncounterHpLifecycleRequest,
+    ) -> Result<atlas_app_model::PendingHpLifecycleView, AppServiceError>;
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError>;
+
+    fn participant_encounter_condition_definitions(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+    ) -> Result<EncounterConditionCatalogView, AppServiceError>;
 
     fn encounter_condition_definitions(
         &self,
@@ -172,6 +259,70 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: RollInitiativeRequest,
     ) -> Result<InitiativeRollView, AppServiceError>;
 
+    fn apply_encounter_detection_event(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyEncounterDetectionEventRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+    fn worsen_encounter_attitude(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::WorsenEncounterAttitudeRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+    fn encounter_relationships(
+        &self,
+        encounter_ref: &str,
+        subject_key: &str,
+        other_key: &str,
+    ) -> Result<atlas_app_model::EncounterRelationshipsView, AppServiceError>;
+    fn set_encounter_relationship(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::SetEncounterRelationshipRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+    fn preview_encounter_action(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreviewEncounterActionRequest,
+    ) -> Result<atlas_app_model::EncounterActionPreviewView, AppServiceError>;
+    fn preview_encounter_strike_attempt(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreviewEncounterStrikeAttemptRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeAttemptPreviewView, AppServiceError>;
+    fn preview_encounter_casting_attempt(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreviewEncounterCastingAttemptRequest,
+    ) -> Result<atlas_app_model::EncounterCastingPreviewView, AppServiceError>;
+    fn begin_encounter_strike_attempt(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::BeginEncounterStrikeAttemptRequest,
+    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError>;
+    fn begin_encounter_casting_attempt(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::BeginEncounterCastingAttemptRequest,
+    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError>;
+    fn resolve_encounter_action_check(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveEncounterActionCheckRequest,
+    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError>;
+    fn abandon_encounter_action_attempt(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::AbandonEncounterActionAttemptRequest,
+    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError>;
+    fn encounter_strike_attempts(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<atlas_app_model::EncounterStrikeAttemptsView, AppServiceError>;
+    fn encounter_casting_attempts(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<atlas_app_model::EncounterCastingAttemptsView, AppServiceError>;
     fn apply_encounter_spell_action(
         &self,
         encounter_ref: &str,
@@ -223,6 +374,7 @@ pub(crate) trait AtlasWebService: Send + Sync {
         encounter_ref: &str,
         participant_key: &str,
         condition_id: i64,
+        request: atlas_app_model::RemoveEncounterParticipantConditionRequest,
     ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError>;
@@ -271,6 +423,12 @@ impl AtlasWebService for AtlasAppService {
         request: atlas_app_model::EncounterStrikeOptionsRequest,
     ) -> Result<atlas_app_model::EncounterStrikeOptionsView, AppServiceError> {
         self.encounter_strike_options(encounter_ref, request)
+    }
+    fn roll_flat_check(
+        &self,
+        request: atlas_app_model::RollFlatCheckRequest,
+    ) -> Result<atlas_app_model::FlatCheckRollView, AppServiceError> {
+        self.roll_flat_check(request)
     }
     fn roll_table(
         &self,
@@ -349,8 +507,123 @@ impl AtlasWebService for AtlasAppService {
         self.record_detail(record_key)
     }
 
+    fn preview_encounter_condition_add(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::AddEncounterParticipantConditionRequest,
+    ) -> Result<atlas_app_model::ConditionEventPreviewView, AppServiceError> {
+        self.preview_encounter_condition_add(encounter_ref, request)
+    }
+    fn preview_encounter_condition_update(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::UpdateEncounterParticipantConditionRequest,
+    ) -> Result<atlas_app_model::ConditionEventPreviewView, AppServiceError> {
+        self.preview_encounter_condition_update(encounter_ref, participant_key, request)
+    }
+    fn pending_encounter_condition_consequences(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingConditionConsequenceView>, AppServiceError> {
+        self.pending_encounter_condition_consequences(encounter_ref)
+    }
+    fn resolve_encounter_drained_consequence(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveDrainedConsequenceRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.resolve_encounter_drained_consequence(encounter_ref, request)
+    }
+    fn set_encounter_life_settings(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::SetEncounterLifeSettingsRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.set_encounter_life_settings(encounter_ref, participant_key, request)
+    }
+
+    fn recover_persistent_damage(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::RecoverPersistentDamageRequest,
+    ) -> Result<atlas_app_model::PersistentRecoveryResultView, AppServiceError> {
+        self.recover_persistent_damage(encounter_ref, request)
+    }
+    fn apply_encounter_hp_event(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyEncounterHpEventRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.apply_encounter_hp_event(encounter_ref, request)
+    }
+    fn pending_encounter_hp_lifecycle(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingHpLifecycleView>, AppServiceError> {
+        self.pending_encounter_hp_lifecycle(encounter_ref)
+    }
+    fn resolve_encounter_hp_lifecycle(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveEncounterHpLifecycleRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.resolve_encounter_hp_lifecycle(encounter_ref, request)
+    }
+    fn apply_persistent_damage(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyPersistentDamageRequest,
+    ) -> Result<atlas_app_model::PersistentDamageResultView, AppServiceError> {
+        self.apply_persistent_damage(encounter_ref, request)
+    }
+    fn apply_condition_lifecycle(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyConditionLifecycleRequest,
+    ) -> Result<atlas_app_model::ConditionLifecycleResultView, AppServiceError> {
+        self.apply_condition_lifecycle(encounter_ref, request)
+    }
+    fn condition_lifecycle_actions(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        boundary_key: Option<&str>,
+    ) -> Result<atlas_app_model::ConditionLifecycleActionsView, AppServiceError> {
+        self.condition_lifecycle_actions(encounter_ref, participant_key, boundary_key)
+    }
+    fn pending_condition_recoveries(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingConditionRecoveryView>, AppServiceError> {
+        self.pending_condition_recoveries(encounter_ref)
+    }
+    fn persistent_damage_review(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        boundary_key: Option<&str>,
+    ) -> Result<atlas_app_model::PersistentReviewView, AppServiceError> {
+        self.persistent_damage_review(encounter_ref, participant_key, boundary_key)
+    }
+    fn preview_encounter_hp_lifecycle(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveEncounterHpLifecycleRequest,
+    ) -> Result<atlas_app_model::PendingHpLifecycleView, AppServiceError> {
+        self.preview_encounter_hp_lifecycle(encounter_ref, request)
+    }
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {
         self.encounters()
+    }
+
+    fn participant_encounter_condition_definitions(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+    ) -> Result<EncounterConditionCatalogView, AppServiceError> {
+        self.participant_encounter_condition_definitions(encounter_ref, participant_key)
     }
 
     fn encounter_condition_definitions(
@@ -428,6 +701,96 @@ impl AtlasWebService for AtlasAppService {
         self.roll_encounter_initiative(encounter_ref, request)
     }
 
+    fn apply_encounter_detection_event(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyEncounterDetectionEventRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.apply_encounter_detection_event(encounter_ref, request)
+    }
+    fn worsen_encounter_attitude(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::WorsenEncounterAttitudeRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.worsen_encounter_attitude(encounter_ref, request)
+    }
+    fn encounter_relationships(
+        &self,
+        encounter_ref: &str,
+        subject_key: &str,
+        other_key: &str,
+    ) -> Result<atlas_app_model::EncounterRelationshipsView, AppServiceError> {
+        self.encounter_relationships(encounter_ref, subject_key, other_key)
+    }
+    fn set_encounter_relationship(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::SetEncounterRelationshipRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.set_encounter_relationship(encounter_ref, request)
+    }
+    fn preview_encounter_action(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreviewEncounterActionRequest,
+    ) -> Result<atlas_app_model::EncounterActionPreviewView, AppServiceError> {
+        self.preview_encounter_action(encounter_ref, request)
+    }
+    fn preview_encounter_strike_attempt(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreviewEncounterStrikeAttemptRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeAttemptPreviewView, AppServiceError> {
+        self.preview_encounter_strike_attempt(encounter_ref, request)
+    }
+    fn preview_encounter_casting_attempt(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreviewEncounterCastingAttemptRequest,
+    ) -> Result<atlas_app_model::EncounterCastingPreviewView, AppServiceError> {
+        self.preview_encounter_casting_attempt(encounter_ref, request)
+    }
+    fn begin_encounter_strike_attempt(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::BeginEncounterStrikeAttemptRequest,
+    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError> {
+        self.begin_encounter_strike_attempt(encounter_ref, request)
+    }
+    fn begin_encounter_casting_attempt(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::BeginEncounterCastingAttemptRequest,
+    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError> {
+        self.begin_encounter_casting_attempt(encounter_ref, request)
+    }
+    fn resolve_encounter_action_check(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveEncounterActionCheckRequest,
+    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError> {
+        self.resolve_encounter_action_check(encounter_ref, request)
+    }
+    fn abandon_encounter_action_attempt(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::AbandonEncounterActionAttemptRequest,
+    ) -> Result<atlas_app_model::EncounterActionMutationView, AppServiceError> {
+        self.abandon_encounter_action_attempt(encounter_ref, request)
+    }
+    fn encounter_strike_attempts(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<atlas_app_model::EncounterStrikeAttemptsView, AppServiceError> {
+        self.encounter_strike_attempts(encounter_ref)
+    }
+    fn encounter_casting_attempts(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<atlas_app_model::EncounterCastingAttemptsView, AppServiceError> {
+        self.encounter_casting_attempts(encounter_ref)
+    }
     fn apply_encounter_spell_action(
         &self,
         encounter_ref: &str,
@@ -495,8 +858,14 @@ impl AtlasWebService for AtlasAppService {
         encounter_ref: &str,
         participant_key: &str,
         condition_id: i64,
+        request: atlas_app_model::RemoveEncounterParticipantConditionRequest,
     ) -> Result<EncounterMutationView, AppServiceError> {
-        self.remove_encounter_participant_condition(encounter_ref, participant_key, condition_id)
+        self.remove_encounter_participant_condition(
+            encounter_ref,
+            participant_key,
+            condition_id,
+            request,
+        )
     }
 
     fn saved_lists(&self) -> Result<SavedListIndexView, AppServiceError> {

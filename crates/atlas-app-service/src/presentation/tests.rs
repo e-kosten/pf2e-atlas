@@ -882,21 +882,31 @@ fn encounter_save_adjustments_restore_an_omitted_legacy_hazard_block() {
     for (effective, explanation, expected) in [(0, false, false), (1, false, true), (0, true, true)]
     {
         let block = StatBlockView {
+            senses_known: false,
+            senses: vec![],
+            sense_facts: vec![],
+            contextual_modifiers: vec![],
+            contextual_armor_class: vec![],
             record_key: detail.record.record_key.clone(),
             title: "Haunt".into(),
             level: None,
             adjusted_level: None,
+            replacements: vec![],
+            unresolved_stats: vec![],
             values: vec![StatValueView {
-                target: "save.will".into(),
+                ability: None,
+                target: crate::encounters::mechanics::StatisticTarget::Save(
+                    crate::encounters::mechanics::StatisticSave::Will,
+                ),
                 label: "Will".into(),
                 base_value: 0.into(),
                 adjusted_value: effective.into(),
                 modifiers: vec![],
                 suppressed_modifiers: if explanation {
-                    vec![StatModifierView {
+                    vec![crate::encounters::mechanics::Modifier {
                         source: "test".into(),
                         label: "Suppressed effect".into(),
-                        modifier_type: StatModifierTypeView::Status,
+                        modifier_type: crate::encounters::mechanics::ModifierType::Status,
                         value: 1,
                     }]
                 } else {

@@ -18,6 +18,15 @@ impl TestStore {
             conn.execute_batch(LOCAL_STATE_SCHEMA_SQL)?;
             conn.execute_batch(ENCOUNTER_STATUS_SCHEMA_SQL)?;
             conn.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
+            conn.execute_batch(CONDITION_CONTEXT_SCHEMA_SQL)?;
+            conn.execute_batch(CONDITION_IMMUNITY_OVERRIDE_SCHEMA_SQL)?;
+            conn.execute_batch(CONDITION_EVENTS_SCHEMA_SQL)?;
+            conn.execute_batch(PERSISTENT_SELECTIONS_SCHEMA_SQL)?;
+            conn.execute_batch(ACTION_ATTEMPTS_SCHEMA_SQL)?;
+            conn.execute_batch(ENCOUNTER_BOUNDARIES_SCHEMA_SQL)?;
+            conn.execute_batch(PARTICIPANT_FACTS_SCHEMA_SQL)?;
+            conn.execute_batch(ENCOUNTER_RELATIONSHIPS_SCHEMA_SQL)?;
+            conn.execute_batch(OUTGOING_TURNS_SCHEMA_SQL)?;
         }
         Ok(store)
     }
@@ -111,6 +120,39 @@ impl TestSavedLists<'_> {
 }
 pub(crate) struct TestEncounters<'a>(&'a TestStore);
 impl TestEncounters<'_> {
+    pub fn relationships(&self, key: &str) -> LocalStateResult<Vec<DirectedRelationship>> {
+        let connection = self.0.connection()?;
+        EncountersRead::from_connection(&connection).relationships(key)
+    }
+    pub fn apply_condition_event(
+        &self,
+        key: &str,
+        id: &str,
+        intent: &serde_json::Value,
+        revision: i64,
+        changes: PreparedConditionEvent,
+    ) -> LocalStateResult<EncounterEventReceipt> {
+        let mut connection = self.0.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let receipt = EncountersWrite::from_connection(&transaction)
+            .apply_condition_event(key, id, intent, revision, changes)?;
+        transaction.commit()?;
+        Ok(receipt)
+    }
+    pub fn condition_event_receipt(
+        &self,
+        key: &str,
+        id: &str,
+        intent: &serde_json::Value,
+    ) -> LocalStateResult<Option<EncounterEventReceipt>> {
+        let mut connection = self.0.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Deferred)?;
+        let receipt = EncountersRead::from_connection(&transaction)
+            .condition_event_receipt(key, id, intent)?;
+        transaction.commit()?;
+        Ok(receipt)
+    }
+
     pub fn replace_spell_resources(
         &self,
         participant: &str,
@@ -343,16 +385,24 @@ impl TestEncounters<'_> {
         transaction.commit()?;
         Ok(result)
     }
-    pub fn advance_reviewed_turn(
+    pub fn advance_turn_once(
         &self,
         encounter_ref: &str,
+        request_id: &str,
+        intent: &serde_json::Value,
         expected_revision: i64,
-        choose: impl FnOnce(&EncounterWithParticipants) -> EncounterTurnUpdate,
+        choose: impl FnOnce(&EncounterWithParticipants) -> (EncounterTurnUpdate, bool),
     ) -> LocalStateResult<Option<Encounter>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let domain = EncountersWrite::from_connection(&transaction);
-        let result = domain.advance_reviewed_turn(encounter_ref, expected_revision, choose)?;
+        let result = domain.advance_turn_once(
+            encounter_ref,
+            request_id,
+            intent,
+            expected_revision,
+            choose,
+        )?;
         transaction.commit()?;
         Ok(result)
     }
@@ -382,6 +432,15 @@ mod tests {
         connection.execute_batch(LOCAL_STATE_SCHEMA_SQL)?;
         connection.execute_batch(ENCOUNTER_STATUS_SCHEMA_SQL)?;
         connection.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
+        connection.execute_batch(CONDITION_CONTEXT_SCHEMA_SQL)?;
+        connection.execute_batch(CONDITION_IMMUNITY_OVERRIDE_SCHEMA_SQL)?;
+        connection.execute_batch(CONDITION_EVENTS_SCHEMA_SQL)?;
+        connection.execute_batch(ACTION_ATTEMPTS_SCHEMA_SQL)?;
+        connection.execute_batch(PERSISTENT_SELECTIONS_SCHEMA_SQL)?;
+        connection.execute_batch(ENCOUNTER_BOUNDARIES_SCHEMA_SQL)?;
+        connection.execute_batch(PARTICIPANT_FACTS_SCHEMA_SQL)?;
+        connection.execute_batch(ENCOUNTER_RELATIONSHIPS_SCHEMA_SQL)?;
+        connection.execute_batch(OUTGOING_TURNS_SCHEMA_SQL)?;
         Ok(connection)
     }
 

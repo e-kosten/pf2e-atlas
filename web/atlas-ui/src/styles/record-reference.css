@@ -289,6 +289,20 @@
 }
 .actor-reference__combat-budget {
   align-self: start;
+  display: grid;
+  gap: 4px;
+}
+.actor-reference__combat-budget h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.actor-reference__turn-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  align-items: baseline;
 }
 .actor-reference__secondary {
   display: grid;

@@ -1,4 +1,5 @@
-import { Alert, Button, Form, Input, InputNumber, Modal } from "antd";
+import { EncounterModal } from "./EncounterModal";
+import { Alert, Button, Form, Input, InputNumber } from "antd";
 import {
   DndContext,
   DragOverlay,
@@ -50,6 +51,7 @@ export function EncounterRosterPane({
   error,
   recovery,
   onAdvanceTurn,
+  advanceDisabled = false,
   onRollInitiative,
   onRemove,
   onReorder,
@@ -69,6 +71,7 @@ export function EncounterRosterPane({
   error?: string;
   recovery?: React.ReactNode;
   onAdvanceTurn: () => void;
+  advanceDisabled?: boolean;
   onRollInitiative?: (participantKey?: string) => void;
   onRemove: (participant: EncounterParticipantView) => void;
   onReorder: (
@@ -292,7 +295,7 @@ export function EncounterRosterPane({
             </Button>
           )}
           <Button
-            disabled={disabled}
+            disabled={disabled || advanceDisabled}
             icon={<Play size={14} />}
             type="primary"
             onClick={onAdvanceTurn}
@@ -450,7 +453,7 @@ export function EncounterRosterPane({
           <InputNumber aria-label="Initiative" />
         </Form.Item>
       </SearchPickerModal>
-      <Modal
+      <EncounterModal
         title="Add PC"
         confirmLoading={disabled}
         cancelButtonProps={{ disabled }}
@@ -497,7 +500,7 @@ export function EncounterRosterPane({
             <InputNumber aria-label="Initiative" />
           </Form.Item>
         </Form>
-      </Modal>
+      </EncounterModal>
     </section>
   );
 }

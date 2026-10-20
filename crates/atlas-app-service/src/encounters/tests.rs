@@ -71,6 +71,7 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
         vec![invalid],
         None,
         Default::default(),
+        vec![],
     );
     assert!(projected.artifact_generation.is_none());
     assert_eq!(
@@ -328,7 +329,11 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
         .unwrap()
         .participants
         .remove(0);
-    atlas_search::test_support::invalidate_reference(f.worker.workspace_path()).unwrap();
+    atlas_search::test_support::invalidate_reference(
+        f.worker.workspace_path(),
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+    )
+    .unwrap();
     let worker = &f.worker;
     assert!(worker.encounter(&encounter.encounter_key).is_err());
     let key = encounter.encounter_key.clone();
@@ -365,6 +370,34 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
             .add_encounter_participant_condition(
                 &key,
                 AddEncounterParticipantConditionRequest {
+                    request_id: format!(
+                        "fixture-tests-367-{}",
+                        worker
+                            .with_state(|session| Ok(session
+                                .local_state()
+                                .encounters()
+                                .get(&key)?
+                                .unwrap()
+                                .revision))
+                            .unwrap()
+                    ),
+                    event_intent: Default::default(),
+                    decisions: Default::default(),
+                    expected_encounter_revision: worker
+                        .with_state(|session| {
+                            Ok(session
+                                .local_state()
+                                .encounters()
+                                .get(&key)?
+                                .unwrap()
+                                .revision)
+                        })
+                        .unwrap(),
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    parameters: Default::default(),
+                    origin: None,
                     participant_key: initial.participant_key.clone(),
                     condition_ref: None,
                     name: Some("Custom".into()),
@@ -393,6 +426,14 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
                 &key,
                 &initial.participant_key,
                 UpdateEncounterParticipantConditionRequest {
+                    request_id: "fixture-tests-403".into(),
+                    event_intent: Default::default(),
+                    decisions: Default::default(),
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    parameters: Default::default(),
+                    origin: None,
                     expected_encounter_revision: local.encounter.revision,
                     condition_id,
                     condition_ref: None,
@@ -407,7 +448,25 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
     );
     assert_receipt(
         worker
-            .remove_encounter_participant_condition(&key, &initial.participant_key, condition_id)
+            .remove_encounter_participant_condition(
+                &key,
+                &initial.participant_key,
+                condition_id,
+                RemoveEncounterParticipantConditionRequest {
+                    request_id: "fixture-remove".into(),
+                    expected_encounter_revision: worker
+                        .with_state(|session| {
+                            Ok(session
+                                .local_state()
+                                .encounters()
+                                .get(&key)?
+                                .unwrap()
+                                .revision)
+                        })
+                        .unwrap(),
+                    intent: ConditionRemovalIntentView::RemoveEffect,
+                },
+            )
             .unwrap(),
     );
     assert_receipt(
@@ -456,7 +515,11 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
 #[test]
 fn empty_list_import_remains_available_without_reference() {
     let f = crate::test_support::fixture_worker();
-    atlas_search::test_support::invalidate_reference(f.worker.workspace_path()).unwrap();
+    atlas_search::test_support::invalidate_reference(
+        f.worker.workspace_path(),
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+    )
+    .unwrap();
     let imported = f
         .worker
         .import_saved_list(ImportSavedListRequest {
@@ -578,33 +641,26 @@ fn actor(p: &EncounterParticipantView) -> &ActorPresentationView {
 }
 fn authored_arithmetic_baseline(source: serde_json::Value) -> super::mechanics::StatBlockView {
     let input = atlas_search::test_support::record("actors", "Actor", source);
-    let key = input.record.key().clone();
-    let (retrieval, _artifact) =
-        atlas_search::test_support::open_source_fixture(vec![input], false).unwrap();
-    let detail = retrieval
-        .get_record(atlas_search::GetRecordRequest {
-            record_key: &key,
-            selected_content: &[],
+    super::rules::source_baseline(&input.record, &"a".repeat(64), None).unwrap()
+}
+
+fn worker_arithmetic_baseline(worker: &crate::AtlasAppService) -> super::mechanics::StatBlockView {
+    worker
+        .with_workspace(&crate::ReadExecutionContext::uncancellable(), |workspace| {
+            let retrieval = workspace.retrieval_mut();
+            let key = atlas_domain::RecordKey::parse("actors:testCreature1000").unwrap();
+            let detail = retrieval
+                .get_record(atlas_search::GetRecordRequest {
+                    record_key: &key,
+                    selected_content: &[],
+                })?
+                .unwrap();
+            Ok(
+                super::rules::source_baseline(&detail.source, retrieval.source_fingerprint(), None)
+                    .unwrap(),
+            )
         })
         .unwrap()
-        .unwrap();
-    let summary = crate::projection::localized_summary_view(&detail.summary, &retrieval);
-    let node = atlas_record::source_record::SourceQueryView::new(
-        detail.source.source(),
-        key.pack().as_str(),
-        "",
-    )
-    .source;
-    let presentation = crate::presentation::record_presentation(
-        &detail.source,
-        node,
-        &summary,
-        &[],
-        vec![],
-        &retrieval,
-    )
-    .unwrap();
-    super::mechanics::arithmetic_baseline(&presentation).unwrap()
 }
 
 #[test]
@@ -650,6 +706,18 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
         .add_encounter_participant_condition(
             &e.encounter_key,
             AddEncounterParticipantConditionRequest {
+                request_id: format!(
+                    "fixture-tests-665-{}",
+                    f.worker.encounter(&e.encounter_key).unwrap().revision
+                ),
+                event_intent: Default::default(),
+                decisions: Default::default(),
+                expected_encounter_revision: f.worker.encounter(&e.encounter_key).unwrap().revision,
+                scope: Default::default(),
+                extra_action: Default::default(),
+                immunity_override: false,
+                parameters: Default::default(),
+                origin: None,
                 participant_key: initial.participants[0].participant_key.clone(),
                 condition_ref: Some("conditionitems:fesd1n5eVhpCSS18".into()),
                 name: None,
@@ -687,6 +755,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
                     workspace.retrieval_mut(),
                     snapshot.encounter,
                     snapshot.participants,
+                    vec![],
                 )?;
                 Ok((
                     detail,
@@ -793,6 +862,22 @@ fn strike_status_penalties_preserve_strongest_and_suppressed_explanations_in_bot
                 .add_encounter_participant_condition(
                     &e.encounter_key,
                     AddEncounterParticipantConditionRequest {
+                        request_id: format!(
+                            "fixture-tests-816-{}",
+                            f.worker.encounter(&e.encounter_key).unwrap().revision
+                        ),
+                        event_intent: Default::default(),
+                        decisions: Default::default(),
+                        expected_encounter_revision: f
+                            .worker
+                            .encounter(&e.encounter_key)
+                            .unwrap()
+                            .revision,
+                        scope: Default::default(),
+                        extra_action: Default::default(),
+                        immunity_override: false,
+                        parameters: Default::default(),
+                        origin: None,
                         participant_key: detail.participants[0].participant_key.clone(),
                         condition_ref: Some(reference.into()),
                         name: None,
@@ -851,7 +936,7 @@ fn composed_strike_keeps_suppressed_only_explanation_without_inventing_an_applie
         .record_detail("actors:testCreature1000")
         .unwrap()
         .presentation;
-    let mut workspace = super::mechanics::arithmetic_baseline(&authored).unwrap();
+    let mut workspace = worker_arithmetic_baseline(&f.worker);
     workspace
         .activities
         .iter_mut()
@@ -859,10 +944,10 @@ fn composed_strike_keeps_suppressed_only_explanation_without_inventing_an_applie
         .unwrap()
         .rolls[0]
         .suppressed_modifiers
-        .push(StatModifierView {
+        .push(super::mechanics::Modifier {
             source: "Frightened".into(),
             label: "Frightened".into(),
-            modifier_type: StatModifierTypeView::Status,
+            modifier_type: super::mechanics::ModifierType::Status,
             value: -1,
         });
     let composed = crate::presentation::compose_participant(authored, &workspace);
@@ -1535,6 +1620,22 @@ fn conditions_stack_known_penalties_and_preserve_unapplied_context() {
             .add_encounter_participant_condition(
                 &e.encounter_key,
                 AddEncounterParticipantConditionRequest {
+                    request_id: format!(
+                        "fixture-tests-1566-{}",
+                        f.worker.encounter(&e.encounter_key).unwrap().revision
+                    ),
+                    event_intent: Default::default(),
+                    decisions: Default::default(),
+                    expected_encounter_revision: f
+                        .worker
+                        .encounter(&e.encounter_key)
+                        .unwrap()
+                        .revision,
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    parameters: Default::default(),
+                    origin: None,
                     participant_key: key.clone(),
                     condition_ref: Some(reference.into()),
                     name: None,
@@ -1625,6 +1726,25 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
                     .add_encounter_participant_condition(
                         &encounter.encounter_key,
                         AddEncounterParticipantConditionRequest {
+                            request_id: format!(
+                                "fixture-tests-1664-{}",
+                                f.worker
+                                    .encounter(&encounter.encounter_key)
+                                    .unwrap()
+                                    .revision
+                            ),
+                            event_intent: Default::default(),
+                            decisions: Default::default(),
+                            expected_encounter_revision: f
+                                .worker
+                                .encounter(&encounter.encounter_key)
+                                .unwrap()
+                                .revision,
+                            scope: Default::default(),
+                            extra_action: Default::default(),
+                            immunity_override: false,
+                            parameters: Default::default(),
+                            origin: None,
                             participant_key: participants[0].participant_key.clone(),
                             condition_ref: Some((*condition).into()),
                             name: None,
@@ -1642,9 +1762,7 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
             let participant = &detail.participants[0];
             let block = actor(participant);
             let speed = &block.land_speed;
-            let expected = if immobilized_order.is_some() {
-                0
-            } else if baseline > 0 {
+            let expected = if baseline > 0 {
                 (baseline - 10).max(5)
             } else {
                 baseline
@@ -1664,6 +1782,35 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
                 "{baseline} {immobilized_order:?}"
             );
             assert_eq!(speed.adjustment.as_ref().unwrap().notes.len(), 1);
+            if immobilized_order.is_some() {
+                let action = f
+                    .worker
+                    .preview_encounter_action(
+                        &encounter.encounter_key,
+                        PreviewEncounterActionRequest {
+                            normally_ally: None,
+                            confusion: None,
+                            participant_key: participant.participant_key.clone(),
+                            action: EncounterActionKindView::Crawl,
+                            extra_action: None,
+                            request_context: None,
+                            sensory: None,
+                            forced_movement: None,
+                            prone_cover: None,
+                            reaction: None,
+                            target: None,
+                            judgments: vec![],
+                        },
+                    )
+                    .unwrap();
+                assert!(
+                    action
+                        .issues
+                        .iter()
+                        .any(|issue| issue.kind == EncounterActionIssueKindView::Prohibited)
+                );
+            }
+
             assert_eq!(
                 participant
                     .conditions
@@ -1680,7 +1827,8 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
 
 #[test]
 fn artifact_rebuild_does_not_reinitialize_capacity_or_current_hp() {
-    use atlas_search::test_support::{input, publish_input, record};
+    use crate::test_support::publish_input;
+    use atlas_search::test_support::{input, record};
     use serde_json::json;
     let before = encounter_fixture_worker();
     let e = before
@@ -1740,7 +1888,8 @@ fn artifact_rebuild_does_not_reinitialize_capacity_or_current_hp() {
     assert_eq!(p.record.as_ref().unwrap().title, "Updated creature");
     assert_eq!(
         actor(p).maximum_hp.value.clone().unwrap(),
-        serde_json::Number::from(120)
+        // Encounter presentation follows the retained capacity, not a source rebuild.
+        serde_json::Number::from(60)
     );
 }
 
@@ -2035,13 +2184,29 @@ fn condition_manual_notes_bind_exact_rows_and_keep_other_diagnostics_unbound() {
             .add_encounter_participant_condition(
                 &e.encounter_key,
                 AddEncounterParticipantConditionRequest {
+                    request_id: format!(
+                        "fixture-tests-2082-{}",
+                        f.worker.encounter(&e.encounter_key).unwrap().revision
+                    ),
+                    event_intent: Default::default(),
+                    decisions: Default::default(),
+                    expected_encounter_revision: f
+                        .worker
+                        .encounter(&e.encounter_key)
+                        .unwrap()
+                        .revision,
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    parameters: Default::default(),
+                    origin: None,
                     participant_key: p.clone(),
                     condition_ref: reference.map(Into::into),
                     name: reference.is_none().then(|| "Enfeebled".into()),
                     value: Some(1),
                     source_participant_key: None,
                     duration: None,
-                    note: None,
+                    note: reference.is_none().then(|| "Custom source context".into()),
                 },
             )
             .unwrap();
@@ -2053,13 +2218,7 @@ fn condition_manual_notes_bind_exact_rows_and_keep_other_diagnostics_unbound() {
         .as_ref()
         .unwrap()
         .unapplied_effects;
-    let expected = [
-        None,
-        None,
-        None,
-        Some("Effects need manual handling."),
-        Some("Effects need manual handling."),
-    ];
+    let expected = [None, None, None, None, Some("Custom source context")];
     for (condition, reason) in participant.conditions.iter().zip(expected) {
         let matching = notes
             .iter()
@@ -2080,7 +2239,7 @@ fn condition_manual_notes_bind_exact_rows_and_keep_other_diagnostics_unbound() {
             .iter()
             .filter(|note| note.condition_id.is_some())
             .count(),
-        2
+        1
     );
     assert!(
         notes
@@ -2125,13 +2284,25 @@ fn manual_participants_keep_exact_condition_notes_without_authored_statistics() 
         .add_encounter_participant_condition(
             &e.encounter_key,
             AddEncounterParticipantConditionRequest {
+                request_id: format!(
+                    "fixture-tests-2180-{}",
+                    f.worker.encounter(&e.encounter_key).unwrap().revision
+                ),
+                event_intent: Default::default(),
+                decisions: Default::default(),
+                expected_encounter_revision: f.worker.encounter(&e.encounter_key).unwrap().revision,
+                scope: Default::default(),
+                extra_action: Default::default(),
+                immunity_override: false,
+                parameters: Default::default(),
+                origin: None,
                 participant_key: p,
                 condition_ref: None,
                 name: Some("Custom condition".into()),
                 value: None,
                 source_participant_key: None,
                 duration: None,
-                note: None,
+                note: Some("Custom source context".into()),
             },
         )
         .unwrap();
@@ -2152,7 +2323,7 @@ fn manual_participants_keep_exact_condition_notes_without_authored_statistics() 
         (
             Some(participant.conditions[0].condition_id),
             "Custom condition",
-            "Effects need manual handling."
+            "Custom source context"
         )
     );
 }
@@ -2189,6 +2360,25 @@ fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
         .add_encounter_participant_condition(
             &encounter.encounter_key,
             AddEncounterParticipantConditionRequest {
+                request_id: format!(
+                    "fixture-tests-2252-{}",
+                    f.worker
+                        .encounter(&encounter.encounter_key)
+                        .unwrap()
+                        .revision
+                ),
+                event_intent: Default::default(),
+                decisions: Default::default(),
+                expected_encounter_revision: f
+                    .worker
+                    .encounter(&encounter.encounter_key)
+                    .unwrap()
+                    .revision,
+                scope: Default::default(),
+                extra_action: Default::default(),
+                immunity_override: false,
+                parameters: Default::default(),
+                origin: None,
                 participant_key: p.participant_key.clone(),
                 condition_ref: Some("conditionitems:MIRkyAjyBeXivMa7".into()),
                 name: None,
@@ -2224,12 +2414,7 @@ fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
             .collect::<Vec<_>>(),
         [11, 6, 1]
     );
-    let original = f
-        .worker
-        .record_detail("actors:testCreature1000")
-        .unwrap()
-        .presentation;
-    let mut baseline = super::mechanics::arithmetic_baseline(&original).unwrap();
+    let mut baseline = worker_arithmetic_baseline(&f.worker);
     let local = f
         .worker
         .with_state(|session| {
@@ -2251,6 +2436,8 @@ fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
     secondary.damage_id = "fire".into();
     secondary.formula = "1d4".into();
     secondary.damage_type = Some("fire".into());
+    secondary.ability = None;
+    secondary.ability_known = true;
     strike.damage.push(secondary);
     for (traits, attack, damage) in [
         (vec![], 11, Some("(1d6+4)-1")),
@@ -2269,8 +2456,15 @@ fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
                 .iter()
                 .any(|t| t.starts_with("range-") || t.starts_with("thrown-")),
         );
+        let typed = authored_arithmetic_baseline(
+            serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[{"_id":"bbbbbbbbbbbbbbbb","type":"melee","system":{"range":if strike.is_ranged == Some(true) {serde_json::json!({"increment":60,"max":null})} else {serde_json::Value::Null},"traits":{"value":traits},"damageRolls":{"first":{"damage":"1d6+4","damageType":"slashing"}}}}]}),
+        );
         strike.traits = traits.into_iter().map(str::to_owned).collect();
-        let effective = super::mechanics::participant_stat_block(&local, &baseline, true);
+        strike.attack_ability = typed.activities[0].attack_ability;
+        strike.traits_known = typed.activities[0].traits_known;
+        strike.damage[0].ability = typed.activities[0].damage[0].ability;
+        strike.damage[0].ability_known = typed.activities[0].damage[0].ability_known;
+        let effective = super::rules::project_participant(&local, &baseline, true, &[]);
         let strike = effective
             .activities
             .iter()
@@ -2290,7 +2484,7 @@ fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
     ] {
         let mut local = local.clone();
         local.participant_variant = variant;
-        let effective = super::mechanics::participant_stat_block(&local, &no_damage, true);
+        let effective = super::rules::project_participant(&local, &no_damage, true, &[]);
         assert!(effective.activities[0].damage.is_empty());
     }
     let request = RollEncounterStrikeRequest {
@@ -2456,6 +2650,8 @@ fn disabled_hazard_preserves_state_and_next_turn_continues_from_its_position() {
             .apply_encounter_hp_action(
                 &key,
                 ApplyEncounterHpActionRequest {
+                    request_id: crate::test_support::next_request_id(),
+                    context: None,
                     participant_key: hazard_key.clone(),
                     expected_revision: hazard.revision,
                     action,

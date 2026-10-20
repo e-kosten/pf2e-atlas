@@ -33,17 +33,32 @@ export default defineConfig({
     },
     {
       name: "phone-chromium",
-      testMatch: "journeys.spec.ts",
+      testMatch: [
+        "journeys.spec.ts",
+        "conditions.spec.ts",
+        "encounter-forms.spec.ts",
+        "turn-reminders.spec.ts",
+      ],
       use: { ...devices["Pixel 7"], colorScheme: "dark" },
     },
     {
       name: "phone-webkit",
-      testMatch: "journeys.spec.ts",
+      testMatch: [
+        "journeys.spec.ts",
+        "conditions.spec.ts",
+        "encounter-forms.spec.ts",
+        "turn-reminders.spec.ts",
+      ],
       use: { ...devices["iPhone 13"], colorScheme: "light", reducedMotion: "reduce" },
     },
     {
       name: "tablet-webkit",
-      testMatch: "journeys.spec.ts",
+      testMatch: [
+        "journeys.spec.ts",
+        "conditions.spec.ts",
+        "encounter-forms.spec.ts",
+        "turn-reminders.spec.ts",
+      ],
       use: { ...devices["iPad Mini"], colorScheme: "dark" },
     },
   ],

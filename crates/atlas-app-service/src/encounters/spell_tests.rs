@@ -56,14 +56,33 @@ fn cast_spell(
         .navigation
         .clone();
     selection.spell_rank = Some(rank);
-    fixture.worker.apply_encounter_spell_action(
+    let preview = PreviewEncounterCastingAttemptRequest {
+        confusion: None,
+        participant_key: participant.participant_key.clone(),
+        selection,
+        target: None,
+        judgments: vec![],
+    };
+    let prepared = fixture
+        .worker
+        .preview_encounter_casting_attempt(encounter, preview.clone())?;
+    static REQUEST: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let receipt = fixture.worker.begin_encounter_casting_attempt(
         encounter,
-        ApplyEncounterSpellActionRequest {
-            participant_key: participant.participant_key.clone(),
-            expected_revision: participant.revision,
-            action: EncounterSpellAction::Cast { selection },
+        BeginEncounterCastingAttemptRequest {
+            request_id: format!(
+                "fixture-cast-{}",
+                REQUEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            ),
+            expected_encounter_revision: prepared.expected_encounter_revision,
+            expected_participant_revision: participant.revision,
+            artifact_generation: prepared.artifact_generation,
+            preview,
         },
-    )
+    )?;
+    Ok(EncounterMutationView {
+        encounter_key: receipt.encounter_key,
+    })
 }
 
 fn remaining_for(participant: &EncounterParticipantView, title: &str, rank: u8) -> i64 {
@@ -132,7 +151,7 @@ fn focus_casts_share_the_participants_pool_across_entries() {
 }
 
 #[test]
-fn cantrip_cast_preserves_exhausted_resources_and_revisions() {
+fn cantrip_cast_preserves_exhausted_resources_and_records_attempt() {
     let (fixture, encounter) = casting_fixture(focus_items());
     cast_spell(&fixture, &encounter, "First focus", 3).unwrap();
     cast_spell(&fixture, &encounter, "Second focus", 3).unwrap();
@@ -147,7 +166,15 @@ fn cantrip_cast_preserves_exhausted_resources_and_revisions() {
         after.participants[0].spellcasting,
         before.participants[0].spellcasting
     );
-    assert_eq!(after.revision, before.revision);
+    assert_eq!(after.revision, before.revision + 1);
+    assert!(
+        !fixture
+            .worker
+            .encounter_casting_attempts(&encounter)
+            .unwrap()
+            .attempts
+            .is_empty()
+    );
 }
 
 #[test]
@@ -178,7 +205,7 @@ fn spontaneous_heightening_requires_signature_or_known_rank() {
 }
 
 #[test]
-fn casting_is_persistent_shared_within_entry_and_isolated_between_participants() {
+fn recorded_use_is_persistent_shared_within_entry_and_isolated_between_participants() {
     let source = json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Caster","system":{"details":{"level":{"value":5}},"attributes":{"hp":{"max":60}}},"items":[
         {"_id":"eeeeeeeeeeeeeeee","name":"Arcane spells","type":"spellcastingEntry","system":{"prepared":{"value":"spontaneous"},"tradition":{"value":"arcane"},"slots":{"slot3":{"max":2,"value":0}}}},
         {"_id":"ssssssssssssssss","name":"Fireball","type":"spell","system":{"level":{"value":3},"location":{"value":"eeeeeeeeeeeeeeee"}}},
@@ -230,6 +257,14 @@ fn casting_is_persistent_shared_within_entry_and_isolated_between_participants()
             },
         )
     };
+    let mut stale = selection.clone();
+    stale.source_fingerprint = Some("0".repeat(64));
+    assert!(cast(p.revision, stale).is_err());
+    assert_eq!(
+        read().participants[0].revision,
+        p.revision,
+        "stale source cannot debit"
+    );
     cast(p.revision, selection.clone()).unwrap();
     assert!(cast(p.revision, selection.clone()).is_err()); // stale must not spend twice
     let next = read();
@@ -542,11 +577,303 @@ fn defeated_blocks_ordinary_cast_but_allows_explicit_past_use() {
             ApplyEncounterSpellActionRequest {
                 participant_key: p.participant_key.clone(),
                 expected_revision: p.revision,
-                action: EncounterSpellAction::RecordUse { selection },
+                action: EncounterSpellAction::Cast { selection },
             },
         )
         .unwrap();
     let after = fixture.worker.encounter(&encounter).unwrap();
     assert!(after.participants[0].defeated);
     assert_eq!(remaining_for(&after.participants[0], "First focus", 3), 1);
+}
+
+fn attempted_cast_fixture() -> (crate::test_support::FixtureWorker, String) {
+    casting_fixture(json!([
+        {"_id":"eeeeeeeeeeeeeeee","type":"spellcastingEntry","system":{"prepared":{"value":"spontaneous"},"slots":{"slot1":{"max":2}}}},
+        {"_id":"ssssssssssssssss","name":"Test spell","type":"spell","system":{"level":{"value":1},"location":{"value":"eeeeeeeeeeeeeeee"},"time":{"value":"2"},"traits":{"value":["manipulate","auditory","concentrate"]}}}
+    ]))
+}
+fn add_attempt_condition(
+    fixture: &crate::test_support::FixtureWorker,
+    encounter: &str,
+    rule: super::conditions::ConditionRule,
+    value: Option<i64>,
+) -> i64 {
+    fixture
+        .worker
+        .with_write(|workspace| {
+            let store = workspace.local_state().encounters();
+            let snapshot = store.get_with_participants(encounter)?.unwrap();
+            let definition = super::conditions::modeled_condition_by_rule(rule).unwrap();
+            Ok(store
+                .add_condition(atlas_local_state::AddEncounterParticipantCondition {
+                    participant_key: snapshot.participants[0].participant_key.clone(),
+                    condition_key: Some(definition.condition_ref.into()),
+                    name: definition.name.into(),
+                    value,
+                    source_participant_key: None,
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    parameters: Default::default(),
+                    origin: None,
+                    duration: None,
+                    note: None,
+                })?
+                .condition_id)
+        })
+        .unwrap()
+}
+fn attempted_cast_request(
+    fixture: &crate::test_support::FixtureWorker,
+    encounter: &str,
+) -> PreviewEncounterCastingAttemptRequest {
+    let current = fixture.worker.encounter(encounter).unwrap();
+    let participant = &current.participants[0];
+    let mut selection = participant.spellcasting.as_ref().unwrap().spells[0]
+        .navigation
+        .clone();
+    selection.spell_rank = Some(1);
+    PreviewEncounterCastingAttemptRequest {
+        confusion: None,
+        participant_key: participant.participant_key.clone(),
+        selection,
+        target: None,
+        judgments: vec![],
+    }
+}
+#[test]
+fn casting_attempt_debits_once_freezes_grouped_checks_and_retains_failed_cost() {
+    use super::conditions::ConditionRule;
+    let (fixture, encounter) = attempted_cast_fixture();
+    add_attempt_condition(&fixture, &encounter, ConditionRule::Stupefied, Some(2));
+    add_attempt_condition(&fixture, &encounter, ConditionRule::Grabbed, None);
+    add_attempt_condition(&fixture, &encounter, ConditionRule::Deafened, None);
+    let request = attempted_cast_request(&fixture, &encounter);
+    let preview = fixture
+        .worker
+        .preview_encounter_casting_attempt(&encounter, request.clone())
+        .unwrap();
+    assert!(preview.issues.is_empty());
+    assert_eq!(preview.disruption.as_ref().unwrap().dc, 7);
+    assert_eq!(preview.disruption.as_ref().unwrap().sources.len(), 3);
+    let begin = BeginEncounterCastingAttemptRequest {
+        request_id: "begin-once".into(),
+        expected_encounter_revision: preview.expected_encounter_revision,
+        expected_participant_revision: preview.expected_participant_revision,
+        artifact_generation: preview.artifact_generation,
+        preview: request,
+    };
+    let receipt = fixture
+        .worker
+        .begin_encounter_casting_attempt(&encounter, begin.clone())
+        .unwrap();
+    assert_eq!(
+        fixture
+            .worker
+            .begin_encounter_casting_attempt(&encounter, begin.clone())
+            .unwrap(),
+        receipt
+    );
+    let charged = fixture.worker.encounter(&encounter).unwrap();
+    assert_eq!(
+        charged.participants[0]
+            .spellcasting
+            .as_ref()
+            .unwrap()
+            .resources[0]
+            .remaining,
+        1
+    );
+    let saved = fixture
+        .worker
+        .encounter_casting_attempts(&encounter)
+        .unwrap();
+    assert_eq!(
+        saved.attempts[0].status,
+        EncounterActionAttemptStatusView::AwaitingCheck
+    );
+    // Later condition changes cannot change the frozen obligations of a begun action.
+    add_attempt_condition(&fixture, &encounter, ConditionRule::Stupefied, Some(5));
+    let check = ResolveEncounterActionCheckRequest {
+        request_id: "check-once".into(),
+        attempt_key: receipt.attempt_key.clone(),
+        expected_attempt_revision: 0,
+        outcome: EncounterActionCheckInputView::TableResult { result: 1 },
+    };
+    let resolved = fixture
+        .worker
+        .resolve_encounter_action_check(&encounter, check.clone())
+        .unwrap();
+    assert_eq!(
+        fixture
+            .worker
+            .resolve_encounter_action_check(&encounter, check)
+            .unwrap(),
+        resolved
+    );
+    assert_eq!(
+        fixture
+            .worker
+            .begin_encounter_casting_attempt(&encounter, begin)
+            .unwrap(),
+        receipt
+    );
+    let saved = fixture
+        .worker
+        .encounter_casting_attempts(&encounter)
+        .unwrap();
+    assert_eq!(
+        saved.attempts[0].status,
+        EncounterActionAttemptStatusView::Disrupted
+    );
+    assert_eq!(saved.attempts[0].checks[0].dc, 7);
+    assert_eq!(saved.attempts[0].outcomes[0].table_result, Some(1));
+    assert_eq!(
+        fixture.worker.encounter(&encounter).unwrap().participants[0]
+            .spellcasting
+            .as_ref()
+            .unwrap()
+            .resources[0]
+            .remaining,
+        1
+    );
+}
+#[test]
+fn casting_source_traits_cannot_be_negated_by_a_client_judgment() {
+    let (fixture, encounter) = attempted_cast_fixture();
+    let source = add_attempt_condition(
+        &fixture,
+        &encounter,
+        super::conditions::ConditionRule::Grabbed,
+        None,
+    );
+    let mut request = attempted_cast_request(&fixture, &encounter);
+    request.judgments.push(EncounterActionJudgmentView {
+        source_condition_id: Some(source),
+        fact: EncounterActionFactView::Manipulate,
+        value: false,
+    });
+    assert!(
+        fixture
+            .worker
+            .preview_encounter_casting_attempt(&encounter, request)
+            .is_err()
+    );
+    assert_eq!(
+        fixture.worker.encounter(&encounter).unwrap().participants[0]
+            .spellcasting
+            .as_ref()
+            .unwrap()
+            .resources[0]
+            .remaining,
+        2
+    );
+    assert!(
+        fixture
+            .worker
+            .encounter_casting_attempts(&encounter)
+            .unwrap()
+            .attempts
+            .is_empty()
+    );
+    assert!(serde_json::from_value::<ApplyEncounterSpellActionRequest>(json!({"participant_key":"p","expected_revision":0,"action":{"kind":"record_use","selection":{"record_key":"actors:aaaaaaaaaaaaaaaa","embedded_path":[]}}})).is_err());
+}
+
+#[test]
+fn ordinary_cast_advisories_are_grouped_consequences_not_context_questions() {
+    use super::conditions::ConditionRule;
+    let (fixture, encounter) = attempted_cast_fixture();
+    add_attempt_condition(&fixture, &encounter, ConditionRule::Stupefied, Some(3));
+    add_attempt_condition(&fixture, &encounter, ConditionRule::Grabbed, None);
+    let request = attempted_cast_request(&fixture, &encounter);
+    let preview = fixture
+        .worker
+        .preview_encounter_casting_attempt(&encounter, request)
+        .unwrap();
+    assert_eq!(preview.advisories.len(), 1);
+    assert_eq!(
+        preview.advisories[0].reason,
+        "DC 8 flat check or the spell is disrupted"
+    );
+    assert!(preview.advisories[0].label.contains("Grabbed"));
+    assert!(preview.advisories[0].label.contains("Stupefied"));
+    assert!(preview.targeting.is_none());
+}
+
+#[test]
+fn casting_advisory_read_survives_last_use_without_weakening_mutation_guards() {
+    use super::conditions::ConditionRule;
+    let (fixture, encounter) = attempted_cast_fixture();
+    add_attempt_condition(&fixture, &encounter, ConditionRule::Stupefied, Some(1));
+    let before = fixture
+        .worker
+        .preview_encounter_casting_attempt(&encounter, attempted_cast_request(&fixture, &encounter))
+        .unwrap();
+    for _ in 0..2 {
+        let current = fixture.worker.encounter(&encounter).unwrap();
+        let participant = &current.participants[0];
+        let selection = attempted_cast_request(&fixture, &encounter).selection;
+        fixture
+            .worker
+            .apply_encounter_spell_action(
+                &encounter,
+                ApplyEncounterSpellActionRequest {
+                    participant_key: participant.participant_key.clone(),
+                    expected_revision: participant.revision,
+                    action: EncounterSpellAction::Cast { selection },
+                },
+            )
+            .unwrap();
+    }
+    let current = fixture.worker.encounter(&encounter).unwrap();
+    let participant = &current.participants[0];
+    let request = attempted_cast_request(&fixture, &encounter);
+    let after = fixture
+        .worker
+        .preview_encounter_casting_attempt(&encounter, request.clone())
+        .unwrap();
+    assert_eq!(after.advisories, before.advisories);
+    assert_eq!(
+        after.advisories[0].reason,
+        "DC 6 flat check or the spell is disrupted"
+    );
+    assert!(after.cost.is_none());
+    assert!(after.issues.iter().any(|issue| issue.kind
+        == EncounterActionIssueKindView::Prohibited
+        && issue.source_condition_id == 0));
+    assert!(
+        fixture
+            .worker
+            .apply_encounter_spell_action(
+                &encounter,
+                ApplyEncounterSpellActionRequest {
+                    participant_key: participant.participant_key.clone(),
+                    expected_revision: participant.revision,
+                    action: EncounterSpellAction::Cast {
+                        selection: request.selection.clone()
+                    }
+                }
+            )
+            .is_err()
+    );
+    assert!(
+        fixture
+            .worker
+            .begin_encounter_casting_attempt(
+                &encounter,
+                BeginEncounterCastingAttemptRequest {
+                    request_id: "empty-begin".into(),
+                    expected_encounter_revision: after.expected_encounter_revision,
+                    expected_participant_revision: after.expected_participant_revision,
+                    artifact_generation: after.artifact_generation,
+                    preview: request
+                }
+            )
+            .is_err()
+    );
+    assert_eq!(
+        fixture.worker.encounter(&encounter).unwrap(),
+        current,
+        "advice reads and rejected casts cannot mutate resources"
+    );
 }

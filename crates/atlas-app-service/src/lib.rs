@@ -10,6 +10,7 @@ mod error;
 mod executor;
 mod filter;
 mod filters;
+mod flat_check;
 mod lists;
 mod prepared_content;
 mod presentation;

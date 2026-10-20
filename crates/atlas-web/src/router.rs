@@ -24,7 +24,17 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/api/readiness", get(readiness))
+        .route("/api/encounters/{encounter_ref}/attitude-events",post(crate::handlers::worsen_encounter_attitude))
+        .route("/api/encounters/{encounter_ref}/detection-events",post(crate::handlers::apply_encounter_detection_event))
+        .route("/api/encounters/{encounter_ref}/relationships",get(crate::handlers::encounter_relationships).put(crate::handlers::set_encounter_relationship))
         .route("/api/related",post(crate::handlers::related_records))
+        .route("/api/encounters/{encounter_ref}/casting-attempts", get(crate::handlers::encounter_casting_attempts).post(crate::handlers::begin_encounter_casting_attempt))
+        .route("/api/encounters/{encounter_ref}/actions/preview", post(crate::handlers::preview_encounter_action))
+        .route("/api/encounters/{encounter_ref}/strike-attempts/preview",post(crate::handlers::preview_encounter_strike_attempt))
+        .route("/api/encounters/{encounter_ref}/strike-attempts",get(crate::handlers::encounter_strike_attempts).post(crate::handlers::begin_encounter_strike_attempt))
+        .route("/api/encounters/{encounter_ref}/action-attempts/check",post(crate::handlers::resolve_encounter_action_check))
+        .route("/api/encounters/{encounter_ref}/action-attempts/abandon",post(crate::handlers::abandon_encounter_action_attempt))
+        .route("/api/encounters/{encounter_ref}/casting-attempts/preview", post(crate::handlers::preview_encounter_casting_attempt))
         .route("/api/encounters", get(encounters).post(create_encounter))
         .route(
             "/api/encounters/condition-definitions",
@@ -61,6 +71,25 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             post(crate::handlers::apply_encounter_hp_action),
         )
         .route(
+            "/api/encounters/{encounter_ref}/participants/{participant_key}/condition-definitions",
+            get(crate::handlers::participant_encounter_condition_definitions),
+        )
+        .route("/api/encounters/{encounter_ref}/participants/{participant_key}/conditions/preview",post(crate::handlers::preview_encounter_condition_add))
+        .route("/api/encounters/{encounter_ref}/participants/{participant_key}/conditions/{condition_id}/preview",post(crate::handlers::preview_encounter_condition_update))
+        .route("/api/encounters/{encounter_ref}/hp-events",post(crate::handlers::apply_encounter_hp_event))
+        .route("/api/encounters/{encounter_ref}/hp-lifecycle/preview",post(crate::handlers::preview_encounter_hp_lifecycle))
+        .route("/api/encounters/{encounter_ref}/hp-lifecycle",get(crate::handlers::pending_encounter_hp_lifecycle))
+        .route("/api/encounters/{encounter_ref}/hp-lifecycle/resolve",post(crate::handlers::resolve_encounter_hp_lifecycle))
+        .route("/api/encounters/{encounter_ref}/condition-lifecycle",post(crate::handlers::apply_condition_lifecycle))
+        .route("/api/encounters/{encounter_ref}/condition-lifecycle-actions",get(crate::handlers::condition_lifecycle_actions))
+        .route("/api/encounters/{encounter_ref}/condition-recoveries",get(crate::handlers::pending_condition_recoveries))
+        .route("/api/encounters/{encounter_ref}/persistent-review",get(crate::handlers::persistent_damage_review))
+        .route("/api/encounters/{encounter_ref}/persistent-damage",post(crate::handlers::apply_persistent_damage))
+        .route("/api/encounters/{encounter_ref}/persistent-recovery",post(crate::handlers::recover_persistent_damage))
+        .route("/api/encounters/{encounter_ref}/condition-consequences",get(crate::handlers::pending_encounter_condition_consequences))
+        .route("/api/encounters/{encounter_ref}/condition-consequences/drained",post(crate::handlers::resolve_encounter_drained_consequence))
+        .route("/api/encounters/{encounter_ref}/participants/{participant_key}/life-settings",axum::routing::patch(crate::handlers::set_encounter_life_settings))
+        .route(
             "/api/encounters/{encounter_ref}/participants/{participant_key}/conditions",
             post(add_encounter_participant_condition),
         )
@@ -95,6 +124,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/records/{record_key}", get(record_detail))
         .route("/api/encounters/{encounter_ref}/strike-options", post(crate::handlers::encounter_strike_options))
         .route("/api/encounters/{encounter_ref}/strike-rolls", post(crate::handlers::roll_encounter_strike))
+        .route("/api/rolls/flat-check", post(crate::handlers::roll_flat_check))
         .route("/api/rolls/table", post(crate::handlers::roll_table))
         .route("/api/records/detail", post(crate::handlers::record_detail_at))
         .route("/api/records/embedded-reading", post(crate::handlers::embedded_reading))

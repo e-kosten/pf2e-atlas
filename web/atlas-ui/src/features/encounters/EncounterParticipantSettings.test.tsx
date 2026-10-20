@@ -16,6 +16,10 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 );
 
 const participant: EncounterParticipantView = {
+  persistent_damage_groups: [],
+  track_dying: false,
+  mortality: "alive",
+  base_death_threshold: 4n,
   revision: 7n,
   participant_key: "pc",
   position: 1n,
@@ -182,4 +186,156 @@ it("retains the editor after a committed write until canonical read recovery com
   );
   await waitFor(() => expect(dialog).not.toBeVisible());
   expect(onUpdate).toHaveBeenCalledOnce();
+});
+
+it("updates Track dying separately while retaining an unfinished metadata draft", async () => {
+  const onUpdate = vi.fn();
+  const onLifeSettings = vi.fn().mockResolvedValue(true);
+  const props = {
+    participant,
+    disabled: false,
+    pending: false,
+    onUpdate,
+    onLifeSettings,
+  };
+  const { rerender } = render(<EncounterParticipantSettings {...props} />, { wrapper });
+  fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  const name = await screen.findByLabelText("Participant name");
+  fireEvent.change(name, { target: { value: "Unfinished name" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: "Track dying" }));
+  expect(onLifeSettings).toHaveBeenCalledWith({ track_dying: true });
+  expect(onUpdate).not.toHaveBeenCalled();
+  rerender(
+    <EncounterParticipantSettings
+      {...props}
+      participant={{ ...participant, track_dying: true, revision: 8n }}
+    />,
+  );
+  expect(name).toHaveValue("Unfinished name");
+  expect(screen.getByRole("checkbox", { name: "Track dying" })).toBeChecked();
+});
+
+it("saves life facts separately and preserves an unfinished participant name", async () => {
+  const onLifeSettings = vi.fn().mockResolvedValue(true);
+  const onUpdate = vi.fn().mockResolvedValue(true);
+  render(
+    <EncounterParticipantSettings
+      participant={{ ...participant, track_dying: true }}
+      disabled={false}
+      pending={false}
+      onUpdate={onUpdate}
+      onLifeSettings={onLifeSettings}
+    />,
+    { wrapper },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  const dialog = await screen.findByRole("dialog", { name: "Participant settings" });
+  fireEvent.change(within(dialog).getByLabelText("Participant name"), {
+    target: { value: "Unfinished name" },
+  });
+  expect(
+    within(dialog).queryByRole("spinbutton", { name: "Level override" }),
+  ).not.toBeInTheDocument();
+  fireEvent.change(
+    within(dialog).getByRole("spinbutton", { name: "Death threshold" }),
+    { target: { value: "5" } },
+  );
+  fireEvent.blur(within(dialog).getByRole("spinbutton", { name: "Death threshold" }));
+  await waitFor(() =>
+    expect(onLifeSettings).toHaveBeenCalledWith({
+      track_dying: true,
+      base_death_threshold: 5n,
+    }),
+  );
+  expect(onUpdate).not.toHaveBeenCalled();
+  expect(within(dialog).getByLabelText("Participant name")).toHaveValue(
+    "Unfinished name",
+  );
+});
+
+it("records an explicit mortality correction separately from HP and participant edits", async () => {
+  const onLifeSettings = vi.fn().mockResolvedValue(true);
+  const onUpdate = vi.fn();
+  render(
+    <EncounterParticipantSettings
+      participant={{ ...participant, track_dying: true }}
+      disabled={false}
+      pending={false}
+      onUpdate={onUpdate}
+      onLifeSettings={onLifeSettings}
+    />,
+    { wrapper },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  fireEvent.click(screen.getByRole("radio", { name: "Dead" }));
+  await waitFor(() =>
+    expect(onLifeSettings).toHaveBeenCalledWith({
+      track_dying: true,
+      mortality: "dead",
+    }),
+  );
+  expect(onUpdate).not.toHaveBeenCalled();
+});
+
+it("keeps drafts editable and the selected mortality stable through a pending life write", async () => {
+  let finish!: (value: boolean) => void;
+  const onLifeSettings = vi.fn(
+    () =>
+      new Promise<boolean>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const props = {
+    participant: { ...participant, track_dying: true },
+    disabled: false,
+    pending: false,
+    onUpdate: vi.fn(),
+    onLifeSettings,
+  };
+  const { rerender } = render(<EncounterParticipantSettings {...props} />, { wrapper });
+  fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  const dialog = await screen.findByRole("dialog", { name: "Participant settings" });
+  const name = within(dialog).getByLabelText("Participant name");
+  fireEvent.change(name, { target: { value: "Draft" } });
+  fireEvent.click(within(dialog).getByRole("radio", { name: "Dead" }));
+  rerender(<EncounterParticipantSettings {...props} disabled pending />);
+  expect(within(dialog).getByRole("radio", { name: "Dead" })).toBeChecked();
+  expect(name).toBeEnabled();
+  expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled();
+  rerender(
+    <EncounterParticipantSettings
+      {...props}
+      participant={{ ...props.participant, mortality: "dead", revision: 8n }}
+    />,
+  );
+  await act(async () => finish(true));
+  expect(within(dialog).getByRole("radio", { name: "Dead" })).toBeChecked();
+  expect(within(dialog).getByLabelText("Participant name")).toBe(name);
+  expect(name).toHaveValue("Draft");
+  expect(dialog).toBeVisible();
+});
+it("restores the confirmed mortality after a failed write", async () => {
+  let fail!: (reason: Error) => void;
+  const onLifeSettings = vi.fn(
+    () =>
+      new Promise<boolean>((_, reject) => {
+        fail = reject;
+      }),
+  );
+  render(
+    <EncounterParticipantSettings
+      participant={{ ...participant, track_dying: true }}
+      disabled={false}
+      pending={false}
+      onUpdate={vi.fn()}
+      onLifeSettings={onLifeSettings}
+    />,
+    { wrapper },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  fireEvent.click(screen.getByRole("radio", { name: "Dead" }));
+  expect(screen.getByRole("radio", { name: "Dead" })).toBeChecked();
+  await act(async () => fail(new Error("Conflict")));
+  expect(screen.getByRole("radio", { name: "Alive" })).toBeChecked();
+  expect(await screen.findByText("Conflict")).toBeVisible();
 });

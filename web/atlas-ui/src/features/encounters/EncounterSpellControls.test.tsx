@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { previewEncounterCastingAttempt } from "../../api/atlasApi";
+vi.mock("../../api/atlasApi", async (original) => ({
+  ...(await original<typeof import("../../api/atlasApi")>()),
+  previewEncounterCastingAttempt: vi.fn(),
+}));
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { App } from "antd";
 import {
   EncounterSpellControls,
@@ -158,6 +164,10 @@ it("preserves a draft and prevents overwrite when the participant revision chang
 function resourceParticipant() {
   return {
     revision: 7n,
+    persistent_damage_groups: [],
+    track_dying: false,
+    mortality: "alive",
+    base_death_threshold: 4n,
     participant_key: "caster",
     position: 1n,
     initiative_order: 1n,
@@ -245,13 +255,11 @@ it("restores a shared rank directly while preserving other pools", async () => {
   );
 });
 
-it("keeps ordinary Cast blocked while allowing an explicit past use", async () => {
+it("casts directly once in the existing surface without a second resource action", async () => {
   const detail = detailFixture("actors:caster");
   detail.presentation.body = { kind: "spell", value: spellFixture() };
   detail.selected.spell_rank = 3;
   const participant = resourceParticipant();
-  participant.defeated = true;
-  participant.cast_unavailable_reason = "Marked defeated.";
   participant.spellcasting!.spells = [
     {
       navigation: detail.selected,
@@ -273,13 +281,293 @@ it("keeps ordinary Cast blocked while allowing an explicit past use", async () =
       />
     </App>,
   );
-  expect(screen.getByRole("button", { name: "Cast" })).toBeDisabled();
-  expect(screen.getByText("Marked defeated.")).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Record past use" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cast" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cast" }));
   await waitFor(() =>
-    expect(onAction).toHaveBeenCalledWith({
-      kind: "record_use",
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({
+      kind: "cast",
       selection: detail.selected,
     }),
   );
+  expect(screen.queryByText("Record past use")).toBeNull();
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
+
+it("uses catalog identity only when the displayed reference lacks it", async () => {
+  const detail = detailFixture("actors:caster");
+  detail.presentation.body = { kind: "spell", value: spellFixture() };
+  detail.selected.spell_rank = 3;
+  detail.selected.source_fingerprint = null;
+  const canonical = { ...detail.selected, source_fingerprint: "current-source" };
+  const participant = resourceParticipant();
+  participant.spellcasting!.spells = [
+    {
+      navigation: canonical,
+      entry_id: "entry",
+      title: "Fireball",
+      expended: null,
+      ranks: [{ rank: 3, resource_key: "rank3", unavailable_reason: null }],
+    },
+  ];
+  const onAction = vi.fn().mockResolvedValue(true);
+  const view = render(
+    <App>
+      <EncounterSpellControls
+        participant={participant}
+        detail={detail}
+        disabled={false}
+        pending={false}
+        onAction={onAction}
+      />
+    </App>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Cast" }));
+  await waitFor(() =>
+    expect(onAction).toHaveBeenCalledWith({ kind: "cast", selection: canonical }),
+  );
+  const stale = {
+    ...detail,
+    selected: { ...detail.selected, source_fingerprint: "stale-display" },
+  };
+  view.rerender(
+    <App>
+      <EncounterSpellControls
+        participant={participant}
+        detail={stale}
+        disabled={false}
+        pending={false}
+        onAction={onAction}
+      />
+    </App>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Cast" }));
+  await waitFor(() =>
+    expect(onAction).toHaveBeenLastCalledWith({
+      kind: "cast",
+      selection: { ...canonical, source_fingerprint: "stale-display" },
+    }),
+  );
+});
+
+it("retries unavailable reminders without disabling direct Cast and renders only advisories", async () => {
+  const detail = detailFixture("actors:caster");
+  detail.presentation.body = { kind: "spell", value: spellFixture() };
+  detail.selected.spell_rank = 3;
+  const participant = resourceParticipant();
+  participant.spellcasting!.spells = [
+    {
+      navigation: detail.selected,
+      entry_id: "entry",
+      title: "Fireball",
+      expended: null,
+      ranks: [{ rank: 3, resource_key: "rank3", unavailable_reason: null }],
+    },
+  ];
+  vi.mocked(previewEncounterCastingAttempt)
+    .mockRejectedValueOnce(new Error("Unavailable"))
+    .mockResolvedValueOnce({
+      encounter_key: "encounter",
+      participant_key: "caster",
+      expected_encounter_revision: 1n,
+      expected_participant_revision: 7n,
+      artifact_generation: "g1",
+      spell_title: "Fireball",
+      rank: 3,
+      cost: null,
+      confusion: null,
+      disruption: null,
+      pending_attempt_key: null,
+      targeting: null,
+      advisories: [{ source: "condition", label: "Check", reason: "DC 8 flat check" }],
+      issues: [
+        {
+          kind: "needs_context",
+          reason: "Choose target geometry",
+          subject: null,
+          source_condition_id: 1n,
+          condition_name: "Example",
+          controller_key: null,
+          instructions: null,
+          fact: null,
+        },
+      ],
+    });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const view = render(
+    <QueryClientProvider client={client}>
+      <App>
+        <EncounterSpellControls
+          encounterRef="encounter"
+          participant={participant}
+          detail={detail}
+          disabled={false}
+          pending={false}
+          onAction={vi.fn()}
+        />
+      </App>
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByText("Reminders unavailable")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Cast" })).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  expect(await screen.findByText("Check · DC 8 flat check")).toBeVisible();
+  expect(screen.queryByText("Choose target geometry")).toBeNull();
+  view.unmount();
+  client.clear();
+});
+
+it("retains exact-spell reminders through revision refresh and shows errors without losing the previous reminder", async () => {
+  const detail = detailFixture("actors:caster");
+  detail.presentation.body = { kind: "spell", value: spellFixture() };
+  detail.selected.spell_rank = 3;
+  const participant = resourceParticipant();
+  participant.spellcasting!.spells = [
+    {
+      navigation: detail.selected,
+      entry_id: "entry",
+      title: "Fireball",
+      expended: null,
+      ranks: [{ rank: 3, resource_key: "rank3", unavailable_reason: null }],
+    },
+  ];
+  const initial: Awaited<ReturnType<typeof previewEncounterCastingAttempt>> = {
+    encounter_key: "encounter",
+    participant_key: participant.participant_key,
+    expected_encounter_revision: 1n,
+    expected_participant_revision: participant.revision,
+    artifact_generation: detail.artifact_generation,
+    spell_title: "Fireball",
+    rank: 3,
+    cost: null,
+    confusion: null,
+    disruption: null,
+    pending_attempt_key: null,
+    targeting: null,
+    advisories: [
+      {
+        source: "condition",
+        label: "Stupefied",
+        reason: "DC 6 flat check or the spell is disrupted",
+      },
+    ],
+    issues: [],
+  };
+  let reject: (reason: Error) => void = () => {};
+  vi.mocked(previewEncounterCastingAttempt)
+    .mockReset()
+    .mockResolvedValueOnce(initial)
+    .mockImplementationOnce(
+      () =>
+        new Promise((_resolve, fail) => {
+          reject = fail;
+        }),
+    )
+    .mockResolvedValueOnce({ ...initial, advisories: [] });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const view = (current: typeof participant) => (
+    <QueryClientProvider client={client}>
+      <App>
+        <EncounterSpellControls
+          encounterRef="encounter"
+          participant={current}
+          detail={detail}
+          disabled={false}
+          pending={false}
+          onAction={vi.fn()}
+        />
+      </App>
+    </QueryClientProvider>
+  );
+  const { rerender } = render(view(participant));
+  const label = "Stupefied · DC 6 flat check or the spell is disrupted";
+  const reminder = await screen.findByText(label);
+  rerender(view({ ...participant, revision: participant.revision + 1n }));
+  await waitFor(() => expect(previewEncounterCastingAttempt).toHaveBeenCalledTimes(2));
+  expect(screen.getByText(label)).toBe(reminder);
+  await act(async () => reject(new Error("Unavailable")));
+  expect(await screen.findByText("Reminders unavailable")).toBeVisible();
+  expect(screen.getByText(label)).toBe(reminder);
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await waitFor(() => expect(screen.queryByText(label)).toBeNull());
+  client.clear();
+});
+
+it.each(["participant", "selection", "generation"])(
+  "never retains a reminder across a changed %s",
+  async (changed) => {
+    const detail = detailFixture("actors:caster");
+    detail.presentation.body = { kind: "spell", value: spellFixture() };
+    detail.selected.spell_rank = 3;
+    const participant = resourceParticipant();
+    const spell = {
+      navigation: detail.selected,
+      entry_id: "entry",
+      title: "Fireball",
+      expended: null,
+      ranks: [{ rank: 3, resource_key: "rank3", unavailable_reason: null }],
+    };
+    participant.spellcasting!.spells = [spell];
+    const initial: Awaited<ReturnType<typeof previewEncounterCastingAttempt>> = {
+      encounter_key: "encounter",
+      participant_key: participant.participant_key,
+      expected_encounter_revision: 1n,
+      expected_participant_revision: participant.revision,
+      artifact_generation: detail.artifact_generation,
+      spell_title: "Fireball",
+      rank: 3,
+      cost: null,
+      confusion: null,
+      disruption: null,
+      pending_attempt_key: null,
+      targeting: null,
+      advisories: [
+        { source: "condition", label: "Old", reason: "Old participant reminder" },
+      ],
+      issues: [],
+    };
+    vi.mocked(previewEncounterCastingAttempt)
+      .mockReset()
+      .mockResolvedValueOnce(initial)
+      .mockImplementationOnce(() => new Promise(() => {}));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = (current: typeof participant, document: typeof detail) => (
+      <QueryClientProvider client={client}>
+        <App>
+          <EncounterSpellControls
+            encounterRef="encounter"
+            participant={current}
+            detail={document}
+            disabled={false}
+            pending={false}
+            onAction={vi.fn()}
+          />
+        </App>
+      </QueryClientProvider>
+    );
+    const { rerender, unmount } = render(view(participant, detail));
+    await screen.findByText("Old · Old participant reminder");
+    const selected =
+      changed === "selection"
+        ? { ...detail.selected, source_fingerprint: "new-copy" }
+        : detail.selected;
+    const nextDetail = {
+      ...detail,
+      selected,
+      artifact_generation:
+        changed === "generation" ? "new-generation" : detail.artifact_generation,
+    };
+    const nextParticipant = {
+      ...participant,
+      participant_key:
+        changed === "participant" ? "new-participant" : participant.participant_key,
+      spellcasting: {
+        ...participant.spellcasting!,
+        spells: [{ ...spell, navigation: selected }],
+      },
+    };
+    rerender(view(nextParticipant, nextDetail));
+    expect(screen.queryByText("Old · Old participant reminder")).toBeNull();
+    unmount();
+    client.clear();
+  },
+);

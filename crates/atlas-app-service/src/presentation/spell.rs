@@ -4,6 +4,8 @@ use atlas_foundry_model::generated::*;
 pub(super) fn authored_spell(source: &SpellSource) -> SpellPresentationView {
     let s = SourceFieldView::from(&source.system);
     SpellPresentationView {
+        runtime_attack: None,
+        runtime_difficulty_class: None,
         ritual: fact(
             match s.and_then(|s| (&s.ritual).into()) {
                 SourceFieldView::Null => SourceFieldView::NotApplicable,

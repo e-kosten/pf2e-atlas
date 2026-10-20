@@ -14,12 +14,14 @@ use atlas_local_state::{
 use crate::error::{AppServiceError, AppServiceResult};
 
 use super::hydration::hydrate_participant_records;
-use super::mechanics::{participant_runtime_block, participant_stat_block};
+use super::rules::participant_runtime_block;
+use super::rules::project_participant;
 
 pub(super) fn encounter_detail_view(
     retrieval: &mut atlas_search::AtlasRetrievalService,
     encounter: Encounter,
     participants: Vec<EncounterParticipant>,
+    relationships: Vec<atlas_local_state::DirectedRelationship>,
 ) -> AppServiceResult<EncounterDetailView> {
     let (artifact_generation, records_by_key) =
         hydrate_participant_records(retrieval, &participants)?;
@@ -28,6 +30,7 @@ pub(super) fn encounter_detail_view(
         participants,
         artifact_generation,
         records_by_key,
+        relationships,
     ))
 }
 
@@ -36,6 +39,7 @@ pub(super) fn encounter_detail_from_records(
     participants: Vec<EncounterParticipant>,
     artifact_generation: Option<String>,
     records_by_key: BTreeMap<String, super::hydration::HydratedParticipantRecord>,
+    relationships: Vec<atlas_local_state::DirectedRelationship>,
 ) -> EncounterDetailView {
     let participant_count = participants.len() as u32;
     let current_turn_participant_key = encounter.current_turn_participant_key.clone();
@@ -47,8 +51,15 @@ pub(super) fn encounter_detail_from_records(
         note,
         current_turn_participant_key,
         participants: participants
-            .into_iter()
-            .map(|participant| participant_view(participant, &records_by_key))
+            .iter()
+            .map(|participant| {
+                participant_view(
+                    participant.clone(),
+                    &records_by_key,
+                    &participants,
+                    &relationships,
+                )
+            })
             .collect(),
     }
 }
@@ -73,7 +84,14 @@ pub(super) fn encounter_summary(
 pub(super) fn participant_view(
     participant: EncounterParticipant,
     records_by_key: &BTreeMap<String, super::hydration::HydratedParticipantRecord>,
+    participants: &[EncounterParticipant],
+    relationships: &[atlas_local_state::DirectedRelationship],
 ) -> EncounterParticipantView {
+    let relationship_causes = super::rules::relationships::observer_defense_causes(
+        &participant.participant_key,
+        participants,
+        relationships,
+    );
     let record_detail = participant
         .record_key
         .as_ref()
@@ -82,7 +100,19 @@ pub(super) fn participant_view(
     let stat_block = record_detail
         .and_then(|record| {
             record.arithmetic_baseline.as_ref().map(|baseline| {
-                participant_stat_block(&participant, baseline, record.adjustment_applicable)
+                let mut baseline = baseline.clone();
+                baseline.contextual_modifiers =
+                    super::rules::relationships::observer_defense_modifiers(
+                        &participant.participant_key,
+                        participants,
+                        relationships,
+                    );
+                project_participant(
+                    &participant,
+                    &baseline,
+                    record.adjustment_applicable,
+                    &relationship_causes,
+                )
             })
         })
         .or_else(|| {
@@ -112,13 +142,22 @@ pub(super) fn participant_view(
                 .map(|block| crate::presentation::actor::manual_presentation(&participant, block))
         });
     EncounterParticipantView {
-        cast_unavailable_reason: super::action_budget::cannot_act_reason(&participant)
+        track_dying: participant.track_dying,
+        level_override: participant.level_override,
+        base_death_threshold: participant.base_death_threshold,
+        mortality: match participant.mortality {
+            atlas_local_state::MortalityState::Alive => atlas_app_model::MortalityStateView::Alive,
+            atlas_local_state::MortalityState::Dead => atlas_app_model::MortalityStateView::Dead,
+        },
+        persistent_damage_groups: super::persistent_damage::group_views(&participant),
+        cast_unavailable_reason: super::rules::capabilities::cannot_act_reason(&participant)
             .map(str::to_owned),
         spellcasting: record_detail.map(|r| {
             super::spell_catalog::catalog(
                 &r.detail.source,
                 &participant.spell_resources,
                 &participant.expended_spells,
+                Some(&r.source_fingerprint),
             )
         }),
         revision: participant.revision,
@@ -234,6 +273,11 @@ fn condition_view(condition: EncounterParticipantCondition) -> EncounterParticip
         name: condition.name,
         value: condition.value,
         source_participant_key: condition.source_participant_key,
+        scope: condition_scope_view(condition.scope),
+        extra_action: condition_extra_action_view(condition.extra_action),
+        immunity_override: condition.immunity_override,
+        parameters: condition_parameters_view(condition.parameters),
+        origin: condition.origin.map(condition_origin_view),
         duration: condition.duration.map(super::timing::duration_view),
         note: condition.note,
         created_at: condition.created_at,
@@ -255,5 +299,160 @@ fn participant_kind(kind: ParticipantKind) -> EncounterParticipantKindView {
         ParticipantKind::Creature => EncounterParticipantKindView::Creature,
         ParticipantKind::Hazard => EncounterParticipantKindView::Hazard,
         ParticipantKind::Pc => EncounterParticipantKindView::Pc,
+    }
+}
+
+pub(super) fn condition_scope_view(
+    value: atlas_local_state::ConditionScope,
+) -> atlas_app_model::ConditionScopeView {
+    match value {
+        atlas_local_state::ConditionScope::Everyone => {
+            atlas_app_model::ConditionScopeView::Everyone
+        }
+        atlas_local_state::ConditionScope::SelectedParticipants { participant_keys } => {
+            atlas_app_model::ConditionScopeView::SelectedParticipants { participant_keys }
+        }
+    }
+}
+
+pub(super) fn condition_extra_action_view(
+    value: atlas_local_state::ConditionExtraAction,
+) -> atlas_app_model::ConditionExtraActionView {
+    use atlas_app_model::{ConditionActionView as V, ConditionExtraActionView as View};
+    use atlas_local_state::{ConditionAction as A, ConditionExtraAction as Local};
+    match value {
+        Local::Unspecified => View::Unspecified,
+        Local::Unrestricted => View::Unrestricted,
+        Local::Restricted { actions, guidance } => View::Restricted {
+            actions: actions
+                .into_iter()
+                .map(|a| match a {
+                    A::Stride => V::Stride,
+                    A::Strike => V::Strike,
+                    A::Step => V::Step,
+                    A::Leap => V::Leap,
+                    A::Stand => V::Stand,
+                    A::Interact => V::Interact,
+                    A::CastSpell => V::CastSpell,
+                    A::Sustain => V::Sustain,
+                    A::Escape => V::Escape,
+                    A::Crawl => V::Crawl,
+                    A::Fly => V::Fly,
+                    A::Swim => V::Swim,
+                    A::Climb => V::Climb,
+                    A::Burrow => V::Burrow,
+                })
+                .collect(),
+            guidance,
+        },
+    }
+}
+
+pub(super) fn condition_parameters_view(
+    value: atlas_local_state::ConditionParameters,
+) -> atlas_app_model::ConditionParametersView {
+    use atlas_app_model::{
+        ConditionParametersView as V, DamageMultiplierView as MV, PersistentRecoveryView as RV,
+        WakingRuleView as WV,
+    };
+    use atlas_local_state::{
+        ConditionParameters as L, DamageMultiplier as M, PersistentRecovery as R, WakingRule as W,
+    };
+    match value {
+        L::Fleeing { subject } => V::Fleeing {
+            subject: subject.map(|subject| match subject {
+                atlas_local_state::ConditionSubject::Participant { participant_key } => {
+                    atlas_app_model::ConditionSubjectView::Participant { participant_key }
+                }
+                atlas_local_state::ConditionSubject::Other { description } => {
+                    atlas_app_model::ConditionSubjectView::Other { description }
+                }
+            }),
+        },
+        L::Fascinated { subject } => V::Fascinated {
+            subject: subject.map(|subject| match subject {
+                atlas_local_state::ConditionSubject::Participant { participant_key } => {
+                    atlas_app_model::ConditionSubjectView::Participant { participant_key }
+                }
+                atlas_local_state::ConditionSubject::Other { description } => {
+                    atlas_app_model::ConditionSubjectView::Other { description }
+                }
+            }),
+        },
+        L::Attitude { supernatural } => V::Attitude { supernatural },
+        L::None => V::None,
+        L::Broken { threshold } => V::Broken { threshold },
+        L::Frightened { recovery } => V::Frightened {
+            recovery: match recovery {
+                atlas_local_state::FrightenedRecovery::EndTurn { minimum } => {
+                    atlas_app_model::FrightenedRecoveryView::EndTurn { minimum }
+                }
+                atlas_local_state::FrightenedRecovery::Held => {
+                    atlas_app_model::FrightenedRecoveryView::Held
+                }
+                atlas_local_state::FrightenedRecovery::SourceDependent => {
+                    atlas_app_model::FrightenedRecoveryView::SourceDependent
+                }
+            },
+        },
+        L::Sickened { recovery_dc } => V::Sickened { recovery_dc },
+        L::Unconscious { waking } => V::Unconscious {
+            waking: match waking {
+                W::Normal => WV::Normal,
+                W::SourceControlled => WV::SourceControlled,
+            },
+        },
+        L::PersistentDamageReminder {
+            formula,
+            damage_type,
+            multiplier,
+            recovery,
+        } => V::PersistentDamageReminder {
+            formula,
+            damage_type,
+            multiplier: match multiplier {
+                M::Normal => MV::Normal,
+                M::Double => MV::Double,
+                M::Half => MV::Half,
+            },
+            recovery: match recovery {
+                R::Standard => RV::Standard,
+                R::Specified { dc } => RV::Specified { dc },
+                R::SourceDependent => RV::SourceDependent,
+            },
+        },
+        L::PersistentDamage {
+            formula,
+            damage_type,
+            multiplier,
+            recovery,
+            episode_id,
+        } => V::PersistentDamage {
+            formula,
+            damage_type,
+            multiplier: match multiplier {
+                M::Normal => MV::Normal,
+                M::Double => MV::Double,
+                M::Half => MV::Half,
+            },
+            recovery: match recovery {
+                R::Standard => RV::Standard,
+                R::Specified { dc } => RV::Specified { dc },
+                R::SourceDependent => RV::SourceDependent,
+            },
+            episode_id: Some(episode_id),
+        },
+    }
+}
+pub(super) fn condition_origin_view(
+    value: atlas_local_state::ConditionOrigin,
+) -> atlas_app_model::ConditionOriginView {
+    atlas_app_model::ConditionOriginView {
+        application_id: value.application_id,
+        grant_slot: value.grant_slot,
+        participant_key: value.participant_key,
+        record_key: value.record_key,
+        activity_id: value.activity_id,
+        artifact_generation: value.artifact_generation,
     }
 }

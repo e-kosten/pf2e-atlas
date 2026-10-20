@@ -1,4 +1,5 @@
-//! Disposable test workspaces use the same complete schema as runtime composition.
+//! Reference-layer fixtures and artifact mutations. Runtime fixtures use the
+//! runtime-owned workspace composition and supply its version to mutation helpers.
 use crate::{
     ArtifactValidationReport, IndexArtifactWriter, IndexBuildInput, IndexError, SqliteIndexReader,
     SqliteIndexWriter,
@@ -67,28 +68,31 @@ pub fn publish_input(
 /// digests used to decide whether publication can retain a record's rows.
 pub fn set_content_interpretation_version(
     path: impl AsRef<Path>,
+    workspace_schema_version: u32,
     version: &str,
 ) -> Result<(), IndexError> {
-    set_preparation_policy(path, |context| {
+    set_preparation_policy(path, workspace_schema_version, |context| {
         context.content_interpretation_version = version.into()
     })
 }
 
 pub fn set_content_selection_version(
     path: impl AsRef<Path>,
+    workspace_schema_version: u32,
     version: &str,
 ) -> Result<(), IndexError> {
-    set_preparation_policy(path, |context| {
+    set_preparation_policy(path, workspace_schema_version, |context| {
         context.content_selection_version = version.into()
     })
 }
 
 fn set_preparation_policy(
     path: impl AsRef<Path>,
+    workspace_schema_version: u32,
     update: impl FnOnce(&mut crate::SourceArtifactBuildContext),
 ) -> Result<(), IndexError> {
     let workspace = Workspace::at(path)?;
-    let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION)?;
+    let write = workspace.write(workspace_schema_version)?;
     let c = write.connection();
     let mut context = crate::read_stored_reference_context(c)?
         .ok_or_else(|| IndexError::Invalid("fixture has no reference context".into()))?;

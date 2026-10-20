@@ -4,6 +4,8 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 ## Current ADRs
 
+- [`0055-encounter-condition-evaluation.md`](./0055-encounter-condition-evaluation.md): one typed condition owner, independent sources, atomic consequences and shared resumable action attempts; implementation and validation in progress.
+
 - [`0054-derived-tag-deferral.md`](./0054-derived-tag-deferral.md): derived-tag development is deferred pending demonstrated retrieval gaps; existing file validation remains, with history and future design preserved as research.
 
 - [`0053-field-aware-search-fusion.md`](./0053-field-aware-search-fusion.md): one field-aware lexical projection and independent temporary RRF/score comparison without re-embedding.

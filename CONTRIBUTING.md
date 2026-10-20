@@ -568,7 +568,11 @@ Local validation covers Rust checks, `dist plan`, release-helper dry runs, insta
 
 Before each logical commit, inspect the scoped diff and run checks appropriate to the change. Before marking a PR ready for review, run the full applicable gates. A draft PR may be opened earlier with outstanding validation clearly identified. Respect the tracked hooks; do not bypass them. Reuse successful validation for an unchanged candidate rather than manually repeating expensive checks without a reason.
 
-For Rust changes, run the full Rust gate:
+For Rust changes, run the full gate with the compiler pinned in
+`rust-toolchain.toml`. Rustup-managed Cargo
+selects that toolchain automatically; standalone installations such as Homebrew
+use their own compiler. Check `rustc --version` and put the pinned toolchain on
+`PATH` when necessary. Validation with a different compiler is separate evidence.
 
 ```bash
 just verify

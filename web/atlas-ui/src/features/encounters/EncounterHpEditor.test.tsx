@@ -4,6 +4,10 @@ import { EncounterHpEditor } from "./EncounterHpEditor";
 import type { EncounterParticipantView } from "../../generated/atlas";
 const current: EncounterParticipantView = {
   revision: 1n,
+  persistent_damage_groups: [],
+  track_dying: false,
+  mortality: "alive",
+  base_death_threshold: 4n,
   participant_key: "a",
   position: 1n,
   initiative_order: 1n,

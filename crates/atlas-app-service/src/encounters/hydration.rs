@@ -44,7 +44,8 @@ pub(super) fn hydrate_participant_records(
                 vec![],
                 r,
             )?;
-            let arithmetic_baseline = super::mechanics::arithmetic_baseline(&presentation);
+            let arithmetic_baseline =
+                super::rules::source_baseline(&detail.source, r.source_fingerprint(), None);
             let adjustment_applicable = !matches!(
                 atlas_record::source_record::SourceQueryView::new(
                     detail.source.source(),
@@ -58,6 +59,7 @@ pub(super) fn hydrate_participant_records(
             records.insert(
                 key.to_string(),
                 HydratedParticipantRecord {
+                    source_fingerprint: r.source_fingerprint().to_owned(),
                     view,
                     presentation,
                     arithmetic_baseline,
@@ -106,6 +108,7 @@ pub(super) fn resolve_record_ref(
 }
 
 pub(super) struct HydratedParticipantRecord {
+    pub source_fingerprint: String,
     // HP-edit policy reads the checked HP/level fields; participant overlays use
     // the already extracted semantic and arithmetic baselines below.
     pub detail: SourceRecordDetail,

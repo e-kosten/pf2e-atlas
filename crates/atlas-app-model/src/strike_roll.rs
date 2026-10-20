@@ -14,6 +14,8 @@ pub struct StrikeAttackOptionView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterStrikeOptionsView {
+    pub applied: Vec<crate::RuntimeEffectNoteView>,
+    pub conditional: Vec<crate::RuntimeEffectNoteView>,
     pub expected_revision: i64,
     pub expected_participant_revision: i64,
     pub title: String,
@@ -52,6 +54,7 @@ pub struct StrikeDamageRollView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterStrikeRollView {
+    pub attack_modifier: Option<i32>,
     pub request_id: String,
     pub encounter_key: String,
     pub participant_key: String,

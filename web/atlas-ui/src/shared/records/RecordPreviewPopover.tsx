@@ -113,7 +113,15 @@ export function RecordPreviewPopover({
   useLayoutEffect(() => {
     let resizeFrame = 0;
     const update = () => {
-      setBounds(anchor?.getBoundingClientRect());
+      const next = anchor?.getBoundingClientRect();
+      setBounds((current) =>
+        current?.left === next?.left &&
+        current?.top === next?.top &&
+        current?.width === next?.width &&
+        current?.height === next?.height
+          ? current
+          : next,
+      );
     };
     const resize = () => {
       cancelAnimationFrame(resizeFrame);

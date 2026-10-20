@@ -36,7 +36,7 @@ pub(super) fn read_encounter_reference(
         .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
     let participant = encounter
         .participants
-        .into_iter()
+        .iter()
         .find(|p| p.participant_key == participant_key)
         .ok_or_else(|| {
             AppServiceError::new(
@@ -49,6 +49,10 @@ pub(super) fn read_encounter_reference(
             "selected reference does not belong to this participant",
         ));
     }
+    let relationships = workspace
+        .local_state()
+        .encounters()
+        .relationships(&encounter.encounter.encounter_key)?;
     let r = workspace.retrieval_mut();
 
     let generation = r.artifact_generation()?;
@@ -72,7 +76,15 @@ pub(super) fn read_encounter_reference(
         vec![],
         r,
     )?;
-    let baseline = super::mechanics::arithmetic_baseline(&root).ok_or_else(|| {
+    let mut baseline = super::rules::source_baseline(
+        &source.source,
+        r.source_fingerprint(),
+        selected
+            .selected
+            .spell_rank
+            .map(|rank| (selected.selected.owners.as_slice(), rank)),
+    )
+    .ok_or_else(|| {
         AppServiceError::invalid_request("this participant has no actor runtime context")
     })?;
     let adjustment_applicable = !matches!(
@@ -85,16 +97,31 @@ pub(super) fn read_encounter_reference(
         .authored_adjustment(),
         SourceFieldView::NotApplicable
     );
-    let block =
-        super::mechanics::participant_stat_block(&participant, &baseline, adjustment_applicable);
+    baseline.contextual_modifiers = super::rules::relationships::observer_defense_modifiers(
+        participant_key,
+        &encounter.participants,
+        &relationships,
+    );
+    let relationship_causes = super::rules::relationships::observer_defense_causes(
+        participant_key,
+        &encounter.participants,
+        &relationships,
+    );
+    let block = super::rules::project_participant(
+        participant,
+        &baseline,
+        adjustment_applicable,
+        &relationship_causes,
+    );
     let current = crate::presentation::compose_participant(root, &block);
-    compose_selected(&mut selected, current)?;
+    compose_selected(&mut selected, current, &block)?;
     Ok(selected)
 }
 
 fn compose_selected(
     selected: &mut RecordDetailView,
     current: atlas_app_model::RecordPresentationView,
+    block: &super::stat_block::StatBlockView,
 ) -> AppServiceResult<()> {
     if selected.selected.owners.is_empty() {
         // Retain selected root content; hydration deliberately has none.
@@ -146,7 +173,35 @@ fn compose_selected(
                     "selected spell is no longer available on this participant",
                 )
             })?;
+            if let Some(evaluated) = block
+                .activities
+                .iter()
+                .find(|activity| activity.navigation.owners == selected.selected.owners)
+            {
+                for component in spell.damage.value.iter_mut().flatten() {
+                    if let Some(damage) = evaluated
+                        .damage
+                        .iter()
+                        .find(|damage| damage.damage_id == component.id)
+                    {
+                        if damage.unavailable_reason.is_some() {
+                            component.formula.value = None;
+                            component.formula.state = atlas_domain::QueryFieldState::Missing;
+                        } else {
+                            component.formula.value = Some(
+                                damage
+                                    .adjusted_formula
+                                    .as_ref()
+                                    .unwrap_or(&damage.formula)
+                                    .clone(),
+                            );
+                        }
+                    }
+                }
+            }
             spell.runtime_notes = Some(matching.notes.clone());
+            spell.runtime_attack = Some(matching.attack.clone());
+            spell.runtime_difficulty_class = Some(matching.difficulty_class.clone());
         }
         // Equipment and other owned references preserve their complete authored view.
         _ => {}

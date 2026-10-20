@@ -28,7 +28,7 @@ revisions of affected participants. Conditions use non-reused IDs, and condition
 edits verify their participant owner inside the write transaction. Full condition
 replacements also require the encounter revision the editor read, checked before
 validation and again inside the write; a stale notes draft cannot restore an older
-remaining duration after Continue.
+remaining duration after turn advancement.
 
 HP operations carry raw input and explicit damage, healing or exact-correction
 intent rather than client-computed replacement HP. App-service evaluates the
@@ -154,14 +154,21 @@ durable encounter operation.
 ## Encounter boundary review and durations
 
 Encounter rows have a monotonic durable revision advanced by metadata, roster,
-participant, condition and turn mutations. A side-effect-free turn review reads
-one coherent local snapshot and returns that revision with the planned next actor
-and reminders. Continue checks the revision under the same immediate transaction
-that applies pure app-service timing policy and the next turn. Replaying a review,
-including after a complete initiative wrap, conflicts instead of ticking twice.
-A receipt contains the canonical encounter key; reference hydration never follows
-a committed timing write inside the command.
+participant, condition and turn mutations. Next turn checks the opening revision and
+request identity in the same immediate transaction that selects the eligible next
+actor, applies timing policy and saves the new turn. Participants without initiative
+are skipped. A matching retry recovers its receipt; a distinct stale request conflicts.
+The transaction saves outgoing context with original participant, round and condition
+source/episode identities. Reference hydration never follows a committed timing write
+inside the command.
 
+The browser advances first, then presents one optional notification for the turn
+just completed. Every close path finishes the notification without changing HP,
+conditions or initiative. There is no pending-reminder queue or acknowledgment.
+Only the latest completed boundary supports guarded actions while its notification
+is open; advancing again supersedes it. Durable receipts retain retry identity and
+frozen source context without exposing a past-turn workflow. ADR0055 owns the shared
+condition rules used by these actions.
 A condition duration stores one amount and its unit. For rounds the amount is
 remaining, and an explicit participant/start-or-end anchor identifies the event
 that decrements it. Nonround units are table reminders. Source attribution does
@@ -172,14 +179,23 @@ tick. Manual Set turn, reorder, removal, reads and retries are not timing events
 A genuine advance processes the old actor's END and the new actor's START once;
 entry without an old actor has only START, and no eligible next actor has neither.
 
-Zero rounds derive pending expiry and retain the condition and its effects.
-Review forecasts an upcoming expiry before Continue; Remove now is an independent
-saved condition deletion, so Cancel does not undo it. Continue can instead retain
-the newly zero duration. Canonical Persistent Damage adds an owner-END table
-reminder, with damage/HP and exact condition clearing as explicit separate actions.
-The service does not roll dice, apply damage, resolve recovery, delete expired
-conditions, or decay severity automatically. Conditions without explicit rule
-identity or typed source timing require the user to choose their anchor.
+Zero rounds derive pending expiry and retain the condition and its effects. Outgoing
+review can show those conditions after advancement; removal is an explicit independent
+command. Persistent Damage adds an owner-END reminder with frozen due source context;
+damage/HP and exact episode recovery are explicit separate actions.
+Advancing the turn does not itself roll damage, resolve checks or delete expired
+conditions. Explicit lifecycle commands prepare source facts and use pure rules to
+plan HP and condition consequences. Local-state commits the complete prepared
+changes, typed outcomes, pending decisions and receipt atomically. Boundary claims
+prevent a second accepted end-turn batch or recovery under a different request ID.
+Matching retries recover the saved receipt before source/revision checks and RNG.
+Independent condition sources retain parameters and application provenance;
+aggregate mortality counters normalize their active contributors on actual counter
+changes. Unconscious entry can create lasting Prone; removing its source does not
+undo that consequence. Correction intents do not replay application consequences.
+Unknown facts remain pending or require input before a dependent check; they never
+become numerical zero. Conditions without explicit rule identity or typed source
+timing require the user to choose their anchor.
 
 The [round-duration rule](https://2e.aonprd.com/Rules.aspx?ID=2378) distinguishes
 creator-START from detrimental-through-target-turn END timing; applicability
@@ -249,7 +265,7 @@ participant's position even if that participant has become inactive. No fallback
 selects defeated PCs when everyone is inactive. Reactivation never heals or
 executes authored Reset instructions.
 
-App-service owns a bounded PF2e 6.12.4 action policy. Current capability is separate
+App-service owns the shared condition and action policy described in ADR0055. Current capability is separate
 from the next-regain forecast; Atlas does not track actions remaining. Quickened
 adds at most one restricted action before losses. Stunned losses overlap Slowed
 losses; the explanations identify the additional and overlapping portions. Which
@@ -258,7 +274,8 @@ a missing value with a duration means duration Stunned. Missing both is unresolv
 never a default numeric one. Reads and turn advancement never consume numeric stun.
 Existing pending-expiry review and explicit removal govern duration stun.
 
-Ordinary Cast is blocked for defeated/disabled participants and active Stunned.
-The same backend reason drives browser controls. Record past use, resource editing
-and undo are explicit bookkeeping actions and remain available with revision guards;
-recording expenditure does not establish spell success or execute effects.
+Evaluated casting uses the backend action judgments and relevant exception facts.
+The ordinary spell popover records table-resolved use with source, resource and revision
+guards, showing condition reminders without requiring an evaluated action workflow.
+Resource editing and undo are distinct bookkeeping actions. Recording expenditure does
+not establish spell success, validate permission or execute effects.

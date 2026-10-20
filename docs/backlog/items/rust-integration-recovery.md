@@ -17,7 +17,8 @@ interpret this list as ten mandatory merge blockers.
 CF-01/02/03 merged in PRs #68/#69/#71; CF-04/05 merged in PR #73.
 All are now on main through integration PR #25 (41865f60). The user selected
 CF-06 + CF-08 as the next combined slice targeting main. The user approved the product policy, including consistent creature/hazard
-controls and subdued disabled-hazard initiative facts; CF-07/09/10 remain unapproved. Mixed-failure precedence is runtime (3), invalid input (2), domain
+controls and subdued disabled-hazard initiative facts. CF-07 is approved and in
+progress; CF-09/10 remain unapproved. Mixed-failure precedence is runtime (3), invalid input (2), domain
 miss/ambiguity (1), success (0).
 
 The user agreed to deprioritize consumable base-item filtering: only one of
@@ -41,7 +42,7 @@ if review warrants it; preserve its ID and record every resulting PR here.
 | CF-04 | Consumable presentation and nested-spell navigation | merged | Approved together with CF-05 | Locally complete; accepted preview; Rust/UI gates and independent browser review pass; [PR #73](https://github.com/e-kosten/pf2e-atlas/pull/73); user accepted preview |
 | CF-05 | Physical query fields and labels | merged | Approved together with CF-04 | Locally complete; typed filters, migration and exact labels validated; [PR #73](https://github.com/e-kosten/pf2e-atlas/pull/73); user accepted preview |
 | CF-06 | Encounter status and action-budget policy | in_progress | Approved | Based on main 41865f60; locally complete; user accepted preview; Rust/UI gates, 20 device journeys and independent Sol browser review pass; [PR #78](https://github.com/e-kosten/pf2e-atlas/pull/78) |
-| CF-07 | Supported condition/spell adjustments and casting reminders | planned | Pending | Not started |
+| CF-07 | Complete encounter condition system | in_progress | Product design and implementation approved | Shared evaluation and lifecycle ownership; early localhost checkpoint before full validation |
 | CF-08 | Hazard Active/Disabled state | in_progress | Approved with CF-06 | locally complete; single Active/Disabled state; user accepted preview; Rust/UI gates and browser reviews pass; [PR #78](https://github.com/e-kosten/pf2e-atlas/pull/78) |
 | CF-09 | Browse sorting | planned | Pending | Not started |
 | CF-10 | Relationship-scoped full results and filtering | planned | Pending | Not started |
@@ -157,18 +158,32 @@ Acceptance: reads never consume conditions; duration stun never defaults to
 numeric 1; totals and explanations agree; inactive status and any explicit
 correction path behave consistently in Rust actions and UI controls.
 
-### CF-07 — Supported condition/spell adjustments and casting reminders
+### CF-07 — Complete encounter condition system
 
-After the relevant CF-06 policy decisions, select bounded Fatigued and
-spell-attack/DC overlays, Stupefied check reminders, and supported elite/weak
-spell-damage adjustments. Keep authored/effective values distinct and explain
-unsupported cases beside the affected fact. Recording an attempt must not imply
-spell success or automatic effect execution.
+Replace isolated condition implementations with one shared evaluation/event owner
+across statistics, strikes, spells, capabilities, contextual defenses and turn review.
+Implementation is authorized after the product design discussion; target upgraded
+main (PF2e 8.6.1). The active local plan is
+`scratch/plans/2026-10-19-condition-system.md` in the condition-system implementation
+worktree. Original spell-statistics, Stupefied and elite/weak spell-damage scope remains.
 
-Acceptance: status penalties stack/suppress correctly with attribution; known
-spell facts are adjusted once; unknown facts stay unknown; a casting reminder
-does not incorrectly prevent recording spent resources for a disrupted attempt.
-Damage classification/component selection follows the chosen source policy.
+Cover all standard conditions except [Cursebound](encounter-cursebound.md), which is
+deferred and omitted from the encounter picker. Equipment-only mechanics await
+equipment management; Broken applies to eligible hazards and Petrified stays in scope.
+[Spell/effect application](encounter-effect-application.md) is a separate follow-up
+using the same typed condition inputs, not a second rules owner.
+
+This is an in-person GM aid. Derive known effects, preserve independent sources and
+scopes, request context when needed, and use specific reminders for untracked domains.
+Support explicit GM overrides with visible reasons. Keep action spending manual;
+use reviewed recovery/events and table-result recording. No existing encounter
+conversion is required, but unrelated workspace data must remain intact.
+
+Acceptance includes one policy across displays/actions, typed stacking and scope,
+pure reads, atomic/retry-safe consequences, contextual picker/senses, source-specific
+durations versus recovery, source provenance, and an early full-corpus localhost
+checkpoint. Finish the full approved coverage and remove old paths before declaring
+complete; generic manual notes do not substitute for deterministic effects.
 
 ### CF-08 — Hazard Active/Disabled state
 

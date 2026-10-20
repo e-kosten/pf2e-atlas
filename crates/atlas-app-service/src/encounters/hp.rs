@@ -12,6 +12,12 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: ApplyEncounterHpActionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
+        if matches!(
+            &request.action,
+            EncounterHpAction::Damage { .. } | EncounterHpAction::Heal { .. }
+        ) {
+            return self.record_hp_amount(encounter_ref, request);
+        }
         let detail = self.with_state(|session| {
             session
                 .local_state()
@@ -58,49 +64,11 @@ impl AtlasAppService {
             hidden: existing.hidden,
             note: existing.note.clone(),
         };
-        let damage_requested = matches!(&request.action, EncounterHpAction::Damage { .. });
         match request.action {
-            EncounterHpAction::Damage { amount } | EncounterHpAction::Heal { amount } => {
-                let amount = formula_value(&amount, false)?;
-                let damage = if amount < 0 {
-                    !damage_requested
-                } else {
-                    damage_requested
-                };
-                // The signed safe-integer bound excludes i64::MIN.
-                let amount = amount.abs();
-                if damage {
-                    let current = existing.current_hp.ok_or_else(|| {
-                        AppServiceError::invalid_request("Set current HP before applying damage")
-                    })?;
-                    if existing.temporary_hp < 0 {
-                        return Err(AppServiceError::invalid_request(
-                            "Correct temporary HP before applying damage",
-                        ));
-                    }
-                    let temporary_damage = existing.temporary_hp.min(amount);
-                    let remaining = amount - temporary_damage;
-                    update.temporary_hp -= temporary_damage;
-                    update.current_hp = Some(current.saturating_sub(remaining).max(0));
-                    if existing.participant_kind == atlas_local_state::ParticipantKind::Hazard {
-                        update.hazard_disabled =
-                            update.current_hp == Some(0) || existing.hazard_disabled;
-                    } else {
-                        update.defeated = update.current_hp == Some(0) || existing.defeated;
-                    }
-                } else {
-                    let current = existing.current_hp.ok_or_else(|| {
-                        AppServiceError::invalid_request("Set current HP before applying healing")
-                    })?;
-                    let healed = i128::from(current) + i128::from(amount);
-                    let healed = existing
-                        .max_hp
-                        .map_or(healed, |max| healed.min(i128::from(max)));
-                    update.current_hp = Some(i64::try_from(healed).map_err(|_| {
-                        AppServiceError::invalid_request("Healing would overflow current HP")
-                    })?);
-                }
-                update.hp_edit = true;
+            EncounterHpAction::Damage { .. } | EncounterHpAction::Heal { .. } => {
+                return Err(AppServiceError::invalid_request(
+                    "Damage and healing must use the shared HP event workflow",
+                ));
             }
             EncounterHpAction::SetCurrent { input } => {
                 update.current_hp = input
@@ -225,7 +193,7 @@ fn evaluate_formula(input: &str) -> AppServiceResult<i128> {
     }
 }
 
-fn formula_value(input: &str, correction: bool) -> AppServiceResult<i64> {
+pub(super) fn formula_value(input: &str, correction: bool) -> AppServiceResult<i64> {
     let value = evaluate_formula(input)?;
     let value = if correction { value.max(0) } else { value };
     if !(-MAX_INPUT_VALUE..=MAX_INPUT_VALUE).contains(&value) {

@@ -6,7 +6,7 @@ mod facts;
 mod item_reference;
 mod spell;
 pub(crate) mod spell_context;
-mod spell_rank;
+pub(crate) mod spell_rank;
 pub(crate) mod strike;
 use crate::projection::{field_state, navigation_fingerprint};
 use action_cost::{casting_cost, item_action_cost};

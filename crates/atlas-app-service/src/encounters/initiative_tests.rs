@@ -91,7 +91,7 @@ fn changed_generation_rejects_without_mutation_and_saved_receipt_recovers() {
     for record in &mut changed.records {
         record.preparation_context_hash = hash.clone();
     }
-    atlas_search::test_support::publish_input(a.worker.workspace_path(), &changed).unwrap();
+    crate::test_support::publish_input(a.worker.workspace_path(), &changed).unwrap();
     let before = b
         .worker
         .with_state(|session| {
@@ -132,7 +132,7 @@ fn changed_generation_rejects_without_mutation_and_saved_receipt_recovers() {
     for record in &mut changed.records {
         record.preparation_context_hash = hash.clone();
     }
-    atlas_search::test_support::publish_input(a.worker.workspace_path(), &changed).unwrap();
+    crate::test_support::publish_input(a.worker.workspace_path(), &changed).unwrap();
     assert_eq!(
         a.worker.roll_encounter_initiative(&key, current).unwrap(),
         saved
@@ -157,6 +157,11 @@ fn unlisted_npc_skill_uses_ability_and_condition_before_roll() {
         .with_write(|session| {
             Ok(session.local_state().encounters().add_condition(
                 atlas_local_state::AddEncounterParticipantCondition {
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    parameters: Default::default(),
+                    origin: None,
                     participant_key: initial.participants[0].participant_key.clone(),
                     condition_key: Some("conditionitems:TBSHQspnbcqxsmjL".into()),
                     name: "Frightened".into(),
@@ -262,7 +267,11 @@ fn implicit_bleed_is_projected_and_rolled_as_persistent() {
     assert_eq!(result.damage_total, Some(5));
     assert_eq!(result.persistent_total, Some(2));
 
-    atlas_search::test_support::invalidate_reference(f.worker.workspace_path()).unwrap();
+    atlas_search::test_support::invalidate_reference(
+        f.worker.workspace_path(),
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+    )
+    .unwrap();
     let recovered = f.worker.roll_encounter_strike(&key, request).unwrap();
     assert_eq!(recovered, result);
 }
