@@ -56,6 +56,27 @@ impl AtlasWebState {
 }
 
 pub(crate) trait AtlasWebService: Send + Sync {
+    fn parties(&self) -> Result<atlas_app_model::PartyIndexView, AppServiceError>;
+    fn create_party(
+        &self,
+        request: atlas_app_model::CreatePartyRequest,
+    ) -> Result<atlas_app_model::PartyView, AppServiceError>;
+    fn update_party(
+        &self,
+        key: &str,
+        request: atlas_app_model::UpdatePartyRequest,
+    ) -> Result<atlas_app_model::PartyView, AppServiceError>;
+    fn delete_party(
+        &self,
+        key: &str,
+        request: atlas_app_model::DeletePartyRequest,
+    ) -> Result<atlas_app_model::PartyMutationView, AppServiceError>;
+    fn add_encounter_party(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::AddEncounterPartyRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+
     fn roll_table(
         &self,
         request: atlas_app_model::RollTableRequest,
@@ -268,6 +289,37 @@ pub(crate) trait AtlasWebService: Send + Sync {
 }
 
 impl AtlasWebService for AtlasAppService {
+    fn parties(&self) -> Result<atlas_app_model::PartyIndexView, AppServiceError> {
+        self.parties()
+    }
+    fn create_party(
+        &self,
+        request: atlas_app_model::CreatePartyRequest,
+    ) -> Result<atlas_app_model::PartyView, AppServiceError> {
+        self.create_party(request)
+    }
+    fn update_party(
+        &self,
+        key: &str,
+        request: atlas_app_model::UpdatePartyRequest,
+    ) -> Result<atlas_app_model::PartyView, AppServiceError> {
+        self.update_party(key, request)
+    }
+    fn delete_party(
+        &self,
+        key: &str,
+        request: atlas_app_model::DeletePartyRequest,
+    ) -> Result<atlas_app_model::PartyMutationView, AppServiceError> {
+        self.delete_party(key, request)
+    }
+    fn add_encounter_party(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::AddEncounterPartyRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.add_encounter_party(encounter_ref, request)
+    }
+
     fn roll_encounter_strike(
         &self,
         encounter_ref: &str,

@@ -14,6 +14,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
+- [Reusable encounter party definitions](items/encounter-party-presets.md)
+  Define a party once and add its members to encounters without repeatedly
+  entering their details. Name-only implementation in progress; awaiting UX review. Status: in_progress.
+
 - [Reusable development baseline](items/development-baseline.md)
   Publish validated executable/workspace seeds and initialize independent
   development copies without per-workstream ingest. Status: in_progress.
@@ -82,10 +86,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Product color system](items/product-color-system.md)
   Review rarity, semantic states and visual hierarchy across light/dark themes.
   Status: proposed.
-
-- [Reusable encounter party definitions](items/encounter-party-presets.md)
-  Define a party once and add its members to encounters without repeatedly
-  entering their details. Status: proposed.
 
 - [Source query catalog expansion](items/source-query-catalog-expansion.md)
   Add useful authored fields and collection scopes with shared catalog semantics

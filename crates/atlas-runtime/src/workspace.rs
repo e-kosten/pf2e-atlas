@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 6;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 7;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -33,6 +33,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 6,
         name: "hazard-participation",
         sql: atlas_local_state::HAZARD_PARTICIPATION_SCHEMA_SQL,
+    },
+    Migration {
+        version: 7,
+        name: "encounter-parties",
+        sql: atlas_local_state::PARTIES_SCHEMA_SQL,
     },
 ];
 
@@ -167,6 +172,40 @@ mod tests {
             .unwrap();
         assert!(creature.defeated);
         assert!(!creature.hazard_disabled);
+    }
+
+    #[test]
+    fn parties_upgrade_preserves_saved_encounter_state_and_durable_rosters() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("party-upgrade.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..6], |_| Ok(())).unwrap();
+        let write = workspace.write(6).unwrap();
+        write.connection().execute_batch("INSERT INTO encounters(encounter_key,slug,name,status,created_at,updated_at) VALUES('kept','kept','Kept','running','before','before');").unwrap();
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(&path).unwrap();
+        let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let party = LocalStateWrite::new(&write)
+            .parties()
+            .create(
+                "Party",
+                &[atlas_local_state::PartyMemberInput {
+                    member_key: None,
+                    name: "PC".into(),
+                }],
+            )
+            .unwrap();
+        write.commit().unwrap();
+        drop(upgraded);
+        let reopened = initialize_workspace(&path).unwrap();
+        let read = reopened.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let state = LocalStateRead::new(&read);
+        assert_eq!(state.parties().get(&party.party_key).unwrap(), party);
+        assert_eq!(
+            state.encounters().get("kept").unwrap().unwrap().status,
+            atlas_local_state::EncounterStatus::Running
+        );
     }
 
     #[test]

@@ -53,7 +53,8 @@ atlas web
 Use the address printed by the command to search, preview records, organize lists
 and run encounters. Encounter controls include initiative, HP, conditions, spell
 resources and dice; automation covers supported mechanics rather than every
-Foundry rule.
+Foundry rule. Save named parties of PCs from Encounters, then use Add Party to
+add everyone together. Party members need only a name.
 
 ### Search models and ranking
 

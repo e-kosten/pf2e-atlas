@@ -24,6 +24,7 @@ import type {
   SearchResultsRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
+import { AddPartyMenu } from "../parties/AddPartyMenu";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { InitiativeValueField } from "./InitiativeValueField";
 import { participantUpdate } from "./participantEdits";
@@ -46,6 +47,7 @@ export function EncounterRosterPane({
   loading,
   onAddRecord,
   onAddManual,
+  onAddParty,
   disabled,
   error,
   recovery,
@@ -64,6 +66,9 @@ export function EncounterRosterPane({
   currentTurnParticipantKey: string | null;
   loading: boolean;
   onAddRecord: (request: AddEncounterRecordParticipantRequest) => Promise<boolean>;
+  onAddParty: (
+    request: import("../../generated/atlas").AddEncounterPartyRequest,
+  ) => Promise<void>;
   onAddManual: (request: AddEncounterManualParticipantRequest) => Promise<boolean>;
   disabled: boolean;
   error?: string;
@@ -317,6 +322,7 @@ export function EncounterRosterPane({
           >
             Add PC
           </Button>
+          <AddPartyMenu onAdd={onAddParty} disabled={disabled} />
         </PrimaryToolbar>
       </header>
       {loading ? (

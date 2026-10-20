@@ -760,6 +760,44 @@ export async function rollEncounterStrike(
   });
 }
 
+export async function getParties(): Promise<
+  import("../generated/atlas").PartyIndexView
+> {
+  return atlasFetch("/api/parties");
+}
+export async function createParty(
+  request: import("../generated/atlas").CreatePartyRequest,
+): Promise<import("../generated/atlas").PartyView> {
+  return atlasFetch("/api/parties", { method: "POST", body: jsonBody(request) });
+}
+export async function updateParty(
+  key: string,
+  request: import("../generated/atlas").UpdatePartyRequest,
+): Promise<import("../generated/atlas").PartyView> {
+  return atlasFetch(`/api/parties/${encodeURIComponent(key)}`, {
+    method: "PATCH",
+    body: jsonBody(request),
+  });
+}
+export async function deleteParty(
+  key: string,
+  expectedRevision: number,
+): Promise<import("../generated/atlas").PartyMutationView> {
+  return atlasFetch(`/api/parties/${encodeURIComponent(key)}`, {
+    method: "DELETE",
+    body: jsonBody({ expected_revision: expectedRevision }),
+  });
+}
+export async function addEncounterParty(
+  encounterRef: string,
+  request: import("../generated/atlas").AddEncounterPartyRequest,
+): Promise<EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/party`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
+
 export async function getSavedListItemNote(
   listRef: string,
   recordKey: string,

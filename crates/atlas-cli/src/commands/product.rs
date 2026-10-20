@@ -103,13 +103,15 @@ pub(crate) fn report_app_error(
 pub(crate) fn exit_class(code: atlas_app_model::AppErrorCode) -> u8 {
     use atlas_app_model::AppErrorCode::*;
     match code {
-        RecordNotFound
+        PartyNotFound
+        | RecordNotFound
         | RecordResolutionMiss
         | RecordResolutionAmbiguous
         | SavedListNotFound
         | EncounterNotFound
         | EncounterParticipantNotFound => 1,
-        InvalidRequest
+        PartyConflict
+        | InvalidRequest
         | InvalidRecordKey
         | FilterInvalid
         | FilterFieldInvalid
