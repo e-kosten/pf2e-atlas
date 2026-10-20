@@ -1,22 +1,9 @@
 import { Alert, Button, Form, Input, InputNumber, Modal } from "antd";
-import {
-  DndContext,
-  DragOverlay,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableRow, useSortableList } from "../../shared/ui/sortable/SortableList";
 import { Dice5, GripVertical, Play, Trash2 } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type {
   AddEncounterManualParticipantRequest,
   AddEncounterRecordParticipantRequest,
@@ -87,28 +74,12 @@ export function EncounterRosterPane({
   slug: string;
 }) {
   const formId = useId();
-  const [draggingKey, setDraggingKey] = useState<string | null>(null);
-  // Hold only visual order during the guarded write/read. Values and gameplay
-  // ordering still come from the canonical refreshed encounter.
-  const [droppedOrder, setDroppedOrder] = useState<{
-    base: EncounterParticipantView[];
-    keys: string[];
-  } | null>(null);
-  const displayedParticipants =
-    droppedOrder?.base === participants
-      ? [...participants].sort(
-          (a, b) =>
-            droppedOrder.keys.indexOf(a.participant_key) -
-            droppedOrder.keys.indexOf(b.participant_key),
-        )
-      : participants;
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-  const draggedParticipant = participants.find(
-    (p) => p.participant_key === draggingKey,
-  );
+  const sortable = useSortableList({
+    items: participants,
+    getKey: (participant) => participant.participant_key,
+    disabled,
+    onReorder,
+  });
   const [added, setAdded] = useState("");
   const [candidateName, setCandidateName] = useState("");
   const [committedAdd, setCommittedAdd] = useState<string | null>(null);
@@ -174,9 +145,9 @@ export function EncounterRosterPane({
   };
   const renderParticipant = (participant: EncounterParticipantView) => {
     return (
-      <SortableRosterRow
+      <SortableRow
         id={participant.participant_key}
-        disabled={disabled}
+        disabled={sortable.disabled}
         className={rosterRowClass(
           participant,
           participant.participant_key === currentTurnParticipantKey,
@@ -272,7 +243,7 @@ export function EncounterRosterPane({
             </div>
           </>
         )}
-      </SortableRosterRow>
+      </SortableRow>
     );
   };
 
@@ -324,41 +295,9 @@ export function EncounterRosterPane({
       ) : participants.length === 0 ? (
         <div className="detail-empty">Add a creature, hazard, or PC.</div>
       ) : (
-        <DndContext
-          sensors={sensors}
-          onDragStart={({ active }) => setDraggingKey(String(active.id))}
-          onDragCancel={() => setDraggingKey(null)}
-          onDragEnd={async ({ active, over }) => {
-            setDraggingKey(null);
-            if (disabled || !over || active.id === over.id) return;
-            const from = participants.findIndex((p) => p.participant_key === active.id);
-            const to = participants.findIndex((p) => p.participant_key === over.id);
-            if (from < 0 || to < 0) return;
-            setDroppedOrder({
-              base: participants,
-              keys: arrayMove(
-                participants.map((p) => p.participant_key),
-                from,
-                to,
-              ),
-            });
-            try {
-              const refreshed = await onReorder(
-                String(active.id),
-                String(over.id),
-                from < to ? "after" : "before",
-              );
-              // Canonical query notifications may render after this promise.
-              // Keep the visual order until the participants snapshot changes.
-              if (!refreshed) setDroppedOrder(null);
-            } catch {
-              /* The mutation owner displays failures; restore canonical order. */
-              setDroppedOrder(null);
-            }
-          }}
-        >
+        <DndContext {...sortable.context}>
           <SortableContext
-            items={displayedParticipants.map((p) => p.participant_key)}
+            items={sortable.items.map((p) => p.participant_key)}
             strategy={verticalListSortingStrategy}
           >
             <div className="encounter-roster__list">
@@ -369,25 +308,26 @@ export function EncounterRosterPane({
                 <span>HP</span>
                 <span />
               </div>
-              {displayedParticipants.map(renderParticipant)}
+              {sortable.items.map(renderParticipant)}
             </div>
           </SortableContext>
           <DragOverlay dropAnimation={null}>
-            {draggedParticipant && (
+            {sortable.activeItem && (
               <div
                 className="encounter-roster__row encounter-roster__drag-preview"
                 aria-hidden
               >
                 <GripVertical size={16} />
-                <span>{inputNumberValue(draggedParticipant.initiative) || "—"}</span>
+                <span>{inputNumberValue(sortable.activeItem.initiative) || "—"}</span>
                 <span className="encounter-roster__name">
-                  {draggedParticipant.display_name}
+                  {sortable.activeItem.display_name}
                 </span>
                 <span className="encounter-roster__hp">
-                  {draggedParticipant.current_hp == null
+                  {sortable.activeItem.current_hp == null
                     ? "—"
                     : (
-                        draggedParticipant.current_hp + draggedParticipant.temporary_hp
+                        sortable.activeItem.current_hp +
+                        sortable.activeItem.temporary_hp
                       ).toString()}
                 </span>
                 <span className="encounter-roster__row-actions">
@@ -508,46 +448,6 @@ const initiativeRule = {
   max: Number.MAX_SAFE_INTEGER,
   message: "Enter a whole number within the supported range.",
 };
-
-function SortableRosterRow({
-  id,
-  disabled,
-  className,
-  children,
-}: {
-  id: string;
-  disabled: boolean;
-  className: string;
-  children: (
-    handle: Pick<
-      ReturnType<typeof useSortable>,
-      "attributes" | "listeners" | "setActivatorNodeRef"
-    >,
-  ) => ReactNode;
-}) {
-  const {
-    attributes,
-    listeners,
-    setActivatorNodeRef,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id, disabled });
-  return (
-    <div
-      ref={setNodeRef}
-      className={className}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.25 : undefined,
-      }}
-    >
-      {children({ attributes, listeners, setActivatorNodeRef })}
-    </div>
-  );
-}
 
 function encounterRecordPickerRequest(query: string): SearchResultsRequest {
   const filter = {

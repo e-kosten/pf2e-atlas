@@ -8,6 +8,118 @@ import {
   sentinel,
 } from "./reading";
 
+test("list drops retain order and geometry through delayed writes and refreshes", async ({
+  page,
+}, info) => {
+  const slug = `reorder-${info.project.name}-${Date.now()}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: "Reorder check", tags: [] },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { list } = await created.json();
+  const keys = [sentinel, "browser-conditions:offguard00000001"];
+  let releaseWrite = () => {};
+  let releaseRead = () => {};
+  const writeGate = new Promise<void>((resolve) => {
+    releaseWrite = resolve;
+  });
+  const readGate = new Promise<void>((resolve) => {
+    releaseRead = resolve;
+  });
+  let writes = 0;
+  let refreshStarted = false;
+  try {
+    for (const key of keys) {
+      const added = await page.request.post(`/api/lists/${slug}/items`, {
+        data: { list_ref: slug, record_ref: key },
+      });
+      expect(added.ok()).toBeTruthy();
+    }
+    await page.goto(`/lists/${slug}`);
+    const rows = page.locator("[data-sortable-key]");
+    const handles = page.locator(".list-member__drag-handle");
+    await expect(handles).toHaveCount(2);
+    const source = handles.first();
+    const sourceName = (await source.getAttribute("aria-label"))!;
+    const persistedKeys = async () =>
+      (
+        (await (await page.request.get(`/api/lists/${slug}`)).json()).items as {
+          record_key: string;
+        }[]
+      ).map((item) => item.record_key);
+    await page.route(`**/api/lists/${slug}/items/reorder`, async (route) => {
+      writes += 1;
+      await writeGate;
+      await route.continue();
+    });
+    await page.route(`**/api/lists/${slug}/filter`, async (route) => {
+      refreshStarted = true;
+      await readGate;
+      await route.continue();
+    });
+    const keyboardFirst = Boolean(info.project.use.hasTouch);
+    if (keyboardFirst) {
+      await source.focus();
+      await page.keyboard.press("Space");
+      await expect(source).toHaveAttribute("aria-pressed", "true");
+      await page.keyboard.press("ArrowDown");
+      await page.keyboard.press("Space");
+    } else {
+      const from = (await source.boundingBox())!;
+      const to = (await handles.nth(1).boundingBox())!;
+      await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
+      await page.mouse.up();
+    }
+    await expect.poll(() => writes).toBe(1);
+    await expect(rows.first()).toHaveAttribute("data-sortable-key", keys[1]);
+    await expect(handles.first()).toBeDisabled();
+    await expect(page.getByRole("button", { name: /^Remove / }).first()).toBeDisabled();
+    const top = (await page.getByLabel("List items", { exact: true }).boundingBox())!.y;
+    releaseWrite();
+    await expect.poll(() => refreshStarted).toBe(true);
+    await expect(
+      page.getByLabel("Updating saved records").locator(".ant-spin-spinning"),
+    ).toBeVisible();
+    expect(Math.abs((await rows.first().boundingBox())!.y - top)).toBeLessThan(1);
+    expect(writes).toBe(1);
+    releaseRead();
+    const movedHandle = page.getByRole("button", { name: sourceName, exact: true });
+    await expect(movedHandle).toBeEnabled();
+    if (keyboardFirst) await expect(movedHandle).toBeFocused();
+    expect(await persistedKeys()).toEqual([keys[1], keys[0]]);
+    // A second keyboard move starts from the newly saved order, then survives reload.
+    await movedHandle.focus();
+    await page.keyboard.press("Space");
+    await expect(movedHandle).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("ArrowUp");
+    await page.keyboard.press("Space");
+    await expect.poll(() => writes).toBe(2);
+    await expect(movedHandle).toBeEnabled();
+    await expect(movedHandle).toBeFocused();
+    expect(await persistedKeys()).toEqual(keys);
+    await page.reload();
+    await expect(rows.first()).toHaveAttribute("data-sortable-key", keys[0]);
+    await noPageOverflow(page);
+    // Cancelling pickup never submits another durable mutation.
+    await handles.first().focus();
+    await page.keyboard.press("Space");
+    await expect(handles.first()).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("Escape");
+    await expect(handles.first()).toHaveAttribute("aria-pressed", "false");
+    expect(writes).toBe(2);
+    expect(await persistedKeys()).toEqual(keys);
+  } finally {
+    releaseWrite();
+    releaseRead();
+    await page.unrouteAll({ behavior: "wait" });
+    expect(
+      (await page.request.delete(`/api/lists/${list.list_key}`)).ok(),
+    ).toBeTruthy();
+  }
+});
+
 test("filters, exact late activity, preview dismissal and Results remain usable", async ({
   page,
 }, info) => {

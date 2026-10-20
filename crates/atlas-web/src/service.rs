@@ -9,11 +9,12 @@ use atlas_app_model::{
     DiscoverFilterValuesRequest, EncounterConditionCatalogView, EncounterCreateView,
     EncounterDetailView, EncounterIndexView, EncounterMutationView, EncounterTurnReviewView,
     FilterEditorView, FilterSavedListRequest, FilterValueListView, RecordDetailView,
-    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, SavedListCreateView,
-    SavedListDetailView, SavedListIndexView, SavedListItemMutationView, SavedListItemNoteView,
-    SavedListUpdateView, SearchResultsPage, SearchResultsRequest, SetEncounterTurnRequest,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
-    UpdateEncounterRequest, UpdateSavedListItemNoteRequest, UpdateSavedListRequest,
+    RemoveSavedListItemRequest, ReorderEncounterParticipantRequest, ReorderSavedListItemRequest,
+    SavedListCreateView, SavedListDetailView, SavedListIndexView, SavedListItemMutationView,
+    SavedListItemNoteView, SavedListUpdateView, SearchResultsPage, SearchResultsRequest,
+    SetEncounterTurnRequest, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantRequest, UpdateEncounterRequest, UpdateSavedListItemNoteRequest,
+    UpdateSavedListRequest,
 };
 use atlas_app_model::{
     DiscoverFilterCountsRequest, FilterCountsView, FilterValidationResult, RecordDetailRequest,
@@ -262,6 +263,11 @@ pub(crate) trait AtlasWebService: Send + Sync {
     fn remove_saved_list_item(
         &self,
         request: RemoveSavedListItemRequest,
+    ) -> Result<SavedListItemMutationView, AppServiceError>;
+
+    fn reorder_saved_list_item(
+        &self,
+        request: ReorderSavedListItemRequest,
     ) -> Result<SavedListItemMutationView, AppServiceError>;
 
     fn delete_saved_list(&self, list_ref: &str) -> Result<DeleteSavedListView, AppServiceError>;
@@ -564,6 +570,13 @@ impl AtlasWebService for AtlasAppService {
         request: RemoveSavedListItemRequest,
     ) -> Result<SavedListItemMutationView, AppServiceError> {
         self.remove_saved_list_item(request)
+    }
+
+    fn reorder_saved_list_item(
+        &self,
+        request: ReorderSavedListItemRequest,
+    ) -> Result<SavedListItemMutationView, AppServiceError> {
+        self.reorder_saved_list_item(request)
     }
 
     fn delete_saved_list(&self, list_ref: &str) -> Result<DeleteSavedListView, AppServiceError> {

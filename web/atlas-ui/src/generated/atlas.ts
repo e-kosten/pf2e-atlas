@@ -129,6 +129,8 @@ export type { RecordSummaryView } from "../../../../crates/atlas-app-model/bindi
 export type { RemasterLinksView } from "../../../../crates/atlas-app-model/bindings/RemasterLinksView";
 export type { RemasterLinkView } from "../../../../crates/atlas-app-model/bindings/RemasterLinkView";
 export type { RemoveSavedListItemRequest } from "../../../../crates/atlas-app-model/bindings/RemoveSavedListItemRequest";
+export type { ReorderSavedListItemPlacementView } from "../../../../crates/atlas-app-model/bindings/ReorderSavedListItemPlacementView";
+export type { ReorderSavedListItemRequest } from "../../../../crates/atlas-app-model/bindings/ReorderSavedListItemRequest";
 export type { ReorderEncounterParticipantPlacementView } from "../../../../crates/atlas-app-model/bindings/ReorderEncounterParticipantPlacementView";
 export type { ReorderEncounterParticipantRequest } from "../../../../crates/atlas-app-model/bindings/ReorderEncounterParticipantRequest";
 export type { SearchCriteria } from "../../../../crates/atlas-app-model/bindings/SearchCriteria";
