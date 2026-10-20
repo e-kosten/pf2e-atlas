@@ -21,6 +21,7 @@ export function ReferenceReader({
   reading,
   selectedRecordKey = null,
   readerActions,
+  readerFooter,
   positions,
   onResults,
   active = true,
@@ -28,6 +29,7 @@ export function ReferenceReader({
   reading: ReferenceReading;
   selectedRecordKey?: string | null;
   readerActions?: ReactNode;
+  readerFooter?: ReactNode;
   positions?: BrowsePositions;
   onResults?: () => void;
   active?: boolean;
@@ -300,6 +302,7 @@ export function ReferenceReader({
           }}
         />
       </section>
+      {readerFooter}
       {preview.recordKey && (
         <RecordPreviewPopover
           anchor={preview.anchor}

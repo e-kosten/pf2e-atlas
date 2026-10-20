@@ -1,3 +1,4 @@
+import { ListEntryNote } from "./ListEntryNote";
 import { ListRecordPicker } from "./ListRecordPicker";
 import {
   keepPreviousData,
@@ -128,6 +129,22 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       <BrowseReader
         reading={reading}
         selectedRecordKey={route.selectedRecordKey}
+        readerFooter={
+          route.selectedRecordKey &&
+          list.data &&
+          (list.data.list.slug === route.slug ||
+            list.data.list.list_key === route.slug) ? (
+            <ListEntryNote
+              key={JSON.stringify([list.data.list.list_key, route.selectedRecordKey])}
+              listRef={list.data.list.list_key}
+              recordKey={route.selectedRecordKey}
+              hidden={Boolean(
+                reading.request &&
+                reading.request.navigation.record_key !== route.selectedRecordKey,
+              )}
+            />
+          ) : undefined
+        }
         resultsLabel="Saved records"
         resultsIdentity={list.data?.items}
         resultsLoading={list.isLoading || list.isFetching}

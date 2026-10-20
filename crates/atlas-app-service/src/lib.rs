@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+mod completions;
 mod contextual_references;
 mod physical_labels;
 
@@ -31,6 +32,7 @@ mod source_consumer_tests;
 #[cfg(test)]
 mod test_support;
 
+pub use completions::{complete_record_keys, complete_saved_list_slugs};
 pub use error::{AppServiceError, AppServiceResult};
 pub use filters::{RawFilterCountsRequest, RawFilterValuesRequest};
 pub use projection::record_summary_view;

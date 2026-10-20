@@ -1,15 +1,16 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_app_model::{
-    AddSavedListItemRequest, AppErrorCode, BatchAddSavedListItemsRequest,
+    AddSavedListItemRequest, AppErrorCode, BatchAddSavedListItemsRequest, BatchSavedListItemInput,
     BatchSavedListItemMutationView, BatchSavedListItemOutcomeView, BatchSavedListItemResultView,
     CreateSavedListRequest, DeleteSavedListView, FilterSavedListRequest, ImportSavedListRequest,
     ImportSavedListView, RecordResolutionAmbiguousView, RecordResolutionCandidateView,
     RemoveSavedListItemRequest, SavedListCreateView, SavedListDetailView,
     SavedListExportDocumentView, SavedListExportItemView, SavedListExportListView,
     SavedListIndexView, SavedListItemMutationOutcomeView, SavedListItemMutationView,
-    SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView, SavedListSummaryView,
-    SavedListUpdateView, UpdateSavedListRequest,
+    SavedListItemNoteView, SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView,
+    SavedListSummaryView, SavedListUpdateView, UpdateSavedListItemNoteRequest,
+    UpdateSavedListRequest,
 };
 use atlas_domain::RecordKey;
 use atlas_local_state::{
@@ -72,6 +73,62 @@ impl AtlasAppService {
             })?;
             Ok(SavedListCreateView {
                 list: saved_list_summary(list),
+            })
+        })
+    }
+
+    pub fn saved_list_item_note(
+        &self,
+        list_ref: &str,
+        record_key: &str,
+    ) -> AppServiceResult<SavedListItemNoteView> {
+        self.with_state(|session| {
+            let saved = session
+                .local_state()
+                .saved_lists()
+                .get_with_items(list_ref)?
+                .ok_or_else(|| saved_list_not_found(list_ref))?;
+            let item = saved
+                .items
+                .into_iter()
+                .find(|item| item.record_key == record_key)
+                .ok_or_else(|| AppServiceError::invalid_request("record is not in this list"))?;
+            Ok(SavedListItemNoteView {
+                list_key: saved.list.list_key,
+                slug: saved.list.slug,
+                record_key: item.record_key,
+                title: item.record_title_snapshot,
+                note: item.note,
+            })
+        })
+    }
+
+    pub fn update_saved_list_item_note(
+        &self,
+        request: UpdateSavedListItemNoteRequest,
+    ) -> AppServiceResult<SavedListItemNoteView> {
+        self.with_write(|session| {
+            let store = session.local_state();
+            let saved = store
+                .saved_lists()
+                .get_with_items(&request.list_ref)?
+                .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
+            let item = saved
+                .items
+                .into_iter()
+                .find(|item| item.record_key == request.record_key)
+                .ok_or_else(|| AppServiceError::invalid_request("record is not in this list"))?;
+            store.saved_lists().update_item_note(
+                &saved.list.list_key,
+                &request.record_key,
+                request.note.as_deref(),
+            )?;
+            Ok(SavedListItemNoteView {
+                list_key: saved.list.list_key,
+                slug: saved.list.slug,
+                record_key: request.record_key,
+                title: item.record_title_snapshot,
+                note: request.note,
             })
         })
     }
@@ -161,14 +218,45 @@ impl AtlasAppService {
         &self,
         request: BatchAddSavedListItemsRequest,
     ) -> AppServiceResult<BatchSavedListItemMutationView> {
-        let (list, resolved, revision) = self.with_workspace(
+        self.write_saved_list_items(request, None)
+    }
+
+    /// Create a new list and commit all successfully resolved inputs in one write.
+    pub fn create_saved_list_with_items(
+        &self,
+        request: CreateSavedListRequest,
+        items: Vec<BatchSavedListItemInput>,
+    ) -> AppServiceResult<BatchSavedListItemMutationView> {
+        self.write_saved_list_items(
+            BatchAddSavedListItemsRequest {
+                list_ref: request.slug.clone(),
+                items,
+            },
+            Some(request),
+        )
+    }
+
+    fn write_saved_list_items(
+        &self,
+        request: BatchAddSavedListItemsRequest,
+        create: Option<CreateSavedListRequest>,
+    ) -> AppServiceResult<BatchSavedListItemMutationView> {
+        let creating = create.is_some();
+        let (list_key, resolved, revision) = self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
             move |session| {
-                let list = session
-                    .local_state()
-                    .saved_lists()
-                    .get(&request.list_ref)?
-                    .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
+                let existing = session.local_state().saved_lists().get(&request.list_ref)?;
+                let list_key = match (creating, existing) {
+                    (true, Some(_)) => {
+                        return Err(atlas_local_state::LocalStateError::ListAlreadyExists(
+                            request.list_ref,
+                        )
+                        .into());
+                    }
+                    (true, None) => None,
+                    (false, Some(list)) => Some(list.list_key),
+                    (false, None) => return Err(saved_list_not_found(&request.list_ref)),
+                };
                 let resolved = request
                     .items
                     .into_iter()
@@ -177,16 +265,28 @@ impl AtlasAppService {
                         (item.record_ref, item.note, record)
                     })
                     .collect::<Vec<_>>();
-                Ok((list, resolved, session.reference_revision()?))
+                Ok((list_key, resolved, session.reference_revision()?))
             },
         )?;
         self.with_write(move |session| {
             session.require_reference_revision(revision)?;
             let store = session.local_state();
-            let list = store
-                .saved_lists()
-                .get(&list.list_key)?
-                .ok_or_else(|| saved_list_not_found(&list.list_key))?;
+            let list = if let Some(request) = create {
+                store.saved_lists().create(NewSavedList {
+                    slug: request.slug,
+                    name: request.name,
+                    description: request.description,
+                    tags: request.tags,
+                })?
+            } else {
+                let list_key = list_key.ok_or_else(|| {
+                    AppServiceError::invalid_request("saved-list key is required")
+                })?;
+                store
+                    .saved_lists()
+                    .get(&list_key)?
+                    .ok_or_else(|| saved_list_not_found(&list_key))?
+            };
             let mut items = Vec::new();
             let mut added_count = 0;
             let mut already_present_count = 0;
