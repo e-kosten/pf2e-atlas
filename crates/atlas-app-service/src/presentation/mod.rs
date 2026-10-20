@@ -458,11 +458,10 @@ fn selected_identity(
         title: node_title(node),
         kind: family.into(),
         kind_label: match family {
-            "spellcastingEntry" => "Spellcasting",
-            "action" => "Ability",
-            _ => family,
-        }
-        .into(),
+            "spellcastingEntry" => "Spellcasting".into(),
+            "action" => "Ability".into(),
+            _ => crate::projection::kind_label(family),
+        },
         source_type: Some(family.into()),
         level_label: level,
         level_basis: None,
