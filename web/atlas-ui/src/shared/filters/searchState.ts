@@ -3,12 +3,15 @@ import type {
   SearchRanking,
   SearchResultsRequest,
   QueryPredicate,
+  RelationshipConstraintView,
 } from "../../generated/atlas";
 import { decodeFilterUrl, encodeFilterUrl, UNSUPPORTED_FILTER_URL } from "./filterUrl";
+import { decodeRelationships, encodeRelationships } from "./relationshipUrl";
 export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
 export const UNKNOWN_SEARCH_RANKING = "Unknown search ranking";
 export type SearchFormState = {
   ranking?: SearchRanking;
+  relationships?: RelationshipConstraintView[];
   query: string;
   mode: "browse" | "text_search" | "similar_records";
   similarSeed: string | null;
@@ -36,9 +39,13 @@ export function buildSearchRequest(
   if (state.filterError) throw new Error(state.filterError);
   if (state.similarSeed && state.query.trim()) throw new Error(SIMILAR_QUERY_CONFLICT);
   const page = { number, size: state.pageSize };
+  const relationshipRequest = state.relationships?.length
+    ? { relationships: state.relationships }
+    : {};
   if (state.similarSeed)
     return {
       search_profile,
+      ...relationshipRequest,
       page,
       expected_artifact_generation,
       criteria: {
@@ -49,6 +56,7 @@ export function buildSearchRequest(
     };
   return {
     search_profile,
+    ...relationshipRequest,
     page,
     expected_artifact_generation,
     ranking: state.ranking ?? "score",
@@ -65,7 +73,10 @@ export function buildSearchRequest(
 export function hasExecutableSearch(state: SearchFormState): boolean {
   return (
     !state.filterError &&
-    (!!state.similarSeed || state.query.trim().length > 0 || state.filter !== null)
+    (!!state.similarSeed ||
+      state.query.trim().length > 0 ||
+      state.filter !== null ||
+      !!state.relationships?.length)
   );
 }
 export function buildFilterDiscoveryContext(
@@ -75,6 +86,7 @@ export function buildFilterDiscoveryContext(
 ): FilterDiscoveryContext {
   return {
     search_profile,
+    ...(state.relationships?.length ? { relationships: state.relationships } : {}),
     expected_artifact_generation,
     kind: "filtered",
     filter: state.filter,
@@ -106,6 +118,7 @@ export function encodeSearchExecutionState(
       ranking: state.ranking ?? "score",
       query: state.query,
       similarSeed: state.similarSeed,
+      relationships: state.relationships,
       mode: state.mode,
       filter: state.filter,
       filterError: state.filterError,
@@ -122,6 +135,8 @@ export function searchStateQueryString(
   if (state.ranking && state.ranking !== "score") params.set("ranking", state.ranking);
   if (state.query) params.set("q", state.query);
   if (state.similarSeed) params.set("similar", state.similarSeed);
+  if (state.relationships?.length)
+    params.set("relationships", encodeRelationships(state.relationships));
   if (state.filter) params.set("filter", encodeFilterUrl(state.filter));
   if (state.pageSize !== 25) params.set("limit", String(state.pageSize));
   return params.size ? "?" + params.toString() : "";
@@ -138,6 +153,15 @@ export function decodeSearchStateFromParams(params: URLSearchParams): SearchForm
         ? UNSUPPORTED_FILTER_URL
         : "Invalid structured filter URL";
   }
+  let relationships: RelationshipConstraintView[] | undefined;
+  if (params.has("relationships")) {
+    try {
+      relationships = decodeRelationships(params.get("relationships")!);
+    } catch (error) {
+      filterError =
+        error instanceof Error ? error.message : "Invalid relationship filter URL";
+    }
+  }
   const ranking = params.get("ranking") ?? "score";
   if (!filterError && ranking !== "rrf" && ranking !== "score")
     filterError = UNKNOWN_SEARCH_RANKING;
@@ -149,6 +173,7 @@ export function decodeSearchStateFromParams(params: URLSearchParams): SearchForm
     ranking: ranking === "rrf" ? "rrf" : "score",
     query: params.get("q") || "",
     similarSeed,
+    ...(relationships ? { relationships } : {}),
     mode: similarSeed
       ? "similar_records"
       : params.get("q")?.trim()

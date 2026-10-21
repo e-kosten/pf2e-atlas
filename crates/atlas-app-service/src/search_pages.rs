@@ -24,6 +24,7 @@ impl AtlasAppService {
         {
             let expected = request.expected_artifact_generation.clone();
             let filter = filter.clone();
+            let relationships = request.relationships.clone().unwrap_or_default();
             self.with_retrieval(execution, move |r| {
                 let actual = r.artifact_generation()?;
                 if let Some(expected) = expected
@@ -38,6 +39,7 @@ impl AtlasAppService {
                 if let Some(filter) = filter {
                     r.validate_filter(&filter)?;
                 }
+                crate::relationship_search::prepare_constraints(r, &relationships)?;
                 Ok(())
             })?;
             self.prepare_query(
@@ -63,7 +65,16 @@ impl AtlasAppService {
             }
             let search_profile =
                 retrieval.resolve_search_profile(request.search_profile.as_ref(), false)?;
-            let (mode, rows, page, coverage) = match request.criteria {
+            let (relationships, relationship_summaries) =
+                crate::relationship_search::prepare_constraints(
+                    retrieval,
+                    request.relationships.as_deref().unwrap_or_default(),
+                )?;
+            let scope = RecordScope::Constrained {
+                keys: None,
+                relationships: &relationships,
+            };
+            let (mode, mut rows, page, coverage) = match request.criteria {
                 SearchCriteria::SimilarRecords {
                     seed_record_key,
                     filter,
@@ -76,7 +87,7 @@ impl AtlasAppService {
                             search_profile: request.search_profile.as_ref(),
                             record_key: &key,
                             filter: filter.as_ref(),
-                            scope: RecordScope::All,
+                            scope,
                             page,
                             prefer_remaster: true,
                         })?
@@ -99,8 +110,9 @@ impl AtlasAppService {
                     )
                 }
                 SearchCriteria::ListRecords { filter } => {
-                    let result =
-                        retrieval.list_records(ListRecordsRequest::new(filter.as_ref(), page))?;
+                    let result = retrieval.list_records(
+                        ListRecordsRequest::new(filter.as_ref(), page).with_scope(scope),
+                    )?;
                     projection_execution.check()?;
                     (
                         SearchModeSummary::ListRecords,
@@ -108,6 +120,7 @@ impl AtlasAppService {
                             .records
                             .iter()
                             .map(|record| SearchResultRow {
+                                relationship_evidence: vec![],
                                 record: localized_summary_view(record, retrieval),
                                 matches: vec![],
                             })
@@ -128,7 +141,7 @@ impl AtlasAppService {
                         query: &query,
                         mode: retrieval_mode(mode),
                         filter: filter.as_ref(),
-                        scope: RecordScope::All,
+                        scope,
                         page,
                         prefer_remaster: true,
                     })?;
@@ -142,7 +155,28 @@ impl AtlasAppService {
                     )
                 }
             };
+            for row in &mut rows {
+                projection_execution.check()?;
+                let key = atlas_domain::RecordKey::parse(&row.record.record_key).map_err(|_| {
+                    AppServiceError::invalid_request("The result record is unavailable")
+                })?;
+                for (constraint_index, constraint) in relationships.iter().enumerate() {
+                    let (occurrences, page) = crate::relationship_search::evidence_page(
+                        retrieval,
+                        constraint,
+                        &key,
+                        SearchPage::new(1, 3)?,
+                    )?;
+                    row.relationship_evidence
+                        .push(atlas_app_model::RelationshipEvidenceView {
+                            constraint_index,
+                            occurrences,
+                            page,
+                        });
+                }
+            }
             Ok(SearchResultsPage {
+                relationships: relationship_summaries,
                 ranking: request.ranking.unwrap_or_default(),
                 search_profile,
                 artifact_generation,

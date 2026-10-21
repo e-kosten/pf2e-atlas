@@ -147,7 +147,13 @@ describe("shared related disclosure", () => {
   it("requests one bounded availability operation on opening and hides empty category controls", async () => {
     renderRelated();
     expect(api.getRelatedRecords).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("link", { name: "Find records linking here" }),
+    ).toBeNull();
     openRelated();
+    expect(
+      screen.getByRole("link", { name: "Find records linking here" }),
+    ).toBeVisible();
     expect(await screen.findByRole("link", { name: "Referenced spell" })).toBeVisible();
     expect(api.getRelatedRecords).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("tab", { name: "Remaster" })).toBeNull();
@@ -318,6 +324,7 @@ describe("shared related disclosure", () => {
       expected_artifact_generation: detail.artifact_generation,
     });
     const page = (profile: string, title: string): SearchResultsPage => ({
+      relationships: [],
       ranking: "score" as const,
       search_profile: profile,
       artifact_generation: detail.artifact_generation,
@@ -331,7 +338,13 @@ describe("shared related disclosure", () => {
         next_page: null,
         has_more: false,
       },
-      rows: [{ record: summaryFixture("actors:" + profile, title), matches: [] }],
+      rows: [
+        {
+          record: summaryFixture("actors:" + profile, title),
+          relationship_evidence: [],
+          matches: [],
+        },
+      ],
     });
     await act(async () => finishNew(page("embeddinggemma", "Current suggestion")));
     await act(async () => finishOld(page("bge-base", "Old suggestion")));
@@ -393,4 +406,64 @@ describe("shared related disclosure", () => {
     ).toBeNull();
     expect(api.getRelatedRecords).toHaveBeenCalledTimes(1);
   });
+});
+
+it("opens each Related direction with its checked selection and effective contents scope", async () => {
+  const detail = detailFixture("actors:seed", "Viewed creature");
+  detail.selected = {
+    ...detail.selected,
+    embedded_path: [{ collection: "items", identity: { Stable: "checked-ability" } }],
+    source_fingerprint: "exact-snapshot",
+  };
+  const response = relatedFixture();
+  const graph = response.references.content;
+  graph.outgoing.constraint = {
+    direction: "outgoing",
+    selection: detail.selected,
+    include_contents: false,
+  };
+  graph.backlinks.constraint = {
+    direction: "incoming",
+    selection: detail.selected,
+    include_contents: true,
+  };
+  api.getRelatedRecords.mockResolvedValue(response);
+  renderRelated(detail);
+  openRelated();
+  const links = await screen.findAllByRole("link", { name: "View all" });
+  expect(links).toHaveLength(2);
+  for (const [index, link] of links.entries()) {
+    const url = new URL(link.getAttribute("href")!, "http://atlas.local");
+    const encoded = url.searchParams.get("relationships")!;
+    const criteria = JSON.parse(encoded.slice(2));
+    expect(criteria).toEqual([
+      index === 0 ? graph.outgoing.constraint : graph.backlinks.constraint,
+    ]);
+  }
+});
+
+it("keeps discovery actions inside Related and exact View all links available for empty directions", async () => {
+  const response = relatedFixture();
+  const graph = response.references.content;
+  const selected = detailFixture("actors:seed", "Viewed creature").selected;
+  graph.outgoing = {
+    records: [],
+    occurrences: [],
+    truncated: false,
+    constraint: { direction: "outgoing", selection: selected, include_contents: false },
+  };
+  graph.backlinks = {
+    records: [],
+    occurrences: [],
+    truncated: false,
+    constraint: { direction: "incoming", selection: selected, include_contents: true },
+  };
+  api.getRelatedRecords.mockResolvedValue(response);
+  renderRelated();
+  expect(screen.queryByRole("link", { name: "Browse links from here" })).toBeNull();
+  openRelated();
+  expect(
+    await screen.findByRole("link", { name: "Browse links from here" }),
+  ).toBeVisible();
+  expect(await screen.findAllByRole("link", { name: "View all" })).toHaveLength(2);
 });

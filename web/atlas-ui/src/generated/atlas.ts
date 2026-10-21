@@ -244,3 +244,9 @@ export type { TraitAssociationKind } from "../../../../crates/atlas-app-model/bi
 export type { TraitRecordView } from "../../../../crates/atlas-app-model/bindings/TraitRecordView";
 export type { TraitContentView } from "../../../../crates/atlas-app-model/bindings/TraitContentView";
 export type { PreparedReferenceView } from "../../../../crates/atlas-app-model/bindings/PreparedReferenceView";
+export type { RelationshipConstraintSummaryView } from "../../../../crates/atlas-app-model/bindings/RelationshipConstraintSummaryView";
+export type { RelationshipConstraintView } from "../../../../crates/atlas-app-model/bindings/RelationshipConstraintView";
+export type { RelationshipDirectionView } from "../../../../crates/atlas-app-model/bindings/RelationshipDirectionView";
+export type { RelationshipEvidenceView } from "../../../../crates/atlas-app-model/bindings/RelationshipEvidenceView";
+export type { RelationshipOccurrencesPage } from "../../../../crates/atlas-app-model/bindings/RelationshipOccurrencesPage";
+export type { RelationshipOccurrencesRequest } from "../../../../crates/atlas-app-model/bindings/RelationshipOccurrencesRequest";

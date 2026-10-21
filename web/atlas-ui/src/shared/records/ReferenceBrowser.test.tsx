@@ -8,7 +8,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { Grid } from "antd";
+import { ConfigProvider, Grid } from "antd";
 import { readingScrollGeometry } from "../../test/readingScrollGeometry";
 import { StrictMode, useState } from "react";
 import { getEmbeddedReading, getRecordDetail } from "../../api/atlasApi";
@@ -27,6 +27,7 @@ import type {
   EmbeddedReadingBatchView,
   RecordDetailView,
   SearchResultRow,
+  RelationshipConstraintSummaryView,
 } from "../../generated/atlas";
 
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -40,6 +41,7 @@ const navigation = activityFixture("Jaws", "actors:ghoul").navigation;
 const rows: SearchResultRow[] = [
   {
     record: summaryFixture("actors:ghoul", "Ghoul"),
+    relationship_evidence: [],
     matches: [
       {
         navigation,
@@ -51,15 +53,31 @@ const rows: SearchResultRow[] = [
       },
     ],
   },
-  { record: summaryFixture("spells:heal", "Heal"), matches: [] },
+  {
+    record: summaryFixture("spells:heal", "Heal"),
+    matches: [],
+    relationship_evidence: [],
+  },
 ];
-function Harness({ positions }: { positions?: BrowsePositions }) {
+function Harness({
+  positions,
+  resultRows = rows,
+  relationships,
+  generation,
+}: {
+  positions?: BrowsePositions;
+  resultRows?: SearchResultRow[];
+  relationships?: RelationshipConstraintSummaryView[];
+  generation?: string;
+}) {
   const [selected, select] = useState<string | null>(null);
   const reading = useReferenceReading();
   return (
     <ReferenceBrowser
       positions={positions}
-      rows={rows}
+      rows={resultRows}
+      relationships={relationships}
+      generation={generation}
       selectedRecordKey={selected}
       onSelect={(row) => select(row.record.record_key)}
       reading={reading}
@@ -345,3 +363,80 @@ it.each([true, false])(
     }
   },
 );
+
+it("combines text and relationship evidence in the existing Matches popover and restores its trigger on Escape", async () => {
+  const target = {
+    record_key: "items:armor",
+    embedded_path: [],
+    field: null,
+    passage: null,
+    source_fingerprint: null,
+  };
+  const constraint: RelationshipConstraintSummaryView = {
+    constraint: { direction: "incoming", selection: target, include_contents: true },
+    title: "Leather Armor",
+    record: summaryFixture("items:armor", "Leather Armor"),
+  };
+  const row: SearchResultRow = {
+    ...rows[0],
+    relationship_evidence: [
+      {
+        constraint_index: 0,
+        page: {
+          number: 1,
+          size: 3,
+          count: 1,
+          total: 1n,
+          has_more: false,
+          next_page: null,
+        },
+        occurrences: [
+          {
+            source: { record: "actors:ghoul", embedded_path: [], field: "description" },
+            source_navigation: navigation,
+            ordinal: 0,
+            origin: "prepared_content",
+            kind: "uuid",
+            authored_target: null,
+            occurrence_path: null,
+            audiences: [],
+            availability: null,
+            status: "resolved_record",
+            target,
+            url: null,
+            effect_label: null,
+            source_title: "Ghoul equipment",
+            target_title: "Leather Armor",
+          },
+        ],
+      },
+    ],
+  };
+  const view = render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <Harness
+          resultRows={[row]}
+          relationships={[constraint]}
+          generation="generation-a"
+        />
+      </QueryClientProvider>
+    </ConfigProvider>,
+  );
+  const trigger = screen.getByRole("button", { name: "2 matches in Ghoul" });
+  expect(screen.getAllByText("Matches")).toHaveLength(1);
+  expect(screen.queryByText("1 link")).toBeNull();
+  expect(screen.queryByRole("link", { name: "Ghoul equipment" })).toBeNull();
+  fireEvent.click(trigger);
+  expect(
+    await screen.findByRole("link", { name: "Ghoul equipment" }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Jaws" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Leather Armor" })).toBeInTheDocument();
+  expect(view.container).not.toHaveTextContent("Text reference");
+  fireEvent.keyDown(document, { key: "Escape" });
+  await waitFor(() => expect(trigger).toHaveFocus());
+  expect(trigger).toHaveAttribute("aria-expanded", "false");
+});

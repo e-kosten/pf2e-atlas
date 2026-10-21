@@ -183,7 +183,9 @@ impl AtlasRetrievalService {
         }
         let search_profile =
             self.resolve_search_profile(request.search_profile, request.mode.uses_vector())?;
-        let predicate = self.predicate(request.filter)?;
+        let predicate = self
+            .predicate(request.filter)?
+            .with_relationships(request.scope.relationships());
         let vector = if request.mode.uses_vector() {
             Some(self.embed_query(&search_profile, request.query)?)
         } else {

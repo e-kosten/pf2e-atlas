@@ -938,6 +938,16 @@ struct MockService {
 mod read_abandonment_tests;
 
 impl AtlasWebService for MockService {
+    fn relationship_occurrences(
+        &self,
+        _request: atlas_app_model::RelationshipOccurrencesRequest,
+        _execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::RelationshipOccurrencesPage, AppServiceError> {
+        Err(AppServiceError::invalid_request(
+            "No relationship evidence in this fixture",
+        ))
+    }
+
     fn trait_definition(
         &self,
         _: atlas_app_model::TraitDetailRequest,
@@ -1718,6 +1728,7 @@ fn record_summary() -> RecordSummaryView {
 
 fn search_results_page(page_number: u32) -> SearchResultsPage {
     SearchResultsPage {
+        relationships: vec![],
         ranking: Default::default(),
         search_profile: atlas_domain::SearchProfileId::new("bge-base"),
         artifact_generation: "current-generation".into(),
@@ -1732,6 +1743,7 @@ fn search_results_page(page_number: u32) -> SearchResultsPage {
             next_page: Some(page_number + 1),
         },
         rows: vec![atlas_app_model::SearchResultRow {
+            relationship_evidence: vec![],
             record: record_summary(),
             matches: vec![],
         }],

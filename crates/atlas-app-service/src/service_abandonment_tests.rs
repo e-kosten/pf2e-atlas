@@ -32,6 +32,7 @@ fn abandoned_public_read_never_opens_lazy_command_reader() {
     let error = service
         .search_page(
             SearchResultsRequest {
+                relationships: None,
                 ranking: None,
                 search_profile: None,
                 criteria: SearchCriteria::ListRecords { filter: None },
@@ -81,6 +82,7 @@ fn abandoned_discovery_checks_before_saved_list_scope_reads_or_lazy_open() {
     let execution = ReadExecutionContext::tracked();
     execution.abandon();
     let context = FilterDiscoveryContext::SavedList {
+        relationships: None,
         search_profile: None,
         expected_artifact_generation: None,
         list_ref: "absent-list".into(),

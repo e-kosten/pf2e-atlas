@@ -27,6 +27,9 @@ pub struct SearchPageView {
 pub struct SearchResultsRequest {
     #[serde(default)]
     #[ts(optional)]
+    pub relationships: Option<Vec<RelationshipConstraintView>>,
+    #[serde(default)]
+    #[ts(optional)]
     pub ranking: Option<atlas_domain::SearchRanking>,
     #[ts(optional)]
     pub search_profile: Option<atlas_domain::SearchProfileId>,
@@ -64,6 +67,7 @@ pub enum SearchModeSummary {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsPage {
+    pub relationships: Vec<RelationshipConstraintSummaryView>,
     pub ranking: atlas_domain::SearchRanking,
     pub search_profile: atlas_domain::SearchProfileId,
     pub artifact_generation: String,
@@ -74,6 +78,7 @@ pub struct SearchResultsPage {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultRow {
+    pub relationship_evidence: Vec<RelationshipEvidenceView>,
     pub record: RecordSummaryView,
     pub matches: Vec<SearchWitnessView>,
 }
@@ -98,4 +103,44 @@ pub struct SearchCoverageView {
     pub semantic_unit_window: Option<usize>,
     pub candidate_roots: usize,
     pub count_basis: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum RelationshipDirectionView {
+    Incoming,
+    Outgoing,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RelationshipConstraintView {
+    pub direction: RelationshipDirectionView,
+    pub selection: RecordNavigationView,
+    pub include_contents: bool,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RelationshipConstraintSummaryView {
+    pub constraint: RelationshipConstraintView,
+    pub record: RecordSummaryView,
+    pub title: String,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RelationshipEvidenceView {
+    pub constraint_index: usize,
+    pub occurrences: Vec<crate::RecordRelationshipView>,
+    pub page: SearchPageView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RelationshipOccurrencesRequest {
+    pub constraint: RelationshipConstraintView,
+    pub result_record_key: String,
+    pub page: SearchPageRequest,
+    pub expected_artifact_generation: String,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RelationshipOccurrencesPage {
+    pub artifact_generation: String,
+    pub constraint: RelationshipConstraintSummaryView,
+    pub result_record: RecordSummaryView,
+    pub occurrences: Vec<crate::RecordRelationshipView>,
+    pub page: SearchPageView,
 }

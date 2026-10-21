@@ -8,8 +8,14 @@ use std::collections::HashSet;
 #[derive(Debug, Clone)]
 pub struct ValidatedQuery {
     pub(super) predicate: QueryPredicate,
+    pub(crate) relationships: Vec<crate::RelationshipConstraint>,
 }
 impl ValidatedQuery {
+    /// Add conjunctive record-reference eligibility without changing the filter language.
+    pub fn with_relationships(mut self, relationships: &[crate::RelationshipConstraint]) -> Self {
+        self.relationships = relationships.to_vec();
+        self
+    }
     pub fn predicate(&self) -> &QueryPredicate {
         &self.predicate
     }
@@ -268,6 +274,7 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
         &mut bytes,
     )?;
     Ok(ValidatedQuery {
+        relationships: Vec::new(),
         predicate: predicate.clone(),
     })
 }

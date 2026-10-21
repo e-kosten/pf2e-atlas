@@ -71,6 +71,12 @@ pub(crate) fn eligible_sql(
             params.extend(keys.iter().map(|k| Value::Text(k.to_string())));
         }
     }
+    for relationship in &query.relationships {
+        let (condition, values) = crate::relationship_query::eligibility(relationship)?;
+        sql.push_str(" AND ");
+        sql.push_str(&condition);
+        params.extend(values);
+    }
     Ok((sql, params))
 }
 pub(crate) fn parse_key(s: String) -> Result<RecordKey, IndexError> {

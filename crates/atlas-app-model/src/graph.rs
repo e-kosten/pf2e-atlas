@@ -11,6 +11,9 @@ pub struct GraphContextView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct GraphSectionView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub constraint: Option<crate::RelationshipConstraintView>,
     pub records: Vec<RecordSummaryView>,
     pub occurrences: Vec<RecordRelationshipView>,
     pub truncated: bool,

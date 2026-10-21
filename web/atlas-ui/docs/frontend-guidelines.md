@@ -598,8 +598,11 @@ opening, cached by complete selection and artifact generation. Render only conte
 categories; keep loading, unavailable checks and local retryable errors distinct
 from known empty categories. Similar is a separate root discovery preview using
 stateless search pages, with a native link into the ordinary search workspace.
-Similarity URLs preserve the root seed and canonical filters. Keyword entry replaces
-the seed; clearing it preserves filters. Contextual text counts are disabled while
+Similarity URLs preserve the root seed and canonical filters. The active Similar
+criterion occupies the main search control with its selectable, read-only human
+name; retain the same input shell, clear/search affordances and toolbar dimensions
+as keyword entry. Clearing it
+preserves other filters and returns focus to keyword entry. Contextual text counts are disabled while
 catalog choices and vocabulary remain available. Label bounded pages Top matches.
 Comparison panes reuse family presentation without recursively mounting related disclosures.
 Incoming references use checked `source_navigation`, outgoing references use the
@@ -608,6 +611,30 @@ they do not imply automatic scrolling to an individual marker. Counterparts and 
 relationships of an embedded selection. A separate Similar action can name the
 parent root explicitly. Exact root references use an empty owner path, not an
 all-owners graph query.
+
+Relationship search constraints appear at the top level with ordinary filters,
+outside Advanced. A combined filter chip displays the direction and human target
+name; its popover contains the Main entry only / Whole entry choices and a link
+to open the exact selected record. Removal stays beside the chip. Include the
+selected scope in the chip's accessible name. Never render IDs in relationship labels, tooltip
+copy or unavailable fallbacks. Backend-selected names and optional kind/source/
+parent labels distinguish otherwise identical titles. Exact navigation stays in
+the typed criterion and URL, with its snapshot fingerprint.
+Whole entry changes where a link originates: sources within each result for
+Links to, or the selected source and its descendants for Linked from. Targets
+remain exact, and descendants never include siblings/parents. Related's View all
+uses its backend-provided effective constraint; it does not reconstruct scope
+from displayed occurrences. Filters and page identity include each constraint.
+Per-root reference evidence has its own occurrence total/paging; preview limits
+never truncate the set of eligible result roots. Disable contextual counts when
+relationship scope is unsupported, retaining count-free vocabulary.
+
+Keep relationship discovery actions inside the Related experience with its
+reference previews and full-result escapes. Result relationship evidence reuses
+the shared Matches button/popover and its focus/dismissal behavior; do not expand
+a separate disclosure into each row. Source-to-target labels supply the useful
+evidence without a repeated Text reference label. Scope options use the existing
+source-side semantics, with a concrete example in their explanation popover.
 
 Search page keys include committed criteria, the local page number, the current
 artifact generation and the search owner's recovery epoch. An artifact generation

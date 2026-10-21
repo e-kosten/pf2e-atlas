@@ -1,4 +1,14 @@
-import { Alert, Button, Collapse, Modal, Select, Spin, Tabs, Typography } from "antd";
+import {
+  Alert,
+  Button,
+  Collapse,
+  Modal,
+  Select,
+  Spin,
+  Space,
+  Tabs,
+  Typography,
+} from "antd";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchProfile } from "../search/SearchProfileContext";
@@ -22,6 +32,8 @@ import type { RecordReferenceHandler } from "./PreparedContent";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
+
+import { relationshipSearchRoute } from "./relationshipSearch";
 
 export function RelatedRecords({
   detail,
@@ -140,13 +152,30 @@ function RelatedTabs({
       <Typography.Paragraph type="secondary">{empty}</Typography.Paragraph>
     );
   }
+  function viewAll(section: GraphSectionView) {
+    if (!section.constraint) return null;
+    const route = relationshipSearchRoute(section.constraint);
+    return (
+      <Typography.Link
+        href={atlasRoutePath(route)}
+        onClick={(event) => {
+          if (!shouldHandleAtlasRouteClick(event)) return;
+          event.preventDefault();
+          navigateToAtlasRoute(route);
+        }}
+      >
+        View all
+      </Typography.Link>
+    );
+  }
   function references(section: GraphSectionView, incoming: boolean) {
     if (!section.occurrences.length)
       return (
         <Typography.Paragraph type="secondary">
           {incoming
             ? "No references to this record were found."
-            : "No references were found here."}
+            : "No references were found here."}{" "}
+          {viewAll(section)}
         </Typography.Paragraph>
       );
     return (
@@ -191,6 +220,7 @@ function RelatedTabs({
             );
           })}
         </ul>
+        {viewAll(section)}
         {section.truncated && (
           <Typography.Paragraph type="secondary">
             Showing a limited set of references; additional references may exist.
@@ -208,18 +238,10 @@ function RelatedTabs({
             label: "References",
             children: (
               <>
-                {graph.outgoing.occurrences.length > 0 && (
-                  <>
-                    <h3>Referenced here</h3>
-                    {references(graph.outgoing, false)}
-                  </>
-                )}
-                {graph.backlinks.occurrences.length > 0 && (
-                  <>
-                    <h3>References to this record</h3>
-                    {references(graph.backlinks, true)}
-                  </>
-                )}
+                <h3>Referenced here</h3>
+                {references(graph.outgoing, false)}
+                <h3>References to this record</h3>
+                {references(graph.backlinks, true)}
               </>
             ),
           },
@@ -296,6 +318,31 @@ function RelatedTabs({
     : [];
   return (
     <div className="related-records__body">
+      <Space wrap className="related-records__actions">
+        {(["incoming", "outgoing"] as const).map((direction) => {
+          const route = relationshipSearchRoute({
+            direction,
+            selection: detail.selected,
+            include_contents: detail.selected.embedded_path.length === 0,
+          });
+          return (
+            <Button
+              key={direction}
+              href={atlasRoutePath(route)}
+              onClick={(event) => {
+                if (!shouldHandleAtlasRouteClick(event)) return;
+                event.preventDefault();
+                navigateToAtlasRoute(route);
+              }}
+            >
+              {direction === "incoming"
+                ? "Find records linking here"
+                : "Browse links from here"}
+            </Button>
+          );
+        })}
+      </Space>
+
       {related.isFetching && (
         <div role="status" className="related-records__status">
           <Spin size="small" /> Loading related records…

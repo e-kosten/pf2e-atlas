@@ -2,11 +2,16 @@ import { Button, Empty, Popover, Spin, theme } from "antd";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
-import type { RecordNavigationView, SearchResultRow } from "../../generated/atlas";
+import type {
+  RelationshipConstraintSummaryView,
+  RecordNavigationView,
+  SearchResultRow,
+} from "../../generated/atlas";
 import { type BrowsePositions } from "./useBrowsePositions";
 import { rootNavigation, type ReferenceReading } from "./useReferenceReading";
 
 import { BrowseReader } from "./BrowseReader";
+import { RelationshipEvidence } from "./RelationshipEvidence";
 import { RecordBrowseSummary } from "./RecordBrowseSummary";
 
 export function ReferenceBrowser({
@@ -20,6 +25,9 @@ export function ReferenceBrowser({
   emptyMessage = "No matching records",
   positions,
   disabled = false,
+  relationships,
+  generation,
+  onRefreshResults,
 }: {
   rows: SearchResultRow[];
   loading: boolean;
@@ -31,6 +39,9 @@ export function ReferenceBrowser({
   emptyMessage?: string | null;
   positions?: BrowsePositions;
   disabled?: boolean;
+  relationships?: RelationshipConstraintSummaryView[];
+  generation?: string;
+  onRefreshResults?: () => Promise<void>;
 }) {
   const [openMatchKey, setOpenMatchKey] = useState<string | null>(null);
   return (
@@ -57,6 +68,9 @@ export function ReferenceBrowser({
         <ReferenceResult
           key={row.record.record_key}
           row={row}
+          relationships={relationships}
+          generation={generation}
+          onRefreshResults={onRefreshResults}
           selected={row.record.record_key === selectedRecordKey}
           matchesOpen={openMatchKey === row.record.record_key}
           onMatchesOpenChange={(open) =>
@@ -88,8 +102,14 @@ function ReferenceResult({
   onMatch,
   matchesOpen,
   onMatchesOpenChange,
+  relationships,
+  generation,
+  onRefreshResults,
 }: {
   row: SearchResultRow;
+  relationships?: RelationshipConstraintSummaryView[];
+  generation?: string;
+  onRefreshResults?: () => Promise<void>;
   matchesOpen: boolean;
   onMatchesOpenChange: (open: boolean) => void;
   selected: boolean;
@@ -106,6 +126,14 @@ function ReferenceResult({
       (match.navigation.field && match.navigation.field !== "identity") ||
       match.navigation.passage,
   );
+  const relationshipEvidence = generation
+    ? (row.relationship_evidence ?? []).filter(
+        (evidence) => relationships?.[evidence.constraint_index],
+      )
+    : [];
+  const matchCount =
+    BigInt(matches.length) +
+    relationshipEvidence.reduce((count, evidence) => count + evidence.page.total, 0n);
   useEffect(() => {
     if (!matchesOpen) return;
     const escape = (event: KeyboardEvent) => {
@@ -133,12 +161,13 @@ function ReferenceResult({
         disabled={disabled}
         onPreview={onPreview}
       />
-      {matches.length > 0 && (
+      {matchCount > 0n && (
         <Popover
           open={matchesOpen}
           onOpenChange={setMatchesOpen}
           trigger="click"
           placement="bottomLeft"
+          destroyOnHidden
           content={
             <div
               className="reference-match-list"
@@ -176,6 +205,28 @@ function ReferenceResult({
                   {match.label || "Matching passage"}
                 </Button>
               ))}
+              {generation &&
+                relationshipEvidence.map((evidence) => {
+                  const summary = relationships![evidence.constraint_index];
+                  return (
+                    <RelationshipEvidence
+                      key={JSON.stringify([
+                        generation,
+                        summary.constraint,
+                        row.record.record_key,
+                      ])}
+                      evidence={evidence}
+                      summary={summary}
+                      resultKey={row.record.record_key}
+                      generation={generation}
+                      onRefresh={onRefreshResults}
+                      onNavigate={(navigation, anchor) => {
+                        setMatchesOpen(false);
+                        onMatch(navigation, trigger.current ?? anchor);
+                      }}
+                    />
+                  );
+                })}
             </div>
           }
         >
@@ -186,7 +237,7 @@ function ReferenceResult({
             variant="text"
             size="small"
             aria-expanded={matchesOpen}
-            aria-label={`${matches.length} matches in ${record.title}`}
+            aria-label={`${matchCount.toString()} matches in ${record.title}`}
             styles={{
               root: {
                 color: token.colorTextDescription,

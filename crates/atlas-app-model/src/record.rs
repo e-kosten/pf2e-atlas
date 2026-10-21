@@ -66,6 +66,12 @@ pub struct RecordDetailView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordRelationshipView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub source_title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub target_title: Option<String>,
     pub source: ContentLocationView,
     pub source_navigation: RecordNavigationView,
     pub ordinal: usize,
