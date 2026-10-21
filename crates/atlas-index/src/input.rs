@@ -55,6 +55,8 @@ pub struct SourceSearchProfileIdentity {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceArtifactBuildContext {
+    #[serde(default)]
+    pub trait_policy: String,
     pub format_version: u32,
     pub snapshot_version: u32,
     pub source_contract: String,
@@ -161,6 +163,8 @@ pub struct SourceSemanticUnitInput {
 }
 #[derive(Debug)]
 pub struct IndexBuildInput {
+    pub traits: Vec<crate::TraitDefinition>,
+    pub trait_vectors: Vec<crate::TraitVectorInput>,
     pub records: Vec<SourceArtifactRecordInput>,
     pub packs: Vec<IndexBuildPack>,
     pub context: SourceArtifactBuildContext,

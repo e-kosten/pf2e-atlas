@@ -963,6 +963,21 @@ struct MockService {
 mod read_abandonment_tests;
 
 impl AtlasWebService for MockService {
+    fn trait_definition(
+        &self,
+        _: atlas_app_model::TraitDetailRequest,
+        _: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::TraitDetailView, AppServiceError> {
+        unreachable!("trait lookup not used in this fixture")
+    }
+    fn trait_records(
+        &self,
+        _: atlas_app_model::TraitRecordsRequest,
+        _: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::TraitRecordsPage, AppServiceError> {
+        unreachable!("trait records not used in this fixture")
+    }
+
     fn parties(&self) -> Result<atlas_app_model::PartyIndexView, AppServiceError> {
         Ok(atlas_app_model::PartyIndexView { parties: vec![] })
     }
@@ -1208,15 +1223,6 @@ impl AtlasWebService for MockService {
         Err(AppServiceError::invalid_request(
             "recovery fixture is not configured",
         ))
-    }
-    fn apply_encounter_hp_event(
-        &self,
-        encounter_ref: &str,
-        _request: atlas_app_model::ApplyEncounterHpEventRequest,
-    ) -> Result<EncounterMutationView, AppServiceError> {
-        Ok(EncounterMutationView {
-            encounter_key: encounter_ref.into(),
-        })
     }
     fn pending_encounter_hp_lifecycle(
         &self,

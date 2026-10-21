@@ -55,6 +55,8 @@ const signedInteger = {
       ? Promise.resolve()
       : Promise.reject(new Error("Enter a whole number.")),
 };
+const optionKey = (option: ConditionLifecycleOptionView) =>
+  `${option.kind}:${"condition_id" in option ? option.condition_id : ""}:${"consequence_key" in option ? option.consequence_key : ""}`;
 export function EncounterConditionLifecycle({
   encounterRef,
   boundaryKey = null,
@@ -121,7 +123,7 @@ export function EncounterConditionLifecycle({
               <Space wrap>
                 {query.data?.actions.map((option, index) => (
                   <Tooltip
-                    key={`${option.kind}:${option.condition_id ?? index}`}
+                    key={`${optionKey(option)}:${index}`}
                     title={option.unavailable_reason}
                     trigger={["hover", "focus", "click"]}
                   >
@@ -177,7 +179,7 @@ export function EncounterConditionLifecycle({
       >
         {selected && (
           <LifecycleForm
-            key={`${selected.option.kind}:${selected.option.condition_id}:${selected.revision}`}
+            key={`${optionKey(selected.option)}:${selected.revision}`}
             encounterRef={encounterRef}
             option={selected.option}
             participant={participant}
@@ -187,10 +189,7 @@ export function EncounterConditionLifecycle({
             disabled={disabled || query.isFetching}
             onReload={() => {
               const option = query.data?.actions.find(
-                (option) =>
-                  option.kind === selected.option.kind &&
-                  option.condition_id === selected.option.condition_id &&
-                  option.consequence_key === selected.option.consequence_key,
+                (option) => optionKey(option) === optionKey(selected.option),
               );
               if (option) setSelected({ option, revision });
               else setSelected(null);
@@ -240,8 +239,10 @@ function LifecycleForm({
     null,
   );
   const [judgments, setJudgments] = useState<EncounterActionJudgmentView[]>([]);
+  const initialIssues = option.kind === "retch" ? option.issues : [];
+  const check = "check" in option ? option.check : undefined;
   const [questions, setQuestions] = useState<EncounterActionIssueView[]>(
-    option.issues.filter((issue) => issue.kind === "needs_fact" && issue.fact !== null),
+    initialIssues.filter((issue) => issue.kind === "needs_fact" && issue.fact !== null),
   );
   const actionPreview = useQuery({
     queryKey: [
@@ -270,7 +271,7 @@ function LifecycleForm({
   const issues =
     option.kind === "retch"
       ? (actionPreview.data?.issues ?? option.issues)
-      : option.issues;
+      : initialIssues;
   const newQuestions = issues.filter(
     (issue) =>
       issue.kind === "needs_fact" &&
@@ -294,35 +295,29 @@ function LifecycleForm({
   const checkMode = Form.useWatch("checkMode", form);
   const qualifies =
     qualifyingValue === undefined
-      ? option.qualifying_damage
+      ? option.kind === "confused_damage_recovery"
+        ? option.qualifying_damage
+        : null
       : qualifyingValue === "yes";
-  const has = (input: ConditionLifecycleOptionView["required_inputs"][number]) =>
-    option.required_inputs.includes(input);
   const sourceLabel = (id: bigint) => {
     const source = participant.conditions.find((source) => source.condition_id === id);
     return source
       ? `${source.name}${source.value === undefined ? "" : ` ${source.value}`}`
       : `Source ${id}`;
   };
-  function requiredId() {
-    if (option.condition_id === null) throw new Error("Choose a condition source.");
-    return option.condition_id;
-  }
-  function consequence() {
-    if (option.consequence_key === null) throw new Error("Recovery event unavailable.");
-    return option.consequence_key;
-  }
   function build(values: Values): ConditionLifecycleActionView {
-    const dc = values.dc === undefined ? option.dc : BigInt(values.dc);
+    const dc = values.dc === undefined ? (check?.dc ?? null) : BigInt(values.dc);
     const modifier =
-      values.modifier === undefined ? option.modifier : BigInt(values.modifier);
+      values.modifier === undefined
+        ? (check?.modifier ?? null)
+        : BigInt(values.modifier);
     switch (option.kind) {
       case "dying_recovery":
         return { kind: option.kind, check: lifecycleCheck(values) };
       case "retch":
         return {
           kind: option.kind,
-          condition_id: requiredId(),
+          condition_id: option.condition_id,
           dc,
           fortitude_modifier: modifier,
           actions_spent: values.actionsSpent === true,
@@ -333,30 +328,20 @@ function LifecycleForm({
       case "frightened_end_turn":
         return {
           kind: option.kind,
-          decisions: option.source_condition_ids.flatMap((condition_id) => {
-            const source = participant.conditions.find(
-              (source) => source.condition_id === condition_id,
-            );
-            if (
-              source?.parameters.kind !== "frightened" ||
-              source.parameters.recovery.kind !== "source_dependent"
-            )
-              return [];
+          decisions: option.decision_source_ids.map((condition_id) => {
             const decision = values.frightened?.[condition_id.toString()];
             if (!decision?.reduce)
               throw new Error("Choose whether each source reduces.");
-            return [
-              {
-                condition_id,
-                reduce: decision.reduce === "yes",
-                minimum:
-                  decision.reduce === "no"
+            return {
+              condition_id,
+              reduce: decision.reduce === "yes",
+              minimum:
+                decision.reduce === "no"
+                  ? null
+                  : decision.minimum === undefined
                     ? null
-                    : decision.minimum === undefined
-                      ? null
-                      : BigInt(decision.minimum),
-              },
-            ];
+                    : BigInt(decision.minimum),
+            };
           }),
         };
       case "treat_wounds":
@@ -371,7 +356,7 @@ function LifecycleForm({
           throw new Error("Action forecast unavailable.");
         return {
           kind: option.kind,
-          condition_id: requiredId(),
+          condition_id: option.condition_id,
           actions_lost: BigInt(option.actions_lost),
         };
       case "wake":
@@ -388,7 +373,7 @@ function LifecycleForm({
       case "confused_damage_recovery":
         return {
           kind: option.kind,
-          consequence_key: consequence(),
+          consequence_key: option.consequence_key,
           condition_ids:
             qualifies === false || values.checkMode === "decline"
               ? []
@@ -402,7 +387,7 @@ function LifecycleForm({
       case "resolve_broken":
         return {
           kind: option.kind,
-          consequence_key: consequence(),
+          consequence_key: option.consequence_key,
           threshold: BigInt(values.threshold!),
         };
     }
@@ -452,15 +437,17 @@ function LifecycleForm({
             onChange={setConfusion}
           />
         )}
-        {(option.dc !== null || option.modifier !== null) && (
-          <p>
-            {option.dc === null ? "" : `DC ${option.dc}`}
-            {option.dc !== null && option.modifier !== null ? " · " : ""}
-            {option.modifier === null
-              ? ""
-              : `Modifier ${option.modifier >= 0n ? "+" : ""}${option.modifier}`}
-          </p>
-        )}
+        {check &&
+          option.kind !== "confused_damage_recovery" &&
+          (check.dc !== null || check.modifier !== null) && (
+            <p>
+              {check.dc === null ? "" : `DC ${check.dc}`}
+              {check.dc !== null && check.modifier !== null ? " · " : ""}
+              {check.modifier === null
+                ? ""
+                : `Modifier ${check.modifier >= 0n ? "+" : ""}${check.modifier}`}
+            </p>
+          )}
         {actionPreview.error && (
           <Alert
             type="error"
@@ -529,16 +516,16 @@ function LifecycleForm({
               {actionIssueSourceLabel(issue, participants)}: {issue.reason}
             </p>
           ))}
-        {has("source_dc") && (
+        {check?.dc === null && (
           <Form.Item name="dc" label="DC" rules={[integerRule(true)]}>
             <InputNumber aria-label="Recovery DC" />
           </Form.Item>
         )}
-        {(has("current_fortitude") || has("current_perception")) && (
+        {check?.modifier === null && (
           <Form.Item
             name="modifier"
             label={
-              has("current_fortitude")
+              option.kind === "retch"
                 ? "Current Fortitude modifier"
                 : "Current Perception modifier"
             }
@@ -547,7 +534,7 @@ function LifecycleForm({
             <InputNumber aria-label="Recovery modifier" />
           </Form.Item>
         )}
-        {has("actions_spent") && (
+        {option.kind === "retch" && (
           <Form.Item
             name="actionsSpent"
             valuePropName="checked"
@@ -563,12 +550,12 @@ function LifecycleForm({
             <Checkbox>Actions spent</Checkbox>
           </Form.Item>
         )}
-        {has("rest_minutes") && (
+        {(option.kind === "stable_recovery" || option.kind === "full_hp_rest") && (
           <Form.Item name="minutes" label="Minutes rested" rules={[integerRule(true)]}>
             <InputNumber aria-label="Minutes rested" min={0} />
           </Form.Item>
         )}
-        {has("healing_received") && (
+        {option.kind === "treat_wounds" && (
           <Form.Item
             name="healing"
             label="Healing received"
@@ -577,10 +564,10 @@ function LifecycleForm({
             <InputNumber aria-label="Healing received" min={0} />
           </Form.Item>
         )}
-        {has("actions_lost") && option.actions_lost !== null && (
+        {option.kind === "stunned_actions_lost" && option.actions_lost !== null && (
           <p>Actions lost: {option.actions_lost}</p>
         )}
-        {has("threshold") && (
+        {option.kind === "resolve_broken" && (
           <Form.Item
             name="threshold"
             label="Broken threshold"
@@ -605,83 +592,80 @@ function LifecycleForm({
             />
           </Form.Item>
         )}
-        {has("qualifying_damage") && (
-          <Form.Item
-            name="qualifying"
-            label="Attack or spell damage?"
-            rules={[
-              { required: true, message: "Choose whether the damage qualifies." },
-            ]}
-          >
-            <Select
-              aria-label="Qualifying damage"
-              options={[
-                { value: "yes", label: "Yes" },
-                { value: "no", label: "No" },
+        {option.kind === "confused_damage_recovery" &&
+          option.qualifying_damage === null && (
+            <Form.Item
+              name="qualifying"
+              label="Attack or spell damage?"
+              rules={[
+                { required: true, message: "Choose whether the damage qualifies." },
               ]}
-            />
-          </Form.Item>
-        )}
-        {has("source_selection") && qualifies !== false && checkMode !== "decline" && (
-          <Form.Item
-            name="sources"
-            label="Sources"
-            rules={[{ required: true, message: "Choose the affected sources." }]}
-          >
-            <Select
-              mode="multiple"
-              aria-label="Recovery sources"
-              options={option.source_condition_ids.map((id) => ({
-                value: id.toString(),
-                label: sourceLabel(id),
-              }))}
-            />
-          </Form.Item>
-        )}
-        {has("frightened_decisions") &&
-          option.source_condition_ids.map((id) => {
-            const source = participant.conditions.find(
-              (source) => source.condition_id === id,
-            );
-            return source?.parameters.kind === "frightened" &&
-              source.parameters.recovery.kind === "source_dependent" ? (
-              <Space key={id.toString()} wrap>
-                <Form.Item
-                  name={["frightened", id.toString(), "reduce"]}
-                  label={sourceLabel(id)}
-                  rules={[
-                    { required: true, message: "Choose whether this source reduces." },
+            >
+              <Select
+                aria-label="Qualifying damage"
+                options={[
+                  { value: "yes", label: "Yes" },
+                  { value: "no", label: "No" },
+                ]}
+              />
+            </Form.Item>
+          )}
+        {option.kind === "confused_damage_recovery" &&
+          qualifies !== false &&
+          checkMode !== "decline" && (
+            <Form.Item
+              name="sources"
+              label="Sources"
+              rules={[{ required: true, message: "Choose the affected sources." }]}
+            >
+              <Select
+                mode="multiple"
+                aria-label="Recovery sources"
+                options={option.source_condition_ids.map((id) => ({
+                  value: id.toString(),
+                  label: sourceLabel(id),
+                }))}
+              />
+            </Form.Item>
+          )}
+        {option.kind === "frightened_end_turn" &&
+          option.decision_source_ids.map((id) => (
+            <Space key={id.toString()} wrap>
+              <Form.Item
+                name={["frightened", id.toString(), "reduce"]}
+                label={sourceLabel(id)}
+                rules={[
+                  { required: true, message: "Choose whether this source reduces." },
+                ]}
+              >
+                <Select
+                  aria-label={`Reduce ${sourceLabel(id)}`}
+                  options={[
+                    { value: "yes", label: "Reduce" },
+                    { value: "no", label: "Keep" },
                   ]}
-                >
-                  <Select
-                    aria-label={`Reduce ${sourceLabel(id)}`}
-                    options={[
-                      { value: "yes", label: "Reduce" },
-                      { value: "no", label: "Keep" },
-                    ]}
-                  />
-                </Form.Item>
-                <Form.Item
-                  name={["frightened", id.toString(), "minimum"]}
-                  label="Minimum"
-                  dependencies={[["frightened", id.toString(), "reduce"]]}
-                  rules={[
-                    {
-                      validator: (_rule, value) =>
-                        form.getFieldValue(["frightened", id.toString(), "reduce"]) ===
-                          "yes" && value == null
-                          ? Promise.reject(new Error("Enter the source minimum."))
-                          : Promise.resolve(),
-                    },
-                    integerRule(false),
-                  ]}
-                >
-                  <InputNumber aria-label={`Minimum for ${sourceLabel(id)}`} min={0} />
-                </Form.Item>
-              </Space>
-            ) : null;
-          })}
-        {has("check") &&
+                />
+              </Form.Item>
+              <Form.Item
+                name={["frightened", id.toString(), "minimum"]}
+                label="Minimum"
+                dependencies={[["frightened", id.toString(), "reduce"]]}
+                rules={[
+                  {
+                    validator: (_rule, value) =>
+                      form.getFieldValue(["frightened", id.toString(), "reduce"]) ===
+                        "yes" && value == null
+                        ? Promise.reject(new Error("Enter the source minimum."))
+                        : Promise.resolve(),
+                  },
+                  integerRule(false),
+                ]}
+              >
+                <InputNumber aria-label={`Minimum for ${sourceLabel(id)}`} min={0} />
+              </Form.Item>
+            </Space>
+          ))}
+        {check &&
           (option.kind !== "confused_damage_recovery" || qualifies !== false) && (
             <LifecycleCheckFields
               form={form}

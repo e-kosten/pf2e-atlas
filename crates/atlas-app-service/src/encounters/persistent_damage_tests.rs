@@ -221,7 +221,7 @@ fn typed_protections_preserve_missing_hardness_and_source_exceptions() {
     let (f, key, _) = fixture();
     let participant = &snapshot(&f, &key).participants[0];
     let record = |kind: &str, attributes: serde_json::Value| {
-        atlas_search::test_support::record("actors","Actor",serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","type":kind,"name":"Protection","system":{"attributes":attributes}})).record
+        atlas_search::test_support::record("actors","Actor",serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","type":kind,"name":"Protection","system":{"traits":{"value":[]},"attributes":attributes}})).record
     };
     let npc = record(
         "npc",
@@ -567,7 +567,7 @@ fn partial_persistent_reminder_round_trips_without_joining_automation_then_can_b
                 extra_action: Default::default(),
                 immunity_override: false,
                 origin: None,
-                parameters: ConditionParametersView::PersistentDamageReminder {
+                parameters: ConditionParametersInputView::PersistentDamage {
                     formula: None,
                     damage_type: Some("fire".into()),
                     multiplier: DamageMultiplierView::Normal,
@@ -617,12 +617,11 @@ fn partial_persistent_reminder_round_trips_without_joining_automation_then_can_b
                 extra_action: Default::default(),
                 immunity_override: false,
                 origin: None,
-                parameters: ConditionParametersView::PersistentDamage {
-                    formula: "1d6".into(),
-                    damage_type: "fire".into(),
+                parameters: ConditionParametersInputView::PersistentDamage {
+                    formula: Some("1d6".into()),
+                    damage_type: Some("fire".into()),
                     multiplier: DamageMultiplierView::Normal,
                     recovery: PersistentRecoveryView::Standard,
-                    episode_id: None,
                 },
             },
         )
@@ -649,4 +648,67 @@ fn partial_persistent_reminder_round_trips_without_joining_automation_then_can_b
             .note,
         reminder.note
     );
+}
+
+#[test]
+fn persistent_edits_preserve_or_admit_episode_identity_without_browser_authority() {
+    let (f, key, participant) = fixture();
+    let saved = snapshot(&f, &key);
+    let source = &saved.participants[0].conditions[0];
+    let edit = |id: &str, kind: &str, revision| UpdateEncounterParticipantConditionRequest {
+        request_id: id.into(),
+        expected_encounter_revision: revision,
+        condition_id: source.condition_id,
+        condition_ref: source.condition_key.clone(),
+        name: source.name.clone(),
+        value: None,
+        source_participant_key: None,
+        scope: Default::default(),
+        extra_action: Default::default(),
+        immunity_override: false,
+        origin: None,
+        duration: None,
+        note: Some("new note".into()),
+        event_intent: Default::default(),
+        decisions: Default::default(),
+        parameters: ConditionParametersInputView::PersistentDamage {
+            formula: Some("4".into()),
+            damage_type: Some(kind.into()),
+            multiplier: DamageMultiplierView::Normal,
+            recovery: PersistentRecoveryView::Standard,
+        },
+    };
+    f.worker
+        .update_encounter_participant_condition(
+            &key,
+            &participant,
+            edit("note", "fire", saved.encounter.revision),
+        )
+        .unwrap();
+    let after_note = snapshot(&f, &key);
+    let edited = after_note.participants[0]
+        .conditions
+        .iter()
+        .find(|row| row.condition_id == source.condition_id)
+        .unwrap();
+    assert!(
+        matches!(&edited.parameters, ConditionParameters::PersistentDamage { episode_id, recovery: PersistentRecovery::Standard, .. } if episode_id == "episode-fire")
+    );
+    f.worker
+        .update_encounter_participant_condition(
+            &key,
+            &participant,
+            edit("new-type", "cold", after_note.encounter.revision),
+        )
+        .unwrap();
+    let after_type = snapshot(&f, &key);
+    let edited = after_type.participants[0]
+        .conditions
+        .iter()
+        .find(|row| row.condition_id == source.condition_id)
+        .unwrap();
+    assert!(
+        matches!(&edited.parameters, ConditionParameters::PersistentDamage { episode_id, damage_type, .. } if episode_id == "new-type:cold" && damage_type == "cold")
+    );
+    assert!(after_type.participants[0].conditions.iter().any(|row| matches!(&row.parameters, ConditionParameters::PersistentDamage { episode_id, damage_type, .. } if episode_id == "episode-fire" && damage_type == "fire")));
 }

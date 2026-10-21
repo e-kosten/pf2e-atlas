@@ -25,7 +25,7 @@ pub use actor_query::{
 pub use availability::{FieldAvailability, SourceFieldView};
 pub use content::{
     SourceContentFormat, SourceContentOutcome, SourceContentRole, SourceContentSelection,
-    SourceContentStatus, prepare_record_content,
+    SourceContentStatus, prepare_record_content, trait_record_localization_references,
 };
 pub use identity::{SourceIdentityError, source_record_key};
 pub use item_query::spell_casting_form;
@@ -42,3 +42,6 @@ pub use search_selection::{
     recover_source_passage, select_prepared_html_sections, select_record_search,
 };
 pub use text::{SourceTextKind, SourceTextSource};
+
+mod trait_memberships;
+pub use trait_memberships::{SourceTraitMembership, trait_record_memberships};

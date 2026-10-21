@@ -1,8 +1,9 @@
+import { conditionDefinitions, type ConditionCoverage } from './condition-definitions.js';
 import { spawnSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { TypeGraph, TraitCatalog } from '../contracts.js';
-import { traitLabelKeys } from './trait-labels.js';
+import { traitDefinitions } from './trait-definitions.js';
 import { extract } from '../discovery/extract.js';
 import { sourceIdentity } from '../discovery/source-identity.js';
 import { selectPortfolioInput } from './portfolio-selection.js';
@@ -29,7 +30,10 @@ export async function preparePortfolio(args: { source?: string; cacheDir?: strin
   if (!summary.complete) throw new Error('Pinned source extraction is incomplete; inspect ' + extraction);
   const graph = JSON.parse(await readFile(path.join(extraction, 'type-graph.json'), 'utf8')) as TypeGraph;
   const input = selectPortfolioInput(graph, summary);
-  input.traitLabelKeys = traitLabelKeys(JSON.parse(await readFile(path.join(extraction, 'trait-catalog.json'), 'utf8')) as TraitCatalog);
+  const catalog = JSON.parse(await readFile(path.join(extraction, 'trait-catalog.json'), 'utf8')) as TraitCatalog;
+  input.traitDefinitions = traitDefinitions(catalog);
+  const conditionCoverage = JSON.parse(await readFile(path.join(repositoryRoot, 'dev-tools/source-contracts/fixtures/condition-rule-coverage.json'), 'utf8')) as ConditionCoverage;
+  input.conditionCatalog = await conditionDefinitions(source, new Set(input.traitDefinitions.map(entry => entry.identifier)), conditionCoverage);
   if (JSON.stringify(input.portfolio!.schemaRoots.flatMap(root => root.ruleKey ? [root.ruleKey] : []).sort())
     !== JSON.stringify([...pin.ruleKeys].sort())) throw new Error('Extracted rule keys do not match source-pin.json');
   input.referenceSource = { repository: pin.repository, commit: pin.commit, systemVersion: pin.systemVersion };

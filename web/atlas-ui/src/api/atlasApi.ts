@@ -541,18 +541,51 @@ export async function getEncounterConditionLifecycleActions(
   return {
     ...value,
     encounter_revision: toBigInt(value.encounter_revision),
-    actions: value.actions.map((action) => ({
-      ...action,
-      condition_id: action.condition_id === null ? null : toBigInt(action.condition_id),
-      source_condition_ids: action.source_condition_ids.map(toBigInt),
-      actions_lost: action.actions_lost === null ? null : toBigInt(action.actions_lost),
-      issues: action.issues.map((issue) => ({
-        ...issue,
-        source_condition_id: toBigInt(issue.source_condition_id),
-      })),
-      dc: action.dc === null ? null : toBigInt(action.dc),
-      modifier: action.modifier === null ? null : toBigInt(action.modifier),
-    })),
+    actions: value.actions.map((action) => {
+      const check =
+        "check" in action
+          ? {
+              dc: action.check.dc === null ? null : toBigInt(action.check.dc),
+              modifier:
+                action.check.modifier === null ? null : toBigInt(action.check.modifier),
+            }
+          : undefined;
+      switch (action.kind) {
+        case "dying_recovery":
+        case "wake_from_noise":
+          return { ...action, check: check! };
+        case "retch":
+          return {
+            ...action,
+            check: check!,
+            condition_id: toBigInt(action.condition_id),
+            issues: action.issues.map((issue) => ({
+              ...issue,
+              source_condition_id: toBigInt(issue.source_condition_id),
+            })),
+          };
+        case "frightened_end_turn":
+          return {
+            ...action,
+            decision_source_ids: action.decision_source_ids.map(toBigInt),
+          };
+        case "confused_damage_recovery":
+          return {
+            ...action,
+            check: check!,
+            source_condition_ids: action.source_condition_ids.map(toBigInt),
+          };
+        case "stunned_actions_lost":
+          return {
+            ...action,
+            condition_id: toBigInt(action.condition_id),
+            actions_lost:
+              action.actions_lost === null ? null : toBigInt(action.actions_lost),
+          };
+        default:
+          return action;
+      }
+    }),
   };
 }
 export async function applyEncounterConditionLifecycle(
@@ -1225,4 +1258,51 @@ export async function updateSavedListItemNote(
       body: jsonBody(request),
     },
   );
+}
+
+export async function getTraitDetail(
+  request: import("../generated/atlas").TraitDetailRequest,
+  signal?: AbortSignal,
+): Promise<import("../generated/atlas").TraitDetailView> {
+  const result: import("../generated/atlas").TraitDetailView = await atlasFetch(
+    "/api/traits/detail",
+    {
+      method: "POST",
+      body: jsonBody(request),
+      signal,
+    },
+  );
+  if (result.trait_key !== request.trait_key)
+    throw new Error("The trait response does not match this request. Retry.");
+  return result;
+}
+export async function getTraitRecords(
+  request: import("../generated/atlas").TraitRecordsRequest,
+  signal?: AbortSignal,
+): Promise<import("../generated/atlas").TraitRecordsPage> {
+  const result: import("../generated/atlas").TraitRecordsPage = await atlasFetch(
+    "/api/traits/records",
+    {
+      method: "POST",
+      body: jsonBody(request),
+      signal,
+    },
+  );
+  if (result.artifact_generation !== request.expected_artifact_generation)
+    throw new AtlasApiError(409, "Reference collection changed. Reload trait.", {
+      code: "artifact_generation_changed",
+      message: "Reference collection changed. Reload trait.",
+      recoverable_action: "reload_record",
+    });
+  if (result.trait_key !== request.trait_key || result.kind !== request.kind)
+    throw new Error("The trait response does not match this request. Retry.");
+  if (
+    request.kind === "similar" &&
+    request.search_profile != null &&
+    result.search_profile !== request.search_profile
+  )
+    throw new Error(
+      "The Similar response does not match the selected search model. Retry.",
+    );
+  return result;
 }

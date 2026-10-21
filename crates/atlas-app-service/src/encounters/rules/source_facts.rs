@@ -542,3 +542,93 @@ mod tests {
         );
     }
 }
+
+/// Eligibility consumes authored facts, independently of record rendering.
+pub(in crate::encounters) fn source_applicability(
+    record: &SourceBackedRecord,
+    hazard: bool,
+) -> super::ConditionApplicabilityFacts {
+    use atlas_record::source_record::ActorIwrEntry;
+    let actor = SourceQueryView::new(record.source(), record.key().pack().as_str(), "").actor();
+    let effective = super::effective_immunities::effective_immunities(record);
+    let immunities = super::ConditionImmunityFacts {
+        entries: effective
+            .entries
+            .into_iter()
+            .map(|entry| {
+                let coverage = match entry.authored {
+                    Some(ActorIwrEntry::Immunity(source)) => {
+                        immunity_coverage(&source.exceptions, true)
+                    }
+                    Some(ActorIwrEntry::SchemaImmunity(source)) => {
+                        immunity_coverage(&source.exceptions, false)
+                    }
+                    Some(_) => super::ImmunityCoverage::Unknown,
+                    None => super::ImmunityCoverage::Unconditional,
+                };
+                super::ConditionImmunity {
+                    slug: entry.kind,
+                    coverage,
+                }
+            })
+            .collect(),
+        authored_complete: effective.authored_complete,
+        uncertain_types: effective.uncertain_types,
+    };
+    // Pinned hazard/document.ts derives BT=floor(max/2) and hasHealth=max>0.
+    let maximum = hazard
+        .then(|| {
+            actor
+                .hp_maximum()
+                .value()
+                .and_then(serde_json::Number::as_f64)
+        })
+        .flatten();
+    super::ConditionApplicabilityFacts {
+        immunities,
+        broken_threshold_known_absent: maximum.is_some_and(|max| max <= 0.0),
+        broken_threshold: maximum
+            .filter(|max| *max > 0.0 && *max <= 9_007_199_254_740_991.0)
+            .map(|max| serde_json::Number::from((max / 2.0).floor() as i64)),
+    }
+}
+
+fn immunity_coverage<T>(
+    source: &atlas_foundry_model::SourcePresence<Vec<T>>,
+    optional: bool,
+) -> super::ImmunityCoverage {
+    use super::ImmunityCoverage;
+    use atlas_foundry_model::SourcePresence;
+    match source {
+        // Pinned actor/data/iwr.ts defaults omitted optional exceptions with `?? []`.
+        SourcePresence::Missing if optional => ImmunityCoverage::Unconditional,
+        SourcePresence::Value(values) if values.is_empty() => ImmunityCoverage::Unconditional,
+        SourcePresence::Value(_) => ImmunityCoverage::Conditional,
+        _ => ImmunityCoverage::Unknown,
+    }
+}
+
+#[cfg(test)]
+mod immunity_tests {
+    use super::super::ImmunityCoverage::*;
+    use super::*;
+    use atlas_foundry_model::SourcePresence;
+    #[test]
+    fn source_defaults_do_not_turn_unknown_exceptions_into_unconditional_immunity() {
+        let missing: SourcePresence<Vec<String>> = SourcePresence::Missing;
+        assert_eq!(immunity_coverage(&missing, true), Unconditional);
+        assert_eq!(immunity_coverage(&missing, false), Unknown);
+        assert_eq!(
+            immunity_coverage::<String>(&SourcePresence::Null, true),
+            Unknown
+        );
+        assert_eq!(
+            immunity_coverage(&SourcePresence::Value(Vec::<String>::new()), false),
+            Unconditional
+        );
+        assert_eq!(
+            immunity_coverage(&SourcePresence::Value(vec!["critical-hits"]), true),
+            Conditional
+        );
+    }
+}

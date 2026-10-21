@@ -420,10 +420,11 @@ mod tests {
         )
         .unwrap();
         let mut facts = ConditionApplicabilityFacts {
-            immunities: Some(vec![ConditionImmunity {
+            immunities: vec![ConditionImmunity {
                 slug: "frightened".into(),
-                exceptions: Some(vec!["except magic".into()]),
-            }]),
+                coverage: crate::encounters::rules::ImmunityCoverage::Conditional,
+            }]
+            .into(),
             broken_threshold: None,
             broken_threshold_known_absent: false,
         };
@@ -431,7 +432,8 @@ mod tests {
             condition_applicability(rule, &p, &facts),
             Some(atlas_app_model::EncounterConditionEligibilityView::NeedsContext { .. })
         ));
-        facts.immunities.as_mut().unwrap()[0].exceptions = Some(vec![]);
+        facts.immunities.entries[0].coverage =
+            crate::encounters::rules::ImmunityCoverage::Unconditional;
         assert!(matches!(
             condition_applicability(rule, &p, &facts),
             Some(atlas_app_model::EncounterConditionEligibilityView::Immune { .. })

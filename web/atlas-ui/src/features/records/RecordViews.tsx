@@ -1,3 +1,4 @@
+import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { ExternalLink, X } from "lucide-react";
 import type React from "react";
 import { useEffect } from "react";
@@ -8,7 +9,7 @@ import {
 import { ReferenceReader } from "../../shared/records/ReferenceReader";
 import { Typography } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
-import { PaneFrame, ResizablePaneGroup } from "../../shared/layout/PaneLayout";
+import { ResizablePaneGroup } from "../../shared/layout/PaneLayout";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
 import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
@@ -40,7 +41,7 @@ export function RecordView({ route }: RecordViewProps) {
     <>
       <RecordViewLayout
         primary={
-          <RecordPane
+          <DocumentPagePane
             actions={
               <>
                 <AddToListButton recordKey={route.recordKey} />
@@ -57,7 +58,6 @@ export function RecordView({ route }: RecordViewProps) {
                 </RouteLink>
               </>
             }
-            title="Record Detail"
           >
             <RecordDetailPane
               detail={detail.data}
@@ -75,7 +75,7 @@ export function RecordView({ route }: RecordViewProps) {
                   });
               }}
             />
-          </RecordPane>
+          </DocumentPagePane>
         }
       />
       {preview.recordKey && (
@@ -141,7 +141,7 @@ export function ReaderView({ route }: ReaderViewProps) {
   return (
     <RecordViewLayout
       primary={
-        <RecordPane
+        <DocumentPagePane
           title="Reader"
           actions={
             <>
@@ -183,7 +183,7 @@ export function ReaderView({ route }: ReaderViewProps) {
               navigateToAtlasRoute({ ...route, previewRecordKey, previewSelection })
             }
           />
-        </RecordPane>
+        </DocumentPagePane>
       }
       auxiliary={
         <ReferenceReader
@@ -264,22 +264,6 @@ function RecordViewLayout({
     />
   ) : (
     <main className="record-view">{primary}</main>
-  );
-}
-
-function RecordPane({
-  actions,
-  children,
-  title,
-}: {
-  actions?: React.ReactNode;
-  children: React.ReactNode;
-  title: string;
-}) {
-  return (
-    <PaneFrame className="record-view__pane" headerActions={actions} label={title}>
-      {children}
-    </PaneFrame>
   );
 }
 

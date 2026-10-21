@@ -131,9 +131,6 @@ impl Ability {
             _ => None,
         }
     }
-    pub(crate) fn mental(self) -> bool {
-        matches!(self, Self::Intelligence | Self::Wisdom | Self::Charisma)
-    }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SpellUsage {

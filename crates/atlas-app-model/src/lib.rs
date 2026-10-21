@@ -25,27 +25,31 @@ pub use persistent_damage::{
 };
 mod hp_events;
 pub use hp_events::{
-    ApplyEncounterHpEventRequest, DamageLethalityView, HpEventContextView, HpEventInputView,
-    HpLifecycleRequiredFactView, HpLifecycleResolutionView, PendingHpLifecycleView,
-    ResolveEncounterHpLifecycleRequest,
+    DamageLethalityView, HpEventContextView, HpLifecycleRequiredFactView,
+    HpLifecycleResolutionView, PendingHpLifecycleView, ResolveEncounterHpLifecycleRequest,
 };
 mod condition_recovery;
 pub use condition_recovery::{
-    ApplyConditionLifecycleRequest, CheckDegreeView, ConditionLifecycleActionKindView,
-    ConditionLifecycleActionView, ConditionLifecycleActionsView, ConditionLifecycleOptionView,
-    ConditionLifecycleResultView, FrightenedRecoveryView, FrightenedSourceDecisionView,
-    LifecycleCheckInputView, LifecycleCheckResultView, LifecycleInputKindView,
+    ApplyConditionLifecycleRequest, CheckDegreeView, ConditionLifecycleActionView,
+    ConditionLifecycleActionsView, ConditionLifecycleOptionView, ConditionLifecycleResultView,
+    ConditionRecoveryOfferView, FrightenedRecoveryView, FrightenedSourceDecisionView,
+    LifecycleCheckFactsView, LifecycleCheckInputView, LifecycleCheckResultView,
     PendingConditionRecoveryView, WakeCauseView,
 };
 mod condition_events;
 pub use condition_events::{
     ConditionApplicationDecisionsView, ConditionEditorKindView, ConditionEventConsequenceView,
     ConditionEventIntentView, ConditionEventPreviewView, ConditionOriginView,
-    ConditionParametersView, ConditionRemovalIntentView, ConditionSubjectView,
-    DamageMultiplierView, EncounterDamageTypeView, LevelOverrideInputView, MortalityStateView,
-    PendingConditionConsequenceView, PersistentRecoveryView,
+    ConditionParametersInputView, ConditionParametersView, ConditionRemovalIntentView,
+    ConditionSubjectView, DamageMultiplierView, EncounterDamageTypeView, LevelOverrideInputView,
+    MortalityStateView, PendingConditionConsequenceView, PersistentRecoveryView,
     RemoveEncounterParticipantConditionRequest, ResolveDrainedConsequenceRequest,
     SetEncounterLifeSettingsRequest, WakingRuleView,
+};
+mod traits;
+pub use traits::{
+    TraitAssociationKind, TraitContentView, TraitDetailRequest, TraitDetailView, TraitRecordView,
+    TraitRecordsPage, TraitRecordsRequest,
 };
 mod table_roll;
 pub use table_roll::{RollTableRequest, TableRollView};
@@ -135,6 +139,7 @@ pub use list::{
 };
 pub use prepared_content::{
     ContentControlKindView, ContentControlView, PreparedContentFieldView, PreparedFieldBodyView,
+    PreparedReferenceView,
 };
 pub use presentation::{
     ActionCostView, ActionGlyphView, ActivityEffectReferenceView, ActivityFrequencyView,
@@ -209,11 +214,11 @@ mod tests {
         EncounterRetchPreviewView::export_all_to(path).expect("retch decisions");
         EncounterRetchPreviewRequest::export_all_to(path).expect("action request bindings");
         EncounterStrikeActionContextView::export_all_to(path).expect("action preview bindings");
+        ConditionRecoveryOfferView::export_all_to(path).expect("recovery offer bindings");
         ConditionLifecycleActionsView::export_all_to(path).expect("lifecycle actions bindings");
         ApplyConditionLifecycleRequest::export_all_to(path).expect("lifecycle request bindings");
         ConditionLifecycleResultView::export_all_to(path).expect("lifecycle result bindings");
         PendingConditionRecoveryView::export_all_to(path).expect("pending recovery bindings");
-        ApplyEncounterHpEventRequest::export_all_to(path).expect("HP event bindings");
         ResolveEncounterHpLifecycleRequest::export_all_to(path)
             .expect("HP lifecycle resolution bindings");
         PendingHpLifecycleView::export_all_to(path).expect("pending HP lifecycle bindings");
@@ -338,6 +343,10 @@ mod tests {
             .expect("UpdateEncounterParticipantRequest bindings should export");
         SearchResultsRequest::export_all_to(path)
             .expect("SearchResultsRequest bindings should export");
+        TraitDetailRequest::export_all_to(path).expect("trait request bindings");
+        TraitDetailView::export_all_to(path).expect("trait detail bindings");
+        TraitRecordsRequest::export_all_to(path).expect("trait associations request bindings");
+        TraitRecordsPage::export_all_to(path).expect("trait associations bindings");
         RecordDetailView::export_all_to(path).expect("RecordDetailView bindings should export");
 
         RecordResolutionAmbiguousView::export_all_to(path)

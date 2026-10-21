@@ -18,6 +18,8 @@ pub enum LocalStateError {
     RollRequestConflict,
     #[error("Invalid roll request: {0}")]
     InvalidRollRequest(&'static str),
+    #[error("{0}")]
+    InvalidConditionEvent(String),
     #[error("Dice evaluation failed: {0}")]
     Dice(#[from] atlas_dice::DiceError),
     #[error("Roll receipt is not valid: {0}")]

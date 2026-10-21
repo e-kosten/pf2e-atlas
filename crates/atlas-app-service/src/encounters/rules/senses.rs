@@ -42,22 +42,22 @@ pub(in crate::encounters) fn availability(
 }
 
 /// Blinded's nonvisual penalty is unresolved when a precise alternative may apply.
-pub(in crate::encounters) fn blinded_penalty(
+pub(in crate::encounters) fn blinded_penalty_applies(
     senses: &[SenseFacts],
     distance_feet: Option<f64>,
-) -> Option<i64> {
+) -> Option<bool> {
     let mut uncertain = false;
     for sense in senses {
         if sense.visual || sense.precision != Some(Precision::Precise) {
             continue;
         }
         match availability(*sense, true, distance_feet) {
-            Availability::Available => return Some(0),
+            Availability::Available => return Some(false),
             Availability::NeedsContext => uncertain = true,
             Availability::Unavailable => {}
         }
     }
-    (!uncertain).then_some(-4)
+    (!uncertain).then_some(true)
 }
 
 #[cfg(test)]
@@ -72,9 +72,9 @@ mod tests {
             range_feet: Some(40.0),
             available: Some(true),
         };
-        assert_eq!(blinded_penalty(&[sense], None), None);
-        assert_eq!(blinded_penalty(&[sense], Some(30.0)), Some(0));
-        assert_eq!(blinded_penalty(&[sense], Some(50.0)), Some(-4));
+        assert_eq!(blinded_penalty_applies(&[sense], None), None);
+        assert_eq!(blinded_penalty_applies(&[sense], Some(30.0)), Some(false));
+        assert_eq!(blinded_penalty_applies(&[sense], Some(50.0)), Some(true));
     }
     #[test]
     fn blinded_disables_vision_without_disabling_hearing() {
@@ -97,6 +97,6 @@ mod tests {
             ),
             Availability::Unavailable
         );
-        assert_eq!(blinded_penalty(&[hearing], None), Some(-4));
+        assert_eq!(blinded_penalty_applies(&[hearing], None), Some(true));
     }
 }

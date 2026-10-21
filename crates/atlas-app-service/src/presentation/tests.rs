@@ -1644,3 +1644,142 @@ fn empty_scroll_has_no_invented_spell_link() {
         .is_empty()
     );
 }
+
+#[test]
+fn selected_kind_labels_are_title_case_without_changing_source_identifiers() {
+    let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"aaaaaaaaaaaaaaaa","name":"Owner","type":"npc","system":{"details":{"level":{"value":4}}},"items":[
+                            {"_id":"bbbbbbbbbbbbbbbb","name":"Tool","type":"equipment","system":{"level":{"value":0}}},
+                            {"_id":"cccccccccccccccc","name":"Activity","type":"action"},
+                            {"_id":"dddddddddddddddd","name":"Casting","type":"spellcastingEntry"},
+                            {"_id":"eeeeeeeeeeeeeeee","name":"Campaign feature","type":"campaignFeature"}
+                        ]}),
+                    ),
+                    record(
+                        "tables",
+                        "RollTable",
+                        json!({"_id":"ffffffffffffffff","name":"Table","formula":"1d1","results":[{"_id":"gggggggggggggggg","type":"text","description":"Result","range":[1,1]}]}),
+                    ),
+                    record(
+                        "journals",
+                        "JournalEntry",
+                        json!({"_id":"hhhhhhhhhhhhhhhh","name":"Journal","pages":[{"_id":"iiiiiiiiiiiiiiii","name":"Document","type":"pdf","src":"manual.pdf"}]}),
+                    ),
+                    record(
+                        "features",
+                        "Item",
+                        json!({"_id":"jjjjjjjjjjjjjjjj","name":"Feature","type":"campaignFeature"}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    for (key, kind, source_type, label) in [
+        (
+            "actors:aaaaaaaaaaaaaaaa",
+            "creature",
+            Some("npc"),
+            "Creature",
+        ),
+        ("tables:ffffffffffffffff", "roll_table", None, "Roll Table"),
+        ("journals:hhhhhhhhhhhhhhhh", "lore", None, "Lore"),
+        (
+            "features:jjjjjjjjjjjjjjjj",
+            "campaign_feature",
+            Some("campaignFeature"),
+            "Campaign Feature",
+        ),
+    ] {
+        let detail = fixture.worker.record_detail(key).unwrap();
+        assert_eq!(detail.presentation.identity.kind, kind);
+        assert_eq!(
+            detail.presentation.identity.source_type.as_deref(),
+            source_type
+        );
+        assert_eq!(detail.record.record_key, key);
+        assert_eq!(detail.presentation.identity.kind_label, label);
+        assert!(detail.presentation.classification.starts_with(label));
+    }
+    for (key, collection, id, raw, label, classification) in [
+        (
+            "actors:aaaaaaaaaaaaaaaa",
+            "/items",
+            "bbbbbbbbbbbbbbbb",
+            "equipment",
+            "Equipment",
+            "Equipment 0",
+        ),
+        (
+            "actors:aaaaaaaaaaaaaaaa",
+            "/items",
+            "cccccccccccccccc",
+            "action",
+            "Ability",
+            "Ability",
+        ),
+        (
+            "actors:aaaaaaaaaaaaaaaa",
+            "/items",
+            "dddddddddddddddd",
+            "spellcastingEntry",
+            "Spellcasting",
+            "Spellcasting",
+        ),
+        (
+            "actors:aaaaaaaaaaaaaaaa",
+            "/items",
+            "eeeeeeeeeeeeeeee",
+            "campaignFeature",
+            "Campaign Feature",
+            "Campaign Feature · level unavailable",
+        ),
+        (
+            "tables:ffffffffffffffff",
+            "/results",
+            "gggggggggggggggg",
+            "TableResult",
+            "Table Result",
+            "Table Result",
+        ),
+        (
+            "journals:hhhhhhhhhhhhhhhh",
+            "/pages",
+            "iiiiiiiiiiiiiiii",
+            "pdf",
+            "PDF",
+            "PDF",
+        ),
+    ] {
+        let detail = fixture
+            .worker
+            .record_detail_at(RecordDetailRequest {
+                record_key: key.into(),
+                spell_rank: None,
+                owners: vec![atlas_record::source_content::OwnedContentLocator {
+                    collection: collection.into(),
+                    identity: atlas_record::source_content::OwnedContentIdentity::Stable(id.into()),
+                }],
+                fields: vec![],
+                passage: None,
+                source_fingerprint: None,
+            })
+            .unwrap();
+        assert_eq!(detail.presentation.identity.kind, raw);
+        assert_eq!(
+            detail.presentation.identity.source_type.as_deref(),
+            Some(raw)
+        );
+        assert_eq!(detail.presentation.identity.kind_label, label);
+        assert_eq!(detail.presentation.classification, classification);
+        assert_eq!(detail.record.record_key, key);
+    }
+}

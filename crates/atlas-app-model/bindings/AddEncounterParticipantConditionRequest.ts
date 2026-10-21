@@ -4,7 +4,7 @@ import type { ConditionDurationView } from "./ConditionDurationView";
 import type { ConditionEventIntentView } from "./ConditionEventIntentView";
 import type { ConditionExtraActionView } from "./ConditionExtraActionView";
 import type { ConditionOriginView } from "./ConditionOriginView";
-import type { ConditionParametersView } from "./ConditionParametersView";
+import type { ConditionParametersInputView } from "./ConditionParametersInputView";
 import type { ConditionScopeView } from "./ConditionScopeView";
 
-export type AddEncounterParticipantConditionRequest = { request_id: string, expected_encounter_revision: bigint, event_intent: ConditionEventIntentView, decisions: ConditionApplicationDecisionsView, participant_key: string, condition_ref?: string, name?: string, value?: bigint, source_participant_key?: string, scope: ConditionScopeView, extra_action: ConditionExtraActionView, immunity_override: boolean, parameters: ConditionParametersView, origin?: ConditionOriginView, duration?: ConditionDurationView, note?: string, };
+export type AddEncounterParticipantConditionRequest = { request_id: string, expected_encounter_revision: bigint, event_intent: ConditionEventIntentView, decisions: ConditionApplicationDecisionsView, participant_key: string, condition_ref?: string, name?: string, value?: bigint, source_participant_key?: string, scope: ConditionScopeView, extra_action: ConditionExtraActionView, immunity_override: boolean, parameters: ConditionParametersInputView, origin?: ConditionOriginView, duration?: ConditionDurationView, note?: string, };

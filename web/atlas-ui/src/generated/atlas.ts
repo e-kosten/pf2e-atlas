@@ -292,3 +292,22 @@ export type { EncounterRetchPreviewView } from "../../../../crates/atlas-app-mod
 export type { EncounterStrikeActionContextView } from "../../../../crates/atlas-app-model/bindings/EncounterStrikeActionContextView";
 
 export type { EncounterActionCheckView } from "../../../../crates/atlas-app-model/bindings/EncounterActionCheckView";
+export type { ConditionRecoveryOfferView } from "../../../../crates/atlas-app-model/bindings/ConditionRecoveryOfferView";
+export type { LifecycleCheckFactsView } from "../../../../crates/atlas-app-model/bindings/LifecycleCheckFactsView";
+export type { ConditionParametersInputView } from "../../../../crates/atlas-app-model/bindings/ConditionParametersInputView";
+
+export type { TraitDetailRequest } from "../../../../crates/atlas-app-model/bindings/TraitDetailRequest";
+
+export type { TraitDetailView } from "../../../../crates/atlas-app-model/bindings/TraitDetailView";
+
+export type { TraitRecordsRequest } from "../../../../crates/atlas-app-model/bindings/TraitRecordsRequest";
+
+export type { TraitRecordsPage } from "../../../../crates/atlas-app-model/bindings/TraitRecordsPage";
+
+export type { TraitAssociationKind } from "../../../../crates/atlas-app-model/bindings/TraitAssociationKind";
+
+export type { TraitRecordView } from "../../../../crates/atlas-app-model/bindings/TraitRecordView";
+
+export type { TraitContentView } from "../../../../crates/atlas-app-model/bindings/TraitContentView";
+
+export type { PreparedReferenceView } from "../../../../crates/atlas-app-model/bindings/PreparedReferenceView";

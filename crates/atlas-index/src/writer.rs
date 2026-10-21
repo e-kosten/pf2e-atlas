@@ -108,6 +108,9 @@ impl SourceSearchProfileIdentity {
     }
 }
 pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), IndexError> {
+    if c.trait_policy != "trait-definition-centroid/v1" {
+        return Err(IndexError::Unsupported("trait preparation policy".into()));
+    }
     if c.format_version != ARTIFACT_FORMAT_VERSION
         || c.snapshot_version != SNAPSHOT_VERSION
         || c.source_contract != SOURCE_CONTRACT_ID
@@ -284,6 +287,13 @@ fn validate_input(input: &IndexBuildInput) -> Result<(), IndexError> {
     Ok(())
 }
 fn write_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError> {
+    crate::traits::write_traits(c, input)?;
+    write_record_rows(c, input)
+}
+
+/// Record-component composition is shared with deliberately historical fixtures;
+/// ordinary publication always includes the vocabulary component above.
+pub(crate) fn write_record_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError> {
     tracing::info!(target:"atlas_progress",phase="artifact_identity","Updating record identities");
     let mut canonical = input.context.clone();
     canonical.search_profiles = input.context.canonical_profiles()?;

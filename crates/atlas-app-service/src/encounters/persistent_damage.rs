@@ -1,3 +1,4 @@
+use super::event_execution::EncounterEvent;
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::{
     DamageMultiplierView, PersistentDamageGroupView, PersistentDamageSourceView,
@@ -201,12 +202,10 @@ impl AtlasAppService {
             } else {
                 vec![]
             };
-            let receipt = store.apply_condition_event_with_claims(
-                &encounter.encounter_key,
-                &request.request_id,
-                &intent,
-                request.expected_encounter_revision,
-                atlas_local_state::ConditionEventBoundary { claims:&claims, outgoing_boundary_key:request.boundary_key.as_deref() },
+            let receipt = EncounterEvent {
+                encounter_key: &encounter.encounter_key, request_id: &request.request_id, intent: &intent,
+                expected_revision: request.expected_encounter_revision, reference_revision: None, participant_revision: None,
+            }.evaluate_in(session, atlas_local_state::ConditionEventBoundary { claims: &claims, outgoing_boundary_key: request.boundary_key.as_deref() },
                 || {
                     let roll = if dc.is_some_and(|dc|(2..=20).contains(&dc)) {Some(atlas_dice::roll("1d20")?)} else {None};
                     let result = roll.as_ref().map(|roll| i64::from(roll.total));

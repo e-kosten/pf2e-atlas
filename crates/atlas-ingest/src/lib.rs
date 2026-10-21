@@ -41,3 +41,5 @@ pub fn build_artifact(
 ) -> Result<BuildArtifactReport, IngestError> {
     build::build_artifact(workspace, schema, options)
 }
+
+mod traits;

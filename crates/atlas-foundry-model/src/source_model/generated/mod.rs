@@ -797,5 +797,9 @@ pub use rules::token_mark::parse_token_mark_rule;
 pub use rules::token_name::parse_token_name_rule;
 pub use rules::weakness::parse_weakness_rule;
 
-mod trait_labels;
-pub use trait_labels::trait_label_key;
+mod trait_definitions;
+pub use trait_definitions::{
+    FoundryTraitDefinition, FoundryTraitSourceLocation, trait_definition, trait_definitions,
+};
+
+pub mod condition_definitions;

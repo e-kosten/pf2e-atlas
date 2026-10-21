@@ -8,10 +8,11 @@ pub(super) use projection::{
 };
 mod applicability;
 pub(super) use applicability::{
-    ConditionApplicabilityFacts, ConditionImmunity, condition_applicability,
+    ConditionApplicabilityFacts, ConditionImmunity, ConditionImmunityFacts, ImmunityCoverage,
+    condition_applicability,
 };
 mod source_facts;
-pub(super) use source_facts::source_baseline;
+pub(super) use source_facts::{source_applicability, source_baseline};
 
 pub(in crate::encounters) mod causes;
 
@@ -38,3 +39,9 @@ pub(super) mod lifecycle;
 pub(crate) use modifiers::attack_progression;
 
 pub(in crate::encounters) mod sensory_context;
+
+mod condition_effects;
+
+pub(super) use condition_effects::hp_loss as condition_hp_loss;
+
+mod effective_immunities;

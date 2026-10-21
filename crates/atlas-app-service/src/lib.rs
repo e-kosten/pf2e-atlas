@@ -26,6 +26,7 @@ mod retrieval;
 mod search_pages;
 mod service;
 mod table_roll;
+mod traits;
 
 #[cfg(test)]
 mod embedded_reading_tests;

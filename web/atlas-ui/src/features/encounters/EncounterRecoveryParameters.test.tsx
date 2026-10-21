@@ -1,33 +1,18 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  encounterParticipant,
+  renderEncounter as render,
+} from "./encounterTestFixtures";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { EncounterConditionControls } from "./EncounterConditionControls";
 import type {
   EncounterConditionDefinitionView,
   EncounterParticipantView,
 } from "../../generated/atlas";
-const actor: EncounterParticipantView = {
-  participant_key: "actor",
-  display_name: "Actor",
+const actor = encounterParticipant({
   participant_kind: "creature",
-  revision: 1n,
-  hp_origin: "explicit",
-  variant_origin: "explicit",
-  participant_variant: "normal",
-  status: "active",
-  position: 1n,
   side: "enemy",
-  initiative_order: 1n,
-  temporary_hp: 0n,
-  defeated: false,
-  hazard_disabled: false,
-  cast_unavailable_reason: null,
-  hidden: false,
-  note_hint: null,
   track_dying: false,
-  mortality: "alive",
-  base_death_threshold: 4n,
-  persistent_damage_groups: [],
-  conditions: [],
-};
+});
 const definition: EncounterConditionDefinitionView = {
   condition_ref: "conditionitems:effect",
   name: "Source effect",

@@ -1,3 +1,8 @@
+import { conditionDraft, type ConditionFormValues } from "./conditionDraft";
+import {
+  useConditionEventPreview,
+  type ConditionEventInput,
+} from "./useConditionEventPreview";
 import {
   Alert,
   Button,
@@ -20,52 +25,6 @@ import type {
   EncounterParticipantView,
 } from "../../generated/atlas";
 
-type Duration = NonNullable<EncounterParticipantConditionView["duration"]>;
-export type ConditionFormValues = {
-  conditionRef?: string;
-  stunMode?: "value" | "duration";
-  value?: number | null;
-  durationAmount?: number | null;
-  durationUnit: Duration["unit"] | "none";
-  durationEvent?: "start" | "end";
-  durationParticipant?: string;
-  sourceParticipantKey?: string;
-  note?: string;
-  againstKeys?: string[];
-  extraActionMode?: "unspecified" | "unrestricted" | "restricted";
-  extraActions?: Array<
-    | "stride"
-    | "strike"
-    | "step"
-    | "leap"
-    | "stand"
-    | "interact"
-    | "cast_spell"
-    | "sustain"
-    | "escape"
-    | "crawl"
-    | "fly"
-    | "swim"
-    | "climb"
-    | "burrow"
-  >;
-  extraActionGuidance?: string;
-  extraActionKeys?: string[];
-  immunityOverride?: boolean;
-  persistentFormula?: string;
-  persistentDamageType?: string;
-  persistentMultiplier?: "normal" | "double" | "half";
-  persistentRecoveryDcEdited?: boolean;
-  persistentRecoveryDc?: number | null;
-  sickenedRecoveryDc?: number | null;
-  wakingRule?: "normal" | "source_controlled";
-  attitudeSupernatural?: boolean;
-  conditionSubject?: string;
-  conditionSubjectDescription?: string;
-  frightenedRecovery?: "end_turn" | "held" | "source_dependent";
-  frightenedMinimum?: number | null;
-  brokenThreshold?: number | null;
-};
 const durationFields: Array<keyof ConditionFormValues> = [
   "durationAmount",
   "durationUnit",
@@ -84,28 +43,6 @@ export const integerRule = (required: boolean) => ({
   },
 });
 
-export function conditionDuration(values: ConditionFormValues): Duration | undefined {
-  if (
-    values.durationUnit === "none" ||
-    values.durationAmount === null ||
-    values.durationAmount === undefined
-  )
-    return undefined;
-  return {
-    amount: BigInt(values.durationAmount),
-    unit: values.durationUnit,
-    timing:
-      values.durationUnit === "rounds" &&
-      values.durationEvent &&
-      values.durationParticipant
-        ? {
-            participant_key: values.durationParticipant,
-            event: values.durationEvent,
-          }
-        : null,
-  };
-}
-
 export function EncounterConditionEditor({
   condition,
   formId,
@@ -120,9 +57,8 @@ export function EncounterConditionEditor({
   pending,
   error,
   recovery,
-  review,
-  previewReady = true,
-  onDraftChange,
+  revision,
+  onPreview,
   onSave,
   onCancel,
   onRemove,
@@ -135,23 +71,28 @@ export function EncounterConditionEditor({
   damageTypes?: Array<{ value: string; label: string }>;
   standardRecoveryDc?: bigint;
   participants: EncounterParticipantView[];
-  participantKey?: string;
+  participantKey: string;
   participantKind?: EncounterParticipantView["participant_kind"];
   disabled: boolean;
   pending: boolean;
   error?: string;
   recovery?: ReactNode;
-  review?: ReactNode;
-  previewReady?: boolean;
-  onDraftChange?: (
-    values: ConditionFormValues | undefined,
-    durationEdited: boolean,
-  ) => void;
-  onSave: (values: ConditionFormValues, durationEdited: boolean) => Promise<void>;
+  revision: bigint;
+  onPreview: (
+    input: ConditionEventInput,
+  ) => Promise<import("../../generated/atlas").ConditionEventPreviewView>;
+  onSave: (input: ConditionEventInput) => Promise<void>;
   onCancel: () => void;
   onRemove?: () => void;
   onReload?: () => void;
 }) {
+  const preview = useConditionEventPreview(participants, onPreview);
+  const review = (
+    <>
+      {preview.review}
+      {preview.errorNotice}
+    </>
+  );
   const name = useId();
   const [form] = Form.useForm<ConditionFormValues>();
   const [detailsOpen, setDetailsOpen] = useState(
@@ -300,35 +241,50 @@ export function EncounterConditionEditor({
         : Promise.reject(new Error("Choose when these rounds count down."));
     },
   };
-  const normalizeDraft = (values: ConditionFormValues): ConditionFormValues => {
+  const normalizeDraft = (values: ConditionFormValues): ConditionEventInput => {
     const keys = values.extraActionKeys ?? ["unspecified"];
-    return {
-      ...values,
-      persistentRecoveryDcEdited: form.isFieldTouched("persistentRecoveryDc"),
-      value: values.stunMode === "duration" ? undefined : values.value,
-      immunityOverride:
-        eligibility?.kind === "immune" || !!condition?.immunity_override,
-      extraActionMode: keys.includes("unspecified")
-        ? "unspecified"
-        : keys.includes("unrestricted")
-          ? "unrestricted"
-          : "restricted",
-      extraActionGuidance: keys.includes("custom")
-        ? values.extraActionGuidance
-        : undefined,
-      extraActions: keys.filter(
-        (key) => !["unspecified", "unrestricted", "custom"].includes(key),
-      ) as ConditionFormValues["extraActions"],
-    };
+    return conditionDraft(
+      {
+        ...values,
+        persistentRecoveryDcEdited: form.isFieldTouched("persistentRecoveryDc"),
+        value: values.stunMode === "duration" ? undefined : values.value,
+        immunityOverride:
+          eligibility?.kind === "immune" || !!condition?.immunity_override,
+        extraActionMode: keys.includes("unspecified")
+          ? "unspecified"
+          : keys.includes("unrestricted")
+            ? "unrestricted"
+            : "restricted",
+        extraActionGuidance: keys.includes("custom")
+          ? values.extraActionGuidance
+          : undefined,
+        extraActions: keys.filter(
+          (key) => !["unspecified", "unrestricted", "custom"].includes(key),
+        ) as ConditionFormValues["extraActions"],
+      },
+      form.isFieldsTouched(durationFields) || form.isFieldTouched("stunMode"),
+      revision,
+      participantKey,
+      definition,
+      condition,
+    );
   };
   const watchedDraft = Form.useWatch((values) => values, form);
   const draftIdentity = JSON.stringify(watchedDraft);
-  const notifyDraft = useEffectEvent((values: ConditionFormValues | undefined) =>
-    onDraftChange?.(
-      values ? normalizeDraft(values) : undefined,
-      form.isFieldsTouched(durationFields) || form.isFieldTouched("stunMode"),
-    ),
-  );
+  const [validatedFields, setValidatedFields] = useState<string>();
+  const previewReady = preview.ready && validatedFields === draftIdentity;
+  const notifyDraft = useEffectEvent((values: ConditionFormValues | undefined) => {
+    setValidatedFields(values ? draftIdentity : undefined);
+    if (!values) {
+      preview.reset();
+      return;
+    }
+    try {
+      preview.setDraft(normalizeDraft(values));
+    } catch {
+      preview.reset();
+    }
+  });
   useEffect(() => {
     let active = true;
     void form
@@ -487,10 +443,7 @@ export function EncounterConditionEditor({
         onFinish={async (values) => {
           if (disabled || onReload || !previewReady) return;
           try {
-            await onSave(
-              normalizeDraft(values),
-              form.isFieldsTouched(durationFields) || form.isFieldTouched("stunMode"),
-            );
+            await onSave(preview.apply(normalizeDraft(values)));
           } catch {
             /* Retain draft. */
           }

@@ -1,4 +1,4 @@
--- Final condition-system schema, applied directly after the published party migration.
+-- Final condition-system schema, following the published party and trait migrations.
 ALTER TABLE encounter_participant_conditions ADD COLUMN scope_json TEXT NOT NULL DEFAULT '{"kind":"everyone"}';
 ALTER TABLE encounter_participant_conditions ADD COLUMN extra_action_json TEXT NOT NULL DEFAULT '{"kind":"unspecified"}';
 ALTER TABLE encounter_participant_conditions ADD COLUMN immunity_override INTEGER NOT NULL DEFAULT 0 CHECK(immunity_override IN (0,1));

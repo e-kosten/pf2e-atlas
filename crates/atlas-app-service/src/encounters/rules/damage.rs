@@ -59,10 +59,44 @@ pub(in crate::encounters) fn persistent_protection(
         hardness,
         ..Default::default()
     };
-    for kind in [
-        ActorIwrKind::Immunity,
-        ActorIwrKind::Weakness,
-        ActorIwrKind::Resistance,
+    let immunities = super::effective_immunities::effective_immunities(record);
+    let mut unresolved = (!immunities.authored_complete)
+        .then(|| "Damage immunities are unavailable; enter the table result.".to_owned());
+    for entry in immunities.entries {
+        match matches_type(&entry.kind, damage_type) {
+            Some(false) => {}
+            Some(true) if !entry.authored.is_some_and(has_qualifiers) => {
+                // One established unconditional immunity proves zero even when other facts are unknown.
+                result.immune = true;
+                return Ok(result);
+            }
+            Some(true) => {
+                unresolved = Some(format!(
+                    "Resolve the {} protection's exceptions, then enter the table result.",
+                    entry.kind
+                ))
+            }
+            None => {
+                unresolved = Some(format!(
+                    "Resolve {} against {damage_type}, then enter the table result.",
+                    entry.kind
+                ))
+            }
+        }
+    }
+    for kind in immunities.uncertain_types {
+        if matches_type(kind, damage_type) != Some(false) {
+            unresolved = Some(
+                "Trait-derived damage immunities are unavailable; enter the table result.".into(),
+            );
+        }
+    }
+    if let Some(reason) = unresolved {
+        return Err(reason);
+    }
+    for (kind, weakness) in [
+        (ActorIwrKind::Weakness, true),
+        (ActorIwrKind::Resistance, false),
     ] {
         let entries = actor.iwr(kind).value().ok_or_else(|| {
             "Damage protections are unavailable; enter the table result.".to_owned()
@@ -92,12 +126,10 @@ pub(in crate::encounters) fn persistent_protection(
                     "Resolve the {selector} protection's exceptions, then enter the table result."
                 ));
             }
-            match kind {
-                ActorIwrKind::Immunity => result.immune = true,
-                ActorIwrKind::Weakness => result.weakness = result.weakness.max(magnitude(entry)?),
-                ActorIwrKind::Resistance => {
-                    result.resistance = result.resistance.max(magnitude(entry)?)
-                }
+            if weakness {
+                result.weakness = result.weakness.max(magnitude(entry)?);
+            } else {
+                result.resistance = result.resistance.max(magnitude(entry)?);
             }
         }
     }
@@ -145,13 +177,13 @@ fn matches_type(selector: &str, damage_type: &str) -> Option<bool> {
             "acid" | "cold" | "electricity" | "fire" | "force" | "sonic" | "vitality" | "void"
         )),
         "object-immunities" => Some(object_damage_immunity(damage_type)),
-        // These are condition/effect immunities, not damage-type protections.
-        "blinded" | "broken" | "clumsy" | "concealed" | "confused" | "controlled" | "dazzled"
-        | "deafened" | "doomed" | "drained" | "dying" | "encumbered" | "enfeebled"
-        | "fascinated" | "fatigued" | "fleeing" | "frightened" | "grabbed" | "immobilized"
-        | "invisible" | "off-guard" | "paralyzed" | "petrified" | "prone" | "quickened"
-        | "restrained" | "sickened" | "slowed" | "stunned" | "stupefied" | "unconscious"
-        | "wounded" => Some(false),
+        // Native condition identifiers describe effect immunity, not damage protection.
+        kind if atlas_foundry_model::generated::condition_definitions::CONDITION_DEFINITIONS
+            .iter()
+            .any(|definition| definition.slug == kind) =>
+        {
+            Some(false)
+        }
         _ => None,
     }
 }

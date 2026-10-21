@@ -29,3 +29,6 @@ pub use record_key::{PackName, RecordId, RecordKey, RecordKeyParseError};
 
 mod search_ranking;
 pub use search_ranking::SearchRanking;
+
+mod trait_key;
+pub use trait_key::{TraitKey, TraitKeyParseError};

@@ -32,7 +32,7 @@ fn startup_backfills_query_and_lexical_rows_together() {
 }
 
 #[test]
-fn startup_backfills_populated_schema_two_after_sql_migration() {
+fn startup_migrates_populated_schema_two_and_preserves_pending_trait_preparation() {
     assert_projection_backfill(false, true, 2);
 }
 
@@ -52,7 +52,6 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     );
     let input = atlas_search::test_support::input(vec![record], true);
     if initial_schema == 2 {
-        use atlas_index::IndexArtifactWriter;
         crate::workspace::register_extensions().unwrap();
         let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
         workspace
@@ -74,9 +73,17 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
             .unwrap();
         let owner = workspace.update_owner().unwrap();
         let maintenance = owner.maintenance(2, "old workspace fixture").unwrap();
-        atlas_index::SqliteIndexWriter::new(&maintenance)
-            .write(&input)
-            .unwrap();
+        atlas_index::test_support::publish_historical_record_fixture(&maintenance, &input).unwrap();
+        assert!(
+            !maintenance
+                .connection()
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='trait_definitions')",
+                    [],
+                    |r| r.get::<_, bool>(0)
+                )
+                .unwrap()
+        );
     } else {
         publish_input(&paths.index_path, &input).unwrap();
     }
@@ -228,7 +235,15 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     if lexical_changed {
         context.lexical_selection_version = "curated-lexical/v1".into();
     }
-    let json = serde_json::to_string(&context).unwrap();
+    let mut historical_context = serde_json::to_value(&context).unwrap();
+    if initial_schema == 2 {
+        // Genuine pre-trait workspaces have no vocabulary preparation contract.
+        historical_context
+            .as_object_mut()
+            .unwrap()
+            .remove("trait_policy");
+    }
+    let json = serde_json::to_string(&historical_context).unwrap();
     write
         .connection()
         .execute(
@@ -247,10 +262,15 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
         ..Default::default()
     })
     .unwrap();
-    assert!(runtime.upgrade_workspace_if_present().unwrap());
-    {
+    let historical = initial_schema == 2;
+    assert_eq!(runtime.upgrade_workspace_if_present().unwrap(), !historical);
+    let expected_revision = before + u64::from(!historical);
+    if historical {
+        assert!(runtime.open_index().is_err());
+        assert!(runtime.read_workspace(None).is_err());
+    } else {
         let read = runtime.read_workspace(None).unwrap();
-        assert_eq!(read.reference_revision().unwrap(), before + 1);
+        assert_eq!(read.reference_revision().unwrap(), expected_revision);
     }
     assert!(!runtime.upgrade_workspace_if_present().unwrap());
     {
@@ -273,26 +293,53 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
         assert_eq!(saved_encounter.encounter, encounter);
         assert!(!saved_encounter.participants[0].hazard_disabled);
         assert_eq!(stored_vectors(read.connection()), vectors_before);
-        for phrase in ["Test Creature", "Flame Lance", "Frozen Grave"]
-            .into_iter()
-            .chain(lexical_changed.then_some("Snow Keeper"))
-        {
-            let matches: i64 = read
-                .connection()
-                .query_row(
-                    "SELECT count(*) FROM lexical_fts WHERE lexical_fts MATCH ?",
-                    [phrase],
-                    |row| row.get(0),
-                )
+        assert_eq!(read.reference_revision().unwrap(), expected_revision);
+        if historical {
+            assert_eq!(
+                atlas_index::classify_reference_upgrade(read.connection()).unwrap(),
+                atlas_index::ReferenceUpgrade::SourcePreparation
+            );
+            let context = atlas_index::read_stored_reference_context(read.connection())
+                .unwrap()
                 .unwrap();
-            assert!(matches > 0, "missing migrated FTS match: {phrase}");
-        }
-        if lexical_changed {
-            let aliases: i64 = read.connection().query_row(
+            assert!(context.trait_policy.is_empty());
+            assert_eq!(context.lexical_selection_version, "curated-lexical/v1");
+            assert_eq!(
+                read.connection()
+                    .query_row("SELECT count(*) FROM trait_definitions", [], |r| r
+                        .get::<_, usize>(0))
+                    .unwrap(),
+                0
+            );
+            assert_eq!(
+                read.connection()
+                    .query_row("SELECT max(version) FROM schema_migrations", [], |r| r
+                        .get::<_, u32>(0))
+                    .unwrap(),
+                crate::WORKSPACE_SCHEMA_VERSION
+            );
+        } else {
+            for phrase in ["Test Creature", "Flame Lance", "Frozen Grave"]
+                .into_iter()
+                .chain(lexical_changed.then_some("Snow Keeper"))
+            {
+                let matches: i64 = read
+                    .connection()
+                    .query_row(
+                        "SELECT count(*) FROM lexical_fts WHERE lexical_fts MATCH ?",
+                        [phrase],
+                        |row| row.get(0),
+                    )
+                    .unwrap();
+                assert!(matches > 0, "missing migrated FTS match: {phrase}");
+            }
+            if lexical_changed {
+                let aliases: i64 = read.connection().query_row(
                 "SELECT count(*) FROM lexical_units WHERE unit_kind='root_alias' AND alias_terms='Snow Keeper'",
                 [], |row| row.get(0),
             ).unwrap();
-            assert_eq!(aliases, 1);
+                assert_eq!(aliases, 1);
+            }
         }
         let checkpoints = atlas_index::read_embedding_checkpoints(
             &read,
@@ -305,22 +352,24 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     assert!(!paths.source_root.exists());
     assert!(!paths.embedding_cache_root.exists());
     assert!(runtime.inference.loaded_profiles().is_empty());
-    // A current-version catalog with missing rows is corruption, not an upgrade.
-    let write = workspace.write(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
-    write
-        .connection()
-        .execute("DELETE FROM query_field_catalog WHERE field='kind'", [])
-        .unwrap();
-    write.commit().unwrap();
-    assert!(runtime.upgrade_workspace_if_present().is_err());
-    assert_eq!(
-        workspace
-            .read(crate::WORKSPACE_SCHEMA_VERSION)
-            .unwrap()
-            .reference_revision()
-            .unwrap(),
-        before + 1
-    );
+    if !historical {
+        // A current-version catalog with missing rows is corruption, not an upgrade.
+        let write = workspace.write(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
+        write
+            .connection()
+            .execute("DELETE FROM query_field_catalog WHERE field='kind'", [])
+            .unwrap();
+        write.commit().unwrap();
+        assert!(runtime.upgrade_workspace_if_present().is_err());
+        assert_eq!(
+            workspace
+                .read(crate::WORKSPACE_SCHEMA_VERSION)
+                .unwrap()
+                .reference_revision()
+                .unwrap(),
+            before + 1
+        );
+    }
 }
 fn source(paths: &ResolvedAtlasPaths) {
     fs::create_dir_all(paths.source_root.join("packs/items")).unwrap();

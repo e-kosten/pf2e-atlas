@@ -83,6 +83,7 @@ fn audience() -> ContentAudience {
 }
 fn context(n: usize, semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        trait_policy: "trait-definition-centroid/v1".into(),
         format_version: ARTIFACT_FORMAT_VERSION,
         snapshot_version: SNAPSHOT_VERSION,
         source_contract: SOURCE_CONTRACT_ID.into(),
@@ -113,7 +114,7 @@ fn context(n: usize, semantic: bool) -> SourceArtifactBuildContext {
         },
     }
 }
-fn record(pack: &str, kind: &str, v: Value) -> SourceArtifactRecordInput {
+pub(super) fn record(pack: &str, kind: &str, v: Value) -> SourceArtifactRecordInput {
     let source = admit_document_source(
         kind,
         SourceContext::new(pack, "fixture", "$"),
@@ -159,6 +160,8 @@ pub(super) fn fixture(semantic: bool) -> IndexBuildInput {
         ),
     ];
     let mut input = IndexBuildInput {
+        traits: vec![],
+        trait_vectors: vec![],
         context: context(records.len(), semantic),
         records,
         packs: vec![
