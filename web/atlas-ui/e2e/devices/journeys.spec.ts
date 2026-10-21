@@ -657,7 +657,13 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
       name: "Add creature or hazard",
       exact: true,
     });
+    // WebKit can complete a tap while the modal's opening transform still moves its target.
+    await expect(picker).toBeVisible();
+    await expect(picker).not.toHaveClass(/ant-zoom/);
     await activate(picker.locator(`[data-record-key="${sentinel}"]`).first(), info);
+    await expect(
+      picker.getByRole("button", { name: "Add", exact: true }),
+    ).toBeEnabled();
     await picker.getByLabel("Quantity", { exact: true }).fill("2");
     await picker.getByLabel("Initiative", { exact: true }).fill("7");
     await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
