@@ -7,7 +7,7 @@ import { AtlasApiError } from "../../api/atlasApi";
 import { RecordIdentity } from "../../shared/records/RecordPresentation";
 import { currentAtlasRoute } from "../../app/routes";
 import { TraitView } from "./TraitView";
-import type { TraitDetailView } from "../../generated/atlas";
+import type { TraitDetailView, TraitRecordsRequest } from "../../generated/atlas";
 import { summaryFixture } from "../../test/fixtures";
 
 const api = vi.hoisted(() => ({ getTraitDetail: vi.fn(), getTraitRecords: vi.fn() }));
@@ -294,3 +294,76 @@ it("restores the Similar tab/order from its URL and keeps other association requ
   );
   expect(api.getTraitRecords.mock.lastCall?.[0]).not.toHaveProperty("sort");
 });
+
+it.each([
+  { label: "attribute order", first: "sort=level_desc", second: "sort=unit_price_asc" },
+  { label: "Random seed", first: "sort=random&seed=42", second: "sort=random&seed=43" },
+])(
+  "retires a previous page when $label changes A → B → A",
+  async ({ first, second }) => {
+    api.getTraitRecords.mockImplementation(async (request: TraitRecordsRequest) => ({
+      trait_key: request.trait_key,
+      kind: request.kind,
+      search_profile: request.search_profile,
+      artifact_generation: request.expected_artifact_generation,
+      sort: request.sort ?? { kind: "relevance" },
+      rows: Array.from({ length: 20 }, (_, index) => ({
+        record: summaryFixture(
+          `weapons:page${request.page.number}-${index}`,
+          `Weapon ${request.page.number}:${index}`,
+        ),
+        navigation: {
+          record_key: `weapons:page${request.page.number}-${index}`,
+          embedded_path: [],
+          field: null,
+          passage: null,
+          source_fingerprint: null,
+        },
+      })),
+      page: {
+        number: request.page.number,
+        size: 20,
+        count: 20,
+        total: 80n,
+        has_more: request.page.number < 4,
+        next_page: request.page.number < 4 ? request.page.number + 1 : null,
+      },
+      coverage: null,
+    }));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const content = (query: string) => (
+      <QueryClientProvider client={client}>
+        <SearchProfileProvider id="embeddinggemma">
+          <TraitView
+            route={{
+              kind: "trait",
+              traitKey: "trait:agile",
+              query: "?tab=similar&" + query,
+            }}
+          />
+        </SearchProfileProvider>
+      </QueryClientProvider>
+    );
+    const view = render(content(first));
+    await screen.findByRole("tab", { name: "Similar", selected: true });
+    fireEvent.click(await screen.findByTitle("Next Page"));
+    await waitFor(() =>
+      expect(api.getTraitRecords.mock.lastCall?.[0].page.number).toBe(2),
+    );
+    fireEvent.click(screen.getByTitle("Next Page"));
+    await waitFor(() =>
+      expect(api.getTraitRecords.mock.lastCall?.[0].page.number).toBe(3),
+    );
+    const original = api.getTraitRecords.mock.lastCall![0].sort;
+    view.rerender(content(second));
+    await waitFor(() => {
+      expect(api.getTraitRecords.mock.lastCall?.[0].sort).not.toEqual(original);
+      expect(api.getTraitRecords.mock.lastCall?.[0].page.number).toBe(1);
+    });
+    view.rerender(content(first));
+    await waitFor(() => {
+      expect(api.getTraitRecords.mock.lastCall?.[0].sort).toEqual(original);
+      expect(api.getTraitRecords.mock.lastCall?.[0].page.number).toBe(1);
+    });
+  },
+);

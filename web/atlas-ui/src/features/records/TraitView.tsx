@@ -207,8 +207,11 @@ function TraitRecords({
   setSearch: (search: SearchFormState) => void;
 }) {
   const [paging, setPaging] = useState({ sort: search.sort, number: 1 });
-  const page =
-    kind === "similar" && !sameResultSort(paging.sort, search.sort) ? 1 : paging.number;
+  const orderChanged = kind === "similar" && !sameResultSort(paging.sort, search.sort);
+  // Retire the prior order's page before constructing any new request. Returning
+  // to that order must start at page one too, rather than revive its old page.
+  if (orderChanged) setPaging({ sort: search.sort, number: 1 });
+  const page = orderChanged ? 1 : paging.number;
   const setPage = (number: number) => setPaging({ sort: search.sort, number });
   const profile = useSearchProfile();
   const request: TraitRecordsRequest = {
