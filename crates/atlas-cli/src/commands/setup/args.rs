@@ -92,7 +92,7 @@ pub(crate) struct SetupRunOptions {
         help = "Rebuild the artifact even if it already satisfies the selected setup target"
     )]
     pub(crate) force_rebuild: bool,
-    #[arg(long="search-profile",value_parser=crate::cli::args::parse_search_profile,conflicts_with="no_embeddings",help="Add a stored search profile; omission preserves configured models (fresh default: bge-base)")]
+    #[arg(long="search-profile",value_parser=crate::cli::args::parse_search_profile,conflicts_with="no_embeddings",help="Add bge-base or embeddinggemma; repeat for both; omission preserves configured profiles (fresh default: bge-base)")]
     pub(crate) search_profiles: Vec<SearchProfileId>,
     #[arg(
         long,
@@ -131,7 +131,7 @@ pub(crate) struct SetupCleanOptions {
     #[arg(
         long,
         help_heading = "Cleanup Behavior",
-        help = "Confirm cleanup when every target is selected"
+        help = "Skip confirmation when removing both caches; required non-interactively unless --check is used"
     )]
     pub(crate) yes: bool,
 }
