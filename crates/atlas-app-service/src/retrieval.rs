@@ -33,8 +33,9 @@ impl AtlasAppService {
         search_profile: Option<atlas_domain::SearchProfileId>,
     ) -> AppServiceResult<Option<atlas_app_model::SimilarRecordsView>> {
         let page = SearchPage::new(page.number, page.size)?;
-        let sort = sort.unwrap_or(atlas_domain::ResultSort::Relevance);
-        if sort == atlas_domain::ResultSort::SavedOrder {
+        let sort = sort.unwrap_or(atlas_domain::ResultSort::Relevance {});
+        sort.validate().map_err(AppServiceError::invalid_request)?;
+        if matches!(sort, atlas_domain::ResultSort::SavedOrder {}) {
             return Err(AppServiceError::invalid_request(
                 "Saved order is available only for saved lists",
             ));
@@ -59,7 +60,7 @@ impl AtlasAppService {
                 }
             };
             Ok(r.similar_records(SimilarRecordRequest {
-                sort,
+                sort: sort.clone(),
                 search_profile: search_profile.as_ref(),
                 record_key: &key,
                 filter: filter.as_ref(),

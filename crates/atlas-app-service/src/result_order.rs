@@ -8,23 +8,32 @@ pub(crate) fn search_sort(
     criteria: &SearchCriteria,
 ) -> AppServiceResult<ResultSort> {
     let has_matching = !matches!(criteria, SearchCriteria::ListRecords { .. });
-    let sort = requested.unwrap_or(if has_matching {
-        ResultSort::Relevance
-    } else {
-        ResultSort::NameAsc
+    let sort = requested.unwrap_or_else(|| {
+        if has_matching {
+            ResultSort::Relevance {}
+        } else {
+            ResultSort::attribute(
+                atlas_domain::SortField::Name,
+                atlas_domain::SortDirection::Asc,
+            )
+        }
     });
-    if sort == ResultSort::SavedOrder || (sort == ResultSort::Relevance && !has_matching) {
+    sort.validate().map_err(AppServiceError::invalid_request)?;
+    if matches!(sort, ResultSort::SavedOrder {})
+        || (matches!(sort, ResultSort::Relevance {}) && !has_matching)
+    {
         return Err(AppServiceError::invalid_request(
-            "Choose an attribute sort for browsing; Relevance requires text or Similar",
+            "Choose attributes or Random for browsing; Relevance requires text or Similar",
         ));
     }
     Ok(sort)
 }
 pub(crate) fn saved_list_sort(requested: Option<ResultSort>) -> AppServiceResult<ResultSort> {
-    let sort = requested.unwrap_or(ResultSort::SavedOrder);
-    if sort == ResultSort::Relevance {
+    let sort = requested.unwrap_or(ResultSort::SavedOrder {});
+    sort.validate().map_err(AppServiceError::invalid_request)?;
+    if matches!(sort, ResultSort::Relevance {}) {
         return Err(AppServiceError::invalid_request(
-            "Choose Saved order or an attribute sort for a saved list",
+            "Choose Saved order, attributes or Random for a saved list",
         ));
     }
     Ok(sort)

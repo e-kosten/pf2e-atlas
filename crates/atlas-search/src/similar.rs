@@ -18,7 +18,7 @@ impl crate::AtlasRetrievalService {
         &self,
         request: SimilarRecordRequest<'_>,
     ) -> Result<Option<SimilarRecordResult>, crate::SearchError> {
-        Self::validate_search_sort(request.sort)?;
+        Self::validate_search_sort(&request.sort)?;
         self.resolve_search_profile(request.search_profile, request.search_profile.is_some())?;
         let Some(seed) = self.index.read_summary(request.record_key)? else {
             return Ok(None);

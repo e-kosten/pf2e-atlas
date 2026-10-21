@@ -3,7 +3,7 @@ import { Button, Select } from "antd";
 import { useMemo, useState } from "react";
 import { totalPages } from "./pageMetrics";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
-import { ResultSortSelect } from "../../shared/search/ResultSortSelect";
+import { ResultSortControl } from "../../shared/search/ResultSortControl";
 
 export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceState }) {
   const page = workspace.resultPage?.page;
@@ -31,7 +31,7 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
             : "Results"}
       </span>
       <div className="pager pager--compact">
-        <ResultSortSelect
+        <ResultSortControl
           search={workspace.search}
           setSearch={workspace.setSearch}
           disabled={workspace.resultsRecovering}

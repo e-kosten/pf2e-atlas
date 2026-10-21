@@ -118,7 +118,9 @@ describe("encounter views", () => {
       ...searchResultsFixture(),
       sort:
         request.sort ??
-        (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
+        (request.criteria.kind === "list_records"
+          ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+          : { kind: "relevance" }),
     }));
     apiMocks.getEncounterTurnReview.mockImplementation(() =>
       Promise.resolve({
@@ -2786,7 +2788,7 @@ function participantFixture(
 function searchResultsFixture(): SearchResultsPage {
   return {
     relationships: [],
-    sort: "relevance" as const,
+    sort: { kind: "relevance" } as const,
     ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",

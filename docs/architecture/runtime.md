@@ -318,7 +318,7 @@ choices and vocabulary without text-scoped contextual facet counts.
 
 Result ordering is separate from candidate admission. An omitted order resolves
 to Name A–Z for browsing, Relevance for text/Similar, and Saved order for lists.
-Attribute ordering applies to the complete eligible browse/lexical set or the
+Attribute rules and seeded Random order apply to the complete eligible browse/lexical set or the
 complete accepted semantic set before pagination. The existing adaptive semantic
 unit window and hybrid lexical union do not depend on order or page. Coverage,
 witnesses and generation retain their existing meaning; no frozen-window registry
@@ -326,14 +326,22 @@ or lexical fallback is introduced. Requests retain optional order intent while
 responses report the effective order. Invalid context/order combinations fail
 before query inference. Contextual facets remain independent of ordering.
 
-Index owns attribute comparison over existing typed projections. Unavailable
-values sort last in both directions, with normalized-name/key ties. Saved-list
-attribute ordering is a read-time app-service view of hydrated members and never
-writes positions or notes. Unavailable members retain their saved relative order
+Domain owns the typed order: Relevance, Saved order, an ordered nonempty sequence
+of unique name/level/unit-price rules, or Random with a u32 seed. Index owns
+comparison over existing typed projections. Each rule places unavailable values
+last in either direction, proceeds to the next rule for ties, and finishes with
+normalized name ascending then canonical key ascending. Random uses stable
+seed/key hashing over the complete eligible key set, with only the page hydrated
+for browse. It never changes eligibility or shuffles a loaded page in isolation.
+Saved-list attribute and Random ordering are read-time app-service views of hydrated
+members and never write positions or notes. Unavailable members retain their saved relative order
 at the end of unfiltered views, and explicitly saved edition members remain
 present. Unit-price ordering compares stored per-item copper; app-service formats
 an optional summary label from one typed batch of visible-root price facts,
-without additional source-body reads or an artifact rebuild.
+without additional source-body reads or an artifact rebuild. Any unit-price rule
+in the sequence enables these labels. Requested order, rule priority and Random
+seed belong to URL/request identity; only Shuffle or an explicit seed edit changes
+the seed. Paging and generation recovery retain it.
 
 The browser search owner keeps the current generation and request epoch. Query
 keys include criteria, page and generation; first-response adoption reuses the

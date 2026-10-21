@@ -47,7 +47,7 @@ impl AtlasAppService {
             None,
             None,
             false,
-            atlas_domain::ResultSort::SavedOrder,
+            atlas_domain::ResultSort::SavedOrder {},
         )
     }
 
@@ -674,7 +674,7 @@ impl AtlasAppService {
                     })
                     .map(|item| saved_list_item_view(item, &records_by_key))
                     .collect::<Vec<_>>();
-                if sort.is_attribute() {
+                if sort.is_record_order() {
                     let keys = items
                         .iter()
                         .filter(|item| records_by_key.contains_key(&item.record_key))
@@ -684,7 +684,9 @@ impl AtlasAppService {
                             })
                         })
                         .collect::<AppServiceResult<Vec<_>>>()?;
-                    let ordered = session.retrieval_mut().order_record_keys(&keys, sort)?;
+                    let ordered = session
+                        .retrieval_mut()
+                        .order_record_keys(&keys, sort.clone())?;
                     let mut active = std::collections::BTreeMap::new();
                     let mut unavailable = Vec::new();
                     for item in items {
@@ -848,7 +850,7 @@ fn searched_saved_list_records(
     loop {
         let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
         let result = retrieval.search_text(TextSearchRequest {
-            sort: atlas_domain::ResultSort::Relevance,
+            sort: atlas_domain::ResultSort::Relevance {},
             ranking: Default::default(),
             search_profile: None,
             query: &query,

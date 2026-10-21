@@ -331,7 +331,7 @@ function workspace(
 function searchResultsPage(): SearchResultsPage {
   return {
     relationships: [],
-    sort: "relevance" as const,
+    sort: { kind: "relevance" } as const,
     ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",

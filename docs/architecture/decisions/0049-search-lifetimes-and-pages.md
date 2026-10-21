@@ -51,11 +51,29 @@ from an automatic default across mode transitions and URL restoration. Order
 changes reset paging without discarding criteria or mutable drafts; invalid
 orders and incompatible modes fail before inference.
 
+Order is a tagged domain value: Relevance, Saved order, attributes with one to
+three unique name/level/unit-price rules in priority order, or Random with a u32
+seed. Later rules break earlier ties; each rule keeps unavailable values last in
+both directions. Final name/key ties remain deterministic. Random is a stable
+index-owned SHA-256 order over seed and canonical key, with its byte encoding
+specified in the artifact contract. It orders all eligible/admitted keys before
+paging and does not store mutable order or use SQLite's per-call randomness.
+All attribute and Random views of saved lists remain temporary.
+
+Browser URLs use repeated sort tokens in priority order, such as
+`sort=level_desc&sort=unit_price_asc`. Relevance and Saved order are sole tokens;
+Random uses `sort=random&seed=42`. An incoming Random link requires a valid u32
+seed; other modes reject it. Selecting Random generates a seed, while Shuffle or
+an explicit seed edit replaces it and resets page1. Paging, Back and recovery
+retain it. An order-only bare search remains idle. CLI repeats `--sort` for
+attribute rules and accepts `--seed` only with sole Random, generating it when
+omitted. Both adapters lower into the same typed contract.
+
 Candidate admission remains independent of order and page. The existing semantic
 policy tries 1,024/2,048/4,096 unit hits until the preferred-root stopping target
 is met or the largest window is reached. The target of 200 roots is not a result
 cap. Every accepted root contributes; hybrid unions the complete lexical lane
-before final edition preference. Attribute ordering then sorts the entire accepted
+before final edition preference. Attribute or Random ordering then sorts the entire accepted
 set before paging, retaining its coverage and witnesses. The stateless workflow
 still reruns retrieval and does not promise a cross-request frozen candidate set.
 

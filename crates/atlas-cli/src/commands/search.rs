@@ -9,6 +9,7 @@ use std::process::ExitCode;
 pub(crate) mod args;
 use args::SearchOptions;
 pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
+    let sort = super::result_order::requested_sort(&o.sort, o.seed)?;
     let (filter, value) = match build_filter(&o.filter_options) {
         Ok(v) => v,
         Err(e) => {
@@ -53,7 +54,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         let result = match app_result(
             s.search_page(
                 atlas_app_model::SearchResultsRequest {
-                    sort: o.sort,
+                    sort: sort.clone(),
                     relationships: None,
                     ranking: Some(o.ranking),
                     search_profile: o.search_profile.clone(),
@@ -77,6 +78,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
             data["ranking"] = serde_json::to_value(o.ranking).map_err(|error| error.to_string())?;
             write_json_data(data)?;
         } else {
+            super::result_order::print_random_seed(&result.sort);
             print_search_matches(&result.rows);
             if result
                 .coverage
@@ -109,7 +111,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         let result = match app_result(
             s.search_page(
                 atlas_app_model::SearchResultsRequest {
-                    sort: o.sort,
+                    sort: sort.clone(),
                     relationships: None,
                     ranking: None,
                     search_profile: o.search_profile,
@@ -129,6 +131,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
                 serde_json::json!({"sort":result.sort,"search_profile":result.search_profile,"artifact_generation":result.artifact_generation,"pagination":result.page,"results":result.rows.iter().map(|row|&row.record).collect::<Vec<_>>()}),
             )?;
         } else {
+            super::result_order::print_random_seed(&result.sort);
             for row in result.rows {
                 print_summary(&row.record);
             }

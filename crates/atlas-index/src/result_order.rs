@@ -1,4 +1,7 @@
 //! Ordering reads projected facts; neither membership nor source bodies change.
+//! Random v1 hashes the ASCII domain `pf2e-atlas/result-order/random/v1` plus NUL,
+//! the seed as u32 big-endian, canonical-key UTF-8 length as u64 big-endian, then
+//! canonical-key UTF-8 bytes. Digest bytes ascend, with canonical-key ties.
 use crate::query::{
     catalog::descriptor,
     compiler::{bound_field, bound_unit_price_cp},
@@ -13,23 +16,25 @@ pub struct SourceUnitPrice {
     pub copper: SourceQueryFact<f64>,
 }
 
-pub(crate) fn attribute_order(sort: ResultSort) -> Result<String, IndexError> {
-    let name_missing = "CASE WHEN r.name_state='value' THEN 0 ELSE 1 END";
-    let name_ties = format!("{name_missing},r.name_lookup_key ASC,r.key ASC");
-    let descending = matches!(
-        sort,
-        ResultSort::NameDesc | ResultSort::LevelDesc | ResultSort::UnitPriceDesc
-    );
-    let direction = if descending { "DESC" } else { "ASC" };
-    match sort {
-        ResultSort::NameAsc | ResultSort::NameDesc => Ok(format!(
-            "{name_missing},r.name_lookup_key {direction},r.key ASC"
-        )),
-        ResultSort::LevelAsc
-        | ResultSort::LevelDesc
-        | ResultSort::UnitPriceAsc
-        | ResultSort::UnitPriceDesc => {
-            let field = if sort.is_unit_price() {
+/// Each rule puts unavailable values last independently; later rules break unavailable ties.
+pub(crate) fn attribute_order(sort: &ResultSort) -> Result<String, IndexError> {
+    sort.validate()
+        .map_err(|message| IndexError::Invalid(message.into()))?;
+    let ResultSort::Attributes { rules } = sort else {
+        return Err(IndexError::Invalid(
+            "attribute ordering requires attribute rules".into(),
+        ));
+    };
+    let mut comparisons = Vec::new();
+    for rule in rules {
+        let direction = match rule.direction {
+            atlas_domain::SortDirection::Asc => "ASC",
+            atlas_domain::SortDirection::Desc => "DESC",
+        };
+        if rule.field == atlas_domain::SortField::Name {
+            comparisons.push(format!("CASE WHEN r.name_state='value' THEN 0 ELSE 1 END,CASE WHEN r.name_state='value' THEN r.name_lookup_key ELSE NULL END {direction}"));
+        } else {
+            let field = if rule.field == atlas_domain::SortField::UnitPrice {
                 bound_unit_price_cp()?
             } else {
                 bound_field(
@@ -39,15 +44,26 @@ pub(crate) fn attribute_order(sort: ResultSort) -> Result<String, IndexError> {
                     None,
                 )
             };
-            Ok(format!(
-                "CASE WHEN ({})='value' THEN 0 ELSE 1 END,CASE WHEN ({})='value' THEN ({}) ELSE NULL END {direction},{name_ties}",
-                field.state, field.state, field.value
-            ))
+            comparisons.push(format!("CASE WHEN ({})='value' THEN 0 ELSE 1 END,CASE WHEN ({})='value' THEN ({}) ELSE NULL END {direction}", field.state, field.state, field.value));
         }
-        _ => Err(IndexError::Invalid(
-            "attribute ordering requires a name, level/rank or unit-price sort".into(),
-        )),
     }
+    comparisons.push("CASE WHEN r.name_state='value' THEN 0 ELSE 1 END,CASE WHEN r.name_state='value' THEN r.name_lookup_key ELSE NULL END ASC,r.key ASC".into());
+    Ok(comparisons.join(","))
+}
+/// Stable Random v1: SHA-256 of the ASCII domain ending in NUL, seed u32 BE,
+/// canonical-key UTF-8 length u64 BE, then canonical-key UTF-8. Digest ASC, key ASC.
+pub(crate) fn random_order(keys: &mut [RecordKey], seed: u32) {
+    use sha2::{Digest, Sha256};
+    keys.sort_by_cached_key(|key| {
+        let text = key.to_string();
+        let mut hash = Sha256::new();
+        hash.update(b"pf2e-atlas/result-order/random/v1\0");
+        hash.update(seed.to_be_bytes());
+        hash.update((text.len() as u64).to_be_bytes());
+        hash.update(text.as_bytes());
+        let digest: [u8; 32] = hash.finalize().into();
+        (digest, text)
+    });
 }
 fn key_values(keys: &[RecordKey]) -> Result<String, IndexError> {
     Ok(serde_json::to_string(
@@ -61,7 +77,22 @@ impl SqliteIndexReader {
         keys: &[RecordKey],
         sort: ResultSort,
     ) -> Result<Vec<RecordKey>, IndexError> {
-        let order = attribute_order(sort)?;
+        sort.validate()
+            .map_err(|message| IndexError::Invalid(message.into()))?;
+        if let ResultSort::Random { seed } = sort {
+            self.count_statement();
+            let mut statement = self.native()?.prepare("SELECT r.key FROM records r JOIN json_each(?) requested ON requested.value=r.key WHERE r.document_kind<>'Macro'")?;
+            let strings = statement
+                .query_map([key_values(keys)?], |row| row.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut ordered = strings
+                .into_iter()
+                .map(crate::read_units::parse_key)
+                .collect::<Result<Vec<_>, _>>()?;
+            random_order(&mut ordered, seed);
+            return Ok(ordered);
+        }
+        let order = attribute_order(&sort)?;
         if keys.is_empty() {
             return Ok(Vec::new());
         }
@@ -113,5 +144,23 @@ impl SqliteIndexReader {
                 })
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn random_v1_encoding_has_fixed_seed_key_order_vectors() {
+        let key = |i| RecordKey::parse(&format!("items:{i:016}")).unwrap();
+        for (seed, expected) in [
+            (0, vec![3, 2, 1, 0]),
+            (42, vec![0, 1, 2, 3]),
+            (u32::MAX, vec![1, 2, 0, 3]),
+        ] {
+            let mut keys = (0..4).rev().map(key).collect::<Vec<_>>();
+            random_order(&mut keys, seed);
+            assert_eq!(keys, expected.into_iter().map(key).collect::<Vec<_>>());
+        }
     }
 }

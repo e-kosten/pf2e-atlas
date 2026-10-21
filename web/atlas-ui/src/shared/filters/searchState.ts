@@ -5,6 +5,8 @@ import type {
   QueryPredicate,
   RelationshipConstraintView,
   ResultSort,
+  SortField,
+  SortDirection,
 } from "../../generated/atlas";
 import { decodeFilterUrl, encodeFilterUrl, UNSUPPORTED_FILTER_URL } from "./filterUrl";
 import { decodeRelationships, encodeRelationships } from "./relationshipUrl";
@@ -141,7 +143,7 @@ export function searchStateQueryString(
   const params = new URLSearchParams();
   if (search_profile != null) params.set("search_profile", search_profile);
   if (state.ranking && state.ranking !== "score") params.set("ranking", state.ranking);
-  if (state.sort) params.set("sort", state.sort);
+  encodeResultSort(params, state.sort);
   if (state.query) params.set("q", state.query);
   if (state.similarSeed) params.set("similar", state.similarSeed);
   if (state.relationships?.length)
@@ -205,36 +207,84 @@ export function decodeSearchStateFromParams(
   };
 }
 
-export const RESULT_SORTS: readonly ResultSort[] = [
-  "relevance",
-  "saved_order",
-  "name_asc",
-  "name_desc",
-  "level_asc",
-  "level_desc",
-  "unit_price_asc",
-  "unit_price_desc",
-];
+export const INVALID_SORT_SEED =
+  "Random seed must be a whole number from 0 to 4294967295";
+export const UNEXPECTED_SORT_SEED = "Seed is only available with Random order";
+
+export function parseRandomSeed(value: string): number | null {
+  if (!/^\d+$/.test(value)) return null;
+  const seed = Number(value);
+  return Number.isInteger(seed) && seed >= 0 && seed <= 4294967295 ? seed : null;
+}
+
+export function encodeResultSort(params: URLSearchParams, sort?: ResultSort): void {
+  params.delete("sort");
+  params.delete("seed");
+  if (!sort) return;
+  if (sort.kind === "attributes") {
+    for (const rule of sort.rules)
+      params.append("sort", `${rule.field}_${rule.direction}`);
+  } else {
+    params.set("sort", sort.kind);
+    if (sort.kind === "random") params.set("seed", String(sort.seed));
+  }
+}
 
 export function decodeResultSort(
   params: URLSearchParams,
   surface: "search" | "saved_list",
   semantic: boolean,
 ): { sort?: ResultSort; sortError: string | null } {
-  const literal = params.get("sort");
-  const sort = RESULT_SORTS.find((value) => value === literal);
-  return {
-    ...(sort ? { sort } : {}),
-    sortError:
-      literal !== null && !sort
-        ? UNKNOWN_RESULT_SORT
-        : sort &&
-            (surface === "saved_list"
-              ? sort === "relevance"
-              : sort === "saved_order" || (sort === "relevance" && !semantic))
-          ? INVALID_RESULT_SORT
-          : null,
-  };
+  const tokens = params.getAll("sort");
+  const seeds = params.getAll("seed");
+  if (tokens.length === 1 && tokens[0] === "random") {
+    const seed = seeds.length === 1 ? parseRandomSeed(seeds[0]) : null;
+    return seed === null
+      ? { sortError: INVALID_SORT_SEED }
+      : { sort: { kind: "random", seed }, sortError: null };
+  }
+  if (seeds.length) return { sortError: UNEXPECTED_SORT_SEED };
+  if (!tokens.length) return { sortError: null };
+  if (
+    tokens.length === 1 &&
+    (tokens[0] === "relevance" || tokens[0] === "saved_order")
+  ) {
+    const kind = tokens[0];
+    return {
+      sort: { kind },
+      sortError:
+        surface === "saved_list"
+          ? kind === "relevance"
+            ? INVALID_RESULT_SORT
+            : null
+          : kind === "saved_order" || !semantic
+            ? INVALID_RESULT_SORT
+            : null,
+    };
+  }
+  const rules = tokens.map((token) => {
+    const match = /^(name|level|unit_price)_(asc|desc)$/.exec(token);
+    return match
+      ? { field: match[1] as SortField, direction: match[2] as SortDirection }
+      : null;
+  });
+  if (rules.some((rule) => !rule)) return { sortError: UNKNOWN_RESULT_SORT };
+  const validRules = rules.filter((rule) => rule !== null);
+  if (
+    validRules.length > 3 ||
+    new Set(validRules.map((rule) => rule.field)).size !== validRules.length
+  )
+    return { sortError: INVALID_RESULT_SORT };
+  return { sort: { kind: "attributes", rules: validRules }, sortError: null };
+}
+
+export function isResultSortError(error: string | null): boolean {
+  return [
+    UNKNOWN_RESULT_SORT,
+    INVALID_RESULT_SORT,
+    INVALID_SORT_SEED,
+    UNEXPECTED_SORT_SEED,
+  ].some((value) => value === error);
 }
 
 /** Resolve display/response identity without changing optional URL intent. */
@@ -245,10 +295,10 @@ export function effectiveResultSort(
   return (
     state.sort ??
     (surface === "saved_list"
-      ? "saved_order"
+      ? { kind: "saved_order" }
       : state.query.trim() || state.similarSeed
-        ? "relevance"
-        : "name_asc")
+        ? { kind: "relevance" }
+        : { kind: "attributes", rules: [{ field: "name", direction: "asc" }] })
   );
 }
 
@@ -257,7 +307,7 @@ export function normalizeSortTransition(
   previous: SearchFormState,
   next: SearchFormState,
 ): SearchFormState {
-  return next.sort === "relevance" &&
+  return next.sort?.kind === "relevance" &&
     !next.query.trim() &&
     !next.similarSeed &&
     Boolean(previous.query.trim() || previous.similarSeed)

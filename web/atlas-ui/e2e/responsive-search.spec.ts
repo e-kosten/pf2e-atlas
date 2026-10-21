@@ -1,6 +1,65 @@
 import { expect, test } from "@playwright/test";
 import { encodeFilterUrl } from "../src/shared/filters/filterUrl";
 
+test("Sort rules and seeded Random remain usable at 390px", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await page.goto(
+    "/search?filter=" +
+      encodeURIComponent(
+        encodeFilterUrl({ kind: "in", field: "kind", values: ["creature"] }),
+      ),
+  );
+  await expect(page.locator("[data-record-key]").first()).toBeVisible();
+  await page.getByRole("button", { name: /^Sort:/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Sort results" });
+  const choose = async (name: string, option: string) => {
+    await dialog.getByRole("combobox", { name, exact: true }).click();
+    await page.getByRole("option", { name: option, exact: true }).click();
+  };
+  await choose("Sort field 1", "Level / Rank");
+  await choose("Sort direction 1", "High to low");
+  await dialog.getByRole("button", { name: "Add another sort", exact: true }).click();
+  await choose("Sort field 2", "Unit price");
+  await dialog.getByRole("button", { name: "Move sort rule 2 up" }).click();
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.getAll("sort").join(",") === "unit_price_asc,level_desc",
+  );
+  const bounds = await dialog.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(1000);
+  await choose("Sort mode", "Random");
+  const seed = dialog.getByRole("textbox", { name: "Random seed" });
+  await expect(seed).toHaveValue(/^\d+$/);
+  const original = new URL(page.url()).searchParams.get("seed");
+  await seed.fill(original === "0" ? "1" : "0");
+  await seed.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Sort: Random", exact: true }),
+  ).toBeFocused();
+  expect(new URL(page.url()).searchParams.get("seed")).toBe(original);
+  await page.getByRole("button", { name: "Sort: Random", exact: true }).click();
+  await expect(seed).toHaveValue(original!);
+  await seed.fill("0");
+  expect(new URL(page.url()).searchParams.get("seed")).toBe(original);
+  await seed.press("Enter");
+  await expect(page).toHaveURL((url) => url.searchParams.get("seed") === "0");
+  await page.getByRole("button", { name: "Shuffle", exact: true }).click();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.searchParams.get("sort") === "random" && url.searchParams.get("seed") !== "0",
+  );
+  const shuffled = new URL(page.url()).searchParams.get("seed");
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Sort: Random", exact: true }),
+  ).toBeVisible();
+  expect(new URL(page.url()).searchParams.get("seed")).toBe(shuffled);
+});
+
 for (const width of [390, 320]) {
   test(`sorting and complete page navigation fit within the result pane at ${width}px`, async ({
     page,

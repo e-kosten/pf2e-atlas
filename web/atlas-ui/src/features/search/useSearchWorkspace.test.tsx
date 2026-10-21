@@ -1,3 +1,4 @@
+import type { ResultSort } from "../../generated/atlas";
 import {
   summaryFixture,
   editorFixture,
@@ -84,20 +85,35 @@ describe("useSearchWorkspace", () => {
       ...searchResultsPage(["items:witness"], { pageNumber: request.page.number }),
       sort:
         request.sort ??
-        (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
+        (request.criteria.kind === "list_records"
+          ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+          : { kind: "relevance" }),
     }));
     const { result } = renderHook(
       () => useSearchWorkspace({ searchProfile: "bge-base" }),
       { wrapper: queryClientWrapper() },
     );
-    await waitFor(() => expect(result.current.resultPage?.sort).toBe("relevance"));
+    await waitFor(() =>
+      expect(result.current.resultPage?.sort).toEqual({ kind: "relevance" }),
+    );
     expect(result.current.search.sort).toBeUndefined();
     act(() => result.current.setPageNumber(3));
     await waitFor(() => expect(result.current.resultPage?.page.number).toBe(3));
     act(() =>
-      result.current.setSearch({ ...result.current.search, sort: "level_desc" }),
+      result.current.setSearch({
+        ...result.current.search,
+        sort: {
+          kind: "attributes",
+          rules: [{ field: "level", direction: "desc" }],
+        } satisfies ResultSort,
+      }),
     );
-    await waitFor(() => expect(result.current.resultPage?.sort).toBe("level_desc"));
+    await waitFor(() =>
+      expect(result.current.resultPage?.sort).toEqual({
+        kind: "attributes",
+        rules: [{ field: "level", direction: "desc" }],
+      }),
+    );
     expect(result.current.pageNumber).toBe(1);
     expect(location.search).toContain("sort=level_desc");
     act(() =>
@@ -112,28 +128,53 @@ describe("useSearchWorkspace", () => {
         "similar_records",
       ),
     );
-    expect(result.current.search.sort).toBe("level_desc");
+    expect(result.current.search.sort).toEqual({
+      kind: "attributes",
+      rules: [{ field: "level", direction: "desc" }],
+    });
     await act(async () => result.current.refreshResults());
-    await waitFor(() => expect(result.current.resultPage?.sort).toBe("level_desc"));
+    await waitFor(() =>
+      expect(result.current.resultPage?.sort).toEqual({
+        kind: "attributes",
+        rules: [{ field: "level", direction: "desc" }],
+      }),
+    );
     expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
-      sort: "level_desc",
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "level", direction: "desc" }],
+      } satisfies ResultSort,
       expected_artifact_generation: null,
       page: { number: 1 },
     });
     act(() =>
-      result.current.setSearch({ ...result.current.search, sort: "relevance" }),
+      result.current.setSearch({
+        ...result.current.search,
+        sort: { kind: "relevance" } as const,
+      }),
     );
-    await waitFor(() => expect(result.current.resultPage?.sort).toBe("relevance"));
+    await waitFor(() =>
+      expect(result.current.resultPage?.sort).toEqual({ kind: "relevance" }),
+    );
     act(() =>
       result.current.setSearch({ ...result.current.search, similarSeed: null }),
     );
     expect(result.current.search.sort).toBeUndefined();
-    expect(effectiveResultSort(result.current.search)).toBe("name_asc");
+    expect(effectiveResultSort(result.current.search)).toEqual({
+      kind: "attributes",
+      rules: [{ field: "name", direction: "asc" }],
+    });
   });
 
   it("rejects wrong-order responses instead of adopting their generation", async () => {
     history.replaceState(null, "", "/search?q=fire&sort=level_desc");
-    apiMocks.searchPage.mockResolvedValue({ ...searchResultsPage(), sort: "name_asc" });
+    apiMocks.searchPage.mockResolvedValue({
+      ...searchResultsPage(),
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "name", direction: "asc" }],
+      } satisfies ResultSort,
+    });
     const { result } = renderHook(
       () => useSearchWorkspace({ searchProfile: "bge-base" }),
       { wrapper: queryClientWrapper() },
@@ -168,7 +209,13 @@ describe("useSearchWorkspace", () => {
     );
     await waitFor(() => expect(result.current.resultPage?.rows).toHaveLength(1));
     act(() =>
-      result.current.setSearch({ ...result.current.search, sort: "level_desc" }),
+      result.current.setSearch({
+        ...result.current.search,
+        sort: {
+          kind: "attributes",
+          rules: [{ field: "level", direction: "desc" }],
+        } satisfies ResultSort,
+      }),
     );
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
     expect(result.current.resultPage).toEqual(original);
@@ -176,7 +223,10 @@ describe("useSearchWorkspace", () => {
     await act(async () =>
       finish({
         ...original,
-        sort: "level_desc",
+        sort: {
+          kind: "attributes",
+          rules: [{ field: "level", direction: "desc" }],
+        } satisfies ResultSort,
         rows: [
           {
             record: summaryFixture("items:new"),
@@ -186,7 +236,12 @@ describe("useSearchWorkspace", () => {
         ],
       }),
     );
-    await waitFor(() => expect(result.current.resultPage?.sort).toBe("level_desc"));
+    await waitFor(() =>
+      expect(result.current.resultPage?.sort).toEqual({
+        kind: "attributes",
+        rules: [{ field: "level", direction: "desc" }],
+      }),
+    );
     expect(result.current.resultsRefreshing).toBe(false);
     expect(result.current.resultPage?.rows[0].record.record_key).toBe("items:new");
   });
@@ -215,7 +270,10 @@ describe("useSearchWorkspace", () => {
     apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>
       Promise.resolve({
         ...searchResultsPage([], { pageNumber: request.page.number }),
-        sort: "name_asc",
+        sort: {
+          kind: "attributes",
+          rules: [{ field: "name", direction: "asc" }],
+        } satisfies ResultSort,
         relationships: [
           {
             constraint: request.relationships![0],
@@ -1190,7 +1248,7 @@ function searchResultsPage(
 ): SearchResultsPage {
   return {
     relationships: [],
-    sort: "relevance" as const,
+    sort: { kind: "relevance" } as const,
     ranking: "score" as const,
     search_profile: options.profile ?? "bge-base",
     artifact_generation: options.generation ?? "generation-a",

@@ -4,8 +4,10 @@ use atlas_domain::{RecordKey, ResultSort};
 use std::collections::{BTreeMap, BTreeSet};
 
 impl AtlasRetrievalService {
-    pub(crate) fn validate_search_sort(sort: ResultSort) -> Result<(), SearchError> {
-        if sort == ResultSort::SavedOrder {
+    pub(crate) fn validate_search_sort(sort: &ResultSort) -> Result<(), SearchError> {
+        sort.validate()
+            .map_err(SearchError::invalid_search_options)?;
+        if matches!(sort, ResultSort::SavedOrder {}) {
             return Err(SearchError::invalid_search_options(
                 "Saved order is available only for saved lists",
             ));
@@ -44,8 +46,8 @@ impl AtlasRetrievalService {
         roots: Vec<crate::text::RankedRoot>,
         sort: ResultSort,
     ) -> Result<Vec<crate::text::RankedRoot>, SearchError> {
-        Self::validate_search_sort(sort)?;
-        if sort == ResultSort::Relevance {
+        Self::validate_search_sort(&sort)?;
+        if matches!(sort, ResultSort::Relevance {}) {
             return Ok(roots);
         }
         let keys = roots.iter().map(|r| r.key.clone()).collect::<Vec<_>>();

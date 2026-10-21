@@ -68,7 +68,7 @@ impl AtlasRetrievalService {
         &self,
         request: SimilarTraitRequest<'_>,
     ) -> Result<Option<SimilarTraitResult>, SearchError> {
-        Self::validate_search_sort(request.sort)?;
+        Self::validate_search_sort(&request.sort)?;
         let Some(seed) = self.index.trait_definition(request.trait_key)? else {
             return Ok(None);
         };
@@ -151,7 +151,7 @@ mod tests {
         let (service, _artifact) = open_input_fixture(fixture).unwrap();
         let result = service
             .similar_trait(SimilarTraitRequest {
-                sort: atlas_domain::ResultSort::Relevance,
+                sort: atlas_domain::ResultSort::Relevance {},
                 trait_key: &key,
                 search_profile: None,
                 filter: None,
@@ -175,7 +175,7 @@ mod tests {
         let (fixture, key) = fixture(false);
         let (service, _artifact) = open_input_fixture(fixture).unwrap();
         let result = service.similar_trait(SimilarTraitRequest {
-            sort: atlas_domain::ResultSort::Relevance,
+            sort: atlas_domain::ResultSort::Relevance {},
             trait_key: &key,
             search_profile: None,
             filter: None,

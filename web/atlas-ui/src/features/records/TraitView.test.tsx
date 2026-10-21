@@ -1,3 +1,5 @@
+import { chooseAttributeSort } from "../../test/sortControls";
+import type { ResultSort } from "../../generated/atlas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
@@ -33,7 +35,9 @@ beforeEach(() => {
   api.getTraitDetail.mockReset().mockResolvedValue(definition);
   api.getTraitRecords.mockReset().mockImplementation(async (request) => ({
     search_profile: request.kind === "similar" ? request.search_profile : null,
-    ...(request.kind === "similar" ? { sort: request.sort ?? "relevance" } : {}),
+    ...(request.kind === "similar"
+      ? { sort: request.sort ?? { kind: "relevance" } }
+      : {}),
     trait_key: "trait:agile",
     kind: "members",
     artifact_generation: "generation-one",
@@ -236,7 +240,9 @@ it("restores the Similar tab/order from its URL and keeps other association requ
     kind: request.kind,
     search_profile: request.kind === "similar" ? request.search_profile : null,
     artifact_generation: "generation-one",
-    ...(request.kind === "similar" ? { sort: request.sort ?? "relevance" } : {}),
+    ...(request.kind === "similar"
+      ? { sort: request.sort ?? { kind: "relevance" } }
+      : {}),
     rows: [],
     page: {
       number: request.page.number,
@@ -266,14 +272,19 @@ it("restores the Similar tab/order from its URL and keeps other association requ
   await waitFor(() =>
     expect(api.getTraitRecords.mock.lastCall?.[0]).toMatchObject({
       kind: "similar",
-      sort: "level_desc",
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "level", direction: "desc" }],
+      } satisfies ResultSort,
       page: { number: 1 },
     }),
   );
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Result order" }));
-  fireEvent.click(screen.getByText("Unit price low to high"));
+  await chooseAttributeSort("unit_price", "asc");
   await waitFor(() =>
-    expect(api.getTraitRecords.mock.lastCall?.[0].sort).toBe("unit_price_asc"),
+    expect(api.getTraitRecords.mock.lastCall?.[0].sort).toEqual({
+      kind: "attributes",
+      rules: [{ field: "unit_price", direction: "asc" }],
+    }),
   );
   expect(location.search).toContain("tab=similar");
   expect(location.search).toContain("sort=unit_price_asc");

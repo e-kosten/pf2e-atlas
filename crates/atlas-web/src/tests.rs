@@ -1493,7 +1493,7 @@ impl AtlasWebService for MockService {
             ));
         }
         Ok(SavedListDetailView {
-            sort: atlas_domain::ResultSort::SavedOrder,
+            sort: atlas_domain::ResultSort::SavedOrder {},
             list: saved_list_summary(),
             items: vec![SavedListItemView {
                 record_key: "actions:testAction1".to_string(),
@@ -1730,7 +1730,10 @@ fn record_summary() -> RecordSummaryView {
 
 fn search_results_page(page_number: u32) -> SearchResultsPage {
     SearchResultsPage {
-        sort: atlas_domain::ResultSort::NameAsc,
+        sort: atlas_domain::ResultSort::attribute(
+            atlas_domain::SortField::Name,
+            atlas_domain::SortDirection::Asc,
+        ),
         relationships: vec![],
         ranking: Default::default(),
         search_profile: atlas_domain::SearchProfileId::new("bge-base"),

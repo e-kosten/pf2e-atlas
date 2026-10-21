@@ -27,7 +27,7 @@ import {
   type SearchFormState,
 } from "../../filters/searchState";
 import { FilterControls } from "../../filters/FilterPanel";
-import { ResultSortSelect } from "../../search/ResultSortSelect";
+import { ResultSortControl } from "../../search/ResultSortControl";
 import { useFilterDiscovery } from "../../filters/useFilterDiscovery";
 import { ReferenceBrowser } from "../../records/ReferenceBrowser";
 import { useReferenceReading } from "../../records/useReferenceReading";
@@ -300,7 +300,7 @@ export function SearchPickerModal<FormValues>({
                     : "Results"}
               </Typography.Text>
               <div className="pager pager--compact">
-                <ResultSortSelect
+                <ResultSortControl
                   search={search}
                   disabled={disabled || retrieval.recovering}
                   setSearch={(next) => {

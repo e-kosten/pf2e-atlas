@@ -196,20 +196,32 @@ coverage honestly; never switch to FTS-only matching because the user chose a so
 Explicitly selected attribute order survives adding/clearing semantic criteria;
 fresh text/Similar searches default to Relevance. Missing/null/invalid/inapplicable
 values sort last in both directions, with normalized-name/canonical-key ties.
-Saved-list attribute order is temporary and never writes member positions.
+Saved-list attribute and Random order is temporary and never writes member positions.
 Order is URL state; criteria/order/page-size changes reset paging without losing
-other filters or drafts. Random/key order and semantic threshold redesign stay
+other filters or drafts. Arbitrary key order and semantic threshold redesign stay
 outside scope. Keep this implementation separate from the first relationship PR.
 
 Restore useful name, level/rank and unit-price ordering through shared backend
 requests, with deterministic tie-breaks and an explicit unavailable-value policy.
 Integrate pagination, URL/search identity, saved-list scope and generation checks.
-Keep text/Similar relevance behavior explicit. Seeded random and technical key
-ordering remain separate choices rather than automatic scope additions.
+Keep text/Similar relevance behavior explicit.
+
+Approved UX refinement after the initial preview: a visibly labelled Sort control
+opens a shared popover. Attribute rules have explicit priority, field and direction;
+later rules break ties, with one rule per field and accessible add/remove/reorder.
+Relevance, Random and list-only Saved order are alternative complete modes.
+Random orders the entire same eligible/admitted set using a generated seed;
+Shuffle or an explicit seed edit changes it and resets page1. Paging, Back and
+reload preserve the seed through URL state. Seed editing/copying stays inside the
+popover. Both attribute and Random modes preserve the existing count/coverage
+meaning, generation checks, retained results and dirty drafts.
 
 Acceptance: sorting applies to the entire eligible set before pagination; later
 pages do not merely reorder the first candidate window; changing sort resets
-paging coherently and preserves the intended filters.
+paging coherently and preserves the intended filters. Multiple rules resolve
+ties in the displayed priority order. Same-seed Random concatenated pages match
+the whole-set order; Shuffle changes it without changing membership or saved
+positions. Sort is discoverable and all controls remain reachable on phones.
 
 ### CF-10 — Relationship-scoped full results and filtering
 

@@ -37,7 +37,7 @@ pub struct TextSearchRequest<'a> {
 impl<'a> TextSearchRequest<'a> {
     pub fn new(query: &'a str, page: SearchPage) -> Self {
         Self {
-            sort: atlas_domain::ResultSort::Relevance,
+            sort: atlas_domain::ResultSort::Relevance {},
             ranking: Default::default(),
             search_profile: None,
             query,
@@ -179,7 +179,7 @@ impl AtlasRetrievalService {
         &mut self,
         request: TextSearchRequest<'_>,
     ) -> Result<TextSearchResult, SearchError> {
-        Self::validate_search_sort(request.sort)?;
+        Self::validate_search_sort(&request.sort)?;
         if request.query.trim().is_empty() {
             return Err(SearchError::invalid_search_options(
                 "text search requires nonempty text; use list_records for browse",
@@ -386,7 +386,7 @@ impl AtlasRetrievalService {
         window: Option<usize>,
         sort: atlas_domain::ResultSort,
     ) -> Result<TextSearchResult, SearchError> {
-        let roots = self.order_ranked_roots(roots, sort)?;
+        let roots = self.order_ranked_roots(roots, sort.clone())?;
         let total = roots.len();
         let selected = roots
             .into_iter()

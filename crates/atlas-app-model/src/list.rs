@@ -330,7 +330,7 @@ mod tests {
             record: None,
         };
         let encoded = serde_json::to_string(&SavedListDetailView {
-            sort: atlas_domain::ResultSort::SavedOrder,
+            sort: atlas_domain::ResultSort::SavedOrder {},
             list: summary.clone(),
             items: vec![item.clone()],
         })

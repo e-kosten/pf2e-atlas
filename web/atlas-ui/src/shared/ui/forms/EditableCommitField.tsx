@@ -4,10 +4,12 @@ import { useRef, useState } from "react";
 
 export function EditableCommitField({
   ariaLabel,
+  blurOnEnter = true,
   className,
   disabled = false,
   inputMode,
   onCommit,
+  onCancel,
   placeholder,
   size,
   stopPropagation = false,
@@ -15,10 +17,12 @@ export function EditableCommitField({
   variant,
 }: {
   ariaLabel: string;
+  blurOnEnter?: boolean;
   className?: string;
   disabled?: InputProps["disabled"];
   inputMode?: InputProps["inputMode"];
   onCommit: (value: string) => void | Promise<unknown>;
+  onCancel?: () => void;
   placeholder?: string;
   size?: InputProps["size"];
   stopPropagation?: boolean;
@@ -83,12 +87,13 @@ export function EditableCommitField({
         if (event.key === "Enter") {
           event.preventDefault();
           finishEdit(true);
-          event.currentTarget.blur();
+          if (blurOnEnter) event.currentTarget.blur();
         }
         if (event.key === "Escape") {
           event.preventDefault();
           finishEdit(false);
           event.currentTarget.blur();
+          onCancel?.();
         }
       }}
       placeholder={placeholder}

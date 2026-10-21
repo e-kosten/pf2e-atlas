@@ -249,11 +249,20 @@ Attribute ordering uses the existing root name, level/rank and per-item-price
 projections. Index shares one comparison contract between complete browse SQL
 and ordering an accepted candidate-key set. Keys are bound as data, without a
 browse-page cap or independently ordered chunks. Known values precede unavailable
-states in both directions; numeric ties and unavailable groups use normalized
-name ascending then canonical key ascending. Only the primary comparison reverses.
+states in both directions for every ordered rule. Equal or mutually unavailable
+values proceed to the next rule; final ties use normalized name ascending then
+canonical key ascending. Each rule reverses only its value comparison.
 Spell rank retains the catalog's level/rank dispatch, and price comparison uses
 native stored copper without another currency conversion. Typed batch reads of
 visible-root prices support transient labels; these labels are not stored facts.
+Random order uses SHA-256 over the ASCII domain
+`pf2e-atlas/result-order/random/v1` followed by a zero byte, the u32 seed in
+big-endian order, the canonical key's UTF-8 byte length as a big-endian u64, and
+the key bytes. Digest bytes compare ascending, with canonical-key ties. This
+query-time order needs no stored random column or artifact change. Browse reads
+all eligible keys body-free before Random ordering and page hydration; ranked
+search orders the unchanged complete accepted set. No cap, chunk-local order,
+per-page randomization or unspecified runtime hash participates.
 Ordering does not require new schema, source preparation or embedding work.
 
 The full serialized `SourceArtifactBuildContext` SHA-256 identifies the active reference

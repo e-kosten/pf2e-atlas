@@ -1,3 +1,5 @@
+import { chooseAttributeSort } from "../../../test/sortControls";
+import type { ResultSort } from "../../../generated/atlas";
 import { SearchProfileProvider } from "../../../test/SearchProfileProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider, Form, Input } from "antd";
@@ -34,7 +36,10 @@ function result(
   profile = "bge-base",
 ): SearchResultsPage {
   return {
-    sort: "name_asc" as const,
+    sort: {
+      kind: "attributes",
+      rules: [{ field: "name", direction: "asc" }],
+    } satisfies ResultSort,
     relationships: [],
     ranking: "score" as const,
     search_profile: profile,
@@ -207,17 +212,21 @@ it("sorts through the shared request while retaining the candidate and Add draft
     ...result(),
     sort:
       request.sort ??
-      (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
+      (request.criteria.kind === "list_records"
+        ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+        : { kind: "relevance" }),
   }));
   renderPicker();
   fireEvent.click(await screen.findByRole("link", { name: /Ghoul/ }));
   fireEvent.change(screen.getByLabelText("Note"), { target: { value: "Keep draft" } });
   fireEvent.click(screen.getByRole("button", { name: "Results" }));
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Result order" }));
-  fireEvent.click(screen.getByText("Level / Rank high to low"));
+  await chooseAttributeSort("level", "desc");
   await waitFor(() =>
     expect(search.mock.lastCall?.[0]).toMatchObject({
-      sort: "level_desc",
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "level", direction: "desc" }],
+      } satisfies ResultSort,
       page: { number: 1 },
     }),
   );
@@ -227,33 +236,54 @@ it("sorts through the shared request while retaining the candidate and Add draft
   await submit("dragon");
   await waitFor(() =>
     expect(search.mock.lastCall?.[0]).toMatchObject({
-      sort: "level_desc",
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "level", direction: "desc" }],
+      } satisfies ResultSort,
       criteria: { kind: "text_search", query: "dragon" },
     }),
   );
 });
 it("retains a labelled prior page across sorting but clears it for a different criterion", async () => {
   let finishSort!: (page: SearchResultsPage) => void;
-  search
-    .mockResolvedValueOnce(result())
-    .mockReturnValueOnce(
-      new Promise<SearchResultsPage>((resolve) => {
-        finishSort = resolve;
-      }),
+  search.mockImplementation((request) => {
+    if (request.criteria.kind === "text_search")
+      return new Promise<SearchResultsPage>(() => {});
+    if (
+      request.sort?.kind === "attributes" &&
+      request.sort.rules[0].field === "level" &&
+      request.sort.rules[0].direction === "desc"
     )
-    .mockReturnValueOnce(new Promise<SearchResultsPage>(() => {}));
+      return new Promise<SearchResultsPage>((resolve) => {
+        finishSort = resolve;
+      });
+    return Promise.resolve({
+      ...result(),
+      sort: request.sort ?? {
+        kind: "attributes",
+        rules: [{ field: "name", direction: "asc" }],
+      },
+    });
+  });
   renderPicker();
   await screen.findByRole("link", { name: /Ghoul/ });
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Result order" }));
-  fireEvent.click(screen.getByText("Level / Rank high to low"));
+  await chooseAttributeSort("level", "desc");
   await waitFor(() => expect(screen.getByText("Updating results")).toBeVisible());
   expect(screen.getByRole("link", { name: /Ghoul/ })).toBeInTheDocument();
   await act(async () =>
-    finishSort({ ...result("Sorted creature"), sort: "level_desc" }),
+    finishSort({
+      ...result("Sorted creature"),
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "level", direction: "desc" }],
+      } satisfies ResultSort,
+    }),
   );
   await screen.findByRole("link", { name: /Sorted creature/ });
   await submit("different criterion");
-  await waitFor(() => expect(search).toHaveBeenCalledTimes(3));
+  await waitFor(() =>
+    expect(search.mock.lastCall?.[0].criteria.kind).toBe("text_search"),
+  );
   expect(screen.queryByRole("link", { name: /Sorted creature/ })).toBeNull();
 });
 
@@ -382,7 +412,10 @@ it("adopts generation once and explicitly refreshes conflicts without clearing c
         recoverable_action: "refresh_results",
       }),
     )
-    .mockResolvedValue({ ...result("Dragon", "generation-b"), sort: "relevance" });
+    .mockResolvedValue({
+      ...result("Dragon", "generation-b"),
+      sort: { kind: "relevance" } as const,
+    });
   await submit("dragon");
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "The reference collection changed.",

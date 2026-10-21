@@ -44,7 +44,10 @@ pub struct ListRecordsRequest<'a> {
 impl<'a> ListRecordsRequest<'a> {
     pub fn new(filter: Option<&'a QueryPredicate>, page: SearchPage) -> Self {
         Self {
-            sort: atlas_domain::ResultSort::NameAsc,
+            sort: atlas_domain::ResultSort::attribute(
+                atlas_domain::SortField::Name,
+                atlas_domain::SortDirection::Asc,
+            ),
             filter,
             scope: RecordScope::All,
             page,
@@ -205,7 +208,10 @@ impl AtlasRetrievalService {
             &query,
             Some(&keys),
             false,
-            atlas_domain::ResultSort::NameAsc,
+            atlas_domain::ResultSort::attribute(
+                atlas_domain::SortField::Name,
+                atlas_domain::SortDirection::Asc,
+            ),
             0,
             1024,
         )?;
@@ -256,7 +262,10 @@ impl AtlasRetrievalService {
                 &query,
                 Some(std::slice::from_ref(&key)),
                 false,
-                atlas_domain::ResultSort::NameAsc,
+                atlas_domain::ResultSort::attribute(
+                    atlas_domain::SortField::Name,
+                    atlas_domain::SortDirection::Asc,
+                ),
                 0,
                 1,
             )?;

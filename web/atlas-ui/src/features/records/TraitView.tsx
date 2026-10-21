@@ -20,16 +20,18 @@ import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHea
 import { useTraitDetail } from "../../shared/records/useTraitDetail";
 import { PreparedContentBody } from "../../shared/records/PreparedContent";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
-import { ResultSortSelect } from "../../shared/search/ResultSortSelect";
+import { ResultSortControl } from "../../shared/search/ResultSortControl";
 import {
   DEFAULT_SEARCH_STATE,
   decodeResultSort,
+  encodeResultSort,
   effectiveResultSort,
   type SearchFormState,
 } from "../../shared/filters/searchState";
 import {
   assertSearchIdentity,
   sameSearchPageContext,
+  sameResultSort,
 } from "../../shared/search/searchIdentity";
 import {
   isArtifactGenerationChanged,
@@ -142,8 +144,7 @@ function TraitAssociations({
     const params = new URLSearchParams(route.query);
     if (kind === "members") params.delete("tab");
     else params.set("tab", kind);
-    if (search.sort) params.set("sort", search.sort);
-    else params.delete("sort");
+    encodeResultSort(params, search.sort);
     const query = params.size ? "?" + params.toString() : undefined;
     previousQuery.current = query;
     setState({ kind, search });
@@ -206,7 +207,8 @@ function TraitRecords({
   setSearch: (search: SearchFormState) => void;
 }) {
   const [paging, setPaging] = useState({ sort: search.sort, number: 1 });
-  const page = kind === "similar" && paging.sort !== search.sort ? 1 : paging.number;
+  const page =
+    kind === "similar" && !sameResultSort(paging.sort, search.sort) ? 1 : paging.number;
   const setPage = (number: number) => setPaging({ sort: search.sort, number });
   const profile = useSearchProfile();
   const request: TraitRecordsRequest = {
@@ -265,7 +267,7 @@ function TraitRecords({
                 ? "Top matches"
                 : "Similar records"}
           </span>
-          <ResultSortSelect
+          <ResultSortControl
             search={search}
             setSearch={(next) => {
               setPage(1);
@@ -355,7 +357,8 @@ function TraitRecords({
                       </Typography.Text>
                     )}
                     {kind === "similar" &&
-                      (data.sort === "level_asc" || data.sort === "level_desc") &&
+                      data.sort?.kind === "attributes" &&
+                      data.sort.rules.some((rule) => rule.field === "level") &&
                       row.record.level_label && (
                         <Typography.Text type="secondary">
                           {" "}

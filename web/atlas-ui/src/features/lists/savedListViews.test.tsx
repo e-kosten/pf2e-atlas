@@ -1,3 +1,4 @@
+import type { ResultSort } from "../../generated/atlas";
 import {
   detailFixture,
   summaryFixture,
@@ -98,7 +99,10 @@ describe("list views", () => {
       Promise.resolve(valuesFixture(request.field_id)),
     );
     apiMocks.searchPage.mockResolvedValue({
-      sort: "name_asc",
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "name", direction: "asc" }],
+      } satisfies ResultSort,
       search_profile: "bge-base",
       artifact_generation: "generation-a",
       mode: { kind: "list_records" },
@@ -719,9 +723,9 @@ describe("list views", () => {
 
   it("keeps temporary order in list URLs and native links without enabling reorder writes", async () => {
     apiMocks.filterSavedList.mockImplementation(
-      async (request: { sort?: "level_desc" | "saved_order" }) => ({
+      async (request: { sort?: ResultSort }) => ({
         ...savedListDetailFixture(),
-        sort: request.sort ?? "saved_order",
+        sort: request.sort ?? { kind: "saved_order" },
       }),
     );
     const route = {
@@ -738,7 +742,12 @@ describe("list views", () => {
     const note = screen.getByRole("textbox", { name: "Note" });
     fireEvent.change(note, { target: { value: "Keep this unsaved note" } });
     expect(apiMocks.filterSavedList).toHaveBeenCalledWith(
-      expect.objectContaining({ sort: "level_desc" }),
+      expect.objectContaining({
+        sort: {
+          kind: "attributes",
+          rules: [{ field: "level", direction: "desc" }],
+        } satisfies ResultSort,
+      }),
     );
     expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
       "href",
@@ -1166,7 +1175,7 @@ function savedListIndexFixture(): SavedListIndexView {
 
 function savedListDetailFixture(): SavedListDetailView {
   return {
-    sort: "saved_order",
+    sort: { kind: "saved_order" } as const,
     list: savedListIndexFixture().lists[0]!,
     items: [
       {

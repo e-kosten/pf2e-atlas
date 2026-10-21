@@ -465,7 +465,9 @@ function SimilarPreview({
         },
         signal,
       );
-      assertSearchIdentity(page, profile.id, detail.artifact_generation, "relevance");
+      assertSearchIdentity(page, profile.id, detail.artifact_generation, {
+        kind: "relevance",
+      });
       return page;
     },
   });

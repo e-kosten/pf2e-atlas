@@ -82,8 +82,11 @@ impl AtlasAppService {
         let key = parse_key(&request.trait_key)?;
         let page = SearchPage::new(request.page.number, request.page.size)?;
         let sort = if request.kind == TraitAssociationKind::Similar {
-            let sort = request.sort.unwrap_or(atlas_domain::ResultSort::Relevance);
-            if sort == atlas_domain::ResultSort::SavedOrder {
+            let sort = request
+                .sort
+                .unwrap_or(atlas_domain::ResultSort::Relevance {});
+            sort.validate().map_err(AppServiceError::invalid_request)?;
+            if matches!(sort, atlas_domain::ResultSort::SavedOrder {}) {
                 return Err(AppServiceError::invalid_request(
                     "Saved order is available only for saved lists",
                 ));
@@ -177,7 +180,9 @@ impl AtlasAppService {
                 TraitAssociationKind::Similar => {
                     let result = retrieval
                         .similar_trait(SimilarTraitRequest {
-                            sort: sort.unwrap_or(atlas_domain::ResultSort::Relevance),
+                            sort: sort
+                                .clone()
+                                .unwrap_or(atlas_domain::ResultSort::Relevance {}),
                             trait_key: &key,
                             search_profile: request.search_profile.as_ref(),
                             ranking: request.ranking.unwrap_or_default(),
@@ -194,7 +199,7 @@ impl AtlasAppService {
                     projection_execution.check()?;
                     let mut results =
                         crate::projection::search_results_view(result.results, retrieval);
-                    if sort.is_some_and(|s| s.is_unit_price()) {
+                    if sort.as_ref().is_some_and(|s| s.is_unit_price()) {
                         let mut records = results
                             .rows
                             .iter()

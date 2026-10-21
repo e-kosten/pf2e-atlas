@@ -74,9 +74,14 @@ pub(crate) struct ListLsOptions {
 pub(crate) struct ListShowOptions {
     #[arg(
         long,
-        help = "Temporary result order: saved_order or an attribute order"
+        help = "Temporary order: saved_order, random or repeated attribute tokens"
     )]
-    pub(crate) sort: Option<atlas_domain::ResultSort>,
+    pub(crate) sort: Vec<String>,
+    #[arg(
+        long,
+        help = "Random order seed (requires only --sort random); generated when omitted"
+    )]
+    pub(crate) seed: Option<u32>,
     #[arg(help = "Saved-list id", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_slugs))]
     pub(crate) slug: String,
     #[arg(long, help = "Emit only saved-list record keys")]

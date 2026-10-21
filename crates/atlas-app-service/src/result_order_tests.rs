@@ -53,7 +53,13 @@ fn sorting_search_resolves_defaults_rejects_before_inference_and_reads_price_lab
             &execution,
         )
         .unwrap();
-    assert_eq!(automatic.sort, ResultSort::NameAsc);
+    assert_eq!(
+        automatic.sort,
+        ResultSort::attribute(
+            atlas_domain::SortField::Name,
+            atlas_domain::SortDirection::Asc
+        )
+    );
     assert!(
         automatic
             .rows
@@ -70,13 +76,22 @@ fn sorting_search_resolves_defaults_rejects_before_inference_and_reads_price_lab
         .worker
         .search_page(
             search(
-                Some(ResultSort::UnitPriceAsc),
+                Some(ResultSort::attribute(
+                    atlas_domain::SortField::UnitPrice,
+                    atlas_domain::SortDirection::Asc,
+                )),
                 SearchCriteria::ListRecords { filter: None },
             ),
             &execution,
         )
         .unwrap();
-    assert_eq!(ordered.sort, ResultSort::UnitPriceAsc);
+    assert_eq!(
+        ordered.sort,
+        ResultSort::attribute(
+            atlas_domain::SortField::UnitPrice,
+            atlas_domain::SortDirection::Asc
+        )
+    );
     assert_eq!(ordered.rows[0].record.title, "Item Cheap");
     assert_eq!(
         ordered.rows[0].record.unit_price_label.as_deref(),
@@ -98,7 +113,7 @@ fn sorting_search_resolves_defaults_rejects_before_inference_and_reads_price_lab
         .unwrap();
     assert_eq!(metrics.source_body_decodes, 0);
     let mut invalid = search(
-        Some(ResultSort::SavedOrder),
+        Some(ResultSort::SavedOrder {}),
         SearchCriteria::TextSearch {
             query: "query requiring unavailable native inference".into(),
             filter: None,
@@ -113,7 +128,7 @@ fn sorting_search_resolves_defaults_rejects_before_inference_and_reads_price_lab
             .code,
         AppErrorCode::InvalidRequest
     );
-    invalid.sort = Some(ResultSort::Relevance);
+    invalid.sort = Some(ResultSort::Relevance {});
     invalid.criteria = SearchCriteria::ListRecords { filter: None };
     assert_eq!(
         f.worker
@@ -124,7 +139,10 @@ fn sorting_search_resolves_defaults_rejects_before_inference_and_reads_price_lab
         AppErrorCode::InvalidRequest
     );
     let mut stale = search(
-        Some(ResultSort::UnitPriceDesc),
+        Some(ResultSort::attribute(
+            atlas_domain::SortField::UnitPrice,
+            atlas_domain::SortDirection::Desc,
+        )),
         SearchCriteria::TextSearch {
             query: "query requiring unavailable native inference".into(),
             filter: None,
@@ -176,7 +194,7 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
         })
         .unwrap();
     let before = f.worker.saved_list("ordered").unwrap();
-    assert_eq!(before.sort, ResultSort::SavedOrder);
+    assert_eq!(before.sort, ResultSort::SavedOrder {});
     assert_eq!(
         before
             .items
@@ -188,7 +206,10 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
     let sorted = f
         .worker
         .filter_saved_list(FilterSavedListRequest {
-            sort: Some(ResultSort::UnitPriceAsc),
+            sort: Some(ResultSort::attribute(
+                atlas_domain::SortField::UnitPrice,
+                atlas_domain::SortDirection::Asc,
+            )),
             list_ref: "ordered".into(),
             query: None,
             filter: None,
@@ -211,6 +232,26 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
             .as_deref(),
         Some("0.005 gp each")
     );
+    for seed in [0, u32::MAX] {
+        let request = FilterSavedListRequest {
+            sort: Some(ResultSort::Random { seed }),
+            list_ref: "ordered".into(),
+            query: None,
+            filter: None,
+        };
+        let shuffled = f.worker.filter_saved_list(request.clone()).unwrap();
+        assert_eq!(shuffled, f.worker.filter_saved_list(request).unwrap());
+        assert_eq!(shuffled.items.len(), keys.len());
+        assert_eq!(shuffled.items[4].record_key, keys[1]);
+        assert_eq!(shuffled.items[5].record_key, keys[3]);
+        assert!(shuffled.items[..4].iter().any(|i| i.record_key == keys[4]));
+        assert!(shuffled.items[..4].iter().any(|i| i.record_key == keys[5]));
+        assert!(shuffled.items.iter().all(|i| {
+            i.record
+                .as_ref()
+                .is_none_or(|r| r.unit_price_label.is_none())
+        }));
+    }
     let filtered = f
         .worker
         .filter_saved_list(FilterSavedListRequest {
@@ -220,7 +261,7 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
             filter: None,
         })
         .unwrap();
-    assert_eq!(filtered.sort, ResultSort::SavedOrder);
+    assert_eq!(filtered.sort, ResultSort::SavedOrder {});
     assert_eq!(
         filtered
             .items
@@ -237,11 +278,137 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
     assert_eq!(
         f.worker
             .filter_saved_list(FilterSavedListRequest {
-                sort: Some(ResultSort::Relevance),
+                sort: Some(ResultSort::Relevance {}),
                 list_ref: "ordered".into(),
                 query: None,
                 filter: None
             })
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::InvalidRequest
+    );
+}
+
+#[test]
+fn sorting_multirule_labels_use_any_price_rule_and_invalid_rules_fail_before_inference() {
+    use atlas_domain::{SortDirection::*, SortField::*, SortRule};
+    let fixture = fixture();
+    let execution = ReadExecutionContext::uncancellable();
+    fixture
+        .worker
+        .with_retrieval(&execution, |r| {
+            r.reset_read_metrics();
+            Ok(())
+        })
+        .unwrap();
+    for fields in [vec![Level, UnitPrice], vec![Level, Name, UnitPrice]] {
+        let sort = ResultSort::Attributes {
+            rules: fields
+                .into_iter()
+                .map(|field| SortRule {
+                    field,
+                    direction: Asc,
+                })
+                .collect(),
+        };
+        let result = fixture
+            .worker
+            .search_page(
+                search(
+                    Some(sort.clone()),
+                    SearchCriteria::ListRecords { filter: None },
+                ),
+                &execution,
+            )
+            .unwrap();
+        assert_eq!(result.sort, sort);
+        assert!(
+            result
+                .rows
+                .iter()
+                .all(|r| r.record.unit_price_label.is_some())
+        );
+    }
+    assert_eq!(
+        fixture
+            .worker
+            .with_retrieval(&execution, |r| Ok(r.read_metrics()))
+            .unwrap()
+            .source_body_decodes,
+        0
+    );
+    let duplicate = SortRule {
+        field: Name,
+        direction: Asc,
+    };
+    for rules in [vec![], vec![duplicate, duplicate]] {
+        let request = search(
+            Some(ResultSort::Attributes { rules }),
+            SearchCriteria::TextSearch {
+                query: "would require unavailable inference".into(),
+                filter: None,
+                mode: RetrievalModeView::Semantic,
+            },
+        );
+        assert_eq!(
+            fixture
+                .worker
+                .search_page(request, &execution)
+                .unwrap_err()
+                .into_app_error()
+                .code,
+            AppErrorCode::InvalidRequest
+        );
+    }
+}
+
+#[test]
+fn sorting_trait_modes_reject_provided_order_outside_similar() {
+    let fixture = fixture();
+    let execution = ReadExecutionContext::uncancellable();
+    for kind in [
+        TraitAssociationKind::Members,
+        TraitAssociationKind::References,
+    ] {
+        let request = TraitRecordsRequest {
+            sort: Some(ResultSort::Random { seed: 0 }),
+            trait_key: "trait:fire".into(),
+            kind,
+            page: SearchPageRequest {
+                number: 1,
+                size: 20,
+            },
+            expected_artifact_generation: "not-consumed-for-invalid-order".into(),
+            search_profile: None,
+            ranking: None,
+        };
+        assert_eq!(
+            fixture
+                .worker
+                .trait_records(request, &execution)
+                .unwrap_err()
+                .into_app_error()
+                .code,
+            AppErrorCode::InvalidRequest
+        );
+    }
+    let request = TraitRecordsRequest {
+        sort: Some(ResultSort::Attributes { rules: vec![] }),
+        trait_key: "trait:fire".into(),
+        kind: TraitAssociationKind::Similar,
+        page: SearchPageRequest {
+            number: 1,
+            size: 20,
+        },
+        expected_artifact_generation: "not-consumed-for-invalid-order".into(),
+        search_profile: None,
+        ranking: None,
+    };
+    assert_eq!(
+        fixture
+            .worker
+            .trait_records(request, &execution)
             .unwrap_err()
             .into_app_error()
             .code,

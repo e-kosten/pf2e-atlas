@@ -34,7 +34,8 @@ import {
 import { ListBrowseHeader } from "./ListBrowseHeader";
 import { ListItemsPane } from "./ListItemsPane";
 import { invalidateSavedListQueries } from "./savedListQueries";
-import { ResultSortSelect } from "../../shared/search/ResultSortSelect";
+import { sameResultSort } from "../../shared/search/searchIdentity";
+import { ResultSortControl } from "../../shared/search/ResultSortControl";
 import {
   listSearchQuery,
   useDebouncedSearchFilters,
@@ -85,7 +86,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
         ...(query ? { query } : {}),
         ...(buildFilter(activeFilters) ? { filter: buildFilter(activeFilters)! } : {}),
       });
-      if (view.sort !== effectiveResultSort(activeFilters, "saved_list"))
+      if (!sameResultSort(view.sort, effectiveResultSort(activeFilters, "saved_list")))
         throw new Error("The saved records used a different order. Retry the list.");
       return view;
     },
@@ -151,9 +152,9 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       invalidateSavedListQueries(queryClient, [route.slug, view.slug, view.list_key]),
   });
   const canReorder =
-    effectiveResultSort(filters, "saved_list") === "saved_order" &&
-    effectiveResultSort(activeFilters, "saved_list") === "saved_order" &&
-    list.data?.sort === "saved_order" &&
+    effectiveResultSort(filters, "saved_list").kind === "saved_order" &&
+    effectiveResultSort(activeFilters, "saved_list").kind === "saved_order" &&
+    list.data?.sort.kind === "saved_order" &&
     !filters.filterError &&
     !activeFilters.filterError &&
     !filters.query.trim() &&
@@ -216,7 +217,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
                 ? `${list.data.items.length.toLocaleString()} saved records`
                 : "Saved records"}
             </span>
-            <ResultSortSelect
+            <ResultSortControl
               search={filters}
               surface="saved_list"
               setSearch={changeFilters}

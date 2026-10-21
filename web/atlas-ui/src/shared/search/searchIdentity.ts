@@ -18,7 +18,7 @@ export function sameSearchPageContext(
 
 /** Never display retrieval evidence under a different model or collection. */
 export function assertSearchIdentity(
-  response: { search_profile: string; artifact_generation: string },
+  response: { search_profile: string; artifact_generation: string; sort?: ResultSort },
   profile: string | null | undefined,
   generation?: string | null,
   sort?: ResultSort,
@@ -33,6 +33,28 @@ export function assertSearchIdentity(
       message: "The reference collection changed. Refresh results.",
       recoverable_action: "refresh_results",
     });
-  if (sort != null && (!("sort" in response) || response.sort !== sort))
+  if (sort != null && !sameResultSort(response.sort, sort))
     throw new Error("The search response used a different order. Retry the search.");
+}
+
+/** Generated sort DTOs are values; response object identity is irrelevant. */
+export function sameResultSort(
+  left: ResultSort | undefined,
+  right: ResultSort | undefined,
+): boolean {
+  if (!left || !right) return left === right;
+  if (left.kind !== right.kind) return false;
+  if (left.kind === "random")
+    return right.kind === "random" && left.seed === right.seed;
+  if (left.kind === "attributes")
+    return (
+      right.kind === "attributes" &&
+      left.rules.length === right.rules.length &&
+      left.rules.every(
+        (rule, index) =>
+          rule.field === right.rules[index].field &&
+          rule.direction === right.rules[index].direction,
+      )
+    );
+  return true;
 }

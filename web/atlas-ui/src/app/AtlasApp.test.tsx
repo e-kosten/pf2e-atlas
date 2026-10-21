@@ -69,7 +69,9 @@ describe("AtlasApp routing", () => {
       ...searchResultsPage(),
       sort:
         request.sort ??
-        (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
+        (request.criteria.kind === "list_records"
+          ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+          : { kind: "relevance" }),
     }));
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
@@ -156,7 +158,9 @@ describe("AtlasApp routing", () => {
         search_profile: request.search_profile,
         sort:
           request.sort ??
-          (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
+          (request.criteria.kind === "list_records"
+            ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+            : { kind: "relevance" }),
       }),
     );
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -224,7 +228,9 @@ describe("AtlasApp routing", () => {
           search_profile: request.search_profile,
           sort:
             request.sort ??
-            (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
+            (request.criteria.kind === "list_records"
+              ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+              : { kind: "relevance" }),
         }),
       );
       const first = render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -342,7 +348,9 @@ describe("AtlasApp routing", () => {
           search_profile: request.search_profile,
           sort:
             request.sort ??
-            (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
+            (request.criteria.kind === "list_records"
+              ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+              : { kind: "relevance" }),
         }),
       );
       const reader = render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -408,7 +416,9 @@ describe("AtlasApp routing", () => {
         search_profile: request.search_profile,
         sort:
           request.sort ??
-          (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
+          (request.criteria.kind === "list_records"
+            ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+            : { kind: "relevance" }),
       }),
     );
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -552,7 +562,9 @@ describe("AtlasApp routing", () => {
         search_profile: request.search_profile,
         sort:
           request.sort ??
-          (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
+          (request.criteria.kind === "list_records"
+            ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+            : { kind: "relevance" }),
       }),
     );
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -650,7 +662,7 @@ function emptyFilterEditor(): FilterEditorView {
 function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
   return {
     relationships: [],
-    sort: "relevance" as const,
+    sort: { kind: "relevance" } as const,
     ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",

@@ -85,7 +85,7 @@ impl AtlasAppService {
                     })?;
                     let result = retrieval
                         .similar_records(atlas_search::SimilarRecordRequest {
-                            sort,
+                            sort: sort.clone(),
                             search_profile: request.search_profile.as_ref(),
                             record_key: &key,
                             filter: filter.as_ref(),
@@ -115,7 +115,7 @@ impl AtlasAppService {
                     let result = retrieval.list_records(
                         ListRecordsRequest::new(filter.as_ref(), page)
                             .with_scope(scope)
-                            .with_sort(sort),
+                            .with_sort(sort.clone()),
                     )?;
                     projection_execution.check()?;
                     (
@@ -140,7 +140,7 @@ impl AtlasAppService {
                 } => {
                     // Stateless paging deliberately reruns query inference and ranking.
                     let result = retrieval.search_text(TextSearchRequest {
-                        sort,
+                        sort: sort.clone(),
                         ranking: request.ranking.unwrap_or_default(),
                         search_profile: request.search_profile.as_ref(),
                         query: &query,

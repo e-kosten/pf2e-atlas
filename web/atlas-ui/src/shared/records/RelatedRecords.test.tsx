@@ -1,3 +1,4 @@
+import type { ResultSort } from "../../generated/atlas";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
   act,
@@ -128,7 +129,7 @@ describe("shared related disclosure", () => {
     vi.clearAllMocks();
     api.getRelatedRecords.mockResolvedValue(relatedFixture());
     api.searchPage.mockResolvedValue({
-      sort: "relevance" as const,
+      sort: { kind: "relevance" } as const,
       ranking: "score" as const,
       search_profile: "bge-base",
       artifact_generation: "test-generation",
@@ -298,7 +299,10 @@ describe("shared related disclosure", () => {
     const state = {
       ...DEFAULT_SEARCH_STATE,
       query: "fire",
-      sort: "unit_price_desc" as const,
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "unit_price", direction: "desc" }],
+      } satisfies ResultSort,
       filter: { kind: "in" as const, field: "kind", values: ["creature"] },
       relationships: [
         {
@@ -325,7 +329,10 @@ describe("shared related disclosure", () => {
     expect(restored).toMatchObject({
       query: "",
       similarSeed: "actors:seed",
-      sort: "unit_price_desc",
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "unit_price", direction: "desc" }],
+      } satisfies ResultSort,
       filter: state.filter,
       relationships: state.relationships,
     });
@@ -372,7 +379,7 @@ describe("shared related disclosure", () => {
     });
     const page = (profile: string, title: string): SearchResultsPage => ({
       relationships: [],
-      sort: "relevance" as const,
+      sort: { kind: "relevance" } as const,
       ranking: "score" as const,
       search_profile: profile,
       artifact_generation: detail.artifact_generation,
