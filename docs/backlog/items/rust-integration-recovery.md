@@ -48,7 +48,7 @@ if review warrants it; preserve its ID and record every resulting PR here.
 | CF-07 | Supported condition/spell adjustments and casting reminders | planned | Pending | Not started |
 | CF-08 | Hazard Active/Disabled state | in_progress | Approved with CF-06 | locally complete; single Active/Disabled state; user accepted preview; Rust/UI gates and browser reviews pass; [PR #78](https://github.com/e-kosten/pf2e-atlas/pull/78) |
 | CF-09 | Browse sorting | planned | Approved 2026-10-21 | Second PR after relationship search; design recorded below |
-| CF-10 | Relationship-scoped full results and filtering | in_progress | Approved 2026-10-21 | `feat/browse-reference-search` from main 40275f3e; first PR includes Links to/Linked from and Similar entry UI; direct multi-filter creation follows in third PR |
+| CF-10 | Relationship-scoped full results and filtering | in_progress | Approved 2026-10-21 | [Draft PR #97](https://github.com/e-kosten/pf2e-atlas/pull/97), `feat/browse-reference-search` from main 40275f3e; early preview ed6247f8 at localhost:4937; focused Rust/frontend tests, builds and six responsive cases pass; UX/full gates/Astra/CI acceptance pending; direct multi-filter creation follows in third PR |
 
 ### CF-01 — CLI batches and error contracts
 
