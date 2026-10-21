@@ -42,7 +42,7 @@ it("replaces text entry with a selectable Similar title and restores focus after
   const input = screen.getByRole("searchbox", { name: "Similar search" });
   expect(input).toHaveValue("Leather Armor");
   expect(input).toHaveAttribute("readonly");
-  expect(screen.getByText("Similar to:")).toBeVisible();
+  expect(screen.getByText("Similar to")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Clear similar criterion" }));
   expect(clear).toHaveBeenCalledOnce();
   view.rerender(<SearchEntry query="" onSearch={vi.fn()} />);

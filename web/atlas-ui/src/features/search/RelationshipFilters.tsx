@@ -1,5 +1,5 @@
-import { Button, Popover, Radio, Space, Tag, Typography } from "antd";
-import { CloseOutlined } from "@ant-design/icons";
+import { Button, Popover, Radio, Space, Tag, Typography, theme } from "antd";
+import { CloseOutlined, DownOutlined } from "@ant-design/icons";
 import { useRef, useState, type KeyboardEvent } from "react";
 import {
   atlasRoutePath,
@@ -34,6 +34,7 @@ function RelationshipFilter({
   index: number;
   workspace: SearchWorkspaceState;
 }) {
+  const { token } = theme.useToken();
   const [scopeOpen, setScopeOpen] = useState(false);
   const scopeTrigger = useRef<HTMLButtonElement>(null);
   const constraints = workspace.search.relationships ?? [];
@@ -129,14 +130,24 @@ function RelationshipFilter({
             </Radio.Group>
             <Typography.Paragraph type="secondary">
               {constraint.direction === "incoming"
-                ? "Whole entry also checks each matching record’s abilities, spells, equipment and journal pages."
-                : "Whole entry also checks this entry’s abilities, spells, equipment and journal pages."}
+                ? "Whole entry also checks each matching record’s abilities, spells, equipment, and other nested documents."
+                : "Whole entry also checks this entry’s abilities, spells, equipment, and other nested documents."}
             </Typography.Paragraph>
           </div>
         }
       >
         <Button
           ref={scopeTrigger}
+          type="text"
+          size="small"
+          icon={<DownOutlined aria-hidden="true" />}
+          iconPlacement="end"
+          styles={{
+            root: {
+              color: token.colorTextSecondary,
+              fontSize: token.fontSizeSM,
+            },
+          }}
           onKeyDown={scopeKeyDown}
           aria-label="Relationship scope"
           aria-expanded={scopeOpen}

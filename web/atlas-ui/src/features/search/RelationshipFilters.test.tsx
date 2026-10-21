@@ -43,7 +43,7 @@ it("shows the human relationship label at the top level and preserves criteria o
   await waitFor(() =>
     expect(
       screen.getByText(
-        "Whole entry also checks each matching record’s abilities, spells, equipment and journal pages.",
+        "Whole entry also checks each matching record’s abilities, spells, equipment, and other nested documents.",
       ),
     ).toBeInTheDocument(),
   );

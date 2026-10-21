@@ -1,4 +1,4 @@
-import { Button, Input, Typography, theme, type InputRef } from "antd";
+import { Button, Input, Tag, theme, type InputRef } from "antd";
 import { CloseCircleFilled } from "@ant-design/icons";
 import { useLayoutEffect, useRef, useState } from "react";
 
@@ -47,7 +47,11 @@ export function SearchEntry({
       disabled={disabled}
       readOnly={Boolean(similar)}
       value={value}
-      prefix={<Typography.Text>{similar ? "Similar to:" : null}</Typography.Text>}
+      prefix={
+        <span style={{ display: "inline-flex", alignItems: "center" }}>
+          {similar ? <Tag>Similar to</Tag> : null}
+        </span>
+      }
       suffix={
         <Button
           type="text"

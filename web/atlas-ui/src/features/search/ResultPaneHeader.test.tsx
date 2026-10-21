@@ -139,7 +139,7 @@ describe("search pane composition", () => {
       },
     });
     const { container, rerender } = render(<SearchView workspace={state} />);
-    const criterion = screen.getByText("Similar to:");
+    const criterion = screen.getByText("Similar to");
     const body = criterion.closest(".filter-toolbar");
     expect(body).toBeVisible();
     expect(body).toContainElement(
@@ -158,7 +158,7 @@ describe("search pane composition", () => {
     });
 
     rerender(<SearchView workspace={workspace()} />);
-    expect(screen.queryByText("Similar to:")).toBeNull();
+    expect(screen.queryByText("Similar to")).toBeNull();
     expect(screen.getByText("14,736 records")).toBeVisible();
     expect(container.querySelector(".filter-toolbar")).toBeVisible();
   });
