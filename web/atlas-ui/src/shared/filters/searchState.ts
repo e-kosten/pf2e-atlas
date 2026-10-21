@@ -86,7 +86,12 @@ export function buildSavedListFilterDiscoveryContext(
   list_ref: string,
   state: SearchFormState,
 ): FilterDiscoveryContext {
-  return { ...buildFilterDiscoveryContext(state), kind: "saved_list", list_ref };
+  return {
+    ...buildFilterDiscoveryContext(state),
+    kind: "saved_list",
+    list_ref,
+    mode: "lexical",
+  };
 }
 export function encodeSearchState(state: SearchFormState): string {
   return encodeURIComponent(JSON.stringify(state));

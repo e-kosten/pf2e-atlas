@@ -5,6 +5,7 @@ import {
   searchStateQueryString,
   decodeSearchStateFromParams,
   buildFilterDiscoveryContext,
+  buildSavedListFilterDiscoveryContext,
   hasExecutableSearch,
 } from "./searchState";
 describe("source query state", () => {
@@ -65,6 +66,20 @@ describe("source query state", () => {
         mode: "text_search",
       }),
     ).toMatchObject({ text: "dragon", mode: "hybrid" });
+  });
+  it("uses lexical list filtering while discovery searches stay hybrid", () => {
+    const state = {
+      ...DEFAULT_SEARCH_STATE,
+      query: "dragon",
+      mode: "text_search" as const,
+    };
+    expect(buildSavedListFilterDiscoveryContext("research", state)).toMatchObject({
+      kind: "saved_list",
+      list_ref: "research",
+      text: "dragon",
+      mode: "lexical",
+    });
+    expect(buildSearchRequest(state, 1).criteria).toMatchObject({ mode: "hybrid" });
   });
   it("ignores retired retrieval URL options and derives text mode from the query", () => {
     const state = decodeSearchStateFromParams(

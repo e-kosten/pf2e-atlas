@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { Alert, Button, Empty, Pagination, Spin, Tabs, Typography } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -29,6 +30,7 @@ export function TraitView({
   route: Extract<AtlasRoute, { kind: "trait" }>;
 }) {
   const query = useTraitDetail(route.traitKey);
+  usePageTitle(query.data?.label ?? "Trait");
   const client = useQueryClient();
   const reload = async () => {
     await retireImmutableReferenceQueries(client);

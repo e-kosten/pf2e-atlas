@@ -58,6 +58,25 @@ describe("useSearchWorkspace", () => {
     history.replaceState(null, "", "/");
   });
 
+  it("opens a submitted canonical key immediately without running text inference", async () => {
+    const key = "pathfinder-bestiary:j1mm6bb3hZ56jSrK";
+    apiMocks.getRecordDetail.mockResolvedValue(detailFixture(key));
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: null, searchProfileUsable: false }),
+      { wrapper: queryClientWrapper() },
+    );
+    act(() =>
+      result.current.setSearch({ ...result.current.search, query: ` ${key} ` }),
+    );
+    expect(result.current.selectedRecordKey).toBe(key);
+    expect(decodeURIComponent(location.pathname)).toContain(key);
+    await waitFor(() =>
+      expect(result.current.reading.detail?.record.record_key).toBe(key),
+    );
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
+    expect(result.current.search.query).toBe("");
+  });
+
   it("switches ranking independently of the model and resets pagination", async () => {
     history.replaceState(null, "", "/search?q=harrowkin");
     apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>

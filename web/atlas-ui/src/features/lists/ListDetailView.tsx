@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ListEntryNote } from "./ListEntryNote";
 import { ListRecordPicker } from "./ListRecordPicker";
 import {
@@ -63,6 +64,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   const selectedItem = list.data?.items.find(
     (item) => item.record_key === route.selectedRecordKey,
   );
+  usePageTitle(list.data?.list.name ?? "List");
   const inspectSelection = reading.select;
   const selectedRoute = useRef<{ identity: string; blocked: boolean } | undefined>(
     undefined,
