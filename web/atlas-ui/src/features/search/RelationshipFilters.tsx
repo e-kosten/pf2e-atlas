@@ -66,6 +66,7 @@ function RelationshipFilter({
   return (
     <Space
       wrap
+      size={token.marginXXS}
       className="relationship-filter"
       role="group"
       aria-label="Relationship filter"
@@ -146,13 +147,15 @@ function RelationshipFilter({
             root: {
               color: token.colorTextSecondary,
               fontSize: token.fontSizeSM,
+              paddingInline: 0,
+              columnGap: token.marginXXS,
             },
           }}
           onKeyDown={scopeKeyDown}
           aria-label="Relationship scope"
           aria-expanded={scopeOpen}
         >
-          {constraint.include_contents ? "Whole entry" : "Main entry only"}
+          {constraint.include_contents ? "Whole entry" : "Main only"}
         </Button>
       </Popover>
       <Button

@@ -259,7 +259,7 @@ test("relationship scope stays tappable within a phone viewport and preserves ex
       expect(box!.y + box!.height).toBeLessThanOrEqual(844);
     }
     await main.tap();
-    await expect(trigger).toHaveText("Main entry only");
+    await expect(trigger).toHaveText("Main only");
     await expect(trigger).toBeFocused();
     const restored = JSON.parse(
       new URL(page.url()).searchParams.get("relationships")!.slice(2),
