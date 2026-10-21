@@ -327,6 +327,12 @@ export function useSearchWorkspace({
   });
 
   function setSearch(next: SearchFormState) {
+    // A submitted canonical address is navigation, independent of search eligibility.
+    const recordKey = next.query.trim();
+    if (next.query !== search.query && /^[^:\s]+:[^:\s]+$/u.test(recordKey)) {
+      selectRecord(recordKey);
+      return;
+    }
     // Keyword entry intentionally replaces similarity, while ordinary filters retain it.
     if (next.query.trim()) next = { ...next, similarSeed: null, mode: "text_search" };
     else next = { ...next, mode: next.similarSeed ? "similar_records" : "browse" };

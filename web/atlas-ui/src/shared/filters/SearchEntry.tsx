@@ -23,8 +23,15 @@ export function SearchEntry({
       disabled={disabled}
       value={draft}
       allowClear
-      onChange={(event) => setEntry({ baseline: query, value: event.target.value })}
-      onSearch={onSearch}
+      onChange={(event) => {
+        const value = event.target.value;
+        setEntry({ baseline: query, value });
+        if (!value) onSearch("");
+      }}
+      onSearch={(value) => {
+        setEntry(null);
+        onSearch(value);
+      }}
     />
   );
 }
