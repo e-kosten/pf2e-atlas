@@ -404,4 +404,8 @@ For questions about PF2e Atlas, use the [GitHub issue tracker](https://github.co
 
 ## Paizo Community Use Notice
 
+Acquired reference content has separate content licenses from Atlas's Apache 2.0
+code. See the [trait description provenance review](docs/research/trait-description-provenance.md)
+for pinned source evidence and the remaining paragraph-level attribution work.
+
 PF2e Atlas uses trademarks and/or copyrights owned by Paizo Inc., used under Paizo's Community Use Policy (paizo.com/licenses/communityuse). We are expressly prohibited from charging you to use or access this content. PF2e Atlas is not published, endorsed, or specifically approved by Paizo. For more information about Paizo Inc. and Paizo products, visit paizo.com.

@@ -40,6 +40,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Trait description content rights and attribution](items/trait-description-content-rights.md)
+  Establish paragraph-level permission and attribution evidence for localized
+  descriptions, including mixed setting/rules text. Status: proposed.
+
 - [Foundry inline content fidelity](items/foundry-inline-content-fidelity.md)
   Compare remaining rich-text syntax and context-dependent expressions with the
   pinned upstream handlers before extending inline mechanics. Status: proposed.
