@@ -14,10 +14,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
-- [Rust localization-backed rules terms](items/rust-localization-backed-rules-terms.md)
-  Add trait definition pages with exact membership/reference navigation and
-  stored-vector Similar; glossary namespaces remain separate. Status: in_progress.
-
 - [Reusable encounter party definitions](items/encounter-party-presets.md)
   Define a party once and add its members to encounters without repeatedly
   entering their details. Name-only implementation in progress; awaiting UX review. Status: in_progress.
@@ -39,6 +35,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   against fresh source-backed tasks; preserve completed study evidence. Status: proposed.
 
 ## Soon
+
+- [Remaining localization-backed rules terms](items/rust-localization-backed-rules-terms.md)
+  Investigate NPC glossary definitions and verified prose rules destinations;
+  trait reference pages shipped in PR93. Status: proposed.
 
 - [Trait description content rights and attribution](items/trait-description-content-rights.md)
   Establish paragraph-level permission and attribution evidence for localized
