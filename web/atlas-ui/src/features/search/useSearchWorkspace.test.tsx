@@ -77,7 +77,7 @@ describe("useSearchWorkspace", () => {
     expect(result.current.search.query).toBe("");
   });
 
-  it("keeps exact relationship scope through paging and recovery while disabling contextual counts", async () => {
+  it("keeps exact relationship scope through paging, recovery and contextual counts", async () => {
     const constraint = {
       direction: "incoming" as const,
       selection: {
@@ -115,7 +115,10 @@ describe("useSearchWorkspace", () => {
       { wrapper: queryClientWrapper() },
     );
     await waitFor(() => expect(result.current.resultPage).toBeDefined());
-    expect(result.current.filterCountsEnabled).toBe(false);
+    expect(result.current.filterCountsEnabled).toBe(true);
+    expect(result.current.filterDiscoveryContext).toMatchObject({
+      relationships: [constraint],
+    });
     act(() => result.current.setPageNumber(2));
     await waitFor(() => expect(result.current.resultPage?.page.number).toBe(2));
     expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
@@ -134,6 +137,9 @@ describe("useSearchWorkspace", () => {
       ).toBe(false),
     );
     expect(result.current.pageNumber).toBe(1);
+    expect(result.current.filterDiscoveryContext).toMatchObject({
+      relationships: [{ ...constraint, include_contents: false }],
+    });
     await act(async () => result.current.refreshResults());
     await waitFor(() => expect(result.current.resultPage).toBeDefined());
     expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({

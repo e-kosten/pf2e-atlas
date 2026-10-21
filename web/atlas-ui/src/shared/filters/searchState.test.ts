@@ -1,3 +1,4 @@
+import type { RelationshipConstraintView } from "../../generated/atlas";
 import { encodeFilterUrl } from "./filterUrl";
 import {
   DEFAULT_SEARCH_STATE,
@@ -204,4 +205,42 @@ it("blocks obsolete filter links instead of running an unfiltered search", () =>
   expect(state.filterError).toContain("unsupported filter version");
   expect(hasExecutableSearch(state)).toBe(false);
   expect(() => buildSearchRequest(state, 1)).toThrow("unsupported filter version");
+});
+
+it("carries complete relationship constraints in browse and saved-list discovery contexts", () => {
+  const relationship: RelationshipConstraintView = {
+    direction: "outgoing",
+    include_contents: true,
+    selection: {
+      record_key: "actors:selected",
+      embedded_path: [
+        { collection: "items", identity: { SnapshotLocal: { index: 2 } } },
+      ],
+      field: "description",
+      passage: { kind: "identity" },
+      source_fingerprint: "checked-source",
+    },
+  };
+  const state = {
+    ...DEFAULT_SEARCH_STATE,
+    relationships: [relationship],
+    filter: { kind: "in" as const, field: "kind", values: ["equipment"] },
+  };
+  expect(buildFilterDiscoveryContext(state, "bge-base", "generation-a")).toEqual({
+    kind: "filtered",
+    relationships: [relationship],
+    filter: state.filter,
+    text: null,
+    mode: "hybrid",
+    search_profile: "bge-base",
+    expected_artifact_generation: "generation-a",
+  });
+  expect(buildSavedListFilterDiscoveryContext("research", state)).toMatchObject({
+    kind: "saved_list",
+    list_ref: "research",
+    relationships: [relationship],
+    filter: state.filter,
+    text: null,
+    mode: "lexical",
+  });
 });

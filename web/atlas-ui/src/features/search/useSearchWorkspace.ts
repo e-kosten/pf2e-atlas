@@ -395,8 +395,7 @@ export function useSearchWorkspace({
     filterCountsEnabled:
       filterDiscovery.filterCountsEnabled &&
       searchProfile !== null &&
-      searchProfileStored &&
-      !search.relationships?.length,
+      searchProfileStored,
     filterCountQueryKey: filterDiscovery.filterCountQueryKey,
     filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
     vocabularyScope: filterDiscovery.vocabularyScope,

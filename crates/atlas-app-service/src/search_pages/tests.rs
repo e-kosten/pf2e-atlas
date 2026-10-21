@@ -108,6 +108,7 @@ fn selected_contextual_facets_reject_stale_generation_before_query_inference() {
         .discover_filter_counts(
             atlas_app_model::DiscoverFilterCountsRequest {
                 context: atlas_app_model::FilterDiscoveryContext::Filtered {
+                    relationships: None,
                     search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
                     expected_artifact_generation: Some("stale-generation".into()),
                     filter: None,

@@ -130,14 +130,16 @@ impl AtlasAppService {
                 offset,
                 limit,
             } => {
-                let (keys, filter, text, mode, search_profile, expected_generation) =
+                let (keys, filter, text, mode, search_profile, expected_generation, relationships) =
                     context_parts(context);
                 let preflight_field = field_id.clone();
                 let preflight_clause = clause_id.clone();
                 let preflight_filter = filter.clone();
                 let expected = expected_generation.clone();
+                let preflight_relationships = relationships.clone();
                 let supports_ranking = self.with_retrieval(execution, move |r| {
                     check_generation(r, expected.as_deref())?;
+                    crate::relationship_search::prepare_constraints(r, &preflight_relationships)?;
                     Ok(r.discovery_supports_ranking(
                         &preflight_field,
                         preflight_clause.as_deref(),
@@ -157,6 +159,8 @@ impl AtlasAppService {
                     let keys = scoped_list_keys(workspace, keys.as_deref())?;
                     let retrieval = workspace.retrieval_mut();
                     check_generation(retrieval, expected_generation.as_deref())?;
+                    let (relationships, _) =
+                        crate::relationship_search::prepare_constraints(retrieval, &relationships)?;
                     let resolved =
                         retrieval.resolve_search_profile(search_profile.as_ref(), false)?;
                     let generation = retrieval.artifact_generation()?;
@@ -168,7 +172,10 @@ impl AtlasAppService {
                             search_profile: search_profile.as_ref(),
                             text: text.as_deref(),
                             mode,
-                            scope: scope(&keys),
+                            scope: RecordScope::Constrained {
+                                keys: keys.as_deref(),
+                                relationships: &relationships,
+                            },
                             prefer_remaster: true,
                             filter: filter.as_ref(),
                         },
@@ -221,13 +228,15 @@ impl AtlasAppService {
         execution: &ReadExecutionContext,
     ) -> AppServiceResult<FilterCountsView> {
         execution.check()?;
-        let (keys, filter, text, mode, search_profile, expected_generation) =
+        let (keys, filter, text, mode, search_profile, expected_generation, relationships) =
             context_parts(request.context);
         let projection_execution = execution.clone();
         self.with_workspace(execution, move |workspace| {
             let keys = scoped_list_keys(workspace, keys.as_deref())?;
             let retrieval = workspace.retrieval_mut();
             check_generation(retrieval, expected_generation.as_deref())?;
+            let (relationships, _) =
+                crate::relationship_search::prepare_constraints(retrieval, &relationships)?;
             let resolved = retrieval.resolve_search_profile(search_profile.as_ref(), false)?;
             let generation = retrieval.artifact_generation()?;
             let counts = retrieval.discover_filter_value_counts(SearchValueCounts {
@@ -238,7 +247,10 @@ impl AtlasAppService {
                     search_profile: search_profile.as_ref(),
                     text: text.as_deref(),
                     mode,
-                    scope: scope(&keys),
+                    scope: RecordScope::Constrained {
+                        keys: keys.as_deref(),
+                        relationships: &relationships,
+                    },
                     prefer_remaster: true,
                     filter: filter.as_ref(),
                 },
@@ -303,10 +315,12 @@ type ContextParts = (
     RetrievalMode,
     Option<atlas_domain::SearchProfileId>,
     Option<String>,
+    Vec<atlas_app_model::RelationshipConstraintView>,
 );
 fn context_parts(context: FilterDiscoveryContext) -> ContextParts {
     match context {
         FilterDiscoveryContext::Filtered {
+            relationships,
             filter,
             text,
             mode,
@@ -319,8 +333,10 @@ fn context_parts(context: FilterDiscoveryContext) -> ContextParts {
             crate::retrieval::retrieval_mode(mode),
             search_profile,
             expected_artifact_generation,
+            relationships.unwrap_or_default(),
         ),
         FilterDiscoveryContext::SavedList {
+            relationships,
             list_ref,
             filter,
             text,
@@ -334,6 +350,7 @@ fn context_parts(context: FilterDiscoveryContext) -> ContextParts {
             crate::retrieval::retrieval_mode(mode),
             search_profile,
             expected_artifact_generation,
+            relationships.unwrap_or_default(),
         ),
     }
 }
@@ -458,6 +475,7 @@ mod tests {
                 .discover_filter_counts(
                     DiscoverFilterCountsRequest {
                         context: FilterDiscoveryContext::Filtered {
+                            relationships: None,
                             search_profile: None,
                             expected_artifact_generation: None,
                             filter: Some(predicate),

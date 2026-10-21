@@ -185,7 +185,11 @@ owner paths remain distinct from source subtree scope; selecting descendants nev
 widens to siblings. Full result pages count distinct eligible product roots before
 paging and hydrate bounded occurrence evidence separately. Preview truncation is
 not a root eligibility or root count limit. No additional stored relationship
-model or capped neighbor-key projection is introduced. See
+model or capped neighbor-key projection is introduced. Contextual facet counts,
+value enumeration and field statistics apply this eligibility alongside optional
+saved-list keys. Ordinary-field self-exclusion preserves relationship constraints;
+per-option edition preference considers only roots matching that complete scope.
+Count-free vocabulary remains independent of relationship constraints. See
 [ADR0057](./decisions/0057-relationship-scoped-search.md).
 
 ## Lexical and semantic policy

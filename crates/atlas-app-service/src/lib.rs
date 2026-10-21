@@ -43,3 +43,6 @@ pub use filters::{RawFilterCountsRequest, RawFilterValuesRequest};
 pub use projection::record_summary_view;
 pub use read_execution::ReadExecutionContext;
 pub use service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
+
+#[cfg(test)]
+mod relationship_discovery_tests;

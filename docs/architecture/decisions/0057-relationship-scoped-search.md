@@ -56,8 +56,16 @@ Generation checks, cooperative abandonment and explicit recovery follow
 [ADR0049](./0049-search-lifetimes-and-pages.md). Exact source selections retain
 their snapshot fingerprints. Generation recovery does not silently rebind an
 embedded ordinal. Relationship constraints and source scope participate in
-request, URL and browser-cache identity. Contextual facet counts must use the
-relationship scope or be unavailable; count-free vocabulary remains usable.
+request, URL and browser-cache identity. Contextual facet counts, value discovery
+and field statistics use the same relationship eligibility. Counterfactual
+self-exclusion removes the edited ordinary field while retaining all relationship
+constraints and saved-list membership. Option counts measure distinct roots after
+eligibility and per-option edition preference. Field statistics retain their
+existing availability/occurrence and pre-edition-preference counting basis.
+Neither operation materializes a capped neighbor list.
+Existing text and unsupported-predicate count availability rules remain unchanged;
+relationship scope alone does not disable counts. Count-free vocabulary retains
+its independent artifact/list scope.
 
 The browser displays active relationship constraints at the top level alongside
 ordinary filters. Controls use human names, with kind/publication/parent names

@@ -345,8 +345,13 @@ selection, edition preference, distinct-root ordering and paging. Root totals ar
 independent of occurrence-preview caps. App-service supplies checked human labels
 and bounded per-root evidence; occurrence pages retain exact source/target
 navigation and their own complete occurrence totals. The browser never derives
-eligibility by filtering Related's bounded neighbor keys. Contextual filter counts
-must honor relationship scope or be unavailable, while vocabulary remains usable.
+eligibility by filtering Related's bounded neighbor keys. Contextual filter counts,
+value discovery and field statistics retain relationship eligibility while
+self-excluding the edited ordinary field. Saved-list membership intersects that
+same scope; repeated occurrences never inflate root counts. Relationship selection
+and generation participate in discovery request/cache identity. Existing text and
+unsupported-predicate count policies remain unchanged, and count-free vocabulary
+retains its independent artifact/list scope.
 See [ADR0057](./decisions/0057-relationship-scoped-search.md).
 
 App-service owns workflow composition/search pages, catalog-to-editor controls,

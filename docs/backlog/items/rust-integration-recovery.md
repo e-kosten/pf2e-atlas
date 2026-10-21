@@ -250,6 +250,11 @@ Use one shared backend relationship contract, not a client-side list of the firs
 Acceptance: high-degree references can be browsed beyond the preview cap and
 filtered to a kind; repeated occurrences do not inflate root counts; selected-owner
 queries do not silently include sibling links; eligibility precedes ranking/paging.
+All contextual filter counts and value suggestions reflect the relationship scope,
+including intersections with saved-list membership. Self-exclusion preserves the
+relationship constraint when replacing an ordinary filter option; counts remain
+distinct-root counts across the complete eligible set. Scope changes invalidate
+previous counts. Existing text/Similar count availability rules remain unchanged.
 
 ## Tracking and completion discipline
 

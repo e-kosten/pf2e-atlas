@@ -86,6 +86,7 @@ export function buildFilterDiscoveryContext(
 ): FilterDiscoveryContext {
   return {
     search_profile,
+    ...(state.relationships?.length ? { relationships: state.relationships } : {}),
     expected_artifact_generation,
     kind: "filtered",
     filter: state.filter,
