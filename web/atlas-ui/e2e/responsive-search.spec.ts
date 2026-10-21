@@ -14,7 +14,11 @@ test("Sort rules and seeded Random remain usable at 390px", async ({ page }) => 
   const dialog = page.getByRole("dialog", { name: "Sort results" });
   const choose = async (name: string, option: string) => {
     await dialog.getByRole("combobox", { name, exact: true }).click();
-    await page.getByRole("option", { name: option, exact: true }).click();
+    await page
+      .getByText(option, { exact: true })
+      .filter({ visible: true })
+      .last()
+      .click();
   };
   await choose("Sort field 1", "Level / Rank");
   await choose("Sort direction 1", "High to low");
