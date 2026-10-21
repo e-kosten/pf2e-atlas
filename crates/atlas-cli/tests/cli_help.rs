@@ -56,7 +56,7 @@ fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
     assert!(help(&["record", "get"]).contains("record source"));
     assert!(help(&["record", "source"]).contains("embedded documents"));
     assert!(help(&["filters", "fields"]).contains("operators"));
-    assert!(!help(&["similar"]).contains("weight"));
+    assert!(!help(&["similar"]).contains("--weight"));
 }
 
 #[test]

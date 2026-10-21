@@ -60,7 +60,7 @@ pub(crate) struct GraphUsesOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas graph variants \"Dread Ampoule\"\n  atlas graph variants equipment-srd:IvFEJqp2MUew65nQ --json"
+    after_help = "Examples:\n  atlas graph variants \"Dread Ampoule (Moderate)\"\n  atlas graph variants equipment-srd:IvFEJqp2MUew65nQ --json"
 )]
 pub(crate) struct GraphVariantsOptions {
     #[arg(help = "Seed record key or strict resolvable record name")]

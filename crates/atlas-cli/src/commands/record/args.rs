@@ -13,6 +13,7 @@ pub(crate) struct RecordArgs {
 pub(crate) enum RecordCommand {
     #[command(about = "Read an Atlas reference; use source to inspect the complete Foundry DTO")]
     Get(Box<RecordGetOptions>),
+    #[command(about = "Resolve exact names and verified aliases to record keys")]
     Resolve(Box<RecordResolveOptions>),
     #[command(
         about = "Dump the complete checked Foundry DTO, including embedded documents",
@@ -21,6 +22,9 @@ pub(crate) enum RecordCommand {
     Source(RecordSourceOptions),
 }
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9 --detail full\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9 --json"
+)]
 pub(crate) struct RecordGetOptions {
     #[arg(long, value_parser = clap::value_parser!(u8).range(1..=10), help = "Preview a spell at this rank")]
     pub(crate) rank: Option<u8>,
@@ -45,9 +49,9 @@ pub(crate) struct RecordGetOptions {
         help = "Artifact source fingerprint accompanying snapshot-local embedded documents"
     )]
     pub(crate) source_fingerprint: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite workspace path")]
     pub(crate) index: Option<PathBuf>,
-    #[arg(long,value_enum,default_value_t=CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     pub(crate) path_mode: CliPathMode,
     #[arg(
         long,
@@ -60,9 +64,9 @@ pub(crate) struct RecordGetOptions {
 pub(crate) struct RecordSourceOptions {
     #[arg(help = "Foundry root key in pack:id form; the dump includes its embedded documents")]
     pub(crate) key: String,
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite workspace path")]
     pub(crate) index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     pub(crate) path_mode: CliPathMode,
     #[arg(
         long,
@@ -71,18 +75,25 @@ pub(crate) struct RecordSourceOptions {
     pub(crate) json: bool,
 }
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Example:\n  atlas record resolve \"Treat Wounds\" --pack-name actionspf2e --json\n\nAmbiguous names require choosing a returned key. Use atlas search for partial or fuzzy names."
+)]
 pub(crate) struct RecordResolveOptions {
     #[arg(required=true,num_args=1..,help="Strict names or verified aliases")]
     pub(crate) queries: Vec<String>,
     #[command(flatten)]
     pub(crate) filter_options: FilterOptions,
-    #[arg(long, default_value_t = 5)]
+    #[arg(
+        long,
+        default_value_t = 5,
+        help = "Maximum strict matches to display per input; total reports the full match count"
+    )]
     pub(crate) alternatives: usize,
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite workspace path")]
     pub(crate) index: Option<PathBuf>,
-    #[arg(long,value_enum,default_value_t=CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     pub(crate) path_mode: CliPathMode,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     pub(crate) json: bool,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
