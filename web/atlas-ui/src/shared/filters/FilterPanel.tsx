@@ -94,7 +94,7 @@ export function FilterControls({
   includeSearch?: boolean;
   layout?: "panel" | "toolbar" | "inline-toolbar";
   searchRowEnd?: ReactNode;
-  similarSearch?: { title: string; onClear: () => void };
+  similarSearch?: { title: string; onClear: () => void; onSearch: () => void };
   additionalFilters?: ReactNode;
   children?: ReactNode;
 }) {

@@ -22,6 +22,9 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.related-records__actions {
+  margin-block-end: 16px;
+}
 .related-records__body h3 {
   margin: 16px 0 8px;
   font-size: 1rem;

@@ -1,4 +1,5 @@
-import { Button, Input, Tag, Typography, type InputRef } from "antd";
+import { Button, Input, Typography, theme, type InputRef } from "antd";
+import { CloseCircleFilled } from "@ant-design/icons";
 import { useLayoutEffect, useRef, useState } from "react";
 
 export function SearchEntry({
@@ -12,61 +13,92 @@ export function SearchEntry({
   onSearch: (query: string) => void;
   disabled?: boolean;
   label?: string;
-  similar?: { title: string; onClear: () => void };
+  similar?: { title: string; onClear: () => void; onSearch: () => void };
 }) {
+  const { token } = theme.useToken();
   const [entry, setEntry] = useState<{ baseline: string; value: string } | null>(null);
   const input = useRef<InputRef>(null);
   const focusAfterClear = useRef(false);
   const draft = entry?.baseline === query ? entry.value : query;
+  const value = similar?.title ?? draft;
   useLayoutEffect(() => {
     if (!similar && focusAfterClear.current) {
       focusAfterClear.current = false;
       input.current?.focus({ preventScroll: true });
     }
   }, [similar]);
-  if (similar)
-    return (
-      <div
-        className="reference-search-entry reference-search-entry--similar"
-        role="group"
-        aria-label="Similar search"
-      >
-        <Tag>Similar to</Tag>
-        <Typography.Text className="reference-search-entry__title">
-          {similar.title}
-        </Typography.Text>
-        <Button
-          onClick={() => {
-            focusAfterClear.current = true;
-            setEntry(null);
-            similar.onClear();
-          }}
-          aria-label="Clear similar criterion"
-        >
-          Clear
-        </Button>
-      </div>
-    );
+  function clear() {
+    setEntry({ baseline: query, value: "" });
+    if (similar) {
+      focusAfterClear.current = true;
+      similar.onClear();
+    } else {
+      onSearch("");
+      input.current?.focus({ preventScroll: true });
+    }
+  }
   return (
     <Input.Search
       ref={input}
       className="reference-search-entry"
-      aria-label={label}
+      aria-label={similar ? "Similar search" : label}
       placeholder="Name or description…"
       autoComplete="off"
       disabled={disabled}
-      value={draft}
-      allowClear
+      readOnly={Boolean(similar)}
+      value={value}
+      prefix={<Typography.Text>{similar ? "Similar to:" : null}</Typography.Text>}
+      suffix={
+        <Button
+          type="text"
+          disabled={disabled}
+          aria-label={similar ? "Clear similar criterion" : "Clear search"}
+          aria-hidden={!value}
+          tabIndex={value ? 0 : -1}
+          icon={<CloseCircleFilled aria-hidden="true" />}
+          styles={{
+            root: {
+              width: token.controlHeightSM,
+              minWidth: token.controlHeightSM,
+              height: token.controlHeightSM,
+              marginBlock: -2,
+              padding: 0,
+              fontSize: token.fontSizeSM,
+              color: token.colorTextQuaternary,
+              visibility: value ? "visible" : "hidden",
+            },
+          }}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={clear}
+        />
+      }
+      // Chromium does not select all in a readonly search input by default.
+      onKeyDown={(event) => {
+        if (
+          similar &&
+          (event.metaKey || event.ctrlKey) &&
+          !event.altKey &&
+          event.key.toLowerCase() === "a"
+        ) {
+          event.preventDefault();
+          event.currentTarget.select();
+        }
+      }}
       // Opening the narrow reader moves focus to Results; Enter must not activate it.
       onPressEnter={(event) => event.preventDefault()}
       onChange={(event) => {
-        const value = event.target.value;
-        setEntry({ baseline: query, value });
-        if (!value) onSearch("");
+        if (similar) return;
+        const next = event.target.value;
+        setEntry({ baseline: query, value: next });
+        if (!next) onSearch("");
       }}
-      onSearch={(value) => {
+      onSearch={(next) => {
+        if (similar) {
+          similar.onSearch();
+          return;
+        }
         setEntry(null);
-        onSearch(value);
+        onSearch(next);
       }}
     />
   );

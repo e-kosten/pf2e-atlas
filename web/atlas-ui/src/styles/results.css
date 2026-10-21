@@ -95,10 +95,6 @@
   outline-offset: 2px;
 }
 
-.relationship-evidence {
-  grid-column: 1 / -1;
-  margin-inline: 12px;
-}
 .relationship-evidence__body {
   display: flex;
   flex-direction: column;

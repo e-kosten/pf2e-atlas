@@ -139,11 +139,16 @@ describe("search pane composition", () => {
       },
     });
     const { container, rerender } = render(<SearchView workspace={state} />);
-    const criterion = screen.getByText("Similar to");
+    const criterion = screen.getByText("Similar to:");
     const body = criterion.closest(".filter-toolbar");
     expect(body).toBeVisible();
-    expect(screen.queryByRole("searchbox", { name: "Search records" })).toBeNull();
-    expect(body).toContainElement(screen.getByText("Seed"));
+    expect(body).toContainElement(
+      screen.getByRole("searchbox", { name: "Similar search" }),
+    );
+    expect(screen.getByRole("searchbox", { name: "Similar search" })).toHaveValue(
+      "Seed",
+    );
+    expect(screen.getByRole("combobox", { name: "Search ranking" })).toBeDisabled();
     expect(screen.getByText("Top matches")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Clear similar criterion" }));
     expect(setSearch).toHaveBeenCalledWith({
@@ -153,7 +158,7 @@ describe("search pane composition", () => {
     });
 
     rerender(<SearchView workspace={workspace()} />);
-    expect(screen.queryByText("Similar to")).toBeNull();
+    expect(screen.queryByText("Similar to:")).toBeNull();
     expect(screen.getByText("14,736 records")).toBeVisible();
     expect(container.querySelector(".filter-toolbar")).toBeVisible();
   });

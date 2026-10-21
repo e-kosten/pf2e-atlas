@@ -212,13 +212,13 @@ pub(crate) fn relationship_view(
     atlas_app_model::RecordRelationshipView {
         source_title: None,
         target_title: None,
-        origin_label: None,
         source_navigation: RecordNavigationView {
             spell_rank: None,
             record_key: o.locator.record.to_string(),
             source_fingerprint: navigation_fingerprint(&o.locator.owners, fingerprint),
             owners: o.locator.owners.clone(),
-            field: Some(o.locator.field.clone()),
+            // Structural fields retain provenance but are not readable prose selections.
+            field: (o.origin == "content").then(|| o.locator.field.clone()),
             passage: None,
         },
         source: o.locator.into(),

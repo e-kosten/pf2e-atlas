@@ -48,7 +48,7 @@ if review warrants it; preserve its ID and record every resulting PR here.
 | CF-07 | Supported condition/spell adjustments and casting reminders | planned | Pending | Not started |
 | CF-08 | Hazard Active/Disabled state | in_progress | Approved with CF-06 | locally complete; single Active/Disabled state; user accepted preview; Rust/UI gates and browser reviews pass; [PR #78](https://github.com/e-kosten/pf2e-atlas/pull/78) |
 | CF-09 | Browse sorting | planned | Approved 2026-10-21 | Second PR after relationship search; design recorded below |
-| CF-10 | Relationship-scoped full results and filtering | in_progress | Approved 2026-10-21 | [Draft PR #97](https://github.com/e-kosten/pf2e-atlas/pull/97), `feat/browse-reference-search` from main 40275f3e; early preview ed6247f8 at localhost:4937; focused Rust/frontend tests, builds and six responsive cases pass; UX/full gates/Astra/CI acceptance pending; direct multi-filter creation follows in third PR |
+| CF-10 | Relationship-scoped full results and filtering | in_progress | Approved 2026-10-21 | [Draft PR #97](https://github.com/e-kosten/pf2e-atlas/pull/97), `feat/browse-reference-search` from main 40275f3e; revised preview at localhost:4937; full Rust/frontend gates, 36 device journeys and independent coverage/regression reviews pass; Astra Chromium/WebKit presentation recheck passes; human acceptance pending; direct multi-filter creation follows in third PR |
 
 ### CF-01 — CLI batches and error contracts
 
@@ -216,8 +216,8 @@ paging coherently and preserves the intended filters.
 Approved 2026-10-21. First PR: record-origin Links to/Linked from constraints,
 full Related escapes, and the Similar search-entry workflow. Relationship criteria
 remain visible at the top level with ordinary filters and compose with text/
-Similar before ranking. Include contents controls source-side references in both
-directions; the destination remains exact. New whole-record actions include
+Similar before ranking. Main entry only / Whole entry controls source-side references
+in both directions; the destination remains exact. New whole-record actions include
 contents by default; Related entry preserves its effective selected scope, and
 embedded selections never broaden to siblings/parents. Each displayed result is
 one distinct root, with checked occurrence provenance and independently bounded/
@@ -227,7 +227,11 @@ Relationship UI displays human names, never record IDs, including unavailable
 states. Disambiguation uses kind/publication/parent names. Similar occupies the
 main search control as `[Similar to] [Leather Armor] [Clear]`; the name is
 selectable/copyable and read-only. Clear retains other filters and returns focus
-to keyword entry. No parallel editable search field is shown for an active seed.
+to keyword entry. Keyword and Similar modes share search/clear affordances and
+control dimensions. Relationship actions live inside Related; result reference
+evidence shares the Matches button/popover, with human source-to-target labels
+and independent occurrence paging. No parallel editable search field is shown
+for an active seed.
 
 Third PR, following sorting: directly add multiple relationship constraints using
 the existing shared list/encounter record search picker. All constraints combine

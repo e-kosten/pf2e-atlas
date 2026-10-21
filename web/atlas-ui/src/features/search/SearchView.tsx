@@ -45,6 +45,7 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
                     : workspace.errorMessage
                       ? "Record unavailable"
                       : "Loading record…",
+                onSearch: workspace.refresh,
                 onClear: () =>
                   workspace.setSearch({
                     ...workspace.search,
@@ -58,28 +59,27 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
         searchRowEnd={
           <>
             <SearchModelSelect />
-            {!workspace.search.similarSeed && (
-              <Select
-                aria-label="Search ranking"
-                className="search-model-select"
-                value={workspace.search.ranking ?? "score"}
-                options={[
-                  { value: "rrf", label: "Rank-based" },
-                  { value: "score", label: "Score-based" },
-                ]}
-                onChange={(ranking) =>
-                  workspace.setSearch({
-                    ...workspace.search,
-                    ranking,
-                    filterError:
-                      workspace.search.filterError === UNKNOWN_SEARCH_RANKING
-                        ? null
-                        : workspace.search.filterError,
-                  })
-                }
-                popupMatchSelectWidth={false}
-              />
-            )}
+            <Select
+              disabled={Boolean(workspace.search.similarSeed)}
+              aria-label="Search ranking"
+              className="search-model-select"
+              value={workspace.search.ranking ?? "score"}
+              options={[
+                { value: "rrf", label: "Rank-based" },
+                { value: "score", label: "Score-based" },
+              ]}
+              onChange={(ranking) =>
+                workspace.setSearch({
+                  ...workspace.search,
+                  ranking,
+                  filterError:
+                    workspace.search.filterError === UNKNOWN_SEARCH_RANKING
+                      ? null
+                      : workspace.search.filterError,
+                })
+              }
+              popupMatchSelectWidth={false}
+            />
           </>
         }
       />

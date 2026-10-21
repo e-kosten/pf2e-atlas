@@ -27,11 +27,11 @@ neighbor keys is never an eligibility input derived from Related. Search owns
 retrieval and distinct-root results; app-service validates checked selections and
 projects human labels and evidence; web remains thin transport over app contracts.
 
-**Links to X** keeps X's destination exact. With Include contents off, only links
-from the result's main entry qualify; with it on, links from its contained entries
-qualify too. **Linked from X** considers links from exactly X with Include contents
-off and X plus its descendants with it on. Including descendants of a selected
-contained entry never includes its siblings or parent. Root-only selection and
+**Links to X** keeps X's destination exact. Main entry only admits links made
+directly by the result's main entry; Whole entry also admits links from its
+contained entries. **Linked from X** considers links from exactly X under Main
+entry only, and X plus its descendants under Whole entry. Including descendants of a
+selected contained entry never includes its siblings or parent. Root-only selection and
 all-source-owner selection remain different operations.
 
 Root results are complete for nonsemantic relationship browsing and count each
@@ -43,8 +43,10 @@ an exact destination with a record that has no matching reference.
 
 Each root carries a bounded preview of its matching occurrences, with separate
 occurrence counts and pageable evidence. Evidence retains exact source and target
-navigation, field, occurrence ordinal and relationship origin/kind. Root paging is
-independent of occurrence-preview limits. Resolved local product roots contribute
+navigation, field, occurrence ordinal and relationship origin/kind. Structured
+source navigation opens the exact referring entry without selecting its unreadable
+metadata field; the raw occurrence locator retains that field. Prose navigation
+retains its exact readable content field. Root paging is independent of occurrence-preview limits. Resolved local product roots contribute
 to result counts; external/unresolved/blocked occurrences keep their statuses in
 the existing bounded previews and do not become fabricated record results.
 Compendium equipment provenance remains distinct from a prose reference; neither
@@ -66,8 +68,9 @@ View all links. Later direct creation reuses the shared list/encounter search
 picker and permits multiple independent constraints combined with AND. Their
 underlying model and eligibility do not require a separate engine at that point.
 
-Similar remains a separate search criterion. Its active seed occupies the search
-control as a named, selectable, read-only criterion with Clear. Clearing it
+Similar remains a separate search criterion. Its active seed occupies the same
+search control as keyword entry, with a named, selectable, read-only criterion
+and the same clear/search affordances and dimensions. Clearing it
 retains other filters and returns focus to keyword entry. The browser does not
 show a competing editable search field while a Similar seed is active.
 

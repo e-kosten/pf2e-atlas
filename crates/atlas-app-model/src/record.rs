@@ -72,9 +72,6 @@ pub struct RecordRelationshipView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub target_title: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub origin_label: Option<String>,
     pub source: ContentLocationView,
     pub source_navigation: RecordNavigationView,
     pub ordinal: usize,

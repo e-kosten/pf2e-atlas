@@ -126,6 +126,14 @@ function ReferenceResult({
       (match.navigation.field && match.navigation.field !== "identity") ||
       match.navigation.passage,
   );
+  const relationshipEvidence = generation
+    ? (row.relationship_evidence ?? []).filter(
+        (evidence) => relationships?.[evidence.constraint_index],
+      )
+    : [];
+  const matchCount =
+    BigInt(matches.length) +
+    relationshipEvidence.reduce((count, evidence) => count + evidence.page.total, 0n);
   useEffect(() => {
     if (!matchesOpen) return;
     const escape = (event: KeyboardEvent) => {
@@ -153,30 +161,13 @@ function ReferenceResult({
         disabled={disabled}
         onPreview={onPreview}
       />
-      {generation &&
-        row.relationship_evidence?.map((evidence) => {
-          const summary = relationships?.[evidence.constraint_index];
-          return summary ? (
-            <RelationshipEvidence
-              key={JSON.stringify([
-                generation,
-                summary.constraint,
-                row.record.record_key,
-              ])}
-              evidence={evidence}
-              summary={summary}
-              resultKey={row.record.record_key}
-              generation={generation}
-              onRefresh={onRefreshResults}
-            />
-          ) : null;
-        })}
-      {matches.length > 0 && (
+      {matchCount > 0n && (
         <Popover
           open={matchesOpen}
           onOpenChange={setMatchesOpen}
           trigger="click"
           placement="bottomLeft"
+          destroyOnHidden
           content={
             <div
               className="reference-match-list"
@@ -214,6 +205,28 @@ function ReferenceResult({
                   {match.label || "Matching passage"}
                 </Button>
               ))}
+              {generation &&
+                relationshipEvidence.map((evidence) => {
+                  const summary = relationships![evidence.constraint_index];
+                  return (
+                    <RelationshipEvidence
+                      key={JSON.stringify([
+                        generation,
+                        summary.constraint,
+                        row.record.record_key,
+                      ])}
+                      evidence={evidence}
+                      summary={summary}
+                      resultKey={row.record.record_key}
+                      generation={generation}
+                      onRefresh={onRefreshResults}
+                      onNavigate={(navigation, anchor) => {
+                        setMatchesOpen(false);
+                        onMatch(navigation, trigger.current ?? anchor);
+                      }}
+                    />
+                  );
+                })}
             </div>
           }
         >
@@ -224,7 +237,7 @@ function ReferenceResult({
             variant="text"
             size="small"
             aria-expanded={matchesOpen}
-            aria-label={`${matches.length} matches in ${record.title}`}
+            aria-label={`${matchCount.toString()} matches in ${record.title}`}
             styles={{
               root: {
                 color: token.colorTextDescription,

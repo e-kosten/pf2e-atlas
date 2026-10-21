@@ -48,7 +48,6 @@ const occurrence: RecordRelationshipView = {
   effect_label: null,
   source_title: "Goblin",
   target_title: "Leather Armor",
-  origin_label: "Description link",
 };
 const evidence: RelationshipEvidenceView = {
   constraint_index: 0,
@@ -87,7 +86,6 @@ it("shows bounded provenance on demand and requests further pages with the compl
   });
   const view = setup();
   expect(api).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "2 links" }));
   expect(screen.getByText("1 of 2 links")).toBeVisible();
   const source = screen.getByRole("link", { name: "Goblin" });
   expect(
@@ -120,7 +118,6 @@ it("keeps occurrence failure local and delegates generation recovery to the sear
     }),
   );
   const view = setup();
-  fireEvent.click(screen.getByRole("button", { name: "2 links" }));
   fireEvent.click(screen.getByRole("button", { name: "Next links page" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Previously loaded links remain below.",
@@ -158,7 +155,6 @@ it("resets evidence paging and retained content when the exact relationship chan
     </ConfigProvider>
   );
   const view = render(content(constraint, evidence));
-  fireEvent.click(screen.getByRole("button", { name: "2 links" }));
   fireEvent.click(screen.getByRole("button", { name: "Next links page" }));
   expect(await screen.findByRole("link", { name: "Old evidence page" })).toBeVisible();
   const next = {
@@ -192,7 +188,6 @@ it("treats a response generation mismatch as explicit result refresh recovery", 
     page: evidence.page,
   });
   const view = setup();
-  fireEvent.click(screen.getByRole("button", { name: "2 links" }));
   fireEvent.click(screen.getByRole("button", { name: "Next links page" }));
   fireEvent.click(await screen.findByRole("button", { name: "Refresh results" }));
   await waitFor(() => expect(view.refresh).toHaveBeenCalledOnce());

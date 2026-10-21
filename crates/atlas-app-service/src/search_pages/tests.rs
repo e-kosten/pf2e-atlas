@@ -510,7 +510,13 @@ fn relationship_pages_label_exact_entries_and_page_evidence_with_generation_guar
         result.rows[0].relationship_evidence[0]
             .occurrences
             .iter()
-            .any(|o| o.origin_label.as_deref() == Some("Compendium source"))
+            .any(|o| o.origin == "structured" && o.kind == "CompendiumProvenance")
+    );
+    assert!(
+        result.rows[0].relationship_evidence[0]
+            .occurrences
+            .iter()
+            .any(|o| o.origin == "content")
     );
     let page = f
         .worker
@@ -578,4 +584,80 @@ fn relationship_pages_label_exact_entries_and_page_evidence_with_generation_guar
         .unwrap_err()
         .into_app_error();
     assert_eq!(invalid.code, AppErrorCode::ArtifactGenerationChanged);
+}
+
+#[test]
+fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field() {
+    use atlas_app_model::{
+        RecordDetailRequest, RelationshipConstraintView, RelationshipDirectionView,
+    };
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+        Ok(open_source_fixture(
+            vec![
+                record(
+                    "items",
+                    "Item",
+                    json!({"_id":"target0000000000","name":"Leather Armor","type":"armor"}),
+                ),
+                record(
+                    "actors",
+                    "Actor",
+                    json!({"_id":"actor00000000000","name":"Guard","type":"npc","items":[{"_id":"owned00000000000","name":"Guard's armor","type":"armor","_stats":{"compendiumSource":"Compendium.pf2e.items.Item.target0000000000"},"system":{"description":{"value":"<p>@UUID[Compendium.pf2e.items.Item.target0000000000]</p>"}}}]}),
+                ),
+            ],
+            false,
+        )?)
+    });
+    let f = fixture_worker_with_executor(executor);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let target = f.worker.record_detail("items:target0000000000").unwrap();
+    let mut criteria = request(SearchCriteria::ListRecords { filter: None }, 1);
+    criteria.relationships = Some(vec![RelationshipConstraintView {
+        direction: RelationshipDirectionView::Incoming,
+        selection: target.selected,
+        include_contents: true,
+    }]);
+    let result = f.worker.search_page(criteria, &execution).unwrap();
+    let occurrences = &result.rows[0].relationship_evidence[0].occurrences;
+    for origin in ["structured", "content"] {
+        let occurrence = occurrences.iter().find(|o| o.origin == origin).unwrap();
+        let navigation = &occurrence.source_navigation;
+        assert!(
+            !navigation.owners.is_empty(),
+            "must open the referring item, not its parent"
+        );
+        assert_eq!(navigation.owners, occurrence.source.owners);
+        if origin == "structured" {
+            assert_eq!(occurrence.kind, "CompendiumProvenance");
+            assert_eq!(
+                occurrence.source.field, "/_stats/compendiumSource",
+                "raw provenance remains exact"
+            );
+            assert!(navigation.field.is_none());
+        } else {
+            assert_eq!(
+                navigation.field.as_deref(),
+                Some("/system/description/value")
+            );
+            assert_eq!(
+                navigation.field.as_deref(),
+                Some(occurrence.source.field.as_str())
+            );
+        }
+        let opened = f
+            .worker
+            .record_detail_at(RecordDetailRequest {
+                spell_rank: navigation.spell_rank,
+                record_key: navigation.record_key.clone(),
+                owners: navigation.owners.clone(),
+                fields: navigation.field.iter().cloned().collect(),
+                passage: navigation.passage.clone(),
+                source_fingerprint: navigation.source_fingerprint.clone(),
+            })
+            .unwrap();
+        assert_eq!(opened.selected.record_key, navigation.record_key);
+        assert_eq!(opened.selected.owners, navigation.owners);
+        assert_eq!(opened.selected.field, navigation.field);
+        assert_eq!(opened.selected.passage, navigation.passage);
+    }
 }

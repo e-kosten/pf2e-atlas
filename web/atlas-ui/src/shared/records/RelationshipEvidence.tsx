@@ -1,4 +1,4 @@
-import { Alert, Button, Collapse, Pagination, Space, Typography } from "antd";
+import { Alert, Button, Pagination, Space, Typography } from "antd";
 import { cloneElement, isValidElement, useState, type AriaAttributes } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AtlasApiError, getRelationshipOccurrences } from "../../api/atlasApi";
@@ -22,35 +22,24 @@ export function RelationshipEvidence({
   resultKey,
   generation,
   onRefresh,
+  onNavigate,
 }: {
   evidence: RelationshipEvidenceView;
   summary: RelationshipConstraintSummaryView;
   resultKey: string;
   generation: string;
   onRefresh?: () => Promise<void>;
+  onNavigate?: (selection: RecordNavigationView, anchor: HTMLElement) => void;
 }) {
   return (
-    <Collapse
-      size="small"
-      ghost
-      destroyOnHidden
-      className="relationship-evidence"
-      items={[
-        {
-          key: "links",
-          label: `${evidence.page.total.toString()} ${evidence.page.total === 1n ? "link" : "links"}`,
-          children: (
-            <EvidencePage
-              key={JSON.stringify([generation, summary.constraint, resultKey])}
-              evidence={evidence}
-              summary={summary}
-              resultKey={resultKey}
-              generation={generation}
-              onRefresh={onRefresh}
-            />
-          ),
-        },
-      ]}
+    <EvidencePage
+      key={JSON.stringify([generation, summary.constraint, resultKey])}
+      evidence={evidence}
+      summary={summary}
+      resultKey={resultKey}
+      generation={generation}
+      onRefresh={onRefresh}
+      onNavigate={onNavigate}
     />
   );
 }
@@ -61,6 +50,7 @@ function EvidencePage({
   resultKey,
   generation,
   onRefresh,
+  onNavigate,
 }: Parameters<typeof RelationshipEvidence>[0]) {
   const [page, setPage] = useState(1);
   const query = useQuery<RelationshipOccurrencesPage>({
@@ -132,21 +122,18 @@ function EvidencePage({
               <EvidenceLink
                 selection={occurrence.source_navigation}
                 title={occurrence.source_title ?? "Referring record"}
+                onNavigate={onNavigate}
               />
               <Typography.Text type="secondary">→</Typography.Text>
               {occurrence.target ? (
                 <EvidenceLink
                   selection={occurrence.target}
                   title={occurrence.target_title ?? "Referenced record"}
+                  onNavigate={onNavigate}
                 />
               ) : (
                 <Typography.Text type="secondary">
                   Reference unavailable
-                </Typography.Text>
-              )}
-              {occurrence.origin_label && (
-                <Typography.Text type="secondary">
-                  {occurrence.origin_label}
                 </Typography.Text>
               )}
             </Space>
@@ -184,9 +171,11 @@ function EvidencePage({
 function EvidenceLink({
   selection,
   title,
+  onNavigate,
 }: {
   selection: RecordNavigationView;
   title: string;
+  onNavigate?: (selection: RecordNavigationView, anchor: HTMLElement) => void;
 }) {
   const route = { kind: "record", recordKey: selection.record_key, selection } as const;
   return (
@@ -195,7 +184,8 @@ function EvidenceLink({
       onClick={(event) => {
         if (!shouldHandleAtlasRouteClick(event)) return;
         event.preventDefault();
-        navigateToAtlasRoute(route);
+        if (onNavigate) onNavigate(selection, event.currentTarget);
+        else navigateToAtlasRoute(route);
       }}
     >
       {title}

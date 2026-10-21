@@ -24,18 +24,14 @@ for (const width of [1440, 1100, 390]) {
       const results = page.getByRole("region", { name: "Search results", exact: true });
       const row = page.locator("[data-record-key]").first();
       await expect(row).toBeVisible();
-      const search = page.getByRole("searchbox", { name: "Search records" });
-      if (similar) {
-        await expect(search).toHaveCount(0);
-        await expect(page.getByRole("group", { name: "Similar search" })).toBeVisible();
-      } else await expect(search).toBeVisible();
+      const search = page.getByRole("searchbox", {
+        name: similar ? "Similar search" : "Search records",
+      });
+      await expect(search).toBeVisible();
+      if (similar) await expect(search).toHaveAttribute("readonly");
       const inputBox = await page.locator(".reference-search-entry").boundingBox();
       expect(inputBox).not.toBeNull();
-      const controlHeightBox = similar
-        ? await page
-            .getByRole("button", { name: "Clear similar criterion" })
-            .boundingBox()
-        : inputBox;
+      const controlHeightBox = inputBox;
       const primaryControls = page.locator(
         ".search-model-select, .filter-toolbar .common-choice-trigger, .filter-panel-actions button",
       );
@@ -49,21 +45,13 @@ for (const width of [1440, 1100, 390]) {
       const coverage = page.locator(".result-pane-header > span").first();
       await expect(coverage).toHaveText(similar ? /Top matches/ : /\d[\d,]* records/);
       if (similar) {
-        const title = page
-          .getByRole("group", { name: "Similar search" })
-          .getByText("Wovenwood Shield (Minor)", { exact: true });
-        await expect(title).toBeVisible();
+        await expect(search).toHaveValue("Wovenwood Shield (Minor)");
+        await search.focus();
+        await search.press("ControlOrMeta+A");
         expect(
-          await title.evaluate((element) => {
-            const selection = window.getSelection()!;
-            const range = document.createRange();
-            range.selectNodeContents(element);
-            selection.removeAllRanges();
-            selection.addRange(range);
-            const text = selection.toString();
-            selection.removeAllRanges();
-            return text;
-          }),
+          await search.evaluate((element: HTMLInputElement) =>
+            element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
+          ),
         ).toBe("Wovenwood Shield (Minor)");
       }
       for (const control of [
@@ -82,9 +70,7 @@ for (const width of [1440, 1100, 390]) {
       const box = await reader.boundingBox();
       expect(box!.width).toBeGreaterThan(width === 390 ? 340 : 600);
       if (width === 390) {
-        await expect(
-          page.getByRole("searchbox", { name: "Search records" }),
-        ).toBeHidden();
+        await expect(search).toBeHidden();
         await reader.getByRole("button", { name: "Results", exact: true }).click();
         await expect(row).toBeFocused();
         await expect(row).toBeVisible();
@@ -96,9 +82,38 @@ for (const width of [1440, 1100, 390]) {
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       ).toBe(true);
       if (similar) {
+        const geometry = async () =>
+          Promise.all([
+            page.locator(".reference-search-entry").boundingBox(),
+            page
+              .getByRole("combobox", { name: "Search model" })
+              .locator("..")
+              .boundingBox(),
+            page
+              .getByRole("combobox", { name: "Search ranking" })
+              .locator("..")
+              .boundingBox(),
+          ]);
+        const before = await geometry();
+        const nativeInput = await search.elementHandle();
         await page.getByRole("button", { name: "Clear similar criterion" }).click();
-        await expect(search).toBeFocused();
+        const normalSearch = page.getByRole("searchbox", { name: "Search records" });
+        await expect(normalSearch).toBeFocused();
+        expect(
+          await normalSearch.evaluate(
+            (element, previous) => element === previous,
+            nativeInput,
+          ),
+        ).toBe(true);
         expect(new URL(page.url()).searchParams.has("similar")).toBe(false);
+        const after = await geometry();
+        for (let index = 0; index < before.length; index++) {
+          for (const dimension of ["x", "y", "width", "height"] as const) {
+            expect(
+              Math.abs(before[index]![dimension] - after[index]![dimension]),
+            ).toBeLessThanOrEqual(1);
+          }
+        }
       }
     });
   }
@@ -194,4 +209,68 @@ test("match popovers retain row layout and land inline without scrolling the app
   await expect(
     page.getByRole("link", { name: "Return to Imeckus Stroon", exact: true }),
   ).toBeVisible();
+});
+
+test("relationship scope stays tappable within a phone viewport and preserves exact selection", async ({
+  browser,
+  baseURL,
+}) => {
+  const context = await browser.newContext({
+    baseURL,
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+    colorScheme: "dark",
+  });
+  const page = await context.newPage();
+  try {
+    const constraint = {
+      direction: "incoming",
+      selection: {
+        record_key: "conditionitems:dfCMdR4wnpbYNTix",
+        embedded_path: [],
+        field: null,
+        passage: null,
+        source_fingerprint: null,
+      },
+      include_contents: true,
+    };
+    await page.goto(
+      "/search?relationships=" +
+        encodeURIComponent("1." + JSON.stringify([constraint])),
+    );
+    const criterion = page.getByRole("group", { name: "Relationship filter" });
+    await expect(criterion).toContainText("Stunned");
+    const trigger = criterion.getByRole("button", { name: "Relationship scope" });
+    await expect(trigger).toHaveText("Whole entry");
+    await trigger.tap();
+    const popover = page
+      .getByRole("tooltip")
+      .filter({ hasText: "Look for links in matching records" });
+    await expect(popover).toBeVisible();
+    const main = popover.getByRole("radio", { name: "Main entry only" });
+    const whole = popover.getByRole("radio", { name: "Whole entry" });
+    for (const control of [popover, main, whole]) {
+      const box = await control.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.y).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(844);
+    }
+    await main.tap();
+    await expect(trigger).toHaveText("Main entry only");
+    await expect(trigger).toBeFocused();
+    const restored = JSON.parse(
+      new URL(page.url()).searchParams.get("relationships")!.slice(2),
+    );
+    expect(restored).toEqual([{ ...constraint, include_contents: false }]);
+    await trigger.tap();
+    await expect(main).toBeChecked();
+    await page.keyboard.press("Escape");
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(trigger).toBeFocused();
+  } finally {
+    await context.close();
+  }
 });

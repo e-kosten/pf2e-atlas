@@ -48,30 +48,6 @@ export function RelatedRecords({
 }) {
   return (
     <section className="related-records" aria-label="Related records">
-      <Space wrap>
-        {(["incoming", "outgoing"] as const).map((direction) => {
-          const route = relationshipSearchRoute({
-            direction,
-            selection: detail.selected,
-            include_contents: detail.selected.embedded_path.length === 0,
-          });
-          return (
-            <Button
-              key={direction}
-              href={atlasRoutePath(route)}
-              onClick={(event) => {
-                if (!shouldHandleAtlasRouteClick(event)) return;
-                event.preventDefault();
-                navigateToAtlasRoute(route);
-              }}
-            >
-              {direction === "incoming"
-                ? "Find records linking here"
-                : "Browse links from here"}
-            </Button>
-          );
-        })}
-      </Space>
       <Collapse
         size="small"
         destroyOnHidden
@@ -198,7 +174,8 @@ function RelatedTabs({
         <Typography.Paragraph type="secondary">
           {incoming
             ? "No references to this record were found."
-            : "No references were found here."}
+            : "No references were found here."}{" "}
+          {viewAll(section)}
         </Typography.Paragraph>
       );
     return (
@@ -261,18 +238,10 @@ function RelatedTabs({
             label: "References",
             children: (
               <>
-                {graph.outgoing.occurrences.length > 0 && (
-                  <>
-                    <h3>Referenced here</h3>
-                    {references(graph.outgoing, false)}
-                  </>
-                )}
-                {graph.backlinks.occurrences.length > 0 && (
-                  <>
-                    <h3>References to this record</h3>
-                    {references(graph.backlinks, true)}
-                  </>
-                )}
+                <h3>Referenced here</h3>
+                {references(graph.outgoing, false)}
+                <h3>References to this record</h3>
+                {references(graph.backlinks, true)}
               </>
             ),
           },
@@ -349,6 +318,31 @@ function RelatedTabs({
     : [];
   return (
     <div className="related-records__body">
+      <Space wrap className="related-records__actions">
+        {(["incoming", "outgoing"] as const).map((direction) => {
+          const route = relationshipSearchRoute({
+            direction,
+            selection: detail.selected,
+            include_contents: detail.selected.embedded_path.length === 0,
+          });
+          return (
+            <Button
+              key={direction}
+              href={atlasRoutePath(route)}
+              onClick={(event) => {
+                if (!shouldHandleAtlasRouteClick(event)) return;
+                event.preventDefault();
+                navigateToAtlasRoute(route);
+              }}
+            >
+              {direction === "incoming"
+                ? "Find records linking here"
+                : "Browse links from here"}
+            </Button>
+          );
+        })}
+      </Space>
+
       {related.isFetching && (
         <div role="status" className="related-records__status">
           <Spin size="small" /> Loading related records…

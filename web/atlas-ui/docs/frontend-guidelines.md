@@ -600,7 +600,8 @@ from known empty categories. Similar is a separate root discovery preview using
 stateless search pages, with a native link into the ordinary search workspace.
 Similarity URLs preserve the root seed and canonical filters. The active Similar
 criterion occupies the main search control with its selectable, read-only human
-name and Clear; do not show a competing editable search field. Clearing it
+name; retain the same input shell, clear/search affordances and toolbar dimensions
+as keyword entry. Clearing it
 preserves other filters and returns focus to keyword entry. Contextual text counts are disabled while
 catalog choices and vocabulary remain available. Label bounded pages Top matches.
 Comparison panes reuse family presentation without recursively mounting related disclosures.
@@ -612,12 +613,12 @@ parent root explicitly. Exact root references use an empty owner path, not an
 all-owners graph query.
 
 Relationship search constraints appear at the top level with ordinary filters,
-outside Advanced. Their direction, human target name, Include contents setting
+outside Advanced. Their direction, human target name, Main entry only / Whole entry scope
 and removal remain together. Never render IDs in relationship labels, tooltip
 copy or unavailable fallbacks. Backend-selected names and optional kind/source/
 parent labels distinguish otherwise identical titles. Exact navigation stays in
 the typed criterion and URL, with its snapshot fingerprint.
-Include contents changes where a link originates: sources within each result for
+Whole entry changes where a link originates: sources within each result for
 Links to, or the selected source and its descendants for Linked from. Targets
 remain exact, and descendants never include siblings/parents. Related's View all
 uses its backend-provided effective constraint; it does not reconstruct scope
@@ -625,6 +626,13 @@ from displayed occurrences. Filters and page identity include each constraint.
 Per-root reference evidence has its own occurrence total/paging; preview limits
 never truncate the set of eligible result roots. Disable contextual counts when
 relationship scope is unsupported, retaining count-free vocabulary.
+
+Keep relationship discovery actions inside the Related experience with its
+reference previews and full-result escapes. Result relationship evidence reuses
+the shared Matches button/popover and its focus/dismissal behavior; do not expand
+a separate disclosure into each row. Source-to-target labels supply the useful
+evidence without a repeated Text reference label. Scope options use the existing
+source-side semantics, with a concrete example in their explanation popover.
 
 Search page keys include committed criteria, the local page number, the current
 artifact generation and the search owner's recovery epoch. An artifact generation

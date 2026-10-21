@@ -202,14 +202,6 @@ pub(crate) fn evidence_views(
             .map(|mut v| {
                 v.source_title = Some(label(&v.source_navigation));
                 v.target_title = v.target.as_ref().map(label);
-                v.origin_label = Some(
-                    match v.origin.as_str() {
-                        "content" => "Text reference",
-                        "structured" if v.kind == "CompendiumProvenance" => "Compendium source",
-                        _ => "Source reference",
-                    }
-                    .into(),
-                );
                 v
             })
             .collect(),

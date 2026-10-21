@@ -147,7 +147,13 @@ describe("shared related disclosure", () => {
   it("requests one bounded availability operation on opening and hides empty category controls", async () => {
     renderRelated();
     expect(api.getRelatedRecords).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("link", { name: "Find records linking here" }),
+    ).toBeNull();
     openRelated();
+    expect(
+      screen.getByRole("link", { name: "Find records linking here" }),
+    ).toBeVisible();
     expect(await screen.findByRole("link", { name: "Referenced spell" })).toBeVisible();
     expect(api.getRelatedRecords).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("tab", { name: "Remaster" })).toBeNull();
@@ -434,4 +440,30 @@ it("opens each Related direction with its checked selection and effective conten
       index === 0 ? graph.outgoing.constraint : graph.backlinks.constraint,
     ]);
   }
+});
+
+it("keeps discovery actions inside Related and exact View all links available for empty directions", async () => {
+  const response = relatedFixture();
+  const graph = response.references.content;
+  const selected = detailFixture("actors:seed", "Viewed creature").selected;
+  graph.outgoing = {
+    records: [],
+    occurrences: [],
+    truncated: false,
+    constraint: { direction: "outgoing", selection: selected, include_contents: false },
+  };
+  graph.backlinks = {
+    records: [],
+    occurrences: [],
+    truncated: false,
+    constraint: { direction: "incoming", selection: selected, include_contents: true },
+  };
+  api.getRelatedRecords.mockResolvedValue(response);
+  renderRelated();
+  expect(screen.queryByRole("link", { name: "Browse links from here" })).toBeNull();
+  openRelated();
+  expect(
+    await screen.findByRole("link", { name: "Browse links from here" }),
+  ).toBeVisible();
+  expect(await screen.findAllByRole("link", { name: "View all" })).toHaveLength(2);
 });
