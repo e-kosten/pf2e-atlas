@@ -1,114 +1,66 @@
-# Rust Localization-Backed Rules Terms
+# Remaining localization-backed rules terms
 
-Status: in_progress
-Priority: now
-Owner: trait-click-through task
+Status: proposed
+Priority: soon
+Owner: unassigned
 Last reviewed: 2026-10-20
 
-## Current delivery
+## Remaining outcome
 
-Trait click-through is approved for implementation. The first delivery gives
-exact trait identifiers addressable definitions, authored membership/reference
-navigation and stored-vector Similar into normal records. It preserves existing
-trait filters, parameterized identities and missing definitions. Rarity,
-otherTags, NPC glossary pages and arbitrary prose linking are outside this first
-delivery. See [ADR0056](../../architecture/decisions/0056-trait-reference-entities.md).
+Extend source-backed reference lookup to high-confidence NPC ability glossary
+entries and explicit rules references that are not already represented by the
+trait delivery. Trait pages, exact membership/reference navigation, stored-vector
+Similar, CLI lookup and shared document chrome were delivered in
+[PR93](https://github.com/e-kosten/pf2e-atlas/pull/93); see the
+[completed trait milestone](../history/items/trait-reference-pages.md).
 
-Implementation and focused checks are in progress; no functional UX acceptance or
-final gate result has been established yet. The shared reference catalog already
-extracts the pinned trait mappings; catalog extraction alone is not product lookup.
+Do not reopen trait identity or introduce a parallel generic term store merely
+to extend the namespaces. [ADR0056](../../architecture/decisions/0056-trait-reference-entities.md)
+records the existing typed identity, publication and ownership boundaries.
 
-## Problem
+## Source investigation
 
-PF2e source localization contains reusable rules vocabulary such as trait labels,
-trait descriptions and NPC ability glossary entries. Source-backed preparation
-resolves `@Localize[...]`; the artifact context retains only verified trait labels
-used by selected vocabulary. Labels do not create canonical product terms,
-description hover cards or executable mechanics.
+Inspect the current pinned source before choosing additional namespaces. For
+`PF2E.NPC.Abilities.Glossary.*`, distinguish reusable definitions from labels,
+one-off rule-element strings and UI text. Establish exact source identity,
+prepared content, attributable references and a candidate set for Similar before
+implementation. Preserve absent definitions and source removal behavior.
 
-That means web and future TUI surfaces can render localized text correctly, but they still cannot offer AoN-style trait or glossary hover cards, detail pages, or explicit relationships from records to reusable rules terms.
+Foundry otherTags, rarity and Atlas authored tags retain separate semantics.
+Localization alone supplies neither a trait implication graph nor executable
+mechanics. Bibliographic citations or external rules destinations require their
+own verified source evidence.
 
-## Desired Outcome
-
-Design and implement a canonical rules-term layer for high-value localization-backed game concepts.
-
-The implementation should support:
-
-- canonical term identity such as `trait:halfling` or `npc-ability-glossary:negative-healing`
-- term kind, slug, label, localization keys and selected prepared HTML description content
-- relationships from normal records to terms through trait membership, localized macros, rule-option labels, or authored references
-- web/TUI-ready lookup and hover-card data without making runtime consumers resolve raw localization keys
-
-## Source discovery prerequisite
-
-The completed [source-contract generation and catalog work](../history/items/rust-source-contract-generation.md)
-proposes extracting upstream trait and other-tag identifiers, authoritative labels,
-localization keys, authored description text and catalog/family membership first.
-That source-only catalog can be inspected independently of storage or app models.
-Catalog extraction does not complete this item's product lookup, hover content or
-record-to-term relationships.
-
-Use the explicit upstream trait-description mappings, including parameterized
-variants, rather than assuming every label key has a mechanically matching
-description key. Preserve missing descriptions. Foundry otherTags can have
-family-specific vocabularies and remain distinct from traits and Atlas authored
-tags. Description prose does not itself supply structured implication edges or
-executable mechanics. AoN-style citations/links require a separate source review.
-
-## Follow-up: rules references within prose
+## Rules references within prose
 
 The user flagged Create Demiplane's Gravity feature: AoN links to useful
 [gravity rules](https://2e.aonprd.com/Rules.aspx?ID=3017&Redirected=1), while Atlas
-offers no definition or navigation at that mention. Investigate this alongside
-trait/glossary definitions, keeping actual record trait membership distinct from
-rules concepts mentioned in prose.
+has no destination at that mention. This is separate from authored trait
+membership and from following an explicit UUID/localization reference.
 
-An initial check of the pinned PF2e 6.12.4 export (source commit `4cbdaa37`)
-found Gravity as a plain feature heading in Create Demiplane, with no authored
-reference. The ritual's structured traits are Mythic and Teleportation. Its English
-catalog has a Subjective Gravity label but no matching definition; the journal
-pack did not contain the gravity-rules section. This is a source-coverage question,
-not evidence that the renderer dropped an authored Gravity link.
+Historical research against PF2e6.12.4 at `4cbdaa37` found Gravity as a plain
+feature heading, with Mythic and Teleportation as the ritual's structured traits.
+The English catalog had a Subjective Gravity label without a matching definition,
+and the journal pack lacked the gravity-rules section. Recheck those observations
+at the current pin; they do not prove current source coverage or a dropped link.
 
-Review the earlier trait/tag catalog extraction, explicit description mappings,
-localization, rule journals and any authored references. Distinguish labels alone,
-usable definitions and resolvable rule destinations, and verify the pinned source
-before relying on newer Foundry content. Determine what can be supported directly
-from Foundry and what would require a separately reviewed external mapping or
-additional rules source. Discuss the presentation and association policy before
-implementation; do not auto-link arbitrary prose from label matches or invent
-relationships where source evidence is absent.
+Review localization mappings, rule journals and explicit authored links. State
+which destinations are supported directly by Foundry and which need a separately
+reviewed external mapping or rules source. Discuss presentation and association
+policy before implementation. Do not auto-link arbitrary prose from label matches.
 
-## Initial Scope
+## Acceptance
 
-Start with high-confidence namespaces only:
+- Select a bounded namespace/source gap and define the exact supported identity.
+- Keep locale resolution and source loading ingest-owned; do not persist or
+  expose the entire localization catalog as product content.
+- Reuse prepared reading, generation checks, bounded retrieval and exact owner
+  navigation, without fabricated Foundry records or transitional facades.
+- Validate source-free lookup, missing content, attribution, reference resolution
+  and any Similar contract introduced for the new namespace.
+- Preserve authored trait filters, saved state and the delivered trait behavior.
 
-- `PF2E.Trait*`
-- `PF2E.TraitDescription*`
-- `PF2E.NPC.Abilities.Glossary.*`
-
-Do not persist every localization key as product content. UI strings, settings labels, implementation messages, and one-off rule-element labels should remain ordinary localization data unless a later review identifies durable game meaning.
-
-## Possible Artifact Shape
-
-Potential table families:
-
-- `rules_terms`
-- `rules_term_content`
-- `record_term_occurrences`
-
-Keep catalog-bound trait projections as the filter surface. A rules-term layer
-should answer "what is this trait or glossary entry?" without replacing the
-authored trait identifiers or duplicating record identity.
-
-## Constraints
-
-- Preserve relevant authored localization and source provenance; do not introduce a persisted document tree for term rendering.
-- Keep generic localization loading ingest-owned.
-- Avoid turning broad localization catalogs into runtime product data.
-- Add validation for term identity, content coverage, and occurrence references if artifact tables are added.
-
-## Related
-
-- [Rust artifact contract](../../architecture/artifact-contract.md)
-- [Rust artifact JSON content model review](../history/items/rust-artifact-json-content-model-review.md)
+Description permission/attribution decisions remain in the separate
+[content-rights item](trait-description-content-rights.md). Trait-driven encounter
+mechanics remain in [trait runtime effects](rust-encounter-trait-runtime-effects.md).
+Neither is implied by adding glossary pages.
