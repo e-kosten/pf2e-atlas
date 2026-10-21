@@ -10,7 +10,7 @@ pub(crate) struct AgentArgs {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum AgentCommand {
-    #[command(about = "Install bundled Atlas skills into agent skill roots")]
+    #[command(about = "Install and inspect bundled Atlas skills")]
     Skills(AgentSkillsArgs),
 }
 
@@ -33,7 +33,7 @@ pub(crate) enum AgentSkillsCommand {
 
 #[derive(Debug, Clone, Args)]
 #[command(
-    after_help = "Examples:\n  atlas agent skills install\n  atlas agent skills install --target codex --scope global --yes\n  atlas agent skills install --target agents --scope workspace --force --yes --json"
+    after_help = "Examples:\n  atlas agent skills install\n  atlas agent skills install --target codex --scope global --yes\n  atlas agent skills install --target agents --scope workspace --force --yes --json\n\nTo update an installed skill, use --force with its existing --target and --scope. Local edits are replaced."
 )]
 pub(crate) struct AgentSkillsInstallOptions {
     #[arg(
@@ -50,9 +50,15 @@ pub(crate) struct AgentSkillsInstallOptions {
         help = "Install into workspace-local or global skill roots"
     )]
     pub(crate) scope: Option<CliAgentSkillScope>,
-    #[arg(long, help = "Confirm non-interactive installs")]
+    #[arg(
+        long,
+        help = "Confirm installation; non-interactive use also requires --target and --scope"
+    )]
     pub(crate) yes: bool,
-    #[arg(long, help = "Replace a differing existing install")]
+    #[arg(
+        long,
+        help = "Replace a differing or invalid install with this binary's bundled skill"
+    )]
     pub(crate) force: bool,
     #[arg(long, help = "Emit the standard JSON envelope")]
     pub(crate) json: bool,

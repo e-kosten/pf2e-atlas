@@ -41,7 +41,7 @@ pub(crate) struct BuildIndexOptions {
         help = "Indexing locale; omission preserves configured locale (fresh default: en)"
     )]
     pub(crate) locale: Option<String>,
-    #[arg(long="search-profile",value_parser=crate::cli::args::parse_search_profile,conflicts_with="no_embeddings",help="Add a stored search profile; omission preserves configured models (fresh default: bge-base)")]
+    #[arg(long="search-profile",value_parser=crate::cli::args::parse_search_profile,conflicts_with="no_embeddings",help="Add bge-base or embeddinggemma; repeat for both; omission preserves configured profiles (fresh default: bge-base)")]
     pub(crate) search_profiles: Vec<SearchProfileId>,
     #[arg(long, help = "Override the embedding model cache root")]
     pub(crate) embedding_cache_path: Option<PathBuf>,

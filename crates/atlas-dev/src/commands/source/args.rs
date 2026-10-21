@@ -11,7 +11,7 @@ pub(crate) struct SourceArgs {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum SourceCommand {
-    #[command(about = "Load generated source DTOs before Atlas normalization or storage")]
+    #[command(about = "Load checked Foundry DTOs and report source admission diagnostics")]
     Load(LoadOptions),
     #[command(about = "Analyze Foundry source ingest without writing SQLite")]
     Analyze(AnalyzeOptions),

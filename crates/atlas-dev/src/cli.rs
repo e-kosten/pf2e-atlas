@@ -18,7 +18,7 @@ use crate::commands::source::args::{SourceArgs, SourceCommand};
 )]
 struct Cli {
     #[arg(long, global = true, value_enum, default_value_t = CliProgressMode::Auto,
-        help_heading = "Output", help = "Control progress rendering: auto shows human progress on terminals, never suppresses routine progress, always forces it")]
+        help_heading = "Output", help = "Progress display: auto on terminals except with --json, always, or never")]
     progress: CliProgressMode,
     #[command(subcommand)]
     command: Command,

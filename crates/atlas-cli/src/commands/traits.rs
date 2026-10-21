@@ -25,14 +25,17 @@ pub(crate) enum TraitCommand {
 }
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas trait get trait:agile\n  atlas trait get trait:deadly-d8 --json\n\nUse the exact identifier, including variant suffixes. Missing descriptions remain unavailable."
+)]
 pub(crate) struct TraitGetOptions {
     #[arg(help = "Exact trait key in trait:<identifier> form")]
     key: TraitKey,
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite workspace path")]
     index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     path_mode: CliPathMode,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     pub(crate) json: bool,
 }
 
