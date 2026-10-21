@@ -15,6 +15,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<SearchResultsPage> {
         execution.check()?;
         let page = SearchPage::new(request.page.number, request.page.size)?;
+        let sort = crate::result_order::search_sort(request.sort, &request.criteria)?;
         let projection_execution = execution.clone();
         let prepared = if let SearchCriteria::TextSearch {
             query,
@@ -84,6 +85,7 @@ impl AtlasAppService {
                     })?;
                     let result = retrieval
                         .similar_records(atlas_search::SimilarRecordRequest {
+                            sort,
                             search_profile: request.search_profile.as_ref(),
                             record_key: &key,
                             filter: filter.as_ref(),
@@ -111,7 +113,9 @@ impl AtlasAppService {
                 }
                 SearchCriteria::ListRecords { filter } => {
                     let result = retrieval.list_records(
-                        ListRecordsRequest::new(filter.as_ref(), page).with_scope(scope),
+                        ListRecordsRequest::new(filter.as_ref(), page)
+                            .with_scope(scope)
+                            .with_sort(sort),
                     )?;
                     projection_execution.check()?;
                     (
@@ -136,6 +140,7 @@ impl AtlasAppService {
                 } => {
                     // Stateless paging deliberately reruns query inference and ranking.
                     let result = retrieval.search_text(TextSearchRequest {
+                        sort,
                         ranking: request.ranking.unwrap_or_default(),
                         search_profile: request.search_profile.as_ref(),
                         query: &query,
@@ -155,6 +160,13 @@ impl AtlasAppService {
                     )
                 }
             };
+            if sort.is_unit_price() {
+                let mut records = rows.iter().map(|r| r.record.clone()).collect::<Vec<_>>();
+                crate::result_order::price_labels(retrieval, &mut records)?;
+                for (row, record) in rows.iter_mut().zip(records) {
+                    row.record = record;
+                }
+            }
             for row in &mut rows {
                 projection_execution.check()?;
                 let key = atlas_domain::RecordKey::parse(&row.record.record_key).map_err(|_| {
@@ -176,6 +188,7 @@ impl AtlasAppService {
                 }
             }
             Ok(SearchResultsPage {
+                sort,
                 relationships: relationship_summaries,
                 ranking: request.ranking.unwrap_or_default(),
                 search_profile,

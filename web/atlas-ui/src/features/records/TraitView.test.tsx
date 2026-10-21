@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import { AtlasApiError } from "../../api/atlasApi";
 import { RecordIdentity } from "../../shared/records/RecordPresentation";
@@ -31,7 +31,9 @@ const definition: TraitDetailView = {
 };
 beforeEach(() => {
   api.getTraitDetail.mockReset().mockResolvedValue(definition);
-  api.getTraitRecords.mockReset().mockResolvedValue({
+  api.getTraitRecords.mockReset().mockImplementation(async (request) => ({
+    search_profile: request.kind === "similar" ? request.search_profile : null,
+    ...(request.kind === "similar" ? { sort: request.sort ?? "relevance" } : {}),
     trait_key: "trait:agile",
     kind: "members",
     artifact_generation: "generation-one",
@@ -49,7 +51,7 @@ beforeEach(() => {
     ],
     page: { number: 1, size: 20, count: 1, total: 1, has_more: false, next_page: null },
     coverage: null,
-  });
+  }));
 });
 function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -226,4 +228,58 @@ it("requests stored Similar with the selected profile and no text fallback", asy
         request.trait_key === "trait:agile",
     ),
   ).toBe(true);
+});
+
+it("restores the Similar tab/order from its URL and keeps other association requests unsorted", async () => {
+  api.getTraitRecords.mockImplementation(async (request) => ({
+    trait_key: request.trait_key,
+    kind: request.kind,
+    search_profile: request.kind === "similar" ? request.search_profile : null,
+    artifact_generation: "generation-one",
+    ...(request.kind === "similar" ? { sort: request.sort ?? "relevance" } : {}),
+    rows: [],
+    page: {
+      number: request.page.number,
+      size: 20,
+      count: 0,
+      total: 0n,
+      has_more: false,
+      next_page: null,
+    },
+    coverage: null,
+  }));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <SearchProfileProvider id="embeddinggemma">
+        <TraitView
+          route={{
+            kind: "trait",
+            traitKey: "trait:agile",
+            query: "?tab=similar&sort=level_desc",
+          }}
+        />
+      </SearchProfileProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByRole("tab", { name: "Similar", selected: true });
+  await waitFor(() =>
+    expect(api.getTraitRecords.mock.lastCall?.[0]).toMatchObject({
+      kind: "similar",
+      sort: "level_desc",
+      page: { number: 1 },
+    }),
+  );
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Result order" }));
+  fireEvent.click(screen.getByText("Unit price low to high"));
+  await waitFor(() =>
+    expect(api.getTraitRecords.mock.lastCall?.[0].sort).toBe("unit_price_asc"),
+  );
+  expect(location.search).toContain("tab=similar");
+  expect(location.search).toContain("sort=unit_price_asc");
+  fireEvent.click(screen.getByRole("tab", { name: "References" }));
+  await waitFor(() =>
+    expect(api.getTraitRecords.mock.lastCall?.[0].kind).toBe("references"),
+  );
+  expect(api.getTraitRecords.mock.lastCall?.[0]).not.toHaveProperty("sort");
 });

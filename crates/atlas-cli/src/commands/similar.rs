@@ -22,9 +22,10 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
     let result = match app_result(
         s.similar_records(
             o.record_ref,
+            o.sort,
             filter,
             atlas_app_model::SearchPageRequest {
-                number: 1,
+                number: o.page,
                 size: o.limit,
             },
             o.search_profile,

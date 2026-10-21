@@ -47,6 +47,7 @@ pub struct VariantEvidenceView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsView {
+    pub sort: atlas_domain::ResultSort,
     pub search_profile: atlas_domain::SearchProfileId,
     pub artifact_generation: String,
     pub rows: Vec<SearchResultRow>,

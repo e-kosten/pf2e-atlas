@@ -4,12 +4,16 @@ import type {
   SearchResultsRequest,
   QueryPredicate,
   RelationshipConstraintView,
+  ResultSort,
 } from "../../generated/atlas";
 import { decodeFilterUrl, encodeFilterUrl, UNSUPPORTED_FILTER_URL } from "./filterUrl";
 import { decodeRelationships, encodeRelationships } from "./relationshipUrl";
 export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
 export const UNKNOWN_SEARCH_RANKING = "Unknown search ranking";
+export const UNKNOWN_RESULT_SORT = "Unknown result order";
+export const INVALID_RESULT_SORT = "Choose an order available for this search";
 export type SearchFormState = {
+  sort?: ResultSort;
   ranking?: SearchRanking;
   relationships?: RelationshipConstraintView[];
   query: string;
@@ -42,10 +46,12 @@ export function buildSearchRequest(
   const relationshipRequest = state.relationships?.length
     ? { relationships: state.relationships }
     : {};
+  const sortRequest = state.sort ? { sort: state.sort } : {};
   if (state.similarSeed)
     return {
       search_profile,
       ...relationshipRequest,
+      ...sortRequest,
       page,
       expected_artifact_generation,
       criteria: {
@@ -57,6 +63,7 @@ export function buildSearchRequest(
   return {
     search_profile,
     ...relationshipRequest,
+    ...sortRequest,
     page,
     expected_artifact_generation,
     ranking: state.ranking ?? "score",
@@ -116,6 +123,7 @@ export function encodeSearchExecutionState(
     JSON.stringify({
       search_profile,
       ranking: state.ranking ?? "score",
+      sort: state.sort,
       query: state.query,
       similarSeed: state.similarSeed,
       relationships: state.relationships,
@@ -133,6 +141,7 @@ export function searchStateQueryString(
   const params = new URLSearchParams();
   if (search_profile != null) params.set("search_profile", search_profile);
   if (state.ranking && state.ranking !== "score") params.set("ranking", state.ranking);
+  if (state.sort) params.set("sort", state.sort);
   if (state.query) params.set("q", state.query);
   if (state.similarSeed) params.set("similar", state.similarSeed);
   if (state.relationships?.length)
@@ -141,7 +150,10 @@ export function searchStateQueryString(
   if (state.pageSize !== 25) params.set("limit", String(state.pageSize));
   return params.size ? "?" + params.toString() : "";
 }
-export function decodeSearchStateFromParams(params: URLSearchParams): SearchFormState {
+export function decodeSearchStateFromParams(
+  params: URLSearchParams,
+  surface: "search" | "saved_list" = "search",
+): SearchFormState {
   let filter: QueryPredicate | null = null;
   let filterError: string | null = null;
   try {
@@ -168,9 +180,16 @@ export function decodeSearchStateFromParams(params: URLSearchParams): SearchForm
   const pageSize = Number(params.get("limit") || 25);
   const similarSeed = params.get("similar")?.trim() || null;
   if (similarSeed && params.get("q")?.trim()) filterError = SIMILAR_QUERY_CONFLICT;
+  const { sort, sortError } = decodeResultSort(
+    params,
+    surface,
+    Boolean(similarSeed || params.get("q")?.trim()),
+  );
+  filterError ??= sortError;
   return {
     ...DEFAULT_SEARCH_STATE,
     ranking: ranking === "rrf" ? "rrf" : "score",
+    ...(sort ? { sort } : {}),
     query: params.get("q") || "",
     similarSeed,
     ...(relationships ? { relationships } : {}),
@@ -184,4 +203,64 @@ export function decodeSearchStateFromParams(params: URLSearchParams): SearchForm
     pageSize:
       Number.isInteger(pageSize) && pageSize >= 1 && pageSize <= 100 ? pageSize : 25,
   };
+}
+
+export const RESULT_SORTS: readonly ResultSort[] = [
+  "relevance",
+  "saved_order",
+  "name_asc",
+  "name_desc",
+  "level_asc",
+  "level_desc",
+  "unit_price_asc",
+  "unit_price_desc",
+];
+
+export function decodeResultSort(
+  params: URLSearchParams,
+  surface: "search" | "saved_list",
+  semantic: boolean,
+): { sort?: ResultSort; sortError: string | null } {
+  const literal = params.get("sort");
+  const sort = RESULT_SORTS.find((value) => value === literal);
+  return {
+    ...(sort ? { sort } : {}),
+    sortError:
+      literal !== null && !sort
+        ? UNKNOWN_RESULT_SORT
+        : sort &&
+            (surface === "saved_list"
+              ? sort === "relevance"
+              : sort === "saved_order" || (sort === "relevance" && !semantic))
+          ? INVALID_RESULT_SORT
+          : null,
+  };
+}
+
+/** Resolve display/response identity without changing optional URL intent. */
+export function effectiveResultSort(
+  state: Pick<SearchFormState, "sort" | "query" | "similarSeed">,
+  surface: "search" | "saved_list" = "search",
+): ResultSort {
+  return (
+    state.sort ??
+    (surface === "saved_list"
+      ? "saved_order"
+      : state.query.trim() || state.similarSeed
+        ? "relevance"
+        : "name_asc")
+  );
+}
+
+/** Removing a semantic criterion retires Relevance; explicit attributes stay sticky. */
+export function normalizeSortTransition(
+  previous: SearchFormState,
+  next: SearchFormState,
+): SearchFormState {
+  return next.sort === "relevance" &&
+    !next.query.trim() &&
+    !next.similarSeed &&
+    Boolean(previous.query.trim() || previous.similarSeed)
+    ? { ...next, sort: undefined }
+    : next;
 }

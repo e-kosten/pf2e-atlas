@@ -44,6 +44,21 @@ Expected generation is checked before embedding/ranking. A mismatch returns
 `ArtifactGenerationChanged`, HTTP409, with expected and actual hashes. Window
 registries, identifiers, expiration, open/read operations and recovery are removed.
 
+Requests also carry an optional result order and responses report its effective
+value. Omission preserves the workflow default: Name A–Z for browse, Relevance for
+text/Similar, Saved order for lists. Explicit attribute intent remains distinct
+from an automatic default across mode transitions and URL restoration. Order
+changes reset paging without discarding criteria or mutable drafts; invalid
+orders and incompatible modes fail before inference.
+
+Candidate admission remains independent of order and page. The existing semantic
+policy tries 1,024/2,048/4,096 unit hits until the preferred-root stopping target
+is met or the largest window is reached. The target of 200 roots is not a result
+cap. Every accepted root contributes; hybrid unions the complete lexical lane
+before final edition preference. Attribute ordering then sorts the entire accepted
+set before paging, retaining its coverage and witnesses. The stateless workflow
+still reruns retrieval and does not promise a cross-request frozen candidate set.
+
 Browser URL state retains committed criteria and the complete selected reading
 address or parent landing. The browser's common filter controls and Advanced
 builder edit one shared in-progress tree; Advanced displays the complete expression.

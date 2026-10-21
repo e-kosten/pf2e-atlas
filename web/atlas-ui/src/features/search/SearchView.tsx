@@ -26,8 +26,6 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
     (workspace.resultsLoading ||
       workspace.resultsRefreshing ||
       (hasCriteria && profile.loading));
-  const page = workspace.resultPage?.page;
-  const showHeader = page && page.total > 0n;
   return (
     <main className="search-workspace">
       <FilterControls
@@ -121,9 +119,7 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
         onSelect={(row) => workspace.selectRecord(row.record.record_key)}
         reading={workspace.reading}
         positions={workspace.positions}
-        resultsHeader={
-          showHeader ? <ResultPaneHeader workspace={workspace} /> : undefined
-        }
+        resultsHeader={<ResultPaneHeader workspace={workspace} />}
         readerActions={
           workspace.reading.detail && (
             <AddToListButton recordKey={workspace.reading.detail.record.record_key} />

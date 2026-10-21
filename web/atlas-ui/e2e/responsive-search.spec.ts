@@ -1,6 +1,51 @@
 import { expect, test } from "@playwright/test";
 import { encodeFilterUrl } from "../src/shared/filters/filterUrl";
 
+for (const width of [390, 320]) {
+  test(`sorting and complete page navigation fit within the result pane at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto(
+      "/search?sort=unit_price_asc&filter=" +
+        encodeURIComponent(
+          encodeFilterUrl({
+            kind: "in",
+            clause_id: "kind",
+            field: "kind",
+            values: ["creature"],
+          }),
+        ),
+    );
+    const results = page.getByRole("region", { name: "Search results", exact: true });
+    await expect(results.locator("[data-record-key]").first()).toBeVisible();
+    const pane = await results.boundingBox();
+    expect(pane).not.toBeNull();
+    // Check actual control shells against the pane, not just document overflow.
+    for (const control of await results.locator(".pager > *").all()) {
+      const box = await control.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(pane!.x);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(pane!.x + pane!.width);
+    }
+    const navigation = results.getByRole("group", { name: "Result pages" });
+    const previous = await navigation
+      .getByRole("button", { name: "Previous page" })
+      .boundingBox();
+    const next = await navigation
+      .getByRole("button", { name: "Next page" })
+      .boundingBox();
+    expect(previous).not.toBeNull();
+    expect(next).not.toBeNull();
+    expect(Math.abs(previous!.y - next!.y)).toBeLessThanOrEqual(1);
+    await navigation.getByRole("button", { name: "Next page" }).click();
+    await expect(navigation.getByRole("textbox", { name: "Current page" })).toHaveValue(
+      "2",
+    );
+    await expect(results.locator("[data-record-key]").first()).toBeVisible();
+  });
+}
+
 // These checks use the caller's real source artifact and application service.
 for (const width of [1440, 1100, 390]) {
   for (const similar of [false, true]) {

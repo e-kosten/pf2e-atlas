@@ -1,6 +1,7 @@
 use crate::{RecordScope, SearchPage, TextSearchResult};
 use atlas_domain::{QueryPredicate, RecordKey};
 pub struct SimilarRecordRequest<'a> {
+    pub sort: atlas_domain::ResultSort,
     pub search_profile: Option<&'a atlas_domain::SearchProfileId>,
     pub record_key: &'a RecordKey,
     pub filter: Option<&'a QueryPredicate>,
@@ -17,6 +18,7 @@ impl crate::AtlasRetrievalService {
         &self,
         request: SimilarRecordRequest<'_>,
     ) -> Result<Option<SimilarRecordResult>, crate::SearchError> {
+        Self::validate_search_sort(request.sort)?;
         self.resolve_search_profile(request.search_profile, request.search_profile.is_some())?;
         let Some(seed) = self.index.read_summary(request.record_key)? else {
             return Ok(None);
@@ -45,7 +47,14 @@ impl crate::AtlasRetrievalService {
             vector: Some(&vector.vector),
             exclude: Some(request.record_key),
         })?;
-        let results = self.finish_results(&search_profile, roots, request.page, true, window)?;
+        let results = self.finish_results(
+            &search_profile,
+            roots,
+            request.page,
+            true,
+            window,
+            request.sort,
+        )?;
         Ok(Some(SimilarRecordResult { seed, results }))
     }
 }

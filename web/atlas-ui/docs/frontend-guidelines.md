@@ -300,6 +300,20 @@ owned. Keep query text, similarity seed and nondefault page size as ordinary
 parameters; derive retrieval mode rather than serializing it. No CEL translation,
 saved-token registry or separate simple-filter URL dialect is introduced.
 
+Result ordering uses the shared Ant `ResultSortSelect` beside count and paging,
+including in search pickers and the Trait Similar tab. Browse defaults to Name
+A–Z, text/Similar to Relevance, and saved lists to Saved order. Keep requested
+order optional: a response's effective default must not turn into explicit URL
+intent. Selecting the displayed default deliberately does record intent; use
+`onSelect` for this case. Explicit attribute orders survive criterion changes.
+Order changes reset paging and belong in request identity and native navigation,
+but not filter-count context. A sort choice alone leaves an empty search idle.
+The backend orders the entire eligible matching set before pagination; never
+sort loaded rows in the browser. Semantic totals retain their Top matches basis.
+Saved-list attribute orders are temporary, preserve drafts, and disable drag
+reordering. Render supplied unit-price labels verbatim in existing row metadata
+when ordering by price.
+
 The whole result summary previews on ordinary click or Space. Arrow/j/k move
 focus without changing selection; Enter opens the full reference in the same tab.
 Keep native hrefs and modified clicks. Results contain scan metadata and wrapping

@@ -245,6 +245,17 @@ stored root identity seed and semantic candidates, excluding the seed. No invent
 trait/graph reranking weights apply. App search pages expose the same bounded
 Similar request and body-free seed summary; they do not extend the stored schema.
 
+Attribute ordering uses the existing root name, level/rank and per-item-price
+projections. Index shares one comparison contract between complete browse SQL
+and ordering an accepted candidate-key set. Keys are bound as data, without a
+browse-page cap or independently ordered chunks. Known values precede unavailable
+states in both directions; numeric ties and unavailable groups use normalized
+name ascending then canonical key ascending. Only the primary comparison reverses.
+Spell rank retains the catalog's level/rank dispatch, and price comparison uses
+native stored copper without another currency conversion. Typed batch reads of
+visible-root prices support transient labels; these labels are not stored facts.
+Ordering does not require new schema, source preparation or embedding work.
+
 The full serialized `SourceArtifactBuildContext` SHA-256 identifies the active reference
 generation for search pages, detail envelopes and Related availability. It covers
 locale, shared preparation policies and the complete sorted profile manifest as

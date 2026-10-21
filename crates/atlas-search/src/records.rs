@@ -35,6 +35,7 @@ pub struct GetRecordsRequest<'a> {
     pub record_keys: &'a [RecordKey],
 }
 pub struct ListRecordsRequest<'a> {
+    pub sort: atlas_domain::ResultSort,
     pub filter: Option<&'a QueryPredicate>,
     pub scope: RecordScope<'a>,
     pub page: SearchPage,
@@ -43,11 +44,16 @@ pub struct ListRecordsRequest<'a> {
 impl<'a> ListRecordsRequest<'a> {
     pub fn new(filter: Option<&'a QueryPredicate>, page: SearchPage) -> Self {
         Self {
+            sort: atlas_domain::ResultSort::NameAsc,
             filter,
             scope: RecordScope::All,
             page,
             prefer_remaster: true,
         }
+    }
+    pub fn with_sort(mut self, sort: atlas_domain::ResultSort) -> Self {
+        self.sort = sort;
+        self
     }
     pub fn with_scope(mut self, scope: RecordScope<'a>) -> Self {
         self.scope = scope;
@@ -169,6 +175,7 @@ impl AtlasRetrievalService {
             &predicate,
             request.scope.keys(),
             request.prefer_remaster,
+            request.sort,
             request.page.offset()? as usize,
             request.page.size() as usize,
         )?;
@@ -194,9 +201,14 @@ impl AtlasRetrievalService {
         let matches = self.index.lookup_name_or_alias(request.query)?;
         let keys = matches.iter().map(|m| m.key.clone()).collect::<Vec<_>>();
         let query = self.predicate(request.filter)?;
-        let eligible = self
-            .index
-            .eligible_keys(&query, Some(&keys), false, 0, 1024)?;
+        let eligible = self.index.eligible_keys(
+            &query,
+            Some(&keys),
+            false,
+            atlas_domain::ResultSort::NameAsc,
+            0,
+            1024,
+        )?;
         if eligible.total > 1024 {
             return Err(SearchError::invalid_search_options(
                 "name resolution exceeds 1024 exact candidates",
@@ -240,9 +252,14 @@ impl AtlasRetrievalService {
     ) -> Result<RecordRefResolutionResult, SearchError> {
         if let Ok(key) = RecordKey::parse(request.record_ref) {
             let query = self.predicate(request.filter)?;
-            let eligible =
-                self.index
-                    .eligible_keys(&query, Some(std::slice::from_ref(&key)), false, 0, 1)?;
+            let eligible = self.index.eligible_keys(
+                &query,
+                Some(std::slice::from_ref(&key)),
+                false,
+                atlas_domain::ResultSort::NameAsc,
+                0,
+                1,
+            )?;
             return Ok(if !eligible.keys.is_empty() {
                 RecordRefResolutionResult::Key(key)
             } else {

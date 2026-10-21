@@ -32,3 +32,6 @@ pub use search_ranking::SearchRanking;
 
 mod trait_key;
 pub use trait_key::{TraitKey, TraitKeyParseError};
+
+mod result_sort;
+pub use result_sort::ResultSort;

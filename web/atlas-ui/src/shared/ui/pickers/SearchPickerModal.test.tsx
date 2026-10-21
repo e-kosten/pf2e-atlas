@@ -16,6 +16,7 @@ import {
   fieldFixture,
   summaryFixture,
 } from "../../../test/fixtures";
+import type { SearchResultsPage } from "../../../generated/atlas";
 import { SearchPickerModal } from "./SearchPickerModal";
 
 vi.mock("../../../api/atlasApi", async (original) => ({
@@ -27,8 +28,13 @@ vi.mock("../../../api/atlasApi", async (original) => ({
 }));
 const search = vi.mocked(searchPage);
 const addSelected = vi.fn();
-function result(title = "Ghoul", generation = "generation-a", profile = "bge-base") {
+function result(
+  title = "Ghoul",
+  generation = "generation-a",
+  profile = "bge-base",
+): SearchResultsPage {
   return {
+    sort: "name_asc" as const,
     relationships: [],
     ranking: "score" as const,
     search_profile: profile,
@@ -195,6 +201,62 @@ it("inherits lazy contextual counts in Add pickers and leaves text searches coun
   );
   expect(discoverFilterCounts).toHaveBeenCalledTimes(1);
 });
+
+it("sorts through the shared request while retaining the candidate and Add draft", async () => {
+  search.mockImplementation(async (request) => ({
+    ...result(),
+    sort:
+      request.sort ??
+      (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
+  }));
+  renderPicker();
+  fireEvent.click(await screen.findByRole("link", { name: /Ghoul/ }));
+  fireEvent.change(screen.getByLabelText("Note"), { target: { value: "Keep draft" } });
+  fireEvent.click(screen.getByRole("button", { name: "Results" }));
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Result order" }));
+  fireEvent.click(screen.getByText("Level / Rank high to low"));
+  await waitFor(() =>
+    expect(search.mock.lastCall?.[0]).toMatchObject({
+      sort: "level_desc",
+      page: { number: 1 },
+    }),
+  );
+  await screen.findByRole("link", { name: /Ghoul/ });
+  expect(screen.getByLabelText("Note")).toHaveValue("Keep draft");
+  await expectRetainedCandidate();
+  await submit("dragon");
+  await waitFor(() =>
+    expect(search.mock.lastCall?.[0]).toMatchObject({
+      sort: "level_desc",
+      criteria: { kind: "text_search", query: "dragon" },
+    }),
+  );
+});
+it("retains a labelled prior page across sorting but clears it for a different criterion", async () => {
+  let finishSort!: (page: SearchResultsPage) => void;
+  search
+    .mockResolvedValueOnce(result())
+    .mockReturnValueOnce(
+      new Promise<SearchResultsPage>((resolve) => {
+        finishSort = resolve;
+      }),
+    )
+    .mockReturnValueOnce(new Promise<SearchResultsPage>(() => {}));
+  renderPicker();
+  await screen.findByRole("link", { name: /Ghoul/ });
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Result order" }));
+  fireEvent.click(screen.getByText("Level / Rank high to low"));
+  await waitFor(() => expect(screen.getByText("Updating results")).toBeVisible());
+  expect(screen.getByRole("link", { name: /Ghoul/ })).toBeInTheDocument();
+  await act(async () =>
+    finishSort({ ...result("Sorted creature"), sort: "level_desc" }),
+  );
+  await screen.findByRole("link", { name: /Sorted creature/ });
+  await submit("different criterion");
+  await waitFor(() => expect(search).toHaveBeenCalledTimes(3));
+  expect(screen.queryByRole("link", { name: /Sorted creature/ })).toBeNull();
+});
+
 it("shows loading without pagination, then completed empty for a queryless picker", async () => {
   let finish!: (value: ReturnType<typeof result>) => void;
   search.mockReturnValue(
@@ -320,7 +382,7 @@ it("adopts generation once and explicitly refreshes conflicts without clearing c
         recoverable_action: "refresh_results",
       }),
     )
-    .mockResolvedValue(result("Dragon", "generation-b"));
+    .mockResolvedValue({ ...result("Dragon", "generation-b"), sort: "relevance" });
   await submit("dragon");
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "The reference collection changed.",

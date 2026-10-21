@@ -24,6 +24,7 @@ impl RetrievalMode {
     }
 }
 pub struct TextSearchRequest<'a> {
+    pub sort: atlas_domain::ResultSort,
     pub ranking: atlas_domain::SearchRanking,
     pub search_profile: Option<&'a atlas_domain::SearchProfileId>,
     pub query: &'a str,
@@ -36,6 +37,7 @@ pub struct TextSearchRequest<'a> {
 impl<'a> TextSearchRequest<'a> {
     pub fn new(query: &'a str, page: SearchPage) -> Self {
         Self {
+            sort: atlas_domain::ResultSort::Relevance,
             ranking: Default::default(),
             search_profile: None,
             query,
@@ -79,6 +81,7 @@ pub struct SearchCoverage {
 }
 #[derive(Debug, Clone)]
 pub struct TextSearchResult {
+    pub sort: atlas_domain::ResultSort,
     pub search_profile: atlas_domain::SearchProfileId,
     pub artifact_generation: String,
     pub records: Vec<TextSearchRecord>,
@@ -176,6 +179,7 @@ impl AtlasRetrievalService {
         &mut self,
         request: TextSearchRequest<'_>,
     ) -> Result<TextSearchResult, SearchError> {
+        Self::validate_search_sort(request.sort)?;
         if request.query.trim().is_empty() {
             return Err(SearchError::invalid_search_options(
                 "text search requires nonempty text; use list_records for browse",
@@ -209,6 +213,7 @@ impl AtlasRetrievalService {
             request.page,
             request.mode.uses_vector(),
             window,
+            request.sort,
         )
     }
     pub(crate) fn suppress_pairs(
@@ -379,7 +384,9 @@ impl AtlasRetrievalService {
         page: SearchPage,
         bounded: bool,
         window: Option<usize>,
+        sort: atlas_domain::ResultSort,
     ) -> Result<TextSearchResult, SearchError> {
+        let roots = self.order_ranked_roots(roots, sort)?;
         let total = roots.len();
         let selected = roots
             .into_iter()
@@ -495,6 +502,7 @@ impl AtlasRetrievalService {
         }
         let info = SearchPageInfo::from_page(page, records.len(), total as u64)?;
         Ok(TextSearchResult {
+            sort,
             search_profile: search_profile.clone(),
             artifact_generation: self.artifact_generation()?,
             records,

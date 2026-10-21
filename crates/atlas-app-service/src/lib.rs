@@ -46,3 +46,8 @@ pub use service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptio
 
 #[cfg(test)]
 mod relationship_discovery_tests;
+
+mod result_order;
+
+#[cfg(test)]
+mod result_order_tests;

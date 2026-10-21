@@ -18,6 +18,7 @@ import DOMPurify from "dompurify";
 import { AtlasApiError, getRelatedRecords, searchPage } from "../../api/atlasApi";
 import {
   atlasRoutePath,
+  currentAtlasRoute,
   navigateToAtlasRoute,
   shouldHandleAtlasRouteClick,
 } from "../../app/routes";
@@ -27,7 +28,11 @@ import type {
   RecordNavigationView,
   RecordSummaryView,
 } from "../../generated/atlas";
-import { DEFAULT_SEARCH_STATE, searchStateQueryString } from "../filters/searchState";
+import {
+  DEFAULT_SEARCH_STATE,
+  decodeSearchStateFromParams,
+  searchStateQueryString,
+} from "../filters/searchState";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
@@ -460,7 +465,7 @@ function SimilarPreview({
         },
         signal,
       );
-      assertSearchIdentity(page, profile.id, detail.artifact_generation);
+      assertSearchIdentity(page, profile.id, detail.artifact_generation, "relevance");
       return page;
     },
   });
@@ -470,7 +475,10 @@ function SimilarPreview({
     selectedRecordKey: null,
     query: searchStateQueryString(
       {
-        ...DEFAULT_SEARCH_STATE,
+        ...(currentAtlasRoute().kind === "search"
+          ? decodeSearchStateFromParams(new URLSearchParams(window.location.search))
+          : DEFAULT_SEARCH_STATE),
+        query: "",
         mode: "similar_records",
         similarSeed: seed,
       },

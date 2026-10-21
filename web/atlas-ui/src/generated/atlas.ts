@@ -250,3 +250,4 @@ export type { RelationshipDirectionView } from "../../../../crates/atlas-app-mod
 export type { RelationshipEvidenceView } from "../../../../crates/atlas-app-model/bindings/RelationshipEvidenceView";
 export type { RelationshipOccurrencesPage } from "../../../../crates/atlas-app-model/bindings/RelationshipOccurrencesPage";
 export type { RelationshipOccurrencesRequest } from "../../../../crates/atlas-app-model/bindings/RelationshipOccurrencesRequest";
+export type { ResultSort } from "../../../../crates/atlas-app-model/bindings/ResultSort";

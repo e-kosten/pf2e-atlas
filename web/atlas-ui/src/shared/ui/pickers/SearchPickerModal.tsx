@@ -14,14 +14,20 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 import { searchPage } from "../../../api/atlasApi";
 import { useSearchProfile } from "../../search/SearchProfileContext";
 import { SearchProfileNotice } from "../../search/SearchProfileNotice";
-import { assertSearchIdentity } from "../../search/searchIdentity";
-import type { SearchResultsRequest } from "../../../generated/atlas";
+import {
+  assertSearchIdentity,
+  sameSearchPageContext,
+} from "../../search/searchIdentity";
+import type { SearchResultsPage, SearchResultsRequest } from "../../../generated/atlas";
 import {
   DEFAULT_SEARCH_STATE,
   buildFilterDiscoveryContext,
+  effectiveResultSort,
+  normalizeSortTransition,
   type SearchFormState,
 } from "../../filters/searchState";
 import { FilterControls } from "../../filters/FilterPanel";
+import { ResultSortSelect } from "../../search/ResultSortSelect";
 import { useFilterDiscovery } from "../../filters/useFilterDiscovery";
 import { ReferenceBrowser } from "../../records/ReferenceBrowser";
 import { useReferenceReading } from "../../records/useReferenceReading";
@@ -85,6 +91,7 @@ export function SearchPickerModal<FormValues>({
       : (base.criteria.filter ?? search.filter);
   const request: SearchResultsRequest = {
     ...base,
+    ...(search.sort ? { sort: search.sort } : {}),
     search_profile: profile.id ?? undefined,
     criteria: { ...base.criteria, filter },
     page: { number: pageNumber, size: search.pageSize },
@@ -104,16 +111,34 @@ export function SearchPickerModal<FormValues>({
       liveRequest.current.active = false;
     };
   }, [requestToken, retrieval.epoch, open, profileReady, retrieval.recovering]);
-  const recordResults = useQuery({
+  const recordResults = useQuery<SearchResultsPage>({
     queryKey: ["search-picker", title, request, retrieval.epoch, retrieval.generation],
     enabled: open && profileReady && !retrieval.recovering && !search.filterError,
     staleTime: 20_000,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[3] === retrieval.epoch &&
+      previousQuery.queryKey[4] === retrieval.generation &&
+      sameSearchPageContext(previousQuery.queryKey[2] as SearchResultsRequest, request)
+        ? previous
+        : undefined,
     queryFn: async ({ signal }) => {
       const page = await searchPage(
         { ...request, expected_artifact_generation: retrieval.generation },
         signal,
       );
-      assertSearchIdentity(page, profile.id, retrieval.generation);
+      assertSearchIdentity(
+        page,
+        profile.id,
+        retrieval.generation,
+        effectiveResultSort({
+          sort: request.sort,
+          query: request.criteria.kind === "text_search" ? request.criteria.query : "",
+          similarSeed:
+            request.criteria.kind === "similar_records"
+              ? request.criteria.seed_record_key
+              : null,
+        }),
+      );
       if (
         retrieval.generation === null &&
         !signal.aborted &&
@@ -147,7 +172,7 @@ export function SearchPickerModal<FormValues>({
   const discovery = useFilterDiscovery({
     context,
     enabled: open && !retrieval.recovering,
-    queryKeyPrefix: ["filter-discovery", "picker", retrieval.epoch, requestToken],
+    queryKeyPrefix: ["filter-discovery", "picker", retrieval.epoch],
     catalogIdentity: [retrieval.epoch],
   });
   const generationChanged = isArtifactGenerationChanged(recordResults.error);
@@ -206,7 +231,7 @@ export function SearchPickerModal<FormValues>({
             search,
             setSearch: (next) => {
               if (!disabled) {
-                setSearch(next);
+                setSearch(normalizeSortTransition(search, next));
                 setPageNumber(1);
               }
             },
@@ -264,30 +289,50 @@ export function SearchPickerModal<FormValues>({
                 : emptyPrompt
           }
           resultsHeader={
-            recordResults.data && recordResults.data.page.total > 0n ? (
-              <Space wrap>
-                <Typography.Text>
-                  {recordResults.data?.page
-                    ? `${recordResults.data.page.total.toLocaleString()} records`
+            <div className="result-pane-header">
+              <Typography.Text>
+                {recordResults.isPlaceholderData
+                  ? "Updating results"
+                  : recordResults.data?.page
+                    ? recordResults.data.coverage?.exhaustive === false
+                      ? `Top ${recordResults.data.page.total.toLocaleString()} matches`
+                      : `${recordResults.data.page.total.toLocaleString()} records`
                     : "Results"}
-                </Typography.Text>
-                <Pagination
-                  simple
-                  size="small"
-                  current={pageNumber}
-                  pageSize={search.pageSize}
-                  total={Number(recordResults.data?.page?.total ?? 0)}
-                  disabled={
-                    disabled ||
-                    recordResults.isFetching ||
-                    generationChanged ||
-                    retrieval.recovering
-                  }
-                  showSizeChanger={false}
-                  onChange={setPageNumber}
+              </Typography.Text>
+              <div className="pager pager--compact">
+                <ResultSortSelect
+                  search={search}
+                  disabled={disabled || retrieval.recovering}
+                  setSearch={(next) => {
+                    setSearch(next);
+                    setPageNumber(1);
+                  }}
                 />
-              </Space>
-            ) : undefined
+                {recordResults.data && recordResults.data.page.total > 0n && (
+                  <div
+                    className="pager__navigation"
+                    role="group"
+                    aria-label="Result pages"
+                  >
+                    <Pagination
+                      simple
+                      size="small"
+                      current={pageNumber}
+                      pageSize={search.pageSize}
+                      total={Number(recordResults.data?.page?.total ?? 0)}
+                      disabled={
+                        disabled ||
+                        recordResults.isFetching ||
+                        generationChanged ||
+                        retrieval.recovering
+                      }
+                      showSizeChanger={false}
+                      onChange={setPageNumber}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
           }
         />
         <Form

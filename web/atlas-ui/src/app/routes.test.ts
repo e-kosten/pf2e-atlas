@@ -244,3 +244,23 @@ it("round trips exact trait variant identities independently from record keys", 
   expect(atlasRoutePath(route)).toBe("/traits/trait:deadly-d8");
   expect(parseAtlasRoute(atlasRoutePath(route))).toEqual(route);
 });
+
+it("preserves saved-list and trait sort URLs in native navigation", () => {
+  const list = {
+    kind: "list" as const,
+    slug: "research",
+    selectedRecordKey: "items:armor",
+    query: "?q=armor&sort=unit_price_desc",
+  };
+  expect(parseAtlasRoute("/lists/research/records/items:armor", list.query)).toEqual(
+    list,
+  );
+  expect(atlasRoutePath(list)).toBe("/lists/research/records/items:armor" + list.query);
+  const trait = {
+    kind: "trait" as const,
+    traitKey: "trait:agile",
+    query: "?tab=similar&sort=level_desc",
+  };
+  expect(parseAtlasRoute("/traits/trait:agile", trait.query)).toEqual(trait);
+  expect(atlasRoutePath(trait)).toBe("/traits/trait:agile" + trait.query);
+});

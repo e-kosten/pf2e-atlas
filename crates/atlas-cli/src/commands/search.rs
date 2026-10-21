@@ -51,13 +51,21 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
     };
     if let Some(query) = o.query {
         let result = match app_result(
-            s.search_text(
-                query,
-                filter,
-                page,
-                mode,
-                o.ranking,
-                o.search_profile.clone(),
+            s.search_page(
+                atlas_app_model::SearchResultsRequest {
+                    sort: o.sort,
+                    relationships: None,
+                    ranking: Some(o.ranking),
+                    search_profile: o.search_profile.clone(),
+                    criteria: atlas_app_model::SearchCriteria::TextSearch {
+                        query,
+                        filter,
+                        mode,
+                    },
+                    page,
+                    expected_artifact_generation: None,
+                },
+                &atlas_app_service::ReadExecutionContext::uncancellable(),
             ),
             o.json,
         )? {
@@ -70,7 +78,11 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
             write_json_data(data)?;
         } else {
             print_search_matches(&result.rows);
-            if result.coverage.exhaustive {
+            if result
+                .coverage
+                .as_ref()
+                .is_some_and(|coverage| coverage.exhaustive)
+            {
                 println!(
                     "{} result{}{}",
                     result.page.total,
@@ -97,6 +109,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         let result = match app_result(
             s.search_page(
                 atlas_app_model::SearchResultsRequest {
+                    sort: o.sort,
                     relationships: None,
                     ranking: None,
                     search_profile: o.search_profile,
@@ -113,7 +126,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         };
         if o.json {
             write_json_data(
-                serde_json::json!({"search_profile":result.search_profile,"artifact_generation":result.artifact_generation,"pagination":result.page,"results":result.rows.iter().map(|row|&row.record).collect::<Vec<_>>()}),
+                serde_json::json!({"sort":result.sort,"search_profile":result.search_profile,"artifact_generation":result.artifact_generation,"pagination":result.page,"results":result.rows.iter().map(|row|&row.record).collect::<Vec<_>>()}),
             )?;
         } else {
             for row in result.rows {

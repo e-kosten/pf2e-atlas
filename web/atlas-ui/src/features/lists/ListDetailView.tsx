@@ -13,11 +13,17 @@ import {
   removeSavedListItem,
   reorderSavedListItem,
 } from "../../api/atlasApi";
-import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
+import {
+  atlasRoutePath,
+  navigateToAtlasRoute,
+  type AtlasRoute,
+} from "../../app/routes";
 import {
   buildFilter,
-  DEFAULT_SEARCH_STATE,
+  decodeSearchStateFromParams,
+  effectiveResultSort,
   encodeSearchExecutionState,
+  searchStateQueryString,
   type SearchFormState,
 } from "../../shared/filters/searchState";
 import { BrowseReader } from "../../shared/records/BrowseReader";
@@ -28,6 +34,7 @@ import {
 import { ListBrowseHeader } from "./ListBrowseHeader";
 import { ListItemsPane } from "./ListItemsPane";
 import { invalidateSavedListQueries } from "./savedListQueries";
+import { ResultSortSelect } from "../../shared/search/ResultSortSelect";
 import {
   listSearchQuery,
   useDebouncedSearchFilters,
@@ -41,7 +48,24 @@ type ListDetailViewProps = {
 export function ListDetailView({ route }: ListDetailViewProps) {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
-  const [filters, setFilters] = useState<SearchFormState>(DEFAULT_SEARCH_STATE);
+  const [filters, setFilters] = useState<SearchFormState>(() =>
+    decodeSearchStateFromParams(new URLSearchParams(route.query), "saved_list"),
+  );
+  const previousQuery = useRef(route.query);
+  useEffect(() => {
+    if (previousQuery.current === route.query) return;
+    previousQuery.current = route.query;
+    setFilters(
+      decodeSearchStateFromParams(new URLSearchParams(route.query), "saved_list"),
+    );
+  }, [route.query]);
+  function changeFilters(next: SearchFormState) {
+    const query = searchStateQueryString(next);
+    previousQuery.current = query || undefined;
+    setFilters(next);
+    navigateToAtlasRoute({ ...route, query });
+  }
+  const listQuery = searchStateQueryString(filters);
   const reading = useReferenceReading();
   const activeFilters = useDebouncedSearchFilters(filters);
   const filterToken = useMemo(
@@ -52,13 +76,18 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   const list = useQuery({
     queryKey: ["saved-list", route.slug, filterToken],
     placeholderData: keepPreviousData,
-    queryFn: () => {
+    enabled: !activeFilters.filterError,
+    queryFn: async () => {
       const query = listSearchQuery(activeFilters);
-      return filterSavedList({
+      const view = await filterSavedList({
         list_ref: route.slug,
+        ...(activeFilters.sort ? { sort: activeFilters.sort } : {}),
         ...(query ? { query } : {}),
         ...(buildFilter(activeFilters) ? { filter: buildFilter(activeFilters)! } : {}),
       });
+      if (view.sort !== effectiveResultSort(activeFilters, "saved_list"))
+        throw new Error("The saved records used a different order. Retry the list.");
+      return view;
     },
   });
   const selectedItem = list.data?.items.find(
@@ -101,6 +130,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           kind: "list",
           slug: route.slug,
           selectedRecordKey: null,
+          query: listQuery,
         });
       }
     },
@@ -120,6 +150,16 @@ export function ListDetailView({ route }: ListDetailViewProps) {
     onSuccess: async (view) =>
       invalidateSavedListQueries(queryClient, [route.slug, view.slug, view.list_key]),
   });
+  const canReorder =
+    effectiveResultSort(filters, "saved_list") === "saved_order" &&
+    effectiveResultSort(activeFilters, "saved_list") === "saved_order" &&
+    list.data?.sort === "saved_order" &&
+    !filters.filterError &&
+    !activeFilters.filterError &&
+    !filters.query.trim() &&
+    !activeFilters.query.trim() &&
+    !buildFilter(filters) &&
+    !buildFilter(activeFilters);
 
   return (
     <main className="list-workspace">
@@ -128,7 +168,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
         onRetry={() => void list.refetch()}
         filterState={{
           search: filters,
-          setSearch: setFilters,
+          setSearch: changeFilters,
           filterEditor: filterDiscovery.filterEditor,
           filterCountsEnabled: filterDiscovery.filterCountsEnabled,
           filterCountQueryKey: filterDiscovery.filterCountQueryKey,
@@ -170,11 +210,18 @@ export function ListDetailView({ route }: ListDetailViewProps) {
         resultsIdentity={list.data?.items}
         resultsLoading={list.isLoading || list.isFetching}
         resultsHeader={
-          <span>
-            {list.data
-              ? `${list.data.items.length.toLocaleString()} saved records`
-              : "Saved records"}
-          </span>
+          <div className="result-pane-header">
+            <span>
+              {list.data
+                ? `${list.data.items.length.toLocaleString()} saved records`
+                : "Saved records"}
+            </span>
+            <ResultSortSelect
+              search={filters}
+              surface="saved_list"
+              setSearch={changeFilters}
+            />
+          </div>
         }
       >
         <ListItemsPane
@@ -192,17 +239,34 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           filtered={Boolean(filters.query.trim() || buildFilter(filters))}
           removingKey={removeItem.isPending ? removeItem.variables : null}
           selectedRecordKey={route.selectedRecordKey}
+          itemHref={(recordKey) =>
+            atlasRoutePath({
+              kind: "list",
+              slug: route.slug,
+              selectedRecordKey: recordKey,
+              query: listQuery,
+            })
+          }
           onRemove={(key) => removeItem.mutateAsync(key)}
-          onReorder={async (recordKey, targetRecordKey, placement) => {
-            await reorderItem.mutateAsync({ recordKey, targetRecordKey, placement });
-            return true;
-          }}
+          onReorder={
+            canReorder
+              ? async (recordKey, targetRecordKey, placement) => {
+                  await reorderItem.mutateAsync({
+                    recordKey,
+                    targetRecordKey,
+                    placement,
+                  });
+                  return true;
+                }
+              : undefined
+          }
           onSelect={(recordKey) => {
             reading.select({ navigation: rootNavigation(recordKey) });
             navigateToAtlasRoute({
               kind: "list",
               slug: route.slug,
               selectedRecordKey: recordKey,
+              query: listQuery,
             });
           }}
         />

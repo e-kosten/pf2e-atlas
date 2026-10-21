@@ -72,6 +72,11 @@ pub(crate) struct ListLsOptions {
 
 #[derive(Debug, Args)]
 pub(crate) struct ListShowOptions {
+    #[arg(
+        long,
+        help = "Temporary result order: saved_order or an attribute order"
+    )]
+    pub(crate) sort: Option<atlas_domain::ResultSort>,
     #[arg(help = "Saved-list id", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_slugs))]
     pub(crate) slug: String,
     #[arg(long, help = "Emit only saved-list record keys")]

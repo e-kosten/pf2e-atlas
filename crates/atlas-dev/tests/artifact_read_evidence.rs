@@ -12,7 +12,14 @@ fn operation(reader: &SqliteIndexReader, name: &str) -> usize {
             )
             .unwrap();
             reader
-                .eligible_keys(&query, None, false, 0, 100)
+                .eligible_keys(
+                    &query,
+                    None,
+                    false,
+                    atlas_domain::ResultSort::NameAsc,
+                    0,
+                    100,
+                )
                 .unwrap()
                 .keys
                 .len()
@@ -20,7 +27,14 @@ fn operation(reader: &SqliteIndexReader, name: &str) -> usize {
         "same_child_spell" => {
             let query=atlas_index::parse_where("embedded.spells.exists(i,i.source.type == 'spell' && i.spell.rank >= 3 && 'arcane' in i.spell.traditions)").unwrap();
             reader
-                .eligible_keys(&query, None, false, 0, 100)
+                .eligible_keys(
+                    &query,
+                    None,
+                    false,
+                    atlas_domain::ResultSort::NameAsc,
+                    0,
+                    100,
+                )
                 .unwrap()
                 .keys
                 .len()

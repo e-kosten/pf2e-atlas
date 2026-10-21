@@ -90,6 +90,13 @@ browser ranking picker or run `atlas search "harrowkin" --ranking score` to comp
 switching does not rebuild search data. Ranking applies to hybrid text search,
 not alphabetical browsing or Similar records.
 
+Browse, text search and Similar results can be ordered by name, level/rank or
+unit price. Choose **Result order** in the browser or pass a CLI order such as
+`atlas search "healing" --kind spell --sort level_asc`. Sorting applies before
+pagination and preserves the search's matching set; semantic results still show
+bounded Top matches. Missing values appear last in either direction. Saved-list
+sorting is temporary and preserves the saved order.
+
 ### Platforms and versions
 
 The installer installs only the `atlas` CLI. The persistent workspace lives in user application-data storage; downloaded source and models stay in cache locations managed by `atlas setup`.

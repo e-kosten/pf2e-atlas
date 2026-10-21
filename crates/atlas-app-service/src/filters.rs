@@ -453,6 +453,7 @@ mod tests {
                 .worker
                 .search_page(
                     SearchResultsRequest {
+                        sort: None,
                         relationships: None,
                         ranking: None,
                         search_profile: None,

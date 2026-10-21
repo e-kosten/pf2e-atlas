@@ -22,6 +22,12 @@ preference retain their existing contracts. Similar-record search is unaffected.
 only transport the selection. No user-adjustable weights or old lexical policy
 are retained. Switching ranking requires no rebuild or document inference.
 
+Attribute order is a later presentation order over the complete admitted root
+set, after the existing edition preference and before paging. It neither changes
+fusion inputs nor applies exact-name/alias relevance tiers ahead of the chosen
+attribute. Score/RRF continues to determine relevance order independently; the
+admitted roots, coverage and match witnesses remain available under either order.
+
 ## Rationale and consequences
 
 Full-corpus evaluation favored the field-aware lexical policy across both embedding

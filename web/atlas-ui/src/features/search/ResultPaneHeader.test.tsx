@@ -221,6 +221,21 @@ describe("ResultPaneHeader", () => {
     expect(screen.getByRole("button", { name: "Next page" })).toBeEnabled();
   });
 
+  it("keeps page navigation together while sort and page-size controls can wrap separately", () => {
+    render(<ResultPaneHeader workspace={workspace()} />);
+    const navigation = screen.getByRole("group", { name: "Result pages" });
+    expect(
+      within(navigation).getByRole("button", { name: "Previous page" }),
+    ).toBeInTheDocument();
+    expect(
+      within(navigation).getByRole("textbox", { name: "Current page" }),
+    ).toBeInTheDocument();
+    expect(
+      within(navigation).getByRole("button", { name: "Next page" }),
+    ).toBeInTheDocument();
+    expect(within(navigation).queryByRole("combobox")).toBeNull();
+  });
+
   it("lets users jump directly to a page", () => {
     const setPageNumber = vi.fn();
     render(<ResultPaneHeader workspace={workspace({ setPageNumber })} />);
@@ -316,6 +331,7 @@ function workspace(
 function searchResultsPage(): SearchResultsPage {
   return {
     relationships: [],
+    sort: "relevance" as const,
     ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",

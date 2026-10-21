@@ -49,6 +49,7 @@ const apiMocks = vi.hoisted(() => ({
   updateSavedListItemNote: vi.fn(),
   getSavedLists: vi.fn(),
   removeSavedListItem: vi.fn(),
+  reorderSavedListItem: vi.fn(),
   updateSavedList: vi.fn(),
 }));
 
@@ -68,6 +69,7 @@ vi.mock("../../api/atlasApi", async (original) => ({
   updateSavedListItemNote: apiMocks.updateSavedListItemNote,
   getSavedLists: apiMocks.getSavedLists,
   removeSavedListItem: apiMocks.removeSavedListItem,
+  reorderSavedListItem: apiMocks.reorderSavedListItem,
   updateSavedList: apiMocks.updateSavedList,
 }));
 
@@ -96,6 +98,7 @@ describe("list views", () => {
       Promise.resolve(valuesFixture(request.field_id)),
     );
     apiMocks.searchPage.mockResolvedValue({
+      sort: "name_asc",
       search_profile: "bge-base",
       artifact_generation: "generation-a",
       mode: { kind: "list_records" },
@@ -475,7 +478,7 @@ describe("list views", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
       "href",
-      "/records/actions:testAction1",
+      "/lists/research/records/actions:testAction1",
     );
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Saved records" })).toBeInTheDocument();
@@ -713,6 +716,43 @@ describe("list views", () => {
       );
     },
   );
+
+  it("keeps temporary order in list URLs and native links without enabling reorder writes", async () => {
+    apiMocks.filterSavedList.mockImplementation(
+      async (request: { sort?: "level_desc" | "saved_order" }) => ({
+        ...savedListDetailFixture(),
+        sort: request.sort ?? "saved_order",
+      }),
+    );
+    const route = {
+      kind: "list" as const,
+      slug: "research",
+      selectedRecordKey: "actions:testAction1",
+      query: "?sort=level_desc",
+    };
+    const view = render(<ListDetailView route={route} />, {
+      wrapper: queryClientWrapper(),
+    });
+    await screen.findByRole("heading", { name: "Test Action 1" });
+    fireEvent.click(await screen.findByRole("button", { name: "Add note" }));
+    const note = screen.getByRole("textbox", { name: "Note" });
+    fireEvent.change(note, { target: { value: "Keep this unsaved note" } });
+    expect(apiMocks.filterSavedList).toHaveBeenCalledWith(
+      expect.objectContaining({ sort: "level_desc" }),
+    );
+    expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
+      "href",
+      "/lists/research/records/actions:testAction1?sort=level_desc",
+    );
+    expect(screen.queryByRole("button", { name: "Reorder Test Action 1" })).toBeNull();
+    expect(apiMocks.reorderSavedListItem).not.toHaveBeenCalled();
+    view.rerender(<ListDetailView route={{ ...route, query: "?sort=saved_order" }} />);
+    await screen.findByRole("button", { name: "Reorder Test Action 1" });
+    expect(screen.getByRole("textbox", { name: "Note" })).toBe(note);
+    expect(note).toHaveValue("Keep this unsaved note");
+    expect(apiMocks.reorderSavedListItem).not.toHaveBeenCalled();
+    expect(apiMocks.updateSavedListItemNote).not.toHaveBeenCalled();
+  });
 
   it("preserves selected membership and nested reading while filters hide the selected member", async () => {
     apiMocks.filterSavedList.mockImplementation(
@@ -1126,6 +1166,7 @@ function savedListIndexFixture(): SavedListIndexView {
 
 function savedListDetailFixture(): SavedListDetailView {
   return {
+    sort: "saved_order",
     list: savedListIndexFixture().lists[0]!,
     items: [
       {

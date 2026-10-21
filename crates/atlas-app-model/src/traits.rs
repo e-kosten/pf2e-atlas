@@ -31,6 +31,9 @@ pub enum TraitAssociationKind {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct TraitRecordsRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub sort: Option<atlas_domain::ResultSort>,
     pub trait_key: String,
     pub kind: TraitAssociationKind,
     pub page: SearchPageRequest,
@@ -49,6 +52,9 @@ pub struct TraitRecordView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct TraitRecordsPage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub sort: Option<atlas_domain::ResultSort>,
     pub search_profile: Option<atlas_domain::SearchProfileId>,
     pub artifact_generation: String,
     pub trait_key: String,

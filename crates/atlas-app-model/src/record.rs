@@ -6,6 +6,9 @@ use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordSummaryView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub unit_price_label: Option<String>,
     pub record_key: String,
     pub title: String,
     pub kind: String,

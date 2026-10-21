@@ -7,6 +7,10 @@ use std::path::PathBuf;
     after_help = "Examples:\n  atlas similar spells-srd:1xLVcA8Y1onw7toT --kind spell\n  atlas similar feats-srd:jM72TjJ965jocBV8 --limit 12 --json\nSimilarity uses the seed's stored root identity vector. Filters constrain candidates, not seed resolution. Candidate coverage is bounded."
 )]
 pub(crate) struct SimilarOptions {
+    #[arg(long, help = "Result order: relevance or an attribute order")]
+    pub(crate) sort: Option<atlas_domain::ResultSort>,
+    #[arg(long, default_value_t = 1, help = "Page number, starting at 1")]
+    pub(crate) page: u32,
     #[arg(long,value_parser=crate::cli::args::parse_search_profile,help="Stored search profile: bge-base or embeddinggemma; needs stored vectors, not model weights")]
     pub(crate) search_profile: Option<atlas_domain::SearchProfileId>,
     #[arg(help = "Foundry record key or strict name/verified alias")]

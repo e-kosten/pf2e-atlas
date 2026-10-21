@@ -65,6 +65,7 @@ pub struct SavedListUpdateView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListDetailView {
+    pub sort: atlas_domain::ResultSort,
     pub list: SavedListSummaryView,
     pub items: Vec<SavedListItemView>,
 }
@@ -72,6 +73,9 @@ pub struct SavedListDetailView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct FilterSavedListRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub sort: Option<atlas_domain::ResultSort>,
     pub list_ref: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -326,6 +330,7 @@ mod tests {
             record: None,
         };
         let encoded = serde_json::to_string(&SavedListDetailView {
+            sort: atlas_domain::ResultSort::SavedOrder,
             list: summary.clone(),
             items: vec![item.clone()],
         })

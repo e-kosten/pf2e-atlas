@@ -11,6 +11,11 @@ use std::path::PathBuf;
 pub(crate) struct SearchOptions {
     #[arg(
         long,
+        help = "Result order: relevance, name_asc/name_desc, level_asc/level_desc, unit_price_asc/unit_price_desc"
+    )]
+    pub(crate) sort: Option<atlas_domain::ResultSort>,
+    #[arg(
+        long,
         default_value = "score",
         help = "Hybrid text ranking: score fusion or reciprocal rank fusion (rrf)"
     )]

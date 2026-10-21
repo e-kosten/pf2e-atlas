@@ -3,6 +3,7 @@ import { Button, Select } from "antd";
 import { useMemo, useState } from "react";
 import { totalPages } from "./pageMetrics";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
+import { ResultSortSelect } from "../../shared/search/ResultSortSelect";
 
 export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceState }) {
   const page = workspace.resultPage?.page;
@@ -16,7 +17,6 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
       ? Number.MAX_SAFE_INTEGER
       : Number(pageCount);
 
-  if (!page || page.total === 0n) return null;
   return (
     <div className="result-pane-header">
       <span>
@@ -31,62 +31,73 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
             : "Results"}
       </span>
       <div className="pager pager--compact">
-        <Select
-          aria-label="Records per page"
-          size="small"
-          style={{ width: 128 }}
-          disabled={workspace.resultsPaused || workspace.resultsRecovering}
-          value={workspace.search.pageSize}
-          options={[10, 25, 50, 100].map((value) => ({
-            value,
-            label: value + " / page",
-          }))}
-          onChange={(pageSize) =>
-            workspace.setSearch({ ...workspace.search, pageSize })
-          }
+        <ResultSortSelect
+          search={workspace.search}
+          setSearch={workspace.setSearch}
+          disabled={workspace.resultsRecovering}
         />
-        <Button
-          aria-label="Previous page"
-          className="pager__button"
-          disabled={
-            workspace.pageNumber <= 1 ||
-            workspace.resultsRefreshing ||
-            workspace.resultsPaused ||
-            workspace.resultsRecovering
-          }
-          icon={<ChevronLeft size={15} />}
-          onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
-          type="text"
-        />
-        <PageJump
-          key={displayedPageNumber}
-          disabled={
-            workspace.resultsRefreshing ||
-            workspace.resultsLoading ||
-            Boolean(workspace.resultsPaused) ||
-            Boolean(workspace.resultsRecovering)
-          }
-          displayedPageNumber={displayedPageNumber}
-          onPageChange={workspace.setPageNumber}
-          pageCount={pageCount}
-          pageCountNumber={pageCountNumber}
-          requestedPageNumber={workspace.pageNumber}
-        />
-        <Button
-          aria-label="Next page"
-          className="pager__button"
-          disabled={
-            !page?.has_more ||
-            workspace.resultsRefreshing ||
-            workspace.resultsPaused ||
-            workspace.resultsRecovering
-          }
-          icon={<ChevronRight size={15} />}
-          onClick={() =>
-            workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)
-          }
-          type="text"
-        />
+        {page && page.total > 0n && (
+          <>
+            <Select
+              aria-label="Records per page"
+              size="small"
+              style={{ width: 128 }}
+              disabled={workspace.resultsPaused || workspace.resultsRecovering}
+              value={workspace.search.pageSize}
+              options={[10, 25, 50, 100].map((value) => ({
+                value,
+                label: value + " / page",
+              }))}
+              onChange={(pageSize) =>
+                workspace.setSearch({ ...workspace.search, pageSize })
+              }
+            />
+            <div className="pager__navigation" role="group" aria-label="Result pages">
+              <Button
+                aria-label="Previous page"
+                className="pager__button"
+                disabled={
+                  workspace.pageNumber <= 1 ||
+                  workspace.resultsRefreshing ||
+                  workspace.resultsPaused ||
+                  workspace.resultsRecovering
+                }
+                icon={<ChevronLeft size={15} />}
+                onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
+                type="text"
+              />
+              <PageJump
+                key={displayedPageNumber}
+                disabled={
+                  workspace.resultsRefreshing ||
+                  workspace.resultsLoading ||
+                  Boolean(workspace.resultsPaused) ||
+                  Boolean(workspace.resultsRecovering)
+                }
+                displayedPageNumber={displayedPageNumber}
+                onPageChange={workspace.setPageNumber}
+                pageCount={pageCount}
+                pageCountNumber={pageCountNumber}
+                requestedPageNumber={workspace.pageNumber}
+              />
+              <Button
+                aria-label="Next page"
+                className="pager__button"
+                disabled={
+                  !page?.has_more ||
+                  workspace.resultsRefreshing ||
+                  workspace.resultsPaused ||
+                  workspace.resultsRecovering
+                }
+                icon={<ChevronRight size={15} />}
+                onClick={() =>
+                  workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)
+                }
+                type="text"
+              />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

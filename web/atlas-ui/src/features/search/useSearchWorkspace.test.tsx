@@ -17,6 +17,7 @@ import type {
 import {
   DEFAULT_SEARCH_STATE,
   searchStateQueryString,
+  effectiveResultSort,
 } from "../../shared/filters/searchState";
 import { KIND_PREFERENCE_KEY } from "./workspaceState";
 import { AtlasApiError } from "../../api/atlasApi";
@@ -77,6 +78,119 @@ describe("useSearchWorkspace", () => {
     expect(result.current.search.query).toBe("");
   });
 
+  it("resets paging for explicit order, keeps it across semantic transitions and recovery", async () => {
+    history.replaceState(null, "", "/search?q=fire");
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
+      ...searchResultsPage(["items:witness"], { pageNumber: request.page.number }),
+      sort:
+        request.sort ??
+        (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
+    }));
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(result.current.resultPage?.sort).toBe("relevance"));
+    expect(result.current.search.sort).toBeUndefined();
+    act(() => result.current.setPageNumber(3));
+    await waitFor(() => expect(result.current.resultPage?.page.number).toBe(3));
+    act(() =>
+      result.current.setSearch({ ...result.current.search, sort: "level_desc" }),
+    );
+    await waitFor(() => expect(result.current.resultPage?.sort).toBe("level_desc"));
+    expect(result.current.pageNumber).toBe(1);
+    expect(location.search).toContain("sort=level_desc");
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        query: "",
+        similarSeed: "items:seed",
+      }),
+    );
+    await waitFor(() =>
+      expect(apiMocks.searchPage.mock.lastCall?.[0].criteria.kind).toBe(
+        "similar_records",
+      ),
+    );
+    expect(result.current.search.sort).toBe("level_desc");
+    await act(async () => result.current.refreshResults());
+    await waitFor(() => expect(result.current.resultPage?.sort).toBe("level_desc"));
+    expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+      sort: "level_desc",
+      expected_artifact_generation: null,
+      page: { number: 1 },
+    });
+    act(() =>
+      result.current.setSearch({ ...result.current.search, sort: "relevance" }),
+    );
+    await waitFor(() => expect(result.current.resultPage?.sort).toBe("relevance"));
+    act(() =>
+      result.current.setSearch({ ...result.current.search, similarSeed: null }),
+    );
+    expect(result.current.search.sort).toBeUndefined();
+    expect(effectiveResultSort(result.current.search)).toBe("name_asc");
+  });
+
+  it("rejects wrong-order responses instead of adopting their generation", async () => {
+    history.replaceState(null, "", "/search?q=fire&sort=level_desc");
+    apiMocks.searchPage.mockResolvedValue({ ...searchResultsPage(), sort: "name_asc" });
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() =>
+      expect(result.current.errorMessage).toContain("different order"),
+    );
+    expect(result.current.resultPage).toBeUndefined();
+    expect(
+      apiMocks.searchPage.mock.lastCall?.[0].expected_artifact_generation,
+    ).toBeNull();
+  });
+
+  it("retains loaded Similar rows and the seed title as updating while a new order is pending", async () => {
+    history.replaceState(null, "", "/search?similar=items:armor");
+    const original: SearchResultsPage = {
+      ...searchResultsPage(["items:old"]),
+      mode: {
+        kind: "similar_records",
+        seed: summaryFixture("items:armor", "Leather Armor"),
+      },
+    };
+    let finish!: (page: SearchResultsPage) => void;
+    apiMocks.searchPage.mockResolvedValueOnce(original).mockReturnValueOnce(
+      new Promise<SearchResultsPage>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(result.current.resultPage?.rows).toHaveLength(1));
+    act(() =>
+      result.current.setSearch({ ...result.current.search, sort: "level_desc" }),
+    );
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
+    expect(result.current.resultPage).toEqual(original);
+    expect(result.current.resultsRefreshing).toBe(true);
+    await act(async () =>
+      finish({
+        ...original,
+        sort: "level_desc",
+        rows: [
+          {
+            record: summaryFixture("items:new"),
+            relationship_evidence: [],
+            matches: [],
+          },
+        ],
+      }),
+    );
+    await waitFor(() => expect(result.current.resultPage?.sort).toBe("level_desc"));
+    expect(result.current.resultsRefreshing).toBe(false);
+    expect(result.current.resultPage?.rows[0].record.record_key).toBe("items:new");
+  });
+
   it("keeps exact relationship scope through paging, recovery and contextual counts", async () => {
     const constraint = {
       direction: "incoming" as const,
@@ -101,6 +215,7 @@ describe("useSearchWorkspace", () => {
     apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>
       Promise.resolve({
         ...searchResultsPage([], { pageNumber: request.page.number }),
+        sort: "name_asc",
         relationships: [
           {
             constraint: request.relationships![0],
@@ -1075,6 +1190,7 @@ function searchResultsPage(
 ): SearchResultsPage {
   return {
     relationships: [],
+    sort: "relevance" as const,
     ranking: "score" as const,
     search_profile: options.profile ?? "bge-base",
     artifact_generation: options.generation ?? "generation-a",

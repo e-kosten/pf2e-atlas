@@ -65,7 +65,12 @@ describe("AtlasApp routing", () => {
       matching_record_count: 0n,
       options: [],
     });
-    apiMocks.searchPage.mockResolvedValue(searchResultsPage());
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
+      ...searchResultsPage(),
+      sort:
+        request.sort ??
+        (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
+    }));
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
@@ -149,6 +154,9 @@ describe("AtlasApp routing", () => {
       Promise.resolve({
         ...searchResultsPage(),
         search_profile: request.search_profile,
+        sort:
+          request.sort ??
+          (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
       }),
     );
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -214,6 +222,9 @@ describe("AtlasApp routing", () => {
         Promise.resolve({
           ...searchResultsPage(),
           search_profile: request.search_profile,
+          sort:
+            request.sort ??
+            (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
         }),
       );
       const first = render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -329,6 +340,9 @@ describe("AtlasApp routing", () => {
         Promise.resolve({
           ...searchResultsPage(),
           search_profile: request.search_profile,
+          sort:
+            request.sort ??
+            (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
         }),
       );
       const reader = render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -392,6 +406,9 @@ describe("AtlasApp routing", () => {
       Promise.resolve({
         ...searchResultsPage(["spell:heal"]),
         search_profile: request.search_profile,
+        sort:
+          request.sort ??
+          (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
       }),
     );
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -533,6 +550,9 @@ describe("AtlasApp routing", () => {
       Promise.resolve({
         ...searchResultsPage(),
         search_profile: request.search_profile,
+        sort:
+          request.sort ??
+          (request.criteria.kind === "list_records" ? "name_asc" : "relevance"),
       }),
     );
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -630,6 +650,7 @@ function emptyFilterEditor(): FilterEditorView {
 function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
   return {
     relationships: [],
+    sort: "relevance" as const,
     ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",

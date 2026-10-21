@@ -8,7 +8,76 @@ import {
   buildFilterDiscoveryContext,
   buildSavedListFilterDiscoveryContext,
   hasExecutableSearch,
+  effectiveResultSort,
+  normalizeSortTransition,
+  encodeSearchExecutionState,
 } from "./searchState";
+describe("result order intent", () => {
+  it("keeps automatic defaults out of URLs and requests but preserves an explicit default", () => {
+    const automatic = decodeSearchStateFromParams(new URLSearchParams());
+    expect(automatic.sort).toBeUndefined();
+    expect(effectiveResultSort(automatic)).toBe("name_asc");
+    expect(buildSearchRequest(automatic, 1)).not.toHaveProperty("sort");
+    expect(hasExecutableSearch({ ...automatic, sort: "name_desc" })).toBe(false);
+    const explicit = { ...automatic, sort: "name_asc" as const };
+    expect(searchStateQueryString(explicit)).toContain("sort=name_asc");
+    expect(buildSearchRequest(explicit, 1).sort).toBe("name_asc");
+    expect(
+      decodeSearchStateFromParams(new URLSearchParams(searchStateQueryString(explicit)))
+        .sort,
+    ).toBe("name_asc");
+    expect(encodeSearchExecutionState(explicit)).not.toBe(
+      encodeSearchExecutionState(automatic),
+    );
+  });
+  it("defaults semantic criteria to Relevance and lists to Saved order while retaining explicit attributes", () => {
+    for (const criterion of [{ query: "fire" }, { similarSeed: "items:seed" }]) {
+      const automatic = { ...DEFAULT_SEARCH_STATE, ...criterion };
+      expect(effectiveResultSort(automatic)).toBe("relevance");
+      expect(effectiveResultSort(automatic, "saved_list")).toBe("saved_order");
+      const explicit = { ...automatic, sort: "level_desc" as const };
+      expect(effectiveResultSort(explicit)).toBe("level_desc");
+      expect(
+        normalizeSortTransition(explicit, { ...explicit, query: "", similarSeed: null })
+          .sort,
+      ).toBe("level_desc");
+      const relevant = { ...automatic, sort: "relevance" as const };
+      expect(
+        normalizeSortTransition(relevant, { ...relevant, query: "", similarSeed: null })
+          .sort,
+      ).toBeUndefined();
+    }
+  });
+  it.each(["sort=unknown", "sort=saved_order", "sort=relevance"])(
+    "rejects incompatible search URL %s",
+    (query) => {
+      const state = decodeSearchStateFromParams(new URLSearchParams(query));
+      expect(state.filterError).toBeTruthy();
+      expect(hasExecutableSearch(state)).toBe(false);
+    },
+  );
+  it("validates list orders separately and excludes ordering from discovery membership", () => {
+    expect(
+      decodeSearchStateFromParams(
+        new URLSearchParams("q=fire&sort=relevance"),
+        "saved_list",
+      ).filterError,
+    ).toBeTruthy();
+    expect(
+      decodeSearchStateFromParams(
+        new URLSearchParams("q=fire&sort=saved_order"),
+        "saved_list",
+      ).filterError,
+    ).toBeNull();
+    const state = { ...DEFAULT_SEARCH_STATE, sort: "unit_price_desc" as const };
+    expect(buildFilterDiscoveryContext(state)).toEqual(
+      buildFilterDiscoveryContext(DEFAULT_SEARCH_STATE),
+    );
+    expect(buildSavedListFilterDiscoveryContext("research", state)).toEqual(
+      buildSavedListFilterDiscoveryContext("research", DEFAULT_SEARCH_STATE),
+    );
+  });
+});
 describe("source query state", () => {
   it("preserves ranking independently of the query and rejects unknown strategies", () => {
     for (const ranking of ["rrf", "score"] as const) {
