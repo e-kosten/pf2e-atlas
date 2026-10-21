@@ -142,12 +142,112 @@ it("keeps Shuffle beside the seed in the popover and out of the toolbar", async 
   const dialog = screen.getByRole("dialog", { name: "Sort results" });
   const seed = within(dialog).getByRole("textbox", { name: "Random seed" });
   const shuffle = within(dialog).getByRole("button", { name: "Shuffle" });
-  expect(shuffle.parentElement).toBe(seed.parentElement);
+  const field = seed.closest(".result-sort__seed-input");
+  expect(field).not.toBeNull();
+  expect(shuffle.parentElement).toBe(field!.parentElement);
   fireEvent.keyDown(dialog, { key: "Escape" });
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Sort: Random" })).toHaveFocus(),
   );
   expect(screen.queryByRole("button", { name: "Shuffle" })).toBeNull();
+});
+
+it("copies a valid committed draft through the field's icon and confirms success without replacing the input", async () => {
+  const copy = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: copy },
+  });
+  const changed = setup({
+    ...DEFAULT_SEARCH_STATE,
+    sort: { kind: "random", seed: 42 },
+  });
+  await open();
+  const input = screen.getByRole("textbox", { name: "Random seed" });
+  const field = input.closest(".result-sort__seed-input")!;
+  const button = within(field as HTMLElement).getByRole("button", {
+    name: "Copy seed",
+  });
+  act(() => input.focus());
+  fireEvent.change(input, { target: { value: "43" } });
+  // Native pointer/Tab navigation blurs and commits before the Copy click.
+  act(() => input.blur());
+  await act(async () => fireEvent.click(button));
+  expect(changed.mock.lastCall?.[0].sort).toEqual({ kind: "random", seed: 43 });
+  expect(copy).toHaveBeenCalledWith("43");
+  expect(screen.getByRole("textbox", { name: "Random seed" })).toBe(input);
+  expect(screen.getByRole("status")).toHaveTextContent("Seed copied");
+  expect(within(button).getByRole("img", { name: "check" })).toBeInTheDocument();
+  fireEvent.mouseEnter(button);
+  expect(await screen.findByRole("tooltip", { name: "Copied" })).toBeInTheDocument();
+});
+
+it("disables copy for an invalid seed draft and reports actual clipboard failure without success feedback", async () => {
+  const copy = vi.fn().mockRejectedValue(new Error("Clipboard denied"));
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: copy },
+  });
+  setup({ ...DEFAULT_SEARCH_STATE, sort: { kind: "random", seed: 42 } });
+  await open();
+  const input = screen.getByRole("textbox", { name: "Random seed" });
+  fireEvent.change(input, { target: { value: "invalid" } });
+  fireEvent.blur(input);
+  const button = screen.getByRole("button", { name: "Copy seed" });
+  expect(button).toBeDisabled();
+  fireEvent.click(button);
+  expect(copy).not.toHaveBeenCalled();
+  fireEvent.change(input, { target: { value: "0" } });
+  fireEvent.keyDown(input, { key: "Enter" });
+  expect(button).toBeEnabled();
+  await act(async () => fireEvent.click(button));
+  expect(copy).toHaveBeenCalledWith("0");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Unable to copy seed. Select and copy it.",
+  );
+  expect(screen.getByRole("status")).not.toHaveTextContent("Seed copied");
+  expect(within(button).queryByRole("img", { name: "check" })).toBeNull();
+  fireEvent.change(input, { target: { value: "1" } });
+  fireEvent.keyDown(input, { key: "Enter" });
+  expect(screen.queryByRole("alert")).toBeNull();
+  fireEvent.change(input, { target: { value: "0" } });
+  fireEvent.keyDown(input, { key: "Enter" });
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("retires copied feedback and late clipboard results when the seed changes, including A → B → A", async () => {
+  let finish!: () => void;
+  const copy = vi
+    .fn()
+    .mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    )
+    .mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: copy },
+  });
+  setup({ ...DEFAULT_SEARCH_STATE, sort: { kind: "random", seed: 42 } });
+  await open();
+  const input = screen.getByRole("textbox", { name: "Random seed" });
+  const button = screen.getByRole("button", { name: "Copy seed" });
+  fireEvent.click(button);
+  const change = (seed: string) => {
+    fireEvent.change(input, { target: { value: seed } });
+    fireEvent.keyDown(input, { key: "Enter" });
+  };
+  change("43");
+  change("42");
+  await act(async () => finish());
+  expect(screen.getByRole("status")).not.toHaveTextContent("Seed copied");
+  await act(async () => fireEvent.click(button));
+  expect(screen.getByRole("status")).toHaveTextContent("Seed copied");
+  change("43");
+  change("42");
+  expect(screen.getByRole("status")).not.toHaveTextContent("Seed copied");
+  expect(screen.getByRole("textbox", { name: "Random seed" })).toBe(input);
 });
 
 it("cancels an uncommitted seed on Escape before dismissal or focus restoration can blur-commit it", async () => {

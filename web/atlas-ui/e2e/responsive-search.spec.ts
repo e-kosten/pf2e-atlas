@@ -52,11 +52,24 @@ test("Sort rules and seeded Random remain usable at 390px", async ({ page }) => 
   await seed.press("Enter");
   await expect(page).toHaveURL((url) => url.searchParams.get("seed") === "0");
   const shuffle = dialog.getByRole("button", { name: "Shuffle", exact: true });
-  const seedBounds = await seed.boundingBox();
+  const seedBounds = await dialog.locator(".result-sort__seed-input").boundingBox();
   const shuffleBounds = await shuffle.boundingBox();
   expect(seedBounds).not.toBeNull();
   expect(shuffleBounds).not.toBeNull();
   expect(Math.abs(seedBounds!.y - shuffleBounds!.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(seedBounds!.height - shuffleBounds!.height)).toBeLessThanOrEqual(1);
+  const copyBounds = await dialog
+    .getByRole("button", { name: "Copy seed", exact: true })
+    .boundingBox();
+  expect(copyBounds).not.toBeNull();
+  expect(copyBounds!.x).toBeGreaterThanOrEqual(seedBounds!.x + seedBounds!.width / 2);
+  expect(copyBounds!.x + copyBounds!.width).toBeLessThanOrEqual(
+    seedBounds!.x + seedBounds!.width,
+  );
+  expect(copyBounds!.y).toBeGreaterThanOrEqual(seedBounds!.y);
+  expect(copyBounds!.y + copyBounds!.height).toBeLessThanOrEqual(
+    seedBounds!.y + seedBounds!.height,
+  );
   expect(seedBounds!.x + seedBounds!.width).toBeLessThanOrEqual(shuffleBounds!.x);
   expect(shuffleBounds!.x + shuffleBounds!.width).toBeLessThanOrEqual(390);
   await shuffle.click();

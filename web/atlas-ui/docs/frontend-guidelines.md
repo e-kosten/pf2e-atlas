@@ -316,7 +316,9 @@ reveal additional rules through Add another sort. Each field appears at most onc
 Relevance, Random and list-only Saved order replace the attribute sequence.
 Random generates a u32 seed on selection. Keep Shuffle beside its seed input
 inside the popover, preserving the toolbar anchor when switching modes. Seed
-editing/copying also stays inside the popover. Commit seed drafts on
+editing/copying also stays inside the popover. Put the Copy seed icon at the
+field’s trailing edge with a tooltip and brief Copied feedback; keep the field
+and Shuffle on one row. Commit seed drafts on
 Enter/blur. Repeated sort URL tokens preserve rule priority; Random's seed remains
 stable through paging, reload and Back. Incoming malformed combinations are errors.
 Response identity checks compare complete sort values structurally. Retain loaded

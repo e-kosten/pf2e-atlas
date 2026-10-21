@@ -13,6 +13,7 @@ export function EditableCommitField({
   placeholder,
   size,
   stopPropagation = false,
+  suffix,
   value,
   variant,
 }: {
@@ -26,6 +27,7 @@ export function EditableCommitField({
   placeholder?: string;
   size?: InputProps["size"];
   stopPropagation?: boolean;
+  suffix?: InputProps["suffix"];
   value: string;
   variant?: InputProps["variant"];
 }) {
@@ -71,6 +73,7 @@ export function EditableCommitField({
       className={className}
       disabled={disabled}
       inputMode={inputMode}
+      suffix={suffix}
       onBlur={() => finishEdit(true)}
       onChange={(event) => {
         editFinished.current = false;

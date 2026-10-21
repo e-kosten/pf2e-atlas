@@ -2,11 +2,12 @@ import {
   ArrowDownOutlined,
   ArrowUpOutlined,
   CloseOutlined,
+  CheckOutlined,
   CopyOutlined,
   PlusOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
-import { Button, Popover, Select, Typography } from "antd";
+import { Button, Popover, Select, Tooltip, Typography, theme } from "antd";
 import type { GetRef } from "antd";
 import { useRef, useState } from "react";
 import type {
@@ -55,7 +56,6 @@ export function ResultSortControl({
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const fieldRefs = useRef(new Map<SortField, GetRef<typeof Select>>());
-  const [copyError, setCopyError] = useState<string | null>(null);
   const summary =
     sort.kind === "attributes"
       ? sort.rules.map(ruleLabel).join(", ")
@@ -65,7 +65,6 @@ export function ResultSortControl({
           ? "Random"
           : "Relevance";
   function commit(next?: ResultSort) {
-    setCopyError(null);
     setSearch({
       ...search,
       sort: next,
@@ -270,27 +269,6 @@ export function ResultSortControl({
                   onCancel={close}
                   onShuffle={() => commit({ kind: "random", seed: newSeed(sort.seed) })}
                 />
-                <Button
-                  aria-label="Copy seed"
-                  icon={<CopyOutlined />}
-                  onClick={() => {
-                    void navigator.clipboard
-                      .writeText(String(sort.seed))
-                      .then(() => setCopyError(null))
-                      .catch(() =>
-                        setCopyError(
-                          "Unable to copy seed. Select and copy the seed above.",
-                        ),
-                      );
-                  }}
-                >
-                  Copy seed
-                </Button>
-                {copyError && (
-                  <Typography.Text type="danger" role="alert">
-                    {copyError}
-                  </Typography.Text>
-                )}
               </>
             )}
           </section>
@@ -329,7 +307,32 @@ function SeedField({
   onCancel: () => void;
   onShuffle: () => void;
 }) {
+  const { token } = theme.useToken();
   const [error, setError] = useState<{ seed: number; message: string } | null>(null);
+  const [copyState, setCopyState] = useState<{
+    seed: number;
+    status: "idle" | "copied" | "failed";
+    request: object | null;
+  }>({ seed, status: "idle", request: null });
+  // Retire feedback and pending actions even when a seed later returns to an old value.
+  if (copyState.seed !== seed) setCopyState({ seed, status: "idle", request: null });
+  const copyStatus = copyState.seed === seed ? copyState.status : "idle";
+  async function copySeed() {
+    const request = {};
+    setCopyState({ seed, status: "idle", request });
+    let status: "copied" | "failed";
+    try {
+      await navigator.clipboard.writeText(String(seed));
+      status = "copied";
+    } catch {
+      status = "failed";
+    }
+    setCopyState((current) =>
+      current.seed === seed && current.request === request
+        ? { ...current, status }
+        : current,
+    );
+  }
   return (
     <div className="result-sort__seed">
       <Typography.Text strong>Seed</Typography.Text>
@@ -340,6 +343,22 @@ function SeedField({
           value={String(seed)}
           inputMode="numeric"
           blurOnEnter={false}
+          suffix={
+            <Tooltip
+              title={copyStatus === "copied" ? "Copied" : "Copy seed"}
+              trigger={["hover", "focus"]}
+            >
+              <Button
+                aria-label="Copy seed"
+                type="text"
+                size="small"
+                disabled={error?.seed === seed}
+                styles={{ root: { marginBlock: -token.lineWidth } }}
+                icon={copyStatus === "copied" ? <CheckOutlined /> : <CopyOutlined />}
+                onClick={() => void copySeed()}
+              />
+            </Tooltip>
+          }
           onCancel={() => {
             setError(null);
             onCancel();
@@ -358,6 +377,14 @@ function SeedField({
           Shuffle
         </Button>
       </div>
+      <span className="sr-only" role="status">
+        {copyStatus === "copied" ? "Seed copied" : ""}
+      </span>
+      {copyStatus === "failed" && (
+        <Typography.Text type="danger" role="alert">
+          Unable to copy seed. Select and copy it.
+        </Typography.Text>
+      )}
       {error?.seed === seed && (
         <Typography.Text type="danger" role="alert">
           {error.message}
