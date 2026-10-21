@@ -1,6 +1,6 @@
 # ADR 0056: Source-backed trait reference entities
 
-Status: accepted; implementation in progress.
+Status: accepted; implemented in [PR93](https://github.com/e-kosten/pf2e-atlas/pull/93).
 Date: 2026-10-20
 
 ## Context
@@ -29,13 +29,19 @@ as definition metadata. PF2e system pin updates regenerate it with the rest of t
 source models; whole-output freshness checks reject stale files, and incomplete
 or conflicting extraction stops generation. Upstream identifier changes still
 require review rather than inferred aliases. Foundry platform version changes
-alone do not define a new trait vocabulary.
+alone do not define a new trait vocabulary. The private source-contract
+[`compare-traits` command](../../../dev-tools/source-contracts/README.md#trait-changes-during-an-upstream-upgrade)
+compares retained before/after extraction evidence for source-upgrade review; it
+does not replace fresh generation, admission or corpus validation.
 
 Generated metadata retains the upstream system attribution and Apache 2.0
 license information in source and distribution notices. Localized rules prose
 is loaded at ingest, not compiled into the metadata catalog. Its content licenses
 remain separate from the system code license and from Atlas's own license;
-Foundry's partnership permissions are not assumed to transfer to Atlas.
+Foundry's partnership permissions are not assumed to transfer to Atlas. The
+[pinned description provenance review](../../research/trait-description-provenance.md)
+records the source chain and the separate unresolved paragraph-level content
+permission/attribution work.
 
 Foundry-model owns generated source evidence. Domain owns trait identity.
 Record owns pure content interpretation and attribution policies. Ingest resolves
