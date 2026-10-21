@@ -8,6 +8,62 @@ import {
   sentinel,
 } from "./reading";
 
+test("focused titles and list text filters follow their primary page", async ({
+  page,
+}) => {
+  const slug = `focused-titles-${Date.now()}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: "Mountain Watch", tags: [] },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { list } = await created.json();
+  try {
+    for (const record_ref of [sentinel, "browser-conditions:offguard00000001"]) {
+      const added = await page.request.post(`/api/lists/${slug}/items`, {
+        data: { list_ref: slug, record_ref },
+      });
+      expect(added.ok()).toBeTruthy();
+    }
+    await page.goto("/search");
+    await expect(page).toHaveTitle("Search · Atlas");
+    const search = page.getByRole("searchbox", { name: "Search records" });
+    await search.fill(sentinel);
+    await search.press("Enter");
+    await expect(
+      page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
+    ).toBeVisible();
+    await expect(page).toHaveTitle("Search · Atlas");
+
+    await page.goto(`/records/${sentinel}`);
+    await expect(page).toHaveTitle("Atlas Sentinel · Atlas");
+    await page.goto(`/lists/${slug}/records/${sentinel}`);
+    await expect(page).toHaveTitle("Mountain Watch · Atlas");
+    await expect(
+      page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
+    ).toBeVisible();
+    await page.goto(`/lists/${slug}`);
+    const input = page.getByRole("searchbox", { name: "Search records" });
+    await expect(page.locator(".list-member__drag-handle")).toHaveCount(2);
+    await expect(page.getByRole("combobox", { name: "Search model" })).toHaveCount(0);
+    await input.fill("zzzz-no-saved-entry");
+    await input.press("Enter");
+    await expect(page.getByText("No saved records match these filters")).toBeVisible();
+    await expect(page).toHaveTitle("Mountain Watch · Atlas");
+    await input.fill("");
+    await expect(page.locator(".list-member__drag-handle")).toHaveCount(2);
+    await expect(page.locator("[data-sortable-key]").first()).toHaveAttribute(
+      "data-sortable-key",
+      sentinel,
+    );
+    await page.goto("/lists");
+    await expect(page).toHaveTitle("Lists · Atlas");
+    await page.goto("/encounters");
+    await expect(page).toHaveTitle("Encounters · Atlas");
+  } finally {
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});
+
 test("list drops retain order and geometry through delayed writes and refreshes", async ({
   page,
 }, info) => {

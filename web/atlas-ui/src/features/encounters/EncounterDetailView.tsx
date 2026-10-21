@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Grid } from "antd";
 import { Edit2 } from "lucide-react";
@@ -64,6 +65,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
   });
+  usePageTitle(encounter.data?.encounter.name ?? "Encounter");
   const conditionDefinitions = useQuery({
     queryKey: ["encounter-condition-definitions"],
     queryFn: getEncounterConditionDefinitions,

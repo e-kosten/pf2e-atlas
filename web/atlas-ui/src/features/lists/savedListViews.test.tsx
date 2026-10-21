@@ -731,8 +731,11 @@ describe("list views", () => {
       />,
       { wrapper: queryClientWrapper() },
     );
+    const listTitle = `${savedListDetailFixture().list.name} · Atlas`;
+    await waitFor(() => expect(document.title).toBe(listTitle));
     fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
     await screen.findByRole("heading", { name: "Nested Rule" });
+    expect(document.title).toBe(listTitle);
     const input = screen.getByRole("searchbox", { name: "Search records" });
     fireEvent.change(input, { target: { value: "no matching records" } });
     fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
@@ -778,8 +781,6 @@ describe("list views", () => {
       expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
         list_ref: "research",
         query: "Test Action 2",
-        mode: "hybrid",
-        search_profile: "bge-base",
         filter: undefined,
       }),
     );

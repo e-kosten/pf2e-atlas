@@ -239,12 +239,6 @@ that every browser abort drops its server handler. Durable mutations, transactio
 receipts and their reference reads use the normal uncancellable path under
 [ADR0048](./decisions/0048-atomic-mutable-workflows.md).
 
-Saved-list text search uses the selected search profile and hybrid retrieval by
-default (explicit lexical/semantic modes remain available to API callers).
-App-service prepares query inference before the consuming workspace snapshot,
-then applies list membership and filters before retrieval ranking. Matching
-members retain their saved order; clearing text restores the complete list.
-
 `AtlasRetrievalService` is a concrete service over index, an explicit default
 profile and an optional prepared query embedding. Narrow inherent methods own strict name/key lookup, browse, text search,
 similar, graph, remaster links, Suggested variants and catalog discovery. The

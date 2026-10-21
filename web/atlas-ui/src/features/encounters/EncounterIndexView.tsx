@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Tabs } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -25,6 +26,7 @@ type EncounterIndexViewProps = {
 };
 
 export function EncounterIndexView(_props: EncounterIndexViewProps) {
+  usePageTitle("Encounters");
   const queryClient = useQueryClient();
   const [partiesOpen, setPartiesOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);

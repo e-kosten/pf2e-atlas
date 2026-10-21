@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { Alert, Button, Select, Space, Typography } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
 import { FilterControls } from "../../shared/filters/FilterPanel";
@@ -13,6 +14,7 @@ import {
 } from "../../shared/filters/searchState";
 
 export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
+  usePageTitle("Search");
   const profile = useSearchProfile();
   const hasCriteria = hasExecutableSearch(workspace.search);
   const failed = Boolean(

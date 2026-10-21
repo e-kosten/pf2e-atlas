@@ -39,6 +39,14 @@ and Add forms. It does not advance the artifact epoch or retire shared detail,
 graph, catalog, vocabulary, saved-list or encounter caches. Contextual discovery
 carries profile and known generation; option counts load only for active pickers.
 
+Browser titles use `page name · Atlas`, with no query, result count, section
+hierarchy or secondary-preview name. Primary route components use `usePageTitle`;
+list and encounter readers keep their host's saved name. Standalone records and
+traits use their displayed title. Index pages use Search, Lists or Encounters.
+
+Saved-list contents use lexical text filtering and structured filters, preserving
+saved order. Main search and Add records retain semantic discovery.
+
 ## Boundaries
 
 - `web/atlas-ui` owns browser presentation, local browser state, URL state, API calls, and component composition.

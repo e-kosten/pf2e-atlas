@@ -1,8 +1,12 @@
-import { useSearchProfile } from "../../shared/search/SearchProfileContext";
-import { SearchProfileNotice } from "../../shared/search/SearchProfileNotice";
+import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ListEntryNote } from "./ListEntryNote";
 import { ListRecordPicker } from "./ListRecordPicker";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   filterSavedList,
@@ -36,31 +40,23 @@ type ListDetailViewProps = {
 
 export function ListDetailView({ route }: ListDetailViewProps) {
   const queryClient = useQueryClient();
-  const profile = useSearchProfile();
   const [addOpen, setAddOpen] = useState(false);
   const [filters, setFilters] = useState<SearchFormState>(DEFAULT_SEARCH_STATE);
   const reading = useReferenceReading();
   const activeFilters = useDebouncedSearchFilters(filters);
   const filterToken = useMemo(
-    () => encodeSearchExecutionState(activeFilters, profile.id),
-    [activeFilters, profile.id],
+    () => encodeSearchExecutionState(activeFilters),
+    [activeFilters],
   );
   const filterDiscovery = useSavedListFilterDiscovery(route.slug, filters);
-  const canSearch = !listSearchQuery(activeFilters) || profile.usable;
   const list = useQuery({
-    queryKey: ["saved-list", route.slug, filterToken, profile.id],
-    placeholderData: (previous, previousQuery) =>
-      previousQuery?.queryKey[3] === profile.id
-        ? previous
-        : previous
-          ? { ...previous, items: [] }
-          : undefined,
-    enabled: canSearch,
+    queryKey: ["saved-list", route.slug, filterToken],
+    placeholderData: keepPreviousData,
     queryFn: () => {
       const query = listSearchQuery(activeFilters);
       return filterSavedList({
         list_ref: route.slug,
-        ...(query ? { query, mode: "hybrid", search_profile: profile.id! } : {}),
+        ...(query ? { query } : {}),
         ...(buildFilter(activeFilters) ? { filter: buildFilter(activeFilters)! } : {}),
       });
     },
@@ -68,6 +64,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   const selectedItem = list.data?.items.find(
     (item) => item.record_key === route.selectedRecordKey,
   );
+  usePageTitle(list.data?.list.name ?? "List");
   const inspectSelection = reading.select;
   const selectedRoute = useRef<{ identity: string; blocked: boolean } | undefined>(
     undefined,
@@ -141,10 +138,9 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           filterDiscoveryError: filterDiscovery.errorMessage,
         }}
         list={list.data?.list}
-        loading={list.isLoading || !list.data}
+        loading={list.isLoading}
         onAddRecords={() => setAddOpen(true)}
       />
-      <SearchProfileNotice />
       <ListRecordPicker
         key={route.slug}
         list={list.data?.list}
@@ -172,7 +168,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
         }
         resultsLabel="Saved records"
         resultsIdentity={list.data?.items}
-        resultsLoading={list.isLoading || (canSearch && list.isFetching)}
+        resultsLoading={list.isLoading || list.isFetching}
         resultsHeader={
           <span>
             {list.data
@@ -191,7 +187,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
             Boolean(list.error)
           }
           items={list.data?.items ?? []}
-          loading={list.isLoading || (canSearch && list.isFetching)}
+          loading={list.isLoading || list.isFetching}
           unavailable={Boolean(list.error && !list.data)}
           filtered={Boolean(filters.query.trim() || buildFilter(filters))}
           removingKey={removeItem.isPending ? removeItem.variables : null}

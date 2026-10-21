@@ -642,8 +642,6 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
         .filter_saved_list(FilterSavedListRequest {
             list_ref: "large-list".into(),
             query: Some("\"Action 1029\"".into()),
-            search_profile: None,
-            mode: Some(RetrievalModeView::Lexical),
             filter: None,
         })
         .unwrap();

@@ -42,7 +42,7 @@ impl AtlasAppService {
     }
 
     pub fn saved_list(&self, list_ref: &str) -> AppServiceResult<SavedListDetailView> {
-        self.saved_list_with_filter(list_ref, None, None, false, None, RetrievalMode::Hybrid)
+        self.saved_list_with_filter(list_ref, None, None, false)
     }
 
     pub fn filter_saved_list(
@@ -56,18 +56,7 @@ impl AtlasAppService {
             .map(str::trim)
             .filter(|query| !query.is_empty());
         let has_match_scope = filter.is_some() || query.is_some();
-        self.saved_list_with_filter(
-            &request.list_ref,
-            filter.as_ref(),
-            query,
-            has_match_scope,
-            request.search_profile.as_ref(),
-            crate::retrieval::retrieval_mode(
-                request
-                    .mode
-                    .unwrap_or(atlas_app_model::RetrievalModeView::Hybrid),
-            ),
-        )
+        self.saved_list_with_filter(&request.list_ref, filter.as_ref(), query, has_match_scope)
     }
 
     pub fn create_saved_list(
@@ -594,8 +583,6 @@ impl AtlasAppService {
         filter: Option<&atlas_domain::QueryPredicate>,
         query: Option<&str>,
         has_match_scope: bool,
-        search_profile: Option<&atlas_domain::SearchProfileId>,
-        mode: RetrievalMode,
     ) -> AppServiceResult<SavedListDetailView> {
         let initial = self.with_state(|session| {
             session
@@ -620,14 +607,11 @@ impl AtlasAppService {
             });
         }
 
-        let prepared = self.prepare_query(search_profile, query.unwrap_or(""), mode)?;
-        let search_profile = search_profile.cloned();
         let list_ref = list_ref.to_string();
         let filter = filter.cloned();
         let query = query.map(str::to_owned);
-        self.with_prepared_workspace(
+        self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
-            prepared,
             move |session| {
                 let list = session
                     .local_state()
@@ -645,8 +629,6 @@ impl AtlasAppService {
                         &active_keys,
                         filter.as_ref(),
                         query,
-                        search_profile.as_ref(),
-                        mode,
                     )?
                 } else if has_match_scope {
                     filtered_saved_list_records(
@@ -793,8 +775,6 @@ fn searched_saved_list_records(
     record_keys: &[RecordKey],
     filter: Option<&atlas_domain::QueryPredicate>,
     query: &str,
-    search_profile: Option<&atlas_domain::SearchProfileId>,
-    mode: RetrievalMode,
 ) -> AppServiceResult<BTreeMap<String, HydratedListRecord>> {
     if record_keys.is_empty() {
         return Ok(BTreeMap::new());
@@ -810,12 +790,12 @@ fn searched_saved_list_records(
         let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
         let result = retrieval.search_text(TextSearchRequest {
             ranking: Default::default(),
-            search_profile,
+            search_profile: None,
             query: &query,
             filter: filter.as_ref(),
             scope: RecordScope::Keys(&record_keys),
             page,
-            mode,
+            mode: RetrievalMode::Fts,
             prefer_remaster: true,
         })?;
         for record in result.records {
