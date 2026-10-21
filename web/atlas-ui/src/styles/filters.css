@@ -234,10 +234,17 @@
 }
 
 .relationship-filter {
+  display: inline-flex;
+  align-items: center;
   min-width: 0;
   max-width: 100%;
 }
-.relationship-filter a {
+.relationship-filter__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.relationship-filter__scope a {
   overflow-wrap: anywhere;
   user-select: text;
 }

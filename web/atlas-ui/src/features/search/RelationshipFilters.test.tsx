@@ -4,6 +4,7 @@ import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
 import { summaryFixture } from "../../test/fixtures";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 import type { RelationshipConstraintView } from "../../generated/atlas";
+import * as routes from "../../app/routes";
 
 const constraint: RelationshipConstraintView = {
   direction: "incoming",
@@ -16,14 +17,18 @@ const constraint: RelationshipConstraintView = {
   },
   include_contents: true,
 };
-function workspace() {
+function workspace(relationship = constraint) {
   return {
-    search: { ...DEFAULT_SEARCH_STATE, relationships: [constraint], query: "defense" },
+    search: {
+      ...DEFAULT_SEARCH_STATE,
+      relationships: [relationship],
+      query: "defense",
+    },
     setSearch: vi.fn(),
     resultPage: {
       relationships: [
         {
-          constraint,
+          constraint: relationship,
           title: "Leather Armor",
           record: summaryFixture(constraint.selection.record_key, "Leather Armor"),
         },
@@ -37,9 +42,16 @@ it("shows the human relationship label at the top level and preserves criteria o
   const state = workspace();
   const view = render(<RelationshipFilters workspace={state} />);
   expect(screen.getByRole("group", { name: "Relationship filter" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Leather Armor" })).toBeVisible();
+  const chip = screen.getByRole("button", { name: /Links to Leather Armor/ });
+  expect(chip).toHaveTextContent("Links to Leather Armor");
+  expect(screen.queryByRole("link", { name: /Leather Armor/ })).toBeNull();
   expect(view.container).not.toHaveTextContent("secret-id");
-  fireEvent.click(screen.getByRole("button", { name: "Relationship scope" }));
+  fireEvent.click(chip);
+  await waitFor(() =>
+    expect(
+      screen.getByRole("link", { name: "Open Leather Armor" }),
+    ).toBeInTheDocument(),
+  );
   await waitFor(() =>
     expect(
       screen.getByText(
@@ -52,12 +64,50 @@ it("shows the human relationship label at the top level and preserves criteria o
     ...state.search,
     relationships: [{ ...constraint, include_contents: false }],
   });
-  expect(screen.getByRole("button", { name: "Relationship scope" })).toHaveFocus();
+  expect(chip).toHaveFocus();
   fireEvent.click(screen.getByRole("button", { name: "Remove relationship filter" }));
   expect(state.setSearch).toHaveBeenLastCalledWith({
     ...state.search,
     relationships: [],
   });
+});
+
+it("opens the exact selected record from the combined filter popover", async () => {
+  const relationship: RelationshipConstraintView = {
+    ...constraint,
+    selection: {
+      ...constraint.selection,
+      embedded_path: [
+        { collection: "items", identity: { SnapshotLocal: { index: 0 } } },
+      ],
+      field: "/system/description/value",
+    },
+  };
+  const state = workspace(relationship);
+  const navigate = vi
+    .spyOn(routes, "navigateToAtlasRoute")
+    .mockImplementation(() => {});
+  try {
+    render(<RelationshipFilters workspace={state} />);
+    fireEvent.click(screen.getByRole("button", { name: /Links to Leather Armor/ }));
+    const link = await screen.findByRole("link", { name: "Open Leather Armor" });
+    const route = {
+      kind: "record",
+      recordKey: constraint.selection.record_key,
+      selection: relationship.selection,
+    } as const;
+    expect(link).toHaveAttribute("href", routes.atlasRoutePath(route));
+    link.focus();
+    fireEvent.keyDown(link, { key: "Escape" });
+    expect(
+      screen.getByRole("button", { name: /Links to Leather Armor/ }),
+    ).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: /Links to Leather Armor/ }));
+    fireEvent.click(await screen.findByRole("link", { name: "Open Leather Armor" }));
+    expect(navigate).toHaveBeenCalledWith(route);
+  } finally {
+    navigate.mockRestore();
+  }
 });
 
 it("keeps unavailable targets readable without exposing record keys", () => {
@@ -67,7 +117,9 @@ it("keeps unavailable targets readable without exposing record keys", () => {
       workspace={{ ...state, resultPage: undefined, errorMessage: "unavailable" }}
     />,
   );
-  expect(screen.getByText("Record unavailable")).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: /Links to Record unavailable/ }),
+  ).toBeVisible();
   expect(view.container).not.toHaveTextContent(constraint.selection.record_key);
   expect(
     screen.getByRole("button", { name: "Remove relationship filter" }),

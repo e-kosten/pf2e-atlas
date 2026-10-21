@@ -613,8 +613,10 @@ parent root explicitly. Exact root references use an empty owner path, not an
 all-owners graph query.
 
 Relationship search constraints appear at the top level with ordinary filters,
-outside Advanced. Their direction, human target name, Main entry only / Whole entry scope
-and removal remain together. Never render IDs in relationship labels, tooltip
+outside Advanced. A combined filter chip displays the direction and human target
+name; its popover contains the Main entry only / Whole entry choices and a link
+to open the exact selected record. Removal stays beside the chip. Include the
+selected scope in the chip's accessible name. Never render IDs in relationship labels, tooltip
 copy or unavailable fallbacks. Backend-selected names and optional kind/source/
 parent labels distinguish otherwise identical titles. Exact navigation stays in
 the typed criterion and URL, with its snapshot fingerprint.

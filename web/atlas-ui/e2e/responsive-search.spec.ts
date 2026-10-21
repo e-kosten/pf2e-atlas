@@ -241,8 +241,8 @@ test("relationship scope stays tappable within a phone viewport and preserves ex
     );
     const criterion = page.getByRole("group", { name: "Relationship filter" });
     await expect(criterion).toContainText("Stunned");
-    const trigger = criterion.getByRole("button", { name: "Relationship scope" });
-    await expect(trigger).toHaveText("Whole entry");
+    const trigger = criterion.getByRole("button", { name: /Links to Stunned/ });
+    await expect(trigger).toHaveText("Links to Stunned");
     await trigger.tap();
     const popover = page
       .getByRole("tooltip")
@@ -259,7 +259,7 @@ test("relationship scope stays tappable within a phone viewport and preserves ex
       expect(box!.y + box!.height).toBeLessThanOrEqual(844);
     }
     await main.tap();
-    await expect(trigger).toHaveText("Main only");
+    await expect(trigger).toHaveText("Links to Stunned");
     await expect(trigger).toBeFocused();
     const restored = JSON.parse(
       new URL(page.url()).searchParams.get("relationships")!.slice(2),
@@ -270,6 +270,18 @@ test("relationship scope stays tappable within a phone viewport and preserves ex
     await page.keyboard.press("Escape");
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
     await expect(trigger).toBeFocused();
+    await trigger.tap();
+    await popover.getByRole("link", { name: "Open Stunned", exact: true }).tap();
+    await expect(page).toHaveURL(
+      (url) =>
+        decodeURIComponent(url.pathname) === "/records/conditionitems:dfCMdR4wnpbYNTix",
+    );
+    expect(JSON.parse(new URL(page.url()).searchParams.get("selection")!)).toEqual(
+      constraint.selection,
+    );
+    await expect(
+      page.getByRole("heading", { name: "Stunned", exact: true }),
+    ).toBeVisible();
   } finally {
     await context.close();
   }

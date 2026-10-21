@@ -1,4 +1,4 @@
-import { Button, Popover, Radio, Space, Tag, Typography, theme } from "antd";
+import { Button, Popover, Radio, Space, Typography, theme } from "antd";
 import { CloseOutlined, DownOutlined } from "@ant-design/icons";
 import { useRef, useState, type KeyboardEvent } from "react";
 import {
@@ -52,6 +52,13 @@ function RelationshipFilter({
     recordKey: constraint.selection.record_key,
     selection: constraint.selection,
   } as const;
+  const direction = constraint.direction === "incoming" ? "Links to" : "Linked from";
+  const title = summary
+    ? summary.title +
+      (constraint.selection.embedded_path.length ? ` · ${summary.record.title}` : "")
+    : workspace.errorMessage
+      ? "Record unavailable"
+      : "Loading record…";
   function closeScope() {
     setScopeOpen(false);
     scopeTrigger.current?.focus({ preventScroll: true });
@@ -64,33 +71,12 @@ function RelationshipFilter({
     }
   }
   return (
-    <Space
-      wrap
-      size={token.marginXXS}
+    <div
       className="relationship-filter"
+      style={{ gap: token.marginXXS }}
       role="group"
       aria-label="Relationship filter"
     >
-      <Tag>{constraint.direction === "incoming" ? "Links to" : "Linked from"}</Tag>
-      {summary ? (
-        <Typography.Link
-          href={atlasRoutePath(route)}
-          onClick={(event) => {
-            if (!shouldHandleAtlasRouteClick(event)) return;
-            event.preventDefault();
-            navigateToAtlasRoute(route);
-          }}
-        >
-          {summary.title}
-        </Typography.Link>
-      ) : (
-        <Typography.Text type="secondary">
-          {workspace.errorMessage ? "Record unavailable" : "Loading record…"}
-        </Typography.Text>
-      )}
-      {summary && constraint.selection.embedded_path.length > 0 && (
-        <Typography.Text type="secondary">{summary.record.title}</Typography.Text>
-      )}
       <Popover
         trigger="click"
         placement="bottom"
@@ -105,6 +91,21 @@ function RelationshipFilter({
         }
         content={
           <div className="relationship-filter__scope">
+            {summary && (
+              <Typography.Link
+                style={{ display: "block", marginBottom: token.marginSM }}
+                href={atlasRoutePath(route)}
+                onKeyDown={scopeKeyDown}
+                onClick={(event) => {
+                  if (!shouldHandleAtlasRouteClick(event)) return;
+                  event.preventDefault();
+                  setScopeOpen(false);
+                  navigateToAtlasRoute(route);
+                }}
+              >
+                Open {summary.title}
+              </Typography.Link>
+            )}
             <Radio.Group
               aria-label="Relationship scope"
               value={constraint.include_contents}
@@ -139,28 +140,29 @@ function RelationshipFilter({
       >
         <Button
           ref={scopeTrigger}
-          type="text"
-          size="small"
+          color="default"
+          variant="filled"
           icon={<DownOutlined aria-hidden="true" />}
           iconPlacement="end"
           styles={{
             root: {
-              color: token.colorTextSecondary,
-              fontSize: token.fontSizeSM,
-              paddingInline: 0,
-              columnGap: token.marginXXS,
+              maxWidth: "100%",
+              minWidth: 0,
             },
           }}
           onKeyDown={scopeKeyDown}
-          aria-label="Relationship scope"
+          aria-label={`${direction} ${title}; ${constraint.include_contents ? "Whole entry" : "Main entry only"}`}
           aria-expanded={scopeOpen}
         >
-          {constraint.include_contents ? "Whole entry" : "Main only"}
+          <span className="relationship-filter__label">
+            {direction} {title}
+          </span>
         </Button>
       </Popover>
       <Button
         type="text"
         icon={<CloseOutlined />}
+        styles={{ root: { flexShrink: 0 } }}
         aria-label="Remove relationship filter"
         onClick={() =>
           workspace.setSearch({
@@ -171,6 +173,6 @@ function RelationshipFilter({
           })
         }
       />
-    </Space>
+    </div>
   );
 }
