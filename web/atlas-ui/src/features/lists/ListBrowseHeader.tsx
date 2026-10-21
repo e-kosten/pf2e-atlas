@@ -1,3 +1,4 @@
+import { SearchModelSelect } from "../search/SearchModelSelect";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { Alert, Button, Spin, Typography } from "antd";
 import { ArrowLeft, Pencil, Plus } from "lucide-react";
@@ -101,6 +102,7 @@ export function ListBrowseHeader({
           <FilterControls
             filterState={filterState}
             includeSearch
+            searchRowEnd={<SearchModelSelect />}
             layout="inline-toolbar"
           />
         </>

@@ -73,6 +73,10 @@ pub struct SavedListDetailView {
 #[serde(rename_all = "snake_case")]
 pub struct FilterSavedListRequest {
     pub list_ref: String,
+    #[ts(optional)]
+    pub search_profile: Option<atlas_domain::SearchProfileId>,
+    #[ts(optional)]
+    pub mode: Option<crate::RetrievalModeView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub query: Option<String>,
