@@ -689,7 +689,7 @@ pub struct AddEncounterParticipantConditionRequest {
     #[serde(default)]
     pub immunity_override: bool,
     #[serde(default)]
-    pub parameters: ConditionParametersView,
+    pub parameters: crate::ConditionParametersInputView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub origin: Option<ConditionOriginView>,
@@ -729,7 +729,7 @@ pub struct UpdateEncounterParticipantConditionRequest {
     #[serde(default)]
     pub immunity_override: bool,
     #[serde(default)]
-    pub parameters: ConditionParametersView,
+    pub parameters: crate::ConditionParametersInputView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub origin: Option<ConditionOriginView>,

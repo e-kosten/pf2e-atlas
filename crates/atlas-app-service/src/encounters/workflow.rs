@@ -41,7 +41,24 @@ impl AtlasAppService {
         encounter_ref: &str,
         participant_key: &str,
     ) -> AppServiceResult<atlas_app_model::EncounterConditionCatalogView> {
-        let context = condition_subject_context(self, encounter_ref, participant_key)?;
+        let snapshot = self.with_state(|session| {
+            session
+                .local_state()
+                .encounters()
+                .get_with_participants(encounter_ref)?
+                .ok_or_else(|| encounter_not_found(encounter_ref))
+        })?;
+        let participant = snapshot
+            .participants
+            .iter()
+            .find(|p| p.participant_key == participant_key)
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::EncounterParticipantNotFound,
+                    "encounter participant was not found",
+                )
+            })?;
+        let context = condition_subject_context(self, participant)?;
         let mut catalog = condition_catalog();
         catalog.conditions.retain_mut(|definition| {
             let Some(modeled) = modeled_condition_by_ref(&definition.condition_ref) else {
@@ -880,151 +897,77 @@ pub(super) struct ConditionSubjectContext {
     pub(super) perception: Option<i64>,
 }
 
-pub(super) fn condition_subject_context(
-    service: &AtlasAppService,
-    encounter_ref: &str,
-    participant_key: &str,
-) -> AppServiceResult<ConditionSubjectContext> {
-    let participant = service.with_state(|session| {
-        let snapshot = session
-            .local_state()
-            .encounters()
-            .get_with_participants(encounter_ref)?
-            .ok_or_else(|| encounter_not_found(encounter_ref))?;
-        snapshot
-            .participants
-            .into_iter()
-            .find(|p| p.participant_key == participant_key)
-            .ok_or_else(|| {
-                AppServiceError::new(
-                    AppErrorCode::EncounterParticipantNotFound,
-                    "encounter participant was not found",
-                )
-            })
-    })?;
-    if participant.record_key.is_none() {
-        let level = participant.level_override;
-        return Ok(ConditionSubjectContext {
-            participant,
-            facts: super::rules::ConditionApplicabilityFacts::default(),
-            level,
+impl ConditionSubjectContext {
+    /// Facts available from saved encounter state, without a reference read or guard.
+    pub(super) fn from_saved(participant: &atlas_local_state::EncounterParticipant) -> Self {
+        Self {
+            participant: participant.clone(),
+            facts: Default::default(),
+            reference_revision: None,
+            level: participant.level_override,
             fortitude: None,
             perception: None,
-            reference_revision: None,
-        });
+        }
     }
+}
+
+pub(super) fn condition_subject_context(
+    service: &AtlasAppService,
+    participant: &atlas_local_state::EncounterParticipant,
+) -> AppServiceResult<ConditionSubjectContext> {
+    if participant.record_key.is_none() {
+        return Ok(ConditionSubjectContext::from_saved(participant));
+    }
+    let participant = participant.clone();
     service.with_workspace(
         &crate::ReadExecutionContext::uncancellable(),
         move |session| {
-            let (_, records) = hydrate_participant_records(
-                session.retrieval_mut(),
-                std::slice::from_ref(&participant),
-            )?;
-            let record = participant
+            let retrieval = session.retrieval_mut();
+            let key = participant
                 .record_key
+                .as_deref()
+                .and_then(|key| atlas_domain::RecordKey::parse(key).ok());
+            let detail = key
                 .as_ref()
-                .and_then(|key| records.get(key));
-            let actor = record.and_then(|record| match &record.presentation.body {
-                atlas_app_model::RecordBodyView::Creature(actor) => Some(actor.as_ref()),
-                atlas_app_model::RecordBodyView::Hazard(hazard) => Some(&hazard.actor),
-                _ => None,
-            });
-            let immunities = record.and_then(|record| {
-                use atlas_record::source_record::{ActorIwrEntry, ActorIwrKind};
-                let pack = record.detail.summary.key.pack();
-                let query = atlas_record::source_record::SourceQueryView::new(
-                    record.detail.source.source(),
-                    pack.as_str(),
-                    "",
-                );
-                query
-                    .actor()
-                    .iwr(ActorIwrKind::Immunity)
-                    .value()
-                    .map(|entries| {
-                        entries
-                            .iter()
-                            .enumerate()
-                            .filter_map(|(index, entry)| {
-                                let projected = actor
-                                    .and_then(|actor| actor.immunities.value.as_ref())
-                                    .and_then(|entries| entries.get(index));
-                                let (source_type, exceptions) = match entry {
-                                    ActorIwrEntry::Immunity(source) => (
-                                        source.r#type.as_value(),
-                                        authored_immunity_exceptions(
-                                            &source.exceptions,
-                                            projected
-                                                .and_then(|entry| entry.exceptions.value.clone()),
-                                            true,
-                                        ),
-                                    ),
-                                    ActorIwrEntry::SchemaImmunity(source) => (
-                                        source.r#type.as_value(),
-                                        authored_immunity_exceptions(
-                                            &source.exceptions,
-                                            projected
-                                                .and_then(|entry| entry.exceptions.value.clone()),
-                                            false,
-                                        ),
-                                    ),
-                                    _ => return None,
-                                };
-                                // Generated enum serialization owns the canonical source identifier.
-                                let token = serde_json::to_value(source_type?).ok()?;
-                                let slug = token
-                                    .as_str()
-                                    .or_else(|| {
-                                        token.get("$value").and_then(serde_json::Value::as_str)
-                                    })?
-                                    .to_owned();
-                                Some(super::rules::ConditionImmunity { slug, exceptions })
-                            })
-                            .collect()
+                .map(|key| {
+                    retrieval.get_record(atlas_search::GetRecordRequest {
+                        record_key: key,
+                        selected_content: &[],
                     })
-            });
-            // Pinned hazard/document.ts prepareBaseData derives BT=floor(max/2)
-            // and hasHealth=max>0; this is derived source policy, not an authored BT field.
-            let hazard_maximum = record
-                .filter(|_| {
-                    participant.participant_kind == atlas_local_state::ParticipantKind::Hazard
                 })
-                .and_then(|record| {
-                    let pack = record.detail.summary.key.pack();
+                .transpose()?
+                .flatten();
+            let facts = detail
+                .as_ref()
+                .map(|detail| {
+                    super::rules::source_applicability(
+                        &detail.source,
+                        participant.participant_kind == atlas_local_state::ParticipantKind::Hazard,
+                    )
+                })
+                .unwrap_or_default();
+            let block = detail.as_ref().and_then(|detail| {
+                let baseline = super::rules::source_baseline(
+                    &detail.source,
+                    retrieval.source_fingerprint(),
+                    None,
+                )?;
+                let adjustment_applicable = !matches!(
                     atlas_record::source_record::SourceQueryView::new(
-                        record.detail.source.source(),
-                        pack.as_str(),
+                        detail.source.source(),
+                        detail.summary.key.pack().as_str(),
                         "",
                     )
                     .actor()
-                    .hp_maximum()
-                    .value()
-                    .cloned()
-                });
-            let broken_threshold_known_absent = hazard_maximum
-                .as_ref()
-                .and_then(serde_json::Number::as_f64)
-                .is_some_and(|max| max <= 0.0);
-            let broken_threshold = hazard_maximum
-                .as_ref()
-                .and_then(serde_json::Number::as_f64)
-                .filter(|max| *max > 0.0)
-                .filter(|max| *max <= 9_007_199_254_740_991.0)
-                .map(|max| serde_json::Number::from((max / 2.0).floor() as i64));
-            let facts = super::rules::ConditionApplicabilityFacts {
-                immunities,
-                broken_threshold,
-                broken_threshold_known_absent,
-            };
-            let block = record.and_then(|record| {
-                record.arithmetic_baseline.as_ref().map(|baseline| {
-                    super::rules::project_participant(
-                        &participant,
-                        baseline,
-                        record.adjustment_applicable,
-                        &[],
-                    )
-                })
+                    .authored_adjustment(),
+                    atlas_record::source_record::SourceFieldView::NotApplicable
+                );
+                Some(super::rules::project_participant(
+                    &participant,
+                    &baseline,
+                    adjustment_applicable,
+                    &[],
+                ))
             });
             let level = participant.level_override.or_else(|| {
                 block
@@ -1058,34 +1001,13 @@ pub(super) fn condition_subject_context(
 
 pub(super) fn validate_condition_subject(
     context: &ConditionSubjectContext,
-    snapshot: &atlas_local_state::EncounterWithParticipants,
     condition_key: Option<&str>,
     immunity_override: bool,
 ) -> AppServiceResult<()> {
-    let current = snapshot
-        .participants
-        .iter()
-        .find(|p| p.participant_key == context.participant.participant_key)
-        .ok_or_else(|| {
-            AppServiceError::new(
-                AppErrorCode::EncounterParticipantNotFound,
-                "encounter participant was not found",
-            )
-        })?;
-    if current.revision != context.participant.revision {
-        return Err(
-            atlas_local_state::LocalStateError::StaleParticipantRevision {
-                participant_key: current.participant_key.clone(),
-                expected_revision: context.participant.revision,
-                actual_revision: current.revision,
-            }
-            .into(),
-        );
-    }
     let Some(modeled) = condition_key.and_then(modeled_condition_by_ref) else {
         return Ok(());
     };
-    match super::rules::condition_applicability(modeled, current, &context.facts) {
+    match super::rules::condition_applicability(modeled, &context.participant, &context.facts) {
         None => Err(AppServiceError::invalid_request(
             "condition does not apply to this participant kind",
         )),
@@ -1129,44 +1051,6 @@ pub(super) fn validate_condition_parameters(
         ));
     }
     Ok(())
-}
-
-fn authored_immunity_exceptions<T>(
-    source: &atlas_foundry_model::SourcePresence<T>,
-    projected: Option<Vec<String>>,
-    optional_exceptions: bool,
-) -> Option<Vec<String>> {
-    use atlas_foundry_model::SourcePresence;
-    match source {
-        // Pinned actor/data/iwr.ts defaults omitted optional exceptions with `?? []`.
-        SourcePresence::Missing if optional_exceptions => Some(Vec::new()),
-        SourcePresence::Value(_) => projected,
-        SourcePresence::Missing | SourcePresence::Null | SourcePresence::Invalid(_) => None,
-    }
-}
-
-#[cfg(test)]
-mod immunity_source_defaults_tests {
-    use super::authored_immunity_exceptions;
-    use atlas_foundry_model::SourcePresence;
-
-    #[test]
-    fn only_omitted_optional_exceptions_gain_the_source_default() {
-        let missing: SourcePresence<Vec<String>> = SourcePresence::Missing;
-        let null: SourcePresence<Vec<String>> = SourcePresence::Null;
-        assert_eq!(
-            authored_immunity_exceptions(&missing, None, true),
-            Some(vec![])
-        );
-        assert_eq!(authored_immunity_exceptions(&missing, None, false), None);
-        assert_eq!(authored_immunity_exceptions(&null, None, true), None);
-        let conditional = SourcePresence::Value(vec!["critical-hits".to_owned()]);
-        assert_eq!(
-            authored_immunity_exceptions(&conditional, Some(vec!["critical-hits".into()]), true),
-            Some(vec!["critical-hits".into()])
-        );
-        assert_eq!(authored_immunity_exceptions(&conditional, None, true), None);
-    }
 }
 
 #[cfg(test)]
@@ -1238,10 +1122,11 @@ mod immunity_override_tests {
             fortitude: None,
             perception: None,
             facts: super::super::rules::ConditionApplicabilityFacts {
-                immunities: Some(vec![super::super::rules::ConditionImmunity {
+                immunities: vec![super::super::rules::ConditionImmunity {
                     slug: "unconscious".into(),
-                    exceptions: Some(vec![]),
-                }]),
+                    coverage: super::super::rules::ImmunityCoverage::Unconditional,
+                }]
+                .into(),
                 broken_threshold: None,
                 broken_threshold_known_absent: false,
             },
@@ -1253,13 +1138,9 @@ mod immunity_override_tests {
             .find(|condition| condition.name == "Unconscious")
             .unwrap();
         assert!(
-            validate_condition_subject(&context, &snapshot, Some(&condition.condition_ref), false)
-                .is_err()
+            validate_condition_subject(&context, Some(&condition.condition_ref), false).is_err()
         );
-        assert!(
-            validate_condition_subject(&context, &snapshot, Some(&condition.condition_ref), true)
-                .is_ok()
-        );
+        assert!(validate_condition_subject(&context, Some(&condition.condition_ref), true).is_ok());
         assert_eq!(context.participant.note, None);
     }
 }

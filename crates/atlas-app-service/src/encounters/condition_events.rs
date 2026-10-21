@@ -1,6 +1,8 @@
 //! Condition event preparation and durable commit. No source I/O follows a write.
 use super::conditions::{ConditionRule, condition_rule_for_key};
-use super::rules::events::{ConditionConsequences, plan_condition_change};
+use super::event_execution::{EncounterEvent, mutation, recover, snapshot};
+use super::rules::events::{ConditionConsequence, ConditionConsequences, plan_condition_change};
+use super::rules::hp_events::HpEventInput;
 use super::{timing, workflow};
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::*;
@@ -27,7 +29,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<EncounterMutationView> {
         let intent = serde_json::json!({"action":"life_settings","participant_key":participant_key,"request":request});
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
-            return Ok(receipt);
+            return Ok(mutation(receipt));
         }
         let snapshot = snapshot(self, encounter_ref, request.expected_encounter_revision)?;
         let participant = snapshot
@@ -69,21 +71,22 @@ impl AtlasAppService {
             update.base_death_threshold = threshold;
         }
 
-        self.with_write(|session| {
-            session.local_state().encounters().apply_condition_event(
-                &snapshot.encounter.encounter_key,
-                &request.request_id,
-                &intent,
-                request.expected_encounter_revision,
-                atlas_local_state::PreparedConditionEvent {
-                    participant_changes: vec![update],
-                    ..Default::default()
-                },
-            )?;
-            Ok(EncounterMutationView {
-                encounter_key: snapshot.encounter.encounter_key,
-            })
-        })
+        EncounterEvent {
+            encounter_key: &snapshot.encounter.encounter_key,
+            request_id: &request.request_id,
+            intent: &intent,
+            expected_revision: request.expected_encounter_revision,
+            reference_revision: None,
+            participant_revision: None,
+        }
+        .commit(
+            self,
+            atlas_local_state::PreparedConditionEvent {
+                participant_changes: vec![update],
+                ..Default::default()
+            },
+        )
+        .map(mutation)
     }
     pub(super) fn commit_condition_add(
         &self,
@@ -92,7 +95,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<EncounterMutationView> {
         let intent = serde_json::json!({"action":"add_condition","request":request});
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
-            return Ok(receipt);
+            return Ok(mutation(receipt));
         }
         let prepared = prepare_add(self, encounter_ref, request, intent)?;
         commit(self, prepared)
@@ -113,7 +116,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<EncounterMutationView> {
         let intent = serde_json::json!({"action":"update_condition","participant_key":participant_key,"request":request});
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
-            return Ok(receipt);
+            return Ok(mutation(receipt));
         }
         commit(
             self,
@@ -144,7 +147,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<EncounterMutationView> {
         let intent = serde_json::json!({"action":"remove_condition","participant_key":participant_key,"condition_id":condition_id,"request":request});
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
-            return Ok(receipt);
+            return Ok(mutation(receipt));
         }
         let snapshot = snapshot(self, encounter_ref, request.expected_encounter_revision)?;
         workflow::condition_in_snapshot(&snapshot, participant_key, condition_id)?;
@@ -213,7 +216,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<EncounterMutationView> {
         let intent = serde_json::json!({"action":"resolve_drained","request":request});
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
-            return Ok(receipt);
+            return Ok(mutation(receipt));
         }
         let snapshot = snapshot(self, encounter_ref, request.expected_encounter_revision)?;
         let pending = self
@@ -242,16 +245,17 @@ impl AtlasAppService {
             .iter()
             .find(|p| p.participant_key == participant_key)
             .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?;
-        let amount = request
-            .level
-            .max(1)
-            .checked_mul(magnitude_increase)
-            .ok_or_else(|| {
-                AppServiceError::invalid_request("Drained HP loss exceeds the supported range")
-            })?;
+        let amount = super::rules::condition_hp_loss(
+            ConditionRule::Drained,
+            magnitude_increase,
+            Some(request.level),
+        )
+        .ok_or_else(|| {
+            AppServiceError::invalid_request("Drained HP loss exceeds the supported range")
+        })?;
         let mut changes = super::rules::hp_events::plan_hp_event(
             participant,
-            &HpEventInputView::DirectLoss { amount },
+            &HpEventInput::DirectLoss { amount },
             &Default::default(),
             None,
             &request.request_id,
@@ -260,93 +264,34 @@ impl AtlasAppService {
             update.level_override = Some(request.level);
         }
         changes.resolved_pending_keys.push(request.consequence_key);
-        self.with_write(|session| {
-            session.local_state().encounters().apply_condition_event(
-                &snapshot.encounter.encounter_key,
-                &request.request_id,
-                &intent,
-                request.expected_encounter_revision,
-                changes,
-            )?;
-            Ok(EncounterMutationView {
-                encounter_key: snapshot.encounter.encounter_key,
-            })
-        })
-    }
-}
-fn recover(
-    service: &AtlasAppService,
-    encounter_ref: &str,
-    request_id: &str,
-    intent: &serde_json::Value,
-) -> AppServiceResult<Option<EncounterMutationView>> {
-    service.with_state(|session| {
-        let encounter = session
-            .local_state()
-            .encounters()
-            .get(encounter_ref)?
-            .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
-        Ok(session
-            .local_state()
-            .encounters()
-            .condition_event_receipt(&encounter.encounter_key, request_id, intent)?
-            .map(|r| EncounterMutationView {
-                encounter_key: r.encounter_key,
-            }))
-    })
-}
-fn snapshot(
-    service: &AtlasAppService,
-    encounter_ref: &str,
-    expected: i64,
-) -> AppServiceResult<EncounterWithParticipants> {
-    service.with_state(|session| {
-        let snapshot = session
-            .local_state()
-            .encounters()
-            .get_with_participants(encounter_ref)?
-            .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
-        if snapshot.encounter.revision != expected {
-            return Err(atlas_local_state::LocalStateError::StaleEncounterRevision {
-                encounter_key: snapshot.encounter.encounter_key,
-                expected_revision: expected,
-                actual_revision: snapshot.encounter.revision,
-            }
-            .into());
+        EncounterEvent {
+            encounter_key: &snapshot.encounter.encounter_key,
+            request_id: &request.request_id,
+            intent: &intent,
+            expected_revision: request.expected_encounter_revision,
+            reference_revision: None,
+            participant_revision: None,
         }
-        Ok(snapshot)
-    })
+        .commit(self, changes)
+        .map(mutation)
+    }
 }
 fn commit(
     service: &AtlasAppService,
     prepared: Prepared,
 ) -> AppServiceResult<EncounterMutationView> {
-    service.with_write(move |session| {
-        // Recovery precedes reference checks, including a second lookup under the write lock.
-        if let Some(receipt) = session.local_state().encounters().condition_event_receipt(
-            &prepared.encounter_key,
-            &prepared.request_id,
-            &prepared.intent,
-        )? {
-            return Ok(EncounterMutationView {
-                encounter_key: receipt.encounter_key,
-            });
-        }
-        if let Some(revision) = prepared.reference_revision {
-            session.require_reference_revision(revision)?;
-        }
-        let receipt = session.local_state().encounters().apply_condition_event(
-            &prepared.encounter_key,
-            &prepared.request_id,
-            &prepared.intent,
-            prepared.expected_revision,
-            prepared.consequences.changes,
-        )?;
-        Ok(EncounterMutationView {
-            encounter_key: receipt.encounter_key,
-        })
-    })
+    EncounterEvent {
+        encounter_key: &prepared.encounter_key,
+        request_id: &prepared.request_id,
+        intent: &prepared.intent,
+        expected_revision: prepared.expected_revision,
+        reference_revision: prepared.reference_revision,
+        participant_revision: None,
+    }
+    .commit(service, prepared.consequences.changes)
+    .map(mutation)
 }
+
 fn preview(prepared: Prepared) -> ConditionEventPreviewView {
     let mut consequences = vec![];
     if let Some((participant_key, reason)) = prepared.prone_prevented {
@@ -355,47 +300,29 @@ fn preview(prepared: Prepared) -> ConditionEventPreviewView {
             reason,
         });
     }
-    if prepared.consequences.drop_held_items
-        && let Some(change) = prepared.consequences.changes.condition_changes.first()
-    {
-        let participant_key = match change {
-            ConditionEventChange::Add(input) => input.participant_key.clone(),
-            ConditionEventChange::Replace(input) => input.participant_key.clone(),
-            ConditionEventChange::Remove {
-                participant_key, ..
-            } => participant_key.clone(),
-        };
-        consequences.push(ConditionEventConsequenceView::DropHeldItems { participant_key });
-    }
-
-    if let Some(amount) = prepared.consequences.hp_loss
-        && let Some(participant) = prepared.consequences.changes.participant_changes.first()
-    {
-        consequences.push(ConditionEventConsequenceView::DirectHpLoss {
-            participant_key: participant.participant_key.clone(),
-            amount,
-        });
-    }
-    if prepared.consequences.becomes_prone
-        && let Some(ConditionEventChange::Add(input)) =
-            prepared.consequences.changes.condition_changes.last()
-    {
-        consequences.push(ConditionEventConsequenceView::BecomeProne {
-            participant_key: input.participant_key.clone(),
-        });
-    }
-    for pending in &prepared.consequences.changes.pending {
-        if let PendingConsequence::DrainedHpLoss {
-            participant_key,
-            magnitude_increase,
-        } = &pending.consequence
-        {
-            consequences.push(ConditionEventConsequenceView::DrainedLevelRequired {
-                participant_key: participant_key.clone(),
-                magnitude_increase: *magnitude_increase,
-            })
+    consequences.extend(prepared.consequences.effects.into_iter().map(|effect| {
+        let participant_key = prepared.consequences.participant_key.clone();
+        match effect {
+            ConditionConsequence::DirectHpLoss(amount) => {
+                ConditionEventConsequenceView::DirectHpLoss {
+                    participant_key,
+                    amount,
+                }
+            }
+            ConditionConsequence::BecomeProne => {
+                ConditionEventConsequenceView::BecomeProne { participant_key }
+            }
+            ConditionConsequence::DropHeldItems => {
+                ConditionEventConsequenceView::DropHeldItems { participant_key }
+            }
+            ConditionConsequence::DrainedLevelRequired(magnitude_increase) => {
+                ConditionEventConsequenceView::DrainedLevelRequired {
+                    participant_key,
+                    magnitude_increase,
+                }
+            }
         }
-    }
+    }));
     ConditionEventPreviewView {
         encounter_key: prepared.encounter_key,
         encounter_revision: prepared.expected_revision,
@@ -412,13 +339,15 @@ fn prepare_add(
     let subject = if request.condition_ref.is_none() {
         custom_condition_subject(&snapshot, &request.participant_key)?
     } else {
-        workflow::condition_subject_context(service, encounter_ref, &request.participant_key)?
+        workflow::condition_subject_context(
+            service,
+            &custom_condition_subject(&snapshot, &request.participant_key)?.participant,
+        )?
     };
     let (condition, reference_revision) =
         workflow::prepare_condition_input(service, request.condition_ref, request.name)?;
     workflow::validate_condition_subject(
         &subject,
-        &snapshot,
         condition.key.as_deref(),
         request.immunity_override,
     )?;
@@ -493,7 +422,10 @@ fn prepare_update(
     let subject = if request.condition_ref.is_none() && existing.condition_key.is_none() {
         custom_condition_subject(&snapshot, participant_key)?
     } else {
-        workflow::condition_subject_context(service, encounter_ref, participant_key)?
+        workflow::condition_subject_context(
+            service,
+            &custom_condition_subject(&snapshot, participant_key)?.participant,
+        )?
     };
     let (condition, reference_revision) = if let Some(reference) = request.condition_ref {
         workflow::prepare_condition_input(service, Some(reference), None)?
@@ -513,7 +445,6 @@ fn prepare_update(
     }
     workflow::validate_condition_subject(
         &subject,
-        &snapshot,
         condition.key.as_deref(),
         request.immunity_override,
     )?;
@@ -674,7 +605,7 @@ fn origin_input(
     Ok(origin)
 }
 fn parameters_input(
-    input: ConditionParametersView,
+    input: ConditionParametersInputView,
     key: Option<&str>,
     snapshot: &EncounterWithParticipants,
     participant_key: &str,
@@ -693,8 +624,8 @@ fn parameters_input(
         )
     ) {
         let supernatural = match input {
-            ConditionParametersView::Attitude { supernatural } => supernatural,
-            ConditionParametersView::None => false,
+            ConditionParametersInputView::Attitude { supernatural } => supernatural,
+            ConditionParametersInputView::None => false,
             _ => {
                 return Err(AppServiceError::invalid_request(
                     "These parameters do not apply to an attitude condition",
@@ -714,10 +645,10 @@ fn parameters_input(
         return Ok(ConditionParameters::Attitude { supernatural });
     }
     match (rule, input) {
-        (Some(ConditionRule::Fleeing), ConditionParametersView::None) => {
+        (Some(ConditionRule::Fleeing), ConditionParametersInputView::None) => {
             Ok(ConditionParameters::Fleeing { subject: None })
         }
-        (Some(ConditionRule::Fleeing), ConditionParametersView::Fleeing { subject }) => {
+        (Some(ConditionRule::Fleeing), ConditionParametersInputView::Fleeing { subject }) => {
             let subject = subject
                 .map(|subject| match subject {
                     ConditionSubjectView::Participant { participant_key } => {
@@ -747,10 +678,10 @@ fn parameters_input(
                 .transpose()?;
             Ok(ConditionParameters::Fleeing { subject })
         }
-        (Some(ConditionRule::Fascinated), ConditionParametersView::None) => {
+        (Some(ConditionRule::Fascinated), ConditionParametersInputView::None) => {
             Ok(ConditionParameters::Fascinated { subject: None })
         }
-        (Some(ConditionRule::Fascinated), ConditionParametersView::Fascinated { subject }) => {
+        (Some(ConditionRule::Fascinated), ConditionParametersInputView::Fascinated { subject }) => {
             let subject = subject
                 .map(|subject| match subject {
                     ConditionSubjectView::Participant { participant_key } => {
@@ -780,33 +711,34 @@ fn parameters_input(
                 .transpose()?;
             Ok(ConditionParameters::Fascinated { subject })
         }
-        (Some(ConditionRule::Frightened), ConditionParametersView::None) => {
+        (Some(ConditionRule::Frightened), ConditionParametersInputView::None) => {
             Ok(ConditionParameters::Frightened {
                 recovery: atlas_local_state::FrightenedRecovery::EndTurn { minimum: 0 },
             })
         }
-        (Some(ConditionRule::Frightened), ConditionParametersView::Frightened { recovery }) => {
-            Ok(ConditionParameters::Frightened {
-                recovery: match recovery {
-                    FrightenedRecoveryView::EndTurn { minimum } if minimum >= 0 => {
-                        atlas_local_state::FrightenedRecovery::EndTurn { minimum }
-                    }
-                    FrightenedRecoveryView::EndTurn { .. } => {
-                        return Err(AppServiceError::invalid_request(
-                            "Frightened minimum must be nonnegative",
-                        ));
-                    }
-                    FrightenedRecoveryView::Held => atlas_local_state::FrightenedRecovery::Held,
-                    FrightenedRecoveryView::SourceDependent => {
-                        atlas_local_state::FrightenedRecovery::SourceDependent
-                    }
-                },
-            })
-        }
-        (Some(ConditionRule::Broken), ConditionParametersView::None) => {
+        (
+            Some(ConditionRule::Frightened),
+            ConditionParametersInputView::Frightened { recovery },
+        ) => Ok(ConditionParameters::Frightened {
+            recovery: match recovery {
+                FrightenedRecoveryView::EndTurn { minimum } if minimum >= 0 => {
+                    atlas_local_state::FrightenedRecovery::EndTurn { minimum }
+                }
+                FrightenedRecoveryView::EndTurn { .. } => {
+                    return Err(AppServiceError::invalid_request(
+                        "Frightened minimum must be nonnegative",
+                    ));
+                }
+                FrightenedRecoveryView::Held => atlas_local_state::FrightenedRecovery::Held,
+                FrightenedRecoveryView::SourceDependent => {
+                    atlas_local_state::FrightenedRecovery::SourceDependent
+                }
+            },
+        }),
+        (Some(ConditionRule::Broken), ConditionParametersInputView::None) => {
             Ok(ConditionParameters::Broken { threshold: None })
         }
-        (Some(ConditionRule::Broken), ConditionParametersView::Broken { threshold }) => {
+        (Some(ConditionRule::Broken), ConditionParametersInputView::Broken { threshold }) => {
             if threshold.is_some_and(|value| value < 0) {
                 return Err(AppServiceError::invalid_request(
                     "Broken threshold must be nonnegative",
@@ -816,96 +748,7 @@ fn parameters_input(
         }
         (
             Some(ConditionRule::PersistentDamage),
-            ConditionParametersView::PersistentDamage {
-                formula,
-                damage_type,
-                multiplier,
-                recovery,
-                episode_id,
-            },
-        ) => {
-            if formula.len() > 512 || damage_type.trim().is_empty() {
-                return Err(AppServiceError::invalid_request(
-                    "persistent damage requires a bounded formula and damage type",
-                ));
-            }
-            if !super::conditions::condition_catalog()
-                .damage_types
-                .iter()
-                .any(|kind| kind.value == damage_type)
-            {
-                return Err(AppServiceError::invalid_request(
-                    "select a supported damage type",
-                ));
-            }
-            atlas_dice::prepare(&formula)
-                .map_err(|error| AppServiceError::invalid_request(error.to_string()))?;
-            let canonical_episode = snapshot
-                .participants
-                .iter()
-                .find(|p| p.participant_key == participant_key)
-                .and_then(|p| {
-                    p.conditions
-                        .iter()
-                        .filter(|c| existing.is_none_or(|old| old.condition_id != c.condition_id))
-                        .find_map(|c| match &c.parameters {
-                            ConditionParameters::PersistentDamage {
-                                damage_type: kind,
-                                episode_id,
-                                ..
-                            } if kind == &damage_type => Some(episode_id.clone()),
-                            _ => None,
-                        })
-                })
-                .or_else(|| {
-                    existing.and_then(|c| match &c.parameters {
-                        ConditionParameters::PersistentDamage {
-                            damage_type: kind,
-                            episode_id,
-                            ..
-                        } if kind == &damage_type => Some(episode_id.clone()),
-                        _ => None,
-                    })
-                })
-                .unwrap_or_else(|| format!("{request_id}:{damage_type}"));
-            if episode_id
-                .as_ref()
-                .is_some_and(|episode| episode != &canonical_episode)
-            {
-                return Err(AppServiceError::invalid_request(
-                    "persistent damage episode does not match current sources",
-                ));
-            }
-            Ok(ConditionParameters::PersistentDamage {
-                formula,
-                damage_type,
-                multiplier: match multiplier {
-                    DamageMultiplierView::Normal => atlas_local_state::DamageMultiplier::Normal,
-                    DamageMultiplierView::Double => atlas_local_state::DamageMultiplier::Double,
-                    DamageMultiplierView::Half => atlas_local_state::DamageMultiplier::Half,
-                },
-                recovery: match recovery {
-                    PersistentRecoveryView::Standard => {
-                        atlas_local_state::PersistentRecovery::Standard
-                    }
-                    PersistentRecoveryView::Specified { dc } if (1..=100).contains(&dc) => {
-                        atlas_local_state::PersistentRecovery::Specified { dc }
-                    }
-                    PersistentRecoveryView::Specified { .. } => {
-                        return Err(AppServiceError::invalid_request(
-                            "recovery DC must be between 1 and 100",
-                        ));
-                    }
-                    PersistentRecoveryView::SourceDependent => {
-                        atlas_local_state::PersistentRecovery::SourceDependent
-                    }
-                },
-                episode_id: canonical_episode,
-            })
-        }
-        (
-            Some(ConditionRule::PersistentDamage),
-            ConditionParametersView::PersistentDamageReminder {
+            ConditionParametersInputView::PersistentDamage {
                 formula,
                 damage_type,
                 multiplier,
@@ -913,10 +756,10 @@ fn parameters_input(
             },
         ) => {
             let formula = formula
-                .map(|s| s.trim().to_owned())
-                .filter(|s| !s.is_empty());
-            let damage_type = damage_type.filter(|s| !s.is_empty());
-            if formula.as_ref().is_some_and(|s| s.len() > 512) {
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty());
+            let damage_type = damage_type.filter(|value| !value.is_empty());
+            if formula.as_ref().is_some_and(|value| value.len() > 512) {
                 return Err(AppServiceError::invalid_request(
                     "Damage formula is too long",
                 ));
@@ -931,41 +774,75 @@ fn parameters_input(
                     "select a supported damage type",
                 ));
             }
-            if formula.is_some() && damage_type.is_some() {
-                return Err(AppServiceError::invalid_request(
-                    "Complete damage details require a persistent damage source",
-                ));
-            }
-            Ok(ConditionParameters::PersistentDamageReminder {
-                formula,
-                damage_type,
-                multiplier: match multiplier {
-                    DamageMultiplierView::Normal => atlas_local_state::DamageMultiplier::Normal,
-                    DamageMultiplierView::Double => atlas_local_state::DamageMultiplier::Double,
-                    DamageMultiplierView::Half => atlas_local_state::DamageMultiplier::Half,
-                },
-                recovery: match recovery {
-                    PersistentRecoveryView::Standard => {
-                        atlas_local_state::PersistentRecovery::Standard
-                    }
-                    PersistentRecoveryView::Specified { dc } if (1..=100).contains(&dc) => {
-                        atlas_local_state::PersistentRecovery::Specified { dc }
-                    }
-                    PersistentRecoveryView::Specified { .. } => {
-                        return Err(AppServiceError::invalid_request(
-                            "recovery DC must be between 1 and 100",
-                        ));
-                    }
-                    PersistentRecoveryView::SourceDependent => {
-                        atlas_local_state::PersistentRecovery::SourceDependent
-                    }
-                },
+            let multiplier = match multiplier {
+                DamageMultiplierView::Normal => atlas_local_state::DamageMultiplier::Normal,
+                DamageMultiplierView::Double => atlas_local_state::DamageMultiplier::Double,
+                DamageMultiplierView::Half => atlas_local_state::DamageMultiplier::Half,
+            };
+            let recovery = match recovery {
+                PersistentRecoveryView::Standard => atlas_local_state::PersistentRecovery::Standard,
+                PersistentRecoveryView::Specified { dc } if (1..=100).contains(&dc) => {
+                    atlas_local_state::PersistentRecovery::Specified { dc }
+                }
+                PersistentRecoveryView::Specified { .. } => {
+                    return Err(AppServiceError::invalid_request(
+                        "recovery DC must be between 1 and 100",
+                    ));
+                }
+                PersistentRecoveryView::SourceDependent => {
+                    atlas_local_state::PersistentRecovery::SourceDependent
+                }
+            };
+            let (Some(formula), Some(damage_type)) = (&formula, &damage_type) else {
+                return Ok(ConditionParameters::PersistentDamageReminder {
+                    formula,
+                    damage_type,
+                    multiplier,
+                    recovery,
+                });
+            };
+            atlas_dice::prepare(formula)
+                .map_err(|error| AppServiceError::invalid_request(error.to_string()))?;
+            let canonical_episode = snapshot
+                .participants
+                .iter()
+                .find(|p| p.participant_key == participant_key)
+                .and_then(|p| {
+                    p.conditions
+                        .iter()
+                        .filter(|c| existing.is_none_or(|old| old.condition_id != c.condition_id))
+                        .find_map(|c| match &c.parameters {
+                            ConditionParameters::PersistentDamage {
+                                damage_type: kind,
+                                episode_id,
+                                ..
+                            } if kind == damage_type => Some(episode_id.clone()),
+                            _ => None,
+                        })
+                })
+                .or_else(|| {
+                    existing.and_then(|c| match &c.parameters {
+                        ConditionParameters::PersistentDamage {
+                            damage_type: kind,
+                            episode_id,
+                            ..
+                        } if kind == damage_type => Some(episode_id.clone()),
+                        _ => None,
+                    })
+                })
+                .unwrap_or_else(|| format!("{request_id}:{damage_type}"));
+            Ok(ConditionParameters::PersistentDamage {
+                formula: formula.clone(),
+                damage_type: damage_type.clone(),
+                multiplier,
+                recovery,
+                episode_id: canonical_episode,
             })
         }
         (Some(ConditionRule::PersistentDamage), _) => Err(AppServiceError::invalid_request(
             "Persistent Damage requires a damage formula and type",
         )),
-        (Some(ConditionRule::Sickened), ConditionParametersView::Sickened { recovery_dc }) => {
+        (Some(ConditionRule::Sickened), ConditionParametersInputView::Sickened { recovery_dc }) => {
             if recovery_dc.is_some_and(|dc| dc < 1) {
                 return Err(AppServiceError::invalid_request(
                     "recovery DC must be positive",
@@ -973,25 +850,24 @@ fn parameters_input(
             }
             Ok(ConditionParameters::Sickened { recovery_dc })
         }
-        (Some(ConditionRule::Sickened), ConditionParametersView::None) => {
+        (Some(ConditionRule::Sickened), ConditionParametersInputView::None) => {
             Ok(ConditionParameters::Sickened { recovery_dc: None })
         }
-        (Some(ConditionRule::Unconscious), ConditionParametersView::Unconscious { waking }) => {
-            Ok(ConditionParameters::Unconscious {
-                waking: match waking {
-                    WakingRuleView::Normal => atlas_local_state::WakingRule::Normal,
-                    WakingRuleView::SourceControlled => {
-                        atlas_local_state::WakingRule::SourceControlled
-                    }
-                },
-            })
-        }
-        (Some(ConditionRule::Unconscious), ConditionParametersView::None) => {
+        (
+            Some(ConditionRule::Unconscious),
+            ConditionParametersInputView::Unconscious { waking },
+        ) => Ok(ConditionParameters::Unconscious {
+            waking: match waking {
+                WakingRuleView::Normal => atlas_local_state::WakingRule::Normal,
+                WakingRuleView::SourceControlled => atlas_local_state::WakingRule::SourceControlled,
+            },
+        }),
+        (Some(ConditionRule::Unconscious), ConditionParametersInputView::None) => {
             Ok(ConditionParameters::Unconscious {
                 waking: atlas_local_state::WakingRule::Normal,
             })
         }
-        (_, ConditionParametersView::None) => Ok(ConditionParameters::None),
+        (_, ConditionParametersInputView::None) => Ok(ConditionParameters::None),
         _ => Err(AppServiceError::invalid_request(
             "condition parameters do not match the selected condition",
         )),
@@ -1433,7 +1309,7 @@ mod lifecycle_event_tests {
                 &key,
                 request(
                     "supernatural",
-                    ConditionParametersView::Attitude { supernatural: true },
+                    ConditionParametersInputView::Attitude { supernatural: true },
                     false,
                 ),
             )
@@ -1586,7 +1462,7 @@ mod lifecycle_event_tests {
                     &key,
                     request(
                         "outside-subject",
-                        ConditionParametersView::Fascinated {
+                        ConditionParametersInputView::Fascinated {
                             subject: Some(ConditionSubjectView::Participant {
                                 participant_key: "other-encounter".into()
                             })
@@ -1601,7 +1477,7 @@ mod lifecycle_event_tests {
                     &key,
                     request(
                         "empty-subject",
-                        ConditionParametersView::Fascinated {
+                        ConditionParametersInputView::Fascinated {
                             subject: Some(ConditionSubjectView::Other {
                                 description: "  ".into()
                             })
@@ -1625,7 +1501,7 @@ mod lifecycle_event_tests {
                 &key,
                 request(
                     "object-subject",
-                    ConditionParametersView::Fascinated {
+                    ConditionParametersInputView::Fascinated {
                         subject: Some(ConditionSubjectView::Other {
                             description: "  the lantern  ".into(),
                         }),

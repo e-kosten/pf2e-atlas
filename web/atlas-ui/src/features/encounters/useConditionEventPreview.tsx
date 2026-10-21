@@ -1,5 +1,6 @@
 import { Alert, Button, Checkbox } from "antd";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type {
   AddEncounterParticipantConditionRequest,
   ConditionEventPreviewView,
@@ -18,52 +19,44 @@ export function useConditionEventPreview(
   loadPreview: (request: ConditionEventInput) => Promise<ConditionEventPreviewView>,
 ) {
   const [draft, updateDraft] = useState<ConditionEventInput>();
-  const [result, setResult] = useState<{
-    identity: string;
-    preview: ConditionEventPreviewView;
-  }>();
-  const [error, setError] = useState<string>();
-  const [retryVersion, setRetryVersion] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [correction, setCorrection] = useState(false);
-  const [keepUpright, setKeepUpright] = useState(false);
-  const consequenceIdentity = useRef<string | undefined>(undefined);
-  const load = useEffectEvent((request: ConditionEventInput) => loadPreview(request));
   const identity = draft ? identityOf(draft) : undefined;
+  const [settled, setSettled] = useState<string>();
   useEffect(() => {
-    if (!draft) return;
-    let active = true;
-    const timer = setTimeout(() => {
-      void load(draft)
-        .then((preview) => {
-          if (active) {
-            const nextIdentity = JSON.stringify(preview.consequences, (_key, value) =>
-              typeof value === "bigint" ? value.toString() : value,
-            );
-            if (consequenceIdentity.current !== nextIdentity) {
-              setCorrection(false);
-              setKeepUpright(false);
-              consequenceIdentity.current = nextIdentity;
-            }
-            setResult({ identity: identity!, preview });
-          }
-        })
-        .catch((cause) => {
-          if (active)
-            setError(
-              cause instanceof Error ? cause.message : "Could not preview this change.",
-            );
-        })
-        .finally(() => {
-          if (active) setLoading(false);
-        });
-    }, 150);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [identity, draft, retryVersion]);
-  const current = result && result.identity === identity ? result.preview : undefined;
+    const timer = setTimeout(() => setSettled(identity), 150);
+    return () => clearTimeout(timer);
+  }, [identity]);
+  const enabled = identity !== undefined && settled === identity;
+  const query = useQuery({
+    queryKey: ["condition-event-preview", identity],
+    queryFn: () => loadPreview(draft!),
+    enabled,
+    retry: false,
+    gcTime: 0,
+  });
+  const current = enabled ? query.data : undefined;
+  const loading = !!draft && (!enabled || query.isFetching);
+  const error =
+    enabled && query.error
+      ? query.error.message || "Could not preview this change."
+      : undefined;
+  const consequenceIdentity = current
+    ? JSON.stringify(current.consequences, (_key, value) =>
+        typeof value === "bigint" ? value.toString() : value,
+      )
+    : undefined;
+  const [choice, setChoice] = useState<{
+    identity?: string;
+    correction?: boolean;
+    keepUpright?: boolean;
+  }>({});
+  if (current && choice.identity !== consequenceIdentity)
+    setChoice({ identity: consequenceIdentity });
+  const correction = choice.identity === consequenceIdentity && !!choice.correction;
+  const keepUpright = choice.identity === consequenceIdentity && !!choice.keepUpright;
+  const setCorrection = (value: boolean) =>
+    setChoice({ identity: consequenceIdentity, correction: value, keepUpright });
+  const setKeepUpright = (value: boolean) =>
+    setChoice({ identity: consequenceIdentity, correction, keepUpright: value });
   const onlyHp =
     current?.consequences.length === 1 &&
     current.consequences.every(
@@ -79,24 +72,17 @@ export function useConditionEventPreview(
     };
   };
   return {
-    setDraft: (request: ConditionEventInput) => {
-      if (draft && identityOf(draft) === identityOf(request)) return;
-      setLoading(true);
-      setError(undefined);
-      updateDraft(request);
-    },
+    setDraft: (request: ConditionEventInput) =>
+      updateDraft((previous) =>
+        previous && identityOf(previous) === identityOf(request) ? previous : request,
+      ),
     apply,
     loading,
     error,
     ready: !!current && !loading && !error,
     reset: () => {
-      consequenceIdentity.current = undefined;
-      setCorrection(false);
-      setKeepUpright(false);
       updateDraft(undefined);
-      setLoading(false);
-      setResult(undefined);
-      setError(undefined);
+      setChoice({});
     },
     review: current ? (
       <div aria-label="Changes on application">
@@ -151,9 +137,7 @@ export function useConditionEventPreview(
         action={
           <Button
             onClick={() => {
-              setLoading(true);
-              setError(undefined);
-              setRetryVersion((version) => version + 1);
+              void query.refetch();
             }}
           >
             Retry

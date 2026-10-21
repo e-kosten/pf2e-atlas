@@ -53,52 +53,107 @@ pub(in crate::encounters) fn resolve_causes<'a>(
                 value: cause.value,
             }),
     );
-    let blinded = causes.iter().any(|cause| {
-        matches!(
-            cause.rule,
-            ConditionRule::Blinded | ConditionRule::Unconscious | ConditionRule::Dying
-        )
-    });
-    let restrained = causes
-        .iter()
-        .any(|cause| cause.rule == ConditionRule::Restrained);
+    // Reachability establishes derived suppressors without erasing independent sources.
+    let reachable = expand(causes.clone());
     causes.retain(|cause| {
-        !((blinded && cause.rule == ConditionRule::Dazzled)
-            || (restrained && cause.rule == ConditionRule::Grabbed))
+        !reachable
+            .iter()
+            .any(|other| suppresses(other.rule, cause.rule))
     });
-    // Finite maintained-grant graph, no saved child rows or read-time mutations.
+    let mut causes = expand(causes);
+    let active = causes.clone();
+    causes.retain(|cause| {
+        !active
+            .iter()
+            .any(|other| suppresses(other.rule, cause.rule))
+    });
+    causes.sort_by_key(|cause| (cause.source.condition_id, cause.rule));
+    causes
+}
+
+fn suppresses(rule: ConditionRule, other: ConditionRule) -> bool {
+    // These source overrides have explicit action-budget or table-adjudication policy.
+    !matches!(
+        rule,
+        ConditionRule::Stunned
+            | ConditionRule::Helpful
+            | ConditionRule::Friendly
+            | ConditionRule::Indifferent
+            | ConditionRule::Unfriendly
+            | ConditionRule::Hostile
+    ) && rule.definition().overrides.contains(&other)
+}
+
+fn maintained(
+    rule: ConditionRule,
+    grant: &atlas_foundry_model::generated::condition_definitions::ConditionGrant,
+) -> bool {
+    grant.in_memory_only == Some(true)
+        || matches!(
+            (rule, grant.target),
+            (ConditionRule::Dying, ConditionRule::Unconscious)
+                | (ConditionRule::Unconscious, ConditionRule::Blinded)
+        )
+}
+
+pub(in crate::encounters) fn application_grants(
+    rule: ConditionRule,
+    target: ConditionRule,
+) -> bool {
+    rule.definition()
+        .grants
+        .iter()
+        .any(|grant| grant.target == target && grant.in_memory_only != Some(true))
+}
+
+fn expand(mut causes: Vec<ConditionCause<'_>>) -> Vec<ConditionCause<'_>> {
     let mut cursor = 0;
     while cursor < causes.len() {
         let cause = causes[cursor];
-        let grants: &[(ConditionRule, Option<i64>)] = match cause.rule {
-            ConditionRule::Grabbed | ConditionRule::Restrained => &[
-                (ConditionRule::OffGuard, None),
-                (ConditionRule::Immobilized, None),
-            ],
-            ConditionRule::Encumbered => &[(ConditionRule::Clumsy, Some(1))],
-            ConditionRule::Dying => &[(ConditionRule::Unconscious, None)],
-            ConditionRule::Unconscious => &[
-                (ConditionRule::Blinded, None),
-                (ConditionRule::OffGuard, None),
-            ],
-            ConditionRule::Confused | ConditionRule::Paralyzed | ConditionRule::Prone => {
-                &[(ConditionRule::OffGuard, None)]
-            }
-            _ => &[],
-        };
-        for &(rule, value) in grants {
+        for grant in cause
+            .rule
+            .definition()
+            .grants
+            .iter()
+            .filter(|grant| maintained(cause.rule, grant))
+        {
             if !causes.iter().any(|existing| {
-                existing.source.condition_id == cause.source.condition_id && existing.rule == rule
+                existing.source.condition_id == cause.source.condition_id
+                    && existing.rule == grant.target
             }) {
                 causes.push(ConditionCause {
                     source: cause.source,
-                    rule,
-                    value,
+                    rule: grant.target,
+                    value: grant.target.definition().default_value,
                 });
             }
         }
         cursor += 1;
     }
-    causes.sort_by_key(|cause| (cause.source.condition_id, cause.rule));
     causes
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use atlas_foundry_model::generated::condition_definitions::CONDITION_DEFINITIONS;
+    #[test]
+    fn every_persistent_grant_has_an_explicit_atlas_lifetime() {
+        let mut count = 0;
+        for definition in CONDITION_DEFINITIONS {
+            for grant in definition
+                .grants
+                .iter()
+                .filter(|grant| grant.in_memory_only != Some(true))
+            {
+                assert!(
+                    maintained(definition.id, grant)
+                        || (definition.id == ConditionRule::Unconscious
+                            && grant.target == ConditionRule::Prone)
+                );
+                count += 1;
+            }
+        }
+        assert_eq!(count, 3);
+    }
 }

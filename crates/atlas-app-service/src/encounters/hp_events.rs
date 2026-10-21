@@ -1,20 +1,11 @@
 //! HP event preparation, receipt recovery and explicit pending lifecycle decisions.
+use super::event_execution::{EncounterEvent, mutation, recover};
+use super::rules::hp_events::HpEventInput;
 use super::{rules, workflow};
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::*;
 use atlas_local_state::{DamageLethality, PendingConsequence, SavedHpEventContext};
 impl AtlasAppService {
-    pub fn apply_encounter_hp_event(
-        &self,
-        encounter_ref: &str,
-        request: ApplyEncounterHpEventRequest,
-    ) -> AppServiceResult<EncounterMutationView> {
-        let intent = serde_json::json!({"action":"hp_event","request":request});
-        if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
-            return Ok(receipt);
-        }
-        commit_hp(self, encounter_ref, request, &intent, None)
-    }
     pub(super) fn record_hp_amount(
         &self,
         encounter_ref: &str,
@@ -23,7 +14,7 @@ impl AtlasAppService {
         let request_id = request.request_id.clone();
         let intent = serde_json::json!({"action":"hp_table_entry","request":request});
         if let Some(receipt) = recover(self, encounter_ref, &request_id, &intent)? {
-            return Ok(receipt);
+            return Ok(mutation(receipt));
         }
         let snapshot = self.with_state(|session| {
             session
@@ -56,28 +47,34 @@ impl AtlasAppService {
         };
         let damage = if amount < 0 { !damage } else { damage };
         let input = if damage {
-            HpEventInputView::ResolvedDamage {
+            HpEventInput::ResolvedDamage {
                 amount: amount.abs(),
             }
         } else {
-            HpEventInputView::ResolvedHealing {
+            HpEventInput::ResolvedHealing {
                 amount: amount.abs(),
             }
         };
-        let normalized = ApplyEncounterHpEventRequest {
-            request_id,
-            expected_encounter_revision: snapshot.encounter.revision,
-            participant_key: request.participant_key,
-            input,
-            context: request.context.unwrap_or_default(),
-        };
-        commit_hp(
-            self,
-            encounter_ref,
-            normalized,
-            &intent,
-            Some(request.expected_revision),
-        )
+        let subject = hp_subject_context(self, participant, &input)?;
+        let context = request.context.unwrap_or_default();
+        validate_context(&snapshot, &context)?;
+        let changes = rules::hp_events::plan_hp_event(
+            participant,
+            &input,
+            &hp_context_for_subject(context, &subject),
+            rules::effective_hp_maximum(participant, subject.level),
+            &request_id,
+        )?;
+        EncounterEvent {
+            encounter_key: &snapshot.encounter.encounter_key,
+            request_id: &request_id,
+            intent: &intent,
+            expected_revision: snapshot.encounter.revision,
+            reference_revision: subject.reference_revision,
+            participant_revision: Some((&request.participant_key, request.expected_revision)),
+        }
+        .commit(self, changes)
+        .map(mutation)
     }
     pub fn pending_encounter_hp_lifecycle(
         &self,
@@ -223,7 +220,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<EncounterMutationView> {
         let intent = serde_json::json!({"action":"resolve_hp_lifecycle","request":request});
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
-            return Ok(receipt);
+            return Ok(mutation(receipt));
         }
         let (snapshot, pending) = self.with_state(|session| {
             let snapshot = session
@@ -270,13 +267,8 @@ impl AtlasAppService {
                 perception: None,
             }
         } else {
-            workflow::condition_subject_context(self, encounter_ref, participant_key)?
+            workflow::condition_subject_context(self, participant)?
         };
-        if subject.participant.revision != participant.revision {
-            return Err(AppServiceError::invalid_request(
-                "participant changed while preparing lifecycle resolution",
-            ));
-        }
         validate_context(&snapshot, &request.context)?;
         let mut changes = if request.resolution == HpLifecycleResolutionView::KeepCurrentState {
             atlas_local_state::PreparedConditionEvent::default()
@@ -315,21 +307,16 @@ impl AtlasAppService {
             )?
         };
         changes.resolved_pending_keys.push(request.consequence_key);
-        self.with_write(|session| {
-            if let Some(revision) = subject.reference_revision {
-                session.require_reference_revision(revision)?;
-            }
-            session.local_state().encounters().apply_condition_event(
-                &snapshot.encounter.encounter_key,
-                &request.request_id,
-                &intent,
-                request.expected_encounter_revision,
-                changes,
-            )?;
-            Ok(EncounterMutationView {
-                encounter_key: snapshot.encounter.encounter_key,
-            })
-        })
+        EncounterEvent {
+            encounter_key: &snapshot.encounter.encounter_key,
+            request_id: &request.request_id,
+            intent: &intent,
+            expected_revision: request.expected_encounter_revision,
+            reference_revision: subject.reference_revision,
+            participant_revision: None,
+        }
+        .commit(self, changes)
+        .map(mutation)
     }
 }
 fn participant_not_found() -> AppServiceError {
@@ -337,128 +324,6 @@ fn participant_not_found() -> AppServiceError {
         atlas_app_model::AppErrorCode::EncounterParticipantNotFound,
         "Encounter participant was not found",
     )
-}
-fn commit_hp(
-    service: &AtlasAppService,
-    encounter_ref: &str,
-    request: ApplyEncounterHpEventRequest,
-    intent: &serde_json::Value,
-    participant_revision: Option<i64>,
-) -> AppServiceResult<EncounterMutationView> {
-    let snapshot = service.with_state(|session| {
-        session
-            .local_state()
-            .encounters()
-            .get_with_participants(encounter_ref)?
-            .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))
-    })?;
-    if snapshot.encounter.revision != request.expected_encounter_revision {
-        return Err(atlas_local_state::LocalStateError::StaleEncounterRevision {
-            encounter_key: snapshot.encounter.encounter_key,
-            expected_revision: request.expected_encounter_revision,
-            actual_revision: snapshot.encounter.revision,
-        }
-        .into());
-    }
-    let participant = snapshot
-        .participants
-        .iter()
-        .find(|p| p.participant_key == request.participant_key)
-        .ok_or_else(participant_not_found)?;
-    if let Some(expected) = participant_revision
-        && participant.revision != expected
-    {
-        return Err(
-            atlas_local_state::LocalStateError::StaleParticipantRevision {
-                participant_key: participant.participant_key.clone(),
-                expected_revision: expected,
-                actual_revision: participant.revision,
-            }
-            .into(),
-        );
-    }
-    let subject = hp_subject_context(service, encounter_ref, participant, &request.input)?;
-
-    if participant.revision != subject.participant.revision {
-        return Err(AppServiceError::invalid_request(
-            "participant changed while preparing the HP event",
-        ));
-    }
-    validate_context(&snapshot, &request.context)?;
-    let maximum = rules::effective_hp_maximum(participant, subject.level);
-    let changes = rules::hp_events::plan_hp_event(
-        participant,
-        &request.input,
-        &hp_context_for_subject(request.context, &subject),
-        maximum,
-        &request.request_id,
-    )?;
-    service.with_write(|session| {
-        if let Some(receipt) = session.local_state().encounters().condition_event_receipt(
-            &snapshot.encounter.encounter_key,
-            &request.request_id,
-            intent,
-        )? {
-            return Ok(EncounterMutationView {
-                encounter_key: receipt.encounter_key,
-            });
-        }
-        if let Some(expected_revision) = participant_revision {
-            let current = session
-                .local_state()
-                .encounters()
-                .get_with_participants(&snapshot.encounter.encounter_key)?
-                .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?
-                .participants
-                .into_iter()
-                .find(|participant| participant.participant_key == request.participant_key)
-                .ok_or_else(participant_not_found)?;
-            if current.revision != expected_revision {
-                return Err(
-                    atlas_local_state::LocalStateError::StaleParticipantRevision {
-                        participant_key: current.participant_key,
-                        expected_revision,
-                        actual_revision: current.revision,
-                    }
-                    .into(),
-                );
-            }
-        }
-        if let Some(revision) = subject.reference_revision {
-            session.require_reference_revision(revision)?;
-        }
-        let receipt = session.local_state().encounters().apply_condition_event(
-            &snapshot.encounter.encounter_key,
-            &request.request_id,
-            intent,
-            request.expected_encounter_revision,
-            changes,
-        )?;
-        Ok(EncounterMutationView {
-            encounter_key: receipt.encounter_key,
-        })
-    })
-}
-fn recover(
-    service: &AtlasAppService,
-    encounter_ref: &str,
-    id: &str,
-    intent: &serde_json::Value,
-) -> AppServiceResult<Option<EncounterMutationView>> {
-    service.with_state(|session| {
-        let encounter = session
-            .local_state()
-            .encounters()
-            .get(encounter_ref)?
-            .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
-        Ok(session
-            .local_state()
-            .encounters()
-            .condition_event_receipt(&encounter.encounter_key, id, intent)?
-            .map(|r| EncounterMutationView {
-                encounter_key: r.encounter_key,
-            }))
-    })
 }
 fn validate_context(
     snapshot: &atlas_local_state::EncounterWithParticipants,
@@ -490,21 +355,20 @@ fn validate_context(
 }
 pub(super) fn hp_subject_context(
     service: &AtlasAppService,
-    encounter_ref: &str,
     participant: &atlas_local_state::EncounterParticipant,
-    input: &HpEventInputView,
+    input: &HpEventInput,
 ) -> AppServiceResult<workflow::ConditionSubjectContext> {
-    let needs_level = matches!(*input, HpEventInputView::ResolvedHealing { .. })
+    let needs_level = matches!(*input, HpEventInput::ResolvedHealing { .. })
         && participant.level_override.is_none()
         && participant.conditions.iter().any(|condition| {
             super::conditions::condition_rule_for_key(condition.condition_key.as_deref())
                 == Some(super::conditions::ConditionRule::Drained)
         });
-    let may_fall = matches!(*input,HpEventInputView::ResolvedDamage{amount} if participant.track_dying && participant.current_hp.is_some_and(|hp|amount.saturating_sub(participant.temporary_hp)>=hp));
+    let may_fall = matches!(*input,HpEventInput::ResolvedDamage{amount} if participant.track_dying && participant.current_hp.is_some_and(|hp|amount.saturating_sub(participant.temporary_hp)>=hp));
     let source_hazard = participant.participant_kind == atlas_local_state::ParticipantKind::Hazard
-        && matches!(*input, HpEventInputView::ResolvedDamage { .. });
+        && matches!(*input, HpEventInput::ResolvedDamage { .. });
     if needs_level || may_fall || source_hazard {
-        workflow::condition_subject_context(service, encounter_ref, &participant.participant_key)
+        workflow::condition_subject_context(service, participant)
     } else {
         Ok(workflow::ConditionSubjectContext {
             participant: participant.clone(),
@@ -604,7 +468,7 @@ mod hp_lifecycle_tests {
         rule: ConditionRule,
         id: &str,
         value: Option<i64>,
-        parameters: ConditionParametersView,
+        parameters: ConditionParametersInputView,
     ) {
         let definition = modeled_condition_by_rule(rule).unwrap();
         worker
@@ -636,18 +500,35 @@ mod hp_lifecycle_tests {
         key: &str,
         participant: &str,
         id: &str,
-        input: HpEventInputView,
+        input: HpEventInput,
         context: HpEventContextView,
     ) {
         worker
-            .apply_encounter_hp_event(
+            .apply_encounter_hp_action(
                 key,
-                ApplyEncounterHpEventRequest {
+                ApplyEncounterHpActionRequest {
                     request_id: id.into(),
-                    expected_encounter_revision: worker.encounter(key).unwrap().revision,
+                    expected_revision: worker
+                        .encounter(key)
+                        .unwrap()
+                        .participants
+                        .iter()
+                        .find(|p| p.participant_key == participant)
+                        .unwrap()
+                        .revision,
                     participant_key: participant.into(),
-                    input,
-                    context,
+                    action: match input {
+                        HpEventInput::ResolvedDamage { amount } => EncounterHpAction::Damage {
+                            amount: amount.to_string(),
+                        },
+                        HpEventInput::ResolvedHealing { amount } => EncounterHpAction::Heal {
+                            amount: amount.to_string(),
+                        },
+                        HpEventInput::DirectLoss { .. } => panic!(
+                            "Direct loss is an internal consequence, not a product HP action"
+                        ),
+                    },
+                    context: Some(context),
                 },
             )
             .unwrap();
@@ -655,17 +536,19 @@ mod hp_lifecycle_tests {
     #[test]
     fn unknown_knockout_facts_apply_hp_once_then_resume_lifecycle_without_damage() {
         let (worker, key, participant) = fixture();
-        let request = ApplyEncounterHpEventRequest {
+        let request = ApplyEncounterHpActionRequest {
             request_id: "damage".into(),
-            expected_encounter_revision: worker.encounter(&key).unwrap().revision,
+            expected_revision: worker.encounter(&key).unwrap().participants[0].revision,
             participant_key: participant.clone(),
-            input: HpEventInputView::ResolvedDamage { amount: 12 },
-            context: Default::default(),
+            action: EncounterHpAction::Damage {
+                amount: "12".into(),
+            },
+            context: None,
         };
         worker
-            .apply_encounter_hp_event(&key, request.clone())
+            .apply_encounter_hp_action(&key, request.clone())
             .unwrap();
-        worker.apply_encounter_hp_event(&key, request).unwrap();
+        worker.apply_encounter_hp_action(&key, request).unwrap();
         let detail = worker.encounter(&key).unwrap();
         assert_eq!(detail.participants[0].current_hp, Some(0));
         assert!(!detail.participants[0].defeated);
@@ -719,7 +602,7 @@ mod hp_lifecycle_tests {
             &key,
             &participant,
             "knockout",
-            HpEventInputView::ResolvedDamage { amount: 10 },
+            HpEventInput::ResolvedDamage { amount: 10 },
             HpEventContextView {
                 lethality: Some(DamageLethalityView::Lethal),
                 critical: Some(false),
@@ -734,7 +617,7 @@ mod hp_lifecycle_tests {
             ConditionRule::Unconscious,
             "deep-sleep",
             None,
-            ConditionParametersView::Unconscious {
+            ConditionParametersInputView::Unconscious {
                 waking: WakingRuleView::SourceControlled,
             },
         );
@@ -761,7 +644,7 @@ mod hp_lifecycle_tests {
             &key,
             &participant,
             "healing",
-            HpEventInputView::ResolvedHealing { amount: 1 },
+            HpEventInput::ResolvedHealing { amount: 1 },
             Default::default(),
         );
         let detail = worker.encounter(&key).unwrap();
@@ -816,7 +699,7 @@ mod hp_lifecycle_tests {
             &key,
             &participant,
             "zero",
-            HpEventInputView::ResolvedDamage { amount: 10 },
+            HpEventInput::ResolvedDamage { amount: 10 },
             HpEventContextView {
                 lethality: Some(DamageLethalityView::Lethal),
                 critical: Some(false),
@@ -892,7 +775,7 @@ mod hp_lifecycle_tests {
                 ConditionRule::Sickened,
                 id,
                 Some(value),
-                ConditionParametersView::Sickened {
+                ConditionParametersInputView::Sickened {
                     recovery_dc: Some(20),
                 },
             );
@@ -995,7 +878,7 @@ mod hp_lifecycle_tests {
             &key,
             &participant,
             "attack",
-            HpEventInputView::ResolvedDamage { amount: 1 },
+            HpEventInput::ResolvedDamage { amount: 1 },
             HpEventContextView {
                 attack_or_spell_damage: Some(true),
                 ..Default::default()
@@ -1045,7 +928,7 @@ mod hp_lifecycle_tests {
             ConditionRule::Frightened,
             "fear-normal",
             Some(3),
-            ConditionParametersView::Frightened {
+            ConditionParametersInputView::Frightened {
                 recovery: FrightenedRecoveryView::EndTurn { minimum: 2 },
             },
         );
@@ -1056,7 +939,7 @@ mod hp_lifecycle_tests {
             ConditionRule::Frightened,
             "fear-held",
             Some(2),
-            ConditionParametersView::Frightened {
+            ConditionParametersInputView::Frightened {
                 recovery: FrightenedRecoveryView::Held,
             },
         );
@@ -1138,7 +1021,7 @@ mod hp_lifecycle_tests {
         saved.track_dying = false;
         let changes = rules::hp_events::plan_hp_event(
             &saved,
-            &HpEventInputView::ResolvedDamage { amount: 6 },
+            &HpEventInput::ResolvedDamage { amount: 6 },
             &SavedHpEventContext {
                 broken_threshold: Some(5),
                 ..Default::default()
@@ -1164,7 +1047,7 @@ mod hp_lifecycle_tests {
             &key,
             &participant,
             "destroyed",
-            HpEventInputView::ResolvedDamage { amount: 10 },
+            HpEventInput::ResolvedDamage { amount: 10 },
             Default::default(),
         );
         let detail = worker.encounter(&key).unwrap();
@@ -1179,6 +1062,314 @@ mod hp_lifecycle_tests {
                 .any(|condition| condition.condition_key.as_deref() == Some(dying))
         );
     }
+    #[test]
+    fn saved_recoveries_and_mixed_menu_work_without_reference_data() {
+        let (worker, key, _) = fixture();
+        worker
+            .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                encounter_ref: key.clone(),
+                record_ref: "Test Creature 1".into(),
+                quantity: 1,
+                initiative: None,
+            })
+            .unwrap();
+        let participant = worker
+            .encounter(&key)
+            .unwrap()
+            .participants
+            .into_iter()
+            .find(|p| p.record_key.is_some())
+            .unwrap()
+            .participant_key;
+        for (rule, value) in [
+            (ConditionRule::Unconscious, None),
+            (ConditionRule::Prone, None),
+            (ConditionRule::Drained, Some(2)),
+            (ConditionRule::Fatigued, None),
+            (ConditionRule::Wounded, Some(1)),
+            (ConditionRule::Sickened, Some(1)),
+        ] {
+            add(
+                &worker,
+                &key,
+                &participant,
+                rule,
+                &format!("seed-{rule:?}"),
+                value,
+                if rule == ConditionRule::Sickened {
+                    ConditionParametersInputView::Sickened {
+                        recovery_dc: Some(15),
+                    }
+                } else {
+                    Default::default()
+                },
+            );
+        }
+        let snapshot = || {
+            worker
+                .with_state(|session| {
+                    Ok(session
+                        .local_state()
+                        .encounters()
+                        .get_with_participants(&key)?
+                        .unwrap())
+                })
+                .unwrap()
+        };
+        let before = snapshot();
+        let actor = before
+            .participants
+            .iter()
+            .find(|p| p.participant_key == participant)
+            .unwrap();
+        let initial_hp = actor.current_hp;
+        let sickened = actor
+            .conditions
+            .iter()
+            .find(|c| {
+                c.condition_key.as_deref()
+                    == Some(
+                        modeled_condition_by_rule(ConditionRule::Sickened)
+                            .unwrap()
+                            .condition_ref,
+                    )
+            })
+            .unwrap()
+            .condition_id;
+        atlas_search::test_support::invalidate_reference(
+            worker.workspace_path(),
+            atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+        )
+        .unwrap();
+        assert!(worker.encounter(&key).is_err());
+        let offers = worker
+            .condition_lifecycle_actions(&key, &participant, None)
+            .unwrap()
+            .actions;
+        for offer in &offers {
+            match offer.action {
+                ConditionRecoveryOfferView::Wake
+                | ConditionRecoveryOfferView::OvernightRest
+                | ConditionRecoveryOfferView::TreatWounds => assert!(offer.available),
+                ConditionRecoveryOfferView::Retch { .. }
+                | ConditionRecoveryOfferView::WakeFromNoise { .. } => {
+                    assert!(!offer.available);
+                    assert_eq!(
+                        offer.unavailable_reason.as_deref(),
+                        Some("Reference data unavailable")
+                    );
+                }
+                _ => {}
+            }
+        }
+        assert!(
+            offers
+                .iter()
+                .any(|o| matches!(o.action, ConditionRecoveryOfferView::Wake))
+        );
+        assert!(
+            offers
+                .iter()
+                .any(|o| matches!(o.action, ConditionRecoveryOfferView::Retch { .. }))
+        );
+        assert!(
+            !offers
+                .iter()
+                .any(|o| matches!(o.action, ConditionRecoveryOfferView::FullHpRest))
+        );
+        for action in [
+            ConditionLifecycleActionView::Retch {
+                confusion: None,
+                judgments: vec![],
+                condition_id: sickened,
+                dc: Some(15),
+                fortitude_modifier: Some(15),
+                actions_spent: true,
+                check: LifecycleCheckInputView::TableDegree {
+                    degree: CheckDegreeView::Success,
+                },
+            },
+            ConditionLifecycleActionView::FullHpRest { minutes: 10 },
+        ] {
+            assert!(
+                worker
+                    .apply_condition_lifecycle(
+                        &key,
+                        ApplyConditionLifecycleRequest {
+                            boundary_key: None,
+                            request_id: format!("blocked-{action:?}"),
+                            expected_encounter_revision: before.encounter.revision,
+                            participant_key: participant.clone(),
+                            action,
+                        }
+                    )
+                    .is_err()
+            );
+            assert_eq!(snapshot(), before);
+        }
+        for (id, action) in [
+            (
+                "wake",
+                ConditionLifecycleActionView::Wake {
+                    cause: WakeCauseView::Interact,
+                },
+            ),
+            ("night-one", ConditionLifecycleActionView::OvernightRest),
+            ("night-two", ConditionLifecycleActionView::OvernightRest),
+            (
+                "full-hp-rest",
+                ConditionLifecycleActionView::FullHpRest { minutes: 10 },
+            ),
+        ] {
+            let request = ApplyConditionLifecycleRequest {
+                boundary_key: None,
+                request_id: id.into(),
+                expected_encounter_revision: snapshot().encounter.revision,
+                participant_key: participant.clone(),
+                action,
+            };
+            let first = worker
+                .apply_condition_lifecycle(&key, request.clone())
+                .unwrap();
+            let saved = snapshot();
+            assert_eq!(
+                worker.apply_condition_lifecycle(&key, request).unwrap(),
+                first
+            );
+            assert_eq!(snapshot(), saved);
+        }
+        let after = snapshot();
+        let actor = after
+            .participants
+            .iter()
+            .find(|p| p.participant_key == participant)
+            .unwrap();
+        assert_eq!(actor.current_hp, initial_hp);
+        let remaining: Vec<_> = actor
+            .conditions
+            .iter()
+            .filter_map(|c| {
+                super::super::conditions::condition_rule_for_key(c.condition_key.as_deref())
+            })
+            .collect();
+        assert_eq!(remaining.len(), 2);
+        assert!(remaining.contains(&ConditionRule::Prone));
+        assert!(remaining.contains(&ConditionRule::Sickened));
+    }
+
+    #[test]
+    fn recovery_outcome_preserves_rule_error_and_rolls_back_without_receipt() {
+        let (worker, key, participant) = fixture();
+        event(
+            &worker,
+            &key,
+            &participant,
+            "zero",
+            HpEventInput::ResolvedDamage { amount: 10 },
+            HpEventContextView {
+                lethality: Some(DamageLethalityView::Lethal),
+                critical: Some(false),
+                keep_current_initiative: Some(true),
+                ..Default::default()
+            },
+        );
+        // Saved state can contain unknown counters; recovery must explain the actual issue.
+        let wounded = worker
+            .with_write(|session| {
+                Ok(session.local_state().encounters().add_condition(
+                    atlas_local_state::AddEncounterParticipantCondition {
+                        participant_key: participant.clone(),
+                        condition_key: Some(
+                            modeled_condition_by_rule(ConditionRule::Wounded)
+                                .unwrap()
+                                .condition_ref
+                                .into(),
+                        ),
+                        name: "Wounded".into(),
+                        value: None,
+                        source_participant_key: None,
+                        scope: Default::default(),
+                        extra_action: Default::default(),
+                        immunity_override: false,
+                        parameters: Default::default(),
+                        origin: None,
+                        duration: None,
+                        note: None,
+                    },
+                )?)
+            })
+            .unwrap();
+        let snapshot = || {
+            worker
+                .with_state(|session| {
+                    Ok(session
+                        .local_state()
+                        .encounters()
+                        .get_with_participants(&key)?
+                        .unwrap())
+                })
+                .unwrap()
+        };
+        let before = snapshot();
+        let mut request = ApplyConditionLifecycleRequest {
+            boundary_key: None,
+            request_id: "recover-with-unknown-wounded".into(),
+            expected_encounter_revision: before.encounter.revision,
+            participant_key: participant.clone(),
+            action: ConditionLifecycleActionView::DyingRecovery {
+                check: LifecycleCheckInputView::TableDegree {
+                    degree: CheckDegreeView::Success,
+                },
+            },
+        };
+        let intent = serde_json::json!({"action":"condition_lifecycle","request":request});
+        let error = worker
+            .apply_condition_lifecycle(&key, request.clone())
+            .unwrap_err()
+            .into_app_error();
+        assert_eq!(error.code, AppErrorCode::InvalidRequest);
+        assert_eq!(
+            error.message,
+            "Set the condition's positive numeric value before resolving recovery"
+        );
+        assert_eq!(snapshot(), before);
+        worker
+            .with_state(|session| {
+                let store = session.local_state().encounters();
+                assert!(
+                    store
+                        .condition_event_receipt(&key, &request.request_id, &intent)?
+                        .is_none()
+                );
+                assert!(
+                    store
+                        .boundary_claims(&key, &participant, before.encounter.round_number)?
+                        .is_empty()
+                );
+                Ok(())
+            })
+            .unwrap();
+        worker
+            .with_write(|session| {
+                assert!(
+                    session
+                        .local_state()
+                        .encounters()
+                        .remove_condition(&participant, wounded.condition_id)?
+                );
+                Ok(())
+            })
+            .unwrap();
+        request.expected_encounter_revision = snapshot().encounter.revision;
+        let first = worker
+            .apply_condition_lifecycle(&key, request.clone())
+            .unwrap();
+        assert_eq!(
+            worker.apply_condition_lifecycle(&key, request).unwrap(),
+            first
+        );
+    }
+
     #[test]
     fn unknown_existing_mortality_counter_is_not_zero() {
         let (worker, key, participant) = fixture();
@@ -1206,7 +1397,7 @@ mod hp_lifecycle_tests {
         assert!(
             rules::hp_events::plan_hp_event(
                 &saved,
-                &HpEventInputView::ResolvedDamage { amount: 10 },
+                &HpEventInput::ResolvedDamage { amount: 10 },
                 &SavedHpEventContext {
                     lethality: Some(atlas_local_state::DamageLethality::Lethal),
                     critical: Some(false),
@@ -1236,10 +1427,11 @@ mod hp_lifecycle_tests {
         let subject = workflow::ConditionSubjectContext {
             participant: participant.clone(),
             facts: rules::ConditionApplicabilityFacts {
-                immunities: Some(vec![rules::ConditionImmunity {
+                immunities: vec![rules::ConditionImmunity {
                     slug: "prone".into(),
-                    exceptions: Some(vec![]),
-                }]),
+                    coverage: rules::ImmunityCoverage::Unconditional,
+                }]
+                .into(),
                 ..Default::default()
             },
             reference_revision: None,
@@ -1257,7 +1449,7 @@ mod hp_lifecycle_tests {
         );
         let changes = rules::hp_events::plan_hp_event(
             &participant,
-            &HpEventInputView::ResolvedDamage { amount: 10 },
+            &HpEventInput::ResolvedDamage { amount: 10 },
             &context,
             Some(10),
             "immune-prone",
@@ -1277,7 +1469,7 @@ mod hp_lifecycle_tests {
             &key,
             &participant,
             "nonlethal",
-            HpEventInputView::ResolvedDamage { amount: 10 },
+            HpEventInput::ResolvedDamage { amount: 10 },
             HpEventContextView {
                 lethality: Some(DamageLethalityView::Nonlethal),
                 keep_current_initiative: Some(true),
@@ -1307,7 +1499,7 @@ mod hp_lifecycle_tests {
             &key,
             &participant,
             "natural-heal",
-            HpEventInputView::ResolvedHealing { amount: 1 },
+            HpEventInput::ResolvedHealing { amount: 1 },
             HpEventContextView {
                 natural_rest_healing: Some(true),
                 ..Default::default()
@@ -1331,7 +1523,7 @@ mod hp_lifecycle_tests {
             &key,
             &participant,
             "unknown-knockout",
-            HpEventInputView::ResolvedDamage { amount: 10 },
+            HpEventInput::ResolvedDamage { amount: 10 },
             Default::default(),
         );
         let pending = worker
@@ -1343,7 +1535,7 @@ mod hp_lifecycle_tests {
             &key,
             &participant,
             "later-heal",
-            HpEventInputView::ResolvedHealing { amount: 2 },
+            HpEventInput::ResolvedHealing { amount: 2 },
             Default::default(),
         );
         worker
@@ -1480,7 +1672,7 @@ mod hp_lifecycle_tests {
             ConditionRule::Unconscious,
             "deep",
             None,
-            ConditionParametersView::Unconscious {
+            ConditionParametersInputView::Unconscious {
                 waking: WakingRuleView::SourceControlled,
             },
         );
@@ -1588,7 +1780,7 @@ mod hp_lifecycle_tests {
             &key,
             &participant,
             "recorded-lethal",
-            HpEventInputView::ResolvedDamage { amount: 10 },
+            HpEventInput::ResolvedDamage { amount: 10 },
             HpEventContextView {
                 lethality: Some(DamageLethalityView::Lethal),
                 enemy_source: Some(false),
@@ -1747,7 +1939,7 @@ mod hp_lifecycle_tests {
             &key,
             &participant,
             "known-knockout",
-            HpEventInputView::ResolvedDamage { amount: 10 },
+            HpEventInput::ResolvedDamage { amount: 10 },
             HpEventContextView {
                 lethality: Some(DamageLethalityView::Nonlethal),
                 keep_current_initiative: Some(false),

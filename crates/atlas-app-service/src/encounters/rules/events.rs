@@ -8,9 +8,15 @@ use atlas_local_state::{
 
 pub(in crate::encounters) struct ConditionConsequences {
     pub changes: PreparedConditionEvent,
-    pub hp_loss: Option<i64>,
-    pub becomes_prone: bool,
-    pub drop_held_items: bool,
+    pub participant_key: String,
+    pub effects: Vec<ConditionConsequence>,
+}
+
+pub(in crate::encounters) enum ConditionConsequence {
+    DirectHpLoss(i64),
+    BecomeProne,
+    DropHeldItems,
+    DrainedLevelRequired(i64),
 }
 
 pub(in crate::encounters) fn plan_condition_change(
@@ -56,7 +62,13 @@ pub(in crate::encounters) fn plan_condition_change(
         }
     };
     let magnitude_changed = prior_rule != next_rule || prior_value != next_value;
-    let changes_drained = magnitude_changed && next_rule == Some(ConditionRule::Drained);
+    let changes_drained = magnitude_changed
+        && next_rule == Some(ConditionRule::Drained)
+        && (prior_rule != next_rule
+            || ConditionRule::Drained
+                .definition()
+                .hp_loss
+                .is_some_and(|loss| loss.reevaluate_on_update));
     let checks_mortality = magnitude_changed
         && matches!(
             next_rule,
@@ -102,9 +114,7 @@ pub(in crate::encounters) fn plan_condition_change(
         condition_changes: vec![change],
         ..Default::default()
     };
-    let mut hp_loss = None;
-    let mut becomes_prone = false;
-    let mut drop_held_items = false;
+    let mut effects = vec![];
     if apply_consequences {
         let increase = if changes_drained {
             effective_drained_value(&after)?
@@ -116,14 +126,19 @@ pub(in crate::encounters) fn plan_condition_change(
         if increase > 0 {
             match (level, participant.current_hp) {
                 (Some(level), Some(_)) => {
-                    let amount = level.max(1).checked_mul(increase).ok_or_else(|| {
+                    let amount = super::condition_effects::hp_loss(
+                        ConditionRule::Drained,
+                        increase,
+                        Some(level),
+                    )
+                    .ok_or_else(|| {
                         AppServiceError::invalid_request(
                             "Drained HP loss exceeds the supported range",
                         )
                     })?;
                     let hp_changes = super::hp_events::plan_hp_event(
                         participant,
-                        &atlas_app_model::HpEventInputView::DirectLoss { amount },
+                        &crate::encounters::rules::hp_events::HpEventInput::DirectLoss { amount },
                         &Default::default(),
                         None,
                         request_id,
@@ -135,15 +150,18 @@ pub(in crate::encounters) fn plan_condition_change(
                         .condition_changes
                         .extend(hp_changes.condition_changes);
                     changes.pending.extend(hp_changes.pending);
-                    hp_loss = Some(amount);
+                    effects.push(ConditionConsequence::DirectHpLoss(amount));
                 }
-                _ => changes.pending.push(SavedPendingConsequence {
-                    consequence_key: format!("{request_id}:drained-hp"),
-                    consequence: PendingConsequence::DrainedHpLoss {
-                        participant_key: participant.participant_key.clone(),
-                        magnitude_increase: increase,
-                    },
-                }),
+                _ => {
+                    effects.push(ConditionConsequence::DrainedLevelRequired(increase));
+                    changes.pending.push(SavedPendingConsequence {
+                        consequence_key: format!("{request_id}:drained-hp"),
+                        consequence: PendingConsequence::DrainedHpLoss {
+                            participant_key: participant.participant_key.clone(),
+                            magnitude_increase: increase,
+                        },
+                    });
+                }
             }
         }
         if !has_condition(participant, ConditionRule::Broken)
@@ -167,7 +185,7 @@ pub(in crate::encounters) fn plan_condition_change(
                         atlas_local_state::ParticipantEventChange::preserving(participant);
                     update.current_hp = Some(hp.min(threshold));
                     if hp > threshold {
-                        hp_loss = Some(hp - threshold);
+                        effects.push(ConditionConsequence::DirectHpLoss(hp - threshold));
                     }
                     changes.participant_changes.push(update);
                 }
@@ -250,9 +268,10 @@ pub(in crate::encounters) fn plan_condition_change(
             }
         }
         if !is_unconscious(participant) && is_unconscious(&after) {
-            drop_held_items = true;
+            effects.insert(0, ConditionConsequence::DropHeldItems);
         }
         if !keep_upright
+            && super::causes::application_grants(ConditionRule::Unconscious, ConditionRule::Prone)
             && !is_unconscious(participant)
             && is_unconscious(&after)
             && !has_condition(&after, ConditionRule::Prone)
@@ -283,14 +302,13 @@ pub(in crate::encounters) fn plan_condition_change(
                     note: None,
                 },
             ));
-            becomes_prone = true;
+            effects.push(ConditionConsequence::BecomeProne);
         }
     }
     Ok(ConditionConsequences {
         changes,
-        hp_loss,
-        becomes_prone,
-        drop_held_items,
+        participant_key: participant.participant_key.clone(),
+        effects,
     })
 }
 fn effective_drained_value(participant: &EncounterParticipant) -> AppServiceResult<i64> {

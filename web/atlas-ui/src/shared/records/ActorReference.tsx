@@ -1,4 +1,5 @@
 import { statusReasonLabel } from "./statusReasonLabel";
+import { TraitBadge } from "./TraitBadge";
 import { Alert, Button, Collapse, Popover, Tag } from "antd";
 import { Link2 } from "lucide-react";
 import { useEffect, useId, useRef } from "react";
@@ -748,7 +749,7 @@ export function ActorActivity({
       {!selected && (
         <div className="badge-row">
           {activity.traits.map((trait) => (
-            <Tag key={`${trait.kind}-${trait.value}`}>{trait.label}</Tag>
+            <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
           ))}
         </div>
       )}

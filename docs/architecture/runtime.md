@@ -43,7 +43,11 @@ preparation; developer admission reports remain usable for unsupported sources.
 Private TypeScript tooling resolves pinned Foundry declarations and emits modular
 Rust under `atlas-foundry-model/src/source_model/generated`. Large extracted
 graphs are ignored caches; CI regenerates/checks committed Rust. Ordinary builds
-need neither Node nor the upstream checkout. Generation ownership, recursive
+need neither Node nor the upstream checkout. The same generation pipeline publishes
+standard-condition facts and guarded trait-immunity declarations. Condition pack
+bytes have a separate generation digest; adding static rule facts does not change
+the DTO decoding contract or require new reference SQL. Encounter evaluation consumes
+compiled declarations and checked actor/saved facts under ADR0055. Generation ownership, recursive
 identity, templates and authored profiles follow ADR0034–40.
 
 Strict authored parsing and admission are distinct. Admission retains useful
@@ -65,6 +69,12 @@ the tagged checked representation with version/identity/recursion guards; it run
 no source admission, defaults or repairs. Original complete source JSON is not
 duplicated in the artifact. Developer source inspection can read the checkout;
 normal runtime reads use the checked codec and work without it.
+
+Trait reference reads likewise use published source evidence and prepared
+definitions without opening Foundry localization files. Their separate typed
+identity, exact source memberships/references and stored semantic seeds follow
+[ADR0056](./decisions/0056-trait-reference-entities.md). Publication and schema
+upgrades use the same bounded workspace and state-preserving migration owners.
 `atlas record source` explicitly exports a product record's complete checked
 snapshot and compact provenance through the existing retrieval/app-service path.
 This inspection does not use presentation projections or read the source clone.

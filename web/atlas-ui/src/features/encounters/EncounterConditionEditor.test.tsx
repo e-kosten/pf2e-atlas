@@ -1,5 +1,40 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { EncounterConditionEditor } from "./EncounterConditionEditor";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { EncounterConditionEditor as ConditionEditor } from "./EncounterConditionEditor";
+
+import type { ComponentProps } from "react";
+import { renderEncounter as render } from "./encounterTestFixtures";
+const previewCondition = vi.fn().mockResolvedValue({
+  encounter_key: "encounter",
+  encounter_revision: 1n,
+  consequences: [],
+});
+function EncounterConditionEditor(
+  props: Omit<
+    ComponentProps<typeof ConditionEditor>,
+    "revision" | "onPreview" | "participantKey"
+  > & { participantKey?: string },
+) {
+  return (
+    <ConditionEditor
+      revision={1n}
+      participantKey="actor"
+      onPreview={previewCondition}
+      {...props}
+    />
+  );
+}
+async function apply(expected?: Record<string, unknown>) {
+  if (expected)
+    await waitFor(() =>
+      expect(previewCondition).toHaveBeenLastCalledWith(
+        expect.objectContaining(expected),
+      ),
+    );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+}
 
 it("preserves duration Stunned without manufacturing a numeric value", async () => {
   const onSave = vi.fn().mockResolvedValue(undefined);
@@ -42,15 +77,13 @@ it("preserves duration Stunned without manufacturing a numeric value", async () 
   );
   expect(screen.queryByRole("spinbutton", { name: "Condition value" })).toBeNull();
   expect(screen.getByText("For a duration")).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await apply();
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         value: undefined,
-        durationAmount: 1,
-        durationUnit: "minutes",
+        duration: { amount: 1n, unit: "minutes", timing: null },
       }),
-      false,
     ),
   );
 });
@@ -105,37 +138,41 @@ it("retains restricted extra actions and scoped participants independently of so
   expect(screen.getByRole("combobox", { name: "Against" })).toBeVisible();
   expect(screen.queryByRole("combobox", { name: "Opponents" })).toBeNull();
   expect(screen.getByRole("textbox", { name: "Custom restriction" })).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await apply();
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
-        againstKeys: ["opponent"],
-        extraActionMode: "restricted",
-        extraActions: ["stride", "strike"],
-        sourceParticipantKey: "source",
-        durationUnit: "none",
+        scope: { kind: "selected_participants", participant_keys: ["opponent"] },
+        extra_action: {
+          kind: "restricted",
+          actions: ["stride", "strike"],
+          guidance: "Only with the granted weapon",
+        },
+        source_participant_key: "source",
+        duration: undefined,
       }),
-      false,
     ),
   );
   expect(screen.getByRole("textbox", { name: "Custom restriction" })).toBeVisible();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Against" }));
   fireEvent.click(await screen.findByText("Everyone"));
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await apply({ scope: { kind: "everyone" } });
   await waitFor(() =>
     expect(onSave).toHaveBeenLastCalledWith(
-      expect.objectContaining({ againstKeys: ["everyone"] }),
-      false,
+      expect.objectContaining({ scope: { kind: "everyone" } }),
     ),
   );
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Against" }));
   const sourceOptions = await screen.findAllByText("Source");
   fireEvent.click(sourceOptions[sourceOptions.length - 1]);
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await apply({
+    scope: { kind: "selected_participants", participant_keys: ["source"] },
+  });
   await waitFor(() =>
     expect(onSave).toHaveBeenLastCalledWith(
-      expect.objectContaining({ againstKeys: ["source"] }),
-      false,
+      expect.objectContaining({
+        scope: { kind: "selected_participants", participant_keys: ["source"] },
+      }),
     ),
   );
 });
@@ -178,11 +215,10 @@ it("offers a deliberate override through the submit action", async () => {
     />,
   );
   expect(screen.queryByRole("textbox", { name: "GM override reason" })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await apply();
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ immunityOverride: true }),
-      false,
+      expect.objectContaining({ immunity_override: true }),
     ),
   );
 });
@@ -239,26 +275,31 @@ it("defaults round timing to self and lets the GM choose another boundary and tu
   expect(
     await screen.findByRole("spinbutton", { name: "Duration amount" }),
   ).toHaveValue("1");
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await apply();
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ durationEvent: "end", durationParticipant: "a" }),
-      true,
+      expect.objectContaining({
+        duration: {
+          amount: 1n,
+          unit: "rounds",
+          timing: { event: "end", participant_key: "a" },
+        },
+      }),
     ),
   );
   fireEvent.click(screen.getByText("Starts on"));
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Whose turn" }));
   fireEvent.click(await screen.findByText("B’s turn"));
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await apply();
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
-        durationAmount: 1,
-        durationUnit: "rounds",
-        durationEvent: "start",
-        durationParticipant: "b",
+        duration: {
+          amount: 1n,
+          unit: "rounds",
+          timing: { event: "start", participant_key: "b" },
+        },
       }),
-      true,
     ),
   );
 });
@@ -296,15 +337,13 @@ it("requires an explicit supernatural source when adding a PC attitude", async (
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
   fireEvent.click(await screen.findByText("Attitude"));
   await screen.findByRole("checkbox", { name: "Supernatural effect" });
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  await screen.findByText("PC attitudes require a supernatural effect.");
+  expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   expect(onSave).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("checkbox", { name: "Supernatural effect" }));
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await apply();
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ attitudeSupernatural: true }),
-      false,
+      expect.objectContaining({ parameters: { kind: "attitude", supernatural: true } }),
     ),
   );
 });
@@ -343,15 +382,16 @@ it("keeps the fascinating subject separate from the effect's causal source", asy
   expect(screen.getByRole("textbox", { name: "Subject description" })).toHaveValue(
     "Dancing flame",
   );
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await apply();
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
-        conditionSubject: "__other",
-        conditionSubjectDescription: "Dancing flame",
-        sourceParticipantKey: "caster",
+        parameters: {
+          kind: "fascinated",
+          subject: { kind: "other", description: "Dancing flame" },
+        },
+        source_participant_key: "caster",
       }),
-      false,
     ),
   );
 });
@@ -389,14 +429,16 @@ it("edits a Fleeing subject independently of its causal source", async () => {
     />,
   );
   expect(screen.getByRole("combobox", { name: "Fleeing from" })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await apply();
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
-        conditionSubject: "threat",
-        sourceParticipantKey: "caster",
+        parameters: {
+          kind: "fleeing",
+          subject: { kind: "participant", participant_key: "threat" },
+        },
+        source_participant_key: "caster",
       }),
-      false,
     ),
   );
 });
@@ -474,20 +516,20 @@ it("offers one numeric default flat-check DC and one-row damage fields without r
   fireEvent.change(screen.getByRole("spinbutton", { name: "Flat check DC" }), {
     target: { value: "" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   await screen.findByText("Enter a whole number.");
+  expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   expect(onSave).not.toHaveBeenCalled();
   fireEvent.change(screen.getByRole("spinbutton", { name: "Flat check DC" }), {
     target: { value: "20" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await apply();
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
-        persistentRecoveryDc: 20,
-        persistentRecoveryDcEdited: true,
+        parameters: expect.objectContaining({
+          recovery: { kind: "specified", dc: 20n },
+        }),
       }),
-      false,
     ),
   );
 });
@@ -497,17 +539,17 @@ it("keeps an existing unknown recovery DC blank while preserving unrelated sourc
   fireEvent.change(screen.getByRole("textbox", { name: "Damage formula" }), {
     target: { value: "3d6" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await apply();
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
-        persistentFormula: "3d6",
-        persistentRecoveryDc: undefined,
-        persistentRecoveryDcEdited: false,
+        parameters: expect.objectContaining({
+          formula: "3d6",
+          recovery: { kind: "source_dependent" },
+        }),
         note: "Existing note",
-        durationAmount: 2,
+        duration: expect.objectContaining({ amount: 2n }),
       }),
-      false,
     ),
   );
 });
@@ -522,11 +564,10 @@ it("accepts incomplete persistent damage without eager required-field errors", a
   fireEvent.change(screen.getByRole("textbox", { name: "Condition note" }), {
     target: { value: "Burning until the blessing ends" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await apply();
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ note: "Burning until the blessing ends" }),
-      false,
     ),
   );
 });

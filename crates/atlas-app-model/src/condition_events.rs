@@ -46,6 +46,42 @@ pub enum ConditionParametersView {
         waking: WakingRuleView,
     },
 }
+/// Editable parameters exclude resolved persistent-episode identity and admission state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ConditionParametersInputView {
+    Fleeing {
+        subject: Option<ConditionSubjectView>,
+    },
+    Fascinated {
+        subject: Option<ConditionSubjectView>,
+    },
+    Attitude {
+        supernatural: bool,
+    },
+    Frightened {
+        recovery: crate::FrightenedRecoveryView,
+    },
+    Broken {
+        threshold: Option<i64>,
+    },
+    #[default]
+    None,
+    PersistentDamage {
+        formula: Option<String>,
+        damage_type: Option<String>,
+        multiplier: DamageMultiplierView,
+        recovery: PersistentRecoveryView,
+    },
+    Sickened {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        recovery_dc: Option<i64>,
+    },
+    Unconscious {
+        waking: WakingRuleView,
+    },
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum DamageMultiplierView {

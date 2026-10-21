@@ -1,3 +1,4 @@
+import { conditionUpdate } from "./conditionDraft";
 import { EncounterModal } from "./EncounterModal";
 import { EncounterConditionConsequences } from "./EncounterConditionConsequences";
 
@@ -15,11 +16,7 @@ import type {
   EncounterParticipantView,
   UpdateEncounterParticipantConditionRequest,
 } from "../../generated/atlas";
-import {
-  EncounterConditionEditor,
-  conditionDuration,
-  type ConditionFormValues,
-} from "./EncounterConditionEditor";
+import { EncounterConditionEditor } from "./EncounterConditionEditor";
 import { EncounterConditionValue } from "./EncounterConditionValue";
 
 export function EncounterConditionControls({
@@ -154,31 +151,8 @@ export function EncounterConditionControls({
     condition: EncounterParticipantConditionView,
     changes: Partial<Omit<UpdateEncounterParticipantConditionRequest, "request_id">>,
     revision = encounterRevision,
-    mode: "inline" | "draft" | "commit" = "inline",
   ) => {
-    const request: Omit<UpdateEncounterParticipantConditionRequest, "request_id"> = {
-      expected_encounter_revision: revision,
-      event_intent: "apply",
-      decisions: { keep_upright: false },
-      condition_id: condition.condition_id,
-      name: condition.name,
-      value: condition.value,
-      duration: condition.duration,
-      source_participant_key: condition.source_participant_key,
-      note: condition.note,
-      scope: condition.scope,
-      extra_action: condition.extra_action,
-      immunity_override: condition.immunity_override,
-      parameters: condition.parameters,
-      origin: condition.origin,
-      ...changes,
-    };
-    if (mode === "draft") {
-      preview.setDraft(request);
-      return Promise.resolve(false);
-    }
-    if (mode === "commit")
-      return onUpdateCondition(current.participant_key, preview.apply(request));
+    const request = conditionUpdate(condition, revision, changes);
     return onPreviewCondition(current.participant_key, request).then((result) => {
       if (!result.consequences.length)
         return onUpdateCondition(current.participant_key, request);
@@ -186,193 +160,6 @@ export function EncounterConditionControls({
       preview.setDraft(request);
       return false;
     });
-  };
-  const save = async (
-    values: ConditionFormValues,
-    durationEdited: boolean,
-    previewOnly = false,
-  ) => {
-    if (disabled) return;
-    const definition = conditionDefinitions.find(
-      (d) => d.condition_ref === (selected?.condition_key ?? values.conditionRef),
-    );
-    const parameters =
-      definition?.editor_kind === "persistent_damage" ||
-      selected?.parameters.kind === "persistent_damage" ||
-      selected?.parameters.kind === "persistent_damage_reminder"
-        ? {
-            ...(values.persistentFormula?.trim() && values.persistentDamageType
-              ? {
-                  kind: "persistent_damage" as const,
-                  formula: values.persistentFormula.trim(),
-                  damage_type: values.persistentDamageType,
-                  episode_id:
-                    selected?.parameters.kind === "persistent_damage" &&
-                    selected.parameters.damage_type === values.persistentDamageType
-                      ? selected.parameters.episode_id
-                      : undefined,
-                }
-              : {
-                  kind: "persistent_damage_reminder" as const,
-                  formula: values.persistentFormula?.trim() || null,
-                  damage_type: values.persistentDamageType || null,
-                }),
-            multiplier: values.persistentMultiplier ?? "normal",
-            recovery:
-              (selected?.parameters.kind === "persistent_damage" ||
-                selected?.parameters.kind === "persistent_damage_reminder") &&
-              !values.persistentRecoveryDcEdited
-                ? selected.parameters.recovery
-                : values.persistentRecoveryDc == null
-                  ? { kind: "source_dependent" as const }
-                  : {
-                      kind: "specified" as const,
-                      dc: BigInt(values.persistentRecoveryDc),
-                    },
-          }
-        : definition?.editor_kind === "sickened" ||
-            selected?.parameters.kind === "sickened"
-          ? {
-              kind: "sickened" as const,
-              recovery_dc:
-                values.sickenedRecoveryDc === undefined ||
-                values.sickenedRecoveryDc === null
-                  ? undefined
-                  : BigInt(values.sickenedRecoveryDc),
-            }
-          : definition?.editor_kind === "unconscious" ||
-              selected?.parameters.kind === "unconscious"
-            ? { kind: "unconscious" as const, waking: values.wakingRule ?? "normal" }
-            : definition?.editor_kind === "fascinated" ||
-                selected?.parameters.kind === "fascinated"
-              ? {
-                  kind: "fascinated" as const,
-                  subject:
-                    values.conditionSubject === "__other"
-                      ? {
-                          kind: "other" as const,
-                          description: values.conditionSubjectDescription!.trim(),
-                        }
-                      : values.conditionSubject &&
-                          values.conditionSubject !== "__unknown"
-                        ? {
-                            kind: "participant" as const,
-                            participant_key: values.conditionSubject,
-                          }
-                        : null,
-                }
-              : definition?.editor_kind === "fleeing" ||
-                  selected?.parameters.kind === "fleeing"
-                ? {
-                    kind: "fleeing" as const,
-                    subject:
-                      values.conditionSubject === "__other"
-                        ? {
-                            kind: "other" as const,
-                            description: values.conditionSubjectDescription!.trim(),
-                          }
-                        : values.conditionSubject &&
-                            values.conditionSubject !== "__unknown"
-                          ? {
-                              kind: "participant" as const,
-                              participant_key: values.conditionSubject,
-                            }
-                          : null,
-                  }
-                : definition?.editor_kind === "attitude" ||
-                    selected?.parameters.kind === "attitude"
-                  ? {
-                      kind: "attitude" as const,
-                      supernatural: values.attitudeSupernatural ?? false,
-                    }
-                  : definition?.editor_kind === "frightened" ||
-                      selected?.parameters.kind === "frightened"
-                    ? {
-                        kind: "frightened" as const,
-                        recovery:
-                          values.frightenedRecovery === "held"
-                            ? { kind: "held" as const }
-                            : values.frightenedRecovery === "source_dependent"
-                              ? { kind: "source_dependent" as const }
-                              : {
-                                  kind: "end_turn" as const,
-                                  minimum: BigInt(values.frightenedMinimum ?? 0),
-                                },
-                      }
-                    : definition?.editor_kind === "broken" ||
-                        selected?.parameters.kind === "broken"
-                      ? {
-                          kind: "broken" as const,
-                          threshold:
-                            values.brokenThreshold == null
-                              ? null
-                              : BigInt(values.brokenThreshold),
-                        }
-                      : (selected?.parameters ?? { kind: "none" as const });
-    const context = {
-      parameters,
-      scope:
-        values.againstKeys && !values.againstKeys.includes("everyone")
-          ? {
-              kind: "selected_participants" as const,
-              participant_keys: values.againstKeys,
-            }
-          : { kind: "everyone" as const },
-      extra_action:
-        values.extraActionMode === "restricted"
-          ? {
-              kind: "restricted" as const,
-              actions: values.extraActions ?? [],
-              guidance: values.extraActionGuidance?.trim() || null,
-            }
-          : {
-              kind:
-                values.extraActionMode === "unrestricted"
-                  ? ("unrestricted" as const)
-                  : ("unspecified" as const),
-            },
-      immunity_override: values.immunityOverride ?? false,
-    };
-    if (selected) {
-      const refreshed = await update(
-        selected,
-        {
-          ...context,
-          value:
-            values.value === null || values.value === undefined
-              ? undefined
-              : BigInt(values.value),
-          duration: durationEdited ? conditionDuration(values) : selected.duration,
-          source_participant_key: values.sourceParticipantKey,
-          note: values.note || undefined,
-        },
-        editor !== null && editor !== "add" ? editor.revision : encounterRevision,
-        previewOnly ? "draft" : "commit",
-      );
-      if (!previewOnly) finished(refreshed);
-    } else {
-      const definition = conditionDefinitions.find(
-        (d) => d.condition_ref === values.conditionRef,
-      );
-      if (!definition) return;
-      const request: Omit<AddEncounterParticipantConditionRequest, "request_id"> = {
-        participant_key: current.participant_key,
-        expected_encounter_revision: addRevision,
-        event_intent: "apply",
-        decisions: { keep_upright: false },
-        condition_ref: definition.condition_ref,
-        ...context,
-        value:
-          definition.has_value && values.value !== null && values.value !== undefined
-            ? BigInt(values.value)
-            : undefined,
-        duration: conditionDuration(values),
-        source_participant_key: values.sourceParticipantKey,
-        note: values.note || undefined,
-      };
-      if (previewOnly) preview.setDraft(request);
-      else finished(await onAddCondition(preview.apply(request)));
-    }
   };
   const renderConditionActions = (
     condition: EncounterParticipantConditionView,
@@ -734,18 +521,12 @@ export function EncounterConditionControls({
             pending={pending}
             error={error}
             recovery={recovery}
-            review={
-              <>
-                {preview.review}
-                {preview.errorNotice}
-              </>
+            revision={
+              editor !== null && editor !== "add" ? editor.revision : addRevision
             }
-            previewReady={preview.ready}
-            onDraftChange={(values, durationEdited) => {
-              if (values)
-                void save(values, durationEdited, true).catch(() => preview.reset());
-              else preview.reset();
-            }}
+            onPreview={(request) =>
+              onPreviewCondition(current.participant_key, request)
+            }
             onReload={
               editor === "add" && addRevision !== encounterRevision
                 ? () => setAddRevision(encounterRevision)
@@ -755,7 +536,13 @@ export function EncounterConditionControls({
                   ? () => setEditor({ ...editor, revision: encounterRevision })
                   : undefined
             }
-            onSave={save}
+            onSave={async (request) =>
+              finished(
+                await ("condition_id" in request
+                  ? onUpdateCondition(current.participant_key, request)
+                  : onAddCondition(request)),
+              )
+            }
             onCancel={close}
             onRemove={removeSelected}
           />

@@ -1,5 +1,6 @@
+import { renderEncounter as render } from "./encounterTestFixtures";
 import { useState } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import {
   useConditionEventPreview,
   type ConditionEventInput,
@@ -118,4 +119,29 @@ it("retains a consequence opt-out when only a note changes", async () => {
     note: "changed",
     decisions: { keep_upright: true },
   });
+});
+
+it("resets an old opt-out after consequences change and then return", async () => {
+  const load = vi
+    .fn()
+    .mockResolvedValueOnce({
+      consequences: [{ kind: "become_prone", participant_key: "p" }],
+    })
+    .mockResolvedValueOnce({ consequences: [] })
+    .mockResolvedValueOnce({
+      consequences: [{ kind: "become_prone", participant_key: "p" }],
+    });
+  render(<Harness load={load} commit={vi.fn()} />);
+  fireEvent.click(screen.getByText("Edit draft"));
+  fireEvent.click(await screen.findByRole("checkbox", { name: "Applies Prone" }));
+  fireEvent.click(screen.getByText("Edit note"));
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(screen.queryByRole("checkbox", { name: "Applies Prone" })).toBeNull(),
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByText("Edit draft"));
+  expect(await screen.findByRole("checkbox", { name: "Applies Prone" })).toBeChecked();
 });

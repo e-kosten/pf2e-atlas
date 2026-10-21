@@ -23,21 +23,6 @@ pub struct HpEventContextView {
     pub base_death_threshold: Option<i64>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum HpEventInputView {
-    ResolvedDamage { amount: i64 },
-    ResolvedHealing { amount: i64 },
-    DirectLoss { amount: i64 },
-}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct ApplyEncounterHpEventRequest {
-    pub request_id: String,
-    pub expected_encounter_revision: i64,
-    pub participant_key: String,
-    pub input: HpEventInputView,
-    pub context: HpEventContextView,
-}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ResolveEncounterHpLifecycleRequest {
     #[serde(default)]
     pub resolution: HpLifecycleResolutionView,

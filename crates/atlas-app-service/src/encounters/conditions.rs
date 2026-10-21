@@ -4,51 +4,8 @@ use atlas_app_model::{
     EncounterConditionDefinitionView,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(super) enum ConditionRule {
-    Blinded,
-    Broken,
-    Clumsy,
-    Concealed,
-    Confused,
-    Controlled,
-    Dazzled,
-    Deafened,
-    Doomed,
-    Drained,
-    Dying,
-    Encumbered,
-    Enfeebled,
-    Fascinated,
-    Fatigued,
-    Fleeing,
-    Friendly,
-    Frightened,
-    Grabbed,
-    Helpful,
-    Hidden,
-    Hostile,
-    Immobilized,
-    Indifferent,
-    Invisible,
-    Observed,
-    OffGuard,
-    Paralyzed,
-    PersistentDamage,
-    Petrified,
-    Prone,
-    Quickened,
-    Restrained,
-    Sickened,
-    Slowed,
-    Stunned,
-    Stupefied,
-    Unconscious,
-    Undetected,
-    Unfriendly,
-    Unnoticed,
-    Wounded,
-}
+use atlas_foundry_model::generated::condition_definitions::CONDITION_DEFINITIONS;
+pub(super) use atlas_foundry_model::generated::condition_definitions::ConditionId as ConditionRule;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct ModeledCondition {
@@ -87,481 +44,35 @@ const ACTION_ECONOMY: &[Category] = &[Category::ActionEconomy];
 const OBJECT_STATE: &[Category] = &[Category::ObjectState];
 const RUNTIME_STATE: &[Category] = &[Category::RuntimeState];
 
-const MODELED_CONDITIONS: &[ModeledCondition] = &[
-    automated(
-        "conditionitems:XgEqL1kFApUbl5Z2",
-        "Blinded",
-        "blinded",
-        false,
-        None,
-        CREATURES,
-        DETECTION,
-        ConditionRule::Blinded,
-    ),
-    tracked(
-        "conditionitems:6dNUvdb1dhToNDj3",
-        "Broken",
-        "broken",
-        false,
-        None,
-        &[AppliesTo::Hazard],
-        OBJECT_STATE,
-        ConditionRule::Broken,
-    ),
-    automated(
-        "conditionitems:i3OJZU2nk64Df3xm",
-        "Clumsy",
-        "clumsy",
-        true,
-        Some(1),
-        CREATURES_AND_HAZARDS,
-        STAT_MODIFIER,
-        ConditionRule::Clumsy,
-    ),
-    tracked(
-        "conditionitems:DmAIPqOBomZ7H95W",
-        "Concealed",
-        "concealed",
-        false,
-        None,
-        CREATURES,
-        DETECTION,
-        ConditionRule::Concealed,
-    ),
-    tracked(
-        "conditionitems:yblD8fOR1J8rDwEQ",
-        "Confused",
-        "confused",
-        false,
-        None,
-        CREATURES,
-        RUNTIME_STATE,
-        ConditionRule::Confused,
-    ),
-    tracked(
-        "conditionitems:9qGBRpbX9NEwtAAr",
-        "Controlled",
-        "controlled",
-        false,
-        None,
-        CREATURES,
-        RUNTIME_STATE,
-        ConditionRule::Controlled,
-    ),
-    tracked(
-        "conditionitems:TkIyaNPgTZFBCCuh",
-        "Dazzled",
-        "dazzled",
-        false,
-        None,
-        CREATURES,
-        DETECTION,
-        ConditionRule::Dazzled,
-    ),
-    tracked(
-        "conditionitems:9PR9y0bi4JPKnHPR",
-        "Deafened",
-        "deafened",
-        false,
-        None,
-        CREATURES,
-        RUNTIME_STATE,
-        ConditionRule::Deafened,
-    ),
-    tracked(
-        "conditionitems:3uh1r86TzbQvosxv",
-        "Doomed",
-        "doomed",
-        true,
-        Some(1),
-        CREATURES,
-        DEATH_AND_DYING,
-        ConditionRule::Doomed,
-    ),
-    tracked(
-        "conditionitems:4D2KBtexWXa6oUMR",
-        "Drained",
-        "drained",
-        true,
-        Some(1),
-        CREATURES,
-        DEATH_AND_DYING,
-        ConditionRule::Drained,
-    ),
-    tracked(
-        "conditionitems:yZRUzMqrMmfLu0V1",
-        "Dying",
-        "dying",
-        true,
-        Some(1),
-        CREATURES,
-        DEATH_AND_DYING,
-        ConditionRule::Dying,
-    ),
-    automated(
-        "conditionitems:D5mg6Tc7Jzrj6ro7",
-        "Encumbered",
-        "encumbered",
-        false,
-        None,
-        CREATURES,
-        RUNTIME_STATE,
-        ConditionRule::Encumbered,
-    ),
-    automated(
-        "conditionitems:MIRkyAjyBeXivMa7",
-        "Enfeebled",
-        "enfeebled",
-        true,
-        Some(1),
-        CREATURES_AND_HAZARDS,
-        STAT_MODIFIER,
-        ConditionRule::Enfeebled,
-    ),
-    tracked(
-        "conditionitems:AdPVz7rbaVSRxHFg",
-        "Fascinated",
-        "fascinated",
-        false,
-        None,
-        CREATURES,
-        RUNTIME_STATE,
-        ConditionRule::Fascinated,
-    ),
-    tracked(
-        "conditionitems:HL2l2VRSaQHu9lUw",
-        "Fatigued",
-        "fatigued",
-        false,
-        None,
-        CREATURES,
-        RUNTIME_STATE,
-        ConditionRule::Fatigued,
-    ),
-    tracked(
-        "conditionitems:sDPxOjQ9kx2RZE8D",
-        "Fleeing",
-        "fleeing",
-        false,
-        None,
-        CREATURES,
-        RUNTIME_STATE,
-        ConditionRule::Fleeing,
-    ),
-    tracked(
-        "conditionitems:v66R7FdOf11l94im",
-        "Friendly",
-        "friendly",
-        false,
-        None,
-        CREATURES,
-        ATTITUDE,
-        ConditionRule::Friendly,
-    ),
-    automated(
-        "conditionitems:TBSHQspnbcqxsmjL",
-        "Frightened",
-        "frightened",
-        true,
-        Some(1),
-        CREATURES_AND_HAZARDS,
-        STAT_MODIFIER,
-        ConditionRule::Frightened,
-    ),
-    automated(
-        "conditionitems:kWc1fhmv9LBiTuei",
-        "Grabbed",
-        "grabbed",
-        false,
-        None,
-        CREATURES,
-        RUNTIME_STATE,
-        ConditionRule::Grabbed,
-    ),
-    tracked(
-        "conditionitems:v44P3WUcU1j0115l",
-        "Helpful",
-        "helpful",
-        false,
-        None,
-        CREATURES,
-        ATTITUDE,
-        ConditionRule::Helpful,
-    ),
-    tracked(
-        "conditionitems:iU0fEDdBp3rXpTMC",
-        "Hidden",
-        "hidden",
-        false,
-        None,
-        CREATURES,
-        DETECTION,
-        ConditionRule::Hidden,
-    ),
-    tracked(
-        "conditionitems:ud7gTLwPeklzYSXG",
-        "Hostile",
-        "hostile",
-        false,
-        None,
-        CREATURES,
-        ATTITUDE,
-        ConditionRule::Hostile,
-    ),
-    automated(
-        "conditionitems:eIcWbB5o3pP6OIMe",
-        "Immobilized",
-        "immobilized",
-        false,
-        None,
-        CREATURES,
-        RUNTIME_STATE,
-        ConditionRule::Immobilized,
-    ),
-    tracked(
-        "conditionitems:fuG8dgthlDWfWjIA",
-        "Indifferent",
-        "indifferent",
-        false,
-        None,
-        CREATURES,
-        ATTITUDE,
-        ConditionRule::Indifferent,
-    ),
-    tracked(
-        "conditionitems:zJxUflt9np0q4yML",
-        "Invisible",
-        "invisible",
-        false,
-        None,
-        CREATURES,
-        DETECTION,
-        ConditionRule::Invisible,
-    ),
-    tracked(
-        "conditionitems:1wQY3JYyhMYeeV2G",
-        "Observed",
-        "observed",
-        false,
-        None,
-        CREATURES,
-        DETECTION,
-        ConditionRule::Observed,
-    ),
-    automated(
-        "conditionitems:AJh5ex99aV6VTggg",
-        "Off-Guard",
-        "off-guard",
-        false,
-        None,
-        CREATURES_AND_HAZARDS,
-        STAT_MODIFIER,
-        ConditionRule::OffGuard,
-    ),
-    tracked(
-        "conditionitems:6uEgoh53GbXuHpTF",
-        "Paralyzed",
-        "paralyzed",
-        false,
-        None,
-        CREATURES,
-        RUNTIME_STATE,
-        ConditionRule::Paralyzed,
-    ),
-    tracked(
-        "conditionitems:lDVqvLKA6eF3Df60",
-        "Persistent Damage",
-        "persistent-damage",
-        false,
-        None,
-        CREATURES_AND_HAZARDS,
-        RUNTIME_STATE,
-        ConditionRule::PersistentDamage,
-    ),
-    tracked(
-        "conditionitems:dTwPJuKgBQCMxixg",
-        "Petrified",
-        "petrified",
-        false,
-        None,
-        CREATURES_AND_HAZARDS,
-        RUNTIME_STATE,
-        ConditionRule::Petrified,
-    ),
-    automated(
-        "conditionitems:j91X7x0XSomq8d60",
-        "Prone",
-        "prone",
-        false,
-        None,
-        CREATURES,
-        RUNTIME_STATE,
-        ConditionRule::Prone,
-    ),
-    automated(
-        "conditionitems:nlCjDvLMf2EkV2dl",
-        "Quickened",
-        "quickened",
-        false,
-        None,
-        CREATURES,
-        ACTION_ECONOMY,
-        ConditionRule::Quickened,
-    ),
-    automated(
-        "conditionitems:VcDeM8A5oI6VqhbM",
-        "Restrained",
-        "restrained",
-        false,
-        None,
-        CREATURES,
-        RUNTIME_STATE,
-        ConditionRule::Restrained,
-    ),
-    automated(
-        "conditionitems:fesd1n5eVhpCSS18",
-        "Sickened",
-        "sickened",
-        true,
-        Some(1),
-        CREATURES_AND_HAZARDS,
-        STAT_MODIFIER,
-        ConditionRule::Sickened,
-    ),
-    automated(
-        "conditionitems:xYTAsEpcJE1Ccni3",
-        "Slowed",
-        "slowed",
-        true,
-        Some(1),
-        CREATURES,
-        ACTION_ECONOMY,
-        ConditionRule::Slowed,
-    ),
-    automated(
-        "conditionitems:dfCMdR4wnpbYNTix",
-        "Stunned",
-        "stunned",
-        true,
-        Some(1),
-        CREATURES,
-        ACTION_ECONOMY,
-        ConditionRule::Stunned,
-    ),
-    automated(
-        "conditionitems:e1XGnhKNSQIm5IXg",
-        "Stupefied",
-        "stupefied",
-        true,
-        Some(1),
-        CREATURES_AND_HAZARDS,
-        STAT_MODIFIER,
-        ConditionRule::Stupefied,
-    ),
-    tracked(
-        "conditionitems:fBnFDH2MTzgFijKf",
-        "Unconscious",
-        "unconscious",
-        false,
-        None,
-        CREATURES,
-        DEATH_AND_DYING,
-        ConditionRule::Unconscious,
-    ),
-    tracked(
-        "conditionitems:VRSef5y1LmL2Hkjf",
-        "Undetected",
-        "undetected",
-        false,
-        None,
-        CREATURES,
-        DETECTION,
-        ConditionRule::Undetected,
-    ),
-    tracked(
-        "conditionitems:I1ffBVISxLr2gC4u",
-        "Unfriendly",
-        "unfriendly",
-        false,
-        None,
-        CREATURES,
-        ATTITUDE,
-        ConditionRule::Unfriendly,
-    ),
-    tracked(
-        "conditionitems:9evPzg9E6muFcoSk",
-        "Unnoticed",
-        "unnoticed",
-        false,
-        None,
-        CREATURES,
-        DETECTION,
-        ConditionRule::Unnoticed,
-    ),
-    tracked(
-        "conditionitems:Yl48xTdMh3aeQYL2",
-        "Wounded",
-        "wounded",
-        true,
-        Some(1),
-        CREATURES,
-        DEATH_AND_DYING,
-        ConditionRule::Wounded,
-    ),
-];
-
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Catalog constructors name independent condition definition fields"
-)]
-const fn tracked(
-    condition_ref: &'static str,
-    name: &'static str,
-    slug: &'static str,
-    has_value: bool,
-    default_value: Option<i64>,
-    applies_to: &'static [AppliesTo],
-    categories: &'static [Category],
+fn condition_policy(
     rule: ConditionRule,
-) -> ModeledCondition {
-    ModeledCondition {
-        condition_ref,
-        name,
-        slug,
-        automation_level: Automation::Tracked,
-        applies_to,
-        categories,
-        has_value,
-        default_value,
-        rule: Some(rule),
-    }
-}
-
-#[expect(
-    clippy::too_many_arguments,
-    reason = "Catalog constructors name independent condition definition fields"
-)]
-const fn automated(
-    condition_ref: &'static str,
-    name: &'static str,
-    slug: &'static str,
-    has_value: bool,
-    default_value: Option<i64>,
-    applies_to: &'static [AppliesTo],
-    categories: &'static [Category],
-    rule: ConditionRule,
-) -> ModeledCondition {
-    ModeledCondition {
-        condition_ref,
-        name,
-        slug,
-        automation_level: Automation::Automated,
-        applies_to,
-        categories,
-        has_value,
-        default_value,
-        rule: Some(rule),
-    }
+) -> Option<(Automation, &'static [AppliesTo], &'static [Category])> {
+    use ConditionRule::*;
+    Some(match rule {
+        Cursebound => return None,
+        Blinded => (Automation::Automated, CREATURES, DETECTION),
+        Broken => (Automation::Tracked, &[AppliesTo::Hazard], OBJECT_STATE),
+        Clumsy | Enfeebled | Frightened | OffGuard | Sickened | Stupefied => {
+            (Automation::Automated, CREATURES_AND_HAZARDS, STAT_MODIFIER)
+        }
+        Concealed | Dazzled | Hidden | Invisible | Observed | Undetected | Unnoticed => {
+            (Automation::Tracked, CREATURES, DETECTION)
+        }
+        Confused | Controlled | Deafened | Fascinated | Fatigued | Fleeing | Paralyzed => {
+            (Automation::Tracked, CREATURES, RUNTIME_STATE)
+        }
+        Doomed | Drained | Dying | Unconscious | Wounded => {
+            (Automation::Tracked, CREATURES, DEATH_AND_DYING)
+        }
+        Encumbered | Grabbed | Immobilized | Prone | Restrained => {
+            (Automation::Automated, CREATURES, RUNTIME_STATE)
+        }
+        Friendly | Helpful | Hostile | Indifferent | Unfriendly => {
+            (Automation::Tracked, CREATURES, ATTITUDE)
+        }
+        PersistentDamage | Petrified => (Automation::Tracked, CREATURES_AND_HAZARDS, RUNTIME_STATE),
+        Quickened | Slowed | Stunned => (Automation::Automated, CREATURES, ACTION_ECONOMY),
+    })
 }
 
 pub(super) fn condition_catalog() -> EncounterConditionCatalogView {
@@ -601,8 +112,9 @@ pub(super) fn condition_catalog() -> EncounterConditionCatalogView {
                 .collect(),
         })
         .collect(),
-        conditions: MODELED_CONDITIONS
+        conditions: CONDITION_DEFINITIONS
             .iter()
+            .filter_map(|definition| modeled_condition_by_rule(definition.id))
             .map(|condition| EncounterConditionDefinitionView {
                 editor_kind: match condition.rule {
                     Some(
@@ -653,20 +165,25 @@ pub(super) fn condition_catalog() -> EncounterConditionCatalogView {
 }
 
 pub(super) fn modeled_condition_by_ref(condition_ref: &str) -> Option<ModeledCondition> {
-    MODELED_CONDITIONS
-        .iter()
-        .copied()
-        .find(|condition| condition.condition_ref == condition_ref)
+    modeled_condition_by_rule(ConditionRule::from_record_key(condition_ref)?)
 }
 
 pub(super) fn condition_rule_for_key(condition_key: Option<&str>) -> Option<ConditionRule> {
-    let condition_key = condition_key?;
-    modeled_condition_by_ref(condition_key).and_then(|condition| condition.rule)
+    modeled_condition_by_ref(condition_key?).and_then(|condition| condition.rule)
 }
 
 pub(super) fn modeled_condition_by_rule(rule: ConditionRule) -> Option<ModeledCondition> {
-    MODELED_CONDITIONS
-        .iter()
-        .copied()
-        .find(|condition| condition.rule == Some(rule))
+    let (automation_level, applies_to, categories) = condition_policy(rule)?;
+    let definition = rule.definition();
+    Some(ModeledCondition {
+        condition_ref: definition.record_key,
+        name: definition.name,
+        slug: definition.slug,
+        has_value: definition.has_value,
+        default_value: definition.default_value,
+        automation_level,
+        applies_to,
+        categories,
+        rule: Some(rule),
+    })
 }

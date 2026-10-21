@@ -1,8 +1,10 @@
 //! All persistent types at one boundary feed one HP/lifecycle event.
+use super::event_execution::EncounterEvent;
+use super::rules::hp_events::HpEventInput;
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::{
-    ApplyPersistentDamageRequest, HpEventInputView, PersistentDamageInput,
-    PersistentDamageOutcomeView, PersistentDamageResultView,
+    ApplyPersistentDamageRequest, PersistentDamageInput, PersistentDamageOutcomeView,
+    PersistentDamageResultView,
 };
 use atlas_local_state::{
     ConditionEventOutcome, ConditionParameters, EncounterEventReceipt, PersistentDamageOutcome,
@@ -192,136 +194,129 @@ impl AtlasAppService {
             .unwrap_or(i64::MAX);
         let subject = super::hp_events::hp_subject_context(
             self,
-            encounter_ref,
             participant,
-            &HpEventInputView::ResolvedDamage {
+            &HpEventInput::ResolvedDamage {
                 amount: possible_damage,
             },
         )?;
-        if subject.participant.revision != participant.revision {
+        let context = super::hp_events::hp_context_for_subject(request.context.clone(), &subject);
+        if reference_revision.is_some()
+            && subject.reference_revision.is_some()
+            && reference_revision != subject.reference_revision
+        {
             return Err(AppServiceError::invalid_request(
-                "Participant changed; review the damage",
+                "Reference data changed; reload before rolling",
             ));
         }
-        let context = super::hp_events::hp_context_for_subject(request.context.clone(), &subject);
-        self.with_write(|session| {
-            let store = session.local_state().encounters();
-            if let Some(receipt) = store.condition_event_receipt(
-                &snapshot.encounter.encounter_key,
-                &request.request_id,
-                &intent,
-            )? {
-                return damage_view(receipt);
-            }
-            if let Some(revision) = reference_revision {
-                session.require_reference_revision(revision)?;
-            }
-            if let Some(revision) = subject.reference_revision {
-                session.require_reference_revision(revision)?;
-            }
-            let current = store
-                .get(&snapshot.encounter.encounter_key)?
-                .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
-            if current.revision != request.expected_encounter_revision
-                || snapshot.encounter.revision != request.expected_encounter_revision
-            {
-                return Err(atlas_local_state::LocalStateError::StaleEncounterRevision {
-                    encounter_key: current.encounter_key,
-                    expected_revision: request.expected_encounter_revision,
-                    actual_revision: current.revision,
-                }
-                .into());
-            }
-            let claim = super::persistent_damage::boundary_claim(
-                participant,
-                round,
-                atlas_local_state::EncounterBoundaryKind::PersistentDamage,
-                "",
-            );
-            if store.boundary_claimed(&current.encounter_key, &claim)? {
-                return Err(atlas_local_state::LocalStateError::EncounterBoundaryConflict.into());
-            }
-            let mut outcomes = vec![];
-            let mut selections = vec![];
-            let mut total = 0i64;
-            for (group, input, selected, multiplier, roll, protection) in prepared {
-                let rolled = roll
-                    .map(|roll| roll.roll())
-                    .transpose()
-                    .map_err(atlas_local_state::LocalStateError::from)?;
-                let amount = match &input.damage {
-                    PersistentDamageInput::TableResult { amount } => *amount,
-                    PersistentDamageInput::Roll => {
-                        let roll = rolled.as_ref().ok_or_else(|| {
-                            AppServiceError::invalid_request("Damage roll unavailable")
-                        })?;
-                        let protection = protection.ok_or_else(|| {
-                            AppServiceError::invalid_request("Damage protections unavailable")
-                        })?;
-                        protection.apply(super::rules::persistent_damage::scaled(
-                            i64::from(roll.total),
-                            multiplier,
-                        ))
-                    }
-                };
-                total = total
-                    .checked_add(amount)
-                    .ok_or_else(|| AppServiceError::invalid_request("Damage total is too large"))?;
-                outcomes.push(PersistentDamageOutcome {
-                    episode_id: group.episode_id.into(),
-                    damage_type: group.damage_type.into(),
-                    source_condition_id: selected,
-                    roll: rolled,
-                    amount,
-                    table_resolved: matches!(
-                        input.damage,
-                        PersistentDamageInput::TableResult { .. }
-                    ),
-                });
-                selections.push(PersistentSelectionChange {
-                    participant_key: participant.participant_key.clone(),
-                    selection: PersistentSourceSelection {
+        if participant.current_hp.is_none() {
+            return Err(AppServiceError::invalid_request(
+                "Set current HP before recording this event",
+            ));
+        }
+        let claim = super::persistent_damage::boundary_claim(
+            participant,
+            round,
+            atlas_local_state::EncounterBoundaryKind::PersistentDamage,
+            "",
+        );
+        let receipt = EncounterEvent {
+            encounter_key: &snapshot.encounter.encounter_key,
+            request_id: &request.request_id,
+            intent: &intent,
+            expected_revision: request.expected_encounter_revision,
+            reference_revision: reference_revision.or(subject.reference_revision),
+            participant_revision: None,
+        }
+        .evaluate(
+            self,
+            atlas_local_state::ConditionEventBoundary {
+                claims: &[claim],
+                outgoing_boundary_key: request.boundary_key.as_deref(),
+            },
+            || {
+                let mut outcomes = vec![];
+                let mut selections = vec![];
+                let mut total = 0i64;
+                for (group, input, selected, multiplier, roll, protection) in prepared {
+                    let rolled = roll
+                        .map(|roll| roll.roll())
+                        .transpose()
+                        .map_err(atlas_local_state::LocalStateError::from)?;
+                    let amount = match &input.damage {
+                        PersistentDamageInput::TableResult { amount } => *amount,
+                        PersistentDamageInput::Roll => {
+                            let roll = rolled.as_ref().ok_or_else(|| {
+                                atlas_local_state::LocalStateError::InvalidRollRequest(
+                                    "Damage roll unavailable",
+                                )
+                            })?;
+                            let protection = protection.ok_or_else(|| {
+                                atlas_local_state::LocalStateError::InvalidRollRequest(
+                                    "Damage protections unavailable",
+                                )
+                            })?;
+                            protection.apply(super::rules::persistent_damage::scaled(
+                                i64::from(roll.total),
+                                multiplier,
+                            ))
+                        }
+                    };
+                    total = total.checked_add(amount).ok_or_else(|| {
+                        atlas_local_state::LocalStateError::InvalidRollRequest(
+                            "Damage total is too large",
+                        )
+                    })?;
+                    outcomes.push(PersistentDamageOutcome {
                         episode_id: group.episode_id.into(),
-                        selected_source_id: selected,
-                        source_condition_ids: group
-                            .sources
-                            .iter()
-                            .map(|source| source.condition_id)
-                            .collect(),
-                    },
-                });
-            }
-            let hardness_absorbed = total.min(hardness);
-            total -= hardness_absorbed;
-            let mut changes = super::rules::hp_events::plan_hp_event(
-                participant,
-                &HpEventInputView::ResolvedDamage { amount: total },
-                &context,
-                participant.max_hp,
-                &request.request_id,
-            )?;
-            changes.selection_changes = selections;
-            changes
-                .outcomes
-                .push(ConditionEventOutcome::PersistentDamage {
-                    participant_key: participant.participant_key.clone(),
-                    groups: outcomes,
-                    total,
-                    hardness_absorbed,
-                });
-            let receipt = store.apply_claimed_condition_event(
-                &snapshot.encounter.encounter_key,
-                &request.request_id,
-                &intent,
-                request.expected_encounter_revision,
-                atlas_local_state::ConditionEventBoundary {
-                    claims: &[claim],
-                    outgoing_boundary_key: request.boundary_key.as_deref(),
-                },
-                changes,
-            )?;
-            damage_view(receipt)
-        })
+                        damage_type: group.damage_type.into(),
+                        source_condition_id: selected,
+                        roll: rolled,
+                        amount,
+                        table_resolved: matches!(
+                            input.damage,
+                            PersistentDamageInput::TableResult { .. }
+                        ),
+                    });
+                    selections.push(PersistentSelectionChange {
+                        participant_key: participant.participant_key.clone(),
+                        selection: PersistentSourceSelection {
+                            episode_id: group.episode_id.into(),
+                            selected_source_id: selected,
+                            source_condition_ids: group
+                                .sources
+                                .iter()
+                                .map(|source| source.condition_id)
+                                .collect(),
+                        },
+                    });
+                }
+                let hardness_absorbed = total.min(hardness);
+                total -= hardness_absorbed;
+                let mut changes = super::rules::hp_events::plan_hp_event(
+                    participant,
+                    &HpEventInput::ResolvedDamage { amount: total },
+                    &context,
+                    participant.max_hp,
+                    &request.request_id,
+                )
+                .map_err(|_| {
+                    atlas_local_state::LocalStateError::InvalidRollRequest(
+                        "Persistent damage could not be applied",
+                    )
+                })?;
+                changes.selection_changes = selections;
+                changes
+                    .outcomes
+                    .push(ConditionEventOutcome::PersistentDamage {
+                        participant_key: participant.participant_key.clone(),
+                        groups: outcomes,
+                        total,
+                        hardness_absorbed,
+                    });
+                Ok(changes)
+            },
+        )?;
+        damage_view(receipt)
     }
 }
 

@@ -1,58 +1,24 @@
+import { encounterParticipant } from "./encounterTestFixtures";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider } from "antd";
 import { EncounterConditionLifecycle } from "./EncounterConditionLifecycle";
 import type {
   ConditionLifecycleOptionView,
-  EncounterParticipantView,
+  ConditionRecoveryOfferView,
 } from "../../generated/atlas";
 const api = vi.hoisted(() => ({
   getEncounterConditionLifecycleActions: vi.fn(),
   previewEncounterRetch: vi.fn(),
 }));
 vi.mock("../../api/atlasApi", () => api);
-const participant: EncounterParticipantView = {
-  participant_key: "actor",
-  display_name: "Actor",
-  participant_kind: "pc",
-  revision: 1n,
-  hp_origin: "explicit",
-  variant_origin: "explicit",
-  participant_variant: "normal",
-  status: "active",
-  position: 1n,
-  side: "pc",
-  initiative_order: 1n,
-  temporary_hp: 0n,
-  defeated: false,
-  hazard_disabled: false,
-  cast_unavailable_reason: null,
-  hidden: false,
-  note_hint: null,
-  track_dying: true,
-  mortality: "alive",
-  base_death_threshold: 4n,
-  persistent_damage_groups: [],
-  conditions: [],
-};
-function option(
-  kind: ConditionLifecycleOptionView["kind"],
-  required_inputs: ConditionLifecycleOptionView["required_inputs"],
-): ConditionLifecycleOptionView {
+const participant = encounterParticipant();
+function option(action: ConditionRecoveryOfferView): ConditionLifecycleOptionView {
   return {
-    kind,
+    ...action,
     label: "Projected recovery",
-    condition_id: null,
-    consequence_key: null,
-    source_condition_ids: [],
-    dc: null,
-    modifier: null,
-    required_inputs,
     available: true,
     unavailable_reason: null,
-    issues: [],
-    qualifying_damage: null,
-    actions_lost: null,
   };
 }
 function setup(action: ConditionLifecycleOptionView, actor = participant) {
@@ -97,9 +63,7 @@ async function choose(label: string, value: string) {
 }
 it("renders a projected check and submits its typed table outcome", async () => {
   const onApply = setup({
-    ...option("dying_recovery", ["check"]),
-    dc: 13n,
-    modifier: 0n,
+    ...option({ kind: "dying_recovery", check: { dc: 13n, modifier: 0n } }),
   });
   await open();
   fireEvent.click(screen.getByText("Table outcome"));
@@ -138,8 +102,7 @@ it("requires a source-specific minimum instead of assuming a frightened floor", 
   };
   const onApply = setup(
     {
-      ...option("frightened_end_turn", ["frightened_decisions"]),
-      source_condition_ids: [7n],
+      ...option({ kind: "frightened_end_turn", decision_source_ids: [7n] }),
     },
     actor,
   );
@@ -200,11 +163,12 @@ it("rechecks source-specific action answers and keeps known prohibitions authori
       : [issue],
   }));
   const onApply = setup({
-    ...option("retch", ["check", "actions_spent", "action_judgments"]),
-    condition_id: 7n,
-    issues: [issue],
-    dc: 15n,
-    modifier: 4n,
+    ...option({
+      kind: "retch",
+      condition_id: 7n,
+      issues: [issue],
+      check: { dc: 15n, modifier: 4n },
+    }),
   });
   await open();
   fireEvent.click(screen.getByRole("checkbox", { name: "Actions spent" }));
@@ -229,10 +193,13 @@ it("rechecks source-specific action answers and keeps known prohibitions authori
 });
 it("declines a saved optional recovery check without inventing a failed roll", async () => {
   const onApply = setup({
-    ...option("confused_damage_recovery", ["source_selection", "check"]),
-    consequence_key: "damage-opportunity",
-    source_condition_ids: [7n],
-    qualifying_damage: true,
+    ...option({
+      kind: "confused_damage_recovery",
+      consequence_key: "damage-opportunity",
+      source_condition_ids: [7n],
+      qualifying_damage: true,
+      check: { dc: 11n, modifier: 0n },
+    }),
   });
   await open();
   fireEvent.click(screen.getByText("Decline check"));
@@ -259,9 +226,7 @@ it("declines a saved optional recovery check without inventing a failed roll", a
 
 it("records the server's Stunned action-loss forecast without an editable amount", async () => {
   const onApply = setup({
-    ...option("stunned_actions_lost", ["actions_lost"]),
-    condition_id: 7n,
-    actions_lost: 2n,
+    ...option({ kind: "stunned_actions_lost", condition_id: 7n, actions_lost: 2n }),
   });
   await open();
   await waitFor(() => expect(screen.getByText("Actions lost: 2")).toBeVisible());

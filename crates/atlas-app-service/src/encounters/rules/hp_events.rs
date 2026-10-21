@@ -1,7 +1,12 @@
 //! Pure HP and mortality consequences for amounts already resolved by the caller.
 use super::super::conditions::{ConditionRule, condition_rule_for_key, modeled_condition_by_rule};
 use crate::{AppServiceError, AppServiceResult};
-use atlas_app_model::HpEventInputView;
+#[derive(Debug, Clone, Copy)]
+pub(in crate::encounters) enum HpEventInput {
+    ResolvedDamage { amount: i64 },
+    ResolvedHealing { amount: i64 },
+    DirectLoss { amount: i64 },
+}
 use atlas_local_state::{
     ConditionEventChange, ConditionOrigin, ConditionParameters, DamageLethality,
     EncounterParticipant, EncounterParticipantCondition, MortalityState, ParticipantEventChange,
@@ -10,7 +15,7 @@ use atlas_local_state::{
 
 pub(in crate::encounters) fn plan_hp_event(
     participant: &EncounterParticipant,
-    input: &HpEventInputView,
+    input: &HpEventInput,
     context: &SavedHpEventContext,
     effective_maximum: Option<i64>,
     request_id: &str,
@@ -19,9 +24,9 @@ pub(in crate::encounters) fn plan_hp_event(
         AppServiceError::invalid_request("Set current HP before recording this event")
     })?;
     let amount = match input {
-        HpEventInputView::ResolvedDamage { amount }
-        | HpEventInputView::ResolvedHealing { amount }
-        | HpEventInputView::DirectLoss { amount } => *amount,
+        HpEventInput::ResolvedDamage { amount }
+        | HpEventInput::ResolvedHealing { amount }
+        | HpEventInput::DirectLoss { amount } => *amount,
     };
     if !(0..=9_007_199_254_740_991).contains(&amount) {
         return Err(AppServiceError::invalid_request(
@@ -36,7 +41,7 @@ pub(in crate::encounters) fn plan_hp_event(
     let mut update = ParticipantEventChange::preserving(participant);
     let mut changes = PreparedConditionEvent::default();
     match input {
-        HpEventInputView::DirectLoss { .. } => {
+        HpEventInput::DirectLoss { .. } => {
             update.current_hp = Some(current.saturating_sub(amount).max(0));
             if current > 0 && update.current_hp == Some(0) {
                 if has(participant, ConditionRule::Petrified) {
@@ -74,7 +79,7 @@ pub(in crate::encounters) fn plan_hp_event(
                 }
             }
         }
-        HpEventInputView::ResolvedHealing { .. } => {
+        HpEventInput::ResolvedHealing { .. } => {
             let healed = current.checked_add(amount).ok_or_else(|| {
                 AppServiceError::invalid_request("Healing would overflow current HP")
             })?;
@@ -108,7 +113,7 @@ pub(in crate::encounters) fn plan_hp_event(
                 }
             }
         }
-        HpEventInputView::ResolvedDamage { .. } => {
+        HpEventInput::ResolvedDamage { .. } => {
             let temporary_damage = participant.temporary_hp.min(amount);
             update.temporary_hp -= temporary_damage;
             update.current_hp = Some(current.saturating_sub(amount - temporary_damage).max(0));
@@ -333,7 +338,10 @@ fn plan_damage_lifecycle(
             changes,
         )?;
     }
-    if context.keep_upright != Some(true) && !has(participant, ConditionRule::Prone) {
+    if context.keep_upright != Some(true)
+        && super::causes::application_grants(ConditionRule::Unconscious, ConditionRule::Prone)
+        && !has(participant, ConditionRule::Prone)
+    {
         add_condition(
             participant,
             ConditionRule::Prone,
@@ -446,7 +454,7 @@ pub(in crate::encounters) fn resolve_pending_lifecycle(
     changes.participant_changes.push(update);
     Ok(changes)
 }
-pub(super) fn has(participant: &EncounterParticipant, rule: ConditionRule) -> bool {
+pub(in crate::encounters) fn has(participant: &EncounterParticipant, rule: ConditionRule) -> bool {
     participant
         .conditions
         .iter()

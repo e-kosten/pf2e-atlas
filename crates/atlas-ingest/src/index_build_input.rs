@@ -20,6 +20,7 @@ pub(crate) struct PendingSemanticUnit {
 pub(crate) struct PreparedBuildInput {
     pub(crate) index: IndexBuildInput,
     pub(crate) pending: Vec<PendingSemanticUnit>,
+    pub(crate) trait_pending: Vec<crate::traits::PendingTraitInput>,
     pub(crate) context_shortened: usize,
 }
 pub(crate) fn index_build_input(
@@ -36,6 +37,8 @@ pub(crate) fn index_build_input(
         .map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
     let mut output = PreparedBuildInput {
         index: IndexBuildInput {
+            traits: vec![],
+            trait_vectors: vec![],
             records: vec![],
             packs: vec![],
             context,
@@ -45,6 +48,7 @@ pub(crate) fn index_build_input(
             semantic_units: vec![],
         },
         pending: vec![],
+        trait_pending: vec![],
         context_shortened: 0,
     };
     for pack in source.packs {

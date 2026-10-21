@@ -1,4 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  encounterParticipant,
+  renderEncounter as render,
+} from "./encounterTestFixtures";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import type {
   EncounterConditionDefinitionView,
   EncounterParticipantView,
@@ -11,28 +15,11 @@ import { EncounterConditionControls } from "./EncounterConditionControls";
 it("edits typed persistent damage while preserving its episode, origin and independent duration", async () => {
   const onUpdate = vi.fn().mockRejectedValue(new Error("Try again"));
   const onPreview = vi.fn().mockResolvedValue({ consequences: [] });
-  const current: EncounterParticipantView = {
-    cast_unavailable_reason: null,
-    revision: 0n,
-    hp_origin: "explicit",
-    variant_origin: "explicit",
+  const current = encounterParticipant({
     participant_kind: "creature",
-    participant_variant: "normal",
-    status: "active",
-    position: 1n,
     side: "enemy",
-    initiative_order: 1n,
-    temporary_hp: 0n,
-    defeated: false,
-    hazard_disabled: false,
-    hidden: false,
-    note_hint: null,
-    persistent_damage_groups: [],
     track_dying: false,
-    mortality: "alive",
-    base_death_threshold: 4n,
-    participant_key: "actor",
-    display_name: "Actor",
+    revision: 0n,
     conditions: [
       {
         condition_id: 9n,
@@ -66,7 +53,7 @@ it("edits typed persistent damage while preserving its episode, origin and indep
         updated_at: "now",
       },
     ],
-  };
+  });
   const definitions: EncounterConditionDefinitionView[] = [
     {
       condition_ref: "conditionitems:example",
@@ -122,7 +109,13 @@ it("edits typed persistent damage while preserving its episode, origin and indep
       expect.objectContaining({
         expected_encounter_revision: 14n,
         event_intent: "apply",
-        parameters: { ...current.conditions[0].parameters, formula: "3d6" },
+        parameters: {
+          kind: "persistent_damage",
+          formula: "3d6",
+          damage_type: "fire",
+          multiplier: "double",
+          recovery: { kind: "specified", dc: 12n },
+        },
         origin: current.conditions[0].origin,
         duration: current.conditions[0].duration,
       }),
@@ -150,10 +143,11 @@ it("edits typed persistent damage while preserving its episode, origin and indep
       "actor",
       expect.objectContaining({
         parameters: {
-          ...current.conditions[0].parameters,
+          kind: "persistent_damage",
           formula: "3d6",
           damage_type: "cold",
-          episode_id: undefined,
+          multiplier: "double",
+          recovery: { kind: "specified", dc: 12n },
         },
         origin: current.conditions[0].origin,
         duration: current.conditions[0].duration,

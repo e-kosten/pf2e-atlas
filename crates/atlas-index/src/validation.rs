@@ -85,6 +85,7 @@ pub fn validate_artifact(path: impl AsRef<Path>) -> Result<ArtifactValidationRep
 /// This does not start or commit a transaction or reopen the database by path.
 pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, IndexError> {
     let context = validate_open(c)?;
+    crate::traits::validate_traits(c, &context)?;
     tracing::info!(target:"atlas_progress",phase="artifact_integrity","Checking database integrity");
     let integrity: String = c.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
     if integrity != "ok" {

@@ -387,12 +387,18 @@ Use the dependencies appropriate to the source version being inspected. The lock
 
 Output files are `type-graph.json`, `trait-catalog.json` and `summary.json`. Output belongs outside the source input directories. The command prints the summary. `--strict` exits 1 when either extraction is incomplete, after writing the available discovery output and diagnostics. Without it, partial discovery exits 0 with `complete: false`. Invalid arguments, unreadable required inputs and fatal errors exit 1.
 
-Pinned Rust generation also emits `trait_labels.rs`: a key-only map from verified
-trait identifiers to authored localization keys. Repeated equal memberships share
-one entry; conflicting keys or incomplete catalogs fail generation. Runtime ingest
-resolves only labels used by selected source records with the indexing locale and
-English fallback. Unknown valid trait identifiers stay open, with no guessed key.
-Descriptions and the complete discovery catalog remain developer cache evidence.
+Pinned Rust generation emits `trait_definitions.rs`: one trait-namespace catalog
+of exact identifiers, optional authored label/description localization keys,
+catalog memberships and compact source locations. Repeated memberships share one
+identity; conflicting keys or incomplete catalogs fail generation. The generated
+header retains the pinned upstream source/license links, copyright and the
+transformation performed. It includes no localized prose.
+
+Runtime ingest uses this same catalog for used record labels and addressable trait
+definitions, resolving text with the indexing locale and English fallback. Unknown
+valid identifiers stay open, with no guessed key; missing mappings remain absent.
+Resolved text and the complete discovery catalog remain developer cache evidence,
+while prepared selected definitions are published through ordinary reference ingest.
 
 ## Declaration graph
 
@@ -429,3 +435,25 @@ The PF2e 8.6.1 pin has 45 roots: five document kinds (all 25 Item and eight Acto
 The summary records a source digest, source version, Git commit/dirty state when the source is a checkout, TypeScript version and dependency lock digest. Archives have no Git identity. The source digest covers relative names and bytes of `src`, `types`, the package and system manifests, compiler config and English localization; it is independent of checkout location. The lock digest identifies the intended environment; it does not attest an arbitrary external `node_modules` installation.
 
 Save outputs for each source revision and use a normal JSON diff to discover field, vocabulary and metadata changes. Extraction output is developer evidence, not a runtime admission gate or a tracked generated Rust model. See the [source-contract experiment](../../docs/backlog/history/items/rust-source-contract-generation.md) and [selective recovery inventory](../../docs/backlog/items/rust-integration-recovery.md) for the remaining work.
+
+## Condition and trait-immunity facts
+
+The generated condition catalog selects identities, numeric/value metadata, modifiers,
+grants, overrides and HP-loss expressions from `packs/pf2e/conditions`. Its typed
+expression/predicate projection accepts only supported shapes. The trait-immunity
+extractor accounts for every statement in the selected `setImmunitiesFromTraits`
+helper; it emits actor/trait/authored-entry predicates rather than executing upstream
+code or matching a hardcoded list of trait names. New unsupported syntax fails.
+
+`fixtures/condition-rule-coverage.json` records reviewed Atlas adapters, exceptional
+persistent-grant lifetimes and override dispositions. Unreviewed declarations, stale
+entries, grant cycles and unknown destinations fail generation. Condition source
+files are part of the private pinned export and are checked against the separate
+`conditionSourceDigest` in `source-pin.json`. An older export missing these inputs
+must be removed/regenerated through the tool-owned cache workflow. The caller's
+checkout and the runtime managed cache are never repaired by generation.
+
+`condition_definitions.rs` carries its own catalog identity/provenance. It does not
+copy condition descriptions, change the checked snapshot format or introduce a
+runtime filesystem/Node dependency. Application policy owns contextual meaning,
+lifetimes and events. See ADR0055 for this consumer boundary.

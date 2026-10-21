@@ -61,6 +61,17 @@ pub(crate) trait AtlasWebService: Send + Sync {
         &self,
         request: atlas_app_model::RollFlatCheckRequest,
     ) -> Result<atlas_app_model::FlatCheckRollView, AppServiceError>;
+    fn trait_definition(
+        &self,
+        request: atlas_app_model::TraitDetailRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::TraitDetailView, AppServiceError>;
+    fn trait_records(
+        &self,
+        request: atlas_app_model::TraitRecordsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::TraitRecordsPage, AppServiceError>;
+
     fn parties(&self) -> Result<atlas_app_model::PartyIndexView, AppServiceError>;
     fn create_party(
         &self,
@@ -177,11 +188,6 @@ pub(crate) trait AtlasWebService: Send + Sync {
         encounter_ref: &str,
         request: atlas_app_model::RecoverPersistentDamageRequest,
     ) -> Result<atlas_app_model::PersistentRecoveryResultView, AppServiceError>;
-    fn apply_encounter_hp_event(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::ApplyEncounterHpEventRequest,
-    ) -> Result<EncounterMutationView, AppServiceError>;
     fn pending_encounter_hp_lifecycle(
         &self,
         encounter_ref: &str,
@@ -398,6 +404,21 @@ pub(crate) trait AtlasWebService: Send + Sync {
 }
 
 impl AtlasWebService for AtlasAppService {
+    fn trait_definition(
+        &self,
+        request: atlas_app_model::TraitDetailRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::TraitDetailView, AppServiceError> {
+        self.trait_definition(request, execution)
+    }
+    fn trait_records(
+        &self,
+        request: atlas_app_model::TraitRecordsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::TraitRecordsPage, AppServiceError> {
+        self.trait_records(request, execution)
+    }
+
     fn parties(&self) -> Result<atlas_app_model::PartyIndexView, AppServiceError> {
         self.parties()
     }
@@ -569,13 +590,6 @@ impl AtlasWebService for AtlasAppService {
         request: atlas_app_model::RecoverPersistentDamageRequest,
     ) -> Result<atlas_app_model::PersistentRecoveryResultView, AppServiceError> {
         self.recover_persistent_damage(encounter_ref, request)
-    }
-    fn apply_encounter_hp_event(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::ApplyEncounterHpEventRequest,
-    ) -> Result<EncounterMutationView, AppServiceError> {
-        self.apply_encounter_hp_event(encounter_ref, request)
     }
     fn pending_encounter_hp_lifecycle(
         &self,

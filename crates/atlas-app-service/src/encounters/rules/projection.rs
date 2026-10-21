@@ -77,147 +77,42 @@ fn project_for_opponent(
             facts
         })
         .collect::<Vec<_>>();
-    let blinded_penalty = block
+    let blinded_applies = block
         .senses_known
-        .then(|| super::senses::blinded_penalty(&available_senses, None))
+        .then(|| super::senses::blinded_penalty_applies(&available_senses, None))
         .flatten();
     for cause in super::causes::resolve_causes(participant, opponent, additional) {
         let c = cause.source;
         let rule = cause.rule;
-        let amount = match rule {
-            ConditionRule::Frightened
-            | ConditionRule::Sickened
-            | ConditionRule::Clumsy
-            | ConditionRule::Enfeebled
-            | ConditionRule::Stupefied
-            | ConditionRule::Drained => match cause.value {
-                Some(value) if value >= 0 => value,
-                _ => {
-                    block.unapplied_effects.push(condition_note(
-                        c,
-                        "Enter the condition value to calculate its penalties.",
-                    ));
-                    continue;
-                }
-            },
-            _ => 0,
-        };
-        let mut applied = false;
-        for v in &mut block.values {
-            let matched = match rule {
-                ConditionRule::Blinded => {
-                    v.target == StatisticTarget::Perception && blinded_penalty.is_some()
-                }
-                ConditionRule::Frightened | ConditionRule::Sickened => v.target.check_or_dc(),
-                ConditionRule::OffGuard => v.target == StatisticTarget::ArmorClass,
-                ConditionRule::Clumsy => v.ability == Some(Ability::Dexterity),
-                ConditionRule::Enfeebled => v.ability == Some(Ability::Strength),
-                ConditionRule::Stupefied => v.ability.is_some_and(Ability::mental),
-                ConditionRule::Drained => {
-                    v.ability == Some(Ability::Constitution)
-                        || (v.target == StatisticTarget::HitPointMaximum
-                            && block.adjusted_level.is_some())
-                }
-                ConditionRule::Fatigued => {
-                    v.target == StatisticTarget::ArmorClass || v.target.save()
-                }
-                ConditionRule::Fascinated => {
-                    v.target == StatisticTarget::Perception || v.target.skill()
-                }
-                ConditionRule::Unconscious => matches!(
-                    v.target,
-                    StatisticTarget::ArmorClass
-                        | StatisticTarget::Perception
-                        | StatisticTarget::Save(StatisticSave::Reflex)
-                ),
-                _ => false,
-            };
-            if matched {
-                let value = if matches!(rule, ConditionRule::OffGuard) {
-                    -2
-                } else if rule == ConditionRule::Fatigued {
-                    -1
-                } else if rule == ConditionRule::Fascinated {
-                    -2
-                } else if rule == ConditionRule::Unconscious {
-                    -4
-                } else if rule == ConditionRule::Drained
-                    && v.target == StatisticTarget::HitPointMaximum
-                {
-                    let Some(level) = block
-                        .adjusted_level
-                        .as_ref()
-                        .and_then(|level| level.as_i64())
-                    else {
-                        continue;
-                    };
-                    let Some(penalty) =
-                        drained_hp_penalty(amount, Some(level)).and_then(i64::checked_neg)
-                    else {
-                        continue;
-                    };
-                    penalty
-                } else if rule == ConditionRule::Blinded {
-                    blinded_penalty.unwrap_or(0)
-                } else if rule == ConditionRule::Encumbered {
-                    -1
-                } else {
-                    -amount
-                };
-                apply(
-                    v,
-                    Modifier {
-                        source: format!("condition:{}", c.condition_id),
-                        label: c.name.clone(),
-                        modifier_type: if matches!(
-                            rule,
-                            ConditionRule::OffGuard
-                                | ConditionRule::Grabbed
-                                | ConditionRule::Restrained
-                                | ConditionRule::Prone
-                        ) {
-                            ModifierType::Circumstance
-                        } else {
-                            ModifierType::Status
-                        },
-                        value,
-                    },
-                );
-                applied = true;
-            }
+        use super::condition_effects::{Context, Target, modifiers};
+        let level = block.adjusted_level.as_ref().and_then(Number::as_i64);
+        if rule.definition().modifiers.iter().any(|effect| {
+            !matches!(
+                effect.value,
+                atlas_foundry_model::generated::condition_definitions::ConditionValue::Fixed(_)
+            )
+        }) && cause.value.is_none_or(|value| value < 0)
+        {
+            block.unapplied_effects.push(condition_note(
+                c,
+                "Enter the condition value to calculate its penalties.",
+            ));
+            continue;
         }
-        // Pinned PF2e 8.6.1: MeleePF2e.defaultAttribute and
-        // getAttackDamageDomains define these selectors from typed strike traits.
-        for activity in &mut block.activities {
-            let penalty = match rule {
-                ConditionRule::Frightened | ConditionRule::Sickened => {
-                    Some((-amount, ModifierType::Status))
-                }
-                ConditionRule::Enfeebled if activity.attack_ability == Some(Ability::Strength) => {
-                    Some((-amount, ModifierType::Status))
-                }
-                ConditionRule::Clumsy if activity.attack_ability == Some(Ability::Dexterity) => {
-                    Some((-amount, ModifierType::Status))
-                }
-                ConditionRule::Stupefied
-                    if activity.attack_ability.is_some_and(Ability::mental) =>
-                {
-                    Some((-amount, ModifierType::Status))
-                }
-                ConditionRule::Drained
-                    if activity.attack_ability == Some(Ability::Constitution) =>
-                {
-                    Some((-amount, ModifierType::Status))
-                }
-                ConditionRule::Prone => Some((-2, ModifierType::Circumstance)),
-                _ => None,
-            };
-            if let Some((value, modifier_type)) = penalty {
-                for roll in &mut activity.rolls {
+        let mut applied = false;
+        for stat in &mut block.values {
+            let context = Context::statistic(&stat.target, stat.ability);
+            for (modifier_type, value) in modifiers(rule, cause.value, level, &context) {
+                let value = if rule == ConditionRule::Blinded {
+                    blinded_applies.and_then(|applies| if applies { value } else { Some(0) })
+                } else {
+                    value
+                };
+                if let Some(value) = value {
                     apply_modifier(
-                        &mut roll.adjusted_value,
-                        &mut roll.modifiers,
-                        &mut roll.suppressed_modifiers,
+                        &mut stat.adjusted_value,
+                        &mut stat.modifiers,
+                        &mut stat.suppressed_modifiers,
                         Modifier {
                             source: format!("condition:{}", c.condition_id),
                             label: c.name.clone(),
@@ -228,88 +123,139 @@ fn project_for_opponent(
                     applied = true;
                 }
             }
-            if let Some(dc) = &mut activity.difficulty_class {
-                let applies = match rule {
-                    ConditionRule::Frightened | ConditionRule::Sickened => true,
-                    ConditionRule::Stupefied => dc.ability.is_some_and(Ability::mental),
-                    ConditionRule::Clumsy => dc.ability == Some(Ability::Dexterity),
-                    ConditionRule::Enfeebled => dc.ability == Some(Ability::Strength),
-                    ConditionRule::Drained => dc.ability == Some(Ability::Constitution),
-                    _ => false,
-                };
-                if applies {
-                    apply(
-                        dc,
-                        Modifier {
-                            source: format!("condition:{}", c.condition_id),
-                            label: c.name.clone(),
-                            modifier_type: ModifierType::Status,
-                            value: -amount,
-                        },
-                    );
-                    applied = true;
+        }
+        for activity in &mut block.activities {
+            let context = Context {
+                target: Target::Attack,
+                ability: activity.attack_ability,
+                initiative: false,
+                auditory: activity
+                    .traits_known
+                    .then(|| activity.traits.iter().any(|t| t == "auditory")),
+            };
+            for (modifier_type, value) in modifiers(rule, cause.value, level, &context) {
+                if let Some(value) = value {
+                    for roll in &mut activity.rolls {
+                        apply_modifier(
+                            &mut roll.adjusted_value,
+                            &mut roll.modifiers,
+                            &mut roll.suppressed_modifiers,
+                            Modifier {
+                                source: format!("condition:{}", c.condition_id),
+                                label: c.name.clone(),
+                                modifier_type,
+                                value,
+                            },
+                        );
+                        applied = true;
+                    }
                 }
             }
-            if rule == ConditionRule::Enfeebled {
-                for damage in &mut activity.damage {
-                    if damage.effect_kind != DamageEffectKindView::Damage {
-                        continue;
+            if let Some(dc) = &mut activity.difficulty_class {
+                let context = Context::statistic(&dc.target, dc.ability);
+                for (modifier_type, value) in modifiers(rule, cause.value, level, &context) {
+                    if let Some(value) = value {
+                        apply_modifier(
+                            &mut dc.adjusted_value,
+                            &mut dc.modifiers,
+                            &mut dc.suppressed_modifiers,
+                            Modifier {
+                                source: format!("condition:{}", c.condition_id),
+                                label: c.name.clone(),
+                                modifier_type,
+                                value,
+                            },
+                        );
+                        applied = true;
                     }
-                    if !damage.ability_known {
-                        damage.unavailable_reason =
-                            Some("Damage ability is unavailable for Enfeebled.".into());
-                        continue;
+                }
+            }
+            for damage in &mut activity.damage {
+                if damage.effect_kind != DamageEffectKindView::Damage {
+                    continue;
+                }
+                if !damage.ability_known
+                    && rule
+                        .definition()
+                        .modifiers
+                        .iter()
+                        .any(|effect| effect.selectors.contains(&"str-damage"))
+                {
+                    damage.unavailable_reason =
+                        Some("Strength contribution is unavailable.".into());
+                    continue;
+                }
+                let context = Context {
+                    target: Target::Damage,
+                    ability: damage.ability,
+                    initiative: false,
+                    auditory: Some(false),
+                };
+                for (modifier_type, value) in modifiers(rule, cause.value, level, &context) {
+                    if let Some(value) = value {
+                        let mut contribution =
+                            Number::from(damage.modifiers.iter().map(|m| m.value).sum::<i64>());
+                        apply_modifier(
+                            &mut contribution,
+                            &mut damage.modifiers,
+                            &mut damage.suppressed_modifiers,
+                            Modifier {
+                                source: format!("condition:{}", c.condition_id),
+                                label: c.name.clone(),
+                                modifier_type,
+                                value,
+                            },
+                        );
+                        applied = true;
                     }
-                    if damage.ability != Some(Ability::Strength) {
-                        continue;
-                    }
-                    let mut contribution =
-                        Number::from(damage.modifiers.iter().map(|m| m.value).sum::<i64>());
-                    apply_modifier(
-                        &mut contribution,
-                        &mut damage.modifiers,
-                        &mut damage.suppressed_modifiers,
-                        Modifier {
-                            source: format!("condition:{}", c.condition_id),
-                            label: c.name.clone(),
-                            modifier_type: ModifierType::Status,
-                            value: -amount,
-                        },
-                    );
-                    applied = true;
                 }
             }
         }
-        if rule == ConditionRule::Encumbered {
-            movement_restriction = Some((rule, c));
-            applied |= !block.speeds.is_empty();
+        let context = Context {
+            target: Target::Speed,
+            ability: None,
+            initiative: false,
+            auditory: Some(false),
+        };
+        for (_, value) in modifiers(rule, cause.value, level, &context) {
+            if let Some(value) = value {
+                movement_restriction = Some((c, value));
+                applied |= !block.speeds.is_empty();
+            }
         }
         if let Some(reason) = condition_effect_hint(c, rule, applied) {
             block.unapplied_effects.push(condition_note(c, &reason));
         }
     }
-    if let Some((rule, condition)) = movement_restriction {
+    if let Some((condition, adjustment)) = movement_restriction {
         for speed in &mut block.speeds {
             let baseline = &speed.base_value_feet;
-            let restricted = if rule == ConditionRule::Encumbered {
-                if let Some(n) = baseline.as_i64() {
-                    Some(Number::from(if n > 0 { (n - 10).max(5) } else { n }))
-                } else if baseline.is_u64() {
-                    None
+            let restricted = if let Some(n) = baseline.as_i64() {
+                if n > 0 {
+                    n.checked_add(adjustment).map(|n| Number::from(n.max(5)))
                 } else {
-                    baseline.as_f64().and_then(|n| {
-                        Number::from_f64(if n > 0.0 { (n - 10.0).max(5.0) } else { n })
-                    })
+                    Some(Number::from(n))
                 }
+            } else if baseline.is_u64() {
+                None
             } else {
-                Some(Number::from(0))
+                baseline.as_f64().and_then(|n| {
+                    Number::from_f64(if n > 0.0 {
+                        (n + adjustment as f64).max(5.0)
+                    } else {
+                        n
+                    })
+                })
             };
             if let Some(restricted) = restricted {
                 speed.adjusted_value_feet = restricted;
                 speed.notes.push(RuntimeEffectNoteView {
                     source: condition.name.clone(),
                     label: condition.name.clone(),
-                    reason: "Speed reduced by 10 feet, to a minimum of 5 feet.".into(),
+                    reason: format!(
+                        "Speed reduced by {} feet, to a minimum of 5 feet.",
+                        adjustment.unsigned_abs()
+                    ),
                 });
             }
         }
@@ -350,7 +296,7 @@ fn project_for_opponent(
     let blinded = causes
         .iter()
         .any(|cause| cause.rule == ConditionRule::Blinded);
-    if blinded && blinded_penalty.is_none() {
+    if blinded && blinded_applies.is_none() {
         block.unresolved_stats.push(StatisticTarget::Perception);
     }
     let petrified = causes
@@ -405,7 +351,7 @@ fn project_for_opponent(
                 (blinded && facts.visual).then(|| "Blinded".into())
             };
         } else if blinded {
-            let penalty = blinded_penalty;
+            let penalty = blinded_applies;
             sense.perception = perception
                 .zip(penalty)
                 .and_then(|(value, _)| Number::from_f64(value));
@@ -744,23 +690,30 @@ pub(in crate::encounters) fn effective_hp_maximum(
     participant: &EncounterParticipant,
     level: Option<i64>,
 ) -> Option<i64> {
+    use super::condition_effects::{Context, modifiers};
     let level = participant.level_override.or(level);
-    let baseline = participant.max_hp?;
-    let mut penalty = 0;
-    for cause in super::causes::condition_causes(participant, None)
-        .into_iter()
-        .filter(|cause| cause.rule == ConditionRule::Drained)
-    {
-        let amount = cause.value.filter(|value| *value >= 0)?;
-        penalty = penalty.max(drained_hp_penalty(amount, level)?);
+    let mut total = participant.max_hp?;
+    let target = StatisticTarget::HitPointMaximum;
+    let context = Context::statistic(&target, None);
+    let mut resolved: Vec<(ModifierType, i64)> = Vec::new();
+    for cause in super::causes::condition_causes(participant, None) {
+        for (kind, value) in modifiers(cause.rule, cause.value, level, &context) {
+            let value = value?;
+            if let Some(existing) = resolved.iter_mut().find(|(old_kind, old)| {
+                *old_kind == kind && super::modifiers::competes(kind, *old, value)
+            }) {
+                if super::modifiers::stronger(value, existing.1) {
+                    existing.1 = value;
+                }
+            } else {
+                resolved.push((kind, value));
+            }
+        }
     }
-    baseline.checked_sub(penalty)
-}
-fn drained_hp_penalty(amount: i64, level: Option<i64>) -> Option<i64> {
-    if amount == 0 {
-        return Some(0);
+    for (_, value) in resolved {
+        total = total.checked_add(value)?;
     }
-    level?.max(1).checked_mul(amount)
+    Some(total)
 }
 
 /// Deafened penalizes Perception initiative even when another sense can perceive.
@@ -768,24 +721,36 @@ pub(in crate::encounters) fn project_initiative(
     mut block: StatBlockView,
     participant: &EncounterParticipant,
 ) -> StatBlockView {
-    for cause in super::causes::condition_causes(participant, None)
-        .into_iter()
-        .filter(|cause| cause.rule == ConditionRule::Deafened)
-    {
-        if let Some(value) = block
-            .values
-            .iter_mut()
-            .find(|value| value.target == StatisticTarget::Perception)
-        {
-            apply(
-                value,
-                Modifier {
-                    source: format!("condition:{}", cause.source.condition_id),
-                    label: cause.source.name.clone(),
-                    modifier_type: ModifierType::Status,
-                    value: -2,
-                },
-            );
+    use super::condition_effects::{Context, modifiers};
+    let target = StatisticTarget::Perception;
+    let context = Context {
+        initiative: true,
+        ..Context::statistic(&target, None)
+    };
+    let level = block.adjusted_level.as_ref().and_then(Number::as_i64);
+    for cause in super::causes::condition_causes(participant, None) {
+        if !cause.rule.definition().modifiers.iter().any(|effect| {
+            !matches!(
+                effect.predicate,
+                atlas_foundry_model::generated::condition_definitions::ConditionPredicate::All([])
+            )
+        }) {
+            continue;
+        }
+        for (modifier_type, value) in modifiers(cause.rule, cause.value, level, &context) {
+            if let (Some(value), Some(stat)) =
+                (value, block.values.iter_mut().find(|v| v.target == target))
+            {
+                apply(
+                    stat,
+                    Modifier {
+                        source: format!("condition:{}", cause.source.condition_id),
+                        label: cause.source.name.clone(),
+                        modifier_type,
+                        value,
+                    },
+                );
+            }
         }
     }
     block

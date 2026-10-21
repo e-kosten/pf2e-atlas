@@ -32,6 +32,7 @@ mod spells;
 mod persistent_damage;
 
 mod condition_events;
+mod event_execution;
 
 mod hp_events;
 

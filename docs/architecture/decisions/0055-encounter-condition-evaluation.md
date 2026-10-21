@@ -19,6 +19,28 @@ abilities, causes, modifiers and action judgments are domain facts. Outgoing
 presentation DTOs are not inputs to calculation. Display and mutation consumers
 use the same evaluated facts; presentation translates them without rule arithmetic.
 
+Standard condition identities, value metadata, numerical declarations, grants and
+overrides come from the pinned generated condition catalog in `atlas-foundry-model`.
+The private source-contract tool also extracts the complete supported trait-to-immunity
+helper into guarded declarations. New trait branches using supported syntax regenerate
+without trait-specific application code; unsupported control flow or rule fields stop
+generation. Reviewed adapter/lifetime dispositions account for source declarations
+that need explicit Atlas semantics. Product kind applicability, scope, automation
+labels and exceptional lifetimes remain application policy.
+
+One selector/value/predicate adapter serves statistics, strikes, spells, damage,
+initiative and effective HP. Generated declarations are immutable source facts,
+not executable JavaScript or a second general rule engine. The catalog has its own
+pack-byte/declaration/coverage identity, independent of the DTO snapshot contract.
+Normal execution needs neither Node nor the source checkout.
+
+One checked effective-immunity adapter combines authored entries and generated
+trait rules for condition applicability and persistent damage. It preserves authored
+exceptions and the engine's authored-entry precedence. Known positive facts survive
+partial data; incomplete authored lists and uncertain trait rules remain explicit.
+Unknown traits never become an empty trait list. Effect immunity such as mental
+immunity does not become blanket immunity to all conditions it could cause.
+
 Independent saved condition sources retain identity, scope, parameters, duration
 and origin. Resolve scope before suppression and derive maintained grants without
 saving duplicate child rows. Removing one source cannot remove an independent
@@ -102,8 +124,35 @@ Controlled retains source attribution and instructions; conflicting instructions
 remain a table decision. There are no saved baseline/adjudication layers, relationship
 editing APIs or observer-event automation without a UI workflow.
 
-One condition-system migration follows the published party migration. Unpublished
+One condition-system migration follows the published party and trait migrations. Unpublished
 prototype states do not become historical upgrades or compatibility paths.
+
+Condition eligibility reads typed immunity coverage and hazard health facts directly
+from checked source views. It does not hydrate record presentation or correlate
+presentation entries by position. Subject facts use the caller's participant snapshot;
+source and encounter revisions guard the eventual write.
+
+Recovery offers are action-specific data, not a nullable field bag plus a parallel
+required-input schema. Listing and check submission share the offered source facts.
+A request-local prepared lifecycle plan validates source decisions before RNG and
+resolves the actual check outcome once; it is never saved as an attempt. The concrete
+encounter event executor owns receipt recovery, reference/participant checks and
+entry to local-state's guarded callback. Storage remains the sole atomic write owner.
+
+Recovery reads reference facts only for current source statistics, Broken Threshold,
+or a Drained-adjusted maximum requiring an unknown level. Ordinary waking, rest and
+saved-counter recovery have no reference dependency or reference revision guard.
+Recovery menus retain these actions when reference data is unavailable and disable
+only the source-dependent offers. Outcome validation retains the specific rule
+message through the atomic boundary; failed outcomes save no receipt or boundary claim.
+
+Condition editing has one control-to-command adapter and one session owner for its
+request draft, query-backed preview and submission. Semantic preview effects identify
+their participant independently of storage change ordering. Persistent edit inputs
+retain optional formula/type but carry no resolved episode identity. Rust admits
+reminders versus complete sources and selects or preserves the canonical episode.
+Stored states remain distinct. HP damage/healing uses the product HP action command;
+resolved damage, healing and direct loss remain internal policy inputs.
 
 ## Consequences
 
