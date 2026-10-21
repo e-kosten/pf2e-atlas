@@ -23,6 +23,8 @@ export function SearchEntry({
       disabled={disabled}
       value={draft}
       allowClear
+      // Opening the narrow reader moves focus to Results; Enter must not activate it.
+      onPressEnter={(event) => event.preventDefault()}
       onChange={(event) => {
         const value = event.target.value;
         setEntry({ baseline: query, value });
