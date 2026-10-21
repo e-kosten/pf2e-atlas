@@ -77,6 +77,75 @@ describe("useSearchWorkspace", () => {
     expect(result.current.search.query).toBe("");
   });
 
+  it("keeps exact relationship scope through paging and recovery while disabling contextual counts", async () => {
+    const constraint = {
+      direction: "incoming" as const,
+      selection: {
+        record_key: "items:armor",
+        embedded_path: [{ collection: "items", identity: { Stable: "exact-entry" } }],
+        field: null,
+        passage: null,
+        source_fingerprint: "checked-source",
+      },
+      include_contents: true,
+    };
+    history.replaceState(
+      null,
+      "",
+      "/search" +
+        searchStateQueryString({
+          ...DEFAULT_SEARCH_STATE,
+          relationships: [constraint],
+        }),
+    );
+    apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>
+      Promise.resolve({
+        ...searchResultsPage([], { pageNumber: request.page.number }),
+        relationships: [
+          {
+            constraint: request.relationships![0],
+            record: summaryFixture("items:armor", "Leather Armor"),
+            title: "Exact entry",
+          },
+        ],
+      }),
+    );
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(result.current.resultPage).toBeDefined());
+    expect(result.current.filterCountsEnabled).toBe(false);
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() => expect(result.current.resultPage?.page.number).toBe(2));
+    expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+      relationships: [constraint],
+      expected_artifact_generation: "generation-a",
+    });
+    act(() =>
+      result.current.setSearch({
+        ...result.current.search,
+        relationships: [{ ...constraint, include_contents: false }],
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        result.current.resultPage?.relationships[0].constraint.include_contents,
+      ).toBe(false),
+    );
+    expect(result.current.pageNumber).toBe(1);
+    await act(async () => result.current.refreshResults());
+    await waitFor(() => expect(result.current.resultPage).toBeDefined());
+    expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+      relationships: [{ ...constraint, include_contents: false }],
+      expected_artifact_generation: null,
+      page: { number: 1 },
+    });
+    expect(result.current.search.relationships?.[0].selection).toEqual(
+      constraint.selection,
+    );
+  });
+
   it("switches ranking independently of the model and resets pagination", async () => {
     history.replaceState(null, "", "/search?q=harrowkin");
     apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>
@@ -999,6 +1068,7 @@ function searchResultsPage(
   options: { pageNumber?: number; generation?: string; profile?: string } = {},
 ): SearchResultsPage {
   return {
+    relationships: [],
     ranking: "score" as const,
     search_profile: options.profile ?? "bge-base",
     artifact_generation: options.generation ?? "generation-a",
@@ -1011,7 +1081,11 @@ function searchResultsPage(
       has_more: false,
       next_page: null,
     },
-    rows: recordKeys.map((key) => ({ record: summaryFixture(key), matches: [] })),
+    rows: recordKeys.map((key) => ({
+      record: summaryFixture(key),
+      relationship_evidence: [],
+      matches: [],
+    })),
     coverage: null,
   };
 }

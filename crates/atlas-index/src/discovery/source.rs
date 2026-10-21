@@ -162,6 +162,12 @@ pub(crate) fn field_counts(
 ) -> Result<QueryFacetOutcome<QueryFieldCounts>, IndexError> {
     let id = &request.field;
     let d = field(id)?;
+    if !request.query.relationships.is_empty() {
+        return Ok(QueryFacetOutcome::Unavailable {
+            reason: FacetUnavailableReason::RelationshipContext,
+        });
+    }
+
     let (query, member) = if let Some(clause_id) = &request.clause_id {
         let (base, _, member) = match remove_clause(&request.query, clause_id, d)? {
             QueryFacetOutcome::Available { value } => value,
@@ -397,6 +403,12 @@ pub fn facet_base_query(
     query: &ValidatedQuery,
 ) -> Result<QueryFacetOutcome<ValidatedQuery>, IndexError> {
     let descriptor = field(field_id)?;
+    if !query.relationships.is_empty() {
+        return Ok(QueryFacetOutcome::Unavailable {
+            reason: FacetUnavailableReason::RelationshipContext,
+        });
+    }
+
     match clause_id {
         Some(id) => Ok(remove_clause(query, id, descriptor)?.map(|(base, _, _)| base)),
         None => Ok(QueryFacetOutcome::Available {
@@ -547,6 +559,12 @@ pub(crate) fn field_value_counts(
 ) -> Result<QueryFacetOutcome<QueryValueOptions>, IndexError> {
     validate_value_counts(&request.field, &request.values)?;
     let d = field(&request.field)?;
+    if !request.query.relationships.is_empty() {
+        return Ok(QueryFacetOutcome::Unavailable {
+            reason: FacetUnavailableReason::RelationshipContext,
+        });
+    }
+
     let target = match request.clause_id.as_deref() {
         Some(id) => match remove_clause(&request.query, id, d)? {
             QueryFacetOutcome::Available {
@@ -658,6 +676,12 @@ pub(crate) fn field_values(
         request.text.as_deref(),
     )?;
     let d = field(&request.field)?;
+    if !request.query.relationships.is_empty() {
+        return Ok(QueryFacetOutcome::Unavailable {
+            reason: FacetUnavailableReason::RelationshipContext,
+        });
+    }
+
     let (base, target, member) = if let Some(id) = &request.clause_id {
         let (base, target, member) = match remove_clause(&request.query, id, d)? {
             QueryFacetOutcome::Available { value } => value,

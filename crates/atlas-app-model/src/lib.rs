@@ -111,6 +111,8 @@ pub use record::{
     RecordResolutionAmbiguousView, RecordResolutionCandidateView, RecordSummaryView,
 };
 pub use search::{
+    RelationshipConstraintSummaryView, RelationshipConstraintView, RelationshipDirectionView,
+    RelationshipEvidenceView, RelationshipOccurrencesPage, RelationshipOccurrencesRequest,
     RetrievalModeView, SearchCoverageView, SearchCriteria, SearchLaneView, SearchModeSummary,
     SearchPageRequest, SearchPageView, SearchResultRow, SearchResultsPage, SearchResultsRequest,
     SearchWitnessView,
@@ -272,6 +274,9 @@ mod tests {
             .expect("RecordResolutionAmbiguousView bindings should export");
         RecordSummaryView::export_all_to(path).expect("RecordSummaryView bindings should export");
         SearchResultsPage::export_all_to(path).expect("SearchResultsPage bindings should export");
+        RelationshipOccurrencesRequest::export_all_to(path)
+            .expect("relationship request should export");
+        RelationshipOccurrencesPage::export_all_to(path).expect("relationship page should export");
 
         AddSavedListItemRequest::export_all_to(path)
             .expect("AddSavedListItemRequest bindings should export");

@@ -86,12 +86,16 @@ export function FilterControls({
   includeSearch = true,
   layout = "panel",
   searchRowEnd,
+  similarSearch,
+  additionalFilters,
   children,
 }: {
   filterState: FilterPanelState;
   includeSearch?: boolean;
   layout?: "panel" | "toolbar" | "inline-toolbar";
   searchRowEnd?: ReactNode;
+  similarSearch?: { title: string; onClear: () => void };
+  additionalFilters?: ReactNode;
   children?: ReactNode;
 }) {
   const { search, setSearch } = workspace;
@@ -129,6 +133,7 @@ export function FilterControls({
   const searchEntry = includeSearch && (
     <SearchEntry
       query={search.query}
+      similar={similarSearch}
       onSearch={(query) =>
         setSearch({
           ...search,
@@ -178,6 +183,7 @@ export function FilterControls({
           ) : null;
         })}
       </div>
+      {additionalFilters}
       <div className="filter-panel-actions">
         <Button
           ref={advancedTrigger}

@@ -8,6 +8,7 @@ import {
   getTraitDetail,
   getTraitRecords,
   searchPage,
+  getRelationshipOccurrences,
   discoverFilterValues,
   discoverFilterEditor,
   discoverFilterCounts,
@@ -829,4 +830,39 @@ it("rejects trait responses from another identity, artifact generation or Simila
     search_profile: "embeddinggemma",
   });
   await expect(getTraitRecords(request)).rejects.toThrow("selected search model");
+});
+
+it("posts exact relationship evidence pages and normalizes occurrence totals", async () => {
+  const constraint = {
+    direction: "incoming" as const,
+    selection: {
+      record_key: "items:armor",
+      embedded_path: [],
+      field: null,
+      passage: null,
+      source_fingerprint: "checked",
+    },
+    include_contents: true,
+  };
+  respond({
+    artifact_generation: "generation-a",
+    constraint: { constraint, record: {}, title: "Leather Armor" },
+    result_record: {},
+    occurrences: [],
+    page: { number: 2, size: 3, count: 0, total: 9, has_more: true, next_page: 3 },
+  });
+  const controller = new AbortController();
+  const request = {
+    constraint,
+    result_record_key: "actors:goblin",
+    page: { number: 2, size: 3 },
+    expected_artifact_generation: "generation-a",
+  };
+  const result = await getRelationshipOccurrences(request, controller.signal);
+  expect(result.page.total).toBe(9n);
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/search/relationship-occurrences",
+    expect.objectContaining({ method: "POST", signal: controller.signal }),
+  );
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(request);
 });

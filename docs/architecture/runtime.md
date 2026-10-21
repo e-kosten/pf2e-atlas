@@ -335,6 +335,20 @@ source-snapshot compatibility verification; category discovery never runs Simila
 ranking. Responses and browser caches use the complete selection and immutable
 artifact-context hash, distinct from snapshot-local navigation fingerprints.
 
+Relationship-scoped full search uses the existing stateless search-page workflow
+with typed constraints composed conjunctively beside the ordinary predicate and
+optional saved-list keys. Incoming constraints keep the selected destination exact
+and choose root-only or root-plus-contained source references. Outgoing constraints
+choose the exact selected source or that source plus descendants, never siblings
+or parents. Index-owned SQL eligibility applies before lexical/vector candidate
+selection, edition preference, distinct-root ordering and paging. Root totals are
+independent of occurrence-preview caps. App-service supplies checked human labels
+and bounded per-root evidence; occurrence pages retain exact source/target
+navigation and their own complete occurrence totals. The browser never derives
+eligibility by filtering Related's bounded neighbor keys. Contextual filter counts
+must honor relationship scope or be unavailable, while vocabulary remains usable.
+See [ADR0057](./decisions/0057-relationship-scoped-search.md).
+
 App-service owns workflow composition/search pages, catalog-to-editor controls,
 semantic family presentation and local-state hydration over runtime/search.
 Detail retains a body-free root summary, full selected address, and selected-node

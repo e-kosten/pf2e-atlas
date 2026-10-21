@@ -29,3 +29,22 @@ it("clears committed criteria when the last character is deleted", () => {
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: "" } });
   expect(commit).toHaveBeenCalledWith("");
 });
+
+it("replaces text entry with a selectable Similar title and restores focus after clearing", () => {
+  const clear = vi.fn();
+  const view = render(
+    <SearchEntry
+      query=""
+      onSearch={vi.fn()}
+      similar={{ title: "Leather Armor", onClear: clear }}
+    />,
+  );
+  expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+  expect(screen.getByText("Similar to")).toBeVisible();
+  expect(screen.getByText("Leather Armor")).toBeVisible();
+  expect(screen.getByText("Leather Armor")).not.toHaveAttribute("contenteditable");
+  fireEvent.click(screen.getByRole("button", { name: "Clear similar criterion" }));
+  expect(clear).toHaveBeenCalledOnce();
+  view.rerender(<SearchEntry query="" onSearch={vi.fn()} />);
+  expect(screen.getByRole("searchbox")).toHaveFocus();
+});

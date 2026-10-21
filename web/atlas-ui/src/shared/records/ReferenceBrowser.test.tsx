@@ -40,6 +40,7 @@ const navigation = activityFixture("Jaws", "actors:ghoul").navigation;
 const rows: SearchResultRow[] = [
   {
     record: summaryFixture("actors:ghoul", "Ghoul"),
+    relationship_evidence: [],
     matches: [
       {
         navigation,
@@ -51,7 +52,11 @@ const rows: SearchResultRow[] = [
       },
     ],
   },
-  { record: summaryFixture("spells:heal", "Heal"), matches: [] },
+  {
+    record: summaryFixture("spells:heal", "Heal"),
+    matches: [],
+    relationship_evidence: [],
+  },
 ];
 function Harness({ positions }: { positions?: BrowsePositions }) {
   const [selected, select] = useState<string | null>(null);

@@ -32,6 +32,7 @@ fn fixture(semantic: bool) -> (FixtureWorker, RetrievalExecutor) {
 
 fn request(criteria: SearchCriteria, number: u32) -> SearchResultsRequest {
     SearchResultsRequest {
+        relationships: None,
         ranking: None,
         search_profile: None,
         criteria,
@@ -461,4 +462,120 @@ fn invalid_pages_and_missing_similar_seeds_remain_explicit_errors() {
             .code,
         AppErrorCode::RecordNotFound
     );
+}
+
+#[test]
+fn relationship_pages_label_exact_entries_and_page_evidence_with_generation_guards() {
+    use atlas_app_model::{
+        RelationshipConstraintView, RelationshipDirectionView, RelationshipOccurrencesRequest,
+    };
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+        Ok(open_source_fixture(
+            vec![
+                record(
+                    "items",
+                    "Item",
+                    json!({"_id":"target0000000000","name":"Leather Armor","type":"armor"}),
+                ),
+                record(
+                    "actors",
+                    "Actor",
+                    json!({"_id":"actor00000000000","name":"Guard","type":"npc","items":[{"_id":"owned00000000000","name":"Guard's armor","type":"armor","_stats":{"compendiumSource":"Compendium.pf2e.items.Item.target0000000000"},"system":{"description":{"value":"<p>@UUID[Compendium.pf2e.items.Item.target0000000000]</p>"}}}]}),
+                ),
+            ],
+            false,
+        )?)
+    });
+    let f = fixture_worker_with_executor(executor);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let target = f.worker.record_detail("items:target0000000000").unwrap();
+    let constraint = RelationshipConstraintView {
+        direction: RelationshipDirectionView::Incoming,
+        selection: target.selected,
+        include_contents: true,
+    };
+    let mut criteria = request(SearchCriteria::ListRecords { filter: None }, 1);
+    criteria.relationships = Some(vec![constraint.clone()]);
+    let result = f.worker.search_page(criteria.clone(), &execution).unwrap();
+    assert_eq!(result.relationships[0].title, "Leather Armor");
+    assert_eq!(result.page.total, 1);
+    assert_eq!(result.rows[0].relationship_evidence[0].page.total, 2);
+    assert_eq!(
+        result.rows[0].relationship_evidence[0].occurrences[0]
+            .source_title
+            .as_deref(),
+        Some("Guard's armor")
+    );
+    assert!(
+        result.rows[0].relationship_evidence[0]
+            .occurrences
+            .iter()
+            .any(|o| o.origin_label.as_deref() == Some("Compendium source"))
+    );
+    let page = f
+        .worker
+        .relationship_occurrences(
+            RelationshipOccurrencesRequest {
+                constraint: constraint.clone(),
+                result_record_key: result.rows[0].record.record_key.clone(),
+                page: SearchPageRequest { number: 2, size: 1 },
+                expected_artifact_generation: result.artifact_generation.clone(),
+            },
+            &execution,
+        )
+        .unwrap();
+    assert_eq!((page.page.total, page.occurrences.len()), (2, 1));
+    assert!(!page.page.has_more);
+    criteria.relationships.as_mut().unwrap()[0].include_contents = false;
+    assert_eq!(
+        f.worker
+            .search_page(criteria.clone(), &execution)
+            .unwrap()
+            .page
+            .total,
+        0
+    );
+    criteria.criteria = SearchCriteria::TextSearch {
+        query: "needs unavailable inference".into(),
+        filter: None,
+        mode: RetrievalModeView::Semantic,
+    };
+    criteria.relationships.as_mut().unwrap()[0].selection.owners =
+        vec![atlas_record::source_content::OwnedContentLocator {
+            collection: "/items".into(),
+            identity: atlas_record::source_content::OwnedContentIdentity::SnapshotLocal {
+                index: 0,
+            },
+        }];
+    let invalid = f
+        .worker
+        .search_page(criteria.clone(), &execution)
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(
+        invalid.code,
+        AppErrorCode::InvalidRequest,
+        "selection fingerprint must fail before unavailable inference"
+    );
+    criteria.expected_artifact_generation = Some("stale".into());
+    let invalid = f
+        .worker
+        .search_page(criteria, &execution)
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(invalid.code, AppErrorCode::ArtifactGenerationChanged);
+    let invalid = f
+        .worker
+        .relationship_occurrences(
+            RelationshipOccurrencesRequest {
+                constraint,
+                result_record_key: "actors:actor00000000000".into(),
+                page: SearchPageRequest { number: 1, size: 1 },
+                expected_artifact_generation: "stale".into(),
+            },
+            &execution,
+        )
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(invalid.code, AppErrorCode::ArtifactGenerationChanged);
 }

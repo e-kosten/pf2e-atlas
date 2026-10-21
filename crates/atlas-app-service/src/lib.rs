@@ -21,6 +21,7 @@ mod projection;
 mod read_execution;
 mod records;
 mod related;
+mod relationship_search;
 mod retrieval;
 mod search_pages;
 mod service;

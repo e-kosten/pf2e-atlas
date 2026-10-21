@@ -127,6 +127,7 @@ pub(crate) fn graph_section_view(
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> atlas_app_model::GraphSectionView {
     atlas_app_model::GraphSectionView {
+        constraint: None,
         records: section
             .records
             .iter()
@@ -151,6 +152,7 @@ pub(crate) fn search_results_view(
             .records
             .into_iter()
             .map(|r| atlas_app_model::SearchResultRow {
+                relationship_evidence: vec![],
                 record: localized_summary_view(&r.record, retrieval),
                 matches: r
                     .matches
@@ -208,6 +210,9 @@ pub(crate) fn relationship_view(
 ) -> atlas_app_model::RecordRelationshipView {
     let (status, target, url) = content_reference_destination(o.resolution, fingerprint);
     atlas_app_model::RecordRelationshipView {
+        source_title: None,
+        target_title: None,
+        origin_label: None,
         source_navigation: RecordNavigationView {
             spell_rank: None,
             record_key: o.locator.record.to_string(),

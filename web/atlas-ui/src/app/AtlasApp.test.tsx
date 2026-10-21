@@ -629,6 +629,7 @@ function emptyFilterEditor(): FilterEditorView {
 
 function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
   return {
+    relationships: [],
     ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",
@@ -641,7 +642,11 @@ function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
       has_more: false,
       next_page: null,
     },
-    rows: recordKeys.map((key) => ({ record: summaryFixture(key), matches: [] })),
+    rows: recordKeys.map((key) => ({
+      record: summaryFixture(key),
+      relationship_evidence: [],
+      matches: [],
+    })),
     coverage: null,
   };
 }

@@ -95,10 +95,17 @@ impl AtlasAppService {
                             RelatedCategoryView::Content {
                                 content: atlas_app_model::GraphContextView {
                                     seed: crate::projection::localized_summary_view(&g.seed, r),
-                                    outgoing: crate::projection::graph_section_view(g.outgoing, r),
-                                    backlinks: crate::projection::graph_section_view(
-                                        g.backlinks,
-                                        r,
+                                    outgoing: scoped_section(
+                                        crate::projection::graph_section_view(g.outgoing, r),
+                                        &selection,
+                                        atlas_app_model::RelationshipDirectionView::Outgoing,
+                                        false,
+                                    ),
+                                    backlinks: scoped_section(
+                                        crate::projection::graph_section_view(g.backlinks, r),
+                                        &selection,
+                                        atlas_app_model::RelationshipDirectionView::Incoming,
+                                        true,
                                     ),
                                 },
                             }
@@ -175,4 +182,21 @@ fn category<T>(result: AppServiceResult<RelatedCategoryView<T>>) -> RelatedCateg
     result.unwrap_or_else(|error| RelatedCategoryView::Error {
         error: error.into_app_error(),
     })
+}
+
+fn scoped_section(
+    mut section: atlas_app_model::GraphSectionView,
+    selection: &atlas_app_model::RecordNavigationView,
+    direction: atlas_app_model::RelationshipDirectionView,
+    include_contents: bool,
+) -> atlas_app_model::GraphSectionView {
+    let mut selection = selection.clone();
+    selection.field = None;
+    selection.passage = None;
+    section.constraint = Some(atlas_app_model::RelationshipConstraintView {
+        direction,
+        selection,
+        include_contents,
+    });
+    section
 }

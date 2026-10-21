@@ -139,12 +139,11 @@ describe("search pane composition", () => {
       },
     });
     const { container, rerender } = render(<SearchView workspace={state} />);
-    const criterion = screen.getByText("Similar to Seed");
+    const criterion = screen.getByText("Similar to");
     const body = criterion.closest(".filter-toolbar");
     expect(body).toBeVisible();
-    expect(body).toContainElement(
-      screen.getByRole("searchbox", { name: "Search records" }),
-    );
+    expect(screen.queryByRole("searchbox", { name: "Search records" })).toBeNull();
+    expect(body).toContainElement(screen.getByText("Seed"));
     expect(screen.getByText("Top matches")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Clear similar criterion" }));
     expect(setSearch).toHaveBeenCalledWith({
@@ -154,7 +153,7 @@ describe("search pane composition", () => {
     });
 
     rerender(<SearchView workspace={workspace()} />);
-    expect(screen.queryByText("Similar to Seed")).toBeNull();
+    expect(screen.queryByText("Similar to")).toBeNull();
     expect(screen.getByText("14,736 records")).toBeVisible();
     expect(container.querySelector(".filter-toolbar")).toBeVisible();
   });
@@ -311,6 +310,7 @@ function workspace(
 
 function searchResultsPage(): SearchResultsPage {
   return {
+    relationships: [],
     ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",

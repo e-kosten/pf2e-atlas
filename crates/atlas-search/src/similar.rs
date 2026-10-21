@@ -30,7 +30,9 @@ impl crate::AtlasRetrievalService {
                     "seed has no stored root identity vector; rebuild with embeddings",
                 )
             })?;
-        let predicate = self.predicate(request.filter)?;
+        let predicate = self
+            .predicate(request.filter)?
+            .with_relationships(request.scope.relationships());
         let (roots, window) = self.rank_candidates(crate::text::CandidateRequest {
             ranking: Default::default(),
             search_profile: &search_profile,

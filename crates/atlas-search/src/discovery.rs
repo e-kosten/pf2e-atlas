@@ -66,6 +66,11 @@ impl AtlasRetrievalService {
     ) -> Result<QueryFacetOutcome<QueryValueOptions>, SearchError> {
         atlas_index::validate_value_counts(request.field, request.values)?;
         let query = self.predicate(request.context.filter)?;
+        if !request.context.scope.relationships().is_empty() {
+            return Ok(QueryFacetOutcome::Unavailable {
+                reason: atlas_domain::FacetUnavailableReason::RelationshipContext,
+            });
+        }
         self.resolve_search_profile(request.context.search_profile, false)?;
         if let QueryFacetOutcome::Unavailable { reason } =
             atlas_index::facet_base_query(request.field, request.clause_id, &query)?
@@ -106,6 +111,11 @@ impl AtlasRetrievalService {
     ) -> Result<QueryFacetOutcome<(atlas_index::ValidatedQuery, QueryFacetContext)>, SearchError>
     {
         let query = self.predicate(context.filter)?;
+        if !context.scope.relationships().is_empty() {
+            return Ok(QueryFacetOutcome::Unavailable {
+                reason: atlas_domain::FacetUnavailableReason::RelationshipContext,
+            });
+        }
         self.resolve_search_profile(context.search_profile, false)?;
         // Index owns the only self-exclusion analysis. Perform it even without
         // text, and before ranking or loading a query embedder.

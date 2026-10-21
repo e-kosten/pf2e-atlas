@@ -598,8 +598,10 @@ opening, cached by complete selection and artifact generation. Render only conte
 categories; keep loading, unavailable checks and local retryable errors distinct
 from known empty categories. Similar is a separate root discovery preview using
 stateless search pages, with a native link into the ordinary search workspace.
-Similarity URLs preserve the root seed and canonical filters. Keyword entry replaces
-the seed; clearing it preserves filters. Contextual text counts are disabled while
+Similarity URLs preserve the root seed and canonical filters. The active Similar
+criterion occupies the main search control with its selectable, read-only human
+name and Clear; do not show a competing editable search field. Clearing it
+preserves other filters and returns focus to keyword entry. Contextual text counts are disabled while
 catalog choices and vocabulary remain available. Label bounded pages Top matches.
 Comparison panes reuse family presentation without recursively mounting related disclosures.
 Incoming references use checked `source_navigation`, outgoing references use the
@@ -608,6 +610,21 @@ they do not imply automatic scrolling to an individual marker. Counterparts and 
 relationships of an embedded selection. A separate Similar action can name the
 parent root explicitly. Exact root references use an empty owner path, not an
 all-owners graph query.
+
+Relationship search constraints appear at the top level with ordinary filters,
+outside Advanced. Their direction, human target name, Include contents setting
+and removal remain together. Never render IDs in relationship labels, tooltip
+copy or unavailable fallbacks. Backend-selected names and optional kind/source/
+parent labels distinguish otherwise identical titles. Exact navigation stays in
+the typed criterion and URL, with its snapshot fingerprint.
+Include contents changes where a link originates: sources within each result for
+Links to, or the selected source and its descendants for Linked from. Targets
+remain exact, and descendants never include siblings/parents. Related's View all
+uses its backend-provided effective constraint; it does not reconstruct scope
+from displayed occurrences. Filters and page identity include each constraint.
+Per-root reference evidence has its own occurrence total/paging; preview limits
+never truncate the set of eligible result roots. Disable contextual counts when
+relationship scope is unsupported, retaining count-free vocabulary.
 
 Search page keys include committed criteria, the local page number, the current
 artifact generation and the search owner's recovery epoch. An artifact generation

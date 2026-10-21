@@ -7,12 +7,23 @@ pub enum RecordScope<'a> {
     #[default]
     All,
     Keys(&'a [RecordKey]),
+    Constrained {
+        keys: Option<&'a [RecordKey]>,
+        relationships: &'a [crate::RelationshipConstraint],
+    },
 }
 impl<'a> RecordScope<'a> {
+    pub fn relationships(self) -> &'a [crate::RelationshipConstraint] {
+        match self {
+            Self::Constrained { relationships, .. } => relationships,
+            _ => &[],
+        }
+    }
     pub fn keys(self) -> Option<&'a [RecordKey]> {
         match self {
             Self::All => None,
             Self::Keys(k) => Some(k),
+            Self::Constrained { keys, .. } => keys,
         }
     }
 }
@@ -151,7 +162,9 @@ impl AtlasRetrievalService {
         &self,
         request: ListRecordsRequest<'_>,
     ) -> Result<ListRecordsResult, SearchError> {
-        let predicate = self.predicate(request.filter)?;
+        let predicate = self
+            .predicate(request.filter)?
+            .with_relationships(request.scope.relationships());
         let page = self.index.eligible_keys(
             &predicate,
             request.scope.keys(),

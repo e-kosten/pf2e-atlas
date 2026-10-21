@@ -24,6 +24,7 @@ pub enum FacetUnavailableReason {
     NonConjunctiveContext,
     NegativeCondition,
     TextContext,
+    RelationshipContext,
 }
 
 /// Suggestions are independent of search conditions and have no result counts.

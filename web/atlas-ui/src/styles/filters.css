@@ -232,3 +232,32 @@
   grid-template-columns: minmax(0, 1fr) minmax(100px, auto);
   gap: 8px;
 }
+
+.reference-search-entry--similar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--control-height);
+  padding-inline-start: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-subtle);
+}
+.reference-search-entry__title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.relationship-filter {
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+.relationship-filter a {
+  overflow-wrap: anywhere;
+  user-select: text;
+}

@@ -436,6 +436,7 @@ mod tests {
                 .worker
                 .search_page(
                     SearchResultsRequest {
+                        relationships: None,
                         ranking: None,
                         search_profile: None,
                         criteria: SearchCriteria::ListRecords {

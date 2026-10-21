@@ -1,9 +1,9 @@
 # Source-modeling Capability Follow-through
 
 Status: in_progress
-Priority: agreed sequence; CF-06 + CF-08 selected, product policy approved
-Owner: CF-06 + CF-08 encounter-state worktree
-Last reviewed: 2026-10-18
+Priority: CF-10 relationship search first, CF-09 sorting second
+Owner: item-specific; CF-09/10 in browse-reference-search, CF-07 independently owned
+Last reviewed: 2026-10-21
 
 ## Purpose and authorization
 
@@ -17,7 +17,11 @@ interpret this list as ten mandatory merge blockers.
 CF-01/02/03 merged in PRs #68/#69/#71; CF-04/05 merged in PR #73.
 All are now on main through integration PR #25 (41865f60). The user selected
 CF-06 + CF-08 as the next combined slice targeting main. The user approved the product policy, including consistent creature/hazard
-controls and subdued disabled-hazard initiative facts; CF-07/09/10 remain unapproved. Mixed-failure precedence is runtime (3), invalid input (2), domain
+controls and subdued disabled-hazard initiative facts. CF-07 remains with the
+condition workstream. The 2026-10-21 handoff identifies CF-06/08 as already merged
+in PR #78; their older review rows below are historical evidence. CF-09/10 product
+design and implementation are approved as the three-PR sequence documented below.
+Mixed-failure precedence is runtime (3), invalid input (2), domain
 miss/ambiguity (1), success (0).
 
 The user agreed to deprioritize consumable base-item filtering: only one of
@@ -43,8 +47,8 @@ if review warrants it; preserve its ID and record every resulting PR here.
 | CF-06 | Encounter status and action-budget policy | in_progress | Approved | Based on main 41865f60; locally complete; user accepted preview; Rust/UI gates, 20 device journeys and independent Sol browser review pass; [PR #78](https://github.com/e-kosten/pf2e-atlas/pull/78) |
 | CF-07 | Supported condition/spell adjustments and casting reminders | planned | Pending | Not started |
 | CF-08 | Hazard Active/Disabled state | in_progress | Approved with CF-06 | locally complete; single Active/Disabled state; user accepted preview; Rust/UI gates and browser reviews pass; [PR #78](https://github.com/e-kosten/pf2e-atlas/pull/78) |
-| CF-09 | Browse sorting | planned | Pending | Not started |
-| CF-10 | Relationship-scoped full results and filtering | planned | Pending | Not started |
+| CF-09 | Browse sorting | planned | Approved 2026-10-21 | Second PR after relationship search; design recorded below |
+| CF-10 | Relationship-scoped full results and filtering | in_progress | Approved 2026-10-21 | `feat/browse-reference-search` from main 40275f3e; first PR includes Links to/Linked from and Similar entry UI; direct multi-filter creation follows in third PR |
 
 ### CF-01 — CLI batches and error contracts
 
@@ -184,6 +188,19 @@ A broad hazard state machine and participant baseline reset are not implied.
 
 ### CF-09 — Browse sorting
 
+Approved 2026-10-21 as the second PR in this workstream. Without semantic search,
+sort the entire eligible filtered set; with semantic search or Similar, sort the
+entire bounded matching set before pagination, keeping its membership independent
+of the selected order/page. Preserve existing retrieval policy and label bounded
+coverage honestly; never switch to FTS-only matching because the user chose a sort.
+Explicitly selected attribute order survives adding/clearing semantic criteria;
+fresh text/Similar searches default to Relevance. Missing/null/invalid/inapplicable
+values sort last in both directions, with normalized-name/canonical-key ties.
+Saved-list attribute order is temporary and never writes member positions.
+Order is URL state; criteria/order/page-size changes reset paging without losing
+other filters or drafts. Random/key order and semantic threshold redesign stay
+outside scope. Keep this implementation separate from the first relationship PR.
+
 Restore useful name, level/rank and unit-price ordering through shared backend
 requests, with deterministic tie-breaks and an explicit unavailable-value policy.
 Integrate pagination, URL/search identity, saved-list scope and generation checks.
@@ -195,6 +212,30 @@ pages do not merely reorder the first candidate window; changing sort resets
 paging coherently and preserves the intended filters.
 
 ### CF-10 — Relationship-scoped full results and filtering
+
+Approved 2026-10-21. First PR: record-origin Links to/Linked from constraints,
+full Related escapes, and the Similar search-entry workflow. Relationship criteria
+remain visible at the top level with ordinary filters and compose with text/
+Similar before ranking. Include contents controls source-side references in both
+directions; the destination remains exact. New whole-record actions include
+contents by default; Related entry preserves its effective selected scope, and
+embedded selections never broaden to siblings/parents. Each displayed result is
+one distinct root, with checked occurrence provenance and independently bounded/
+pageable evidence. Keep existing bounded Related/encounter readers intact.
+
+Relationship UI displays human names, never record IDs, including unavailable
+states. Disambiguation uses kind/publication/parent names. Similar occupies the
+main search control as `[Similar to] [Leather Armor] [Clear]`; the name is
+selectable/copyable and read-only. Clear retains other filters and returns focus
+to keyword entry. No parallel editable search field is shown for an active seed.
+
+Third PR, following sorting: directly add multiple relationship constraints using
+the existing shared list/encounter record search picker. All constraints combine
+with AND and retain independent contents settings, removal, and URL identity.
+Lookup searches the available corpus independently of active result criteria.
+Model constraints independently in the first PR, but do not add this picker or
+multiple-filter UI there. General OR/NOT relationship expressions and inferred
+equipment possession/condition-infliction filters remain outside this sequence.
 
 Keep lightweight Related previews, with an escape to full incoming/outgoing
 results that supports ordinary filters and paging. Preserve exact owner versus

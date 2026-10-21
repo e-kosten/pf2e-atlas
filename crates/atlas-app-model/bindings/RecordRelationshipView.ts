@@ -4,4 +4,4 @@ import type { EffectReferenceLabelView } from "./EffectReferenceLabelView";
 import type { QueryFieldState } from "./QueryFieldState";
 import type { RecordNavigationView } from "./RecordNavigationView";
 
-export type RecordRelationshipView = { source: ContentLocationView, source_navigation: RecordNavigationView, ordinal: number, origin: string, kind: string, authored_target: string | null, occurrence_path: string | null, audiences: Array<string>, availability: QueryFieldState | null, status: string, target: RecordNavigationView | null, url: string | null, effect_label: EffectReferenceLabelView | null, contextual_target?: RecordNavigationView, };
+export type RecordRelationshipView = { source_title?: string, target_title?: string, origin_label?: string, source: ContentLocationView, source_navigation: RecordNavigationView, ordinal: number, origin: string, kind: string, authored_target: string | null, occurrence_path: string | null, audiences: Array<string>, availability: QueryFieldState | null, status: string, target: RecordNavigationView | null, url: string | null, effect_label: EffectReferenceLabelView | null, contextual_target?: RecordNavigationView, };

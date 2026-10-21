@@ -24,25 +24,48 @@ for (const width of [1440, 1100, 390]) {
       const results = page.getByRole("region", { name: "Search results", exact: true });
       const row = page.locator("[data-record-key]").first();
       await expect(row).toBeVisible();
-      await expect(
-        page.getByRole("searchbox", { name: "Search records" }),
-      ).toBeVisible();
+      const search = page.getByRole("searchbox", { name: "Search records" });
+      if (similar) {
+        await expect(search).toHaveCount(0);
+        await expect(page.getByRole("group", { name: "Similar search" })).toBeVisible();
+      } else await expect(search).toBeVisible();
       const inputBox = await page.locator(".reference-search-entry").boundingBox();
       expect(inputBox).not.toBeNull();
+      const controlHeightBox = similar
+        ? await page
+            .getByRole("button", { name: "Clear similar criterion" })
+            .boundingBox()
+        : inputBox;
       const primaryControls = page.locator(
         ".search-model-select, .filter-toolbar .common-choice-trigger, .filter-panel-actions button",
       );
       for (const control of await primaryControls.all()) {
         const controlBox = await control.boundingBox();
         expect(controlBox).not.toBeNull();
-        expect(Math.abs(controlBox!.height - inputBox!.height)).toBeLessThanOrEqual(1);
+        expect(
+          Math.abs(controlBox!.height - controlHeightBox!.height),
+        ).toBeLessThanOrEqual(1);
       }
       const coverage = page.locator(".result-pane-header > span").first();
       await expect(coverage).toHaveText(similar ? /Top matches/ : /\d[\d,]* records/);
-      if (similar)
-        await expect(
-          page.getByText("Similar to Wovenwood Shield (Minor)", { exact: true }),
-        ).toBeVisible();
+      if (similar) {
+        const title = page
+          .getByRole("group", { name: "Similar search" })
+          .getByText("Wovenwood Shield (Minor)", { exact: true });
+        await expect(title).toBeVisible();
+        expect(
+          await title.evaluate((element) => {
+            const selection = window.getSelection()!;
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            const text = selection.toString();
+            selection.removeAllRanges();
+            return text;
+          }),
+        ).toBe("Wovenwood Shield (Minor)");
+      }
       for (const control of [
         results.getByRole("combobox", { name: "Records per page" }),
         results.getByRole("textbox", { name: "Current page" }),
@@ -72,6 +95,11 @@ for (const width of [1440, 1100, 390]) {
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       ).toBe(true);
+      if (similar) {
+        await page.getByRole("button", { name: "Clear similar criterion" }).click();
+        await expect(search).toBeFocused();
+        expect(new URL(page.url()).searchParams.has("similar")).toBe(false);
+      }
     });
   }
 }

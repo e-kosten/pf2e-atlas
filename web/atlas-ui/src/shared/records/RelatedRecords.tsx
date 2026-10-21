@@ -1,4 +1,14 @@
-import { Alert, Button, Collapse, Modal, Select, Spin, Tabs, Typography } from "antd";
+import {
+  Alert,
+  Button,
+  Collapse,
+  Modal,
+  Select,
+  Spin,
+  Space,
+  Tabs,
+  Typography,
+} from "antd";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchProfile } from "../search/SearchProfileContext";
@@ -23,6 +33,8 @@ import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
 
+import { relationshipSearchRoute } from "./relationshipSearch";
+
 export function RelatedRecords({
   detail,
   onReference,
@@ -36,6 +48,30 @@ export function RelatedRecords({
 }) {
   return (
     <section className="related-records" aria-label="Related records">
+      <Space wrap>
+        {(["incoming", "outgoing"] as const).map((direction) => {
+          const route = relationshipSearchRoute({
+            direction,
+            selection: detail.selected,
+            include_contents: detail.selected.embedded_path.length === 0,
+          });
+          return (
+            <Button
+              key={direction}
+              href={atlasRoutePath(route)}
+              onClick={(event) => {
+                if (!shouldHandleAtlasRouteClick(event)) return;
+                event.preventDefault();
+                navigateToAtlasRoute(route);
+              }}
+            >
+              {direction === "incoming"
+                ? "Find records linking here"
+                : "Browse links from here"}
+            </Button>
+          );
+        })}
+      </Space>
       <Collapse
         size="small"
         destroyOnHidden
@@ -140,6 +176,22 @@ function RelatedTabs({
       <Typography.Paragraph type="secondary">{empty}</Typography.Paragraph>
     );
   }
+  function viewAll(section: GraphSectionView) {
+    if (!section.constraint) return null;
+    const route = relationshipSearchRoute(section.constraint);
+    return (
+      <Typography.Link
+        href={atlasRoutePath(route)}
+        onClick={(event) => {
+          if (!shouldHandleAtlasRouteClick(event)) return;
+          event.preventDefault();
+          navigateToAtlasRoute(route);
+        }}
+      >
+        View all
+      </Typography.Link>
+    );
+  }
   function references(section: GraphSectionView, incoming: boolean) {
     if (!section.occurrences.length)
       return (
@@ -191,6 +243,7 @@ function RelatedTabs({
             );
           })}
         </ul>
+        {viewAll(section)}
         {section.truncated && (
           <Typography.Paragraph type="secondary">
             Showing a limited set of references; additional references may exist.
