@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { ConfigProvider } from "antd";
 import { useState } from "react";
 import {
@@ -126,6 +133,21 @@ it("copies the authoritative seed and restores focus on Escape", async () => {
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Sort: Random" })).toHaveFocus(),
   );
+});
+
+it("keeps Shuffle beside the seed in the popover and out of the toolbar", async () => {
+  setup({ ...DEFAULT_SEARCH_STATE, sort: { kind: "random", seed: 42 } });
+  expect(screen.queryByRole("button", { name: "Shuffle" })).toBeNull();
+  await open();
+  const dialog = screen.getByRole("dialog", { name: "Sort results" });
+  const seed = within(dialog).getByRole("textbox", { name: "Random seed" });
+  const shuffle = within(dialog).getByRole("button", { name: "Shuffle" });
+  expect(shuffle.parentElement).toBe(seed.parentElement);
+  fireEvent.keyDown(dialog, { key: "Escape" });
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Sort: Random" })).toHaveFocus(),
+  );
+  expect(screen.queryByRole("button", { name: "Shuffle" })).toBeNull();
 });
 
 it("cancels an uncommitted seed on Escape before dismissal or focus restoration can blur-commit it", async () => {

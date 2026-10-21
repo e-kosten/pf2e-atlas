@@ -47,7 +47,15 @@ test("Sort rules and seeded Random remain usable at 390px", async ({ page }) => 
   expect(new URL(page.url()).searchParams.get("seed")).toBe(original);
   await seed.press("Enter");
   await expect(page).toHaveURL((url) => url.searchParams.get("seed") === "0");
-  await page.getByRole("button", { name: "Shuffle", exact: true }).click();
+  const shuffle = dialog.getByRole("button", { name: "Shuffle", exact: true });
+  const seedBounds = await seed.boundingBox();
+  const shuffleBounds = await shuffle.boundingBox();
+  expect(seedBounds).not.toBeNull();
+  expect(shuffleBounds).not.toBeNull();
+  expect(Math.abs(seedBounds!.y - shuffleBounds!.y)).toBeLessThanOrEqual(1);
+  expect(seedBounds!.x + seedBounds!.width).toBeLessThanOrEqual(shuffleBounds!.x);
+  expect(shuffleBounds!.x + shuffleBounds!.width).toBeLessThanOrEqual(390);
+  await shuffle.click();
   await expect(page).toHaveURL(
     (url) =>
       url.searchParams.get("sort") === "random" && url.searchParams.get("seed") !== "0",

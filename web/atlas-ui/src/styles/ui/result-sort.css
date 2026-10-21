@@ -31,6 +31,15 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 8px;
 }
+.result-sort__seed-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.result-sort__seed-input {
+  flex: 1;
+  min-width: 0;
+}
 .result-sort__rule-label {
   grid-column: 1 / -1;
 }

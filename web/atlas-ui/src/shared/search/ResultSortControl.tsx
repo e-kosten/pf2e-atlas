@@ -268,6 +268,7 @@ export function ResultSortControl({
                   seed={sort.seed}
                   onCommit={(seed) => commit({ kind: "random", seed })}
                   onCancel={close}
+                  onShuffle={() => commit({ kind: "random", seed: newSeed(sort.seed) })}
                 />
                 <Button
                   aria-label="Copy seed"
@@ -313,17 +314,6 @@ export function ResultSortControl({
           )}
         </Button>
       </Popover>
-      {sort.kind === "random" && (
-        <Button
-          aria-label="Shuffle"
-          size="small"
-          disabled={disabled}
-          icon={<ReloadOutlined />}
-          onClick={() => commit({ kind: "random", seed: newSeed(sort.seed) })}
-        >
-          Shuffle
-        </Button>
-      )}
     </div>
   );
 }
@@ -332,34 +322,42 @@ function SeedField({
   seed,
   onCommit,
   onCancel,
+  onShuffle,
 }: {
   seed: number;
   onCommit: (seed: number) => void;
   onCancel: () => void;
+  onShuffle: () => void;
 }) {
   const [error, setError] = useState<{ seed: number; message: string } | null>(null);
   return (
     <div className="result-sort__seed">
       <Typography.Text strong>Seed</Typography.Text>
-      <EditableCommitField
-        ariaLabel="Random seed"
-        value={String(seed)}
-        inputMode="numeric"
-        blurOnEnter={false}
-        onCancel={() => {
-          setError(null);
-          onCancel();
-        }}
-        onCommit={(value) => {
-          const parsed = parseRandomSeed(value);
-          if (parsed === null) {
-            setError({ seed, message: INVALID_SORT_SEED });
-            return;
-          }
-          setError(null);
-          onCommit(parsed);
-        }}
-      />
+      <div className="result-sort__seed-controls">
+        <EditableCommitField
+          className="result-sort__seed-input"
+          ariaLabel="Random seed"
+          value={String(seed)}
+          inputMode="numeric"
+          blurOnEnter={false}
+          onCancel={() => {
+            setError(null);
+            onCancel();
+          }}
+          onCommit={(value) => {
+            const parsed = parseRandomSeed(value);
+            if (parsed === null) {
+              setError({ seed, message: INVALID_SORT_SEED });
+              return;
+            }
+            setError(null);
+            onCommit(parsed);
+          }}
+        />
+        <Button aria-label="Shuffle" icon={<ReloadOutlined />} onClick={onShuffle}>
+          Shuffle
+        </Button>
+      </div>
       {error?.seed === seed && (
         <Typography.Text type="danger" role="alert">
           {error.message}

@@ -314,8 +314,9 @@ Keep the word Sort visible alongside the active order. The popover has Sort by /
 Then by rules with field, direction, removal and accessible priority controls;
 reveal additional rules through Add another sort. Each field appears at most once.
 Relevance, Random and list-only Saved order replace the attribute sequence.
-Random generates a u32 seed on selection, offers a visible Shuffle action, and
-keeps optional seed editing/copying inside the popover. Commit seed drafts on
+Random generates a u32 seed on selection. Keep Shuffle beside its seed input
+inside the popover, preserving the toolbar anchor when switching modes. Seed
+editing/copying also stays inside the popover. Commit seed drafts on
 Enter/blur. Repeated sort URL tokens preserve rule priority; Random's seed remains
 stable through paging, reload and Back. Incoming malformed combinations are errors.
 Response identity checks compare complete sort values structurally. Retain loaded
