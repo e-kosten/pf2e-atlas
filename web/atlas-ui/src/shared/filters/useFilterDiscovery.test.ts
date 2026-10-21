@@ -4,7 +4,11 @@ import {
   useFilterOptionCounts,
   useFilterVocabulary,
 } from "./useFilterDiscovery";
-import type { FilterDiscoveryContext, QueryPredicate } from "../../generated/atlas";
+import type {
+  FilterDiscoveryContext,
+  QueryPredicate,
+  RelationshipConstraintView,
+} from "../../generated/atlas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
@@ -33,6 +37,21 @@ const context: FilterDiscoveryContext = {
   filter: null,
   text: null,
   mode: "hybrid",
+};
+const relationship: RelationshipConstraintView = {
+  direction: "incoming",
+  include_contents: true,
+  selection: {
+    record_key: "items:armor",
+    embedded_path: [],
+    field: null,
+    passage: null,
+    source_fingerprint: "checked-source",
+  },
+};
+const relationshipContext: FilterDiscoveryContext = {
+  ...context,
+  relationships: [relationship],
 };
 function response(profile = "bge-base", generation = "generation-a", count = 3n) {
   return {
@@ -276,6 +295,7 @@ it("refreshes active saved-list option counts through the existing membership in
     ...context,
     kind: "saved_list",
     list_ref: "research",
+    relationships: [relationship],
   };
   function ListWrapper({ children }: { children: ReactNode }) {
     return createElement(QueryClientProvider, { client }, children);
@@ -289,6 +309,10 @@ it("refreshes active saved-list option counts through the existing membership in
     { wrapper: ListWrapper },
   );
   await waitFor(() => expect(result.current.get("fire")).toBe(3n));
+  expect(api.discoverFilterCounts).toHaveBeenCalledWith(
+    expect.objectContaining({ context: listContext }),
+    expect.any(AbortSignal),
+  );
   api.discoverFilterCounts.mockResolvedValue(response("bge-base", "generation-a", 7n));
   await act(async () => {
     await invalidateSavedListQueries(client, ["unrelated"]);
@@ -347,3 +371,224 @@ it.each(["artifact_generation_changed", "internal_error"])(
     );
   },
 );
+
+it.each([
+  ["adding a relationship", context, relationshipContext],
+  [
+    "target",
+    relationshipContext,
+    {
+      ...relationshipContext,
+      relationships: [
+        {
+          ...relationship,
+          selection: { ...relationship.selection, record_key: "conditions:stunned" },
+        },
+      ],
+    },
+  ],
+  [
+    "direction",
+    relationshipContext,
+    {
+      ...relationshipContext,
+      relationships: [{ ...relationship, direction: "outgoing" }],
+    },
+  ],
+  [
+    "contents scope",
+    relationshipContext,
+    {
+      ...relationshipContext,
+      relationships: [{ ...relationship, include_contents: false }],
+    },
+  ],
+  [
+    "exact owner",
+    relationshipContext,
+    {
+      ...relationshipContext,
+      relationships: [
+        {
+          ...relationship,
+          selection: {
+            ...relationship.selection,
+            embedded_path: [
+              { collection: "items", identity: { SnapshotLocal: { index: 3 } } },
+            ],
+          },
+        },
+      ],
+    },
+  ],
+  [
+    "field",
+    relationshipContext,
+    {
+      ...relationshipContext,
+      relationships: [
+        {
+          ...relationship,
+          selection: { ...relationship.selection, field: "description" },
+        },
+      ],
+    },
+  ],
+  [
+    "passage",
+    relationshipContext,
+    {
+      ...relationshipContext,
+      relationships: [
+        {
+          ...relationship,
+          selection: { ...relationship.selection, passage: { kind: "identity" } },
+        },
+      ],
+    },
+  ],
+  [
+    "source fingerprint",
+    relationshipContext,
+    {
+      ...relationshipContext,
+      relationships: [
+        {
+          ...relationship,
+          selection: { ...relationship.selection, source_fingerprint: "new-source" },
+        },
+      ],
+    },
+  ],
+  [
+    "generation",
+    relationshipContext,
+    { ...relationshipContext, expected_artifact_generation: "generation-b" },
+  ],
+] satisfies [string, FilterDiscoveryContext, FilterDiscoveryContext][])(
+  "drops previous option counts immediately when %s changes",
+  async (_label, initial, next) => {
+    api.discoverFilterCounts
+      .mockResolvedValueOnce(response())
+      .mockImplementation(() => new Promise(() => {}));
+    const { result, rerender } = renderHook(
+      ({ activeContext }) =>
+        useFilterOptionCounts(activeContext, "traits", null, ["fire"], true, 128),
+      { wrapper: wrapper(), initialProps: { activeContext: initial } },
+    );
+    await waitFor(() => expect(result.current.get("fire")).toBe(3n));
+    rerender({ activeContext: next });
+    expect(result.current.size).toBe(0);
+    await waitFor(() => expect(api.discoverFilterCounts).toHaveBeenCalledTimes(2));
+    expect(api.discoverFilterCounts).toHaveBeenLastCalledWith(
+      expect.objectContaining({ context: next }),
+      expect.any(AbortSignal),
+    );
+  },
+);
+
+it("does not accept an abandoned unscoped count response after a relationship is applied", async () => {
+  let finish!: (value: unknown) => void;
+  let oldSignal!: AbortSignal;
+  api.discoverFilterCounts
+    .mockImplementationOnce((_request, signal) => {
+      oldSignal = signal;
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    })
+    .mockResolvedValue(response("bge-base", "generation-a", 7n));
+  const { result, rerender } = renderHook(
+    ({ activeContext }) =>
+      useFilterOptionCounts(activeContext, "traits", null, ["fire"], true, 128),
+    {
+      wrapper: wrapper(),
+      initialProps: { activeContext: context as FilterDiscoveryContext },
+    },
+  );
+  await waitFor(() => expect(api.discoverFilterCounts).toHaveBeenCalledTimes(1));
+  rerender({ activeContext: relationshipContext });
+  await waitFor(() => expect(result.current.get("fire")).toBe(7n));
+  expect(oldSignal.aborted).toBe(true);
+  await act(async () => finish(response("bge-base", "generation-a", 99n)));
+  expect(result.current.get("fire")).toBe(7n);
+});
+
+it("drops contextual vocabulary and counts across relationship scope changes", async () => {
+  api.discoverFilterValues
+    .mockResolvedValueOnce({
+      kind: "contextual",
+      search_profile: "bge-base",
+      artifact_generation: "generation-a",
+      outcome: { status: "available", value: response().counts.value },
+    })
+    .mockImplementation(() => new Promise(() => {}));
+  const { result, rerender } = renderHook(
+    ({ activeContext }) =>
+      useFilterVocabulary({ kind: "artifact" }, "traits", "", 0, ["retained"], true, {
+        context: activeContext,
+        clauseId: null,
+      }),
+    { wrapper: wrapper(), initialProps: { activeContext: relationshipContext } },
+  );
+  await waitFor(() => expect(result.current.data?.contextual).toBe(true));
+  const next = {
+    ...relationshipContext,
+    relationships: [{ ...relationship, include_contents: false }],
+  };
+  rerender({ activeContext: next });
+  expect(result.current.data).toBeUndefined();
+  await waitFor(() => expect(api.discoverFilterValues).toHaveBeenCalledTimes(2));
+  expect(api.discoverFilterValues).toHaveBeenLastCalledWith(
+    expect.objectContaining({ kind: "contextual", context: next }),
+    expect.any(AbortSignal),
+  );
+});
+
+it("keeps scoped discovery unavailability explicit and falls back to independent count-free vocabulary", async () => {
+  api.discoverFilterValues.mockImplementation((request) =>
+    Promise.resolve(
+      request.kind === "contextual"
+        ? {
+            kind: "contextual",
+            search_profile: "bge-base",
+            artifact_generation: "generation-a",
+            outcome: { status: "unavailable", reason: "non_conjunctive_context" },
+          }
+        : {
+            kind: "vocabulary",
+            scope: request.scope,
+            values: {
+              field: request.field_id,
+              options: [{ value: "fire" }],
+              selected_values: request.selected_values,
+              total_values: 1n,
+              basis: "product_artifact_before_edition_preference",
+            },
+          },
+    ),
+  );
+  const { result } = renderHook(
+    () =>
+      useFilterVocabulary({ kind: "artifact" }, "traits", "", 0, ["retained"], true, {
+        context: relationshipContext,
+        clauseId: null,
+      }),
+    { wrapper: wrapper() },
+  );
+  await waitFor(() => expect(result.current.data?.contextual).toBe(false));
+  expect(api.discoverFilterValues.mock.calls[0][0]).toMatchObject({
+    kind: "contextual",
+    context: relationshipContext,
+  });
+  expect(api.discoverFilterValues.mock.calls[1][0]).toEqual({
+    kind: "vocabulary",
+    scope: { kind: "artifact" },
+    field_id: "traits",
+    text: null,
+    offset: 0,
+    limit: 40,
+    selected_values: ["retained"],
+  });
+  expect(result.current.data?.values.selected_values).toEqual(["retained"]);
+});

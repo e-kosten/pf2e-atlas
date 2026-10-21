@@ -122,6 +122,12 @@ pub(crate) trait AtlasWebService: Send + Sync {
         execution: &ReadExecutionContext,
     ) -> Result<SearchResultsPage, AppServiceError>;
 
+    fn relationship_occurrences(
+        &self,
+        request: atlas_app_model::RelationshipOccurrencesRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::RelationshipOccurrencesPage, AppServiceError>;
+
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
     fn encounter_reference(
         &self,
@@ -437,6 +443,14 @@ impl AtlasWebService for AtlasAppService {
         execution: &ReadExecutionContext,
     ) -> Result<SearchResultsPage, AppServiceError> {
         self.search_page(request, execution)
+    }
+
+    fn relationship_occurrences(
+        &self,
+        request: atlas_app_model::RelationshipOccurrencesRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::RelationshipOccurrencesPage, AppServiceError> {
+        self.relationship_occurrences(request, execution)
     }
 
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {

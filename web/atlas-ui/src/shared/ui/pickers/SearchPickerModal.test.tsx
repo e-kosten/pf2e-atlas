@@ -29,6 +29,7 @@ const search = vi.mocked(searchPage);
 const addSelected = vi.fn();
 function result(title = "Ghoul", generation = "generation-a", profile = "bge-base") {
   return {
+    relationships: [],
     ranking: "score" as const,
     search_profile: profile,
     artifact_generation: generation,
@@ -43,7 +44,11 @@ function result(title = "Ghoul", generation = "generation-a", profile = "bge-bas
       next_page: null,
     },
     rows: [
-      { record: summaryFixture("actors:" + title.toLowerCase(), title), matches: [] },
+      {
+        record: summaryFixture("actors:" + title.toLowerCase(), title),
+        relationship_evidence: [],
+        matches: [],
+      },
     ],
   };
 }

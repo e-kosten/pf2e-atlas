@@ -2779,6 +2779,7 @@ function participantFixture(
 
 function searchResultsFixture(): SearchResultsPage {
   return {
+    relationships: [],
     ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",
@@ -2795,6 +2796,7 @@ function searchResultsFixture(): SearchResultsPage {
     rows: [
       {
         record: recordSummaryFixture("actors:goblin", "Goblin Warrior"),
+        relationship_evidence: [],
         matches: [],
       },
     ],

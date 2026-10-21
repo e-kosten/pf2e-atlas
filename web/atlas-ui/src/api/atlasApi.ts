@@ -22,6 +22,8 @@ import type {
   FilterSavedListRequest,
   FilterValueListView,
   SearchResultsRequest,
+  RelationshipOccurrencesRequest,
+  RelationshipOccurrencesPage,
   RecordDetailView,
   RecordPresentationView,
   RecordDetailRequest,
@@ -95,6 +97,23 @@ export async function searchPage(
     body: jsonBody(request),
   });
   return normalizeSearchResultsPage(page);
+}
+
+export async function getRelationshipOccurrences(
+  request: RelationshipOccurrencesRequest,
+  signal?: AbortSignal,
+): Promise<RelationshipOccurrencesPage> {
+  const value = await atlasFetch<unknown>("/api/search/relationship-occurrences", {
+    method: "POST",
+    body: jsonBody(request),
+    signal,
+  });
+  if (!isRecord(value) || !isRecord(value.page))
+    throw new AtlasApiError(200, "Invalid relationship links response");
+  return {
+    ...value,
+    page: { ...value.page, total: toBigInt(value.page.total) },
+  } as RelationshipOccurrencesPage;
 }
 
 export async function getRecordDetail(
@@ -637,6 +656,28 @@ function normalizeSearchResultsPage(value: unknown): SearchResultsPage {
       ...page,
       total: toBigInt(page.total),
     },
+    rows: Array.isArray(value.rows)
+      ? value.rows.map((row) =>
+          isRecord(row)
+            ? {
+                ...row,
+                relationship_evidence: Array.isArray(row.relationship_evidence)
+                  ? row.relationship_evidence.map((evidence) =>
+                      isRecord(evidence) && isRecord(evidence.page)
+                        ? {
+                            ...evidence,
+                            page: {
+                              ...evidence.page,
+                              total: toBigInt(evidence.page.total),
+                            },
+                          }
+                        : evidence,
+                    )
+                  : [],
+              }
+            : row,
+        )
+      : [],
   } as SearchResultsPage;
 }
 

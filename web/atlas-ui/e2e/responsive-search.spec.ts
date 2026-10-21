@@ -24,25 +24,36 @@ for (const width of [1440, 1100, 390]) {
       const results = page.getByRole("region", { name: "Search results", exact: true });
       const row = page.locator("[data-record-key]").first();
       await expect(row).toBeVisible();
-      await expect(
-        page.getByRole("searchbox", { name: "Search records" }),
-      ).toBeVisible();
+      const search = page.getByRole("searchbox", {
+        name: similar ? "Similar search" : "Search records",
+      });
+      await expect(search).toBeVisible();
+      if (similar) await expect(search).toHaveAttribute("readonly");
       const inputBox = await page.locator(".reference-search-entry").boundingBox();
       expect(inputBox).not.toBeNull();
+      const controlHeightBox = inputBox;
       const primaryControls = page.locator(
         ".search-model-select, .filter-toolbar .common-choice-trigger, .filter-panel-actions button",
       );
       for (const control of await primaryControls.all()) {
         const controlBox = await control.boundingBox();
         expect(controlBox).not.toBeNull();
-        expect(Math.abs(controlBox!.height - inputBox!.height)).toBeLessThanOrEqual(1);
+        expect(
+          Math.abs(controlBox!.height - controlHeightBox!.height),
+        ).toBeLessThanOrEqual(1);
       }
       const coverage = page.locator(".result-pane-header > span").first();
       await expect(coverage).toHaveText(similar ? /Top matches/ : /\d[\d,]* records/);
-      if (similar)
-        await expect(
-          page.getByText("Similar to Wovenwood Shield (Minor)", { exact: true }),
-        ).toBeVisible();
+      if (similar) {
+        await expect(search).toHaveValue("Wovenwood Shield (Minor)");
+        await search.focus();
+        await search.press("ControlOrMeta+A");
+        expect(
+          await search.evaluate((element: HTMLInputElement) =>
+            element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
+          ),
+        ).toBe("Wovenwood Shield (Minor)");
+      }
       for (const control of [
         results.getByRole("combobox", { name: "Records per page" }),
         results.getByRole("textbox", { name: "Current page" }),
@@ -59,9 +70,7 @@ for (const width of [1440, 1100, 390]) {
       const box = await reader.boundingBox();
       expect(box!.width).toBeGreaterThan(width === 390 ? 340 : 600);
       if (width === 390) {
-        await expect(
-          page.getByRole("searchbox", { name: "Search records" }),
-        ).toBeHidden();
+        await expect(search).toBeHidden();
         await reader.getByRole("button", { name: "Results", exact: true }).click();
         await expect(row).toBeFocused();
         await expect(row).toBeVisible();
@@ -72,6 +81,40 @@ for (const width of [1440, 1100, 390]) {
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       ).toBe(true);
+      if (similar) {
+        const geometry = async () =>
+          Promise.all([
+            page.locator(".reference-search-entry").boundingBox(),
+            page
+              .getByRole("combobox", { name: "Search model" })
+              .locator("..")
+              .boundingBox(),
+            page
+              .getByRole("combobox", { name: "Search ranking" })
+              .locator("..")
+              .boundingBox(),
+          ]);
+        const before = await geometry();
+        const nativeInput = await search.elementHandle();
+        await page.getByRole("button", { name: "Clear similar criterion" }).click();
+        const normalSearch = page.getByRole("searchbox", { name: "Search records" });
+        await expect(normalSearch).toBeFocused();
+        expect(
+          await normalSearch.evaluate(
+            (element, previous) => element === previous,
+            nativeInput,
+          ),
+        ).toBe(true);
+        expect(new URL(page.url()).searchParams.has("similar")).toBe(false);
+        const after = await geometry();
+        for (let index = 0; index < before.length; index++) {
+          for (const dimension of ["x", "y", "width", "height"] as const) {
+            expect(
+              Math.abs(before[index]![dimension] - after[index]![dimension]),
+            ).toBeLessThanOrEqual(1);
+          }
+        }
+      }
     });
   }
 }
@@ -166,4 +209,80 @@ test("match popovers retain row layout and land inline without scrolling the app
   await expect(
     page.getByRole("link", { name: "Return to Imeckus Stroon", exact: true }),
   ).toBeVisible();
+});
+
+test("relationship scope stays tappable within a phone viewport and preserves exact selection", async ({
+  browser,
+  baseURL,
+}) => {
+  const context = await browser.newContext({
+    baseURL,
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+    colorScheme: "dark",
+  });
+  const page = await context.newPage();
+  try {
+    const constraint = {
+      direction: "incoming",
+      selection: {
+        record_key: "conditionitems:dfCMdR4wnpbYNTix",
+        embedded_path: [],
+        field: null,
+        passage: null,
+        source_fingerprint: null,
+      },
+      include_contents: true,
+    };
+    await page.goto(
+      "/search?relationships=" +
+        encodeURIComponent("1." + JSON.stringify([constraint])),
+    );
+    const criterion = page.getByRole("group", { name: "Relationship filter" });
+    await expect(criterion).toContainText("Stunned");
+    const trigger = criterion.getByRole("button", { name: /Links to Stunned/ });
+    await expect(trigger).toHaveText("Links to Stunned");
+    await trigger.tap();
+    const popover = page
+      .getByRole("tooltip")
+      .filter({ hasText: "Look for links in matching records" });
+    await expect(popover).toBeVisible();
+    const main = popover.getByRole("radio", { name: "Main entry only" });
+    const whole = popover.getByRole("radio", { name: "Whole entry" });
+    for (const control of [popover, main, whole]) {
+      const box = await control.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.y).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(844);
+    }
+    await main.tap();
+    await expect(trigger).toHaveText("Links to Stunned");
+    await expect(trigger).toBeFocused();
+    const restored = JSON.parse(
+      new URL(page.url()).searchParams.get("relationships")!.slice(2),
+    );
+    expect(restored).toEqual([{ ...constraint, include_contents: false }]);
+    await trigger.tap();
+    await expect(main).toBeChecked();
+    await page.keyboard.press("Escape");
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(trigger).toBeFocused();
+    await trigger.tap();
+    await popover.getByRole("link", { name: "Open Stunned", exact: true }).tap();
+    await expect(page).toHaveURL(
+      (url) =>
+        decodeURIComponent(url.pathname) === "/records/conditionitems:dfCMdR4wnpbYNTix",
+    );
+    expect(JSON.parse(new URL(page.url()).searchParams.get("selection")!)).toEqual(
+      constraint.selection,
+    );
+    await expect(
+      page.getByRole("heading", { name: "Stunned", exact: true }),
+    ).toBeVisible();
+  } finally {
+    await context.close();
+  }
 });

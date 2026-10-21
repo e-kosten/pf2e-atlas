@@ -1,10 +1,11 @@
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { Alert, Button, Select, Space, Typography } from "antd";
+import { Alert, Button, Select } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
 import { FilterControls } from "../../shared/filters/FilterPanel";
 import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
 import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
+import { RelationshipFilters } from "./RelationshipFilters";
 import { SearchModelSelect } from "./SearchModelSelect";
 import { SearchProfileNotice } from "../../shared/search/SearchProfileNotice";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
@@ -32,57 +33,56 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
       <FilterControls
         filterState={workspace}
         layout="toolbar"
+        additionalFilters={<RelationshipFilters workspace={workspace} />}
+        similarSearch={
+          workspace.search.similarSeed
+            ? {
+                title:
+                  workspace.resultPage?.mode.kind === "similar_records" &&
+                  workspace.resultPage.mode.seed.record_key ===
+                    workspace.search.similarSeed
+                    ? workspace.resultPage.mode.seed.title
+                    : workspace.errorMessage
+                      ? "Record unavailable"
+                      : "Loading record…",
+                onSearch: workspace.refresh,
+                onClear: () =>
+                  workspace.setSearch({
+                    ...workspace.search,
+                    query: "",
+                    similarSeed: null,
+                    mode: "browse",
+                  }),
+              }
+            : undefined
+        }
         searchRowEnd={
           <>
             <SearchModelSelect />
-            {!workspace.search.similarSeed && (
-              <Select
-                aria-label="Search ranking"
-                className="search-model-select"
-                value={workspace.search.ranking ?? "score"}
-                options={[
-                  { value: "rrf", label: "Rank-based" },
-                  { value: "score", label: "Score-based" },
-                ]}
-                onChange={(ranking) =>
-                  workspace.setSearch({
-                    ...workspace.search,
-                    ranking,
-                    filterError:
-                      workspace.search.filterError === UNKNOWN_SEARCH_RANKING
-                        ? null
-                        : workspace.search.filterError,
-                  })
-                }
-                popupMatchSelectWidth={false}
-              />
-            )}
-          </>
-        }
-      >
-        {workspace.search.similarSeed && (
-          <Space>
-            <Typography.Text>
-              {workspace.resultPage?.mode.kind === "similar_records"
-                ? `Similar to ${workspace.resultPage.mode.seed.title}`
-                : "Similar records"}
-            </Typography.Text>
-            <Button
-              aria-label="Clear similar criterion"
-              size="small"
-              onClick={() =>
+            <Select
+              disabled={Boolean(workspace.search.similarSeed)}
+              aria-label="Search ranking"
+              className="search-model-select"
+              value={workspace.search.ranking ?? "score"}
+              options={[
+                { value: "rrf", label: "Rank-based" },
+                { value: "score", label: "Score-based" },
+              ]}
+              onChange={(ranking) =>
                 workspace.setSearch({
                   ...workspace.search,
-                  similarSeed: null,
-                  mode: "browse",
+                  ranking,
+                  filterError:
+                    workspace.search.filterError === UNKNOWN_SEARCH_RANKING
+                      ? null
+                      : workspace.search.filterError,
                 })
               }
-            >
-              Clear
-            </Button>
-          </Space>
-        )}
-      </FilterControls>
+              popupMatchSelectWidth={false}
+            />
+          </>
+        }
+      />
       <SearchProfileNotice />
       {workspace.errorMessage && (
         <Alert
@@ -113,6 +113,9 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
               : "Search or choose filters."
         }
         rows={workspace.resultPage?.rows ?? []}
+        relationships={workspace.resultPage?.relationships}
+        generation={workspace.resultPage?.artifact_generation}
+        onRefreshResults={workspace.refreshResults}
         loading={loading}
         selectedRecordKey={workspace.selectedRecordKey}
         onSelect={(row) => workspace.selectRecord(row.record.record_key)}

@@ -633,3 +633,17 @@ pub(crate) async fn trait_records(
         .await?,
     ))
 }
+
+pub(crate) async fn relationship_occurrences(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::RelationshipOccurrencesRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_read_service(state, move |execution| {
+            service.relationship_occurrences(request, &execution)
+        })
+        .await?,
+    ))
+}

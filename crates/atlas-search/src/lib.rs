@@ -51,3 +51,10 @@ pub use traits::{
     TraitMembership, TraitMembershipResult, TraitReference, TraitReferenceResult,
     TraitSourceLocation,
 };
+
+pub use atlas_index::{
+    RelationshipConstraint, RelationshipOccurrencePage, RelationshipOccurrencePageRequest,
+};
+
+#[cfg(test)]
+mod relationship_tests;

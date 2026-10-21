@@ -97,6 +97,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         let result = match app_result(
             s.search_page(
                 atlas_app_model::SearchResultsRequest {
+                    relationships: None,
                     ranking: None,
                     search_profile: o.search_profile,
                     criteria: atlas_app_model::SearchCriteria::ListRecords { filter },
