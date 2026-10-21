@@ -731,8 +731,11 @@ describe("list views", () => {
       />,
       { wrapper: queryClientWrapper() },
     );
+    const listTitle = `${savedListDetailFixture().list.name} · Atlas`;
+    await waitFor(() => expect(document.title).toBe(listTitle));
     fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
     await screen.findByRole("heading", { name: "Nested Rule" });
+    expect(document.title).toBe(listTitle);
     const input = screen.getByRole("searchbox", { name: "Search records" });
     fireEvent.change(input, { target: { value: "no matching records" } });
     fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
@@ -743,6 +746,11 @@ describe("list views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
     expect(await screen.findByRole("heading", { name: "Test Action 1" })).toBeVisible();
     expect(apiMocks.removeSavedListItem).not.toHaveBeenCalled();
+    fireEvent.change(input, { target: { value: "" } });
+    await waitFor(() =>
+      expect(apiMocks.filterSavedList.mock.lastCall?.[0].query).toBeUndefined(),
+    );
+    expect(await screen.findByRole("link", { name: /Test Action 1/ })).toBeVisible();
   });
 
   it("searches within a saved list through the filter route", async () => {

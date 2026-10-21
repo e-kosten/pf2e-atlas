@@ -1,3 +1,4 @@
+import { usePageTitle } from "../shared/browser/usePageTitle";
 import { ConfigProvider, Alert, App } from "antd";
 import { Suspense, lazy, useEffect, useState } from "react";
 import {
@@ -148,7 +149,7 @@ export function AtlasApp() {
             onCheckReadiness={() => void readiness.refetch()}
           >
             <Suspense fallback={<RouteLoading />}>
-              {route.kind === "invalid" && <Alert type="error" title={route.message} />}
+              {route.kind === "invalid" && <InvalidRoute message={route.message} />}
               {route.kind === "search" && <SearchView workspace={workspace} />}
               {route.kind === "encounters" && <EncounterIndexView route={route} />}
               {route.kind === "encounter" && <EncounterDetailView route={route} />}
@@ -173,7 +174,13 @@ export function AtlasApp() {
   );
 }
 
+function InvalidRoute({ message }: { message: string }) {
+  usePageTitle("Invalid link");
+  return <Alert type="error" title={message} />;
+}
+
 function RouteLoading() {
+  usePageTitle("Loading");
   return <main className="detail-empty">Loading</main>;
 }
 

@@ -109,6 +109,7 @@ describe("AtlasApp routing", () => {
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
+    expect(document.title).toBe("heal · Atlas");
     expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
       "spell:heal",
       undefined,
@@ -125,6 +126,14 @@ describe("AtlasApp routing", () => {
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
+    expect(document.title).toBe("heal · Atlas");
+
+    history.pushState(null, "", "/search");
+    fireEvent.popState(window);
+    await waitFor(() => expect(document.title).toBe("Search · Atlas"));
+    history.pushState(null, "", "/lists");
+    fireEvent.popState(window);
+    await waitFor(() => expect(document.title).toBe("Lists · Atlas"));
   });
 
   it("waits for metadata before searching and gives the URL priority over preference and launch default", async () => {
