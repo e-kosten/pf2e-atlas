@@ -6,7 +6,10 @@ import {
   navigateToAtlasRoute,
   shouldHandleAtlasRouteClick,
 } from "../../app/routes";
-import type { RelationshipConstraintView } from "../../generated/atlas";
+import type {
+  RelationshipConstraintView,
+  RelationshipDirectionView,
+} from "../../generated/atlas";
 import { recordReadingIdentity } from "../../shared/records/useRetainedRecord";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 
@@ -40,12 +43,11 @@ function RelationshipFilter({
   const constraints = workspace.search.relationships ?? [];
   const summary = workspace.resultPage?.relationships?.find(
     (candidate) =>
-      candidate.constraint.direction === constraint.direction &&
       recordReadingIdentity(
         candidate.constraint.selection.record_key,
         candidate.constraint.selection,
       ) ===
-        recordReadingIdentity(constraint.selection.record_key, constraint.selection),
+      recordReadingIdentity(constraint.selection.record_key, constraint.selection),
   );
   const route = {
     kind: "record",
@@ -85,9 +87,32 @@ function RelationshipFilter({
         open={scopeOpen}
         onOpenChange={setScopeOpen}
         title={
-          constraint.direction === "incoming"
-            ? "Look for links in matching records"
-            : "Look for links in this entry"
+          <Radio.Group
+            aria-label="Relationship direction"
+            buttonStyle="solid"
+            value={constraint.direction}
+            onChange={(event) => {
+              workspace.setSearch({
+                ...workspace.search,
+                relationships: constraints.map((candidate, candidateIndex) =>
+                  candidateIndex === index
+                    ? {
+                        ...candidate,
+                        direction: event.target.value as RelationshipDirectionView,
+                      }
+                    : candidate,
+                ),
+              });
+              closeScope();
+            }}
+          >
+            <Radio.Button onKeyDown={scopeKeyDown} value="incoming">
+              Links to
+            </Radio.Button>
+            <Radio.Button onKeyDown={scopeKeyDown} value="outgoing">
+              Linked from
+            </Radio.Button>
+          </Radio.Group>
         }
         content={
           <div className="relationship-filter__scope">
@@ -106,6 +131,14 @@ function RelationshipFilter({
                 Open {summary.title}
               </Typography.Link>
             )}
+            <Typography.Paragraph
+              strong
+              style={{ marginTop: 0, marginBottom: token.marginXS }}
+            >
+              {constraint.direction === "incoming"
+                ? "Look for links in matching records"
+                : "Look for links in this entry"}
+            </Typography.Paragraph>
             <Radio.Group
               aria-label="Relationship scope"
               value={constraint.include_contents}

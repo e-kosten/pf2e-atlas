@@ -224,7 +224,9 @@ one distinct root, with checked occurrence provenance and independently bounded/
 pageable evidence. Keep existing bounded Related/encounter readers intact.
 
 Relationship UI displays human names, never record IDs, including unavailable
-states. Disambiguation uses kind/publication/parent names. Similar occupies the
+states. The active criterion's popover switches Links to / Linked from while
+retaining the exact selected entry, contents scope and other search criteria.
+Disambiguation uses kind/publication/parent names. Similar occupies the
 main search control as `[Similar to] [Leather Armor] [Clear]`; the name is
 selectable/copyable and read-only. Clear retains other filters and returns focus
 to keyword entry. Keyword and Similar modes share search/clear affordances and

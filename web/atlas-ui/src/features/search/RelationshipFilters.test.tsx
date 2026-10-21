@@ -125,3 +125,48 @@ it("keeps unavailable targets readable without exposing record keys", () => {
     screen.getByRole("button", { name: "Remove relationship filter" }),
   ).toBeEnabled();
 });
+
+it("switches direction in place while retaining exact selection, scope and other search criteria", async () => {
+  const relationship: RelationshipConstraintView = {
+    ...constraint,
+    include_contents: false,
+    selection: {
+      ...constraint.selection,
+      embedded_path: [
+        { collection: "items", identity: { SnapshotLocal: { index: 0 } } },
+      ],
+      field: "/system/description/value",
+    },
+  };
+  const state = workspace(relationship);
+  const other = {
+    ...relationship,
+    include_contents: true,
+    direction: "outgoing" as const,
+  };
+  state.search.relationships = [relationship, other];
+  state.search.filter = { kind: "compare", field: "level", op: "gte", value: 2 };
+  const view = render(<RelationshipFilters workspace={state} />);
+  fireEvent.click(screen.getByRole("button", { name: /Links to Leather Armor/ }));
+  fireEvent.click(await screen.findByRole("radio", { name: "Linked from" }));
+  const next = {
+    ...state.search,
+    relationships: [{ ...relationship, direction: "outgoing" as const }, other],
+  };
+  expect(state.setSearch).toHaveBeenLastCalledWith(next);
+  view.rerender(<RelationshipFilters workspace={{ ...state, search: next }} />);
+  // The old result projection still names the same checked target during fetching.
+  const chip = screen.getByRole("button", {
+    name: /Linked from Leather Armor · Leather Armor; Main entry only/,
+  });
+  expect(chip).toHaveFocus();
+  expect(view.container).not.toHaveTextContent("Loading record");
+  fireEvent.click(chip);
+  expect(await screen.findByRole("radio", { name: "Linked from" })).toBeChecked();
+  expect(screen.getByRole("radio", { name: "Main entry only" })).toBeChecked();
+  fireEvent.click(screen.getByRole("radio", { name: "Links to" }));
+  expect(state.setSearch).toHaveBeenLastCalledWith({
+    ...next,
+    relationships: [relationship, other],
+  });
+});
