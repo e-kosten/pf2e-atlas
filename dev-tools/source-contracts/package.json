@@ -30,7 +30,9 @@
     "precompare-documents": "npm run build --silent",
     "compare-documents": "node dist/src/cli/compare-documents.js",
     "precompare-portfolio": "npm run build --silent",
-    "compare-portfolio": "node dist/src/cli/compare-portfolio.js"
+    "compare-portfolio": "node dist/src/cli/compare-portfolio.js",
+    "precompare-traits": "npm run build --silent",
+    "compare-traits": "node dist/src/cli/compare-traits.js"
   },
   "dependencies": {
     "typescript": "5.9.3"
