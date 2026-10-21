@@ -59,7 +59,7 @@ impl AtlasAppService {
                     ));
                 }
             };
-            Ok(r.similar_records(SimilarRecordRequest {
+            r.similar_records(SimilarRecordRequest {
                 sort: sort.clone(),
                 search_profile: search_profile.as_ref(),
                 record_key: &key,
@@ -88,7 +88,7 @@ impl AtlasAppService {
                     })
                 },
             )
-            .transpose()?)
+            .transpose()
         })
     }
     pub fn graph_context(
