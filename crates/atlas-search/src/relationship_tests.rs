@@ -2,8 +2,9 @@ use crate::{
     test_support::{input, open_input_fixture, record},
     *,
 };
+use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
 use atlas_domain::{QueryPredicate, RecordKey};
-use atlas_record::source_content::{OwnedContentIdentity, OwnedContentLocator};
+
 use serde_json::json;
 fn key(pack: &str, id: &str) -> RecordKey {
     RecordKey::parse(&format!("{pack}:{id}")).unwrap()
@@ -21,19 +22,43 @@ fn effect(id: &str, name: &str, html: &str) -> atlas_index::SourceArtifactRecord
         json!({"_id":id,"type":"effect","name":name,"system":{"description":{"value":html}}}),
     )
 }
-fn criterion(
+pub(super) fn criterion(
     direction: SourceRelationshipDirection,
     record: RecordKey,
     owners: Vec<OwnedContentLocator>,
     include_contents: bool,
-) -> RelationshipConstraint {
-    RelationshipConstraint {
-        direction,
-        record,
-        owners,
-        field: None,
+) -> atlas_domain::QueryRelationship {
+    atlas_domain::QueryRelationship {
+        direction: match direction {
+            SourceRelationshipDirection::Incoming => {
+                atlas_domain::QueryRelationshipDirection::Incoming
+            }
+            SourceRelationshipDirection::Outgoing => {
+                atlas_domain::QueryRelationshipDirection::Outgoing
+            }
+        },
+        selection: atlas_domain::QueryRecordSelection {
+            record_key: record,
+            owners,
+            field: None,
+            passage: None,
+            source_fingerprint: None,
+            spell_rank: None,
+        },
         include_contents,
     }
+}
+pub(super) fn link_filter(
+    ordinary: Option<&QueryPredicate>,
+    links: &[atlas_domain::QueryRelationship],
+) -> QueryPredicate {
+    let mut children = ordinary.into_iter().cloned().collect::<Vec<_>>();
+    children.extend(links.iter().cloned().map(|relationship| {
+        QueryPredicate::new(atlas_domain::QueryExpression::Relationship { relationship })
+    }));
+    let mut filter = QueryPredicate::new(atlas_domain::QueryExpression::AllOf { children });
+    atlas_domain::assign_relationship_clause_ids(&mut filter).unwrap();
+    filter
 }
 #[test]
 fn relationship_roots_are_exhaustive_distinct_filtered_and_conjunctive_before_retrieval() {
@@ -63,19 +88,19 @@ fn relationship_roots_are_exhaustive_distinct_filtered_and_conjunctive_before_re
         vec![],
         false,
     )];
-    let scope = RecordScope::Constrained {
-        keys: None,
-        relationships: &constraints,
-    };
+    let links = link_filter(None, &constraints);
+    let scope = RecordScope::All;
     let result = service
         .list_records(
-            ListRecordsRequest::new(None, SearchPage::new(1, 100).unwrap()).with_scope(scope),
+            ListRecordsRequest::new(Some(&links), SearchPage::new(1, 100).unwrap())
+                .with_scope(scope),
         )
         .unwrap();
     assert_eq!((result.total, result.records.len()), (125, 100));
     let last = service
         .list_records(
-            ListRecordsRequest::new(None, SearchPage::new(2, 100).unwrap()).with_scope(scope),
+            ListRecordsRequest::new(Some(&links), SearchPage::new(2, 100).unwrap())
+                .with_scope(scope),
         )
         .unwrap();
     assert_eq!(last.records.len(), 25);
@@ -83,6 +108,7 @@ fn relationship_roots_are_exhaustive_distinct_filtered_and_conjunctive_before_re
         json!({"kind":"compare","field":"kind","op":"eq","value":"equipment"}),
     )
     .unwrap();
+    let filter = link_filter(Some(&filter), &constraints);
     let filtered = service
         .list_records(
             ListRecordsRequest::new(Some(&filter), SearchPage::default()).with_scope(scope),
@@ -96,7 +122,7 @@ fn relationship_roots_are_exhaustive_distinct_filtered_and_conjunctive_before_re
     let evidence = service
         .index
         .relationship_occurrence_page(RelationshipOccurrencePageRequest {
-            constraint: &constraints[0],
+            relationship: &constraints[0],
             result: &key("items", "0000000000000000"),
             offset: 1,
             limit: 1,
@@ -109,13 +135,12 @@ fn relationship_roots_are_exhaustive_distinct_filtered_and_conjunctive_before_re
     text.filter = Some(&filter);
     assert_eq!(service.search_text(text).unwrap().page.total, 1);
     let scoped_keys = vec![key("items", "0000000000000124")];
-    let scoped = RecordScope::Constrained {
-        keys: Some(&scoped_keys),
-        relationships: &constraints,
-    };
+    let scoped = RecordScope::Keys(&scoped_keys);
     assert_eq!(
         service
-            .list_records(ListRecordsRequest::new(None, SearchPage::default()).with_scope(scoped))
+            .list_records(
+                ListRecordsRequest::new(Some(&links), SearchPage::default()).with_scope(scoped)
+            )
             .unwrap()
             .total,
         1
@@ -147,14 +172,10 @@ fn relationship_roots_are_exhaustive_distinct_filtered_and_conjunctive_before_re
     ];
     assert_eq!(
         service
-            .list_records(
-                ListRecordsRequest::new(None, SearchPage::default()).with_scope(
-                    RecordScope::Constrained {
-                        keys: None,
-                        relationships: &all
-                    }
-                )
-            )
+            .list_records(ListRecordsRequest::new(
+                Some(&link_filter(None, &all)),
+                SearchPage::default()
+            ))
             .unwrap()
             .total,
         1
@@ -182,16 +203,12 @@ fn relationship_source_contents_and_exact_destinations_never_include_siblings_or
         false,
     ))
     .unwrap();
-    let query = |constraint: RelationshipConstraint| {
+    let query = |relationship: atlas_domain::QueryRelationship| {
         service
-            .list_records(
-                ListRecordsRequest::new(None, SearchPage::default()).with_scope(
-                    RecordScope::Constrained {
-                        keys: None,
-                        relationships: &[constraint],
-                    },
-                ),
-            )
+            .list_records(ListRecordsRequest::new(
+                Some(&link_filter(None, &[relationship])),
+                SearchPage::default(),
+            ))
             .unwrap()
             .record_keys
     };
@@ -260,6 +277,18 @@ fn relationship_source_contents_and_exact_destinations_never_include_siblings_or
         )),
         vec![key("items", "ffffffffffffffff")]
     );
+    let mut selected_text = criterion(
+        SourceRelationshipDirection::Incoming,
+        key("actors", actor),
+        owned(child_a),
+        true,
+    );
+    selected_text.selection.field = Some("/system/description/value".into());
+    assert_eq!(
+        query(selected_text),
+        vec![key("items", "ffffffffffffffff")],
+        "incoming target owner remains exact when navigation retains its selected prose field"
+    );
     assert!(
         query(criterion(
             SourceRelationshipDirection::Incoming,
@@ -296,7 +325,7 @@ fn occurrence_paging_has_complete_total_beyond_preview_budget() {
     let first = service
         .index
         .relationship_occurrence_page(RelationshipOccurrencePageRequest {
-            constraint: &constraint,
+            relationship: &constraint,
             result: &result,
             offset: 0,
             limit: 100,
@@ -305,7 +334,7 @@ fn occurrence_paging_has_complete_total_beyond_preview_budget() {
     let second = service
         .index
         .relationship_occurrence_page(RelationshipOccurrencePageRequest {
-            constraint: &constraint,
+            relationship: &constraint,
             result: &result,
             offset: 100,
             limit: 100,
@@ -354,17 +383,99 @@ fn remaster_preference_does_not_rebind_an_exact_reference() {
         true,
     )];
     let result = service
-        .list_records(
-            ListRecordsRequest::new(None, SearchPage::default()).with_scope(
-                RecordScope::Constrained {
-                    keys: None,
-                    relationships: &constraints,
-                },
-            ),
-        )
+        .list_records(ListRecordsRequest::new(
+            Some(&link_filter(None, &constraints)),
+            SearchPage::default(),
+        ))
         .unwrap();
     assert_eq!(result.record_keys, vec![key("items", "bbbbbbbbbbbbbbbb")]);
 }
 
 #[path = "relationship_count_tests.rs"]
 mod counts;
+
+#[test]
+fn boolean_relationship_proofs_follow_successful_sql_branches_and_polarity() {
+    let target = "aaaaaaaaaaaaaaaa";
+    let source = key("items", "bbbbbbbbbbbbbbbb");
+    let (service, _artifact) = open_input_fixture(input(
+        vec![
+            effect(target, "Target", ""),
+            effect(
+                "bbbbbbbbbbbbbbbb",
+                "Source",
+                &format!("<p>@UUID[Compendium.pf2e.items.Item.{target}]</p>"),
+            ),
+            effect("cccccccccccccccc", "Unlinked", ""),
+        ],
+        false,
+    ))
+    .unwrap();
+    let a = format!(r#"links_to("items:{target}")"#);
+    for (text, expected_roots, expected_proofs) in [
+        (
+            format!("({a} && source.type == 'weapon') || {a}"),
+            1,
+            vec![1],
+        ),
+        (format!("!({a} && source.type == 'weapon')"), 3, vec![]),
+        (format!("!!({a})"), 1, vec![0]),
+        (format!("!({a})"), 2, vec![]),
+        (format!("{a} || level > 100"), 1, vec![0]),
+        (format!("{a} && !(level > 100)"), 0, vec![]),
+        (format!("({a} && !(level > 100)) || {a}"), 1, vec![1]),
+    ] {
+        let filter = service.parse_where(&text).unwrap().predicate().clone();
+        let result = service
+            .list_records(ListRecordsRequest::new(
+                Some(&filter),
+                SearchPage::default(),
+            ))
+            .unwrap();
+        assert_eq!(result.total, expected_roots, "{text}");
+        let clauses = atlas_domain::relationship_clauses(&filter).unwrap();
+        let expected_proofs = expected_proofs
+            .into_iter()
+            .map(|i| clauses[i].0)
+            .collect::<Vec<_>>();
+        let proofs = service
+            .relationship_proofs(&filter, std::slice::from_ref(&source))
+            .unwrap();
+        assert_eq!(
+            proofs.iter().map(|(_, id)| id.as_str()).collect::<Vec<_>>(),
+            expected_proofs,
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn relationship_admission_checks_negated_and_short_circuited_selections() {
+    let (service, _artifact) =
+        open_input_fixture(input(vec![effect("aaaaaaaaaaaaaaaa", "Target", "")], false)).unwrap();
+    for expression in [
+        "!links_to('items:missing000000000')",
+        "source.type == 'weapon' && links_to('items:missing000000000')",
+        "source.type == 'effect' || links_to('items:missing000000000')",
+    ] {
+        // Parsing remains artifact-free in the index; retrieval validates every source.
+        let parsed = atlas_index::parse_where(expression)
+            .unwrap()
+            .predicate()
+            .clone();
+        assert!(service.validate_filter(&parsed).is_err(), "{expression}");
+        assert!(
+            service
+                .list_records(ListRecordsRequest::new(
+                    Some(&parsed),
+                    SearchPage::default()
+                ))
+                .is_err()
+        );
+    }
+    let expression = "inventory.items.exists(i, links_to('items:aaaaaaaaaaaaaaaa'))";
+    assert!(
+        atlas_index::parse_where(expression).is_err(),
+        "links must not imply authored-child matching"
+    );
+}

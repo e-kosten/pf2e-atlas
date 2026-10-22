@@ -5,6 +5,7 @@ use atlas_app_service::AtlasAppService;
 use atlas_cli_support::{CliPathMode, write_json_data};
 use std::{path::PathBuf, process::ExitCode};
 pub(crate) mod args;
+pub(crate) mod occurrences;
 use args::*;
 fn client(
     mode: CliPathMode,

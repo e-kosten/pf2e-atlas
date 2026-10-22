@@ -1,8 +1,9 @@
 //! Immutable build inputs. Source admission and filesystem discovery remain ingest-owned.
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::{RecordKey, SearchProfileId, SourcePassageAddress};
 use atlas_record::source_content::{
     ContentAudience, ContentInteraction, ContentReferenceResolution, ContentVisibilityRule,
-    OwnedContentLocator, SourceContentLocator,
+    SourceContentLocator,
 };
 use atlas_record::source_record::{
     SourceBackedRecord, SourceContentOutcome, SourceRelationshipOccurrence,

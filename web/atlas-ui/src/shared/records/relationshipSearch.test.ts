@@ -1,4 +1,6 @@
-import type { RelationshipConstraintView } from "../../generated/atlas";
+import type { QueryRelationship } from "../../generated/atlas";
+import { linkLeaf } from "../filters/linkPredicates";
+import { linkClauses } from "../filters/LinkFilterControls";
 import { relationshipSearchRoute } from "./relationshipSearch";
 import {
   decodeSearchStateFromParams,
@@ -6,8 +8,8 @@ import {
   searchStateQueryString,
 } from "../filters/searchState";
 
-it("replaces one record-origin relationship while retaining text, filters and exact checked selection", () => {
-  const constraint: RelationshipConstraintView = {
+it("ANDs a record-origin condition with the entire previous tree while retaining text, filters and exact checked selection", () => {
+  const constraint: QueryRelationship = {
     direction: "outgoing",
     selection: {
       record_key: "actors:selected",
@@ -27,17 +29,31 @@ it("replaces one record-origin relationship while retaining text, filters and ex
         {
           ...DEFAULT_SEARCH_STATE,
           query: "cold",
-          filter,
-          relationships: [{ ...constraint, direction: "incoming" }],
+          filter: {
+            kind: "any_of",
+            children: [
+              filter,
+              linkLeaf({ ...constraint, direction: "incoming" }, "old"),
+            ],
+          },
         },
         "bge-base",
       ),
   );
-  const route = relationshipSearchRoute(constraint);
+  const route = relationshipSearchRoute(linkLeaf(constraint, "new"));
   if (route.kind !== "search") throw new Error("Expected Search");
   const search = decodeSearchStateFromParams(new URLSearchParams(route.query));
-  expect(search.relationships).toEqual([constraint]);
+  expect(linkClauses(search.filter).map((leaf) => leaf.relationship)).toEqual([
+    { ...constraint, direction: "incoming" },
+    constraint,
+  ]);
   expect(search.query).toBe("cold");
-  expect(search.filter).toMatchObject(filter);
+  expect(search.filter).toMatchObject({
+    kind: "all_of",
+    children: [
+      { kind: "any_of", children: [filter, expect.anything()] },
+      expect.objectContaining({ kind: "relationship", relationship: constraint }),
+    ],
+  });
   expect(new URLSearchParams(route.query).get("search_profile")).toBe("bge-base");
 });

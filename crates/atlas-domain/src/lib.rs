@@ -21,7 +21,15 @@ pub use query::{
     QueryFieldState, QueryFieldType, QueryLimits, QueryLiteral, QueryPredicate, QuerySetMatch,
     QueryTruth, QueryValueDiscovery,
 };
-pub use source_address::{InvalidSourceByteRange, SourceByteRange, SourcePassageAddress};
+pub use source_address::{
+    InvalidSourceByteRange, OwnedContentIdentity, OwnedContentLocator, SourceByteRange,
+    SourcePassageAddress,
+};
+mod query_relationship;
+pub use query_relationship::{
+    QueryRecordSelection, QueryRelationship, QueryRelationshipDirection,
+    assign_relationship_clause_ids, relationship_clauses, select_relationship_clause_id,
+};
 
 pub use categories::RecordKind;
 pub use name_lookup::normalize_record_name;

@@ -1,172 +1,115 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { RelationshipFilters } from "./RelationshipFilters";
-import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
-import { summaryFixture } from "../../test/fixtures";
-import type { SearchWorkspaceState } from "./useSearchWorkspace";
-import type { RelationshipConstraintView } from "../../generated/atlas";
-import * as routes from "../../app/routes";
-
-const constraint: RelationshipConstraintView = {
-  direction: "incoming",
-  selection: {
-    record_key: "equipment:secret-id",
-    embedded_path: [],
-    field: null,
-    passage: null,
-    source_fingerprint: "checked-source",
-  },
-  include_contents: true,
-};
-function workspace(relationship = constraint) {
-  return {
-    search: {
-      ...DEFAULT_SEARCH_STATE,
-      relationships: [relationship],
-      query: "defense",
-    },
-    setSearch: vi.fn(),
-    resultPage: {
-      relationships: [
-        {
-          constraint: relationship,
-          title: "Leather Armor",
-          record: summaryFixture(constraint.selection.record_key, "Leather Armor"),
-        },
+import { fireEvent, render, screen } from "@testing-library/react";
+import { LinkFilterControls } from "../../shared/filters/LinkFilterControls";
+import { linkLeaf } from "../../shared/filters/linkPredicates";
+import { rootNavigation } from "../../shared/records/useReferenceReading";
+const leaf = linkLeaf(
+  {
+    direction: "incoming",
+    include_contents: true,
+    selection: {
+      ...rootNavigation("equipment:secret-id"),
+      embedded_path: [
+        { collection: "items", identity: { SnapshotLocal: { index: 0 } } },
       ],
+      source_fingerprint: "checked-source",
     },
-    errorMessage: null,
-  } as unknown as SearchWorkspaceState;
+  },
+  "one",
+);
+function setup(filter = leaf as import("../../generated/atlas").QueryPredicate) {
+  const edit = vi.fn().mockReturnValue(null),
+    remove = vi.fn(),
+    advanced = vi.fn();
+  const view = render(
+    <LinkFilterControls
+      filter={filter}
+      fields={[]}
+      title={() => "Leather Armor"}
+      onAdd={vi.fn()}
+      onEdit={edit}
+      onRemove={remove}
+      onAdvanced={advanced}
+    />,
+  );
+  return { edit, remove, advanced, view };
 }
-
-it("shows the human relationship label at the top level and preserves criteria on scope changes/removal", async () => {
-  const state = workspace();
-  const view = render(<RelationshipFilters workspace={state} />);
-  expect(screen.getByRole("group", { name: "Relationship filter" })).toBeVisible();
-  const chip = screen.getByRole("button", { name: /Links to Leather Armor/ });
-  expect(chip).toHaveTextContent("Links to Leather Armor");
-  expect(screen.queryByRole("link", { name: /Leather Armor/ })).toBeNull();
+it("shows human link labels and exact scope without IDs", () => {
+  const { view } = setup();
+  expect(
+    screen.getByRole("button", { name: /Links to Leather Armor; Whole entry/ }),
+  ).toBeInTheDocument();
   expect(view.container).not.toHaveTextContent("secret-id");
+});
+it("changes scope while preserving the exact embedded selection", async () => {
+  const { edit } = setup();
+  fireEvent.click(screen.getByRole("button", { name: /Links to Leather Armor/ }));
+  fireEvent.click(await screen.findByRole("radio", { name: "Main entry only" }));
+  expect(edit).toHaveBeenCalledWith(leaf, {
+    ...leaf.relationship,
+    include_contents: false,
+  });
+});
+it("changes direction while preserving exact scope and target", async () => {
+  const { edit } = setup();
+  fireEvent.click(screen.getByRole("button", { name: /Links to Leather Armor/ }));
+  fireEvent.click(await screen.findByRole("radio", { name: "Linked from" }));
+  expect(edit).toHaveBeenCalledWith(leaf, {
+    ...leaf.relationship,
+    direction: "outgoing",
+  });
+});
+it("offers the exact native target and reuses the picker for changing it", async () => {
+  const { edit } = setup();
+  fireEvent.click(screen.getByRole("button", { name: /Links to Leather Armor/ }));
+  expect(
+    await screen.findByRole("link", { name: "Open Leather Armor" }),
+  ).toHaveAttribute("href", expect.stringContaining("selection="));
+  fireEvent.click(screen.getByRole("button", { name: "Change record" }));
+  expect(edit).toHaveBeenCalledWith(leaf);
+});
+it("keeps duplicate feedback local and preserves the chip", async () => {
+  const { edit } = setup();
+  edit.mockReturnValue("This link condition is already added.");
+  const chip = screen.getByRole("button", { name: /Links to Leather Armor/ });
   fireEvent.click(chip);
-  await waitFor(() =>
-    expect(
-      screen.getByRole("link", { name: "Open Leather Armor" }),
-    ).toBeInTheDocument(),
-  );
-  await waitFor(() =>
-    expect(
-      screen.getByText(
-        "Whole entry also checks each matching record’s abilities, spells, equipment, and other nested documents.",
-      ),
-    ).toBeInTheDocument(),
-  );
-  fireEvent.click(screen.getByRole("radio", { name: "Main entry only" }));
-  expect(state.setSearch).toHaveBeenCalledWith({
-    ...state.search,
-    relationships: [{ ...constraint, include_contents: false }],
+  fireEvent.click(await screen.findByRole("radio", { name: "Linked from" }));
+  expect(
+    await screen.findByText("This link condition is already added."),
+  ).toBeInTheDocument();
+  expect(chip).toHaveAttribute("aria-expanded", "true");
+});
+it("removes only the selected leaf and restores focus on popover Escape", async () => {
+  const { remove } = setup();
+  const chip = screen.getByRole("button", { name: /Links to Leather Armor/ });
+  fireEvent.click(chip);
+  fireEvent.keyDown(await screen.findByRole("radio", { name: "Whole entry" }), {
+    key: "Escape",
   });
   expect(chip).toHaveFocus();
   fireEvent.click(screen.getByRole("button", { name: "Remove relationship filter" }));
-  expect(state.setSearch).toHaveBeenLastCalledWith({
-    ...state.search,
-    relationships: [],
+  expect(remove).toHaveBeenCalledWith(leaf);
+});
+it("preserves OR and NOT grouping in a single truthful summary rather than flat chips", () => {
+  const { advanced } = setup({
+    kind: "any_of",
+    children: [
+      leaf,
+      {
+        kind: "not",
+        predicate: {
+          ...leaf,
+          clause_id: "two",
+          relationship: { ...leaf.relationship, direction: "outgoing" },
+        },
+      },
+    ],
   });
-});
-
-it("opens the exact selected record from the combined filter popover", async () => {
-  const relationship: RelationshipConstraintView = {
-    ...constraint,
-    selection: {
-      ...constraint.selection,
-      embedded_path: [
-        { collection: "items", identity: { SnapshotLocal: { index: 0 } } },
-      ],
-      field: "/system/description/value",
-    },
-  };
-  const state = workspace(relationship);
-  const navigate = vi
-    .spyOn(routes, "navigateToAtlasRoute")
-    .mockImplementation(() => {});
-  try {
-    render(<RelationshipFilters workspace={state} />);
-    fireEvent.click(screen.getByRole("button", { name: /Links to Leather Armor/ }));
-    const link = await screen.findByRole("link", { name: "Open Leather Armor" });
-    const route = {
-      kind: "record",
-      recordKey: constraint.selection.record_key,
-      selection: relationship.selection,
-    } as const;
-    expect(link).toHaveAttribute("href", routes.atlasRoutePath(route));
-    link.focus();
-    fireEvent.keyDown(link, { key: "Escape" });
-    expect(
-      screen.getByRole("button", { name: /Links to Leather Armor/ }),
-    ).toHaveFocus();
-    fireEvent.click(screen.getByRole("button", { name: /Links to Leather Armor/ }));
-    fireEvent.click(await screen.findByRole("link", { name: "Open Leather Armor" }));
-    expect(navigate).toHaveBeenCalledWith(route);
-  } finally {
-    navigate.mockRestore();
-  }
-});
-
-it("keeps unavailable targets readable without exposing record keys", () => {
-  const state = workspace();
-  const view = render(
-    <RelationshipFilters
-      workspace={{ ...state, resultPage: undefined, errorMessage: "unavailable" }}
-    />,
+  expect(screen.queryByRole("group", { name: "Relationship filter" })).toBeNull();
+  expect(
+    screen.getByText(/\(Links to Leather Armor.* OR NOT Linked from Leather Armor/),
+  ).toBeInTheDocument();
+  fireEvent.click(
+    screen.getByRole("button", { name: /Grouped filters: 2 link conditions/ }),
   );
-  expect(
-    screen.getByRole("button", { name: /Links to Record unavailable/ }),
-  ).toBeVisible();
-  expect(view.container).not.toHaveTextContent(constraint.selection.record_key);
-  expect(
-    screen.getByRole("button", { name: "Remove relationship filter" }),
-  ).toBeEnabled();
-});
-
-it("switches direction in place while retaining exact selection, scope and other search criteria", async () => {
-  const relationship: RelationshipConstraintView = {
-    ...constraint,
-    include_contents: false,
-    selection: {
-      ...constraint.selection,
-      embedded_path: [
-        { collection: "items", identity: { SnapshotLocal: { index: 0 } } },
-      ],
-      field: "/system/description/value",
-    },
-  };
-  const state = workspace(relationship);
-  const other = {
-    ...relationship,
-    include_contents: true,
-    direction: "outgoing" as const,
-  };
-  state.search.relationships = [relationship, other];
-  state.search.filter = { kind: "compare", field: "level", op: "gte", value: 2 };
-  const view = render(<RelationshipFilters workspace={state} />);
-  fireEvent.click(screen.getByRole("button", { name: /Links to Leather Armor/ }));
-  fireEvent.click(await screen.findByRole("radio", { name: "Linked from" }));
-  const next = {
-    ...state.search,
-    relationships: [{ ...relationship, direction: "outgoing" as const }, other],
-  };
-  expect(state.setSearch).toHaveBeenLastCalledWith(next);
-  view.rerender(<RelationshipFilters workspace={{ ...state, search: next }} />);
-  // The old result projection still names the same checked target during fetching.
-  const chip = screen.getByRole("button", {
-    name: /Linked from Leather Armor · Leather Armor; Main entry only/,
-  });
-  expect(chip).toHaveFocus();
-  expect(view.container).not.toHaveTextContent("Loading record");
-  fireEvent.click(chip);
-  expect(await screen.findByRole("radio", { name: "Linked from" })).toBeChecked();
-  expect(screen.getByRole("radio", { name: "Main entry only" })).toBeChecked();
-  fireEvent.click(screen.getByRole("radio", { name: "Links to" }));
-  expect(state.setSearch).toHaveBeenLastCalledWith({
-    ...next,
-    relationships: [relationship, other],
-  });
+  expect(advanced).toHaveBeenCalled();
 });

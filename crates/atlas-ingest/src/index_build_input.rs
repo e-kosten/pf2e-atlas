@@ -239,7 +239,7 @@ pub(crate) fn semantic_units(
 fn push_pending(
     output: &mut Vec<PendingSemanticUnit>,
     selection: &SourceSearchSelection,
-    owners: Vec<atlas_record::source_content::OwnedContentLocator>,
+    owners: Vec<atlas_domain::OwnedContentLocator>,
     field: Option<String>,
     chunk_ordinal: usize,
     input: PreparedEmbeddingInput,

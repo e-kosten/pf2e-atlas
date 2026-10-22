@@ -3,8 +3,8 @@ use crate::{
     IndexError, SourceLexicalUnitKind, SourceUnitLocation, SqliteIndexReader,
     query::{ValidatedQuery, compile_predicate},
 };
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::{RecordKey, SourcePassageAddress};
-use atlas_record::source_content::OwnedContentLocator;
 use rusqlite::{OptionalExtension, params_from_iter, types::Value};
 use serde::{Deserialize, Serialize};
 pub(crate) const NAME_LOOKUP_SQL: &str = "SELECT r.key,NULL,NULL FROM records r WHERE r.document_kind<>'Macro' AND r.name_state='value' AND r.name_lookup_key=?1 UNION ALL SELECT r.key,a.alias,a.evidence_json FROM verified_aliases a JOIN records r ON r.record_id=a.record_id WHERE r.document_kind<>'Macro' AND a.alias_lookup_key=?1 ORDER BY 1,2";
@@ -70,12 +70,6 @@ pub(crate) fn eligible_sql(
             ));
             params.extend(keys.iter().map(|k| Value::Text(k.to_string())));
         }
-    }
-    for relationship in &query.relationships {
-        let (condition, values) = crate::relationship_query::eligibility(relationship)?;
-        sql.push_str(" AND ");
-        sql.push_str(&condition);
-        params.extend(values);
     }
     Ok((sql, params))
 }

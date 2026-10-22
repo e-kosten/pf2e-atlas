@@ -10,7 +10,7 @@ pub(crate) fn parse_search_profile(value: &str) -> Result<atlas_domain::SearchPr
 pub(crate) struct FilterOptions {
     #[arg(
         long = "where",
-        help = "CEL filter expression; discover supported fields with atlas filters fields"
+        help = "CEL filter expression, including links_to/linked_from and AND/OR/NOT; discover fields with atlas filters fields"
     )]
     pub(crate) where_expression: Option<String>,
     #[arg(long = "kind", help = "Record kind; repeat to accept any listed kind")]
@@ -24,4 +24,24 @@ pub(crate) struct FilterOptions {
         help = "Require a trait identifier; repeat to require every listed trait"
     )]
     pub(crate) traits: Vec<String>,
+    #[arg(
+        long,
+        help = "Require links to a record by strict name or key; check each result and its contents; repeat for AND"
+    )]
+    pub(crate) links_to: Vec<String>,
+    #[arg(
+        long,
+        help = "Require records linked from a record by strict name or key, including its contents; repeat for AND"
+    )]
+    pub(crate) linked_from: Vec<String>,
+    #[arg(
+        long,
+        help = "Require links to a record by strict name or key; check only each result's main entry"
+    )]
+    pub(crate) links_to_main_entry: Vec<String>,
+    #[arg(
+        long,
+        help = "Require records linked from the selected main entry only; strict name or key"
+    )]
+    pub(crate) linked_from_main_entry: Vec<String>,
 }

@@ -362,23 +362,23 @@ source-snapshot compatibility verification; category discovery never runs Simila
 ranking. Responses and browser caches use the complete selection and immutable
 artifact-context hash, distinct from snapshot-local navigation fingerprints.
 
-Relationship-scoped full search uses the existing stateless search-page workflow
-with typed constraints composed conjunctively beside the ordinary predicate and
-optional saved-list keys. Incoming constraints keep the selected destination exact
-and choose root-only or root-plus-contained source references. Outgoing constraints
-choose the exact selected source or that source plus descendants, never siblings
-or parents. Index-owned SQL eligibility applies before lexical/vector candidate
-selection, edition preference, distinct-root ordering and paging. Root totals are
-independent of occurrence-preview caps. App-service supplies checked human labels
-and bounded per-root evidence; occurrence pages retain exact source/target
-navigation and their own complete occurrence totals. The browser never derives
-eligibility by filtering Related's bounded neighbor keys. Contextual filter counts,
-value discovery and field statistics retain relationship eligibility while
-self-excluding the edited ordinary field. Saved-list membership intersects that
-same scope; repeated occurrences never inflate root counts. Relationship selection
-and generation participate in discovery request/cache identity. Existing text and
-unsupported-predicate count policies remain unchanged, and count-free vocabulary
-retains its independent artifact/list scope.
+Relationship predicates share the ordinary AND/OR/NOT query tree and the stateless
+search-page workflow. Each exact selection has a direction, source-contents scope
+and clause ID. Shared retrieval admission validates every selected record/owner/
+field/fingerprint, including negative and unreachable branches, before inference.
+App-service owns workflow generation and human DTO projection. Index compiles the
+complete tree to parameterized eligibility before lexical/vector candidate selection,
+edition preference, ordering and paging. Saved-list membership intersects that tree.
+
+Root totals are distinct and independent of occurrence caps. Human clause annotations
+cover all leaves, including negative/zero-result cases; per-root evidence includes
+only positive leaves in successful Boolean proofs using shared SQL truth. Occurrence
+pages validate the whole predicate, selected clause/result and generation. Bounded
+Related readers remain independent consumers, never capped-key search filters.
+Counts/value discovery/statistics retain the full tree and existing self-exclusion/
+unsupported-context policies. Count-free vocabulary retains artifact/list scope.
+CLI browse/text/Similar, contextual discovery and occurrence paging consume these
+same workflows. Web Advanced and common controls edit the same canonical tree.
 See [ADR0057](./decisions/0057-relationship-scoped-search.md).
 
 App-service owns workflow composition/search pages, catalog-to-editor controls,

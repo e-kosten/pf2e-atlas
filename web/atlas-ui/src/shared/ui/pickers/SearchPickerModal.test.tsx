@@ -40,7 +40,7 @@ function result(
       kind: "attributes",
       rules: [{ field: "name", direction: "asc" }],
     } satisfies ResultSort,
-    relationships: [],
+    relationship_clauses: [],
     ranking: "score" as const,
     search_profile: profile,
     artifact_generation: generation,
@@ -88,7 +88,9 @@ function Picker({
       emptyPrompt="Search for a record"
       emptyResults="No matching records"
       selectedRecordKey={selected}
-      onSelectedRecordKeyChange={setSelected}
+      onSelectionChange={(selection) =>
+        setSelected(selection?.record.record_key ?? null)
+      }
       onCancel={vi.fn()}
       onFinish={() => addSelected(selected)}
       okButtonProps={{ disabled: !selected }}

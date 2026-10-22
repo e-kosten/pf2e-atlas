@@ -2,8 +2,9 @@
 use crate::projection::relationship_views;
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::*;
+use atlas_domain::OwnedContentIdentity;
 use atlas_domain::RecordKey;
-use atlas_record::source_content::{OwnedContentIdentity, SourceContentLocator};
+use atlas_record::source_content::SourceContentLocator;
 use atlas_record::source_record::{
     SourceContentFormat, SourceContentRole, SourceFieldView, SourceNodeView,
 };

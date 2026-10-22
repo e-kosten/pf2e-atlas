@@ -1,9 +1,9 @@
 # Source-modeling Capability Follow-through
 
 Status: in_progress
-Priority: CF-10 relationship search first, CF-09 sorting second
+Priority: CF-10 expanded Boolean reference filters and CLI parity (third PR)
 Owner: item-specific; CF-09/10 in browse-reference-search, CF-07 independently owned
-Last reviewed: 2026-10-21
+Last reviewed: 2026-10-22
 
 ## Purpose and authorization
 
@@ -47,8 +47,8 @@ if review warrants it; preserve its ID and record every resulting PR here.
 | CF-06 | Encounter status and action-budget policy | in_progress | Approved | Based on main 41865f60; locally complete; user accepted preview; Rust/UI gates, 20 device journeys and independent Sol browser review pass; [PR #78](https://github.com/e-kosten/pf2e-atlas/pull/78) |
 | CF-07 | Supported condition/spell adjustments and casting reminders | planned | Pending | Not started |
 | CF-08 | Hazard Active/Disabled state | in_progress | Approved with CF-06 | locally complete; single Active/Disabled state; user accepted preview; Rust/UI gates and browser reviews pass; [PR #78](https://github.com/e-kosten/pf2e-atlas/pull/78) |
-| CF-09 | Browse sorting | in_progress | Approved 2026-10-21 | Second PR on `feat/browse-sorting`, based on merged main a1601f87; core implementation and focused checks underway; early functional UX review precedes full gates |
-| CF-10 | Relationship-scoped full results and filtering | merged | Approved 2026-10-21 | [PR #97](https://github.com/e-kosten/pf2e-atlas/pull/97), merged as a1601f87; human UI acceptance, local gates, independent reviews and exact-head CI passed; direct multi-filter creation follows in third PR |
+| CF-09 | Browse sorting | merged | Approved 2026-10-21 | [PR #98](https://github.com/e-kosten/pf2e-atlas/pull/98), merged as 09d2bec5; human UI acceptance, local gates, independent reviews and exact-head CI passed |
+| CF-10 | Relationship-scoped full results and filtering | in_progress | Expanded scope approved 2026-10-22 | Core [PR #97](https://github.com/e-kosten/pf2e-atlas/pull/97) merged as a1601f87 with acceptance/gates/CI; third PR on `feat/relationship-filter-picker` now includes shared Boolean predicates, Advanced integration and CLI parity; initial picker preview retained at port 4940 |
 
 ### CF-01 — CLI batches and error contracts
 
@@ -247,13 +247,36 @@ evidence shares the Matches button/popover, with human source-to-target labels
 and independent occurrence paging. No parallel editable search field is shown
 for an active seed.
 
-Third PR, following sorting: directly add multiple relationship constraints using
-the existing shared list/encounter record search picker. All constraints combine
-with AND and retain independent contents settings, removal, and URL identity.
-Lookup searches the available corpus independently of active result criteria.
-Model constraints independently in the first PR, but do not add this picker or
-multiple-filter UI there. General OR/NOT relationship expressions and inferred
-equipment possession/condition-infliction filters remain outside this sequence.
+Third PR, expanded scope approved 2026-10-22 after the initial picker preview:
+make reference conditions first-class leaves in the existing typed predicate, with
+AND/OR/NOT alongside ordinary filters. Remove the separate AND-only collection and
+all alternate request/eligibility paths. Links with a chevron is a toolbar shortcut;
+Advanced can add/edit/group/negate the same conditions. Simple conjunctions retain
+chips; complex expressions show grouping without implying a flat AND. Clear filters
+clears the complete predicate while retaining text/Similar/order. Record-origin
+actions use the same model and conjoin with the entire active Search expression.
+
+Reuse the shared list/encounter finder independently of parent criteria. Choose one
+root per confirmation, default Links to / Whole entry; preserve existing embedded
+selections until explicit root choice. Direction/scope remain per condition. Only
+safe direct-conjunction duplicates are suppressed. Exact old separate-parameter
+URLs are explicit unsupported-format errors, never silently broadened results.
+
+CLI browse/text/Similar, contextual counts/values and independently paged occurrence
+evidence use the same model and workflow. Canonical CEL link functions support full
+Boolean composition and exact checked selections; strict-name convenience flags add
+conjunctive root conditions without inheriting candidate scope. Print-filter remains
+artifact-free. Search JSON carries full rows/clause evidence rather than summary-only
+payloads; update help/examples and the bundled agent skill. No installed skill edits.
+
+Every target is checked even under NOT/unreachable branches before inference. Root
+counts remain distinct. Positive evidence belongs to successful Boolean proofs;
+negative absence and unmatched branches have no fabricated occurrences. Clause IDs
+replace positions in a separate array. Preserve generation/fingerprint checks,
+self-exclusion and honest unavailable suggestion contexts. Reference leaves apply to
+candidate roots; authored Exists correlation and multi-hop traversal stay outside
+scope, as do inferred possession and condition-infliction filters. No new source pin,
+artifact schema or rebuild is implied. See ADR0057 for the shared ownership contract.
 
 Keep lightweight Related previews, with an escape to full incoming/outgoing
 results that supports ordinary filters and paging. Preserve exact owner versus

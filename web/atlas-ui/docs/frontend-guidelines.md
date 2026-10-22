@@ -642,22 +642,45 @@ relationships of an embedded selection. A separate Similar action can name the
 parent root explicitly. Exact root references use an empty owner path, not an
 all-owners graph query.
 
-Relationship search constraints appear at the top level with ordinary filters,
-outside Advanced. A combined filter chip displays the direction and human target
-name; its popover contains the Main entry only / Whole entry choices and a link
-to open the exact selected record. Removal stays beside the chip. Include the
-selected scope in the chip's accessible name. Never render IDs in relationship labels, tooltip
-copy or unavailable fallbacks. Backend-selected names and optional kind/source/
-parent labels distinguish otherwise identical titles. Exact navigation stays in
-the typed criterion and URL, with its snapshot fingerprint.
-Whole entry changes where a link originates: sources within each result for
-Links to, or the selected source and its descendants for Linked from. Targets
-remain exact, and descendants never include siblings/parents. Related's View all
-uses its backend-provided effective constraint; it does not reconstruct scope
-from displayed occurrences. Filters and page identity include each constraint.
-Per-root reference evidence has its own occurrence total/paging; preview limits
-never truncate the set of eligible result roots. Disable contextual counts when
-relationship scope is unsupported, retaining count-free vocabulary.
+Record-link conditions are structural leaves in the same predicate edited by
+common controls and Advanced. Use the existing group AND/OR/NOT owner and a Record
+links condition choice, not a fabricated catalog field or separate relationship
+array. Links with a chevron is a toolbar shortcut. It belongs to FilterControls/
+useFilterEditor so adding a root conjunction retains unfinished sibling drafts.
+Positive root conjunctions can expose individual editable chips. Mixed or negated
+expressions use one bounded human summary retaining operators and grouping; clicking
+opens Advanced. Never extract flat link chips from an OR/NOT expression. Clear filters
+clears the complete predicate while retaining text/Similar and result order.
+
+Reuse SearchPickerModal for record selection. Supply its concrete link-condition
+composer through a stable app-level component context with a lightweight shared-filter
+interface; FilterControls must not import its concrete picker and create a static
+cycle back through SearchPickerModal. Each owner retains local open/draft state;
+nested lookups use Ant overlays with innermost Escape and focus restoration.
+Selection callbacks carry one record summary and artifact generation, or null on
+reset. Existing list/encounter forms keep their selection and draft semantics.
+
+Lookup criteria are independent of parent search and membership. Defaults are
+Links to / Whole entry. Editing direction/scope preserves an existing exact embedded
+selection until an explicit root-row choice, including a row with the same parent
+key. Suppress duplicates only in a safe direct conjunction; never rewrite grouped
+expressions. Record/Related actions conjoin with the entire active Search expression
+or create a leaf-only search outside Search.
+
+Human clause presentations are keyed by clause ID, echoed exact leaf, generation
+and recovery epoch, including negative/zero-result conditions. Retained catalog
+fields must not lend stale source labels to a new identity. New uncommitted root
+choices get human draft labels from the generation-aware picker event. Never display
+IDs in labels, errors, tooltips or unavailable fallbacks. Root relationship conditions
+are rejected inside authored collection Exists scopes.
+
+Whole entry changes sources: matching result entries for Links to, or the selected
+source and its descendants for Linked from. Targets stay exact and descendants
+exclude siblings/parents. Related supplies a typed predicate, never a list of keys
+reconstructed from previews. Positive proof evidence and occurrence pages use clause
+IDs and the full predicate/generation. Negative absence and failed Boolean branches
+have no invented occurrence evidence; preview limits do not truncate result roots.
+Existing unsupported count states remain honest, with count-free vocabulary retained.
 
 Keep relationship discovery actions inside the Related experience with its
 reference previews and full-result escapes. Result relationship evidence reuses

@@ -52,9 +52,7 @@ pub use traits::{
     TraitSourceLocation,
 };
 
-pub use atlas_index::{
-    RelationshipConstraint, RelationshipOccurrencePage, RelationshipOccurrencePageRequest,
-};
+pub use atlas_index::{RelationshipOccurrencePage, RelationshipOccurrencePageRequest};
 
 #[cfg(test)]
 mod relationship_tests;
@@ -64,3 +62,6 @@ pub use atlas_index::SourceUnitPrice;
 
 #[cfg(test)]
 mod result_order_tests;
+
+mod relationship_selection;
+pub use relationship_selection::CheckedRelationshipSelection;

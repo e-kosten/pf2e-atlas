@@ -1,149 +1,110 @@
 //! Reference search workflows and human display projection over typed retrieval.
 use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
 use atlas_app_model::{
-    AppErrorCode, AppRecoverableAction, RelationshipConstraintSummaryView,
-    RelationshipConstraintView, RelationshipDirectionView, RelationshipOccurrencesPage,
-    RelationshipOccurrencesRequest,
+    AppErrorCode, AppRecoverableAction, RelationshipOccurrencesPage, RelationshipOccurrencesRequest,
 };
 use atlas_domain::RecordKey;
 use atlas_search::{
-    AtlasRetrievalService, GetRecordRequest, GetRecordsRequest, RelationshipConstraint, SearchPage,
-    SourceRelationshipDirection, SourceStoredRelationship, SourceUnitLocation,
+    AtlasRetrievalService, GetRecordsRequest, SearchPage, SourceStoredRelationship,
+    SourceUnitLocation,
 };
 
-pub(crate) fn prepare_constraint(
+pub(crate) fn query_selection(
+    selection: &atlas_app_model::RecordNavigationView,
+) -> AppServiceResult<atlas_domain::QueryRecordSelection> {
+    Ok(atlas_domain::QueryRecordSelection {
+        record_key: RecordKey::parse(&selection.record_key).map_err(|_| {
+            AppServiceError::invalid_request("The relationship record is unavailable")
+        })?,
+        owners: selection.owners.clone(),
+        field: selection.field.clone(),
+        passage: selection.passage.clone(),
+        source_fingerprint: selection.source_fingerprint.clone(),
+        spell_rank: selection.spell_rank,
+    })
+}
+fn clause_summary(
     r: &AtlasRetrievalService,
-    view: &RelationshipConstraintView,
-) -> AppServiceResult<(RelationshipConstraint, RelationshipConstraintSummaryView)> {
-    crate::records::validate_request(&atlas_app_model::RecordDetailRequest {
-        spell_rank: view.selection.spell_rank,
-        record_key: view.selection.record_key.clone(),
-        owners: view.selection.owners.clone(),
-        fields: view.selection.field.iter().cloned().collect(),
-        passage: view.selection.passage.clone(),
-        source_fingerprint: view.selection.source_fingerprint.clone(),
-    })?;
-    if crate::projection::navigation_fingerprint(&view.selection.owners, r.source_fingerprint())
-        .is_some()
-        && view.selection.source_fingerprint.as_deref() != Some(r.source_fingerprint())
-    {
-        return Err(AppServiceError::invalid_request(
-            "This selection belongs to an older reference library. Open the record again.",
-        ));
+    id: &str,
+    relationship: &atlas_domain::QueryRelationship,
+) -> AppServiceResult<atlas_app_model::RelationshipClauseSummaryView> {
+    let checked = r.checked_relationship_selection(&relationship.selection)?;
+    let mut record = crate::projection::localized_summary_view(&checked.record, r);
+    if record.title.trim().is_empty() {
+        record.title = "Unnamed record".into();
     }
-    let key = RecordKey::parse(&view.selection.record_key).map_err(|_| {
-        AppServiceError::new(
-            AppErrorCode::InvalidRecordKey,
-            "The relationship record is unavailable",
-        )
-    })?;
-    let summary = r
-        .get_records(GetRecordsRequest {
-            record_keys: std::slice::from_ref(&key),
-        })?
-        .records
+    let title = checked
+        .selected_name
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| {
+            if relationship.selection.owners.is_empty() {
+                "Unnamed record".into()
+            } else {
+                "Unnamed entry".into()
+            }
+        });
+    Ok(atlas_app_model::RelationshipClauseSummaryView {
+        clause_id: id.into(),
+        relationship: relationship.clone(),
+        record,
+        title,
+    })
+}
+pub(crate) fn prepare_filter(
+    r: &AtlasRetrievalService,
+    filter: Option<&atlas_domain::QueryPredicate>,
+) -> AppServiceResult<Vec<atlas_app_model::RelationshipClauseSummaryView>> {
+    let Some(filter) = filter else {
+        return Ok(vec![]);
+    };
+    r.validate_filter(filter)?;
+    atlas_domain::relationship_clauses(filter)?
         .into_iter()
-        .next()
-        .ok_or_else(|| {
-            AppServiceError::new(
-                AppErrorCode::RecordNotFound,
-                "The relationship record is unavailable. Open the record again.",
-            )
-        })?;
-    let mut record = crate::projection::localized_summary_view(&summary, r);
-    // Relationship labels never use the normal technical identity fallback.
-    record.title = summary
-        .name
-        .as_value()
-        .filter(|v| !v.trim().is_empty())
-        .cloned()
-        .unwrap_or_else(|| "Unnamed record".into());
-    let title = if view.selection.owners.is_empty() && view.selection.field.is_none() {
-        record.title.clone()
-    } else {
-        let detail = r
-            .get_record(GetRecordRequest {
-                record_key: &key,
-                selected_content: &[],
-            })?
-            .ok_or_else(|| {
-                AppServiceError::new(
-                    AppErrorCode::RecordNotFound,
-                    "The relationship record is unavailable",
-                )
-            })?;
-        let node = detail
-            .source
-            .node_at(&view.selection.owners)
-            .ok_or_else(|| {
-                AppServiceError::invalid_request(
-                    "The selected entry is unavailable. Open the record again.",
-                )
-            })?;
-        if let Some(field) = &view.selection.field
-            && !node.content_selections().iter().any(|s| s.field == *field)
-        {
-            return Err(AppServiceError::invalid_request(
-                "The selected text is unavailable. Open the record again.",
-            ));
-        }
-        if view.selection.owners.is_empty() {
-            record.title.clone()
-        } else {
-            node.name()
-                .value()
-                .filter(|v| !v.trim().is_empty())
-                .map(|s| (*s).clone())
-                .unwrap_or_else(|| "Unnamed entry".into())
-        }
-    };
-    let constraint = RelationshipConstraint {
-        direction: match view.direction {
-            RelationshipDirectionView::Incoming => SourceRelationshipDirection::Incoming,
-            RelationshipDirectionView::Outgoing => SourceRelationshipDirection::Outgoing,
-        },
-        record: key,
-        owners: view.selection.owners.clone(),
-        field: if view.direction == RelationshipDirectionView::Outgoing {
-            view.selection.field.clone()
-        } else {
-            None
-        },
-        include_contents: view.include_contents,
-    };
-    Ok((
-        constraint,
-        RelationshipConstraintSummaryView {
-            constraint: view.clone(),
-            record,
-            title,
-        },
-    ))
+        .map(|(id, relationship)| clause_summary(r, id, relationship))
+        .collect()
 }
-
-pub(crate) fn prepare_constraints(
+pub(crate) fn presentations(
     r: &AtlasRetrievalService,
-    views: &[RelationshipConstraintView],
-) -> AppServiceResult<(
-    Vec<RelationshipConstraint>,
-    Vec<RelationshipConstraintSummaryView>,
-)> {
-    if views.len() > 16 {
-        return Err(AppServiceError::invalid_request(
-            "Use at most 16 relationship filters",
-        ));
-    }
-    views
-        .iter()
-        .map(|v| prepare_constraint(r, v))
-        .collect::<AppServiceResult<Vec<_>>>()
-        .map(|v| v.into_iter().unzip())
+    filter: Option<&atlas_domain::QueryPredicate>,
+) -> AppServiceResult<Vec<atlas_app_model::RelationshipClausePresentationView>> {
+    use atlas_app_model::RelationshipClausePresentationView as View;
+    let Some(filter) = filter else {
+        return Ok(vec![]);
+    };
+    atlas_domain::relationship_clauses(filter)?
+        .into_iter()
+        .map(
+            |(id, relationship)| match clause_summary(r, id, relationship) {
+                Ok(summary) => Ok(View::Available {
+                    clause_id: summary.clause_id,
+                    relationship: summary.relationship,
+                    record: Box::new(summary.record),
+                    title: summary.title,
+                }),
+                Err(error) => unavailable_clause(id, relationship, error),
+            },
+        )
+        .collect()
 }
 
-fn location(
-    key: RecordKey,
-    owners: Vec<atlas_record::source_content::OwnedContentLocator>,
-) -> SourceUnitLocation {
+fn unavailable_clause(
+    id: &str,
+    relationship: &atlas_domain::QueryRelationship,
+    error: AppServiceError,
+) -> AppServiceResult<atlas_app_model::RelationshipClausePresentationView> {
+    let error = error.into_app_error();
+    match error.code {
+        AppErrorCode::InvalidRequest | AppErrorCode::InvalidRecordKey | AppErrorCode::RecordNotFound =>
+            Ok(atlas_app_model::RelationshipClausePresentationView::Unavailable {
+                clause_id: id.into(),
+                relationship: relationship.clone(),
+                message: "This linked entry is unavailable. Open the entry again or remove this condition.".into(),
+            }),
+        _ => Err(error.into()),
+    }
+}
+
+fn location(key: RecordKey, owners: Vec<atlas_domain::OwnedContentLocator>) -> SourceUnitLocation {
     SourceUnitLocation {
         unit_id: 0,
         record: key,
@@ -210,14 +171,14 @@ pub(crate) fn evidence_views(
 
 pub(crate) fn evidence_page(
     r: &AtlasRetrievalService,
-    constraint: &RelationshipConstraint,
+    relationship: &atlas_domain::QueryRelationship,
     result: &RecordKey,
     page: SearchPage,
 ) -> AppServiceResult<(
     Vec<atlas_app_model::RecordRelationshipView>,
     atlas_app_model::SearchPageView,
 )> {
-    let (occurrences, info) = r.relationship_occurrence_page(constraint, result, page)?;
+    let (occurrences, info) = r.relationship_occurrence_page(relationship, result, page)?;
     Ok((
         evidence_views(r, occurrences)?,
         crate::projection::search_page_view(info),
@@ -246,7 +207,17 @@ impl AtlasAppService {
                     AppRecoverableAction::RefreshResults,
                 ));
             }
-            let (constraint, summary) = prepare_constraint(r, &request.constraint)?;
+            let summaries = prepare_filter(r, Some(&request.filter))?;
+            let id = atlas_domain::select_relationship_clause_id(
+                &request.filter,
+                Some(&request.clause_id),
+            )?;
+            let summary = summaries
+                .into_iter()
+                .find(|s| s.clause_id == id)
+                .ok_or_else(|| {
+                    AppServiceError::invalid_request("Choose a link condition from this filter")
+                })?;
             let key = RecordKey::parse(&request.result_record_key).map_err(|_| {
                 AppServiceError::new(
                     AppErrorCode::InvalidRecordKey,
@@ -266,14 +237,58 @@ impl AtlasAppService {
                         "The result record is unavailable",
                     )
                 })?;
-            let (occurrences, page) = evidence_page(r, &constraint, &key, page)?;
+            if !r
+                .relationship_proofs(&request.filter, std::slice::from_ref(&key))?
+                .iter()
+                .any(|(_, clause)| clause == &id)
+            {
+                return Err(AppServiceError::invalid_request(
+                    "This condition does not provide a matching link for this record",
+                ));
+            }
+            let (occurrences, page) = evidence_page(r, &summary.relationship, &key, page)?;
             Ok(RelationshipOccurrencesPage {
                 artifact_generation: generation,
-                constraint: summary,
+                clause: summary,
                 result_record: crate::projection::localized_summary_view(&result, r),
                 occurrences,
                 page,
             })
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn relationship_presentation_preserves_infrastructure_errors() {
+        let relationship = atlas_domain::QueryRelationship {
+            direction: atlas_domain::QueryRelationshipDirection::Incoming,
+            selection: atlas_domain::QueryRecordSelection {
+                record_key: RecordKey::parse("items:aaaaaaaaaaaaaaaa").unwrap(),
+                owners: vec![],
+                field: None,
+                passage: None,
+                source_fingerprint: None,
+                spell_rank: None,
+            },
+            include_contents: true,
+        };
+        for code in [
+            AppErrorCode::InternalError,
+            AppErrorCode::ServiceBusy,
+            AppErrorCode::ArtifactIncompatible,
+        ] {
+            let error = unavailable_clause(
+                "link",
+                &relationship,
+                AppServiceError::new(code, "workspace failure"),
+            )
+            .unwrap_err()
+            .into_app_error();
+            assert_eq!(error.code, code);
+            assert_eq!(error.message, "workspace failure");
+        }
     }
 }

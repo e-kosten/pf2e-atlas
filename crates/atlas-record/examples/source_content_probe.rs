@@ -1,6 +1,7 @@
 //! Developer proof over explicitly inventoried HTML fields. No product CLI
 //! command, database or ingest dependency. Probe owners are snapshot-local:
 //! input packets cannot establish sibling-ID uniqueness across source rebuilds.
+use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
 use std::{
     collections::BTreeMap,
     error::Error,
@@ -11,8 +12,7 @@ use std::{
 use atlas_domain::{PackName, RecordId, RecordKey};
 use atlas_record::source_content::{
     ContentAudience, ContentReferenceResolver, ContentReferenceTarget, ContentVisibilityRule,
-    LocalizationResolver, OwnedContentIdentity, OwnedContentLocator, ResolvedContentReference,
-    SourceContentLocator, prepare_source_content,
+    LocalizationResolver, ResolvedContentReference, SourceContentLocator, prepare_source_content,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};

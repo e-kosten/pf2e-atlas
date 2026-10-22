@@ -1,6 +1,7 @@
 use super::traversal::visit_source_nodes;
 use super::*;
 use crate::source_content::*;
+use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
 use atlas_foundry_model::{SourceContext, admit_document_source, decode_snapshot, encode_snapshot};
 use serde_json::{Value, json};
 

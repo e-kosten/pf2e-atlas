@@ -1,3 +1,4 @@
+use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
 use std::collections::BTreeMap;
 
 use atlas_domain::{PackName, RecordId, RecordKey};

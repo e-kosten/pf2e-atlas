@@ -96,7 +96,10 @@ preserves integers and finite real numbers without silently narrowing integers
 to f64 or coercing quoted numeric strings. Unsupported representations produce
 explicit invalid query facts while the checked source remains retained.
 
-`atlas-domain::QueryPredicate` is the shared Boolean/field/set/Exists vocabulary.
+`atlas-domain::QueryPredicate` is the shared Boolean/field/set/Exists/reference
+vocabulary. Relationship leaves apply to candidate roots and are rejected inside
+authored Exists scopes. Neutral owner-address primitives live in atlas-domain;
+source selection policy remains atlas-record-owned.
 Index validates fields, applicability, operators, literals and bounded complexity
 against its catalog, then compiles parameterized SQL. Only true roots match;
 unknown remains unknown under NOT. Exists uses one child witness for its complete
@@ -180,17 +183,22 @@ or blocked targets. Hidden content contributes no product edge. Macro targets do
 not become product graph neighbors or interactive tooling links. Authored labels
 may still display as plain text. Only verified aliases affect strict name lookup.
 
-Relationship eligibility reads these same occurrences directly. Exact destination
-owner paths remain distinct from source subtree scope; selecting descendants never
-widens to siblings. Full result pages count distinct eligible product roots before
-paging and hydrate bounded occurrence evidence separately. Preview truncation is
-not a root eligibility or root count limit. No additional stored relationship
-model or capped neighbor-key projection is introduced. Contextual facet counts,
-value enumeration and field statistics apply this eligibility alongside optional
-saved-list keys. Ordinary-field self-exclusion preserves relationship constraints;
-per-option edition preference considers only roots matching that complete scope.
-Count-free vocabulary remains independent of relationship constraints. See
-[ADR0057](./decisions/0057-relationship-scoped-search.md).
+Relationship predicates read these same occurrences directly and compose with
+ordinary predicates through the shared AND/OR/NOT compiler. Exact destination owner
+paths remain distinct from source subtree scope; descendants never include siblings.
+No separate relationship eligibility array, stored model or capped neighbor projection
+is used. Shared retrieval admission validates all targets/owners/fingerprints even
+under negation; missing targets are input errors. This model change does not change
+the stored occurrence schema or require artifact re-preparation.
+
+Full result pages count distinct eligible roots before paging and hydrate bounded
+positive proof evidence separately. Proof attribution reuses compiled SQL truth;
+negative absence and unsuccessful Boolean branches do not fabricate evidence.
+Clause IDs associate occurrence pages with exact predicate leaves. Preview truncation
+is not an eligibility or root-count limit. Contextual facets, values and statistics
+retain the entire expression and optional saved-list keys, applying existing
+self-exclusion and unsupported-context availability rules. Count-free vocabulary
+remains independent. See [ADR0057](./decisions/0057-relationship-scoped-search.md).
 
 ## Lexical and semantic policy
 

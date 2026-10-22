@@ -88,9 +88,7 @@ pub use traits::{
 };
 
 mod relationship_query;
-pub use relationship_query::{
-    RelationshipConstraint, RelationshipOccurrencePage, RelationshipOccurrencePageRequest,
-};
+pub use relationship_query::{RelationshipOccurrencePage, RelationshipOccurrencePageRequest};
 
 mod result_order;
 pub use result_order::SourceUnitPrice;

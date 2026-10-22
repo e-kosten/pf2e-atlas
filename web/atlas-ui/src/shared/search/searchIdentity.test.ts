@@ -58,24 +58,20 @@ it("compares complete sort values structurally, with meaningful rule priority an
 });
 
 it("allows retention across ordering/pages but isolates eligibility, model, generation and exact source scope", () => {
-  const request = buildSearchRequest(
-    {
-      ...DEFAULT_SEARCH_STATE,
-      similarSeed: "items:armor",
-      relationships: [
-        {
-          direction: "incoming",
-          include_contents: true,
-          selection: {
-            record_key: "items:seed",
-            embedded_path: [{ collection: "items", identity: { Stable: "owner" } }],
-            field: "description",
-            source_fingerprint: "source",
-            passage: null,
-          },
-        },
-      ],
+  const relationship: import("../../generated/atlas").QueryRelationship = {
+    direction: "incoming",
+    include_contents: true,
+    selection: {
+      record_key: "items:seed",
+      embedded_path: [{ collection: "items", identity: { Stable: "owner" } }],
+      field: "description",
+      passage: null,
+      source_fingerprint: "source",
     },
+  };
+  const filter = { kind: "relationship" as const, clause_id: "link-0", relationship };
+  const request = buildSearchRequest(
+    { ...DEFAULT_SEARCH_STATE, similarSeed: "items:armor", filter },
     1,
     "g",
     "bge-base",
@@ -83,10 +79,7 @@ it("allows retention across ordering/pages but isolates eligibility, model, gene
   expect(
     sameSearchPageContext(request, {
       ...request,
-      sort: {
-        kind: "attributes",
-        rules: [{ field: "level", direction: "desc" }],
-      } satisfies ResultSort,
+      sort: { kind: "attributes", rules: [{ field: "level", direction: "desc" }] },
       page: { number: 2, size: 50 },
     }),
   ).toBe(true);
@@ -102,19 +95,26 @@ it("allows retention across ordering/pages but isolates eligibility, model, gene
     },
     {
       ...request,
-      relationships: [{ ...request.relationships![0], include_contents: false }],
+      criteria: {
+        ...request.criteria,
+        filter: {
+          ...filter,
+          relationship: { ...relationship, include_contents: false },
+        },
+      },
     },
     {
       ...request,
-      relationships: [
-        {
-          ...request.relationships![0],
-          selection: {
-            ...request.relationships![0].selection,
-            source_fingerprint: "new-source",
+      criteria: {
+        ...request.criteria,
+        filter: {
+          ...filter,
+          relationship: {
+            ...relationship,
+            selection: { ...relationship.selection, source_fingerprint: "new-source" },
           },
         },
-      ],
+      },
     },
   ])
     expect(sameSearchPageContext(request, changed)).toBe(false);

@@ -130,3 +130,38 @@ it("rejects an otherwise valid old vocabulary link explicitly", () => {
     );
   expect(() => decodeFilterUrl(old)).toThrow("unsupported filter version");
 });
+
+it.each([
+  { embedded_path: [{}] },
+  {
+    embedded_path: [
+      { collection: "items", identity: { SnapshotLocal: { index: -1 } } },
+    ],
+  },
+  { passage: { kind: "html_section" } },
+  { spell_rank: "2" },
+])(
+  "rejects malformed link selection transport without rendering its internal address: %j",
+  (invalid) => {
+    const encoded =
+      "2." +
+      compressToEncodedURIComponent(
+        JSON.stringify({
+          kind: "relationship",
+          relationship: {
+            direction: "incoming",
+            include_contents: true,
+            selection: {
+              record_key: "secret:internal",
+              embedded_path: [],
+              field: null,
+              passage: null,
+              source_fingerprint: null,
+              ...invalid,
+            },
+          },
+        }),
+      );
+    expect(() => decodeFilterUrl(encoded)).toThrow("Invalid filter URL");
+  },
+);

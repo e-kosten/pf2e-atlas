@@ -206,6 +206,10 @@ A lexical-only workspace needs `--retrieval fts` for text queries.
 Similar uses the seed's stored root identity vector. Its filters constrain
 candidates, not seed resolution; resolve an ambiguous seed separately.
 Similar also accepts `--page` and `--limit` for stateless result pages.
+Browse, text search and Similar JSON share `data.rows` (record, matches,
+relationship_evidence), `data.page`, `data.relationship_clauses`, `data.coverage`,
+`data.mode`, ordering and artifact generation. Do not read the retired search
+`results`/`pagination` shapes or Similar's former nested `results` wrapper.
 Semantic/hybrid candidate windows are bounded: report the
 returned coverage and count basis honestly, never describe them as an exhaustive
 corpus census. Result scores are retrieval evidence, not probabilities. Inspect
@@ -244,7 +248,12 @@ atlas search --kind spell --where 'level <= 2' --json
 
 `filters fields` describes allowed choices; `filters values` retains all supplied
 filters and returns contextual counts (including zero-match closed choices).
-`--text` searches values, not record content. Value counts refer to distinct
+`--text` searches values, not record content. Relationship conditions use the
+same predicate and are retained in counts and statistics. `--query` adds record
+content context with `--retrieval` and `--search-profile`; `--list ID` restricts
+membership. `--artifact-generation` binds a prior generation, and optional
+`--clause-id` requests replacements at one clause. Unsupported grouped or text
+count contexts fail explicitly; do not reinterpret that as zero matches. Value counts refer to distinct
 parent records after remaster preference; source-availability statistics are
 before that preference and may count multiple collection occurrences per parent.
 Unavailable discovery is an error, never a zero count. For same-entry constraints,
@@ -277,7 +286,44 @@ categorical and Boolean fields return paged values plus availability counts.
 
 ## Relationships and saved lists
 
-Use graph commands for actual structural context:
+Use search for complete filtered record-reference results:
+
+```sh
+atlas search --kind creature --links-to 'Leather Armor' --json
+atlas search --links-to 'Leather Armor' --links-to 'Stunned' --json
+atlas search --linked-from 'Skeleton Guard' --json
+atlas similar 'Skeleton Guard' --links-to 'Leather Armor' --json
+```
+
+Each flag accepts a canonical key, strict name or verified alias. Resolution is
+independent of candidate filters, query and Similar seed. Repeated flags combine
+with AND. Ambiguity requires choosing a resolved key; never substitute a fuzzy hit.
+`--links-to` checks links from each result's whole entry; `--linked-from` checks
+links from the chosen whole entry. Their `--links-to-main-entry` and
+`--linked-from-main-entry` variants restrict the source to its main entry.
+Whole entry includes nested abilities, spells, equipment and other documents.
+References alone do not establish possession, worn equipment or condition effects.
+
+CEL `links_to(KEY[, SCOPE])` and `linked_from(KEY[, SCOPE])` combine with ordinary
+conditions using `&&`, `||`, `!` and parentheses. SCOPE is `whole_entry` (default)
+or `main_entry`. CEL requires canonical keys; resolve names first. An exact
+selection-map overload accepts the returned `record_key`, `embedded_path`,
+`field`, `passage`, `source_fingerprint` and optional `spell_rank`. Copy exact
+returned navigation, including snapshot-local fingerprints; never invent owner IDs.
+Link functions test root records and cannot appear inside authored `.exists`.
+`search --print-filter` needs no artifact; named link flags fail there with a
+resolution hint. Canonical flags and CEL still print the shared typed predicate.
+
+Search pages count distinct matching roots. Positive relevant relationship leaves
+carry clause IDs and bounded occurrence previews in each row. Unmatched OR
+branches and negative leaves do not invent link evidence. Page occurrences with
+`atlas graph occurrences RESULT_KEY --where ORIGINAL_EXPRESSION --clause-id ID
+--artifact-generation GENERATION --page N --json`. The clause selector is optional
+when exactly one positive link condition exists. Preserve the original expression
+and generation; changing it can change generated clause IDs. Stale generations
+fail explicitly. Occurrence counts and root counts are different.
+
+Use graph commands for bounded structural context, including unresolved links:
 
 ```sh
 atlas graph links 'Demoralize' --backlinks 8 --json

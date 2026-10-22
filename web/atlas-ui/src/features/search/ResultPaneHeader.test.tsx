@@ -114,6 +114,7 @@ describe("search pane composition", () => {
       <SearchProfileProvider>
         <SearchView
           workspace={workspace({
+            resultFilter: null,
             resultPage: undefined,
             search: { ...DEFAULT_SEARCH_STATE, filterError: "Invalid filter link" },
           })}
@@ -280,6 +281,7 @@ function workspace(
   overrides: Partial<SearchWorkspaceState> = {},
 ): SearchWorkspaceState {
   return {
+    resultFilter: null,
     search: DEFAULT_SEARCH_STATE,
     setSearch: vi.fn(),
     selectedRecordKey: null,
@@ -330,7 +332,7 @@ function workspace(
 
 function searchResultsPage(): SearchResultsPage {
   return {
-    relationships: [],
+    relationship_clauses: [],
     sort: { kind: "relevance" } as const,
     ranking: "score" as const,
     search_profile: "bge-base",

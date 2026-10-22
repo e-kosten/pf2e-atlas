@@ -6,7 +6,7 @@ use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas search --kind spell --trait healing\n  atlas search 'Ghoul Fever' --retrieval fts --json\n  atlas search --where 'defenses.hp.maximum >= 80 && \"undead\" in traits'\n  atlas filters fields"
+    after_help = "Examples:\n  atlas search --kind spell --trait healing\n  atlas search 'Ghoul Fever' --retrieval fts --json\n  atlas search --where 'defenses.hp.maximum >= 80 && \"undead\" in traits'\n  atlas search --links-to \"Leather Armor\" --kind creature\n  atlas search --where 'links_to(\"equipment-srd:KEY\") || linked_from(\"bestiary:KEY\", \"main_entry\")'\n  atlas filters fields"
 )]
 pub(crate) struct SearchOptions {
     #[arg(

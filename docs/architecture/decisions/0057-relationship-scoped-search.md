@@ -1,96 +1,153 @@
-# ADR 0057: Relationship-scoped search and attributed result evidence
+# ADR 0057: Boolean reference filtering and attributed result evidence
 
-Status: accepted; implementation in progress.
+Status: accepted; expanded implementation in progress.
 Date: 2026-10-21
+Updated: 2026-10-22
 
 ## Context
 
 Related provides bounded occurrence previews for an exact selected record or
-contained entry. Deriving neighboring keys from a capped preview cannot support
-complete record results, ordinary filters or paging beyond that preview. Search
-also needs to combine references with ordinary criteria and existing text/Similar
-retrieval without introducing a second filter engine.
+contained entry. Capped neighboring keys cannot support complete record results,
+ordinary filters or paging beyond that preview. References also need to combine
+with ordinary AND/OR/NOT criteria in Advanced filters and CLI queries. A separate
+conjunctive relationship collection would make those expressions unavailable and
+leave search surfaces with different capabilities.
 
 ## Decision
 
-Relationship constraints are typed eligibility inputs alongside the ordinary
-query predicate and optional saved-list key scope. Each carries direction, exact
-checked record selection and an independent source-contents scope. A collection
-of constraints composes conjunctively. They are not new ranking modes, authored
-record identities, or general-purpose Boolean expressions in the filter editor.
+`atlas-domain::QueryPredicate` is the single executable eligibility expression.
+Relationship leaves compose with ordinary predicates under AND, OR and NOT.
+Each carries a canonical record selection, direction and independent source-contents
+scope. Each has a nonempty unique clause ID for presentation, discovery and evidence.
+Shared pure construction assigns missing relationship clause IDs deterministically
+for CEL and convenience-flag composition; validation retains semantic authority.
+The reference-leaf limit is part of the shared query limits.
 
-Index owns parameterized reference eligibility over the existing relationship
-occurrences, including exact source/target owner addressing and descendant
-selection. The same eligibility feeds browse, lexical and vector retrieval before
-candidate selection, verified-edition preference and pagination. A capped list of
-neighbor keys is never an eligibility input derived from Related. Search owns
-retrieval and distinct-root results; app-service validates checked selections and
-projects human labels and evidence; web remains thin transport over app contracts.
+Owned-source address primitives live in atlas-domain and retain their existing
+wire identity. Atlas-record owns source-backed node interpretation and selection
+policy. Relationship predicates apply to candidate roots; they are rejected inside
+an authored collection Exists. Exact selected embedded addresses are distinct from
+correlating conditions on an authored child collection.
 
-**Links to X** keeps X's destination exact. Main entry only admits links made
-directly by the result's main entry; Whole entry also admits links from its
-contained entries. **Linked from X** considers links from exactly X under Main
-entry only, and X plus its descendants under Whole entry. Including descendants of a
-selected contained entry never includes its siblings or parent. Root-only selection and
-all-source-owner selection remain different operations.
+Index owns parameterized eligibility over existing resolved relationship occurrences
+and the ordinary expression compiler. This complete expression feeds browse,
+lexical and vector retrieval before candidate admission, verified-edition preference,
+ordering and pagination. Saved-list membership intersects that same eligibility.
+There is no parallel relationship request array, capped neighbor-key filter, second
+query evaluator or relationship-specific artifact projection.
 
-Root results are complete for nonsemantic relationship browsing and count each
-root once. Repeated references, multiple owners and multiple matching constraints
-do not inflate that count. Existing semantic/hybrid coverage remains bounded and
-is reported through its normal coverage contract; relationships do not change the
-ranking policy or invent new semantic matches. Edition preference cannot replace
-an exact destination with a record that has no matching reference.
+**Links to X** keeps X's destination root/owner exact. Main entry only admits links
+made directly by each result's main entry; Whole entry includes its contained
+entries. **Linked from X** considers links from exactly X under Main entry only,
+and X plus its descendants under Whole entry. Descendants never include siblings
+or parents. Selected fields/passages/rank remain checked reading context; an outgoing
+field can restrict the source occurrence, while an incoming reading field does not
+invent a field-addressed destination edge.
 
-Each root carries a bounded preview of its matching occurrences, with separate
-occurrence counts and pageable evidence. Evidence retains exact source and target
-navigation, field, occurrence ordinal and relationship origin/kind. Structured
-source navigation opens the exact referring entry without selecting its unreadable
-metadata field; the raw occurrence locator retains that field. Prose navigation
-retains its exact readable content field. Root paging is independent of occurrence-preview limits. Resolved local product roots contribute
-to result counts; external/unresolved/blocked occurrences keep their statuses in
-the existing bounded previews and do not become fabricated record results.
-Compendium equipment provenance remains distinct from a prose reference; neither
-automatically establishes that equipment is worn or a condition is inflicted.
+Shared retrieval admission checks every relationship target and exact source
+selection through checked index readers and existing record policy, including
+leaves under NOT or a branch that cannot match. Missing/stale targets are errors,
+not empty sets that become universal under negation. App-service invokes that
+admission before inference, owns workflow generation checks and projects human DTOs.
+Preflight sessions close before inference; consuming reads preserve the existing
+snapshot/generation contract. Negation means no matching admitted resolved link;
+it does not establish the absence of unresolved or external references.
 
-Generation checks, cooperative abandonment and explicit recovery follow
-[ADR0049](./0049-search-lifetimes-and-pages.md). Exact source selections retain
-their snapshot fingerprints. Generation recovery does not silently rebind an
-embedded ordinal. Relationship constraints and source scope participate in
-request, URL and browser-cache identity. Contextual facet counts, value discovery
-and field statistics use the same relationship eligibility. Counterfactual
-self-exclusion removes the edited ordinary field while retaining all relationship
-constraints and saved-list membership. Option counts measure distinct roots after
-eligibility and per-option edition preference. Field statistics retain their
-existing availability/occurrence and pre-edition-preference counting basis.
-Neither operation materializes a capped neighbor list.
-Existing text and unsupported-predicate count availability rules remain unchanged;
-relationship scope alone does not disable counts. Count-free vocabulary retains
-its independent artifact/list scope.
+Nonsemantic results are exhaustive distinct product roots. Repeated occurrences,
+multiple owners and multiple matching leaves never inflate root counts. Existing
+semantic/hybrid coverage remains bounded and labelled through its normal contract.
+References do not change ranking or invent semantic matches. Edition preference
+cannot replace an exact destination with a record lacking the matching edge.
 
-The browser displays active relationship constraints at the top level alongside
-ordinary filters. Controls use human names, with kind/publication/parent names
-where disambiguation is needed, and never display record IDs as a fallback.
-Exact keys remain in typed identity and navigation, not visible relationship copy.
-The first workflow creates one constraint from a record action or Related's
-View all links. Later direct creation reuses the shared list/encounter search
-picker and permits multiple independent constraints combined with AND. Their
-underlying model and eligibility do not require a separate engine at that point.
+## Evidence, counts and selection lifetime
 
-Similar remains a separate search criterion. Its active seed occupies the same
-search control as keyword entry, with a named, selectable, read-only criterion
-and the same clear/search affordances and dimensions. Clearing it
-retains other filters and returns focus to keyword entry. The browser does not
-show a competing editable search field while a Similar seed is active.
+Search returns human presentations for every relationship clause, including
+negative leaves, unmatched OR branches and zero-result searches. These annotations
+are not an alternate eligibility input. They retain clause ID, exact leaf and
+artifact generation. Catalog discovery can report an unavailable presentation
+without concealing ordinary editor fields or fabricating a new selection.
+
+Per-root occurrence evidence belongs only to positive relationship leaves that
+participate in successful Boolean proofs. Shared compiled SQL truth, including
+ordinary NULL semantics, determines that attribution. A true link in a failed AND
+branch does not explain an OR result. Double negation can yield positive evidence;
+negative absence has no fabricated occurrence. Evidence uses clause IDs rather
+than positions in a separate constraint list.
+
+Occurrence pages accept the full predicate, selected clause, result identity and
+expected generation. They validate the complete expression and the selected
+positive proof before paging. Evidence retains source/target owner navigation,
+field and occurrence ordinal; root paging is independent of occurrence limits.
+Structured source navigation opens the referring entry without selecting unreadable
+metadata, while the occurrence locator retains its exact field. External,
+unresolved and blocked occurrences retain their existing preview statuses and
+never become fabricated resolved-result evidence. Equipment provenance is distinct
+from a prose reference and does not imply worn equipment or inflicted conditions.
+
+Contextual counts, value discovery and field statistics retain the complete
+expression and optional saved-list scope. Existing self-exclusion rules and typed
+unavailability for unsupported OR/compound-negative suggestion contexts remain;
+unsupported suggestions do not weaken the executable query. Option counts retain
+distinct-root and per-option edition-preference semantics. Field statistics retain
+their existing basis. Count-free vocabulary keeps its independent artifact/list
+scope. Existing text/Similar count availability policies remain unchanged.
+
+Generation checks, cooperative abandonment and recovery follow
+[ADR0049](./0049-search-lifetimes-and-pages.md). Exact snapshot-local selections
+retain their source fingerprints and never silently rebind embedded ordinals.
+The full expression participates in request, URL and browser-cache identity.
+
+## Web and CLI composition
+
+The toolbar's Links picker and Advanced's structural Record links condition edit
+one tree, retaining unfinished siblings in the existing editor owner. Common
+positive conjunctions support direct chips. Mixed/negated groups use a bounded
+full-expression summary retaining Boolean operators and grouping, with Advanced
+providing complete editing. Global Clear filters clears ordinary and link conditions
+while retaining text/Similar and result order.
+
+The record finder reuses SearchPickerModal and searches independently of parent
+criteria. A stable app-composed picker component is supplied through a lightweight
+shared-filter composition context, avoiding a filter-to-picker import cycle.
+Each editing owner retains its local selection/draft state; nested lookups use Ant's
+overlay stack. Explicit root-row selection replaces an embedded target; direction
+or scope edits alone preserve that exact target. Human names and useful kind/source/
+parent disambiguation are displayed; IDs never substitute for relationship labels.
+
+Record and Related actions create the same predicate leaves. On active Search,
+new actions conjoin with the entire existing expression; they do not extract or
+rewrite arbitrary OR/NOT branches. Outside Search they create a leaf-only search.
+Duplicate suppression applies only where direct conjunction identity makes it safe.
+
+CLI CEL and structured web requests target the same predicate. CEL links_to and
+linked_from accept canonical keys or literal typed selections with independent
+source scope. Strict-name convenience flags add conjunctive root conditions through
+the existing resolver. Names never inherit candidate filters. Artifact-free
+print-filter accepts canonical conditions; name resolution requires the explicit
+runtime operation. No unresolved-name AST or alternate relationship parser is added.
+
+CLI browse, text and Similar use the common search-page projection. JSON returns
+complete rows, clause presentations, evidence, coverage and page facts within the
+existing envelope, replacing summary-only result payloads. Contextual CLI discovery
+uses the shared context, and graph occurrences pages the same clause evidence.
+Existing graph links/uses remain bounded previews and never become eligibility.
+
+URLs serialize the canonical predicate only. Retired relationships parameters are
+explicit unsupported-format errors with a clear-filter action; they are never
+silently ignored. No converter or old request/execution path is retained.
+
+Similar remains a separate search criterion. Its named, selectable read-only seed
+occupies the keyword search shell with identical clear/search affordances. Clearing
+it retains filters and returns focus to keyword entry.
 
 ## Consequences
 
-Full reference browsing and Related previews share reference identity/policy while
-retaining different bounded response shapes. Existing encounter-owned Related
-readers keep their exact selections and recovery behavior. No source/model pin,
-artifact re-preparation, semantic recipe, or saved-state replacement is implied.
+The shared query model, CLI grammar, web editor, discovery and evidence readers
+must change together. Architecture and validation must cover Boolean truth,
+source identity and surface parity, not just picker appearance. Existing bounded
+Related/encounter readers retain their policies and exact selections.
 
-Attribute sorting and the direct multi-relationship picker are separate PRs.
-General OR/NOT relationship expressions, inferred gameplay relationships,
-multi-hop traversal and trait membership reinterpretation remain outside this
-decision. Trait identities and associations retain
+No source/model pin, reference schema, artifact re-preparation, semantic recipe or
+saved-state replacement is implied. Inferred gameplay relationships and multi-hop
+traversal remain outside this decision. Trait identities and associations retain
 [ADR0056](./0056-trait-reference-entities.md).
