@@ -1,5 +1,5 @@
 import { Button, Popover, Radio, Space, Tooltip, Typography, theme } from "antd";
-import { CloseOutlined, DownOutlined, LinkOutlined } from "@ant-design/icons";
+import { CloseOutlined, DownOutlined } from "@ant-design/icons";
 import { useRef, useState } from "react";
 import type {
   QueryPredicate,
@@ -79,11 +79,7 @@ export function LinkFilterControls({
   const rootOperator = "Grouped filters";
   return (
     <>
-      <Button
-        icon={<LinkOutlined aria-hidden="true" />}
-        iconPlacement="start"
-        onClick={onAdd}
-      >
+      <Button onClick={onAdd}>
         Links <DownOutlined aria-hidden="true" />
       </Button>
       {!!clauses.length &&
