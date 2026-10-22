@@ -3,13 +3,11 @@ import type {
   SearchRanking,
   SearchResultsRequest,
   QueryPredicate,
-  RelationshipConstraintView,
   ResultSort,
   SortField,
   SortDirection,
 } from "../../generated/atlas";
 import { decodeFilterUrl, encodeFilterUrl, UNSUPPORTED_FILTER_URL } from "./filterUrl";
-import { decodeRelationships, encodeRelationships } from "./relationshipUrl";
 export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
 export const UNKNOWN_SEARCH_RANKING = "Unknown search ranking";
 export const UNKNOWN_RESULT_SORT = "Unknown result order";
@@ -17,7 +15,6 @@ export const INVALID_RESULT_SORT = "Choose an order available for this search";
 export type SearchFormState = {
   sort?: ResultSort;
   ranking?: SearchRanking;
-  relationships?: RelationshipConstraintView[];
   query: string;
   mode: "browse" | "text_search" | "similar_records";
   similarSeed: string | null;
@@ -45,14 +42,10 @@ export function buildSearchRequest(
   if (state.filterError) throw new Error(state.filterError);
   if (state.similarSeed && state.query.trim()) throw new Error(SIMILAR_QUERY_CONFLICT);
   const page = { number, size: state.pageSize };
-  const relationshipRequest = state.relationships?.length
-    ? { relationships: state.relationships }
-    : {};
   const sortRequest = state.sort ? { sort: state.sort } : {};
   if (state.similarSeed)
     return {
       search_profile,
-      ...relationshipRequest,
       ...sortRequest,
       page,
       expected_artifact_generation,
@@ -64,7 +57,6 @@ export function buildSearchRequest(
     };
   return {
     search_profile,
-    ...relationshipRequest,
     ...sortRequest,
     page,
     expected_artifact_generation,
@@ -82,10 +74,7 @@ export function buildSearchRequest(
 export function hasExecutableSearch(state: SearchFormState): boolean {
   return (
     !state.filterError &&
-    (!!state.similarSeed ||
-      state.query.trim().length > 0 ||
-      state.filter !== null ||
-      !!state.relationships?.length)
+    (!!state.similarSeed || state.query.trim().length > 0 || state.filter !== null)
   );
 }
 export function buildFilterDiscoveryContext(
@@ -95,7 +84,6 @@ export function buildFilterDiscoveryContext(
 ): FilterDiscoveryContext {
   return {
     search_profile,
-    ...(state.relationships?.length ? { relationships: state.relationships } : {}),
     expected_artifact_generation,
     kind: "filtered",
     filter: state.filter,
@@ -128,7 +116,6 @@ export function encodeSearchExecutionState(
       sort: state.sort,
       query: state.query,
       similarSeed: state.similarSeed,
-      relationships: state.relationships,
       mode: state.mode,
       filter: state.filter,
       filterError: state.filterError,
@@ -146,8 +133,6 @@ export function searchStateQueryString(
   encodeResultSort(params, state.sort);
   if (state.query) params.set("q", state.query);
   if (state.similarSeed) params.set("similar", state.similarSeed);
-  if (state.relationships?.length)
-    params.set("relationships", encodeRelationships(state.relationships));
   if (state.filter) params.set("filter", encodeFilterUrl(state.filter));
   if (state.pageSize !== 25) params.set("limit", String(state.pageSize));
   return params.size ? "?" + params.toString() : "";
@@ -167,15 +152,7 @@ export function decodeSearchStateFromParams(
         ? UNSUPPORTED_FILTER_URL
         : "Invalid structured filter URL";
   }
-  let relationships: RelationshipConstraintView[] | undefined;
-  if (params.has("relationships")) {
-    try {
-      relationships = decodeRelationships(params.get("relationships")!);
-    } catch (error) {
-      filterError =
-        error instanceof Error ? error.message : "Invalid relationship filter URL";
-    }
-  }
+  if (params.has("relationships")) filterError = UNSUPPORTED_FILTER_URL;
   const ranking = params.get("ranking") ?? "score";
   if (!filterError && ranking !== "rrf" && ranking !== "score")
     filterError = UNKNOWN_SEARCH_RANKING;
@@ -194,7 +171,6 @@ export function decodeSearchStateFromParams(
     ...(sort ? { sort } : {}),
     query: params.get("q") || "",
     similarSeed,
-    ...(relationships ? { relationships } : {}),
     mode: similarSeed
       ? "similar_records"
       : params.get("q")?.trim()

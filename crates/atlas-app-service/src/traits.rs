@@ -388,11 +388,9 @@ mod tests {
         assert_eq!(rows[0].source_label.as_deref(), Some("Claw"));
         assert_eq!(
             rows[0].navigation.owners,
-            vec![atlas_record::source_content::OwnedContentLocator {
+            vec![atlas_domain::OwnedContentLocator {
                 collection: "/items".into(),
-                identity: atlas_record::source_content::OwnedContentIdentity::Stable(
-                    "claw000000000000".into()
-                ),
+                identity: atlas_domain::OwnedContentIdentity::Stable("claw000000000000".into()),
             }]
         );
         assert!(

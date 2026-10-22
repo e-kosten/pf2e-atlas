@@ -286,11 +286,19 @@ export function fieldFixture(
 }
 export function editorFixture(fields: QueryFieldDefinition[] = []): FilterEditorView {
   return {
+    artifact_generation: "generation-a",
+    relationship_clauses: [],
     catalog_version: 4,
     common_field_ids: ["kind", "level_or_rank", "rarity", "traits"].filter((id) =>
       fields.some((field) => field.id === id),
     ),
-    limits: { source_bytes: 16384, nodes: 256, depth: 32, literal_list: 128 },
+    limits: {
+      source_bytes: 16384,
+      nodes: 256,
+      depth: 32,
+      literal_list: 128,
+      relationship_leaves: 16,
+    },
     groups: [
       {
         id: "common",

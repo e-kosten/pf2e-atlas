@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import type {
-  RelationshipConstraintSummaryView,
+  RelationshipClauseSummaryView,
   RecordNavigationView,
   SearchResultRow,
 } from "../../generated/atlas";
@@ -25,7 +25,8 @@ export function ReferenceBrowser({
   emptyMessage = "No matching records",
   positions,
   disabled = false,
-  relationships,
+  relationshipClauses,
+  filter,
   generation,
   onRefreshResults,
 }: {
@@ -39,7 +40,8 @@ export function ReferenceBrowser({
   emptyMessage?: string | null;
   positions?: BrowsePositions;
   disabled?: boolean;
-  relationships?: RelationshipConstraintSummaryView[];
+  relationshipClauses?: RelationshipClauseSummaryView[];
+  filter?: import("../../generated/atlas").QueryPredicate | null;
   generation?: string;
   onRefreshResults?: () => Promise<void>;
 }) {
@@ -68,7 +70,8 @@ export function ReferenceBrowser({
         <ReferenceResult
           key={row.record.record_key}
           row={row}
-          relationships={relationships}
+          relationshipClauses={relationshipClauses}
+          filter={filter}
           generation={generation}
           onRefreshResults={onRefreshResults}
           selected={row.record.record_key === selectedRecordKey}
@@ -102,12 +105,14 @@ function ReferenceResult({
   onMatch,
   matchesOpen,
   onMatchesOpenChange,
-  relationships,
+  relationshipClauses,
+  filter,
   generation,
   onRefreshResults,
 }: {
   row: SearchResultRow;
-  relationships?: RelationshipConstraintSummaryView[];
+  relationshipClauses?: RelationshipClauseSummaryView[];
+  filter?: import("../../generated/atlas").QueryPredicate | null;
   generation?: string;
   onRefreshResults?: () => Promise<void>;
   matchesOpen: boolean;
@@ -126,11 +131,14 @@ function ReferenceResult({
       (match.navigation.field && match.navigation.field !== "identity") ||
       match.navigation.passage,
   );
-  const relationshipEvidence = generation
-    ? (row.relationship_evidence ?? []).filter(
-        (evidence) => relationships?.[evidence.constraint_index],
-      )
-    : [];
+  const relationshipEvidence =
+    generation && filter
+      ? (row.relationship_evidence ?? []).filter((evidence) =>
+          relationshipClauses?.some(
+            (clause) => clause.clause_id === evidence.clause_id,
+          ),
+        )
+      : [];
   const matchCount =
     BigInt(matches.length) +
     relationshipEvidence.reduce((count, evidence) => count + evidence.page.total, 0n);
@@ -207,15 +215,18 @@ function ReferenceResult({
               ))}
               {generation &&
                 relationshipEvidence.map((evidence) => {
-                  const summary = relationships![evidence.constraint_index];
+                  const summary = relationshipClauses!.find(
+                    (clause) => clause.clause_id === evidence.clause_id,
+                  )!;
                   return (
                     <RelationshipEvidence
                       key={JSON.stringify([
                         generation,
-                        summary.constraint,
+                        summary.relationship,
                         row.record.record_key,
                       ])}
                       evidence={evidence}
+                      filter={filter!}
                       summary={summary}
                       resultKey={row.record.record_key}
                       generation={generation}

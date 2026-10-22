@@ -19,7 +19,7 @@ use atlas_search::{
 #[derive(Debug, Clone)]
 pub struct RawFilterValuesRequest {
     pub field: String,
-    pub filter: Option<QueryPredicate>,
+    pub context: FilterDiscoveryContext,
     pub clause_id: Option<String>,
     pub text: Option<String>,
     pub offset: usize,
@@ -28,7 +28,7 @@ pub struct RawFilterValuesRequest {
 #[derive(Debug, Clone)]
 pub struct RawFilterCountsRequest {
     pub field: String,
-    pub filter: Option<QueryPredicate>,
+    pub context: FilterDiscoveryContext,
     pub clause_id: Option<String>,
 }
 impl AtlasAppService {
@@ -46,8 +46,11 @@ impl AtlasAppService {
         self.with_retrieval(
             &crate::ReadExecutionContext::uncancellable(),
             move |retrieval| {
+                check_generation(retrieval,request.expected_artifact_generation.as_deref())?;
+                let generation=retrieval.artifact_generation()?;
+                let presentations=crate::relationship_search::presentations(retrieval,request.filter.as_ref())?;
                 let catalog = retrieval.discover_filter_fields()?;
-                let mut editor = crate::discovery::filter_editor_view(catalog, &request.selected_field_ids)?;
+                let mut editor = crate::discovery::filter_editor_view(catalog, &request.selected_field_ids, generation, presentations)?;
                 // One family inventory answers applicability; never fan out across fields.
                 let filter = request.filter.as_ref().filter(|filter| retrieval.validate_filter(filter).is_ok());
                 let families = editor_values(retrieval, "source.type", filter)?;
@@ -65,53 +68,100 @@ impl AtlasAppService {
             },
         )
     }
+    fn prepare_discovery_query(
+        &self,
+        field: &str,
+        clause: Option<&str>,
+        context: &FilterDiscoveryContext,
+        execution: &ReadExecutionContext,
+    ) -> AppServiceResult<Option<atlas_search::PreparedQueryEmbedding>> {
+        let (_, filter, text, mode, profile, expected) = context_parts(context.clone());
+        let field = field.to_owned();
+        let clause = clause.map(str::to_owned);
+        let expected_preflight = expected.clone();
+        let supported = self.with_retrieval(execution, move |r| {
+            check_generation(r, expected_preflight.as_deref())?;
+            Ok(r.discovery_supports_ranking(&field, clause.as_deref(), filter.as_ref())?)
+        })?;
+        if supported {
+            self.prepare_query(profile.as_ref(), text.as_deref().unwrap_or(""), mode)
+        } else {
+            Ok(None)
+        }
+    }
     pub fn discover_raw_filter_values(
         &self,
         request: RawFilterValuesRequest,
     ) -> AppServiceResult<QueryValueOptions> {
-        self.with_retrieval(
-            &crate::ReadExecutionContext::uncancellable(),
-            move |retrieval| {
-                required_facet(retrieval.discover_filter_values(SearchValues {
+        let execution = ReadExecutionContext::uncancellable();
+        let prepared = self.prepare_discovery_query(
+            &request.field,
+            request.clause_id.as_deref(),
+            &request.context,
+            &execution,
+        )?;
+        let (list, filter, text, mode, profile, expected) = context_parts(request.context);
+        self.with_prepared_workspace(&execution, prepared, move |workspace| {
+            let keys = scoped_list_keys(workspace, list.as_deref())?;
+            let r = workspace.retrieval_mut();
+            check_generation(r, expected.as_deref())?;
+            required_facet(
+                r.discover_filter_values(SearchValues {
                     only_matching: false,
                     field: &request.field,
                     clause_id: request.clause_id.as_deref(),
                     context: SearchContext {
-                        search_profile: None,
-                        text: None,
-                        mode: RetrievalMode::Fts,
-                        scope: RecordScope::All,
+                        search_profile: profile.as_ref(),
+                        text: text.as_deref(),
+                        mode,
+                        scope: keys
+                            .as_deref()
+                            .map(RecordScope::Keys)
+                            .unwrap_or(RecordScope::All),
                         prefer_remaster: true,
-                        filter: request.filter.as_ref(),
+                        filter: filter.as_ref(),
                     },
                     text: request.text.as_deref(),
                     offset: request.offset,
                     limit: request.limit,
-                })?)
-            },
-        )
+                })?,
+            )
+        })
     }
     pub fn discover_raw_filter_counts(
         &self,
         request: RawFilterCountsRequest,
     ) -> AppServiceResult<QueryFieldCounts> {
-        self.with_retrieval(
-            &crate::ReadExecutionContext::uncancellable(),
-            move |retrieval| {
-                required_facet(retrieval.discover_filter_counts(SearchCounts {
+        let execution = ReadExecutionContext::uncancellable();
+        let prepared = self.prepare_discovery_query(
+            &request.field,
+            request.clause_id.as_deref(),
+            &request.context,
+            &execution,
+        )?;
+        let (list, filter, text, mode, profile, expected) = context_parts(request.context);
+        self.with_prepared_workspace(&execution, prepared, move |workspace| {
+            let keys = scoped_list_keys(workspace, list.as_deref())?;
+            let r = workspace.retrieval_mut();
+            check_generation(r, expected.as_deref())?;
+            required_facet(
+                r.discover_filter_counts(SearchCounts {
                     field: &request.field,
                     clause_id: request.clause_id.as_deref(),
                     context: SearchContext {
-                        search_profile: None,
-                        text: None,
-                        mode: RetrievalMode::Fts,
-                        scope: RecordScope::All,
+                        search_profile: profile.as_ref(),
+                        text: text.as_deref(),
+                        mode,
+                        scope: keys
+                            .as_deref()
+                            .map(RecordScope::Keys)
+                            .unwrap_or(RecordScope::All),
                         prefer_remaster: true,
-                        filter: request.filter.as_ref(),
+                        filter: filter.as_ref(),
                     },
-                })?)
-            },
-        )
+                })?,
+            )
+        })
     }
     pub fn discover_filter_values(
         &self,
@@ -130,37 +180,29 @@ impl AtlasAppService {
                 offset,
                 limit,
             } => {
-                let (keys, filter, text, mode, search_profile, expected_generation, relationships) =
+                let (keys, filter, text, mode, search_profile, expected_generation) =
                     context_parts(context);
-                let preflight_field = field_id.clone();
-                let preflight_clause = clause_id.clone();
-                let preflight_filter = filter.clone();
-                let expected = expected_generation.clone();
-                let preflight_relationships = relationships.clone();
-                let supports_ranking = self.with_retrieval(execution, move |r| {
-                    check_generation(r, expected.as_deref())?;
-                    crate::relationship_search::prepare_constraints(r, &preflight_relationships)?;
-                    Ok(r.discovery_supports_ranking(
-                        &preflight_field,
-                        preflight_clause.as_deref(),
-                        preflight_filter.as_ref(),
-                    )?)
-                })?;
-                let prepared = if supports_ranking {
-                    self.prepare_query(
-                        search_profile.as_ref(),
-                        text.as_deref().unwrap_or(""),
-                        mode,
-                    )?
-                } else {
-                    None
+                let context = FilterDiscoveryContext::Filtered {
+                    filter: filter.clone(),
+                    text: text.clone(),
+                    mode: match mode {
+                        RetrievalMode::Fts => atlas_app_model::RetrievalModeView::Lexical,
+                        RetrievalMode::Vector => atlas_app_model::RetrievalModeView::Semantic,
+                        RetrievalMode::Hybrid => atlas_app_model::RetrievalModeView::Hybrid,
+                    },
+                    search_profile: search_profile.clone(),
+                    expected_artifact_generation: expected_generation.clone(),
                 };
+                let prepared = self.prepare_discovery_query(
+                    &field_id,
+                    clause_id.as_deref(),
+                    &context,
+                    execution,
+                )?;
                 self.with_prepared_workspace(execution, prepared, move |workspace| {
                     let keys = scoped_list_keys(workspace, keys.as_deref())?;
                     let retrieval = workspace.retrieval_mut();
                     check_generation(retrieval, expected_generation.as_deref())?;
-                    let (relationships, _) =
-                        crate::relationship_search::prepare_constraints(retrieval, &relationships)?;
                     let resolved =
                         retrieval.resolve_search_profile(search_profile.as_ref(), false)?;
                     let generation = retrieval.artifact_generation()?;
@@ -172,10 +214,10 @@ impl AtlasAppService {
                             search_profile: search_profile.as_ref(),
                             text: text.as_deref(),
                             mode,
-                            scope: RecordScope::Constrained {
-                                keys: keys.as_deref(),
-                                relationships: &relationships,
-                            },
+                            scope: keys
+                                .as_deref()
+                                .map(RecordScope::Keys)
+                                .unwrap_or(RecordScope::All),
                             prefer_remaster: true,
                             filter: filter.as_ref(),
                         },
@@ -228,15 +270,13 @@ impl AtlasAppService {
         execution: &ReadExecutionContext,
     ) -> AppServiceResult<FilterCountsView> {
         execution.check()?;
-        let (keys, filter, text, mode, search_profile, expected_generation, relationships) =
+        let (keys, filter, text, mode, search_profile, expected_generation) =
             context_parts(request.context);
         let projection_execution = execution.clone();
         self.with_workspace(execution, move |workspace| {
             let keys = scoped_list_keys(workspace, keys.as_deref())?;
             let retrieval = workspace.retrieval_mut();
             check_generation(retrieval, expected_generation.as_deref())?;
-            let (relationships, _) =
-                crate::relationship_search::prepare_constraints(retrieval, &relationships)?;
             let resolved = retrieval.resolve_search_profile(search_profile.as_ref(), false)?;
             let generation = retrieval.artifact_generation()?;
             let counts = retrieval.discover_filter_value_counts(SearchValueCounts {
@@ -247,10 +287,10 @@ impl AtlasAppService {
                     search_profile: search_profile.as_ref(),
                     text: text.as_deref(),
                     mode,
-                    scope: RecordScope::Constrained {
-                        keys: keys.as_deref(),
-                        relationships: &relationships,
-                    },
+                    scope: keys
+                        .as_deref()
+                        .map(RecordScope::Keys)
+                        .unwrap_or(RecordScope::All),
                     prefer_remaster: true,
                     filter: filter.as_ref(),
                 },
@@ -315,12 +355,10 @@ type ContextParts = (
     RetrievalMode,
     Option<atlas_domain::SearchProfileId>,
     Option<String>,
-    Vec<atlas_app_model::RelationshipConstraintView>,
 );
 fn context_parts(context: FilterDiscoveryContext) -> ContextParts {
     match context {
         FilterDiscoveryContext::Filtered {
-            relationships,
             filter,
             text,
             mode,
@@ -333,10 +371,8 @@ fn context_parts(context: FilterDiscoveryContext) -> ContextParts {
             crate::retrieval::retrieval_mode(mode),
             search_profile,
             expected_artifact_generation,
-            relationships.unwrap_or_default(),
         ),
         FilterDiscoveryContext::SavedList {
-            relationships,
             list_ref,
             filter,
             text,
@@ -350,7 +386,6 @@ fn context_parts(context: FilterDiscoveryContext) -> ContextParts {
             crate::retrieval::retrieval_mode(mode),
             search_profile,
             expected_artifact_generation,
-            relationships.unwrap_or_default(),
         ),
     }
 }
@@ -428,6 +463,7 @@ mod tests {
 
     fn editor_request() -> DiscoverFilterEditorRequest {
         DiscoverFilterEditorRequest {
+            expected_artifact_generation: None,
             filter: None,
             selected_field_ids: vec!["defenses.hp.maximum".into()],
         }
@@ -454,7 +490,7 @@ mod tests {
                 .search_page(
                     SearchResultsRequest {
                         sort: None,
-                        relationships: None,
+
                         ranking: None,
                         search_profile: None,
                         criteria: SearchCriteria::ListRecords {
@@ -476,7 +512,6 @@ mod tests {
                 .discover_filter_counts(
                     DiscoverFilterCountsRequest {
                         context: FilterDiscoveryContext::Filtered {
-                            relationships: None,
                             search_profile: None,
                             expected_artifact_generation: None,
                             filter: Some(predicate),
@@ -505,6 +540,7 @@ mod tests {
         let editor = f
             .worker
             .discover_filter_editor(DiscoverFilterEditorRequest {
+                expected_artifact_generation: None,
                 filter: Some(
                     serde_json::from_value(
                         json!({"kind":"in","field":"kind","values":["creature"]}),

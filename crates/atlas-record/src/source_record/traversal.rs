@@ -1,6 +1,7 @@
 use super::identity::valid_source_id;
 use super::{ItemSourceView, SourceFieldView, SourceNodeView};
-use crate::source_content::{OwnedContentIdentity, OwnedContentLocator};
+use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
+
 use atlas_foundry_model::{FoundryDocumentSource, ItemSourcePF2e, generated::*};
 use std::collections::BTreeMap;
 

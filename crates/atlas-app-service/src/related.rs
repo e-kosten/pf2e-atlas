@@ -98,15 +98,15 @@ impl AtlasAppService {
                                     outgoing: scoped_section(
                                         crate::projection::graph_section_view(g.outgoing, r),
                                         &selection,
-                                        atlas_app_model::RelationshipDirectionView::Outgoing,
+                                        atlas_domain::QueryRelationshipDirection::Outgoing,
                                         false,
-                                    ),
+                                    )?,
                                     backlinks: scoped_section(
                                         crate::projection::graph_section_view(g.backlinks, r),
                                         &selection,
-                                        atlas_app_model::RelationshipDirectionView::Incoming,
+                                        atlas_domain::QueryRelationshipDirection::Incoming,
                                         true,
-                                    ),
+                                    )?,
                                 },
                             }
                         },
@@ -187,16 +187,21 @@ fn category<T>(result: AppServiceResult<RelatedCategoryView<T>>) -> RelatedCateg
 fn scoped_section(
     mut section: atlas_app_model::GraphSectionView,
     selection: &atlas_app_model::RecordNavigationView,
-    direction: atlas_app_model::RelationshipDirectionView,
+    direction: atlas_domain::QueryRelationshipDirection,
     include_contents: bool,
-) -> atlas_app_model::GraphSectionView {
-    let mut selection = selection.clone();
+) -> AppServiceResult<atlas_app_model::GraphSectionView> {
+    let mut selection = crate::relationship_search::query_selection(selection)?;
     selection.field = None;
     selection.passage = None;
-    section.constraint = Some(atlas_app_model::RelationshipConstraintView {
-        direction,
-        selection,
-        include_contents,
-    });
-    section
+    let mut filter =
+        atlas_domain::QueryPredicate::new(atlas_domain::QueryExpression::Relationship {
+            relationship: atlas_domain::QueryRelationship {
+                direction,
+                selection,
+                include_contents,
+            },
+        });
+    atlas_domain::assign_relationship_clause_ids(&mut filter)?;
+    section.filter = Some(filter);
+    Ok(section)
 }

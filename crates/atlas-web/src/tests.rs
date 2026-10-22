@@ -1734,7 +1734,7 @@ fn search_results_page(page_number: u32) -> SearchResultsPage {
             atlas_domain::SortField::Name,
             atlas_domain::SortDirection::Asc,
         ),
-        relationships: vec![],
+        relationship_clauses: vec![],
         ranking: Default::default(),
         search_profile: atlas_domain::SearchProfileId::new("bge-base"),
         artifact_generation: "current-generation".into(),

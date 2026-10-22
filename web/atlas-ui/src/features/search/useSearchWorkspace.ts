@@ -9,7 +9,11 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { searchPage } from "../../api/atlasApi";
 import { assertSearchIdentity } from "../../shared/search/searchIdentity";
-import type { FilterEditorView, SearchResultsPage } from "../../generated/atlas";
+import type {
+  FilterEditorView,
+  SearchResultsPage,
+  QueryPredicate,
+} from "../../generated/atlas";
 import {
   buildFilterDiscoveryContext,
   buildSearchRequest,
@@ -62,6 +66,7 @@ export type SearchWorkspaceState = {
   pageNumber: number;
   setPageNumber: (page: number) => void;
   resultPage: SearchResultsPage | undefined;
+  resultFilter: QueryPredicate | null;
   filterEditor: FilterEditorView | undefined;
   filterCountsEnabled?: boolean;
   filterCountQueryKey?: readonly unknown[];
@@ -205,13 +210,16 @@ export function useSearchWorkspace({
     retrieval.generation,
     pageNumber,
   ];
-  const resultsQuery = useQuery<SearchResultsPage>({
+  const resultsQuery = useQuery<{
+    page: SearchResultsPage;
+    filter: QueryPredicate | null;
+  }>({
     queryKey: resultsKey,
     enabled: canRunResultSearch && !retrieval.recovering,
     staleTime: 20_000,
     placeholderData: (previous, previousQuery) =>
-      previous?.search_profile === searchProfile &&
-      previous.ranking === (activeSearch.ranking ?? "score") &&
+      previous?.page.search_profile === searchProfile &&
+      previous.page.ranking === (activeSearch.ranking ?? "score") &&
       previousQuery?.queryKey[2] === retrieval.epoch &&
       previousQuery.queryKey[3] === retrieval.generation
         ? previous
@@ -252,7 +260,7 @@ export function useSearchWorkspace({
             page.artifact_generation,
             pageNumber,
           ],
-          page,
+          { page, filter: activeSearch.filter },
         );
         setRetrieval((current) =>
           current.epoch === retrieval.epoch && !current.recovering
@@ -260,7 +268,7 @@ export function useSearchWorkspace({
             : current,
         );
       }
-      return page;
+      return { page, filter: activeSearch.filter };
     },
   });
   const resultsPaused = isArtifactGenerationChanged(resultsQuery.error);
@@ -398,7 +406,8 @@ export function useSearchWorkspace({
         );
       }
     },
-    resultPage: canRunResultSearch ? resultsQuery.data : undefined,
+    resultPage: canRunResultSearch ? resultsQuery.data?.page : undefined,
+    resultFilter: canRunResultSearch ? (resultsQuery.data?.filter ?? null) : null,
     filterEditor: filterDiscovery.filterEditor,
     filterCountsEnabled:
       filterDiscovery.filterCountsEnabled &&

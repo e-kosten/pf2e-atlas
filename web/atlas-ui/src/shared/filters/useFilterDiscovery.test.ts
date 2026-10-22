@@ -7,7 +7,7 @@ import {
 import type {
   FilterDiscoveryContext,
   QueryPredicate,
-  RelationshipConstraintView,
+  QueryRelationship,
 } from "../../generated/atlas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -38,7 +38,7 @@ const context: FilterDiscoveryContext = {
   text: null,
   mode: "hybrid",
 };
-const relationship: RelationshipConstraintView = {
+const relationship: QueryRelationship = {
   direction: "incoming",
   include_contents: true,
   selection: {
@@ -51,7 +51,11 @@ const relationship: RelationshipConstraintView = {
 };
 const relationshipContext: FilterDiscoveryContext = {
   ...context,
-  relationships: [relationship],
+  filter: {
+    kind: "relationship" as const,
+    clause_id: "link-0",
+    relationship: relationship,
+  },
 };
 function response(profile = "bge-base", generation = "generation-a", count = 3n) {
   return {
@@ -295,7 +299,11 @@ it("refreshes active saved-list option counts through the existing membership in
     ...context,
     kind: "saved_list",
     list_ref: "research",
-    relationships: [relationship],
+    filter: {
+      kind: "relationship" as const,
+      clause_id: "link-0",
+      relationship: relationship,
+    },
   };
   function ListWrapper({ children }: { children: ReactNode }) {
     return createElement(QueryClientProvider, { client }, children);
@@ -379,12 +387,14 @@ it.each([
     relationshipContext,
     {
       ...relationshipContext,
-      relationships: [
-        {
+      filter: {
+        kind: "relationship" as const,
+        clause_id: "link-0",
+        relationship: {
           ...relationship,
           selection: { ...relationship.selection, record_key: "conditions:stunned" },
         },
-      ],
+      },
     },
   ],
   [
@@ -392,7 +402,11 @@ it.each([
     relationshipContext,
     {
       ...relationshipContext,
-      relationships: [{ ...relationship, direction: "outgoing" }],
+      filter: {
+        kind: "relationship" as const,
+        clause_id: "link-0",
+        relationship: { ...relationship, direction: "outgoing" },
+      },
     },
   ],
   [
@@ -400,7 +414,11 @@ it.each([
     relationshipContext,
     {
       ...relationshipContext,
-      relationships: [{ ...relationship, include_contents: false }],
+      filter: {
+        kind: "relationship" as const,
+        clause_id: "link-0",
+        relationship: { ...relationship, include_contents: false },
+      },
     },
   ],
   [
@@ -408,8 +426,10 @@ it.each([
     relationshipContext,
     {
       ...relationshipContext,
-      relationships: [
-        {
+      filter: {
+        kind: "relationship" as const,
+        clause_id: "link-0",
+        relationship: {
           ...relationship,
           selection: {
             ...relationship.selection,
@@ -418,7 +438,7 @@ it.each([
             ],
           },
         },
-      ],
+      },
     },
   ],
   [
@@ -426,12 +446,14 @@ it.each([
     relationshipContext,
     {
       ...relationshipContext,
-      relationships: [
-        {
+      filter: {
+        kind: "relationship" as const,
+        clause_id: "link-0",
+        relationship: {
           ...relationship,
           selection: { ...relationship.selection, field: "description" },
         },
-      ],
+      },
     },
   ],
   [
@@ -439,12 +461,14 @@ it.each([
     relationshipContext,
     {
       ...relationshipContext,
-      relationships: [
-        {
+      filter: {
+        kind: "relationship" as const,
+        clause_id: "link-0",
+        relationship: {
           ...relationship,
           selection: { ...relationship.selection, passage: { kind: "identity" } },
         },
-      ],
+      },
     },
   ],
   [
@@ -452,12 +476,14 @@ it.each([
     relationshipContext,
     {
       ...relationshipContext,
-      relationships: [
-        {
+      filter: {
+        kind: "relationship" as const,
+        clause_id: "link-0",
+        relationship: {
           ...relationship,
           selection: { ...relationship.selection, source_fingerprint: "new-source" },
         },
-      ],
+      },
     },
   ],
   [
@@ -534,7 +560,11 @@ it("drops contextual vocabulary and counts across relationship scope changes", a
   await waitFor(() => expect(result.current.data?.contextual).toBe(true));
   const next = {
     ...relationshipContext,
-    relationships: [{ ...relationship, include_contents: false }],
+    filter: {
+      kind: "relationship" as const,
+      clause_id: "link-0",
+      relationship: { ...relationship, include_contents: false },
+    },
   };
   rerender({ activeContext: next });
   expect(result.current.data).toBeUndefined();

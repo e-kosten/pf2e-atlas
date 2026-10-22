@@ -13,7 +13,7 @@ pub struct GraphContextView {
 pub struct GraphSectionView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub constraint: Option<crate::RelationshipConstraintView>,
+    pub filter: Option<atlas_domain::QueryPredicate>,
     pub records: Vec<RecordSummaryView>,
     pub occurrences: Vec<RecordRelationshipView>,
     pub truncated: bool,
@@ -70,7 +70,7 @@ pub struct RecordListView {
 pub struct GraphContextViewRequest {
     pub record_key: String,
     #[serde(rename = "embedded_path")]
-    pub owners: Option<Vec<atlas_record::source_content::OwnedContentLocator>>,
+    pub owners: Option<Vec<atlas_domain::OwnedContentLocator>>,
     pub source_fingerprint: Option<String>,
     pub outgoing_limit: usize,
     pub backlink_limit: usize,

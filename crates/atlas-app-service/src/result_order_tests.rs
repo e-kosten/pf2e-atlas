@@ -30,7 +30,7 @@ fn fixture() -> crate::test_support::FixtureWorker {
 fn search(sort: Option<ResultSort>, criteria: SearchCriteria) -> SearchResultsRequest {
     SearchResultsRequest {
         sort,
-        relationships: None,
+
         ranking: None,
         search_profile: None,
         criteria,

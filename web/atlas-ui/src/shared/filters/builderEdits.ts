@@ -1,6 +1,6 @@
 import type { RuleGroupType, RuleType } from "react-querybuilder";
 import type { FilterEditorFieldView } from "../../generated/atlas";
-import { BOOLEAN_CONDITION } from "./queryBuilder";
+import { BOOLEAN_CONDITION, LINK_CONDITION } from "./queryBuilder";
 import { transitionOperand } from "./operatorTransitions";
 
 /** Apply an operator/field change atomically before the new control is rendered. */
@@ -32,6 +32,13 @@ export function normalizeBuilderEdit(
       const operand = field?.operators.find(
         (operator) => operator.operator === node.operator,
       )?.operand;
+      if (node.field === LINK_CONDITION && oldRule.field !== node.field)
+        return {
+          ...node,
+          operator: "incoming",
+          value: undefined,
+          meta: { ...node.meta, atlasExcluded: false },
+        };
       if (node.field === BOOLEAN_CONDITION && oldRule?.field !== node.field)
         return { ...node, value: true };
       if (!operand) return node;

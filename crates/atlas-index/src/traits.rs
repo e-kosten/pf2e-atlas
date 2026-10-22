@@ -1,7 +1,7 @@
 //! Persisted trait vocabulary and bounded, exact authored associations.
 use crate::{IndexError, SqliteIndexReader};
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::{RecordKey, SearchProfileId, SourceRecordSummary, TraitKey};
-use atlas_record::source_content::OwnedContentLocator;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 

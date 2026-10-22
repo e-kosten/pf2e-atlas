@@ -1,11 +1,14 @@
 //! Exact authored trait membership without search identity or name requirements.
+#[cfg(test)]
+use atlas_domain::OwnedContentIdentity;
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::TraitKey;
 
 use super::{
     SourceBackedRecord, SourceContentRole, SourceQueryView, content::select_content,
     traversal::visit_source_nodes,
 };
-use crate::source_content::{ContentAudience, OwnedContentLocator};
+use crate::source_content::ContentAudience;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceTraitMembership {
@@ -59,7 +62,7 @@ pub fn trait_record_memberships(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::source_content::{ContentVisibilityRule, OwnedContentIdentity};
+    use crate::source_content::ContentVisibilityRule;
     use atlas_foundry_model::{SourceContext, admit_document_source};
     use serde_json::json;
 

@@ -58,6 +58,43 @@ export function decodeFilterUrl(encoded: string): QueryPredicate {
           collection: node.collection,
           predicate: restore(node.predicate, depth + 1),
         };
+      case "relationship": {
+        const relationship = node.relationship as Record<string, unknown> | undefined;
+        const selection = relationship?.selection as
+          | Record<string, unknown>
+          | undefined;
+        valid =
+          !!relationship &&
+          ["incoming", "outgoing"].includes(String(relationship.direction)) &&
+          typeof relationship.include_contents === "boolean" &&
+          !!selection &&
+          typeof selection.record_key === "string" &&
+          Array.isArray(selection.embedded_path) &&
+          selection.embedded_path.every((step) => {
+            if (!step || typeof step !== "object") return false;
+            const entry = step as Record<string, unknown>;
+            const identity = entry.identity as Record<string, unknown> | undefined;
+            return (
+              typeof entry.collection === "string" &&
+              !!identity &&
+              (typeof identity.Stable === "string" ||
+                (!!identity.SnapshotLocal &&
+                  typeof identity.SnapshotLocal === "object" &&
+                  Number.isInteger(
+                    (identity.SnapshotLocal as { index: unknown }).index,
+                  ) &&
+                  Number((identity.SnapshotLocal as { index: unknown }).index) >= 0))
+            );
+          }) &&
+          [selection.field, selection.source_fingerprint].every(
+            (entry) => entry == null || typeof entry === "string",
+          ) &&
+          (selection.spell_rank == null ||
+            (Number.isInteger(selection.spell_rank) &&
+              Number(selection.spell_rank) >= 0)) &&
+          validPassage(selection.passage);
+        break;
+      }
       case "boolean_constant":
         valid = typeof node.value === "boolean";
         break;
@@ -88,4 +125,28 @@ export function decodeFilterUrl(encoded: string): QueryPredicate {
     return { ...node, clause_id } as QueryPredicate;
   }
   return restore(JSON.parse(json));
+}
+
+function validPassage(value: unknown): boolean {
+  if (value == null) return true;
+  if (typeof value !== "object") return false;
+  const passage = value as Record<string, unknown>;
+  if (passage.kind === "identity") return true;
+  const bytes = passage.chunk_bytes as { start: unknown; end: unknown } | undefined;
+  return (
+    ["html_section", "plain_section"].includes(String(passage.kind)) &&
+    typeof passage.selection_version === "string" &&
+    Number.isInteger(passage.section_ordinal) &&
+    Number(passage.section_ordinal) >= 0 &&
+    (passage.label == null || typeof passage.label === "string") &&
+    !!bytes &&
+    Number.isInteger(bytes.start) &&
+    Number(bytes.start) >= 0 &&
+    Number.isInteger(bytes.end) &&
+    Number(bytes.end) >= Number(bytes.start) &&
+    (passage.kind === "html_section"
+      ? typeof passage.prepared_html_sha256 === "string" &&
+        typeof passage.canonical_text_sha256 === "string"
+      : typeof passage.source_text_sha256 === "string")
+  );
 }

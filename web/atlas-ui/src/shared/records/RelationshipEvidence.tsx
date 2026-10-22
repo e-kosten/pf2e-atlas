@@ -9,7 +9,7 @@ import {
 } from "../../app/routes";
 import type {
   RecordNavigationView,
-  RelationshipConstraintSummaryView,
+  RelationshipClauseSummaryView,
   RelationshipEvidenceView,
   RelationshipOccurrencesPage,
 } from "../../generated/atlas";
@@ -18,6 +18,7 @@ import { isArtifactGenerationChanged } from "../queries/immutableReferenceQuerie
 
 export function RelationshipEvidence({
   evidence,
+  filter,
   summary,
   resultKey,
   generation,
@@ -25,7 +26,8 @@ export function RelationshipEvidence({
   onNavigate,
 }: {
   evidence: RelationshipEvidenceView;
-  summary: RelationshipConstraintSummaryView;
+  filter: import("../../generated/atlas").QueryPredicate;
+  summary: RelationshipClauseSummaryView;
   resultKey: string;
   generation: string;
   onRefresh?: () => Promise<void>;
@@ -33,8 +35,15 @@ export function RelationshipEvidence({
 }) {
   return (
     <EvidencePage
-      key={JSON.stringify([generation, summary.constraint, resultKey])}
+      key={JSON.stringify([
+        generation,
+        filter,
+        summary.clause_id,
+        summary.relationship,
+        resultKey,
+      ])}
       evidence={evidence}
+      filter={filter}
       summary={summary}
       resultKey={resultKey}
       generation={generation}
@@ -46,6 +55,7 @@ export function RelationshipEvidence({
 
 function EvidencePage({
   evidence,
+  filter,
   summary,
   resultKey,
   generation,
@@ -57,7 +67,9 @@ function EvidencePage({
     queryKey: [
       "relationship-occurrences",
       generation,
-      summary.constraint,
+      filter,
+      summary.clause_id,
+      summary.relationship,
       resultKey,
       page,
       evidence.page.size,
@@ -68,7 +80,8 @@ function EvidencePage({
     queryFn: async ({ signal }) => {
       const response = await getRelationshipOccurrences(
         {
-          constraint: summary.constraint,
+          filter,
+          clause_id: summary.clause_id,
           result_record_key: resultKey,
           page: { number: page, size: evidence.page.size },
           expected_artifact_generation: generation,
@@ -82,10 +95,11 @@ function EvidencePage({
           message: "Reference collection changed",
           recoverable_action: "refresh_results",
         });
-      const actual = response.constraint.constraint;
-      const expected = summary.constraint;
+      const actual = response.clause.relationship;
+      const expected = summary.relationship;
       if (
         response.result_record.record_key !== resultKey ||
+        response.clause.clause_id !== summary.clause_id ||
         actual.direction !== expected.direction ||
         actual.include_contents !== expected.include_contents ||
         recordReadingIdentity(actual.selection.record_key, actual.selection) !==

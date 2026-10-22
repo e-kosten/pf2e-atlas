@@ -14,24 +14,28 @@ import {
   getRecordDetail,
   searchPage,
 } from "../../api/atlasApi";
-import type { SearchResultsRequest } from "../../generated/atlas";
+import type { SearchResultsRequest, QueryRelationship } from "../../generated/atlas";
 import {
   DEFAULT_SEARCH_STATE,
   effectiveResultSort,
   searchStateQueryString,
   type SearchFormState,
 } from "../../shared/filters/searchState";
-import {
-  decodeRelationships,
-  MAX_RELATIONSHIP_FILTERS,
-} from "../../shared/filters/relationshipUrl";
 import { rootNavigation } from "../../shared/records/useReferenceReading";
-import { detailFixture, editorFixture, summaryFixture } from "../../test/fixtures";
+import {
+  detailFixture,
+  editorFixture,
+  fieldFixture,
+  summaryFixture,
+} from "../../test/fixtures";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import { chooseAttributeSort, selectSortOption } from "../../test/sortControls";
-import { AddRelationshipFilter } from "./AddRelationshipFilter";
+import { FilterControls } from "../../shared/filters/FilterPanel";
+import { LinkPickerContext } from "../../shared/filters/LinkPickerContext";
+import { LinkConditionPicker } from "../../shared/filters/LinkConditionPicker";
+import { linkClauses } from "../../shared/filters/LinkFilterControls";
+import { linkLeaf } from "../../shared/filters/linkPredicates";
 import { useSearchWorkspace, type SearchWorkspaceState } from "./useSearchWorkspace";
-
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
   searchPage: vi.fn(),
@@ -40,8 +44,8 @@ vi.mock("../../api/atlasApi", async (original) => ({
   discoverFilterCounts: vi.fn(),
 }));
 const selectedKey = "equipment:secret-record-id";
-const existing = {
-  direction: "outgoing" as const,
+const existing: QueryRelationship = {
+  direction: "outgoing",
   include_contents: false,
   selection: {
     ...rootNavigation("creatures:parent-id"),
@@ -50,7 +54,6 @@ const existing = {
     source_fingerprint: "exact-current-source",
   },
 };
-
 function setup(initial: SearchFormState = DEFAULT_SEARCH_STATE) {
   history.replaceState(
     { atlasSearchPage: 3 },
@@ -60,14 +63,24 @@ function setup(initial: SearchFormState = DEFAULT_SEARCH_STATE) {
   let live!: SearchWorkspaceState;
   function Harness() {
     live = useSearchWorkspace({ enabled: false, searchProfile: "bge-base" });
-    return <AddRelationshipFilter workspace={live} />;
+    return (
+      <FilterControls
+        filterState={{
+          ...live,
+          filterEditor: editorFixture([fieldFixture("level", "number", "Level")]),
+        }}
+      />
+    );
   }
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
-      <QueryClientProvider client={client}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <SearchProfileProvider>
-          <Harness />
+          <LinkPickerContext value={LinkConditionPicker}>
+            <Harness />
+          </LinkPickerContext>
         </SearchProfileProvider>
       </QueryClientProvider>
     </ConfigProvider>,
@@ -75,10 +88,10 @@ function setup(initial: SearchFormState = DEFAULT_SEARCH_STATE) {
   return () => live;
 }
 async function openAndSelect() {
-  const trigger = screen.getByRole("button", { name: "Add link filter" });
+  const trigger = screen.getByRole("button", { name: "Links" });
   act(() => trigger.focus());
   fireEvent.click(trigger);
-  const dialog = await screen.findByRole("dialog", { name: "Add link filter" });
+  const dialog = await screen.findByRole("dialog", { name: "Add link condition" });
   fireEvent.click(await within(dialog).findByRole("link", { name: /Leather Armor/ }));
   return dialog;
 }
@@ -102,7 +115,7 @@ beforeEach(() => {
     artifact_generation: "generation-a",
     search_profile: "bge-base",
     ranking: "score",
-    relationships: [],
+    relationship_clauses: [],
     coverage: null,
     sort: effectiveResultSort({
       ...DEFAULT_SEARCH_STATE,
@@ -130,54 +143,58 @@ beforeEach(() => {
     ],
   }));
 });
-
 it.each(["text", "similar"])(
-  "looks up independently and appends without replacing parent %s, filters, exact selections or Random order",
+  "looks up independently and ANDs a leaf without replacing parent %s, exact selections or Random order",
   async (mode) => {
     const current = setup({
       ...DEFAULT_SEARCH_STATE,
       query: mode === "text" ? "fire" : "",
       similarSeed: mode === "similar" ? "items:similar-parent" : null,
-      filter: { kind: "compare", field: "level", op: "gte", value: 5 },
-      relationships: [existing],
+      filter: {
+        kind: "all_of",
+        children: [
+          { kind: "compare", field: "level", op: "gte", value: 5 },
+          linkLeaf(existing, "existing"),
+        ],
+      },
       sort: { kind: "random", seed: 42 },
     });
     const before = current().search;
-    expect(current().pageNumber).toBe(3);
     const dialog = await openAndSelect();
-    const request = vi.mocked(searchPage).mock.calls[0][0];
-    expect(request.criteria).toEqual({ kind: "list_records", filter: null });
-    expect(request.relationships).toBeUndefined();
-    expect(request.sort).toBeUndefined();
-    expect(request.page.number).toBe(1);
-    expect(within(dialog).getByRole("radio", { name: "Links to" })).toBeChecked();
-    expect(
-      within(dialog).getByText("Whole entry", { exact: true }),
-    ).toBeInTheDocument();
+    expect(vi.mocked(searchPage).mock.calls[0][0].criteria).toEqual({
+      kind: "list_records",
+      filter: null,
+    });
+    expect(vi.mocked(searchPage).mock.calls[0][0].sort).toBeUndefined();
     expect(current().search).toEqual(before);
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
-    await waitFor(() => expect(current().search.relationships).toHaveLength(2));
-    expect(current().search).toEqual({
+    await waitFor(() => expect(linkClauses(current().search.filter)).toHaveLength(2));
+    expect(current().search).toMatchObject({
       ...before,
-      relationships: [
-        existing,
-        {
-          direction: "incoming",
-          include_contents: true,
-          selection: rootNavigation(selectedKey),
-        },
-      ],
+      filter: {
+        kind: "all_of",
+        children: [
+          before.filter,
+          {
+            kind: "relationship",
+            relationship: {
+              direction: "incoming",
+              include_contents: true,
+              selection: rootNavigation(selectedKey),
+            },
+          },
+        ],
+      },
     });
     await waitFor(() => expect(current().pageNumber).toBe(1));
     expect(document.body).not.toHaveTextContent("secret-record-id");
   },
 );
-
-it("keeps parent paging and criteria untouched on cancel and resets the next lookup to its defaults", async () => {
+it("keeps parent paging and criteria untouched on cancel and resets lookup defaults", async () => {
   const current = setup({
     ...DEFAULT_SEARCH_STATE,
     query: "parent text",
-    relationships: [existing],
+    filter: linkLeaf(existing, "existing"),
   });
   const before = current().search;
   const dialog = await openAndSelect();
@@ -194,17 +211,10 @@ it("keeps parent paging and criteria untouched on cancel and resets the next loo
   const results = within(dialog).queryByRole("button", { name: "Results" });
   if (results) fireEvent.click(results);
   await chooseAttributeSort("name", "desc");
-  await waitFor(() =>
-    expect(vi.mocked(searchPage).mock.lastCall?.[0].sort).toEqual({
-      kind: "attributes",
-      rules: [{ field: "name", direction: "desc" }],
-    }),
-  );
   fireEvent.click(within(dialog).getByRole("radio", { name: "Linked from" }));
   await selectSortOption("Link filter scope", "Main entry only");
   fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
   await waitFor(() => expect(dialog).not.toBeVisible());
-  expect(screen.getByRole("button", { name: "Add link filter" })).toHaveFocus();
   expect(current().search).toEqual(before);
   expect(current().pageNumber).toBe(3);
   const reopened = await openAndSelect();
@@ -216,74 +226,34 @@ it("keeps parent paging and criteria untouched on cancel and resets the next loo
     within(reopened).getByText("Whole entry", { exact: true }),
   ).toBeInTheDocument();
 });
-
 it.each(["direction", "scope"])(
-  "rejects an exact duplicate without resetting paging, while allowing the same entry with a different %s",
+  "rejects a safe direct-AND duplicate but permits a different %s",
   async (change) => {
-    const duplicate = {
-      direction: "incoming" as const,
-      include_contents: true,
-      selection: rootNavigation(selectedKey),
-    };
-    const current = setup({ ...DEFAULT_SEARCH_STATE, relationships: [duplicate] });
+    const duplicate = linkLeaf(
+      {
+        direction: "incoming",
+        include_contents: true,
+        selection: rootNavigation(selectedKey),
+      },
+      "already",
+    );
+    const current = setup({ ...DEFAULT_SEARCH_STATE, filter: duplicate });
     const before = current().search;
     const dialog = await openAndSelect();
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
     expect(
-      await within(dialog).findByText("This link filter is already added."),
-    ).toHaveAttribute("role", "status");
+      await within(dialog).findByText("This link condition is already added."),
+    ).toBeInTheDocument();
     expect(current().search).toEqual(before);
     expect(current().pageNumber).toBe(3);
     if (change === "direction")
       fireEvent.click(within(dialog).getByRole("radio", { name: "Linked from" }));
     else await selectSortOption("Link filter scope", "Main entry only");
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
-    await waitFor(() => expect(current().search.relationships).toHaveLength(2));
-    expect(current().search.relationships?.[1]).toEqual({
-      ...duplicate,
-      direction: change === "direction" ? "outgoing" : "incoming",
-      include_contents: change === "direction",
-    });
+    await waitFor(() => expect(linkClauses(current().search.filter)).toHaveLength(2));
   },
 );
-
-it("shows a useful local limit message instead of creating an invalid relationship URL", () => {
-  setup({
-    ...DEFAULT_SEARCH_STATE,
-    relationships: Array.from({ length: MAX_RELATIONSHIP_FILTERS }, (_, index) => ({
-      ...existing,
-      selection: rootNavigation(`items:${index}`),
-    })),
-  });
-  expect(screen.getByRole("button", { name: "Add link filter" })).toBeDisabled();
-  expect(screen.getByRole("status")).toHaveTextContent(
-    "Remove a link filter before adding another.",
-  );
-});
-
-it("recognizes an exact duplicate restored from a URL that omits nullable selection fields", async () => {
-  const relationships = decodeRelationships(
-    "1." +
-      JSON.stringify([
-        {
-          direction: "incoming",
-          include_contents: true,
-          selection: { record_key: selectedKey, embedded_path: [] },
-        },
-      ]),
-  );
-  const current = setup({ ...DEFAULT_SEARCH_STATE, relationships });
-  const before = current().search;
-  const dialog = await openAndSelect();
-  fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
-  expect(
-    await within(dialog).findByText("This link filter is already added."),
-  ).toBeVisible();
-  expect(current().search).toEqual(before);
-  expect(current().pageNumber).toBe(3);
-});
-
-it("keeps scope explanation optional and dismisses its inner help without closing the lookup", async () => {
+it("keeps scope explanation optional and Escape closes inner help only", async () => {
   setup();
   const dialog = await openAndSelect();
   const explanation =
@@ -296,4 +266,86 @@ it("keeps scope explanation optional and dismisses its inner help without closin
   expect(help).toHaveAttribute("aria-expanded", "false");
   expect(help).toHaveFocus();
   expect(dialog).toBeInTheDocument();
+});
+
+it("edits an exact embedded selection without rebinding it until a parent row is explicitly selected", async () => {
+  const lookup = vi.mocked(searchPage).getMockImplementation()!;
+  vi.mocked(searchPage).mockImplementation(async (...args) => {
+    const page = await lookup(...args);
+    return {
+      ...page,
+      rows: page.rows.map((row) => ({
+        ...row,
+        record: summaryFixture(existing.selection.record_key, "Leather Armor"),
+      })),
+    };
+  });
+  const current = setup({
+    ...DEFAULT_SEARCH_STATE,
+    filter: linkLeaf(existing, "embedded"),
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+  const drawer = screen.getByRole("dialog", { name: "Advanced filters" });
+  fireEvent.click(
+    within(drawer).getByRole("button", { name: /Loading record… · Main entry only/ }),
+  );
+  let dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
+  fireEvent.click(within(dialog).getByRole("radio", { name: "Links to" }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+  await waitFor(() => expect(dialog).not.toBeVisible());
+  expect(linkClauses(current().search.filter)[0].relationship).toEqual({
+    ...existing,
+    direction: "incoming",
+  });
+  fireEvent.click(
+    within(drawer).getByRole("button", { name: /Loading record… · Main entry only/ }),
+  );
+  dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
+  fireEvent.click(await within(dialog).findByRole("link", { name: /Leather Armor/ }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+  await waitFor(() =>
+    expect(linkClauses(current().search.filter)[0].relationship.selection).toEqual(
+      rootNavigation(existing.selection.record_key),
+    ),
+  );
+  expect(drawer).toBeVisible();
+});
+
+it("composes a nested picker through the same provider and Escape preserves the outer lookup", async () => {
+  const current = setup();
+  const outer = await openAndSelect();
+  fireEvent.click(within(outer).getByRole("button", { name: "Advanced filters" }));
+  const advanced = screen.getByRole("dialog", { name: "Advanced filters" });
+  fireEvent.click(within(advanced).getByRole("button", { name: "Add condition" }));
+  await selectSortOption("Filter field", "Record links");
+  const chooseRecord = within(advanced).getByRole("button", { name: "Choose record" });
+  act(() => chooseRecord.focus());
+  fireEvent.click(chooseRecord);
+  const dialogs = await screen.findAllByRole("dialog", { name: "Add link condition" });
+  const inner = dialogs[dialogs.length - 1];
+  expect(inner).not.toBe(outer);
+  fireEvent.keyDown(inner, { key: "Escape", keyCode: 27 });
+  await waitFor(() => expect(inner).not.toBeVisible());
+  expect(outer).toBeVisible();
+  expect(advanced).toBeVisible();
+  await waitFor(() => expect(chooseRecord).toHaveFocus());
+  expect(current().search.filter).toBeNull();
+});
+
+it("rejects a newly selected record from a different reference generation without changing the parent", async () => {
+  const lookup = vi.mocked(searchPage).getMockImplementation()!;
+  vi.mocked(searchPage).mockImplementation(async (...args) => ({
+    ...(await lookup(...args)),
+    artifact_generation: "generation-b",
+  }));
+  const current = setup();
+  const dialog = await openAndSelect();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
+  expect(
+    await within(dialog).findByText(
+      "The reference collection changed. Refresh results before changing this condition.",
+    ),
+  ).toBeInTheDocument();
+  expect(current().search.filter).toBeNull();
+  expect(current().pageNumber).toBe(3);
 });

@@ -1,6 +1,6 @@
 import type {
   RecordNavigationView,
-  RelationshipConstraintView,
+  QueryRelationship,
   SourcePassageAddress,
 } from "../../generated/atlas";
 
@@ -48,13 +48,43 @@ function sameSelection(left: RecordNavigationView, right: RecordNavigationView) 
   );
 }
 
-export function sameRelationshipConstraint(
-  left: RelationshipConstraintView,
-  right: RelationshipConstraintView,
-) {
+export function sameRelationship(left: QueryRelationship, right: QueryRelationship) {
   return (
     left.direction === right.direction &&
     left.include_contents === right.include_contents &&
     sameSelection(left.selection, right.selection)
   );
+}
+
+export function linkLeaf(
+  relationship: QueryRelationship,
+  clause_id: string = crypto.randomUUID(),
+): Extract<import("../../generated/atlas").QueryPredicate, { kind: "relationship" }> & {
+  clause_id: string;
+} {
+  return { kind: "relationship", clause_id, relationship };
+}
+export function appendLink(
+  filter: import("../../generated/atlas").QueryPredicate | null,
+  leaf: Extract<
+    import("../../generated/atlas").QueryPredicate,
+    { kind: "relationship" }
+  >,
+) {
+  const direct = filter?.kind === "all_of" ? filter.children : filter ? [filter] : [];
+  if (
+    direct.some(
+      (node) =>
+        node.kind === "relationship" &&
+        sameRelationship(node.relationship, leaf.relationship),
+    )
+  )
+    return filter;
+  return filter
+    ? {
+        kind: "all_of" as const,
+        clause_id: crypto.randomUUID(),
+        children: [filter, leaf],
+      }
+    : leaf;
 }

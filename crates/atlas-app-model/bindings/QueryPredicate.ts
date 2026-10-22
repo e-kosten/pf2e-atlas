@@ -2,6 +2,7 @@
 import type { QueryCompare } from "./QueryCompare";
 import type { QueryFieldState } from "./QueryFieldState";
 import type { QueryLiteral } from "./QueryLiteral";
+import type { QueryRelationship } from "./QueryRelationship";
 import type { QuerySetMatch } from "./QuerySetMatch";
 
-export type QueryPredicate = { clause_id?: string, } & ({ "kind": "boolean_constant", value: boolean, } | { "kind": "compare", field: string, op: QueryCompare, value: QueryLiteral, } | { "kind": "in", field: string, values: Array<QueryLiteral>, } | { "kind": "set_match", field: string, op: QuerySetMatch, values: Array<string>, } | { "kind": "state_match", field: string, state: QueryFieldState, } | { "kind": "exists", collection: string, scope_id: string, predicate: QueryPredicate, } | { "kind": "all_of", children: Array<QueryPredicate>, } | { "kind": "any_of", children: Array<QueryPredicate>, } | { "kind": "not", predicate: QueryPredicate, });
+export type QueryPredicate = { clause_id?: string, } & ({ "kind": "relationship", relationship: QueryRelationship, } | { "kind": "boolean_constant", value: boolean, } | { "kind": "compare", field: string, op: QueryCompare, value: QueryLiteral, } | { "kind": "in", field: string, values: Array<QueryLiteral>, } | { "kind": "set_match", field: string, op: QuerySetMatch, values: Array<string>, } | { "kind": "state_match", field: string, state: QueryFieldState, } | { "kind": "exists", collection: string, scope_id: string, predicate: QueryPredicate, } | { "kind": "all_of", children: Array<QueryPredicate>, } | { "kind": "any_of", children: Array<QueryPredicate>, } | { "kind": "not", predicate: QueryPredicate, });

@@ -9,9 +9,12 @@ Historical storage/flag and similarity details below are superseded by
 [ADR0053](./0053-field-aware-search-fusion.md) and
 [ADR0057](./0057-relationship-scoped-search.md). Current graph reads use attributed
 relationship occurrences; current Similar has no graph/trait reranking. Full
-relationship search uses typed eligibility constraints rather than the historical
-search flags mentioned in this record. Bounded graph commands remain separate
-from complete relationship-scoped result pages.
+relationship search uses first-class Boolean predicates rather than the historical
+search flags mentioned in this record. Bounded graph links/uses remain separate
+from complete relationship-scoped result pages. CLI graph occurrences pages checked
+positive search-clause evidence using the full predicate, clause/result identity
+and expected artifact generation; it does not turn bounded graph neighbors into
+search eligibility.
 
 ## Context
 

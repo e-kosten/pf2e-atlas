@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import type { RuleGroupType } from "react-querybuilder";
+import type { RuleGroupType, RuleType } from "react-querybuilder";
 import type {
   FilterEditorFieldView,
   QueryFieldDefinition,
+  QueryRelationship,
+  QueryPredicate,
 } from "../../generated/atlas";
 import type { SearchFormState } from "./searchState";
 import { encodeFilterUrl } from "./filterUrl";
@@ -10,7 +12,9 @@ import {
   builderPredicate,
   predicateBuilder,
   commonDraftCondition,
+  LINK_CONDITION,
 } from "./queryBuilder";
+import { appendLink, linkLeaf, sameRelationship } from "./linkPredicates";
 import { commonCondition, replaceCommonCondition } from "./filterControls";
 
 type EditorDraft = {
@@ -97,5 +101,96 @@ export function useFilterEditor(
       commit(next);
     }
   }
-  return { ...prepared, change, changeCommon, clear: () => setDraft(null) };
+  function addLink(
+    relationship: QueryRelationship,
+    clause_id: string = crypto.randomUUID(),
+  ): string | null {
+    if (!prepared.query) return "Reset the filters before adding a link condition.";
+    const leaf = linkLeaf(relationship, clause_id);
+    const filter = appendLink(search.filter, leaf);
+    if (filter === search.filter) return "This link condition is already added.";
+    const rule = {
+      id: leaf.clause_id,
+      field: LINK_CONDITION,
+      operator: relationship.direction,
+      value: relationship,
+    };
+    const query =
+      prepared.query.combinator === "and" && !prepared.query.not
+        ? { ...prepared.query, rules: [...prepared.query.rules, rule] }
+        : { id: crypto.randomUUID(), combinator: "and", rules: [prepared.query, rule] };
+    const next = { ...search, filter, filterError: null };
+    retain(query, next);
+    commit(next);
+    return null;
+  }
+  function editLink(
+    clause: Extract<QueryPredicate, { kind: "relationship" }>,
+    relationship: QueryRelationship | null,
+  ): string | null {
+    if (relationship && sameRelationship(clause.relationship, relationship))
+      return null;
+    const direct =
+      search.filter?.kind === "all_of"
+        ? search.filter.children
+        : search.filter
+          ? [search.filter]
+          : [];
+    if (
+      relationship &&
+      direct.some(
+        (node) =>
+          node.kind === "relationship" &&
+          node.clause_id !== clause.clause_id &&
+          sameRelationship(node.relationship, relationship),
+      )
+    )
+      return "This link condition is already added.";
+    function replace(node: QueryPredicate): QueryPredicate | null {
+      if (node.kind === "relationship" && node.clause_id === clause.clause_id)
+        return relationship ? { ...node, relationship } : null;
+      if (node.kind !== "all_of") return node;
+      const children = node.children.flatMap((child) => {
+        const next = replace(child);
+        return next ? [next] : [];
+      });
+      return children.length ? { ...node, children } : null;
+    }
+    function replaceDraft(group: RuleGroupType): RuleGroupType {
+      return {
+        ...group,
+        rules: group.rules.flatMap((node): Array<RuleType | RuleGroupType> => {
+          if ("rules" in node) return [replaceDraft(node)];
+          if (
+            node.field !== LINK_CONDITION ||
+            (node.id !== clause.clause_id &&
+              !sameRelationship(
+                { ...node.value, direction: node.operator },
+                clause.relationship,
+              ))
+          )
+            return [node];
+          return relationship
+            ? [{ ...node, operator: relationship.direction, value: relationship }]
+            : [];
+        }),
+      };
+    }
+    const next = {
+      ...search,
+      filter: search.filter ? replace(search.filter) : null,
+      filterError: null,
+    };
+    if (prepared.query) retain(replaceDraft(prepared.query), next);
+    commit(next);
+    return null;
+  }
+  return {
+    ...prepared,
+    change,
+    changeCommon,
+    addLink,
+    editLink,
+    clear: () => setDraft(null),
+  };
 }

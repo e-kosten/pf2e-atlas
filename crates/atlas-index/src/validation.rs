@@ -5,11 +5,12 @@ use crate::{
     input::ARTIFACT_FORMAT_VERSION,
     projections::{ProjectionIds, root_rows},
 };
+use atlas_domain::OwnedContentLocator;
 use atlas_foundry_model::{SNAPSHOT_VERSION, decode_snapshot};
 use atlas_record::{
     source_content::{
-        ContentInteraction, OwnedContentLocator, PreparedSourceContent, SourceContentLocator,
-        validate_prepared_markers, validate_prepared_reference_bindings,
+        ContentInteraction, PreparedSourceContent, SourceContentLocator, validate_prepared_markers,
+        validate_prepared_reference_bindings,
     },
     source_record::{
         FieldAvailability, SourceBackedRecord, SourceContentOutcome, SourceContentStatus,

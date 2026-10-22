@@ -1,8 +1,8 @@
-import type { RelationshipConstraintView } from "../../generated/atlas";
+import type { QueryRelationship } from "../../generated/atlas";
 import { rootNavigation } from "../../shared/records/useReferenceReading";
-import { sameRelationshipConstraint } from "./relationshipConstraints";
+import { sameRelationship } from "../../shared/filters/linkPredicates";
 
-const constraint: RelationshipConstraintView = {
+const constraint: QueryRelationship = {
   direction: "incoming",
   include_contents: true,
   selection: {
@@ -23,7 +23,7 @@ const constraint: RelationshipConstraintView = {
 };
 
 it("compares complete exact selections structurally regardless of object property order", () => {
-  const reordered: RelationshipConstraintView = {
+  const reordered: QueryRelationship = {
     selection: {
       source_fingerprint: "snapshot-one",
       passage: {
@@ -44,7 +44,7 @@ it("compares complete exact selections structurally regardless of object propert
     include_contents: true,
     direction: "incoming",
   };
-  expect(sameRelationshipConstraint(constraint, reordered)).toBe(true);
+  expect(sameRelationship(constraint, reordered)).toBe(true);
 });
 
 it.each([
@@ -74,9 +74,32 @@ it.each([
     selection: { ...constraint.selection, source_fingerprint: "snapshot-two" },
   },
   { ...constraint, selection: { ...constraint.selection, passage: null } },
-] satisfies RelationshipConstraintView[])(
+] satisfies QueryRelationship[])(
   "keeps different exact constraint identities distinct (%#)",
   (other) => {
-    expect(sameRelationshipConstraint(constraint, other)).toBe(false);
+    expect(sameRelationship(constraint, other)).toBe(false);
   },
 );
+
+it("deduplicates only direct positive AND siblings while preserving OR and NOT meaning", async () => {
+  const { appendLink, linkLeaf } = await import("../../shared/filters/linkPredicates");
+  const leaf = linkLeaf(constraint, "original");
+  const duplicate = linkLeaf(constraint, "new");
+  expect(appendLink(leaf, duplicate)).toBe(leaf);
+  const conjunction = {
+    kind: "all_of" as const,
+    children: [leaf, { kind: "boolean_constant" as const, value: true }],
+  };
+  expect(appendLink(conjunction, duplicate)).toBe(conjunction);
+  for (const filter of [
+    {
+      kind: "any_of" as const,
+      children: [leaf, { kind: "boolean_constant" as const, value: false }],
+    },
+    { kind: "not" as const, predicate: leaf },
+  ])
+    expect(appendLink(filter, duplicate)).toMatchObject({
+      kind: "all_of",
+      children: [filter, duplicate],
+    });
+});

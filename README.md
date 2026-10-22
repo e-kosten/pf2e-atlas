@@ -102,9 +102,10 @@ the order repeatable while paging. In the CLI, use `--sort random --seed 42`, or
 omit `--seed` to generate one.
 
 In the browser, **Related** opens full **Links to** and **Linked from** results.
-Use **Add link filter** beside the search filters to choose another entry. Each
-link filter has its own direction and **Main entry only** / **Whole entry** scope;
-multiple link filters must all match and combine with ordinary search filters.
+Use **Links** beside the search filters to choose another entry. Each condition
+has its own direction and **Main entry only** / **Whole entry** scope. Advanced
+filters combine links and ordinary conditions with AND, OR and NOT. CLI search
+and Similar accept the same reference conditions through filter expressions.
 
 ### Platforms and versions
 

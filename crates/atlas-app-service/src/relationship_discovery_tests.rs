@@ -30,23 +30,31 @@ fn fixture() -> crate::test_support::FixtureWorker {
         )?)
     }))
 }
-fn relation(f: &crate::test_support::FixtureWorker) -> (RelationshipConstraintView, String) {
+fn relation(f: &crate::test_support::FixtureWorker) -> (atlas_domain::QueryRelationship, String) {
     let target = f.worker.record_detail("items:target0000000000").unwrap();
     (
-        RelationshipConstraintView {
-            direction: RelationshipDirectionView::Incoming,
-            selection: target.selected,
+        atlas_domain::QueryRelationship {
+            direction: atlas_domain::QueryRelationshipDirection::Incoming,
+            selection: crate::relationship_search::query_selection(&target.selected).unwrap(),
             include_contents: true,
         },
         target.artifact_generation,
     )
 }
-fn filtered(constraint: RelationshipConstraintView, generation: &str) -> FilterDiscoveryContext {
+fn predicate(relationship: atlas_domain::QueryRelationship) -> atlas_domain::QueryPredicate {
+    atlas_domain::QueryPredicate {
+        clause_id: Some("link".into()),
+        expression: atlas_domain::QueryExpression::Relationship { relationship },
+    }
+}
+fn filtered(
+    constraint: atlas_domain::QueryRelationship,
+    generation: &str,
+) -> FilterDiscoveryContext {
     FilterDiscoveryContext::Filtered {
-        relationships: Some(vec![constraint]),
         search_profile: None,
         expected_artifact_generation: Some(generation.into()),
-        filter: None,
+        filter: Some(predicate(constraint)),
         text: None,
         mode: RetrievalModeView::Lexical,
     }
@@ -162,11 +170,10 @@ fn relationship_discovery_validates_scope_and_intersects_saved_list_keys() {
             })
             .unwrap();
         let context = FilterDiscoveryContext::SavedList {
-            relationships: Some(vec![constraint.clone()]),
             search_profile: None,
             expected_artifact_generation: Some(generation.clone()),
             list_ref: slug.into(),
-            filter: None,
+            filter: Some(predicate(constraint.clone())),
             text: None,
             mode: RetrievalModeView::Lexical,
         };
@@ -249,9 +256,9 @@ fn relationship_discovery_checks_generation_and_selection_before_semantic_infere
         AppErrorCode::ArtifactGenerationChanged
     );
     let mut invalid = constraint;
-    invalid.selection.owners = vec![atlas_record::source_content::OwnedContentLocator {
+    invalid.selection.owners = vec![atlas_domain::OwnedContentLocator {
         collection: "/items".into(),
-        identity: atlas_record::source_content::OwnedContentIdentity::SnapshotLocal { index: 0 },
+        identity: atlas_domain::OwnedContentIdentity::SnapshotLocal { index: 0 },
     }];
     invalid.selection.source_fingerprint = Some("old-fingerprint".into());
     let mut context = filtered(invalid, &generation);
@@ -276,4 +283,50 @@ fn relationship_discovery_checks_generation_and_selection_before_semantic_infere
             .code,
         AppErrorCode::InvalidRequest
     );
+}
+
+#[test]
+fn relationship_editor_labels_negative_and_unmatched_leaves_without_result_rows() {
+    let f = fixture();
+    let (relationship, generation) = relation(&f);
+    let filter = atlas_domain::QueryPredicate::new(atlas_domain::QueryExpression::Not {
+        predicate: Box::new(predicate(relationship.clone())),
+    });
+    let view = f
+        .worker
+        .discover_filter_editor(DiscoverFilterEditorRequest {
+            filter: Some(filter),
+            selected_field_ids: vec![],
+            expected_artifact_generation: Some(generation.clone()),
+        })
+        .unwrap();
+    assert_eq!(view.artifact_generation, generation);
+    assert!(
+        matches!(&view.relationship_clauses[..],[RelationshipClausePresentationView::Available {clause_id,title,..}] if clause_id=="link" && title=="Leather Armor")
+    );
+    let mut missing = relationship;
+    missing.selection.record_key =
+        atlas_domain::RecordKey::parse("items:missing000000000").unwrap();
+    let invalid = f
+        .worker
+        .discover_filter_editor(DiscoverFilterEditorRequest {
+            filter: Some(predicate(missing)),
+            selected_field_ids: vec![],
+            expected_artifact_generation: Some(generation),
+        })
+        .unwrap();
+    assert!(
+        !invalid.groups.is_empty(),
+        "catalog remains usable to repair unavailable selections"
+    );
+    let [
+        RelationshipClausePresentationView::Unavailable {
+            clause_id, message, ..
+        },
+    ] = &invalid.relationship_clauses[..]
+    else {
+        panic!("expected unavailable label")
+    };
+    assert_eq!(clause_id, "link");
+    assert!(!message.contains("missing000000000"));
 }

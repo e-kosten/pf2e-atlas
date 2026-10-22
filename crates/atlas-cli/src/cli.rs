@@ -130,6 +130,7 @@ impl Command {
             Self::Graph(args) => match &args.command {
                 GraphCommand::Links(options) => options.json,
                 GraphCommand::Uses(options) => options.json,
+                GraphCommand::Occurrences(options) => options.json,
                 GraphCommand::Variants(options) => options.json,
                 GraphCommand::Remaster(options) => options.json,
             },
@@ -185,6 +186,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
         Command::Graph(graph) => match graph.command {
             GraphCommand::Links(options) => commands::graph::run_graph_links(options),
             GraphCommand::Uses(options) => commands::graph::run_graph_uses(options),
+            GraphCommand::Occurrences(options) => commands::graph::occurrences::run(*options),
             GraphCommand::Variants(options) => commands::graph::run_graph_variants(options),
             GraphCommand::Remaster(options) => commands::graph::run_graph_remaster(options),
         },

@@ -60,6 +60,8 @@ impl ProductGroup {
 pub(crate) fn filter_editor_view(
     catalog: QueryCapability,
     selected: &[String],
+    artifact_generation: String,
+    relationship_clauses: Vec<atlas_app_model::RelationshipClausePresentationView>,
 ) -> crate::AppServiceResult<FilterEditorView> {
     let mut groups = BTreeMap::<ProductGroup, FilterEditorGroupView>::new();
     for definition in catalog.fields {
@@ -208,6 +210,8 @@ pub(crate) fn filter_editor_view(
     }
 
     Ok(FilterEditorView {
+        artifact_generation,
+        relationship_clauses,
         catalog_version: catalog.version,
         limits: catalog.limits,
         groups: groups.into_values().collect(),
