@@ -26,6 +26,7 @@ import type {
 } from "../generated/atlas";
 import { AtlasApp } from "./AtlasApp";
 import { SEARCH_PROFILE_PREFERENCE_KEY } from "../shared/search/SearchProfileContext";
+import { rootNavigation } from "../shared/records/useReferenceReading";
 import { encodeFilterUrl } from "../shared/filters/filterUrl";
 
 const apiMocks = vi.hoisted(() => ({
@@ -97,6 +98,41 @@ describe("AtlasApp routing", () => {
           outcome: "added",
         }),
     );
+  });
+
+  it("automatically recovers a broken filter in the real notification context without losing selected reading", async () => {
+    const selection = { ...rootNavigation("spell:heal"), spell_rank: 4 };
+    const params = new URLSearchParams({
+      q: "fire",
+      filter: "2.obsolete",
+      selection: JSON.stringify(selection),
+    });
+    history.replaceState(
+      { atlasSearchPage: 9 },
+      "",
+      "/search/records/spell:heal?" + params,
+    );
+    const length = history.length;
+    apiMocks.getRecordDetail.mockResolvedValue({
+      ...recordDetailFixture("spell:heal"),
+      selected: selection,
+    });
+    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+    await screen.findByText(
+      "Filters in this link couldn’t be restored and were cleared.",
+    );
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalled());
+    await screen.findByRole("heading", { name: "heal" });
+    expect(new URLSearchParams(window.location.search).get("q")).toBe("fire");
+    expect(new URLSearchParams(window.location.search).get("selection")).toBe(
+      JSON.stringify(selection),
+    );
+    expect(new URLSearchParams(window.location.search).has("filter")).toBe(false);
+    expect(history.length).toBe(length);
+    for (const [request] of apiMocks.searchPage.mock.calls) {
+      expect(request.page.number).toBe(1);
+      expect(request.criteria.filter).toBeNull();
+    }
   });
 
   it("restores record and reader views from browser history without running search queries", async () => {

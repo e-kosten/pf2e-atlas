@@ -1,4 +1,4 @@
-import { encodeFilterUrl, decodeFilterUrl, UNSUPPORTED_FILTER_URL } from "./filterUrl";
+import { encodeFilterUrl, decodeFilterUrl } from "./filterUrl";
 import { linkLeaf } from "./linkPredicates";
 import { rootNavigation } from "../records/useReferenceReading";
 import {
@@ -67,13 +67,15 @@ it("preserves the unified tree with text and Similar requests", () => {
     buildSearchRequest({ ...base, similarSeed: "items:seed" }, 1).criteria,
   ).toMatchObject({ kind: "similar_records", filter: leaf });
 });
-it("rejects the retired array format explicitly without leaking its raw IDs or executing a broadened query", () => {
+it("marks the retired array for automatic recovery without leaking its raw IDs", () => {
   const state = decodeSearchStateFromParams(
     new URLSearchParams({
       relationships: '1.[{"selection":{"record_key":"secret:id"}}]',
     }),
   );
-  expect(state.filterError).toBe(UNSUPPORTED_FILTER_URL);
-  expect(state.filterError).not.toContain("secret:id");
+  expect(state.filterError).toBeNull();
+  expect(state.filter).toBeNull();
+  expect(state.filterWasReset).toBe(true);
+  expect(JSON.stringify(state)).not.toContain("secret:id");
   expect(hasExecutableSearch(state)).toBe(false);
 });

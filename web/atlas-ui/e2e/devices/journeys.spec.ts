@@ -8,6 +8,41 @@ import {
   sentinel,
 } from "./reading";
 
+test("compact filter links reload and recover without losing the selected entry", async ({
+  page,
+}) => {
+  await page.goto(landedSearch);
+  const title = page.getByRole("heading", { name: "Atlas Sentinel", exact: true });
+  await expect(title).toBeVisible();
+  expect(new URL(page.url()).searchParams.get("filter")).toMatch(/^3\./);
+  await page.reload();
+  await expect(title).toBeVisible();
+
+  const broken = new URL(page.url());
+  const retainedLanding = broken.searchParams.get("landing");
+  broken.searchParams.set("filter", "2.obsolete");
+  broken.searchParams.set("sort", "name_asc");
+  broken.searchParams.set("limit", "50");
+  await page.goto(broken.href);
+  const notice = page.getByText(
+    "Filters in this link couldn’t be restored and were cleared.",
+    { exact: true },
+  );
+  await expect(notice).toBeVisible();
+  await expect(title).toBeVisible();
+  const recovered = new URL(page.url());
+  expect(recovered.searchParams.has("filter")).toBe(false);
+  expect(recovered.searchParams.get("landing")).toBe(retainedLanding);
+  expect(recovered.searchParams.get("sort")).toBe("name_asc");
+  expect(recovered.searchParams.get("limit")).toBe("50");
+  await noPageOverflow(page);
+
+  await page.reload();
+  await expect(title).toBeVisible();
+  await expect(notice).toHaveCount(0);
+  expect(new URL(page.url()).searchParams.has("filter")).toBe(false);
+});
+
 test("focused titles and list text filters follow their primary page", async ({
   page,
 }) => {
