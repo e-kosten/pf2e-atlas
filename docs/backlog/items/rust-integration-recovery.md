@@ -47,8 +47,8 @@ if review warrants it; preserve its ID and record every resulting PR here.
 | CF-06 | Encounter status and action-budget policy | in_progress | Approved | Based on main 41865f60; locally complete; user accepted preview; Rust/UI gates, 20 device journeys and independent Sol browser review pass; [PR #78](https://github.com/e-kosten/pf2e-atlas/pull/78) |
 | CF-07 | Supported condition/spell adjustments and casting reminders | planned | Pending | Not started |
 | CF-08 | Hazard Active/Disabled state | in_progress | Approved with CF-06 | locally complete; single Active/Disabled state; user accepted preview; Rust/UI gates and browser reviews pass; [PR #78](https://github.com/e-kosten/pf2e-atlas/pull/78) |
-| CF-09 | Browse sorting | in_progress | Approved 2026-10-21 | Second PR on `feat/browse-sorting`, based on merged main a1601f87; core implementation and focused checks underway; early functional UX review precedes full gates |
-| CF-10 | Relationship-scoped full results and filtering | merged | Approved 2026-10-21 | [PR #97](https://github.com/e-kosten/pf2e-atlas/pull/97), merged as a1601f87; human UI acceptance, local gates, independent reviews and exact-head CI passed; direct multi-filter creation follows in third PR |
+| CF-09 | Browse sorting | merged | Approved 2026-10-21 | [PR #98](https://github.com/e-kosten/pf2e-atlas/pull/98), merged as 09d2bec5; human UI acceptance, local gates, independent reviews and exact-head CI passed |
+| CF-10 | Relationship-scoped full results and filtering | merged | Approved 2026-10-21 | [PR #97](https://github.com/e-kosten/pf2e-atlas/pull/97), merged as a1601f87; human UI acceptance, local gates, independent reviews and exact-head CI passed; direct multi-filter creation is in progress in the third PR on `feat/relationship-filter-picker` |
 
 ### CF-01 — CLI batches and error contracts
 
@@ -247,13 +247,16 @@ evidence shares the Matches button/popover, with human source-to-target labels
 and independent occurrence paging. No parallel editable search field is shown
 for an active seed.
 
-Third PR, following sorting: directly add multiple relationship constraints using
-the existing shared list/encounter record search picker. All constraints combine
-with AND and retain independent contents settings, removal, and URL identity.
-Lookup searches the available corpus independently of active result criteria.
-Model constraints independently in the first PR, but do not add this picker or
-multiple-filter UI there. General OR/NOT relationship expressions and inferred
-equipment possession/condition-infliction filters remain outside this sequence.
+Third PR, in progress after merged sorting: Add link filter opens the existing
+shared list/encounter record search picker from the top-level filter row. Lookup
+searches the available corpus independently of active result criteria. Confirm
+one root entry at a time, with Links to / Whole entry defaults and editable
+direction/scope. Constraints combine with AND and retain independent settings,
+removal and URL identity. Confirmation resets paging while retaining all other
+criteria and existing exact embedded selections. Cancellation and exact-duplicate
+rejection preserve criteria and paging; different direction/scope combinations
+remain distinct. General OR/NOT relationship expressions and inferred equipment
+possession/condition-infliction filters remain outside this sequence.
 
 Keep lightweight Related previews, with an escape to full incoming/outgoing
 results that supports ordinary filters and paging. Preserve exact owner versus

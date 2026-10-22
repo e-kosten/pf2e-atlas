@@ -642,8 +642,13 @@ relationships of an embedded selection. A separate Similar action can name the
 parent root explicitly. Exact root references use an empty owner path, not an
 all-owners graph query.
 
-Relationship search constraints appear at the top level with ordinary filters,
-outside Advanced. A combined filter chip displays the direction and human target
+Relationship search constraints and Add link filter appear at the top level with
+ordinary filters, outside Advanced. Add link filter reuses SearchPickerModal with
+an independent corpus request, rather than inheriting parent criteria or result
+keys. Confirm one root entry at a time; default to Links to / Whole entry. Append
+to the existing typed collection and preserve exact embedded selections. Reject
+exact duplicates locally without changing parent criteria or paging; retain
+distinct directions/scopes. Constraints combine with AND. A combined filter chip displays the direction and human target
 name; its popover contains the Main entry only / Whole entry choices and a link
 to open the exact selected record. Removal stays beside the chip. Include the
 selected scope in the chip's accessible name. Never render IDs in relationship labels, tooltip

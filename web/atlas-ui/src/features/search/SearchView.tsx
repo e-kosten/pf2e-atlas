@@ -6,6 +6,7 @@ import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
 import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 import { RelationshipFilters } from "./RelationshipFilters";
+import { AddRelationshipFilter } from "./AddRelationshipFilter";
 import { SearchModelSelect } from "./SearchModelSelect";
 import { SearchProfileNotice } from "../../shared/search/SearchProfileNotice";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
@@ -31,7 +32,12 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
       <FilterControls
         filterState={workspace}
         layout="toolbar"
-        additionalFilters={<RelationshipFilters workspace={workspace} />}
+        additionalFilters={
+          <>
+            <RelationshipFilters workspace={workspace} />
+            <AddRelationshipFilter workspace={workspace} />
+          </>
+        }
         similarSearch={
           workspace.search.similarSeed
             ? {

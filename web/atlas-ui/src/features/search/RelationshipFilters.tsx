@@ -12,6 +12,7 @@ import type {
 } from "../../generated/atlas";
 import { recordReadingIdentity } from "../../shared/records/useRetainedRecord";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
+import { sameRelationshipConstraint } from "./relationshipConstraints";
 
 export function RelationshipFilters({
   workspace,
@@ -39,6 +40,7 @@ function RelationshipFilter({
 }) {
   const { token } = theme.useToken();
   const [scopeOpen, setScopeOpen] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
   const scopeTrigger = useRef<HTMLButtonElement>(null);
   const constraints = workspace.search.relationships ?? [];
   const summary = workspace.resultPage?.relationships?.find(
@@ -63,7 +65,26 @@ function RelationshipFilter({
       : "Loading record…";
   function closeScope() {
     setScopeOpen(false);
+    setFeedback(null);
     scopeTrigger.current?.focus({ preventScroll: true });
+  }
+  function update(next: RelationshipConstraintView) {
+    if (
+      constraints.some(
+        (candidate, candidateIndex) =>
+          candidateIndex !== index && sameRelationshipConstraint(candidate, next),
+      )
+    ) {
+      setFeedback("This link filter is already added.");
+      return;
+    }
+    workspace.setSearch({
+      ...workspace.search,
+      relationships: constraints.map((candidate, candidateIndex) =>
+        candidateIndex === index ? next : candidate,
+      ),
+    });
+    closeScope();
   }
   function scopeKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key === "Escape") {
@@ -85,25 +106,20 @@ function RelationshipFilter({
         arrow={false}
         styles={{ root: { maxWidth: "calc(100vw - 24px)" } }}
         open={scopeOpen}
-        onOpenChange={setScopeOpen}
+        onOpenChange={(open) => {
+          setScopeOpen(open);
+          setFeedback(null);
+        }}
         title={
           <Radio.Group
             aria-label="Relationship direction"
             buttonStyle="solid"
             value={constraint.direction}
             onChange={(event) => {
-              workspace.setSearch({
-                ...workspace.search,
-                relationships: constraints.map((candidate, candidateIndex) =>
-                  candidateIndex === index
-                    ? {
-                        ...candidate,
-                        direction: event.target.value as RelationshipDirectionView,
-                      }
-                    : candidate,
-                ),
+              update({
+                ...constraint,
+                direction: event.target.value as RelationshipDirectionView,
               });
-              closeScope();
             }}
           >
             <Radio.Button onKeyDown={scopeKeyDown} value="incoming">
@@ -143,15 +159,10 @@ function RelationshipFilter({
               aria-label="Relationship scope"
               value={constraint.include_contents}
               onChange={(event) => {
-                workspace.setSearch({
-                  ...workspace.search,
-                  relationships: constraints.map((candidate, candidateIndex) =>
-                    candidateIndex === index
-                      ? { ...candidate, include_contents: event.target.value }
-                      : candidate,
-                  ),
+                update({
+                  ...constraint,
+                  include_contents: event.target.value,
                 });
-                closeScope();
               }}
             >
               <Space orientation="vertical">
@@ -168,6 +179,7 @@ function RelationshipFilter({
                 ? "Whole entry also checks each matching record’s abilities, spells, equipment, and other nested documents."
                 : "Whole entry also checks this entry’s abilities, spells, equipment, and other nested documents."}
             </Typography.Paragraph>
+            {feedback && <Typography.Text role="status">{feedback}</Typography.Text>}
           </div>
         }
       >
@@ -197,14 +209,15 @@ function RelationshipFilter({
         icon={<CloseOutlined />}
         styles={{ root: { flexShrink: 0 } }}
         aria-label="Remove relationship filter"
-        onClick={() =>
+        onClick={() => {
+          closeScope();
           workspace.setSearch({
             ...workspace.search,
             relationships: constraints.filter(
               (_, candidateIndex) => candidateIndex !== index,
             ),
-          })
-        }
+          });
+        }}
       />
     </div>
   );

@@ -2,6 +2,7 @@ import type { RelationshipConstraintView } from "../../generated/atlas";
 
 const VERSION = "1.";
 const INVALID = "Invalid relationship filter URL. Clear filters to continue.";
+export const MAX_RELATIONSHIP_FILTERS = 16;
 
 export function encodeRelationships(
   relationships: RelationshipConstraintView[],
@@ -13,7 +14,7 @@ export function decodeRelationships(encoded: string): RelationshipConstraintView
   if (!encoded.startsWith(VERSION) || encoded.length > 32_768) throw new Error(INVALID);
   try {
     const constraints: unknown = JSON.parse(encoded.slice(VERSION.length));
-    if (!Array.isArray(constraints) || constraints.length > 16)
+    if (!Array.isArray(constraints) || constraints.length > MAX_RELATIONSHIP_FILTERS)
       throw new Error(INVALID);
     for (const constraint of constraints) {
       const selection = constraint?.selection;
