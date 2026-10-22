@@ -83,7 +83,7 @@ fn count_values(view: FilterCountsView) -> Vec<u64> {
 fn values_request(context: FilterDiscoveryContext) -> DiscoverFilterValuesRequest {
     DiscoverFilterValuesRequest::Contextual {
         only_matching: true,
-        context,
+        context: Box::new(context),
         field_id: "kind".into(),
         clause_id: None,
         text: None,

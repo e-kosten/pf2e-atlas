@@ -312,13 +312,11 @@ impl CompiledTruth {
                 }
             }
             BooleanNode::Leaf => {
-                if required {
-                    if let Some(id) = &self.relationship_id {
-                        out.push((
-                            id.clone(),
-                            format!("({guard}) AND ({}) IS TRUE", self.truth),
-                        ));
-                    }
+                if required && let Some(id) = &self.relationship_id {
+                    out.push((
+                        id.clone(),
+                        format!("({guard}) AND ({}) IS TRUE", self.truth),
+                    ));
                 }
             }
         }

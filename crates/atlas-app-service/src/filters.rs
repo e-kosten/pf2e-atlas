@@ -181,7 +181,7 @@ impl AtlasAppService {
                 limit,
             } => {
                 let (keys, filter, text, mode, search_profile, expected_generation) =
-                    context_parts(context);
+                    context_parts(*context);
                 let context = FilterDiscoveryContext::Filtered {
                     filter: filter.clone(),
                     text: text.clone(),

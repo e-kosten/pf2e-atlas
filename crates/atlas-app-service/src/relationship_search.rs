@@ -78,7 +78,7 @@ pub(crate) fn presentations(
                 Ok(summary) => Ok(View::Available {
                     clause_id: summary.clause_id,
                     relationship: summary.relationship,
-                    record: summary.record,
+                    record: Box::new(summary.record),
                     title: summary.title,
                 }),
                 Err(error) => unavailable_clause(id, relationship, error),
