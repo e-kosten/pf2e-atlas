@@ -1,3 +1,4 @@
+import type { ResultSort } from "../../generated/atlas";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
   act,
@@ -19,6 +20,11 @@ import { detailFixture, summaryFixture } from "../../test/fixtures";
 import { AtlasApiError } from "../../api/atlasApi";
 import { useRecordDetail } from "./useRecordDetail";
 import { RelatedRecords } from "./RelatedRecords";
+import {
+  DEFAULT_SEARCH_STATE,
+  decodeSearchStateFromParams,
+  searchStateQueryString,
+} from "../filters/searchState";
 
 const api = vi.hoisted(() => ({
   getRelatedRecords: vi.fn(),
@@ -123,6 +129,7 @@ describe("shared related disclosure", () => {
     vi.clearAllMocks();
     api.getRelatedRecords.mockResolvedValue(relatedFixture());
     api.searchPage.mockResolvedValue({
+      sort: { kind: "relevance" } as const,
       ranking: "score" as const,
       search_profile: "bge-base",
       artifact_generation: "test-generation",
@@ -288,6 +295,53 @@ describe("shared related disclosure", () => {
     expect(screen.queryByText("About these suggestions")).toBeNull();
     expect(screen.queryByText(/internal-count-basis/)).toBeNull();
   });
+  it("retains active search constraints and explicit order in the Similar escape link", async () => {
+    const state = {
+      ...DEFAULT_SEARCH_STATE,
+      query: "fire",
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "unit_price", direction: "desc" }],
+      } satisfies ResultSort,
+      filter: { kind: "in" as const, field: "kind", values: ["creature"] },
+      relationships: [
+        {
+          direction: "incoming" as const,
+          include_contents: false,
+          selection: {
+            record_key: "items:armor",
+            embedded_path: [],
+            field: null,
+            passage: null,
+            source_fingerprint: "source",
+          },
+        },
+      ],
+    };
+    history.replaceState(null, "", "/search" + searchStateQueryString(state));
+    renderRelated();
+    openRelated();
+    fireEvent.click(await screen.findByRole("button", { name: "Similar records" }));
+    const link = await screen.findByRole("link", { name: "See more similar records" });
+    const restored = decodeSearchStateFromParams(
+      new URL(link.getAttribute("href")!, window.location.origin).searchParams,
+    );
+    expect(restored).toMatchObject({
+      query: "",
+      similarSeed: "actors:seed",
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "unit_price", direction: "desc" }],
+      } satisfies ResultSort,
+      filter: state.filter,
+      relationships: state.relationships,
+    });
+    expect(api.searchPage).toHaveBeenCalledWith(
+      expect.not.objectContaining({ sort: expect.anything() }),
+      expect.any(AbortSignal),
+    );
+  });
+
   it("switches only Similar evidence and deep links, retaining graph discovery and native navigation", async () => {
     const detail = detailFixture("actors:seed", "Viewed creature");
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -325,6 +379,7 @@ describe("shared related disclosure", () => {
     });
     const page = (profile: string, title: string): SearchResultsPage => ({
       relationships: [],
+      sort: { kind: "relevance" } as const,
       ranking: "score" as const,
       search_profile: profile,
       artifact_generation: detail.artifact_generation,

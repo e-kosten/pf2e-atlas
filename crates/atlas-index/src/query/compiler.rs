@@ -393,3 +393,15 @@ fn checked_descriptor(
         ))
     })
 }
+
+/// Native copper retains the stored per-item numeric domain for ordering and display projection.
+pub(crate) fn bound_unit_price_cp() -> Result<BoundField, crate::IndexError> {
+    let mut field = bound_field(
+        super::catalog::descriptor(None, "physical.unit_price_gp")?.ok_or_else(|| {
+            crate::IndexError::Invalid("unit-price binding is unavailable".into())
+        })?,
+        None,
+    );
+    field.value = family_field("physical_projection", "price_per_item_cp", false, None);
+    Ok(field)
+}

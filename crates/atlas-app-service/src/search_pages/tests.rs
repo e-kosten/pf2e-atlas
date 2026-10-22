@@ -32,6 +32,7 @@ fn fixture(semantic: bool) -> (FixtureWorker, RetrievalExecutor) {
 
 fn request(criteria: SearchCriteria, number: u32) -> SearchResultsRequest {
     SearchResultsRequest {
+        sort: None,
         relationships: None,
         ranking: None,
         search_profile: None,

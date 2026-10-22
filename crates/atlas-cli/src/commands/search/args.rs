@@ -11,6 +11,16 @@ use std::path::PathBuf;
 pub(crate) struct SearchOptions {
     #[arg(
         long,
+        help = "Result order: relevance, random or repeat name_asc/name_desc, level_asc/level_desc, unit_price_asc/unit_price_desc"
+    )]
+    pub(crate) sort: Vec<String>,
+    #[arg(
+        long,
+        help = "Random order seed (requires only --sort random); generated when omitted"
+    )]
+    pub(crate) seed: Option<u32>,
+    #[arg(
+        long,
         default_value = "score",
         help = "Hybrid text ranking: score fusion or reciprocal rank fusion (rrf)"
     )]

@@ -36,10 +36,14 @@ pub(crate) fn emit<T: Serialize>(
 }
 pub(crate) fn print_summary(view: &atlas_app_model::RecordSummaryView) {
     println!(
-        "{} — {}{}",
+        "{} — {}{}{}",
         view.title,
         view.kind_label,
         view.level_label
+            .as_ref()
+            .map(|v| format!(" · {v}"))
+            .unwrap_or_default(),
+        view.unit_price_label
             .as_ref()
             .map(|v| format!(" · {v}"))
             .unwrap_or_default()
@@ -75,8 +79,8 @@ pub(crate) fn print_search_matches(records: &[atlas_app_model::SearchResultRow])
         println!();
     }
 }
-pub(crate) fn search_json(result: &atlas_app_model::SearchResultsView) -> serde_json::Value {
-    serde_json::json!({"search_profile":result.search_profile,"artifact_generation":result.artifact_generation,"pagination":result.page,"coverage":result.coverage,"results":result.rows})
+pub(crate) fn search_json(result: &atlas_app_model::SearchResultsPage) -> serde_json::Value {
+    serde_json::json!({"sort":result.sort,"search_profile":result.search_profile,"artifact_generation":result.artifact_generation,"pagination":result.page,"coverage":result.coverage,"results":result.rows})
 }
 
 /// Emit a whole-command failure with the same exit policy as batch items.

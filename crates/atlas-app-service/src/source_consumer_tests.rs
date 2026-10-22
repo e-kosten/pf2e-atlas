@@ -640,6 +640,7 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
     let filtered = f
         .worker
         .filter_saved_list(FilterSavedListRequest {
+            sort: None,
             list_ref: "large-list".into(),
             query: Some("\"Action 1029\"".into()),
             filter: None,

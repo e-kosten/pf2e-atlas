@@ -35,6 +35,8 @@ fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
         "--pack-name",
         "--rarity",
         "--retrieval",
+        "--sort",
+        "--seed",
     ] {
         assert!(search.contains(flag));
     }
@@ -45,10 +47,9 @@ fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
         "--filter-json",
         "--include-raw",
         "--fusion",
-        "--sort",
         "--min-price",
     ] {
-        assert!(!search.contains(old));
+        assert!(!search.contains(old), "retired flag is advertised: {old}");
     }
     assert!(help(&["index", "build"]).contains("--locale"));
     assert!(help(&["setup"]).contains("--locale"));
@@ -146,7 +147,15 @@ fn explicit_human_detail_conflicts_with_json_before_reading_an_artifact() {
 }
 #[test]
 fn retired_flags_fail_instead_of_becoming_a_broader_query() {
-    for flag in ["--metric", "--filter-json", "--references", "--include-raw"] {
+    for flag in [
+        "--metric",
+        "--references",
+        "--referenced-by",
+        "--filter-json",
+        "--include-raw",
+        "--fusion",
+        "--min-price",
+    ] {
         let o = Command::new(env!("CARGO_BIN_EXE_atlas"))
             .args(["search", flag, "x", "--json"])
             .output()

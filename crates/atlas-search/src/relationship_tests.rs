@@ -122,6 +122,7 @@ fn relationship_roots_are_exhaustive_distinct_filtered_and_conjunctive_before_re
     );
     let similar = service
         .similar_records(SimilarRecordRequest {
+            sort: atlas_domain::ResultSort::Relevance {},
             search_profile: None,
             record_key: &key("items", target),
             filter: Some(&filter),

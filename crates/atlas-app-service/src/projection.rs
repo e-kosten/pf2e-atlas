@@ -13,6 +13,7 @@ pub fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
         .map(|k| k.as_str().to_owned())
         .unwrap_or_else(|| record.document_kind.to_lowercase());
     RecordSummaryView {
+        unit_price_label: None,
         record_key: record.key.to_string(),
         title: record
             .name
@@ -146,6 +147,7 @@ pub(crate) fn search_results_view(
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> atlas_app_model::SearchResultsView {
     atlas_app_model::SearchResultsView {
+        sort: result.sort,
         search_profile: result.search_profile,
         artifact_generation: result.artifact_generation,
         rows: result

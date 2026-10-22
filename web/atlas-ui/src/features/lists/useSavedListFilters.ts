@@ -11,7 +11,10 @@ const LIST_SEARCH_REQUEST_DEBOUNCE_MS = 300;
 
 export function useSavedListFilterDiscovery(listRef: string, filters: SearchFormState) {
   const profile = useSearchProfile();
-  const filterToken = useMemo(() => encodeSearchExecutionState(filters), [filters]);
+  const filterToken = useMemo(
+    () => encodeSearchExecutionState({ ...filters, sort: undefined }),
+    [filters],
+  );
   const context = useMemo(
     () => ({
       ...buildSavedListFilterDiscoveryContext(listRef, filters),

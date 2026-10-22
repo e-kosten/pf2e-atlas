@@ -300,6 +300,36 @@ owned. Keep query text, similarity seed and nondefault page size as ordinary
 parameters; derive retrieval mode rather than serializing it. No CEL translation,
 saved-token registry or separate simple-filter URL dialect is introduced.
 
+Result ordering uses one shared Ant Sort popover beside count and paging,
+including in search pickers and the Trait Similar tab. Browse defaults to Name
+A–Z, text/Similar to Relevance, and saved lists to Saved order. Keep requested
+order optional: a response's effective default must not turn into explicit URL
+intent. Selecting the displayed default deliberately does record intent.
+Explicit attribute orders survive criterion changes.
+Order changes reset paging and belong in request identity and native navigation,
+but not filter-count context. A sort choice alone leaves an empty search idle.
+The backend orders the entire eligible matching set before pagination; never
+sort loaded rows in the browser. Semantic totals retain their Top matches basis.
+Keep the word Sort visible alongside the active order. The popover has Sort by /
+Then by rules with field, direction, removal and accessible priority controls;
+reveal additional rules through Add another sort. Each field appears at most once.
+Relevance, Random and list-only Saved order replace the attribute sequence.
+Random generates a u32 seed on selection. Keep Shuffle beside its seed input
+inside the popover, preserving the toolbar anchor when switching modes. Seed
+editing/copying also stays inside the popover. Put the Copy seed icon at the
+field’s trailing edge with a tooltip and brief Copied feedback; keep the field
+and Shuffle on one row. Commit seed drafts on
+Enter/blur. Repeated sort URL tokens preserve rule priority; Random's seed remains
+stable through paging, reload and Back. Incoming malformed combinations are errors.
+Response identity checks compare complete sort values structurally. Retain loaded
+rows and titles with updating feedback during order changes; old placeholders
+never cross seed/criterion/scope/profile/generation boundaries in the bounded
+picker/Trait consumers. Keep pager controls wrapped within narrow panes, with
+Previous/page/Next together.
+Saved-list attribute and Random orders are temporary, preserve drafts, and disable
+drag reordering. Render supplied unit-price labels verbatim in existing row
+metadata whenever any attribute rule orders by price.
+
 The whole result summary previews on ordinary click or Space. Arrow/j/k move
 focus without changing selection; Enter opens the full reference in the same tab.
 Keep native hrefs and modified clicks. Results contain scan metadata and wrapping

@@ -81,6 +81,25 @@ impl AtlasAppService {
         execution.check()?;
         let key = parse_key(&request.trait_key)?;
         let page = SearchPage::new(request.page.number, request.page.size)?;
+        let sort = if request.kind == TraitAssociationKind::Similar {
+            let sort = request
+                .sort
+                .unwrap_or(atlas_domain::ResultSort::Relevance {});
+            sort.validate().map_err(AppServiceError::invalid_request)?;
+            if matches!(sort, atlas_domain::ResultSort::SavedOrder {}) {
+                return Err(AppServiceError::invalid_request(
+                    "Saved order is available only for saved lists",
+                ));
+            }
+            Some(sort)
+        } else {
+            if request.sort.is_some() {
+                return Err(AppServiceError::invalid_request(
+                    "Sorting is available for Similar results",
+                ));
+            }
+            None
+        };
         let projection_execution = execution.clone();
         self.with_retrieval(execution, move |retrieval| {
             let generation = retrieval.artifact_generation()?;
@@ -161,6 +180,9 @@ impl AtlasAppService {
                 TraitAssociationKind::Similar => {
                     let result = retrieval
                         .similar_trait(SimilarTraitRequest {
+                            sort: sort
+                                .clone()
+                                .unwrap_or(atlas_domain::ResultSort::Relevance {}),
                             trait_key: &key,
                             search_profile: request.search_profile.as_ref(),
                             ranking: request.ranking.unwrap_or_default(),
@@ -175,7 +197,19 @@ impl AtlasAppService {
                             )
                         })?;
                     projection_execution.check()?;
-                    let results = crate::projection::search_results_view(result.results, retrieval);
+                    let mut results =
+                        crate::projection::search_results_view(result.results, retrieval);
+                    if sort.as_ref().is_some_and(|s| s.is_unit_price()) {
+                        let mut records = results
+                            .rows
+                            .iter()
+                            .map(|r| r.record.clone())
+                            .collect::<Vec<_>>();
+                        crate::result_order::price_labels(retrieval, &mut records)?;
+                        for (row, record) in results.rows.iter_mut().zip(records) {
+                            row.record = record;
+                        }
+                    }
                     let rows = results
                         .rows
                         .into_iter()
@@ -196,6 +230,7 @@ impl AtlasAppService {
             };
             projection_execution.check()?;
             Ok(TraitRecordsPage {
+                sort,
                 search_profile,
                 artifact_generation: generation,
                 trait_key: key.to_string(),
@@ -261,6 +296,7 @@ mod tests {
         assert!(view.source_revision.is_none());
         assert!(view.indexing_locale.is_none());
         let request = TraitRecordsRequest {
+            sort: None,
             trait_key: "trait:attack".into(),
             kind: TraitAssociationKind::Members,
             page: SearchPageRequest {
@@ -281,6 +317,7 @@ mod tests {
             .worker
             .trait_records(
                 TraitRecordsRequest {
+                    sort: None,
                     expected_artifact_generation: view.artifact_generation,
                     ..request
                 },
@@ -331,6 +368,7 @@ mod tests {
             .worker
             .trait_records(
                 TraitRecordsRequest {
+                    sort: None,
                     trait_key: "trait:agile".into(),
                     kind: TraitAssociationKind::Members,
                     page: SearchPageRequest {

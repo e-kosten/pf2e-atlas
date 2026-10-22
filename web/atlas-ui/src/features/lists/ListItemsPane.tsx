@@ -20,6 +20,7 @@ export function ListItemsPane({
   onRemove,
   onReorder,
   onSelect,
+  itemHref,
   removingKey,
   selectedRecordKey,
   filtered = false,
@@ -37,6 +38,7 @@ export function ListItemsPane({
     placement: "before" | "after",
   ) => Promise<boolean>;
   onSelect: (recordKey: string) => void;
+  itemHref?: (recordKey: string) => string;
   removingKey: string | null;
   selectedRecordKey: string | null;
   filtered?: boolean;
@@ -83,6 +85,7 @@ export function ListItemsPane({
         {item.status !== "unresolved" && item.record ? (
           <RecordBrowseSummary
             record={item.record}
+            href={itemHref?.(item.record_key)}
             selected={selected}
             onPreview={() => onSelect(item.record_key)}
           />

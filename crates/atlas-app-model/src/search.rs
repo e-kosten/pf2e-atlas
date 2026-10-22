@@ -25,6 +25,9 @@ pub struct SearchPageView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub sort: Option<atlas_domain::ResultSort>,
     #[serde(default)]
     #[ts(optional)]
     pub relationships: Option<Vec<RelationshipConstraintView>>,
@@ -67,6 +70,7 @@ pub enum SearchModeSummary {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsPage {
+    pub sort: atlas_domain::ResultSort,
     pub relationships: Vec<RelationshipConstraintSummaryView>,
     pub ranking: atlas_domain::SearchRanking,
     pub search_profile: atlas_domain::SearchProfileId,

@@ -3,7 +3,7 @@ import { Button } from "antd";
 import type { RecordSummaryView } from "../../generated/atlas";
 import {
   atlasRoutePath,
-  navigateToAtlasRoute,
+  navigateToAtlasPath,
   shouldHandleAtlasRouteClick,
 } from "../../app/routes";
 import { RecordRarity } from "./RecordRarity";
@@ -13,11 +13,13 @@ export function RecordBrowseSummary({
   selected,
   disabled = false,
   onPreview,
+  href,
 }: {
   record: RecordSummaryView;
   selected: boolean;
   disabled?: boolean;
   onPreview: (anchor: HTMLElement) => void;
+  href?: string;
 }) {
   const classification = [
     record.kind_label,
@@ -25,6 +27,8 @@ export function RecordBrowseSummary({
   ]
     .filter(Boolean)
     .join(" ");
+  const recordHref =
+    href ?? atlasRoutePath({ kind: "record", recordKey: record.record_key });
   return (
     <>
       <Button
@@ -46,7 +50,7 @@ export function RecordBrowseSummary({
           },
         }}
         data-record-key={record.record_key}
-        href={atlasRoutePath({ kind: "record", recordKey: record.record_key })}
+        href={recordHref}
         block
         color={selected ? "primary" : "default"}
         variant="text"
@@ -60,7 +64,7 @@ export function RecordBrowseSummary({
         onKeyDown={(event) => {
           if (event.key === "Enter" && shouldHandleAtlasRouteClick(event)) {
             event.preventDefault();
-            navigateToAtlasRoute({ kind: "record", recordKey: record.record_key });
+            navigateToAtlasPath(recordHref);
             return;
           }
           if (event.key === " " && shouldHandleAtlasRouteClick(event)) {
@@ -96,6 +100,7 @@ export function RecordBrowseSummary({
         </div>
         <div className="reference-result__metadata">
           <RecordRarity rarity={record.rarity} />
+          {record.unit_price_label && <span>{record.unit_price_label}</span>}
           <span>{record.publication ?? record.pack}</span>
         </div>
       </Button>

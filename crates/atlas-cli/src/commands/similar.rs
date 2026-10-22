@@ -8,6 +8,7 @@ use std::process::ExitCode;
 pub(crate) mod args;
 use args::SimilarOptions;
 pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
+    let sort = super::result_order::requested_sort(&o.sort, o.seed)?;
     let (filter, _) = build_filter(&o.filter_options).map_err(|e| e.message)?;
     let s = match connect(ClientOptions {
         search_profile: o.search_profile.clone(),
@@ -22,9 +23,10 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
     let result = match app_result(
         s.similar_records(
             o.record_ref,
+            sort,
             filter,
             atlas_app_model::SearchPageRequest {
-                number: 1,
+                number: o.page,
                 size: o.limit,
             },
             o.search_profile,
@@ -47,6 +49,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
         write_json_data(&result)?;
     } else {
         println!("Similar to {}", result.seed.title);
+        super::result_order::print_random_seed(&result.results.sort);
         print_search_matches(&result.results.rows);
     }
     Ok(ExitCode::SUCCESS)
