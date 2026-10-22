@@ -292,13 +292,22 @@ its `Kind: Advanced`-style opener at the same native Ant size as peer controls. 
 when a common control changes. Incomplete drafts stay local and do not execute
 or enter URLs.
 
-Search filter URLs use one versioned, self-contained lz-string encoding of the
-existing predicate JSON. Omit clause/scope editor identities and reconstruct
+Search filter URLs use one versioned, self-contained compact tuple encoding of
+the existing predicate, compressed with lz-string. Version 3 uses short node tags,
+a bare key for root-record selections, and fixed optional slots for exact embedded
+addresses and reading context. Trailing empty slots are omitted; direction, scope,
+passages, source fingerprints and spell ranks retain their full meaning. Use a
+URL-safe alphabet so compression output needs no additional percent escaping. Omit clause/scope editor identities and reconstruct
 distinct deterministic identities on restore, preserving exact groups, literals
 and collection scopes. Field/operator eligibility and query limits stay backend
 owned. Keep query text, similarity seed and nondefault page size as ordinary
 parameters; derive retrieval mode rather than serializing it. No CEL translation,
 saved-token registry or separate simple-filter URL dialect is introduced.
+Malformed or unsupported filter transport is cleared atomically, with one contextual
+Ant message explaining that filters were cleared. Replace the current URL entry,
+reset paging and preserve independent criteria and exact reading navigation.
+Decoded predicates remain subject to backend validation; field/record errors and
+retrieval failures never trigger automatic clearing.
 
 Result ordering uses one shared Ant Sort popover beside count and paging,
 including in search pickers and the Trait Similar tab. Browse defaults to Name

@@ -284,6 +284,7 @@ function workspace(
     resultFilter: null,
     search: DEFAULT_SEARCH_STATE,
     setSearch: vi.fn(),
+    recoverFilterUrl: vi.fn(),
     selectedRecordKey: null,
     selectRecord: vi.fn(),
     pageNumber: 13,

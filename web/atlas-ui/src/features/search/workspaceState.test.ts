@@ -182,3 +182,16 @@ describe("remembered Kind default precedence", () => {
     expect(initialWorkspaceInteractionState().search.filter).toBeNull();
   });
 });
+
+it("resets restored paging before executing a recovered URL without adding a remembered Kind", () => {
+  localStorage.setItem(
+    KIND_PREFERENCE_KEY,
+    JSON.stringify({ kind: "in", field: "kind", values: ["creature"] }),
+  );
+  history.replaceState({ atlasSearchPage: 9 }, "", "/search?filter=2.obsolete");
+  const state = initialWorkspaceInteractionState();
+  expect(state.pageNumber).toBe(1);
+  expect(state.search.filter).toBeNull();
+  expect(state.search.filterWasReset).toBe(true);
+  localStorage.clear();
+});

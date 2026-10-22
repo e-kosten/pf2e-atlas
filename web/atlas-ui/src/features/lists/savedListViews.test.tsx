@@ -721,6 +721,52 @@ describe("list views", () => {
     },
   );
 
+  it("automatically recovers a list filter URL while retaining its query, order and selected member", async () => {
+    const query = "?filter=2.obsolete&q=Action&sort=name_asc";
+    history.replaceState(
+      null,
+      "",
+      "/lists/research/records/actions:testAction1" + query,
+    );
+    const length = history.length;
+    apiMocks.filterSavedList.mockImplementation(
+      async (request: { sort?: ResultSort }) => ({
+        ...savedListDetailFixture(),
+        sort: request.sort ?? { kind: "saved_order" },
+      }),
+    );
+    render(
+      <ListDetailView
+        route={{
+          kind: "list",
+          slug: "research",
+          selectedRecordKey: "actions:testAction1",
+          query,
+        }}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+    await screen.findByText(
+      "Filters in this link couldn’t be restored and were cleared.",
+    );
+    await screen.findByRole("heading", { name: "Test Action 1" });
+    expect(window.location.pathname).toBe(
+      "/lists/research/records/actions:testAction1",
+    );
+    expect(new URLSearchParams(window.location.search).get("q")).toBe("Action");
+    expect(new URLSearchParams(window.location.search).get("sort")).toBe("name_asc");
+    expect(new URLSearchParams(window.location.search).has("filter")).toBe(false);
+    expect(history.length).toBe(length);
+    expect(apiMocks.filterSavedList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        list_ref: "research",
+        query: "Action",
+        sort: { kind: "attributes", rules: [{ field: "name", direction: "asc" }] },
+      }),
+    );
+    expect(apiMocks.reorderSavedListItem).not.toHaveBeenCalled();
+  });
+
   it("keeps temporary order in list URLs and native links without enabling reorder writes", async () => {
     apiMocks.filterSavedList.mockImplementation(
       async (request: { sort?: ResultSort }) => ({

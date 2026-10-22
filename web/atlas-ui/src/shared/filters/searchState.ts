@@ -7,7 +7,7 @@ import type {
   SortField,
   SortDirection,
 } from "../../generated/atlas";
-import { decodeFilterUrl, encodeFilterUrl, UNSUPPORTED_FILTER_URL } from "./filterUrl";
+import { decodeFilterUrl, encodeFilterUrl } from "./filterUrl";
 export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
 export const UNKNOWN_SEARCH_RANKING = "Unknown search ranking";
 export const UNKNOWN_RESULT_SORT = "Unknown result order";
@@ -20,6 +20,8 @@ export type SearchFormState = {
   similarSeed: string | null;
   filter: QueryPredicate | null;
   filterError: string | null;
+  /** Transient URL recovery state, excluded from requests and execution identity. */
+  filterWasReset?: boolean;
   pageSize: number;
 };
 export const DEFAULT_SEARCH_STATE: SearchFormState = {
@@ -143,16 +145,17 @@ export function decodeSearchStateFromParams(
 ): SearchFormState {
   let filter: QueryPredicate | null = null;
   let filterError: string | null = null;
+  let filterWasReset = false;
   try {
     const encoded = params.get("filter");
-    if (encoded) filter = decodeFilterUrl(encoded);
-  } catch (error) {
-    filterError =
-      error instanceof Error && error.message === UNSUPPORTED_FILTER_URL
-        ? UNSUPPORTED_FILTER_URL
-        : "Invalid structured filter URL";
+    if (encoded !== null) filter = decodeFilterUrl(encoded);
+  } catch {
+    filterWasReset = true;
   }
-  if (params.has("relationships")) filterError = UNSUPPORTED_FILTER_URL;
+  if (params.has("relationships")) {
+    filter = null;
+    filterWasReset = true;
+  }
   const ranking = params.get("ranking") ?? "score";
   if (!filterError && ranking !== "rrf" && ranking !== "score")
     filterError = UNKNOWN_SEARCH_RANKING;
@@ -178,6 +181,7 @@ export function decodeSearchStateFromParams(
         : "browse",
     filter,
     filterError,
+    ...(filterWasReset ? { filterWasReset: true } : {}),
     pageSize:
       Number.isInteger(pageSize) && pageSize >= 1 && pageSize <= 100 ? pageSize : 25,
   };

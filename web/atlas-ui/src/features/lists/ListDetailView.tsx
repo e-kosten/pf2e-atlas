@@ -15,6 +15,7 @@ import {
 } from "../../api/atlasApi";
 import {
   atlasRoutePath,
+  ATLAS_ROUTE_CHANGE_EVENT,
   navigateToAtlasRoute,
   type AtlasRoute,
 } from "../../app/routes";
@@ -27,6 +28,7 @@ import {
   type SearchFormState,
 } from "../../shared/filters/searchState";
 import { BrowseReader } from "../../shared/records/BrowseReader";
+import { useFilterUrlRecovery } from "../../shared/filters/useFilterUrlRecovery";
 import {
   rootNavigation,
   useReferenceReading,
@@ -60,6 +62,10 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       decodeSearchStateFromParams(new URLSearchParams(route.query), "saved_list"),
     );
   }, [route.query]);
+  useFilterUrlRecovery(filters, (restored) => {
+    setFilters(restored);
+    window.dispatchEvent(new Event(ATLAS_ROUTE_CHANGE_EVENT));
+  });
   function changeFilters(next: SearchFormState) {
     const query = searchStateQueryString(next);
     previousQuery.current = query || undefined;
