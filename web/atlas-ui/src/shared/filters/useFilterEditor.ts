@@ -20,7 +20,37 @@ import { commonCondition, replaceCommonCondition } from "./filterControls";
 type EditorDraft = {
   baseline: string;
   query: RuleGroupType;
+  // Committed occurrence path → retained draft rule ID, scoped to baseline.
+  linkRules: ReadonlyMap<string, string>;
 };
+
+/** Committed syntax paths identify occurrences even when URL decoding replaces IDs. */
+function linkClausePaths(
+  predicate: QueryPredicate | null,
+  path = "root",
+): Array<[string, string]> {
+  if (!predicate) return [];
+  if (predicate.kind === "relationship")
+    return predicate.clause_id ? [[path, predicate.clause_id]] : [];
+  if (predicate.kind === "all_of" || predicate.kind === "any_of")
+    return predicate.children.flatMap((child, index) =>
+      linkClausePaths(child, `${path}/children/${index}`),
+    );
+  if (predicate.kind === "not" || predicate.kind === "exists")
+    return linkClausePaths(predicate.predicate, `${path}/predicate`);
+  return [];
+}
+function draftLinkIds(query: RuleGroupType): Set<string> {
+  return new Set(
+    query.rules.flatMap((node): string[] =>
+      "rules" in node
+        ? [...draftLinkIds(node)]
+        : node.field === LINK_CONDITION && node.id
+          ? [node.id]
+          : [],
+    ),
+  );
+}
 const criteriaIdentity = (search: SearchFormState) =>
   JSON.stringify([
     search.filter ? encodeFilterUrl(search.filter) : "",
@@ -51,26 +81,45 @@ export function useFilterEditor(
       } catch (failure) {
         error ||= failure instanceof Error ? failure.message : String(failure);
       }
-      return { query, error };
+      const linkRuleIds = new Map(
+        linkClausePaths(search.filter).flatMap(
+          ([path, id]): Array<[string, string]> => {
+            const draftId =
+              draft?.baseline === baseline ? draft.linkRules.get(path) : id;
+            return draftId ? [[id, draftId]] : [];
+          },
+        ),
+      );
+      return { query, error, linkRuleIds };
     } catch (error) {
       return {
         query: null,
+        linkRuleIds: new Map<string, string>(),
         error: error instanceof Error ? error.message : String(error),
       };
     }
   }, [baseline, definitions, draft, search.filter, search.filterError]);
 
-  function retain(query: RuleGroupType, next: SearchFormState = search) {
-    setDraft({
-      baseline: criteriaIdentity(next),
-      query,
-    });
+  function retain(
+    query: RuleGroupType,
+    next: SearchFormState = search,
+    committedFromDraft = false,
+  ) {
+    // A valid projection carries draft IDs; partial edits keep the existing
+    // clause binding even when navigation has assigned fresh committed IDs.
+    const ids = draftLinkIds(query);
+    const linkRules = new Map<string, string>();
+    for (const [path, id] of linkClausePaths(next.filter)) {
+      const draftId = committedFromDraft ? id : (prepared.linkRuleIds.get(id) ?? id);
+      if (ids.has(draftId)) linkRules.set(path, draftId);
+    }
+    setDraft({ baseline: criteriaIdentity(next), query, linkRules });
   }
   function change(query: RuleGroupType) {
     try {
       const filter = builderPredicate(query, definitions);
       const next = { ...search, filter, filterError: null };
-      retain(query, next);
+      retain(query, next, true);
       commit(next);
     } catch {
       retain(query);
@@ -156,6 +205,9 @@ export function useFilterEditor(
       });
       return children.length ? { ...node, children } : null;
     }
+    const draftClauseId = clause.clause_id
+      ? prepared.linkRuleIds.get(clause.clause_id)
+      : undefined;
     function replaceDraft(group: RuleGroupType): RuleGroupType {
       return {
         ...group,
@@ -163,11 +215,8 @@ export function useFilterEditor(
           if ("rules" in node) return [replaceDraft(node)];
           if (
             node.field !== LINK_CONDITION ||
-            (node.id !== clause.clause_id &&
-              !sameRelationship(
-                { ...node.value, direction: node.operator },
-                clause.relationship,
-              ))
+            !draftClauseId ||
+            node.id !== draftClauseId
           )
             return [node];
           return relationship
@@ -186,7 +235,8 @@ export function useFilterEditor(
     return null;
   }
   return {
-    ...prepared,
+    query: prepared.query,
+    error: prepared.error,
     change,
     changeCommon,
     addLink,
