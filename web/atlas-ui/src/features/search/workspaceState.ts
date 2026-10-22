@@ -113,6 +113,7 @@ export function initialWorkspaceInteractionState(): WorkspaceInteractionState {
     search,
     selectedRecordKey: route.kind === "search" ? route.selectedRecordKey : null,
     pageNumber:
+      !search.filterWasReset &&
       Number.isSafeInteger(history.state?.atlasSearchPage) &&
       history.state.atlasSearchPage > 0
         ? history.state.atlasSearchPage

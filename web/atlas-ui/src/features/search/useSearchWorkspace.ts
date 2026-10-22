@@ -61,6 +61,7 @@ export type SearchWorkspaceState = {
   reading: ReferenceReading;
   positions: BrowsePositions;
   setSearch: (next: SearchFormState) => void;
+  recoverFilterUrl: (restored: SearchFormState) => void;
   selectedRecordKey: string | null;
   selectRecord: (recordKey: string | null) => void;
   pageNumber: number;
@@ -114,6 +115,7 @@ export function useSearchWorkspace({
     initialWorkspaceInteractionState,
   );
   const { search, selectedRecordKey, activeSearch } = interaction;
+
   const [pagingProfile, setPagingProfile] = useState(searchProfile);
   const profileChanged = pagingProfile !== searchProfile;
   // Adjust the execution page in this render, before any new-profile query can run.
@@ -173,11 +175,12 @@ export function useSearchWorkspace({
     const onUrlStateChange = () => {
       const route = currentAtlasRoute();
       if (route.kind !== "search") return;
+      const restored = initialWorkspaceInteractionState();
       dispatch({
         type: "url.restored",
-        search: initialWorkspaceInteractionState().search,
+        search: restored.search,
         selectedRecordKey: route.selectedRecordKey,
-        pageNumber: history.state?.atlasSearchPage ?? 1,
+        pageNumber: restored.pageNumber,
       });
       inspectReading(
         route.selectedRecordKey
@@ -391,6 +394,13 @@ export function useSearchWorkspace({
   return {
     search,
     setSearch,
+    recoverFilterUrl: (restored) =>
+      dispatch({
+        type: "url.restored",
+        search: restored,
+        selectedRecordKey,
+        pageNumber: 1,
+      }),
     reading,
     positions,
     selectedRecordKey,
