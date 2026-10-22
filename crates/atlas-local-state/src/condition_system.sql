@@ -31,11 +31,10 @@ CREATE TABLE encounter_pending_consequences (
     PRIMARY KEY(encounter_id, consequence_key)
 );
 
-CREATE TABLE encounter_persistent_selections (
+CREATE TABLE encounter_persistent_precedence (
     participant_id INTEGER NOT NULL REFERENCES encounter_participants(id) ON DELETE CASCADE,
     episode_id TEXT NOT NULL,
-    selected_source_id INTEGER NOT NULL,
-    membership_json TEXT NOT NULL,
+    source_order_json TEXT NOT NULL,
     PRIMARY KEY (participant_id, episode_id)
 );
 

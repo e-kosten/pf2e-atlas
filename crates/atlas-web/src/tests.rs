@@ -963,6 +963,16 @@ struct MockService {
 mod read_abandonment_tests;
 
 impl AtlasWebService for MockService {
+    fn relationship_occurrences(
+        &self,
+        _request: atlas_app_model::RelationshipOccurrencesRequest,
+        _execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::RelationshipOccurrencesPage, AppServiceError> {
+        Err(AppServiceError::invalid_request(
+            "No relationship evidence in this fixture",
+        ))
+    }
+
     fn trait_definition(
         &self,
         _: atlas_app_model::TraitDetailRequest,
@@ -1029,7 +1039,7 @@ impl AtlasWebService for MockService {
         &self,
         _request: DiscoverFilterEditorRequest,
     ) -> Result<FilterEditorView, AppServiceError> {
-        Ok(serde_json::from_value(json!({"catalog_version":2,"common_field_ids":["kind"],"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"kind","path":"kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","short_choices":true,"applicable":true,"unit_fields":[],"collection_control":null,"placement":"initially_visible","label":"Kind","help":null,"choices":[{"value":"rule","label":"Rule"}],"operators":[{"operator":"eq","label":"is","operand":"scalar"},{"operator":"in","label":"is any of","operand":"list"},{"operator":"state","label":"availability is","operand":"state"}]}]}]})).expect("typed catalog fixture"))
+        Ok(serde_json::from_value(json!({"artifact_generation":"current-generation","relationship_clauses":[],"catalog_version":2,"common_field_ids":["kind"],"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128,"relationship_leaves":16},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"kind","path":"kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","short_choices":true,"applicable":true,"unit_fields":[],"collection_control":null,"placement":"initially_visible","label":"Kind","help":null,"choices":[{"value":"rule","label":"Rule"}],"operators":[{"operator":"eq","label":"is","operand":"scalar"},{"operator":"in","label":"is any of","operand":"list"},{"operator":"state","label":"availability is","operand":"state"}]}]}]})).expect("typed catalog fixture"))
     }
     fn discover_filter_values(
         &self,
@@ -1173,6 +1183,8 @@ impl AtlasWebService for MockService {
         _request: atlas_app_model::AddEncounterParticipantConditionRequest,
     ) -> Result<atlas_app_model::ConditionEventPreviewView, AppServiceError> {
         Ok(atlas_app_model::ConditionEventPreviewView {
+            persistent_precedence: None,
+            hp_change: None,
             encounter_key: encounter_ref.into(),
             encounter_revision: 0,
             consequences: vec![],
@@ -1185,6 +1197,8 @@ impl AtlasWebService for MockService {
         _request: atlas_app_model::UpdateEncounterParticipantConditionRequest,
     ) -> Result<atlas_app_model::ConditionEventPreviewView, AppServiceError> {
         Ok(atlas_app_model::ConditionEventPreviewView {
+            persistent_precedence: None,
+            hp_change: None,
             encounter_key: encounter_ref.into(),
             encounter_revision: 0,
             consequences: vec![],
@@ -1195,6 +1209,18 @@ impl AtlasWebService for MockService {
         _encounter_ref: &str,
     ) -> Result<Vec<atlas_app_model::PendingConditionConsequenceView>, AppServiceError> {
         Ok(vec![])
+    }
+    fn preview_encounter_drained_consequence(
+        &self,
+        _encounter_ref: &str,
+        _request: atlas_app_model::ResolveDrainedConsequenceRequest,
+    ) -> Result<atlas_app_model::ConditionHpChangeView, AppServiceError> {
+        Ok(atlas_app_model::ConditionHpChangeView {
+            current_before: Some(20),
+            current_after: Some(15),
+            maximum_before: Some(20),
+            maximum_after: Some(15),
+        })
     }
     fn resolve_encounter_drained_consequence(
         &self,
@@ -1487,16 +1513,7 @@ impl AtlasWebService for MockService {
             rolls: vec![],
         })
     }
-    fn preview_encounter_retch(
-        &self,
-        _encounter_ref: &str,
-        _request: atlas_app_model::EncounterRetchPreviewRequest,
-    ) -> Result<atlas_app_model::EncounterRetchPreviewView, AppServiceError> {
-        Err(AppServiceError::new(
-            AppErrorCode::InvalidRequest,
-            "casting mock not configured",
-        ))
-    }
+
     fn preview_encounter_strike_context(
         &self,
         _encounter_ref: &str,
@@ -1697,6 +1714,7 @@ impl AtlasWebService for MockService {
             ));
         }
         Ok(SavedListDetailView {
+            sort: atlas_domain::ResultSort::SavedOrder {},
             list: saved_list_summary(),
             items: vec![SavedListItemView {
                 record_key: "actions:testAction1".to_string(),
@@ -1854,6 +1872,13 @@ fn encounter_participant(
     include_condition: bool,
 ) -> EncounterParticipantView {
     EncounterParticipantView {
+        knockout_options: vec![],
+        knockout_unavailable_reason: None,
+        effective_max_hp: atlas_app_model::NumberFactView {
+            state: atlas_domain::QueryFieldState::Value,
+            value: Some(20.into()),
+            adjustment: None,
+        },
         level_override: None,
         base_death_threshold: 4,
         persistent_damage_groups: vec![],
@@ -1926,6 +1951,7 @@ fn saved_list_summary() -> SavedListSummaryView {
 
 fn record_summary() -> RecordSummaryView {
     RecordSummaryView {
+        unit_price_label: None,
         record_key: "actions:testAction1".to_string(),
         title: "Test Action 1".to_string(),
         kind: "rule".to_string(),
@@ -1942,6 +1968,11 @@ fn record_summary() -> RecordSummaryView {
 
 fn search_results_page(page_number: u32) -> SearchResultsPage {
     SearchResultsPage {
+        sort: atlas_domain::ResultSort::attribute(
+            atlas_domain::SortField::Name,
+            atlas_domain::SortDirection::Asc,
+        ),
+        relationship_clauses: vec![],
         ranking: Default::default(),
         search_profile: atlas_domain::SearchProfileId::new("bge-base"),
         artifact_generation: "current-generation".into(),
@@ -1956,6 +1987,7 @@ fn search_results_page(page_number: u32) -> SearchResultsPage {
             next_page: Some(page_number + 1),
         },
         rows: vec![atlas_app_model::SearchResultRow {
+            relationship_evidence: vec![],
             record: record_summary(),
             matches: vec![],
         }],

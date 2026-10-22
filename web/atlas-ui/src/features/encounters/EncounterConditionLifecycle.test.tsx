@@ -1,31 +1,60 @@
 import { encounterParticipant } from "./encounterTestFixtures";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider } from "antd";
-import { EncounterConditionLifecycle } from "./EncounterConditionLifecycle";
+import {
+  EncounterConditionRecovery,
+  EncounterTurnRecoveryActions,
+  useConditionRecoveryControls,
+} from "./EncounterConditionLifecycle";
 import type {
   ConditionLifecycleOptionView,
   ConditionRecoveryOfferView,
+  EncounterParticipantView,
 } from "../../generated/atlas";
-const api = vi.hoisted(() => ({
-  getEncounterConditionLifecycleActions: vi.fn(),
-  previewEncounterRetch: vi.fn(),
-}));
+const api = vi.hoisted(() => ({ getEncounterConditionLifecycleActions: vi.fn() }));
 vi.mock("../../api/atlasApi", () => api);
-const participant = encounterParticipant();
+const condition = {
+  condition_id: 1n,
+  name: "Condition",
+  value: 2n,
+  scope: { kind: "everyone" as const },
+  extra_action: { kind: "unspecified" as const },
+  immunity_override: false,
+  parameters: { kind: "none" as const },
+  created_at: "now",
+  updated_at: "now",
+};
 function option(action: ConditionRecoveryOfferView): ConditionLifecycleOptionView {
   return {
     ...action,
-    label: "Projected recovery",
+    condition_ids: [1n],
+    label: "Recovery",
     available: true,
     unavailable_reason: null,
   };
 }
-function setup(action: ConditionLifecycleOptionView, actor = participant) {
+function Rows({ actor }: { actor: EncounterParticipantView }) {
+  const controls = useConditionRecoveryControls();
+  return (
+    <>
+      {[
+        ...actor.conditions,
+        ...(controls.retainedCondition ? [controls.retainedCondition] : []),
+      ].map((source) => (
+        <div key={source.condition_id.toString()} data-testid="condition-row">
+          {source.name}
+          {controls.conditionActions(source.condition_id)}
+        </div>
+      ))}
+      {controls.notice}
+    </>
+  );
+}
+function setup(action: ConditionLifecycleOptionView, removes = false) {
   api.getEncounterConditionLifecycleActions.mockResolvedValue({
-    encounter_key: "encounter",
     encounter_revision: 4n,
-    participant_key: "actor",
     actions: [action],
   });
   const onApply = vi.fn().mockResolvedValue({
@@ -33,212 +62,265 @@ function setup(action: ConditionLifecycleOptionView, actor = participant) {
     request_id: "result",
     check: null,
   });
+  function Harness() {
+    const [actor, setActor] = useState(
+      encounterParticipant({ conditions: [condition] }),
+    );
+    const [revision, setRevision] = useState(4n);
+    return (
+      <EncounterConditionRecovery
+        encounterRef="encounter"
+        revision={revision}
+        participant={actor}
+        disabled={false}
+        onApply={async (request) => {
+          const result = await onApply(request);
+          if (removes) {
+            api.getEncounterConditionLifecycleActions.mockResolvedValue({
+              encounter_revision: 5n,
+              actions: [],
+            });
+            setActor({ ...actor, conditions: [] });
+            setRevision(5n);
+          }
+          return result;
+        }}
+      >
+        <Rows actor={actor} />
+      </EncounterConditionRecovery>
+    );
+  }
   render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <ConfigProvider theme={{ token: { motion: false } }}>
-        <EncounterConditionLifecycle
-          encounterRef="encounter"
-          revision={4n}
-          participant={actor}
-          participants={[actor]}
-          disabled={false}
-          onApply={onApply}
-        />
+        <Harness />
       </ConfigProvider>
     </QueryClientProvider>,
   );
   return onApply;
 }
 async function open() {
-  fireEvent.click(await screen.findByText("Recovery and rest"));
-  fireEvent.click(await screen.findByRole("button", { name: "Projected recovery" }));
-}
-async function choose(label: string, value: string) {
-  fireEvent.mouseDown(await screen.findByRole("combobox", { name: label }));
-  fireEvent.click(
-    await screen.findByText(value, { selector: ".ant-select-item-option-content" }),
+  fireEvent.click(await screen.findByRole("button", { name: "Recover Condition" }));
+  await waitFor(() =>
+    expect(screen.getByRole("dialog", { name: "Recovery" })).toBeVisible(),
   );
 }
-it("renders a projected check and submits its typed table outcome", async () => {
-  const onApply = setup({
-    ...option({ kind: "dying_recovery", check: { dc: 13n, modifier: 0n } }),
-  });
-  await open();
-  fireEvent.click(screen.getByText("Table outcome"));
-  await choose("Check outcome", "Success");
-  fireEvent.click(screen.getByRole("button", { name: "Record" }));
-  await waitFor(() =>
-    expect(onApply).toHaveBeenCalledWith({
-      boundary_key: null,
-      expected_encounter_revision: 4n,
-      participant_key: "actor",
-      action: {
-        kind: "dying_recovery",
-        check: { kind: "table_degree", degree: "success" },
-      },
+it("shows recovery guidance without forms, another clear button, or writes", async () => {
+  const onApply = setup(
+    option({
+      kind: "reminder",
+      condition_id: 1n,
+      text: "Treat Wounds or rest at full HP for 10 minutes.",
     }),
   );
+  await open();
+  const popup = screen.getByRole("dialog", { name: "Recovery" });
+  expect(within(popup).getByText(/Treat Wounds/)).toBeVisible();
+  expect(within(popup).queryByRole("button")).toBeNull();
+  expect(within(popup).queryByRole("spinbutton")).toBeNull();
+  expect(onApply).not.toHaveBeenCalled();
 });
-it("requires a source-specific minimum instead of assuming a frightened floor", async () => {
-  const actor = {
-    ...participant,
-    conditions: [
-      {
-        condition_id: 7n,
-        name: "Alarm effect",
-        scope: { kind: "everyone" as const },
-        extra_action: { kind: "unspecified" as const },
-        immunity_override: false,
-        parameters: {
-          kind: "frightened" as const,
-          recovery: { kind: "source_dependent" as const },
-        },
-        created_at: "now",
-        updated_at: "now",
-      },
-    ],
-  };
+it("uses a direct table outcome for Dying without a result-entry form", async () => {
   const onApply = setup(
-    {
-      ...option({ kind: "frightened_end_turn", decision_source_ids: [7n] }),
-    },
-    actor,
+    option({ kind: "dying_recovery", check: { dc: 12n, modifier: 0n } }),
   );
   await open();
-  await choose("Reduce Alarm effect", "Reduce");
-  fireEvent.click(screen.getByRole("button", { name: "Record" }));
-  expect(await screen.findByText("Enter the source minimum.")).toBeInTheDocument();
-  expect(onApply).not.toHaveBeenCalled();
-  fireEvent.change(
-    screen.getByRole("spinbutton", { name: "Minimum for Alarm effect" }),
-    { target: { value: "2" } },
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Record" }));
+  expect(screen.getByRole("button", { name: "Roll · DC 12" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Success" }));
   await waitFor(() =>
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
         action: {
-          kind: "frightened_end_turn",
-          decisions: [{ condition_id: 7n, reduce: true, minimum: 2n }],
+          kind: "dying_recovery",
+          check: { kind: "table_degree", degree: "success" },
+        },
+      }),
+    ),
+  );
+  expect(screen.queryByRole("combobox")).toBeNull();
+});
+it.each([
+  { dc: null, modifier: 5n },
+  { dc: 20n, modifier: null },
+])("does not ask for missing Retch facts", async (check) => {
+  const onApply = setup(option({ kind: "retch", condition_id: 1n, check, issues: [] }));
+  await open();
+  expect(screen.queryByRole("button", { name: /^Roll ·/ })).toBeNull();
+  expect(screen.queryByRole("spinbutton")).toBeNull();
+  expect(screen.queryByRole("checkbox")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Critical success" }));
+  await waitFor(() =>
+    expect(onApply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: {
+          kind: "retch",
+          condition_id: 1n,
+          check: { kind: "table_degree", degree: "critical_success" },
         },
       }),
     ),
   );
 });
-it("rechecks source-specific action answers and keeps known prohibitions authoritative", async () => {
-  const issue = {
-    source_condition_id: 3n,
-    condition_name: "Source effect",
-    kind: "needs_fact" as const,
-    controller_key: null,
-    subject: null,
-    instructions: null,
-    fact: "manipulate" as const,
-    reason: "Does this use the affected action?",
-  };
-  api.previewEncounterRetch.mockImplementation(async (_ref, request) => ({
-    encounter_key: "encounter",
-    participant_key: "actor",
-    expected_revision: 4n,
-    expected_participant_revision: 1n,
-    disruption: null,
-    considers_target_ally: null,
-    can_flank: true,
-    targeting: null,
-    confusion: null,
-    quickened_use: null,
-    issues: request.judgments.length
-      ? request.judgments[0].value
-        ? [
-            {
-              ...issue,
-              kind: "prohibited",
-              fact: null,
-              reason: "The source prevents this action.",
-            },
-          ]
-        : []
-      : [issue],
-  }));
-  const onApply = setup({
-    ...option({
+it("keeps known Retch as an optional integrated check", async () => {
+  const onApply = setup(
+    option({
       kind: "retch",
-      condition_id: 7n,
-      issues: [issue],
-      check: { dc: 15n, modifier: 4n },
+      condition_id: 1n,
+      check: { dc: 20n, modifier: 5n },
+      issues: [],
     }),
-  });
-  await open();
-  fireEvent.click(screen.getByRole("checkbox", { name: "Actions spent" }));
-  await choose(`${issue.reason} · Source 3`, "Yes");
-  await screen.findByText(/The source prevents this action/);
-  expect(screen.getByRole("button", { name: "Record" })).toBeDisabled();
-  await choose(`${issue.reason} · Source 3`, "No");
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Record" })).toBeEnabled(),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Record" }));
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Roll · DC 20" }));
   await waitFor(() =>
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: expect.objectContaining({
+        action: {
           kind: "retch",
-          judgments: [{ source_condition_id: 3n, fact: "manipulate", value: false }],
-        }),
+          condition_id: 1n,
+          check: { kind: "roll" },
+        },
       }),
     ),
   );
 });
-it("declines a saved optional recovery check without inventing a failed roll", async () => {
-  const onApply = setup({
-    ...option({
+it("shows unresolved restrictions as hints rather than action questions", async () => {
+  setup(
+    option({
+      kind: "retch",
+      condition_id: 1n,
+      check: { dc: 20n, modifier: 5n },
+      issues: [
+        {
+          kind: "needs_fact",
+          source_condition_id: 2n,
+          fact: "relates_to_fascination",
+          reason: "Check whether this relates to the fascination.",
+          subject: null,
+          condition_name: "Fascinated",
+          controller_key: null,
+          instructions: null,
+        },
+      ],
+    }),
+  );
+  await open();
+  expect(
+    screen.getByText("Check whether this relates to the fascination."),
+  ).toBeVisible();
+  expect(screen.queryByRole("combobox")).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Roll ·/ })).toBeNull();
+  expect(screen.getByRole("button", { name: "Success" })).toBeEnabled();
+});
+it("reduces eligible Frightened directly without a minimum questionnaire", async () => {
+  const onApply = setup(option({ kind: "frightened_end_turn" }));
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Reduce by 1" }));
+  await waitFor(() =>
+    expect(onApply).toHaveBeenCalledWith(
+      expect.objectContaining({ action: { kind: "frightened_end_turn" } }),
+    ),
+  );
+  expect(screen.queryByRole("spinbutton")).toBeNull();
+});
+it("uses the server's Stunned loss and retains the row until the result closes", async () => {
+  const onApply = setup(
+    option({ kind: "stunned_actions_lost", condition_id: 1n, actions_lost: 2n }),
+    true,
+  );
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Apply reduction" }));
+  await waitFor(() =>
+    expect(onApply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: { kind: "stunned_actions_lost", condition_id: 1n, actions_lost: 2n },
+      }),
+    ),
+  );
+  await screen.findByText("Saved");
+  expect(screen.getByTestId("condition-row")).toBeVisible();
+  fireEvent.keyDown(screen.getByRole("dialog", { name: "Recovery" }), {
+    key: "Escape",
+  });
+  await waitFor(() => expect(screen.queryByTestId("condition-row")).toBeNull());
+});
+it("uses the damage event's Confused scope without asking for qualifying facts or sources", async () => {
+  const onApply = setup(
+    option({
       kind: "confused_damage_recovery",
-      consequence_key: "damage-opportunity",
-      source_condition_ids: [7n],
-      qualifying_damage: true,
+      consequence_key: "damage",
+      source_condition_ids: [1n, 2n],
+      qualifying_damage: null,
       check: { dc: 11n, modifier: 0n },
     }),
-  });
-  await open();
-  fireEvent.click(screen.getByText("Decline check"));
-  await waitFor(() =>
-    expect(
-      screen.queryByRole("combobox", { name: "Recovery sources" }),
-    ).not.toBeInTheDocument(),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Record" }));
+  await open();
+  expect(screen.getByText(/After damage from an attack or spell/)).toBeVisible();
+  expect(screen.queryByRole("combobox")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Roll · DC 11" }));
   await waitFor(() =>
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
         action: {
           kind: "confused_damage_recovery",
-          consequence_key: "damage-opportunity",
-          condition_ids: [],
-          qualifying_damage: true,
-          check: null,
+          consequence_key: "damage",
+          check: { kind: "roll" },
         },
       }),
     ),
   );
 });
 
-it("records the server's Stunned action-loss forecast without an editable amount", async () => {
-  const onApply = setup({
-    ...option({ kind: "stunned_actions_lost", condition_id: 7n, actions_lost: 2n }),
+it("offers Frightened reduction directly in turn reminders without opening a dice popover", async () => {
+  const action = {
+    ...option({ kind: "frightened_end_turn" }),
+    label: "Reduce Frightened by 1",
+  };
+  api.getEncounterConditionLifecycleActions.mockResolvedValue({
+    encounter_revision: 4n,
+    actions: [action],
   });
-  await open();
-  await waitFor(() => expect(screen.getByText("Actions lost: 2")).toBeVisible());
-  expect(
-    screen.queryByRole("spinbutton", { name: "Actions lost" }),
-  ).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Record" }));
+  const onApply = vi.fn().mockImplementation(async () => {
+    api.getEncounterConditionLifecycleActions.mockResolvedValue({
+      encounter_revision: 5n,
+      actions: [],
+    });
+    return { encounter_key: "encounter", request_id: "reduce", check: null };
+  });
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <EncounterConditionRecovery
+          encounterRef="encounter"
+          boundaryKey="outgoing"
+          revision={4n}
+          participant={encounterParticipant({ conditions: [condition] })}
+          disabled={false}
+          onApply={onApply}
+        >
+          <EncounterTurnRecoveryActions />
+        </EncounterConditionRecovery>
+      </ConfigProvider>
+    </QueryClientProvider>,
+  );
+  const button = await screen.findByRole("button", {
+    name: "Reduce Frightened by 1",
+  });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  fireEvent.click(button);
   await waitFor(() =>
-    expect(onApply).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: { kind: "stunned_actions_lost", condition_id: 7n, actions_lost: 2n },
-      }),
-    ),
+    expect(onApply).toHaveBeenCalledExactlyOnceWith({
+      boundary_key: "outgoing",
+      expected_encounter_revision: 4n,
+      participant_key: "actor",
+      action: { kind: "frightened_end_turn" },
+    }),
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Reduce Frightened by 1" })).toBeNull(),
   );
 });

@@ -5,7 +5,7 @@ fn participant() -> EncounterParticipant {
     EncounterParticipant {
         level_override: None,
         base_death_threshold: 4,
-        persistent_selections: vec![],
+        persistent_precedence: vec![],
         track_dying: false,
         mortality: Default::default(),
         spell_resources: vec![],

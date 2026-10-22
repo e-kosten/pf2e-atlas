@@ -6,6 +6,11 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Trait reference pages](items/trait-reference-pages.md)
+  PR93 delivered exact trait identities, definitions, membership/reference
+  navigation, stored-vector Similar and shared document presentation. Glossary,
+  prose rules destinations and content-rights follow-through remain separate.
+
 - [Contextual filter option counts](items/web-contextual-option-counts.md)
   PR60 delivered shared contextual option counts, self-exclusion, stable picker updates and supported-context behavior. Query-text counts remain a separate deferred task.
 

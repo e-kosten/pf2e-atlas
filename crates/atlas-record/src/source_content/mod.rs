@@ -26,8 +26,8 @@ pub use model::{
     ContentInteractionKind, ContentInterpretationDiagnostic, ContentReferenceKind,
     ContentReferenceLabel, ContentReferenceLookup, ContentReferenceOccurrence,
     ContentReferenceResolution, ContentReferenceResolver, ContentReferenceTarget,
-    ContentVisibilityRule, OwnedContentIdentity, OwnedContentLocator, PreparedSourceContent,
-    PreparedTraitDefinition, ResolvedContentReference, SourceContentLocator,
+    ContentVisibilityRule, PreparedSourceContent, PreparedTraitDefinition,
+    ResolvedContentReference, SourceContentLocator,
 };
 pub use parse_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
 pub use parser::LocalizationResolver;

@@ -486,7 +486,6 @@ pub(super) fn resolve_strike(
             kind: ActionKind::Strike,
             reaction: Some(false),
             other_participant: None,
-            confusion: None,
             facts: &facts,
         },
     );

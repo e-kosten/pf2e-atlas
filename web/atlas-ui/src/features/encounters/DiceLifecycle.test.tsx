@@ -31,6 +31,8 @@ vi.mock("../../api/atlasApi", async (original) => ({
   rollEncounterStrike: vi.fn(),
 }));
 const participant: EncounterParticipantView = {
+  knockout_options: [],
+  effective_max_hp: { state: "value", value: 20, adjustment: null },
   persistent_damage_groups: [],
   track_dying: false,
   mortality: "alive",

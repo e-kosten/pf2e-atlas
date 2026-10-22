@@ -30,6 +30,7 @@ pub(in crate::encounters) fn cannot_act_reason(p: &EncounterParticipant) -> Opti
 #[derive(Debug, Clone, Copy)]
 struct RegainForecast {
     slowed: i64,
+    stunned: i64,
     quickened: bool,
     duration_stun: bool,
     unknown: bool,
@@ -68,6 +69,7 @@ fn regain_forecast(p: &EncounterParticipant) -> RegainForecast {
     let lost_to_slowed = (slowed.min(allotment) - lost_to_stun).max(0);
     RegainForecast {
         slowed,
+        stunned,
         quickened,
         duration_stun,
         unknown,
@@ -78,7 +80,7 @@ fn regain_forecast(p: &EncounterParticipant) -> RegainForecast {
 }
 pub(in crate::encounters) fn numeric_stunned_actions_lost(p: &EncounterParticipant) -> Option<i64> {
     let forecast = regain_forecast(p);
-    if forecast.unknown || forecast.duration_stun {
+    if forecast.unknown {
         None
     } else if p.defeated
         || p.hazard_disabled
@@ -92,6 +94,7 @@ pub(in crate::encounters) fn numeric_stunned_actions_lost(p: &EncounterParticipa
 pub(in crate::encounters) fn action_budget(p: &EncounterParticipant) -> ActionBudgetView {
     let RegainForecast {
         slowed,
+        stunned,
         quickened,
         duration_stun,
         unknown,
@@ -114,48 +117,44 @@ pub(in crate::encounters) fn action_budget(p: &EncounterParticipant) -> ActionBu
     );
     let mut notes = Vec::new();
     if quickened {
-        actions.adjustments.push(adjustment(
-            "quickened",
-            "Quickened",
-            1,
-            "At most one restricted extra action. Choose which actions to lose; any retained extra action keeps its restriction.",
-        ));
+        actions
+            .adjustments
+            .push(adjustment("quickened", "Quickened", 1, None));
     }
     if inactive {
-        actions.adjustments.push(adjustment(
-            "inactive",
-            "Inactive",
-            -allotment,
-            "Reactivate explicitly before participating.",
-        ));
+        actions
+            .adjustments
+            .push(adjustment("inactive", "Inactive", -allotment, None));
     } else {
         if lost_to_stun > 0 {
-            actions.adjustments.push(adjustment(
-                "stunned",
-                "Stunned",
-                -lost_to_stun,
-                if duration_stun {
-                    "Duration Stunned prevents all actions until explicitly removed."
-                } else {
-                    "Forecast only; edit the condition to record recovery."
-                },
-            ));
+            let label = if duration_stun {
+                "Stunned (duration)".into()
+            } else {
+                format!("Stunned {stunned}")
+            };
+            actions
+                .adjustments
+                .push(adjustment("stunned", &label, -lost_to_stun, None));
         }
         if lost_to_slowed > 0 {
+            let overlap = slowed.min(allotment).min(lost_to_stun);
             actions.adjustments.push(adjustment(
                 "slowed",
-                "Slowed",
+                &format!("Slowed {slowed}"),
                 -lost_to_slowed,
-                "Only the loss beyond Stunned applies.",
+                (overlap > 0).then(|| {
+                    format!(
+                        "{overlap} {} already lost to Stunned.",
+                        if overlap == 1 { "action" } else { "actions" }
+                    )
+                }),
             ));
-        }
-        let overlap = slowed.min(allotment).min(lost_to_stun);
-        if overlap > 0 {
+        } else if slowed > 0 && lost_to_stun > 0 {
             actions.suppressed_adjustments.push(adjustment(
                 "slowed",
-                "Overlapping Slowed loss",
-                -overlap,
-                "Already counted in the Stunned loss.",
+                &format!("Slowed {slowed}"),
+                -slowed.min(allotment),
+                Some("Overridden by Stunned".into()),
             ));
         }
     }
@@ -186,6 +185,17 @@ pub(in crate::encounters) fn action_budget(p: &EncounterParticipant) -> ActionBu
         reason: reason.map(str::to_owned),
     };
     ActionBudgetView {
+        extra_action_unavailable_reason: if !quickened {
+            None
+        } else if inactive {
+            Some("Unavailable".into())
+        } else if lost_to_stun > 0 {
+            Some("Lost to Stunned".into())
+        } else if lost_to_slowed > 0 {
+            Some("Lost to Slowed".into())
+        } else {
+            None
+        },
         quickened_sources: p
             .conditions
             .iter()
@@ -212,12 +222,17 @@ fn count(label: &str, base_value: i64, adjusted_value: Option<i64>) -> RuntimeCo
         suppressed_adjustments: vec![],
     }
 }
-fn adjustment(source: &str, label: &str, value: i64, reason: &str) -> RuntimeAdjustmentView {
+fn adjustment(
+    source: &str,
+    label: &str,
+    value: i64,
+    reason: Option<String>,
+) -> RuntimeAdjustmentView {
     RuntimeAdjustmentView {
         source: source.into(),
         label: label.into(),
         value,
-        reason: Some(reason.into()),
+        reason,
     }
 }
 fn note(source: &str, label: &str, reason: &str) -> RuntimeEffectNoteView {
@@ -241,7 +256,7 @@ mod tests {
         EncounterParticipant {
             level_override: None,
             base_death_threshold: 4,
-            persistent_selections: vec![],
+            persistent_precedence: vec![],
             track_dying: false,
             mortality: Default::default(),
             spell_resources: vec![],
@@ -293,6 +308,41 @@ mod tests {
         }
     }
     #[test]
+    fn extra_action_status_follows_the_known_action_loss() {
+        let mut p = participant();
+        p.conditions = vec![condition("Quickened", None)];
+        assert_eq!(action_budget(&p).extra_action_unavailable_reason, None);
+        p.conditions.push(condition("Slowed", Some(1)));
+        let budget = action_budget(&p);
+        assert_eq!(
+            budget.extra_action_unavailable_reason.as_deref(),
+            Some("Lost to Slowed")
+        );
+        assert_eq!(budget.actions.adjusted_value, Some(3));
+        assert!(
+            budget
+                .actions
+                .adjustments
+                .iter()
+                .all(|row| row.reason.is_none())
+        );
+        p.conditions.push(condition("Stunned", Some(2)));
+        let budget = action_budget(&p);
+        assert_eq!(
+            budget.extra_action_unavailable_reason.as_deref(),
+            Some("Lost to Stunned")
+        );
+        assert_eq!(budget.actions.adjusted_value, Some(2));
+        assert_eq!(budget.actions.adjustments.len(), 2);
+        assert_eq!(budget.actions.suppressed_adjustments.len(), 1);
+        assert_eq!(budget.actions.suppressed_adjustments[0].label, "Slowed 1");
+        assert_eq!(
+            budget.actions.suppressed_adjustments[0].reason.as_deref(),
+            Some("Overridden by Stunned")
+        );
+    }
+
+    #[test]
     fn complete_allotment_and_overlap_are_forecast_without_consuming_conditions() {
         let mut p = participant();
         p.conditions = vec![condition("Quickened", None), condition("Slowed", Some(4))];
@@ -317,7 +367,19 @@ mod tests {
                     .sum::<i64>(),
                 -2
             );
-            assert_eq!(budget.actions.suppressed_adjustments[0].value, -1);
+            assert!(budget.actions.suppressed_adjustments.is_empty());
+            let slowed = budget
+                .actions
+                .adjustments
+                .iter()
+                .find(|row| row.source == "slowed")
+                .unwrap();
+            assert_eq!(slowed.label, "Slowed 2");
+            assert_eq!(slowed.value, -1);
+            assert_eq!(
+                slowed.reason.as_deref(),
+                Some("1 action already lost to Stunned.")
+            );
         }
         assert_eq!(p, before);
     }
@@ -481,7 +543,6 @@ mod tests {
             },
         ];
         let context = ActionContext {
-            confusion: None,
             kind: ActionKind::Cast,
             reaction: Some(false),
             other_participant: None,
@@ -506,7 +567,6 @@ mod tests {
         let mut p = participant();
         p.conditions = vec![condition("Paralyzed", None)];
         let context = ActionContext {
-            confusion: None,
             kind: ActionKind::Cast,
             reaction: Some(false),
             other_participant: None,
@@ -525,7 +585,6 @@ mod tests {
             value: true,
         }];
         let allowed = ActionContext {
-            confusion: None,
             facts: &facts,
             ..context
         };
@@ -558,7 +617,6 @@ mod tests {
             },
         ];
         let context = ActionContext {
-            confusion: None,
             kind: ActionKind::Retch,
             reaction: Some(false),
             other_participant: None,

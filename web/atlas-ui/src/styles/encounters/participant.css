@@ -76,9 +76,9 @@
   gap: 8px;
 }
 
-.encounter-hp-panel__identity > span {
+.encounter-hp-panel__values {
   color: var(--text);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -177,9 +177,8 @@
 }
 .encounter-life-settings__fields {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) auto;
-  align-items: end;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 160px;
 }
 
 .encounter-reference__name {
@@ -194,4 +193,43 @@
 }
 .encounter-reference__name > button {
   flex-shrink: 0;
+}
+
+.encounter-hp-panel__values {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.encounter-hp-value,
+.encounter-hp-maximum .record-number {
+  font: inherit;
+  padding-inline: 2px;
+}
+.encounter-hp-maximum {
+  display: inline-flex;
+  align-items: center;
+}
+.encounter-hp-value__input {
+  text-align: center;
+  width: 7ch;
+}
+.encounter-knockout {
+  width: min(300px, calc(100vw - 48px));
+  display: grid;
+  gap: 12px;
+}
+.encounter-knockout__initiative {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.encounter-condition-change {
+  width: min(300px, calc(100vw - 48px));
+  display: grid;
+  gap: 12px;
+}
+
+.encounter-life-settings__status {
+  justify-self: start;
 }

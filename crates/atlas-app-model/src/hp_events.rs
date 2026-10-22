@@ -33,6 +33,7 @@ pub struct ResolveEncounterHpLifecycleRequest {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PendingHpLifecycleView {
+    pub knockout_options: Vec<KnockoutOptionView>,
     pub required_facts: Vec<HpLifecycleRequiredFactView>,
     pub initiative_only: bool,
     pub consequence_key: String,
@@ -57,4 +58,11 @@ pub enum HpLifecycleResolutionView {
     #[default]
     Apply,
     KeepCurrentState,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct KnockoutOptionView {
+    pub label: String,
+    pub result: String,
+    pub context: HpEventContextView,
 }

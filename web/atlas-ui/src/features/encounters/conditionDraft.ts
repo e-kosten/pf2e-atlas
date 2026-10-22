@@ -47,7 +47,6 @@ export type ConditionFormValues = {
   persistentRecoveryDc?: number | null;
   sickenedRecoveryDc?: number | null;
   wakingRule?: "normal" | "source_controlled";
-  attitudeSupernatural?: boolean;
   conditionSubject?: string;
   conditionSubjectDescription?: string;
   frightenedRecovery?: "end_turn" | "held" | "source_dependent";
@@ -178,10 +177,7 @@ export function conditionDraft(
       parameters = { kind: "fleeing", subject };
       break;
     case "attitude":
-      parameters = {
-        kind: "attitude",
-        supernatural: values.attitudeSupernatural ?? false,
-      };
+      parameters = { kind: "attitude" };
       break;
     case "frightened":
       parameters = {

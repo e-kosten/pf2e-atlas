@@ -4,8 +4,11 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 ## Current ADRs
 
-- [`0055-encounter-condition-evaluation.md`](./0055-encounter-condition-evaluation.md): one typed condition owner, independent sources, atomic consequences and read-only spell/strike context.
+- [`0057-relationship-scoped-search.md`](./0057-relationship-scoped-search.md): first-class Boolean reference predicates across web/CLI, checked source admission, distinct-root pages, clause-addressed positive proof evidence and human-named criteria.
+
 - [`0056-trait-reference-entities.md`](./0056-trait-reference-entities.md): typed trait identities, pinned source definitions, exact membership/reference evidence and stored-vector Similar into normal records.
+
+- [`0055-encounter-condition-evaluation.md`](./0055-encounter-condition-evaluation.md): one typed condition owner, independent sources, atomic consequences and read-only spell/strike context.
 
 - [`0054-derived-tag-deferral.md`](./0054-derived-tag-deferral.md): derived-tag development is deferred pending demonstrated retrieval gaps; existing file validation remains, with history and future design preserved as research.
 

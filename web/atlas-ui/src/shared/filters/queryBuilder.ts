@@ -10,6 +10,7 @@ import type {
 } from "../../generated/atlas";
 // A structural builder condition, never a backend catalog field.
 export const BOOLEAN_CONDITION = "atlas:boolean-constant";
+export const LINK_CONDITION = "atlas:record-link";
 type PredicateGroup = RuleGroupType & {
   atlasSinglePredicate?: boolean;
   atlasNotClauseId?: string;
@@ -281,6 +282,18 @@ export function builderPredicate(
           ? { kind: "not", clause_id: rule.meta.atlasNotClauseId, predicate }
           : predicate,
       );
+    if (node.field === LINK_CONDITION) {
+      if (scope !== null)
+        throw new Error("Link conditions belong outside collection conditions.");
+      if (!node.value?.selection || !["incoming", "outgoing"].includes(node.operator))
+        throw new Error("Choose a record for this link condition");
+      append({
+        kind: "relationship",
+        clause_id: node.id || crypto.randomUUID(),
+        relationship: { ...node.value, direction: node.operator },
+      });
+      continue;
+    }
     if (node.field === BOOLEAN_CONDITION) {
       if (
         node.operator !== "constant" ||
@@ -449,6 +462,13 @@ function predicateNode(
     predicate.kind === "not"
   )
     return predicateBuilder(predicate, fields, scope);
+  if (predicate.kind === "relationship")
+    return {
+      id: predicate.clause_id,
+      field: LINK_CONDITION,
+      operator: predicate.relationship.direction,
+      value: predicate.relationship,
+    };
   if (predicate.kind === "boolean_constant")
     return {
       id: predicate.clause_id,

@@ -2,4 +2,8 @@
 import type { EncounterActionIssueView } from "./EncounterActionIssueView";
 import type { LifecycleCheckFactsView } from "./LifecycleCheckFactsView";
 
-export type ConditionLifecycleOptionView = { label: string, available: boolean, unavailable_reason: string | null, } & ({ "kind": "dying_recovery", check: LifecycleCheckFactsView, } | { "kind": "retch", condition_id: bigint, check: LifecycleCheckFactsView, issues: Array<EncounterActionIssueView>, } | { "kind": "frightened_end_turn", decision_source_ids: Array<bigint>, } | { "kind": "treat_wounds" } | { "kind": "full_hp_rest" } | { "kind": "overnight_rest" } | { "kind": "stunned_actions_lost", condition_id: bigint, actions_lost: bigint | null, } | { "kind": "stable_recovery" } | { "kind": "wake" } | { "kind": "wake_from_noise", check: LifecycleCheckFactsView, } | { "kind": "confused_damage_recovery", consequence_key: string, source_condition_ids: Array<bigint>, qualifying_damage: boolean | null, check: LifecycleCheckFactsView, } | { "kind": "resolve_broken", consequence_key: string, });
+export type ConditionLifecycleOptionView = {
+/**
+ * Saved sources whose row can expose this recovery action.
+ */
+condition_ids: Array<bigint>, label: string, available: boolean, unavailable_reason: string | null, } & ({ "kind": "dying_recovery", check: LifecycleCheckFactsView, } | { "kind": "retch", condition_id: bigint, check: LifecycleCheckFactsView, issues: Array<EncounterActionIssueView>, } | { "kind": "frightened_end_turn" } | { "kind": "reminder", condition_id: bigint, text: string, } | { "kind": "stunned_actions_lost", condition_id: bigint, actions_lost: bigint | null, } | { "kind": "confused_damage_recovery", consequence_key: string, source_condition_ids: Array<bigint>, qualifying_damage: boolean | null, check: LifecycleCheckFactsView, });

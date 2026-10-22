@@ -96,7 +96,10 @@ preserves integers and finite real numbers without silently narrowing integers
 to f64 or coercing quoted numeric strings. Unsupported representations produce
 explicit invalid query facts while the checked source remains retained.
 
-`atlas-domain::QueryPredicate` is the shared Boolean/field/set/Exists vocabulary.
+`atlas-domain::QueryPredicate` is the shared Boolean/field/set/Exists/reference
+vocabulary. Relationship leaves apply to candidate roots and are rejected inside
+authored Exists scopes. Neutral owner-address primitives live in atlas-domain;
+source selection policy remains atlas-record-owned.
 Index validates fields, applicability, operators, literals and bounded complexity
 against its catalog, then compiles parameterized SQL. Only true roots match;
 unknown remains unknown under NOT. Exists uses one child witness for its complete
@@ -180,6 +183,23 @@ or blocked targets. Hidden content contributes no product edge. Macro targets do
 not become product graph neighbors or interactive tooling links. Authored labels
 may still display as plain text. Only verified aliases affect strict name lookup.
 
+Relationship predicates read these same occurrences directly and compose with
+ordinary predicates through the shared AND/OR/NOT compiler. Exact destination owner
+paths remain distinct from source subtree scope; descendants never include siblings.
+No separate relationship eligibility array, stored model or capped neighbor projection
+is used. Shared retrieval admission validates all targets/owners/fingerprints even
+under negation; missing targets are input errors. This model change does not change
+the stored occurrence schema or require artifact re-preparation.
+
+Full result pages count distinct eligible roots before paging and hydrate bounded
+positive proof evidence separately. Proof attribution reuses compiled SQL truth;
+negative absence and unsuccessful Boolean branches do not fabricate evidence.
+Clause IDs associate occurrence pages with exact predicate leaves. Preview truncation
+is not an eligibility or root-count limit. Contextual facets, values and statistics
+retain the entire expression and optional saved-list keys, applying existing
+self-exclusion and unsupported-context availability rules. Count-free vocabulary
+remains independent. See [ADR0057](./decisions/0057-relationship-scoped-search.md).
+
 ## Lexical and semantic policy
 
 FTS uses `unicode61 remove_diacritics 2` with separate identity, alias, structured
@@ -232,6 +252,26 @@ Semantic candidate windows are bounded and reported as such. Similar uses the
 stored root identity seed and semantic candidates, excluding the seed. No invented
 trait/graph reranking weights apply. App search pages expose the same bounded
 Similar request and body-free seed summary; they do not extend the stored schema.
+
+Attribute ordering uses the existing root name, level/rank and per-item-price
+projections. Index shares one comparison contract between complete browse SQL
+and ordering an accepted candidate-key set. Keys are bound as data, without a
+browse-page cap or independently ordered chunks. Known values precede unavailable
+states in both directions for every ordered rule. Equal or mutually unavailable
+values proceed to the next rule; final ties use normalized name ascending then
+canonical key ascending. Each rule reverses only its value comparison.
+Spell rank retains the catalog's level/rank dispatch, and price comparison uses
+native stored copper without another currency conversion. Typed batch reads of
+visible-root prices support transient labels; these labels are not stored facts.
+Random order uses SHA-256 over the ASCII domain
+`pf2e-atlas/result-order/random/v1` followed by a zero byte, the u32 seed in
+big-endian order, the canonical key's UTF-8 byte length as a big-endian u64, and
+the key bytes. Digest bytes compare ascending, with canonical-key ties. This
+query-time order needs no stored random column or artifact change. Browse reads
+all eligible keys body-free before Random ordering and page hydration; ranked
+search orders the unchanged complete accepted set. No cap, chunk-local order,
+per-page randomization or unspecified runtime hash participates.
+Ordering does not require new schema, source preparation or embedding work.
 
 The full serialized `SourceArtifactBuildContext` SHA-256 identifies the active reference
 generation for search pages, detail envelopes and Related availability. It covers

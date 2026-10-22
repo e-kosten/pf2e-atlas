@@ -21,7 +21,7 @@ pub(crate) enum ListsCommand {
     Ls(ListLsOptions),
     #[command(about = "Show one saved list")]
     Show(ListShowOptions),
-    #[command(about = "Add a resolvable record to a saved list")]
+    #[command(about = "Add records to a saved list")]
     Add(ListAddOptions),
     #[command(about = "Export a saved list as a portable JSON document")]
     Export(ListExportOptions),
@@ -72,11 +72,21 @@ pub(crate) struct ListLsOptions {
 
 #[derive(Debug, Args)]
 pub(crate) struct ListShowOptions {
+    #[arg(
+        long,
+        help = "Temporary order: saved_order, random or repeated attribute tokens"
+    )]
+    pub(crate) sort: Vec<String>,
+    #[arg(
+        long,
+        help = "Random order seed (requires only --sort random); generated when omitted"
+    )]
+    pub(crate) seed: Option<u32>,
     #[arg(help = "Saved-list id", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_slugs))]
     pub(crate) slug: String,
     #[arg(long, help = "Emit only saved-list record keys")]
     pub(crate) keys_only: bool,
-    #[arg(long, help = "Omit hydrated record payloads from item output")]
+    #[arg(long, help = "Omit record payloads from JSON item output")]
     pub(crate) no_records: bool,
     #[command(flatten)]
     pub(crate) paths: ListsPathOptions,
@@ -99,7 +109,7 @@ pub(crate) struct ListAddOptions {
     pub(crate) records: Vec<String>,
     #[arg(long, help = "Read record refs from stdin, one per line")]
     pub(crate) stdin: bool,
-    #[arg(long, help = "Optional note for this saved-list item")]
+    #[arg(long, help = "Apply this note to each added record")]
     pub(crate) note: Option<String>,
     #[command(flatten)]
     pub(crate) paths: ListsPathOptions,
@@ -182,7 +192,7 @@ pub(crate) struct ListDeleteOptions {
 pub(crate) struct ListsPathOptions {
     #[arg(
         long,
-        help = "Override the SQLite artifact path; local state resolves beside it"
+        help = "Override the SQLite workspace containing reference data and saved lists"
     )]
     pub(crate) index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
@@ -191,7 +201,7 @@ pub(crate) struct ListsPathOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas lists note fey-options bestiary:RECORD_ID --text \"An ally for the garden encounter\"\n  atlas lists note fey-options bestiary:RECORD_ID --clear"
+    after_help = "Examples:\n  atlas lists note fey-options pathfinder-monster-core:lUBkzsSqMfQBczU1 --text \"An ally for the garden encounter\"\n  atlas lists note fey-options pathfinder-monster-core:lUBkzsSqMfQBczU1 --clear"
 )]
 pub(crate) struct ListNoteOptions {
     #[arg(help = "Saved-list id", add = clap_complete::ArgValueCompleter::new(crate::commands::completions::list_slugs))]

@@ -19,6 +19,7 @@ struct Prepared {
     reference_revision: Option<u64>,
     consequences: ConditionConsequences,
     prone_prevented: Option<(String, String)>,
+    persistent_precedence: Option<PersistentDamagePrecedenceView>,
 }
 impl AtlasAppService {
     pub fn set_encounter_life_settings(
@@ -44,9 +45,36 @@ impl AtlasAppService {
                 "hazards do not track dying",
             ));
         }
-        let mut update = atlas_local_state::ParticipantEventChange::preserving(participant);
+        let mut reference_revision = None;
+        let mut changes = if let Some(context) = request.knockout_context.clone() {
+            if !request.track_dying || participant.current_hp != Some(0) {
+                return Err(AppServiceError::invalid_request(
+                    "Knockout requires 0 HP and dying tracking",
+                ));
+            }
+            let subject = workflow::condition_subject_context(self, participant)?;
+            reference_revision = subject.reference_revision;
+            workflow::validate_condition_subject(
+                &subject,
+                Some(ConditionRule::Dying.definition().record_key),
+                false,
+            )?;
+            super::rules::hp_events::plan_knockout(
+                participant,
+                &super::hp_events::hp_context_for_subject(context, &subject),
+                &request.request_id,
+            )?
+        } else {
+            atlas_local_state::PreparedConditionEvent::default()
+        };
+        let mut update = changes
+            .participant_changes
+            .pop()
+            .unwrap_or_else(|| atlas_local_state::ParticipantEventChange::preserving(participant));
         update.track_dying = request.track_dying;
-        if let Some(mortality) = request.mortality {
+        if request.knockout_context.is_none()
+            && let Some(mortality) = request.mortality
+        {
             update.mortality = match mortality {
                 MortalityStateView::Alive => atlas_local_state::MortalityState::Alive,
                 MortalityStateView::Dead => atlas_local_state::MortalityState::Dead,
@@ -71,21 +99,42 @@ impl AtlasAppService {
             update.base_death_threshold = threshold;
         }
 
+        if request.knockout_context.is_some()
+            || request.mortality.is_some()
+            || request.track_dying != participant.track_dying
+        {
+            changes.resolved_pending_keys.extend(
+                self.with_state(|session| {
+                    Ok(session
+                        .local_state()
+                        .encounters()
+                        .pending_condition_consequences(&snapshot.encounter.encounter_key)?)
+                })?
+                .into_iter()
+                .filter_map(|pending| match pending.consequence {
+                    PendingConsequence::HpLifecycle {
+                        participant_key: key,
+                        ..
+                    }
+                    | PendingConsequence::InitiativePlacement {
+                        participant_key: key,
+                        ..
+                    } if key == participant_key => Some(pending.consequence_key),
+                    _ => None,
+                }),
+            );
+        }
+        changes.participant_changes.push(update);
+
         EncounterEvent {
             encounter_key: &snapshot.encounter.encounter_key,
             request_id: &request.request_id,
             intent: &intent,
             expected_revision: request.expected_encounter_revision,
-            reference_revision: None,
+            reference_revision,
             participant_revision: None,
         }
-        .commit(
-            self,
-            atlas_local_state::PreparedConditionEvent {
-                participant_changes: vec![update],
-                ..Default::default()
-            },
-        )
+        .commit(self, changes)
         .map(mutation)
     }
     pub(super) fn commit_condition_add(
@@ -177,6 +226,7 @@ impl AtlasAppService {
                 reference_revision: None,
                 consequences,
                 prone_prevented: None,
+                persistent_precedence: None,
             },
         )
     }
@@ -200,6 +250,7 @@ impl AtlasAppService {
                         participant_key,
                         magnitude_increase,
                     } => Some(PendingConditionConsequenceView {
+                        condition_ref: ConditionRule::Drained.definition().record_key.into(),
                         consequence_key: pending.consequence_key,
                         participant_key,
                         magnitude_increase,
@@ -218,54 +269,9 @@ impl AtlasAppService {
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
             return Ok(mutation(receipt));
         }
-        let snapshot = snapshot(self, encounter_ref, request.expected_encounter_revision)?;
-        let pending = self
-            .with_state(|session| {
-                Ok(session
-                    .local_state()
-                    .encounters()
-                    .pending_condition_consequences(&snapshot.encounter.encounter_key)?)
-            })?
-            .into_iter()
-            .find(|p| p.consequence_key == request.consequence_key)
-            .ok_or_else(|| {
-                AppServiceError::invalid_request("pending consequence no longer exists")
-            })?;
-        let PendingConsequence::DrainedHpLoss {
-            participant_key,
-            magnitude_increase,
-        } = pending.consequence
-        else {
-            return Err(AppServiceError::invalid_request(
-                "selected consequence is not Drained HP loss",
-            ));
-        };
-        let participant = snapshot
-            .participants
-            .iter()
-            .find(|p| p.participant_key == participant_key)
-            .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?;
-        let amount = super::rules::condition_hp_loss(
-            ConditionRule::Drained,
-            magnitude_increase,
-            Some(request.level),
-        )
-        .ok_or_else(|| {
-            AppServiceError::invalid_request("Drained HP loss exceeds the supported range")
-        })?;
-        let mut changes = super::rules::hp_events::plan_hp_event(
-            participant,
-            &HpEventInput::DirectLoss { amount },
-            &Default::default(),
-            None,
-            &request.request_id,
-        )?;
-        if let Some(update) = changes.participant_changes.first_mut() {
-            update.level_override = Some(request.level);
-        }
-        changes.resolved_pending_keys.push(request.consequence_key);
+        let (encounter_key, changes, _) = prepare_drained(self, encounter_ref, &request)?;
         EncounterEvent {
-            encounter_key: &snapshot.encounter.encounter_key,
+            encounter_key: &encounter_key,
             request_id: &request.request_id,
             intent: &intent,
             expected_revision: request.expected_encounter_revision,
@@ -275,7 +281,98 @@ impl AtlasAppService {
         .commit(self, changes)
         .map(mutation)
     }
+    pub fn preview_encounter_drained_consequence(
+        &self,
+        encounter_ref: &str,
+        request: ResolveDrainedConsequenceRequest,
+    ) -> AppServiceResult<ConditionHpChangeView> {
+        prepare_drained(self, encounter_ref, &request).map(|(_, _, preview)| preview)
+    }
 }
+fn prepare_drained(
+    service: &AtlasAppService,
+    encounter_ref: &str,
+    request: &ResolveDrainedConsequenceRequest,
+) -> AppServiceResult<(
+    String,
+    atlas_local_state::PreparedConditionEvent,
+    ConditionHpChangeView,
+)> {
+    if !(-9_007_199_254_740_991..=9_007_199_254_740_991).contains(&request.level) {
+        return Err(AppServiceError::invalid_request(
+            "Level must be a safe integer",
+        ));
+    }
+    let snapshot = snapshot(service, encounter_ref, request.expected_encounter_revision)?;
+    let pending = service
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .pending_condition_consequences(&snapshot.encounter.encounter_key)?)
+        })?
+        .into_iter()
+        .find(|p| p.consequence_key == request.consequence_key)
+        .ok_or_else(|| AppServiceError::invalid_request("pending consequence no longer exists"))?;
+    let PendingConsequence::DrainedHpLoss {
+        participant_key,
+        magnitude_increase,
+    } = pending.consequence
+    else {
+        return Err(AppServiceError::invalid_request(
+            "selected consequence is not Drained HP loss",
+        ));
+    };
+    let participant = snapshot
+        .participants
+        .iter()
+        .find(|p| p.participant_key == participant_key)
+        .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?;
+    let amount = super::rules::condition_hp_loss(
+        ConditionRule::Drained,
+        magnitude_increase,
+        Some(request.level),
+    )
+    .ok_or_else(|| {
+        AppServiceError::invalid_request("Drained HP loss exceeds the supported range")
+    })?;
+    let mut changes = if request.apply_hp_loss {
+        super::rules::hp_events::plan_hp_event(
+            participant,
+            &HpEventInput::DirectLoss { amount },
+            &Default::default(),
+            None,
+            &request.request_id,
+        )?
+    } else {
+        atlas_local_state::PreparedConditionEvent {
+            participant_changes: vec![atlas_local_state::ParticipantEventChange::preserving(
+                participant,
+            )],
+            ..Default::default()
+        }
+    };
+    if let Some(update) = changes.participant_changes.first_mut() {
+        update.level_override = Some(request.level);
+    }
+    changes
+        .resolved_pending_keys
+        .push(request.consequence_key.clone());
+
+    let mut after = participant.clone();
+    after.level_override = Some(request.level);
+    let preview = ConditionHpChangeView {
+        current_before: participant.current_hp,
+        current_after: changes
+            .participant_changes
+            .first()
+            .and_then(|change| change.current_hp),
+        maximum_before: super::rules::effective_hp_maximum(participant, participant.level_override),
+        maximum_after: super::rules::effective_hp_maximum(&after, Some(request.level)),
+    };
+    Ok((snapshot.encounter.encounter_key, changes, preview))
+}
+
 fn commit(
     service: &AtlasAppService,
     prepared: Prepared,
@@ -324,6 +421,8 @@ fn preview(prepared: Prepared) -> ConditionEventPreviewView {
         }
     }));
     ConditionEventPreviewView {
+        persistent_precedence: prepared.persistent_precedence,
+        hp_change: prepared.consequences.hp_change,
         encounter_key: prepared.encounter_key,
         encounter_revision: prepared.expected_revision,
         consequences,
@@ -391,15 +490,23 @@ fn prepare_add(
         note: request.note,
     };
     let prone_prevented = prone_exception(&subject, request.decisions.keep_upright);
-    let consequences = plan_condition_change(
+    let change = ConditionEventChange::Add(input);
+    let (persistent_precedence, selection) = super::rules::persistent_damage::prepare_precedence(
         &subject.participant,
-        ConditionEventChange::Add(input),
+        &change,
+        request.decisions.persistent_precedence.as_deref(),
+    )?;
+    let mut consequences = plan_condition_change(
+        &subject.participant,
+        change,
         request.event_intent == ConditionEventIntentView::Apply,
         prone_prevented.is_some(),
         subject.level,
         &request.request_id,
     )?;
+    consequences.changes.precedence_changes.extend(selection);
     Ok(Prepared {
+        persistent_precedence,
         encounter_key: snapshot.encounter.encounter_key,
         request_id: request.request_id,
         intent,
@@ -512,15 +619,23 @@ fn prepare_update(
         note: request.note,
     };
     let prone_prevented = prone_exception(&subject, request.decisions.keep_upright);
-    let consequences = plan_condition_change(
+    let change = ConditionEventChange::Replace(input);
+    let (persistent_precedence, selection) = super::rules::persistent_damage::prepare_precedence(
         &subject.participant,
-        ConditionEventChange::Replace(input),
+        &change,
+        request.decisions.persistent_precedence.as_deref(),
+    )?;
+    let mut consequences = plan_condition_change(
+        &subject.participant,
+        change,
         request.event_intent == ConditionEventIntentView::Apply,
         prone_prevented.is_some(),
         subject.level,
         &request.request_id,
     )?;
+    consequences.changes.precedence_changes.extend(selection);
     Ok(Prepared {
+        persistent_precedence,
         encounter_key: snapshot.encounter.encounter_key,
         request_id: request.request_id,
         intent,
@@ -623,26 +738,14 @@ fn parameters_input(
                 | ConditionRule::Hostile
         )
     ) {
-        let supernatural = match input {
-            ConditionParametersInputView::Attitude { supernatural } => supernatural,
-            ConditionParametersInputView::None => false,
-            _ => {
-                return Err(AppServiceError::invalid_request(
-                    "These parameters do not apply to an attitude condition",
-                ));
+        return match input {
+            ConditionParametersInputView::Attitude | ConditionParametersInputView::None => {
+                Ok(ConditionParameters::Attitude)
             }
+            _ => Err(AppServiceError::invalid_request(
+                "These parameters do not apply to an attitude condition",
+            )),
         };
-        let participant = snapshot
-            .participants
-            .iter()
-            .find(|participant| participant.participant_key == participant_key)
-            .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?;
-        if participant.participant_kind == atlas_local_state::ParticipantKind::Pc && !supernatural {
-            return Err(AppServiceError::invalid_request(
-                "Confirm that a supernatural effect imposes this attitude on the PC",
-            ));
-        }
-        return Ok(ConditionParameters::Attitude { supernatural });
     }
     match (rule, input) {
         (Some(ConditionRule::Fleeing), ConditionParametersInputView::None) => {
@@ -939,7 +1042,6 @@ fn custom_condition_subject(
         facts: Default::default(),
         reference_revision: None,
         fortitude: None,
-        perception: None,
     })
 }
 
@@ -1061,6 +1163,7 @@ mod lifecycle_event_tests {
             .unwrap();
         assert_eq!(pending.len(), 1);
         let request = ResolveDrainedConsequenceRequest {
+            apply_hp_loss: true,
             request_id: "resolve-drained".into(),
             expected_encounter_revision: worker.encounter(&key).unwrap().revision,
             consequence_key: pending[0].consequence_key.clone(),
@@ -1194,6 +1297,7 @@ mod lifecycle_event_tests {
                 &key,
                 &participant,
                 SetEncounterLifeSettingsRequest {
+                    knockout_context: None,
                     mortality: None,
                     request_id: "level".into(),
                     expected_encounter_revision: worker.encounter(&key).unwrap().revision,
@@ -1265,58 +1369,36 @@ mod lifecycle_event_tests {
         }
     }
     #[test]
-    fn pc_attitude_requires_explicit_supernatural_fact_and_does_not_reuse_immunity_override() {
+    fn pc_attitude_can_be_recorded_without_source_confirmation() {
         let (worker, key, participant) = fixture();
         let definition =
             super::super::conditions::modeled_condition_by_rule(ConditionRule::Helpful).unwrap();
-        let request =
-            |id: &str, parameters, immunity_override| AddEncounterParticipantConditionRequest {
-                request_id: id.into(),
-                expected_encounter_revision: worker.encounter(&key).unwrap().revision,
-                event_intent: ConditionEventIntentView::Apply,
-                decisions: Default::default(),
-                participant_key: participant.clone(),
-                condition_ref: Some(definition.condition_ref.into()),
-                name: None,
-                value: None,
-                source_participant_key: None,
-                scope: Default::default(),
-                extra_action: Default::default(),
-                immunity_override,
-                parameters,
-                origin: None,
-                duration: None,
-                note: None,
-            };
-        assert!(
-            worker
-                .add_encounter_participant_condition(
-                    &key,
-                    request("ordinary", Default::default(), false)
-                )
-                .is_err()
-        );
-        assert!(
-            worker
-                .add_encounter_participant_condition(
-                    &key,
-                    request("wrong-override", Default::default(), true)
-                )
-                .is_err()
-        );
         worker
             .add_encounter_participant_condition(
                 &key,
-                request(
-                    "supernatural",
-                    ConditionParametersInputView::Attitude { supernatural: true },
-                    false,
-                ),
+                AddEncounterParticipantConditionRequest {
+                    request_id: "pc-attitude".into(),
+                    expected_encounter_revision: worker.encounter(&key).unwrap().revision,
+                    event_intent: ConditionEventIntentView::Apply,
+                    decisions: Default::default(),
+                    participant_key: participant,
+                    condition_ref: Some(definition.condition_ref.into()),
+                    name: None,
+                    value: None,
+                    source_participant_key: None,
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    parameters: Default::default(),
+                    origin: None,
+                    duration: None,
+                    note: None,
+                },
             )
             .unwrap();
         assert_eq!(
             worker.encounter(&key).unwrap().participants[0].conditions[0].parameters,
-            ConditionParametersView::Attitude { supernatural: true }
+            ConditionParametersView::Attitude
         );
     }
     #[test]
@@ -1520,5 +1602,224 @@ mod lifecycle_event_tests {
             }
         );
         assert_eq!(source.source_participant_key, Some(origin));
+    }
+    #[test]
+    fn manual_hp_projection_preview_and_healing_use_the_same_drained_maximum() {
+        let (worker, key, participant) = fixture();
+        let mut settings = SetEncounterLifeSettingsRequest {
+            request_id: "level".into(),
+            expected_encounter_revision: worker.encounter(&key).unwrap().revision,
+            track_dying: true,
+            mortality: None,
+            level_override: Some(LevelOverrideInputView { value: Some(3) }),
+            base_death_threshold: None,
+            knockout_context: None,
+        };
+        worker
+            .set_encounter_life_settings(&key, &participant, settings.clone())
+            .unwrap();
+        add(
+            &worker,
+            &key,
+            &participant,
+            ConditionRule::Drained,
+            "drain",
+            Some(2),
+            ConditionEventIntentView::Apply,
+        );
+        let detail = worker.encounter(&key).unwrap();
+        let actor = &detail.participants[0];
+        assert_eq!(actor.max_hp, Some(10));
+        assert_eq!(actor.current_hp, Some(4));
+        assert_eq!(
+            actor
+                .effective_max_hp
+                .value
+                .as_ref()
+                .and_then(serde_json::Number::as_i64),
+            Some(4)
+        );
+        let adjustment = actor.effective_max_hp.adjustment.as_ref().unwrap();
+        assert_eq!(adjustment.authored.as_i64(), Some(10));
+        assert_eq!(adjustment.applied[0].value, -6);
+        settings.request_id = "lower-drained-level".into();
+        settings.expected_encounter_revision = detail.revision;
+        settings.level_override = Some(LevelOverrideInputView { value: Some(1) });
+        worker
+            .set_encounter_life_settings(&key, &participant, settings)
+            .unwrap();
+        let actor = worker.encounter(&key).unwrap().participants.remove(0);
+        assert_eq!(actor.current_hp, Some(4));
+        assert_eq!(
+            actor
+                .effective_max_hp
+                .value
+                .as_ref()
+                .and_then(serde_json::Number::as_i64),
+            Some(8)
+        );
+    }
+    #[test]
+    fn missing_level_drained_preview_is_read_only_and_correction_does_not_charge_hp() {
+        let (worker, key, participant) = fixture();
+        add(
+            &worker,
+            &key,
+            &participant,
+            ConditionRule::Drained,
+            "unknown-drain",
+            Some(2),
+            ConditionEventIntentView::Apply,
+        );
+        let detail = worker.encounter(&key).unwrap();
+        assert!(detail.participants[0].effective_max_hp.value.is_none());
+        assert_eq!(
+            detail.participants[0]
+                .effective_max_hp
+                .adjustment
+                .as_ref()
+                .unwrap()
+                .authored
+                .as_i64(),
+            Some(10)
+        );
+        assert!(
+            worker
+                .apply_encounter_hp_action(
+                    &key,
+                    ApplyEncounterHpActionRequest {
+                        request_id: "unknown-cap-heal".into(),
+                        participant_key: participant.clone(),
+                        expected_revision: detail.participants[0].revision,
+                        action: EncounterHpAction::Heal { amount: "1".into() },
+                        context: None,
+                    }
+                )
+                .is_err()
+        );
+        let pending = worker
+            .pending_encounter_condition_consequences(&key)
+            .unwrap()
+            .remove(0);
+        let mut request = ResolveDrainedConsequenceRequest {
+            request_id: "level-loss".into(),
+            expected_encounter_revision: detail.revision,
+            consequence_key: pending.consequence_key,
+            level: 3,
+            apply_hp_loss: true,
+        };
+        let preview = worker
+            .preview_encounter_drained_consequence(&key, request.clone())
+            .unwrap();
+        assert_eq!(preview.current_after, Some(4));
+        assert_eq!(preview.maximum_after, Some(4));
+        assert_eq!(worker.encounter(&key).unwrap().revision, detail.revision);
+        assert_eq!(
+            worker.encounter(&key).unwrap().participants[0].current_hp,
+            Some(10)
+        );
+        request.apply_hp_loss = false;
+        worker
+            .resolve_encounter_drained_consequence(&key, request.clone())
+            .unwrap();
+        worker
+            .resolve_encounter_drained_consequence(&key, request)
+            .unwrap();
+        let after = worker.encounter(&key).unwrap();
+        assert_eq!(after.participants[0].current_hp, Some(10));
+        assert_eq!(after.participants[0].level_override, Some(3));
+        assert_eq!(
+            after.participants[0]
+                .effective_max_hp
+                .value
+                .as_ref()
+                .and_then(serde_json::Number::as_i64),
+            Some(4)
+        );
+        assert!(
+            worker
+                .pending_encounter_condition_consequences(&key)
+                .unwrap()
+                .is_empty()
+        );
+    }
+    #[test]
+    fn start_tracking_at_zero_applies_knockout_once_without_repeating_damage() {
+        let (worker, key, participant) = fixture();
+        let settings =
+            |id: &str, revision, track_dying, knockout_context| SetEncounterLifeSettingsRequest {
+                request_id: id.into(),
+                expected_encounter_revision: revision,
+                track_dying,
+                knockout_context,
+                mortality: None,
+                level_override: None,
+                base_death_threshold: None,
+            };
+        worker
+            .set_encounter_life_settings(
+                &key,
+                &participant,
+                settings(
+                    "disable",
+                    worker.encounter(&key).unwrap().revision,
+                    false,
+                    None,
+                ),
+            )
+            .unwrap();
+        let p = worker.encounter(&key).unwrap().participants.remove(0);
+        worker
+            .apply_encounter_hp_action(
+                &key,
+                ApplyEncounterHpActionRequest {
+                    request_id: "damage".into(),
+                    participant_key: participant.clone(),
+                    expected_revision: p.revision,
+                    action: EncounterHpAction::Damage {
+                        amount: "10".into(),
+                    },
+                    context: None,
+                },
+            )
+            .unwrap();
+        let detail = worker.encounter(&key).unwrap();
+        assert!(detail.participants[0].defeated);
+        let normal = detail.participants[0]
+            .knockout_options
+            .iter()
+            .find(|option| option.label == "Normal")
+            .unwrap()
+            .context
+            .clone();
+        let request = settings("start-dying", detail.revision, true, Some(normal));
+        worker
+            .set_encounter_life_settings(&key, &participant, request.clone())
+            .unwrap();
+        worker
+            .set_encounter_life_settings(&key, &participant, request)
+            .unwrap();
+        let actor = worker.encounter(&key).unwrap().participants.remove(0);
+        assert!(actor.track_dying);
+        assert!(!actor.defeated);
+        assert_eq!(actor.mortality, MortalityStateView::Alive);
+        assert_eq!(actor.current_hp, Some(0));
+        let dying =
+            super::super::conditions::modeled_condition_by_rule(ConditionRule::Dying).unwrap();
+        assert_eq!(
+            actor
+                .conditions
+                .iter()
+                .find(|c| c.condition_key.as_deref() == Some(dying.condition_ref))
+                .unwrap()
+                .value,
+            Some(1)
+        );
+        assert!(
+            worker
+                .pending_encounter_hp_lifecycle(&key)
+                .unwrap()
+                .is_empty()
+        );
     }
 }

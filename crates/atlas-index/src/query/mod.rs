@@ -14,3 +14,5 @@ mod cel_semantics;
 mod corpus_tests;
 #[cfg(test)]
 mod tests;
+
+mod cel_relationship;

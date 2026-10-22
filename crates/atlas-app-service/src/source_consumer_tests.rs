@@ -640,6 +640,7 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
     let filtered = f
         .worker
         .filter_saved_list(FilterSavedListRequest {
+            sort: None,
             list_ref: "large-list".into(),
             query: Some("\"Action 1029\"".into()),
             filter: None,
@@ -679,6 +680,7 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
     let editor = f
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
+            expected_artifact_generation: None,
             filter: None,
             selected_field_ids: vec!["defenses.hp.maximum".into()],
         })
@@ -709,7 +711,13 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
         f.worker
             .discover_raw_filter_counts(crate::RawFilterCountsRequest {
                 field: "defenses.hp.maximum".into(),
-                filter: Some(disjunction),
+                context: atlas_app_model::FilterDiscoveryContext::Filtered {
+                    filter: Some(disjunction),
+                    text: None,
+                    mode: atlas_app_model::RetrievalModeView::Lexical,
+                    search_profile: None,
+                    expected_artifact_generation: None
+                },
                 clause_id: Some("hp-choice".into())
             })
             .is_err()
@@ -826,6 +834,7 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
     let editor = f
         .worker
         .discover_filter_editor(DiscoverFilterEditorRequest {
+            expected_artifact_generation: None,
             filter: None,
             selected_field_ids: vec![],
         })
@@ -936,7 +945,7 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
         .discover_filter_values(
             DiscoverFilterValuesRequest::Contextual {
                 only_matching: false,
-                context: context.clone(),
+                context: Box::new(context.clone()),
                 field_id: "rarity".into(),
                 clause_id: Some("choice".into()),
                 text: None,
@@ -1121,6 +1130,8 @@ fn explicit_collections_share_grouping_and_movement_uses_feet() {
     let editor = crate::discovery::filter_editor_view(
         fixture_worker().worker.discover_filter_fields().unwrap(),
         &[],
+        String::new(),
+        vec![],
     )
     .unwrap();
     assert_eq!(editor.catalog_version, 6);

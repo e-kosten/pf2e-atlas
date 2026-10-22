@@ -41,7 +41,6 @@ fn prepare(
             kind: ActionKind::Strike,
             reaction: Some(false),
             other_participant: request.target_key.as_deref(),
-            confusion: None,
             facts: &facts,
         },
     );
@@ -120,13 +119,7 @@ fn prepare(
     };
     let action = EncounterStrikeActionContextView {
         issues,
-        confused: super::rules::action_context::confusion_requirements(
-            participant,
-            None,
-            ActionKind::Strike,
-            true,
-        )
-        .is_some(),
+        confused: super::rules::action_context::is_confused(participant),
         disruption,
         targeting,
     };

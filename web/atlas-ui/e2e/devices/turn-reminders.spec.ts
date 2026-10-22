@@ -156,8 +156,15 @@ for (const outcome of ["table", "roll"] as const) {
           .getByRole("button", { name: "Apply persistent damage", exact: true })
           .click();
         await expect(
-          reminders.getByText("Persistent damage saved.", { exact: true }),
+          reminders.getByText("Total: 2 damage applied", { exact: true }),
         ).toBeVisible();
+        const afterDamage = await (await page.request.get(path)).json();
+        expect(
+          afterDamage.participants.find(
+            (participant: { participant_key: string }) =>
+              participant.participant_key === actor.participant_key,
+          ).current_hp,
+        ).toBe(28);
       }
       if (outcome === "roll") {
         await reminders
@@ -332,7 +339,7 @@ test("single source exposes edit and remove without disclosure or phone overflow
     if (info.project.use.hasTouch) await select.tap();
     else await select.click();
     await expect(
-      page.getByText("Persistent Damage · 1d6 ×2 Fire · DC 20", { exact: true }),
+      page.getByRole("link", { name: "Persistent Damage · 1d6 ×2 Fire", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByText("Source: Single source hero", { exact: true }),

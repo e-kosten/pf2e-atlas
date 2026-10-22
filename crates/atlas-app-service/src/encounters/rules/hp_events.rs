@@ -210,6 +210,7 @@ pub(in crate::encounters) fn plan_hp_event(
                             request_id,
                             &mut changes,
                             &mut update,
+                            current > 0,
                         )?;
                     }
                 }
@@ -253,11 +254,10 @@ fn plan_damage_lifecycle(
     request_id: &str,
     changes: &mut PreparedConditionEvent,
     update: &mut ParticipantEventChange,
+    relocate: bool,
 ) -> AppServiceResult<()> {
     let dying = super::lifecycle::known_effective(participant, ConditionRule::Dying)?;
-    if participant.current_hp.is_some_and(|hp| hp > 0)
-        && context.keep_current_initiative != Some(true)
-    {
+    if relocate && context.keep_current_initiative != Some(true) {
         if let Some(source) = &context.responsible_participant_key {
             changes
                 .initiative_moves
@@ -373,21 +373,18 @@ pub(in crate::encounters) fn merge_pending_context(
         lethality: fill(&saved.lethality, &incoming.lethality, "damage lethality")?,
         critical: fill(&saved.critical, &incoming.critical, "critical result")?,
         enemy_source: fill(&saved.enemy_source, &incoming.enemy_source, "enemy source")?,
-        responsible_participant_key: fill(
-            &saved.responsible_participant_key,
-            &incoming.responsible_participant_key,
-            "responsible participant",
-        )?,
+        responsible_participant_key: incoming
+            .responsible_participant_key
+            .clone()
+            .or_else(|| saved.responsible_participant_key.clone()),
         base_death_threshold: fill(
             &saved.base_death_threshold,
             &incoming.base_death_threshold,
             "death threshold",
         )?,
-        keep_current_initiative: fill(
-            &saved.keep_current_initiative,
-            &incoming.keep_current_initiative,
-            "initiative decision",
-        )?,
+        keep_current_initiative: incoming
+            .keep_current_initiative
+            .or(saved.keep_current_initiative),
         keep_upright: fill(
             &saved.keep_upright,
             &incoming.keep_upright,
@@ -410,6 +407,41 @@ pub(in crate::encounters) fn merge_pending_context(
         )?,
     })
 }
+/// Pending HP decisions describe one recorded event, never a later knockout.
+pub(in crate::encounters) fn pending_is_current(
+    participant: &EncounterParticipant,
+    pending: &PendingConsequence,
+) -> bool {
+    if !participant.track_dying || participant.mortality == MortalityState::Dead {
+        return false;
+    }
+    match pending {
+        PendingConsequence::HpLifecycle {
+            after_hp,
+            was_dying,
+            was_wounded,
+            was_doomed,
+            ..
+        } => {
+            participant.current_hp == Some(*after_hp)
+                && [
+                    (ConditionRule::Dying, *was_dying),
+                    (ConditionRule::Wounded, *was_wounded),
+                    (ConditionRule::Doomed, *was_doomed),
+                ]
+                .into_iter()
+                .all(|(rule, expected)| {
+                    super::lifecycle::known_effective(participant, rule)
+                        .is_ok_and(|value| value == expected)
+                })
+        }
+        PendingConsequence::InitiativePlacement { after_hp, .. } => {
+            participant.current_hp == Some(*after_hp)
+        }
+        _ => true,
+    }
+}
+
 pub(in crate::encounters) fn resolve_pending_lifecycle(
     participant: &EncounterParticipant,
     pending: &PendingConsequence,
@@ -418,10 +450,7 @@ pub(in crate::encounters) fn resolve_pending_lifecycle(
 ) -> AppServiceResult<PreparedConditionEvent> {
     let PendingConsequence::HpLifecycle {
         before_hp,
-        after_hp,
         was_dying,
-        was_wounded,
-        was_doomed,
         context: saved_context,
         ..
     } = pending
@@ -432,13 +461,9 @@ pub(in crate::encounters) fn resolve_pending_lifecycle(
     };
     let merged_context = merge_pending_context(saved_context, context)?;
     let context = &merged_context;
-    if participant.current_hp != Some(*after_hp)
-        || super::lifecycle::known_effective(participant, ConditionRule::Dying)? != *was_dying
-        || super::lifecycle::known_effective(participant, ConditionRule::Wounded)? != *was_wounded
-        || super::lifecycle::known_effective(participant, ConditionRule::Doomed)? != *was_doomed
-    {
+    if !pending_is_current(participant, pending) {
         return Err(AppServiceError::invalid_request(
-            "HP or dying state changed; correct the recorded lifecycle outcome explicitly",
+            "This knockout is no longer current. Refresh the encounter.",
         ));
     }
     if lifecycle_needs_context(*was_dying, context) {
@@ -450,10 +475,181 @@ pub(in crate::encounters) fn resolve_pending_lifecycle(
     let mut update = ParticipantEventChange::preserving(participant);
     let mut historical = participant.clone();
     historical.current_hp = Some(*before_hp);
-    plan_damage_lifecycle(&historical, context, request_id, &mut changes, &mut update)?;
+    plan_damage_lifecycle(
+        &historical,
+        context,
+        request_id,
+        &mut changes,
+        &mut update,
+        *before_hp > 0,
+    )?;
     changes.participant_changes.push(update);
     Ok(changes)
 }
+/// Explicitly choosing dying rules at 0 HP never replays the damage event.
+pub(in crate::encounters) fn plan_knockout(
+    participant: &EncounterParticipant,
+    context: &SavedHpEventContext,
+    request_id: &str,
+) -> AppServiceResult<PreparedConditionEvent> {
+    let mut subject = participant.clone();
+    subject.track_dying = true;
+    subject.mortality = MortalityState::Alive;
+    let mut update = ParticipantEventChange::preserving(&subject);
+    update.defeated = false;
+    let mut changes = PreparedConditionEvent::default();
+    if !participant.track_dying
+        && super::lifecycle::known_effective(participant, ConditionRule::Dying)? > 0
+    {
+        changes.participant_changes.push(update);
+        return Ok(changes);
+    }
+    if lifecycle_needs_context(
+        super::lifecycle::known_effective(&subject, ConditionRule::Dying)?,
+        context,
+    ) {
+        return Err(AppServiceError::invalid_request(
+            "Choose a knockout outcome",
+        ));
+    }
+    plan_damage_lifecycle(
+        &subject,
+        context,
+        request_id,
+        &mut changes,
+        &mut update,
+        true,
+    )?;
+    if update.mortality == MortalityState::Dead {
+        update.defeated = participant.defeated;
+    }
+    changes.participant_changes.push(update);
+    Ok(changes)
+}
+
+pub(in crate::encounters) fn knockout_options(
+    participant: &EncounterParticipant,
+    known: Option<&SavedHpEventContext>,
+) -> Vec<atlas_app_model::KnockoutOptionView> {
+    if participant.participant_kind == atlas_local_state::ParticipantKind::Hazard {
+        return vec![];
+    }
+    if !participant.track_dying
+        && let Ok(value) = super::lifecycle::known_effective(participant, ConditionRule::Dying)
+        && value > 0
+    {
+        return vec![atlas_app_model::KnockoutOptionView {
+            label: "Track existing Dying".into(),
+            result: format!("Dying {value}"),
+            context: atlas_app_model::HpEventContextView {
+                lethality: Some(atlas_app_model::DamageLethalityView::Lethal),
+                critical: Some(false),
+                keep_current_initiative: Some(true),
+                ..Default::default()
+            },
+        }];
+    }
+    [
+        ("Normal", false, false),
+        ("Critical", true, false),
+        ("Nonlethal", false, true),
+        ("Critical (other)", true, false),
+        ("Nonlethal critical", true, true),
+        ("Nonlethal critical (other)", true, true),
+    ]
+    .into_iter()
+    .filter_map(|(label, critical, nonlethal)| {
+        let already_dying =
+            super::lifecycle::known_effective(participant, ConditionRule::Dying).ok()? > 0;
+        if label.ends_with("(other)") && !already_dying {
+            return None;
+        }
+        if nonlethal
+            && critical
+            && known.is_none_or(|facts| {
+                facts.critical != Some(true)
+                    && !(already_dying && facts.lethality == Some(DamageLethality::Nonlethal))
+            })
+        {
+            return None;
+        }
+        let mut context = SavedHpEventContext {
+            lethality: Some(if nonlethal {
+                DamageLethality::Nonlethal
+            } else {
+                DamageLethality::Lethal
+            }),
+            critical: Some(critical),
+            enemy_source: (critical && already_dying).then_some(!label.ends_with("(other)")),
+            keep_current_initiative: Some(true),
+            ..Default::default()
+        };
+        if let Some(known) = known {
+            if known
+                .lethality
+                .is_some_and(|value| Some(value) != context.lethality)
+                || known
+                    .critical
+                    .is_some_and(|value| Some(value) != context.critical)
+                || (context.enemy_source.is_some()
+                    && known
+                        .enemy_source
+                        .is_some_and(|value| Some(value) != context.enemy_source))
+            {
+                return None;
+            }
+            context.enemy_source = known.enemy_source.or(context.enemy_source);
+            context.base_death_threshold = known.base_death_threshold;
+            context.keep_upright = known.keep_upright;
+        }
+        let changes = plan_knockout(participant, &context, "knockout-preview").ok()?;
+        let result = if changes
+            .participant_changes
+            .iter()
+            .any(|change| change.mortality == MortalityState::Dead)
+        {
+            "Dead".to_owned()
+        } else {
+            changes
+                .condition_changes
+                .iter()
+                .filter_map(|change| match change {
+                    ConditionEventChange::Add(c)
+                        if matches!(
+                            condition_rule_for_key(c.condition_key.as_deref()),
+                            Some(ConditionRule::Dying | ConditionRule::Unconscious)
+                        ) =>
+                    {
+                        Some(match c.value {
+                            Some(value) => format!("{} {value}", c.name),
+                            None => c.name.clone(),
+                        })
+                    }
+                    ConditionEventChange::Replace(c)
+                        if matches!(
+                            condition_rule_for_key(c.condition_key.as_deref()),
+                            Some(ConditionRule::Dying | ConditionRule::Unconscious)
+                        ) =>
+                    {
+                        Some(match c.value {
+                            Some(value) => format!("{} {value}", c.name),
+                            None => c.name.clone(),
+                        })
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join(" · ")
+        };
+        Some(atlas_app_model::KnockoutOptionView {
+            label: label.into(),
+            result,
+            context: crate::encounters::hp_events::hp_context_view(context),
+        })
+    })
+    .collect()
+}
+
 pub(in crate::encounters) fn has(participant: &EncounterParticipant, rule: ConditionRule) -> bool {
     participant
         .conditions

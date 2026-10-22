@@ -356,12 +356,14 @@ export function EncounterRosterPane({
         okButtonProps={{ disabled: disabled || !selectedRecordKey, loading: disabled }}
         onCancel={() => setRecordOpen(false)}
         onFinish={(values) => void addRecord(values)}
-        onSelectedRecordKeyChange={setSelectedRecordKey}
+        onSelectionChange={(selection) => {
+          setSelectedRecordKey(selection?.record.record_key ?? null);
+          if (selection) setCandidateName(selection.record.title);
+        }}
         open={recordOpen}
         selectedRecordKey={selectedRecordKey}
         title="Add creature or hazard"
         dismissLabel="Done"
-        onSelectedRecordNameChange={setCandidateName}
         status={
           added || (!disabled && committedAdd) ? (
             <span role="status" className="encounter-add-receipt">

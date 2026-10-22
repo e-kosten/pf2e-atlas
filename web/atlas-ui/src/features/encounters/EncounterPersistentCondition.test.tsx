@@ -2,7 +2,7 @@ import {
   encounterParticipant,
   renderEncounter as render,
 } from "./encounterTestFixtures";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type {
   EncounterConditionDefinitionView,
   EncounterParticipantView,
@@ -156,10 +156,11 @@ it("edits typed persistent damage while preserving its episode, origin and indep
   );
 });
 
-it("uses the backend-selected persistent source and keeps separate source controls inside its group", async () => {
+it("shows linked persistent sources without disclosure and dims the backend-superseded source", async () => {
   const condition = (id: bigint, formula: string) => ({
     condition_id: id,
     name: `Source ${id}`,
+    condition_key: "conditionitems:persistent",
     scope: { kind: "everyone" },
     extra_action: { kind: "unspecified" },
     immunity_override: false,
@@ -176,6 +177,7 @@ it("uses the backend-selected persistent source and keeps separate source contro
   });
   const group = {
     episode_id: "episode",
+    immunity_note: "Immune to fire",
     damage_type: "fire",
     selected_source_id: 1n,
     sources: [
@@ -208,15 +210,25 @@ it("uses the backend-selected persistent source and keeps separate source contro
     onRecoverPersistent: vi.fn(),
   };
   const { rerender } = render(<EncounterConditionControls {...props} />);
-  expect(screen.getByRole("button", { name: "Roll Fire recovery" })).toBeVisible();
-  expect(screen.queryByText(/null|undefined|Result/)).not.toBeInTheDocument();
-  expect(
-    screen.getByRole("button", { name: /Persistent Damage · 1d6 Fire · DC 15/ }),
-  ).toBeVisible();
-  expect(screen.queryByRole("button", { name: "Edit Source 1" })).toBeNull();
-  fireEvent.click(
-    screen.getByRole("button", { name: /Persistent Damage · 1d6 Fire · DC 15/ }),
+  const recoveryButton = screen.getByRole("button", { name: "Roll Fire recovery" });
+  expect(recoveryButton).toBeVisible();
+  expect(recoveryButton).toHaveTextContent("");
+  expect(recoveryButton.closest(".encounter-condition-actions")).not.toBeNull();
+  expect(recoveryButton.closest(".encounter-condition-row")).toContainElement(
+    screen.getByRole("link", { name: "Source 1 · 1d6 Fire" }),
   );
+  expect(screen.queryByText(/null|undefined|Result/)).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Source 1 · 1d6 Fire" })).toBeVisible();
+  const superseded = screen
+    .getByRole("link", { name: "Source 2 · 2d6 Fire" })
+    .closest(".encounter-condition-row")!;
+  expect(superseded).toHaveClass("encounter-condition-row--superseded");
+  expect(within(superseded as HTMLElement).getByText("Superseded")).toBeVisible();
+  for (const row of document.querySelectorAll(".encounter-condition-row")) {
+    expect(within(row as HTMLElement).getByText("Immune to fire")).toBeVisible();
+  }
+  expect(screen.getByRole("button", { name: "Edit Source 1" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: /Persistent Damage/ })).toBeNull();
   fireEvent.click(await screen.findByRole("button", { name: "Remove Source 2" }));
   expect(onRemove).toHaveBeenCalledWith("actor", 2n, 8n);
   rerender(
@@ -231,8 +243,10 @@ it("uses the backend-selected persistent source and keeps separate source contro
     />,
   );
   expect(
-    screen.getByRole("button", { name: /Persistent Damage · Fire · Choose source/ }),
-  ).toBeVisible();
+    screen
+      .getByRole("link", { name: "Source 2 · 2d6 Fire" })
+      .closest(".encounter-condition-row"),
+  ).not.toHaveClass("encounter-condition-row--superseded");
   rerender(
     <EncounterConditionControls
       {...props}
@@ -252,7 +266,10 @@ it("uses the backend-selected persistent source and keeps separate source contro
       }}
     />,
   );
-  expect(screen.getByText("Persistent Damage · 1d6 ×2 Fire · DC 15")).toBeVisible();
+  expect(screen.getByRole("link", { name: "Source 1 · 1d6 ×2 Fire" })).toHaveAttribute(
+    "href",
+    "/records/conditionitems:persistent",
+  );
   expect(screen.getByText("Source: Actor")).toBeVisible();
   expect(screen.getByText("Burning note")).toBeVisible();
   expect(screen.getByText("2 rounds · timing not configured")).toBeVisible();
@@ -293,4 +310,51 @@ it("uses the backend-selected persistent source and keeps separate source contro
       screen.queryByRole("button", { name: "Roll Fire recovery" }),
     ).not.toBeInTheDocument(),
   );
+});
+
+it("shows a detail-free persistent condition without an internal Reminder label or empty metadata", () => {
+  const current = encounterParticipant({
+    conditions: [
+      {
+        condition_id: 9n,
+        condition_key: "conditionitems:example",
+        name: "Persistent Damage",
+        created_at: "",
+        updated_at: "",
+        scope: { kind: "everyone" },
+        extra_action: { kind: "unspecified" },
+        immunity_override: false,
+        parameters: {
+          kind: "persistent_damage_reminder",
+          formula: null,
+          damage_type: null,
+          multiplier: "normal",
+          recovery: { kind: "standard" },
+        },
+      },
+    ],
+  });
+  render(
+    <EncounterConditionControls
+      current={current}
+      encounterRef="encounter"
+      encounterRevision={1n}
+      pending={false}
+      disabled={false}
+      addDisabled={false}
+      conditionDefinitions={[]}
+      damageTypes={[]}
+      participants={[current]}
+      onPreviewCondition={vi.fn()}
+      onAddCondition={vi.fn()}
+      onUpdateCondition={vi.fn()}
+      onRemoveCondition={vi.fn()}
+      onReference={vi.fn()}
+    />,
+  );
+  const row = screen
+    .getByRole("link", { name: "Persistent Damage" })
+    .closest(".encounter-condition-row");
+  expect(screen.queryByText(/Reminder/)).toBeNull();
+  expect(row?.querySelector(".encounter-condition-meta")).toBeNull();
 });

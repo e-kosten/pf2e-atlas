@@ -101,6 +101,9 @@ fn project_for_opponent(
         }
         let mut applied = false;
         for stat in &mut block.values {
+            if stat.target == StatisticTarget::HitPointMaximum {
+                continue;
+            }
             let context = Context::statistic(&stat.target, stat.ability);
             for (modifier_type, value) in modifiers(rule, cause.value, level, &context) {
                 let value = if rule == ConditionRule::Blinded {
@@ -279,6 +282,16 @@ fn project_for_opponent(
         }
     }
     let causes = super::causes::resolve_causes(participant, opponent, additional);
+    if let Some(maximum) = hp_maximum_stat(
+        participant,
+        block.adjusted_level.as_ref().and_then(Number::as_i64),
+    ) && let Some(stat) = block
+        .values
+        .iter_mut()
+        .find(|stat| stat.target == StatisticTarget::HitPointMaximum)
+    {
+        *stat = maximum;
+    }
     if effective_hp_maximum(
         participant,
         block.adjusted_level.as_ref().and_then(Number::as_i64),
@@ -296,8 +309,25 @@ fn project_for_opponent(
     let blinded = causes
         .iter()
         .any(|cause| cause.rule == ConditionRule::Blinded);
-    if blinded && blinded_applies.is_none() {
-        block.unresolved_stats.push(StatisticTarget::Perception);
+    if let Some(cause) = causes
+        .iter()
+        .find(|cause| cause.rule == ConditionRule::Blinded)
+        && let Some(perception) = block
+            .values
+            .iter_mut()
+            .find(|v| v.target == StatisticTarget::Perception)
+    {
+        // A conditional penalty is not a missing source statistic. Keep the known
+        // value and explain the context instead of assuming a target or distance.
+        perception.notes.push(RuntimeEffectNoteView {
+            source: format!("condition:{}", cause.source.condition_id),
+            label: cause.source.name.clone(),
+            reason: if blinded_applies.is_none() {
+                "Vision-based Perception checks automatically critically fail. If vision is your only precise sense, you take a –4 status penalty to Perception checks."
+            } else {
+                "Vision-based Perception checks automatically critically fail."
+            }.into(),
+        });
     }
     let petrified = causes
         .iter()
@@ -350,11 +380,6 @@ fn project_for_opponent(
             } else {
                 (blinded && facts.visual).then(|| "Blinded".into())
             };
-        } else if blinded {
-            let penalty = blinded_applies;
-            sense.perception = perception
-                .zip(penalty)
-                .and_then(|(value, _)| Number::from_f64(value));
         } else {
             sense.perception = perception.and_then(Number::from_f64);
         }
@@ -392,34 +417,64 @@ fn stupefied_hint(
     })
 }
 
+/// Resolve display subjects only where the encounter roster is available. Numerical
+/// evaluation and action-specific checks do not need this presentation context.
+pub(in crate::encounters) fn resolve_condition_subject_hints(
+    block: &mut StatBlockView,
+    participant: &EncounterParticipant,
+    roster: &[EncounterParticipant],
+) {
+    for note in &mut block.unapplied_effects {
+        let Some(condition) = participant
+            .conditions
+            .iter()
+            .find(|condition| Some(condition.condition_id) == note.condition_id)
+        else {
+            continue;
+        };
+        let atlas_local_state::ConditionParameters::Fascinated { subject } = &condition.parameters
+        else {
+            continue;
+        };
+        let subject = subject.as_ref().and_then(|subject| match subject {
+            atlas_local_state::ConditionSubject::Participant { participant_key } => roster
+                .iter()
+                .find(|participant| &participant.participant_key == participant_key)
+                .map(|participant| participant.display_name.as_str()),
+            atlas_local_state::ConditionSubject::Other { description } => {
+                Some(description.as_str())
+            }
+        });
+        note.reason = fascination_hint(subject);
+    }
+}
+
+fn fascination_hint(subject: Option<&str>) -> String {
+    format!(
+        "Concentrate actions must relate to {}.",
+        subject.unwrap_or("the subject of fascination")
+    )
+}
+
 fn condition_effect_hint(
     _condition: &atlas_local_state::EncounterParticipantCondition,
     rule: ConditionRule,
     applied: bool,
 ) -> Option<String> {
     match rule {
-        ConditionRule::Enfeebled | ConditionRule::Clumsy if applied => None,
-        ConditionRule::Enfeebled | ConditionRule::Clumsy => {
-            Some("Ability-based effects need a supported statistic.")
-        }
-
         ConditionRule::Petrified => Some(
             "Bulk is doubled. Your body and mind are in stasis: you do not age or notice time passing.",
         ),
         ConditionRule::Prone => Some("Move by Crawling or Stand to end Prone."),
-        ConditionRule::Frightened | ConditionRule::Sickened if !applied => {
-            Some("Check and DC statistics are unavailable.")
-        }
-        ConditionRule::OffGuard if !applied => Some("AC is unavailable."),
+        ConditionRule::Fatigued => Some("Can't use exploration activities while traveling."),
+        ConditionRule::Fascinated => return Some(fascination_hint(None)),
+        ConditionRule::Fleeing => Some("Spend your actions escaping the source. Can't Delay or Ready."),
         ConditionRule::Immobilized if !applied => {
             Some("Cannot use move actions.")
         }
         ConditionRule::Grabbed => Some("Off-Guard and Immobilized. Manipulate actions require a DC 5 flat check."),
-        ConditionRule::Restrained => Some("Off-Guard and Immobilized. Only Escape or Force Open your bonds can have the attack or manipulate trait."),
+        ConditionRule::Restrained => Some("You can't use any attack or manipulate actions except to attempt to Escape or Force Open your bonds."),
 
-        ConditionRule::Encumbered if !applied => {
-            Some("Dexterity-based statistics or Speed are unavailable.")
-        }
         _ => None,
     }.map(str::to_owned)
 }
@@ -545,6 +600,7 @@ fn prepare_participant(
             value.suppressed_modifiers.clear();
         } else {
             block.values.push(StatValueView {
+                notes: vec![],
                 target: StatisticTarget::HitPointMaximum,
                 label: "Maximum HP".into(),
                 ability: None,
@@ -690,30 +746,56 @@ pub(in crate::encounters) fn effective_hp_maximum(
     participant: &EncounterParticipant,
     level: Option<i64>,
 ) -> Option<i64> {
+    hp_maximum_stat(participant, level)?.adjusted_value.as_i64()
+}
+
+/// The same attributed maximum feeds saved HP presentation and healing limits.
+pub(in crate::encounters) fn hp_maximum_stat(
+    participant: &EncounterParticipant,
+    level: Option<i64>,
+) -> Option<StatValueView> {
     use super::condition_effects::{Context, modifiers};
-    let level = participant.level_override.or(level);
-    let mut total = participant.max_hp?;
-    let target = StatisticTarget::HitPointMaximum;
-    let context = Context::statistic(&target, None);
-    let mut resolved: Vec<(ModifierType, i64)> = Vec::new();
+    let maximum = participant.max_hp?;
+    let mut stat = StatValueView {
+        target: StatisticTarget::HitPointMaximum,
+        label: "Maximum HP".into(),
+        ability: None,
+        base_value: maximum.into(),
+        adjusted_value: maximum.into(),
+        modifiers: vec![],
+        suppressed_modifiers: vec![],
+        notes: vec![],
+    };
+    let context = Context::statistic(&stat.target, None);
     for cause in super::causes::condition_causes(participant, None) {
-        for (kind, value) in modifiers(cause.rule, cause.value, level, &context) {
-            let value = value?;
-            if let Some(existing) = resolved.iter_mut().find(|(old_kind, old)| {
-                *old_kind == kind && super::modifiers::competes(kind, *old, value)
-            }) {
-                if super::modifiers::stronger(value, existing.1) {
-                    existing.1 = value;
-                }
-            } else {
-                resolved.push((kind, value));
-            }
+        for (modifier_type, value) in modifiers(
+            cause.rule,
+            cause.value,
+            participant.level_override.or(level),
+            &context,
+        ) {
+            apply_modifier(
+                &mut stat.adjusted_value,
+                &mut stat.modifiers,
+                &mut stat.suppressed_modifiers,
+                Modifier {
+                    source: format!("condition:{}", cause.source.condition_id),
+                    label: cause.source.name.clone(),
+                    modifier_type,
+                    value: value?,
+                },
+            );
         }
     }
-    for (_, value) in resolved {
-        total = total.checked_add(value)?;
+    if stat.adjusted_value.as_i64()? < 0 {
+        stat.notes.push(RuntimeEffectNoteView {
+            source: "hp-minimum".into(),
+            label: "Minimum".into(),
+            reason: "0 HP".into(),
+        });
+        stat.adjusted_value = 0.into();
     }
-    Some(total)
+    Some(stat)
 }
 
 /// Deafened penalizes Perception initiative even when another sense can perceive.

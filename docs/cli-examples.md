@@ -118,6 +118,12 @@ record prose. Counts retain all supplied filters and count distinct parents per
 value after remaster preference. Source-availability statistics are before that
 preference; collection occurrences may exceed the number of parents. Unavailable
 counts are not zero counts.
+`--query` adds record-content search context, with `--retrieval` and
+`--search-profile`; `--text` still searches the suggested values. `--list ID`
+intersects the context with saved-list membership. `--artifact-generation` can
+bind discovery to a preceding search. Optional `--clause-id` asks for replacement
+suggestions at that clause; unsupported grouped/text count contexts fail explicitly.
+
 
 Use one `exists` for constraints that must match the same embedded entry:
 
@@ -149,8 +155,61 @@ atlas graph variants 'Dread Ampoule' --json
 `links` exposes outgoing relationships and optional backlinks. `uses` finds
 incoming references. Use `graph remaster PACK:ID` for verified counterparts.
 Relationships retain unresolved targets and source occurrences. Suggested variants
-are bounded candidates, not aliases. Search currently has no `--references` or
-`--referenced-by` filter; use graph commands for those questions.
+are bounded candidates, not aliases. These graph previews can include unresolved
+links and have explicit limits. Use search for complete filtered root results:
+
+```bash
+atlas search --kind creature --links-to 'Leather Armor' --json
+atlas search --links-to 'Leather Armor' --links-to 'Stunned' --json
+atlas search --linked-from 'Skeleton Guard' --json
+atlas search --links-to-main-entry 'Leather Armor' --json
+atlas similar 'Skeleton Guard' --links-to 'Leather Armor' --json
+atlas filters values --field traits --kind creature --links-to 'Leather Armor' --json
+```
+
+Repeated link flags require every condition. Each flag accepts a strict name,
+verified alias or canonical key independently of the candidate filters. Ambiguous
+names require resolving and choosing a key. `--links-to` checks links made by
+matching roots and their contents; `--links-to-main-entry` checks only the roots.
+`--linked-from` checks the chosen entry and its contents;
+`--linked-from-main-entry` checks only that entry. References do not establish
+that equipment is worn, a condition is inflicted, or any other gameplay effect.
+
+Use CEL for AND/OR/NOT combinations. CEL link functions require canonical keys;
+resolve names with `atlas record resolve NAME --json` first:
+
+```bash
+atlas search --kind creature --where 'links_to("equipment-srd:ARMOR_KEY") || links_to("equipment-srd:OTHER_ARMOR_KEY")' --json
+atlas search --where '!links_to("conditionitems:CONDITION_KEY", "main_entry")' --json
+atlas search --where 'linked_from({"record_key":"bestiary:CREATURE_KEY","embedded_path":[{"collection":"/items","identity":{"Stable":"OWNED_ID"}}]}, "main_entry")' --json
+```
+
+Replace example keys with returned identities. The optional scope is `whole_entry`
+(default) or `main_entry`. Exact selection maps accept `record_key`, `embedded_path`,
+`field`, `passage`, `source_fingerprint` and optional `spell_rank`. Copy addresses
+and fingerprints from returned navigation; do not invent embedded identities.
+Link functions operate on result roots and cannot appear inside authored
+collection `exists` expressions. `--print-filter` remains artifact-free and
+requires canonical keys, including when using convenience flags.
+
+Browse, text search and Similar JSON return the shared search page directly in
+`data`: `rows`, `page`, `relationship_clauses`, `coverage`, `mode`, ordering and generation.
+Each row contains its record, text witnesses and `relationship_evidence`. This
+replaces the earlier CLI `results`/`pagination` shapes; there are no aliases.
+Root counts are distinct records. Semantic results keep their bounded coverage.
+Positive link conditions have clause IDs, bounded occurrence previews and separate
+occurrence totals. Negative or unmatched OR branches have no invented evidence.
+
+Page occurrences independently using the complete filter and returned generation:
+
+```bash
+atlas graph occurrences RESULT_KEY --links-to 'Leather Armor' --artifact-generation GENERATION --page 2 --limit 20 --json
+```
+
+When several positive link conditions exist, pass `--clause-id` from the search
+relationship summary. Changing the expression can change generated clause IDs;
+repeat the original expression. Stale generations fail rather than rebinding a
+selection. Existing encounter and Related previews retain their bounded behavior.
 
 ## Saved Lists And Dice
 

@@ -14,14 +14,24 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 import { searchPage } from "../../../api/atlasApi";
 import { useSearchProfile } from "../../search/SearchProfileContext";
 import { SearchProfileNotice } from "../../search/SearchProfileNotice";
-import { assertSearchIdentity } from "../../search/searchIdentity";
-import type { SearchResultsRequest } from "../../../generated/atlas";
+import {
+  assertSearchIdentity,
+  sameSearchPageContext,
+} from "../../search/searchIdentity";
+import type {
+  RecordSummaryView,
+  SearchResultsPage,
+  SearchResultsRequest,
+} from "../../../generated/atlas";
 import {
   DEFAULT_SEARCH_STATE,
   buildFilterDiscoveryContext,
+  effectiveResultSort,
+  normalizeSortTransition,
   type SearchFormState,
 } from "../../filters/searchState";
 import { FilterControls } from "../../filters/FilterPanel";
+import { ResultSortControl } from "../../search/ResultSortControl";
 import { useFilterDiscovery } from "../../filters/useFilterDiscovery";
 import { ReferenceBrowser } from "../../records/ReferenceBrowser";
 import { useReferenceReading } from "../../records/useReferenceReading";
@@ -29,6 +39,11 @@ import {
   isArtifactGenerationChanged,
   retireImmutableReferenceQueries,
 } from "../../queries/immutableReferenceQueries";
+
+export type PickerSelection = {
+  record: RecordSummaryView;
+  artifact_generation: string;
+};
 
 export function SearchPickerModal<FormValues>({
   buildRequest,
@@ -39,13 +54,13 @@ export function SearchPickerModal<FormValues>({
   form,
   onCancel,
   onFinish,
-  onSelectedRecordKeyChange,
-  onSelectedRecordNameChange,
+  onSelectionChange,
   open,
   okButtonProps,
   selectedRecordKey,
   title,
   dismissLabel = "Cancel",
+  confirmLabel = "Add",
   status,
 }: {
   buildRequest: (query: string) => SearchResultsRequest;
@@ -56,13 +71,13 @@ export function SearchPickerModal<FormValues>({
   form: FormInstance<FormValues>;
   onCancel: () => void;
   onFinish: (values: FormValues) => void;
-  onSelectedRecordKeyChange: (recordKey: string | null) => void;
-  onSelectedRecordNameChange?: (name: string) => void;
+  onSelectionChange: (selection: PickerSelection | null) => void;
   open: boolean;
   okButtonProps?: ModalProps["okButtonProps"];
   selectedRecordKey: string | null;
   title: string;
   dismissLabel?: string;
+  confirmLabel?: string;
   status?: React.ReactNode;
 }) {
   const formId = useId();
@@ -85,6 +100,7 @@ export function SearchPickerModal<FormValues>({
       : (base.criteria.filter ?? search.filter);
   const request: SearchResultsRequest = {
     ...base,
+    ...(search.sort ? { sort: search.sort } : {}),
     search_profile: profile.id ?? undefined,
     criteria: { ...base.criteria, filter },
     page: { number: pageNumber, size: search.pageSize },
@@ -104,16 +120,34 @@ export function SearchPickerModal<FormValues>({
       liveRequest.current.active = false;
     };
   }, [requestToken, retrieval.epoch, open, profileReady, retrieval.recovering]);
-  const recordResults = useQuery({
+  const recordResults = useQuery<SearchResultsPage>({
     queryKey: ["search-picker", title, request, retrieval.epoch, retrieval.generation],
     enabled: open && profileReady && !retrieval.recovering && !search.filterError,
     staleTime: 20_000,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[3] === retrieval.epoch &&
+      previousQuery.queryKey[4] === retrieval.generation &&
+      sameSearchPageContext(previousQuery.queryKey[2] as SearchResultsRequest, request)
+        ? previous
+        : undefined,
     queryFn: async ({ signal }) => {
       const page = await searchPage(
         { ...request, expected_artifact_generation: retrieval.generation },
         signal,
       );
-      assertSearchIdentity(page, profile.id, retrieval.generation);
+      assertSearchIdentity(
+        page,
+        profile.id,
+        retrieval.generation,
+        effectiveResultSort({
+          sort: request.sort,
+          query: request.criteria.kind === "text_search" ? request.criteria.query : "",
+          similarSeed:
+            request.criteria.kind === "similar_records"
+              ? request.criteria.seed_record_key
+              : null,
+        }),
+      );
       if (
         retrieval.generation === null &&
         !signal.aborted &&
@@ -147,7 +181,7 @@ export function SearchPickerModal<FormValues>({
   const discovery = useFilterDiscovery({
     context,
     enabled: open && !retrieval.recovering,
-    queryKeyPrefix: ["filter-discovery", "picker", retrieval.epoch, requestToken],
+    queryKeyPrefix: ["filter-discovery", "picker", retrieval.epoch],
     catalogIdentity: [retrieval.epoch],
   });
   const generationChanged = isArtifactGenerationChanged(recordResults.error);
@@ -174,7 +208,7 @@ export function SearchPickerModal<FormValues>({
       epoch: current.epoch + 1,
       recovering: false,
     }));
-    onSelectedRecordKeyChange(null);
+    onSelectionChange(null);
   };
   return (
     <ConfigProvider componentDisabled={disabled}>
@@ -206,7 +240,7 @@ export function SearchPickerModal<FormValues>({
             search,
             setSearch: (next) => {
               if (!disabled) {
-                setSearch(next);
+                setSearch(normalizeSortTransition(search, next));
                 setPageNumber(1);
               }
             },
@@ -244,6 +278,10 @@ export function SearchPickerModal<FormValues>({
         )}
         <ReferenceBrowser
           rows={currentRows}
+          relationshipClauses={recordResults.data?.relationship_clauses}
+          filter={request.criteria.filter}
+          generation={recordResults.data?.artifact_generation}
+          onRefreshResults={refreshResults}
           loading={
             !recordResults.error && !search.filterError && recordResults.isFetching
           }
@@ -251,8 +289,11 @@ export function SearchPickerModal<FormValues>({
           selectedRecordKey={selectedRecordKey}
           onSelect={(row) => {
             if (!disabled) {
-              onSelectedRecordKeyChange(row.record.record_key);
-              onSelectedRecordNameChange?.(row.record.title);
+              if (recordResults.data)
+                onSelectionChange({
+                  record: row.record,
+                  artifact_generation: recordResults.data.artifact_generation,
+                });
             }
           }}
           reading={reading}
@@ -264,30 +305,50 @@ export function SearchPickerModal<FormValues>({
                 : emptyPrompt
           }
           resultsHeader={
-            recordResults.data && recordResults.data.page.total > 0n ? (
-              <Space wrap>
-                <Typography.Text>
-                  {recordResults.data?.page
-                    ? `${recordResults.data.page.total.toLocaleString()} records`
+            <div className="result-pane-header">
+              <Typography.Text>
+                {recordResults.isPlaceholderData
+                  ? "Updating results"
+                  : recordResults.data?.page
+                    ? recordResults.data.coverage?.exhaustive === false
+                      ? `Top ${recordResults.data.page.total.toLocaleString()} matches`
+                      : `${recordResults.data.page.total.toLocaleString()} records`
                     : "Results"}
-                </Typography.Text>
-                <Pagination
-                  simple
-                  size="small"
-                  current={pageNumber}
-                  pageSize={search.pageSize}
-                  total={Number(recordResults.data?.page?.total ?? 0)}
-                  disabled={
-                    disabled ||
-                    recordResults.isFetching ||
-                    generationChanged ||
-                    retrieval.recovering
-                  }
-                  showSizeChanger={false}
-                  onChange={setPageNumber}
+              </Typography.Text>
+              <div className="pager pager--compact">
+                <ResultSortControl
+                  search={search}
+                  disabled={disabled || retrieval.recovering}
+                  setSearch={(next) => {
+                    setSearch(next);
+                    setPageNumber(1);
+                  }}
                 />
-              </Space>
-            ) : undefined
+                {recordResults.data && recordResults.data.page.total > 0n && (
+                  <div
+                    className="pager__navigation"
+                    role="group"
+                    aria-label="Result pages"
+                  >
+                    <Pagination
+                      simple
+                      size="small"
+                      current={pageNumber}
+                      pageSize={search.pageSize}
+                      total={Number(recordResults.data?.page?.total ?? 0)}
+                      disabled={
+                        disabled ||
+                        recordResults.isFetching ||
+                        generationChanged ||
+                        retrieval.recovering
+                      }
+                      showSizeChanger={false}
+                      onChange={setPageNumber}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
           }
         />
         <Form
@@ -310,7 +371,7 @@ export function SearchPickerModal<FormValues>({
               type="primary"
               htmlType="submit"
             >
-              Add
+              {confirmLabel}
             </Button>
           </Space>
         </Form>

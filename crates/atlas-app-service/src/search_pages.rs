@@ -15,6 +15,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<SearchResultsPage> {
         execution.check()?;
         let page = SearchPage::new(request.page.number, request.page.size)?;
+        let sort = crate::result_order::search_sort(request.sort, &request.criteria)?;
         let projection_execution = execution.clone();
         let prepared = if let SearchCriteria::TextSearch {
             query,
@@ -63,7 +64,16 @@ impl AtlasAppService {
             }
             let search_profile =
                 retrieval.resolve_search_profile(request.search_profile.as_ref(), false)?;
-            let (mode, rows, page, coverage) = match request.criteria {
+            let filter = match &request.criteria {
+                SearchCriteria::ListRecords { filter }
+                | SearchCriteria::TextSearch { filter, .. }
+                | SearchCriteria::SimilarRecords { filter, .. } => filter.as_ref(),
+            };
+            let relationship_summaries =
+                crate::relationship_search::prepare_filter(retrieval, filter)?;
+            let evidence_filter = filter.cloned();
+            let scope = RecordScope::All;
+            let (mode, mut rows, page, coverage) = match request.criteria {
                 SearchCriteria::SimilarRecords {
                     seed_record_key,
                     filter,
@@ -73,10 +83,11 @@ impl AtlasAppService {
                     })?;
                     let result = retrieval
                         .similar_records(atlas_search::SimilarRecordRequest {
+                            sort: sort.clone(),
                             search_profile: request.search_profile.as_ref(),
                             record_key: &key,
                             filter: filter.as_ref(),
-                            scope: RecordScope::All,
+                            scope,
                             page,
                             prefer_remaster: true,
                         })?
@@ -99,8 +110,11 @@ impl AtlasAppService {
                     )
                 }
                 SearchCriteria::ListRecords { filter } => {
-                    let result =
-                        retrieval.list_records(ListRecordsRequest::new(filter.as_ref(), page))?;
+                    let result = retrieval.list_records(
+                        ListRecordsRequest::new(filter.as_ref(), page)
+                            .with_scope(scope)
+                            .with_sort(sort.clone()),
+                    )?;
                     projection_execution.check()?;
                     (
                         SearchModeSummary::ListRecords,
@@ -108,6 +122,7 @@ impl AtlasAppService {
                             .records
                             .iter()
                             .map(|record| SearchResultRow {
+                                relationship_evidence: vec![],
                                 record: localized_summary_view(record, retrieval),
                                 matches: vec![],
                             })
@@ -123,12 +138,13 @@ impl AtlasAppService {
                 } => {
                     // Stateless paging deliberately reruns query inference and ranking.
                     let result = retrieval.search_text(TextSearchRequest {
+                        sort: sort.clone(),
                         ranking: request.ranking.unwrap_or_default(),
                         search_profile: request.search_profile.as_ref(),
                         query: &query,
                         mode: retrieval_mode(mode),
                         filter: filter.as_ref(),
-                        scope: RecordScope::All,
+                        scope,
                         page,
                         prefer_remaster: true,
                     })?;
@@ -142,7 +158,52 @@ impl AtlasAppService {
                     )
                 }
             };
+            if sort.is_unit_price() {
+                let mut records = rows.iter().map(|r| r.record.clone()).collect::<Vec<_>>();
+                crate::result_order::price_labels(retrieval, &mut records)?;
+                for (row, record) in rows.iter_mut().zip(records) {
+                    row.record = record;
+                }
+            }
+            let keys = rows
+                .iter()
+                .map(|row| {
+                    atlas_domain::RecordKey::parse(&row.record.record_key).map_err(|_| {
+                        AppServiceError::invalid_request("The result record is unavailable")
+                    })
+                })
+                .collect::<AppServiceResult<Vec<_>>>()?;
+            let proofs = if let Some(filter) = &evidence_filter {
+                retrieval.relationship_proofs(filter, &keys)?
+            } else {
+                vec![]
+            };
+            for (row, key) in rows.iter_mut().zip(keys) {
+                projection_execution.check()?;
+                for summary in &relationship_summaries {
+                    if !proofs
+                        .iter()
+                        .any(|(record, id)| record == &key && id == &summary.clause_id)
+                    {
+                        continue;
+                    }
+                    let (occurrences, page) = crate::relationship_search::evidence_page(
+                        retrieval,
+                        &summary.relationship,
+                        &key,
+                        SearchPage::new(1, 3)?,
+                    )?;
+                    row.relationship_evidence
+                        .push(atlas_app_model::RelationshipEvidenceView {
+                            clause_id: summary.clause_id.clone(),
+                            occurrences,
+                            page,
+                        });
+                }
+            }
             Ok(SearchResultsPage {
+                sort,
+                relationship_clauses: relationship_summaries,
                 ranking: request.ranking.unwrap_or_default(),
                 search_profile,
                 artifact_generation,

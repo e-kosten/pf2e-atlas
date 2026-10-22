@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { ListTagSummary } from "./ListTagSummary";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
@@ -41,6 +42,7 @@ type IndexState = {
 // Browser-session collection state survives detail/edit navigation, scoped to this app client.
 const indexPositions = new WeakMap<QueryClient, IndexState>();
 export function ListIndexView(_props: ListIndexViewProps) {
+  usePageTitle("Lists");
   const client = useQueryClient();
   const [state, setState] = useState<IndexState>(
     () =>

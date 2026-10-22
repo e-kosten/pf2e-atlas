@@ -11,9 +11,7 @@ pub enum ConditionParametersView {
     Fascinated {
         subject: Option<ConditionSubjectView>,
     },
-    Attitude {
-        supernatural: bool,
-    },
+    Attitude,
     Frightened {
         recovery: crate::FrightenedRecoveryView,
     },
@@ -56,9 +54,7 @@ pub enum ConditionParametersInputView {
     Fascinated {
         subject: Option<ConditionSubjectView>,
     },
-    Attitude {
-        supernatural: bool,
-    },
+    Attitude,
     Frightened {
         recovery: crate::FrightenedRecoveryView,
     },
@@ -158,7 +154,20 @@ pub struct EncounterDamageTypeView {
     pub label: String,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ConditionHpChangeView {
+    pub current_before: Option<i64>,
+    pub current_after: Option<i64>,
+    pub maximum_before: Option<i64>,
+    pub maximum_after: Option<i64>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ConditionEventPreviewView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub persistent_precedence: Option<PersistentDamagePrecedenceView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub hp_change: Option<ConditionHpChangeView>,
     pub encounter_key: String,
     pub encounter_revision: i64,
     pub consequences: Vec<ConditionEventConsequenceView>,
@@ -187,6 +196,7 @@ pub enum ConditionEventConsequenceView {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ResolveDrainedConsequenceRequest {
+    pub apply_hp_loss: bool,
     pub request_id: String,
     pub expected_encounter_revision: i64,
     pub consequence_key: String,
@@ -195,6 +205,7 @@ pub struct ResolveDrainedConsequenceRequest {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PendingConditionConsequenceView {
+    pub condition_ref: String,
     pub consequence_key: String,
     pub participant_key: String,
     pub magnitude_increase: i64,
@@ -202,6 +213,9 @@ pub struct PendingConditionConsequenceView {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct SetEncounterLifeSettingsRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub knockout_context: Option<crate::HpEventContextView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub mortality: Option<MortalityStateView>,
@@ -220,6 +234,27 @@ pub struct SetEncounterLifeSettingsRequest {
 pub struct ConditionApplicationDecisionsView {
     #[serde(default)]
     pub keep_upright: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub persistent_precedence: Option<Vec<PersistentDamageSourceRefView>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PersistentDamageSourceRefView {
+    Edited,
+    Existing { condition_id: i64 },
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PersistentDamagePrecedenceView {
+    pub damage_type: String,
+    pub sources: Vec<PersistentDamagePrecedenceEntryView>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PersistentDamagePrecedenceEntryView {
+    pub source: PersistentDamageSourceRefView,
+    pub formula: String,
+    pub multiplier: DamageMultiplierView,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

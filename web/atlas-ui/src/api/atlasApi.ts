@@ -22,6 +22,8 @@ import type {
   FilterSavedListRequest,
   FilterValueListView,
   SearchResultsRequest,
+  RelationshipOccurrencesRequest,
+  RelationshipOccurrencesPage,
   RecordDetailView,
   RecordPresentationView,
   RecordDetailRequest,
@@ -95,6 +97,23 @@ export async function searchPage(
     body: jsonBody(request),
   });
   return normalizeSearchResultsPage(page);
+}
+
+export async function getRelationshipOccurrences(
+  request: RelationshipOccurrencesRequest,
+  signal?: AbortSignal,
+): Promise<RelationshipOccurrencesPage> {
+  const value = await atlasFetch<unknown>("/api/search/relationship-occurrences", {
+    method: "POST",
+    body: jsonBody(request),
+    signal,
+  });
+  if (!isRecord(value) || !isRecord(value.page))
+    throw new AtlasApiError(200, "Invalid relationship links response");
+  return {
+    ...value,
+    page: { ...value.page, total: toBigInt(value.page.total) },
+  } as RelationshipOccurrencesPage;
 }
 
 export async function getRecordDetail(
@@ -382,6 +401,16 @@ export async function encounterCastingReminders(
   );
 }
 
+export async function previewEncounterDrainedConsequence(
+  encounterRef: string,
+  request: import("../generated/atlas").ResolveDrainedConsequenceRequest,
+): Promise<import("../generated/atlas").ConditionHpChangeView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/condition-consequences/preview`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
+
 export async function getEncounterConditionConsequences(
   encounterRef: string,
 ): Promise<import("../generated/atlas").PendingConditionConsequenceView[]> {
@@ -404,6 +433,15 @@ export async function resolveEncounterDrainedConsequence(
   );
 }
 
+function persistentProtection(
+  value: import("../generated/atlas").PersistentDamageProtectionView,
+): import("../generated/atlas").PersistentDamageProtectionView {
+  return {
+    ...value,
+    weakness: toBigInt(value.weakness),
+    resistance: toBigInt(value.resistance),
+  };
+}
 function persistentDamageResult(
   value: import("../generated/atlas").PersistentDamageResultView,
 ): import("../generated/atlas").PersistentDamageResultView {
@@ -415,6 +453,9 @@ function persistentDamageResult(
       ...group,
       source_condition_id: toBigInt(group.source_condition_id),
       amount: toBigInt(group.amount),
+      ...(group.protection
+        ? { protection: persistentProtection(group.protection) }
+        : {}),
     })),
   };
 }
@@ -431,12 +472,24 @@ export async function getEncounterPersistentReview(
   participantKey: string,
   boundaryKey: string | null = null,
 ): Promise<import("../generated/atlas").PersistentReviewView> {
-  const value = await atlasFetch<import("../generated/atlas").PersistentReviewView>(
+  const value = await atlasFetchEncounter<
+    import("../generated/atlas").PersistentReviewView
+  >(
     `/api/encounters/${encodeURIComponent(encounterRef)}/persistent-review?participant_key=${encodeURIComponent(participantKey)}${boundaryKey ? `&boundary_key=${encodeURIComponent(boundaryKey)}` : ""}`,
   );
   return {
     ...value,
     round_number: toBigInt(value.round_number),
+    episodes: value.episodes.map((episode) => ({
+      ...episode,
+      damage_resolution:
+        episode.damage_resolution?.kind === "known"
+          ? {
+              ...episode.damage_resolution,
+              protection: persistentProtection(episode.damage_resolution.protection),
+            }
+          : episode.damage_resolution,
+    })),
     damage_result:
       value.damage_result === null ? null : persistentDamageResult(value.damage_result),
     recovery_results: value.recovery_results.map(persistentRecoveryResult),
@@ -505,29 +558,6 @@ export async function previewEncounterStrikeContext(
   };
 }
 
-export async function previewEncounterRetch(
-  encounterRef: string,
-  request: import("../generated/atlas").EncounterRetchPreviewRequest,
-): Promise<import("../generated/atlas").EncounterRetchPreviewView> {
-  const value = await atlasFetch<
-    import("../generated/atlas").EncounterRetchPreviewView
-  >(`/api/encounters/${encodeURIComponent(encounterRef)}/retch/preview`, {
-    method: "POST",
-    body: jsonBody(request),
-  });
-  return {
-    ...value,
-    issues: value.issues.map((issue) => ({
-      ...issue,
-      source_condition_id: toBigInt(issue.source_condition_id),
-    })),
-    confusion:
-      value.confusion === null
-        ? null
-        : { ...value.confusion, source_ids: value.confusion.source_ids.map(toBigInt) },
-  };
-}
-
 export async function getEncounterConditionLifecycleActions(
   encounterRef: string,
   participantKey: string,
@@ -542,6 +572,7 @@ export async function getEncounterConditionLifecycleActions(
     ...value,
     encounter_revision: toBigInt(value.encounter_revision),
     actions: value.actions.map((action) => {
+      const condition_ids = action.condition_ids.map(toBigInt);
       const check =
         "check" in action
           ? {
@@ -552,11 +583,11 @@ export async function getEncounterConditionLifecycleActions(
           : undefined;
       switch (action.kind) {
         case "dying_recovery":
-        case "wake_from_noise":
-          return { ...action, check: check! };
+          return { ...action, condition_ids, check: check! };
         case "retch":
           return {
             ...action,
+            condition_ids,
             check: check!,
             condition_id: toBigInt(action.condition_id),
             issues: action.issues.map((issue) => ({
@@ -564,26 +595,29 @@ export async function getEncounterConditionLifecycleActions(
               source_condition_id: toBigInt(issue.source_condition_id),
             })),
           };
-        case "frightened_end_turn":
+        case "reminder":
           return {
             ...action,
-            decision_source_ids: action.decision_source_ids.map(toBigInt),
+            condition_ids,
+            condition_id: toBigInt(action.condition_id),
           };
         case "confused_damage_recovery":
           return {
             ...action,
+            condition_ids,
             check: check!,
             source_condition_ids: action.source_condition_ids.map(toBigInt),
           };
         case "stunned_actions_lost":
           return {
             ...action,
+            condition_ids,
             condition_id: toBigInt(action.condition_id),
             actions_lost:
               action.actions_lost === null ? null : toBigInt(action.actions_lost),
           };
         default:
-          return action;
+          return { ...action, condition_ids };
       }
     }),
   };
@@ -945,6 +979,28 @@ async function atlasFetchEncounter<T>(
           }),
     };
   };
+  if (isRecord(result.persistent_precedence)) {
+    const source = (value: unknown) => {
+      if (!isRecord(value))
+        throw new AtlasApiError(200, "Invalid persistent source choice");
+      return value.kind === "existing"
+        ? { ...value, condition_id: toBigInt(value.condition_id) }
+        : value;
+    };
+    const choice = result.persistent_precedence;
+    result.persistent_precedence = {
+      ...choice,
+      sources: Array.isArray(choice.sources)
+        ? choice.sources.map((option) => {
+            if (!isRecord(option))
+              throw new AtlasApiError(200, "Invalid persistent source option");
+            return { ...option, source: source(option.source) };
+          })
+        : [],
+    };
+  }
+  if (Array.isArray(result.damage_groups))
+    result.damage_groups = result.damage_groups.map(persistentGroup);
   if (result.standard_persistent_recovery_dc !== undefined)
     result.standard_persistent_recovery_dc = toBigInt(
       result.standard_persistent_recovery_dc,
@@ -1060,6 +1116,28 @@ function normalizeSearchResultsPage(value: unknown): SearchResultsPage {
       ...page,
       total: toBigInt(page.total),
     },
+    rows: Array.isArray(value.rows)
+      ? value.rows.map((row) =>
+          isRecord(row)
+            ? {
+                ...row,
+                relationship_evidence: Array.isArray(row.relationship_evidence)
+                  ? row.relationship_evidence.map((evidence) =>
+                      isRecord(evidence) && isRecord(evidence.page)
+                        ? {
+                            ...evidence,
+                            page: {
+                              ...evidence.page,
+                              total: toBigInt(evidence.page.total),
+                            },
+                          }
+                        : evidence,
+                    )
+                  : [],
+              }
+            : row,
+        )
+      : [],
   } as SearchResultsPage;
 }
 

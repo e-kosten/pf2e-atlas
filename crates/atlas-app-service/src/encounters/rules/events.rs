@@ -10,6 +10,7 @@ pub(in crate::encounters) struct ConditionConsequences {
     pub changes: PreparedConditionEvent,
     pub participant_key: String,
     pub effects: Vec<ConditionConsequence>,
+    pub hp_change: Option<atlas_app_model::ConditionHpChangeView>,
 }
 
 pub(in crate::encounters) enum ConditionConsequence {
@@ -74,42 +75,7 @@ pub(in crate::encounters) fn plan_condition_change(
             next_rule,
             Some(ConditionRule::Dying | ConditionRule::Doomed)
         );
-    let mut after = participant.clone();
-    match &change {
-        ConditionEventChange::Add(input) => {
-            after
-                .conditions
-                .push(atlas_local_state::EncounterParticipantCondition {
-                    condition_id: -1,
-                    condition_key: input.condition_key.clone(),
-                    name: input.name.clone(),
-                    value: input.value,
-                    source_participant_key: input.source_participant_key.clone(),
-                    scope: input.scope.clone(),
-                    extra_action: input.extra_action.clone(),
-                    immunity_override: input.immunity_override,
-                    parameters: input.parameters.clone(),
-                    origin: input.origin.clone(),
-                    duration: input.duration.clone(),
-                    note: input.note.clone(),
-                    created_at: String::new(),
-                    updated_at: String::new(),
-                })
-        }
-        ConditionEventChange::Replace(input) => {
-            let row = after
-                .conditions
-                .iter_mut()
-                .find(|c| c.condition_id == input.condition_id)
-                .ok_or_else(|| AppServiceError::invalid_request("condition no longer exists"))?;
-            row.condition_key = input.condition_key.clone();
-            row.value = input.value;
-            row.parameters = input.parameters.clone();
-        }
-        ConditionEventChange::Remove { condition_id, .. } => {
-            after.conditions.retain(|c| c.condition_id != *condition_id)
-        }
-    }
+    let after = subject_after_change(participant, &change)?;
     let mut changes = PreparedConditionEvent {
         condition_changes: vec![change],
         ..Default::default()
@@ -164,38 +130,21 @@ pub(in crate::encounters) fn plan_condition_change(
                 }
             }
         }
-        if !has_condition(participant, ConditionRule::Broken)
-            && has_condition(&after, ConditionRule::Broken)
+        let threshold = broken_threshold(&after);
+        if has_condition(&after, ConditionRule::Broken)
+            && (!has_condition(participant, ConditionRule::Broken)
+                || broken_threshold(participant) != threshold)
             && !has_condition(&after, ConditionRule::Petrified)
+            && let (Some(hp), Some(threshold)) = (participant.current_hp, threshold)
         {
-            let threshold = after
-                .conditions
-                .iter()
-                .filter(|condition| {
-                    condition_rule_for_key(condition.condition_key.as_deref())
-                        == Some(ConditionRule::Broken)
-                })
-                .find_map(|condition| match condition.parameters {
-                    ConditionParameters::Broken { threshold } => threshold,
-                    _ => None,
-                });
-            match (participant.current_hp, threshold) {
-                (Some(hp), Some(threshold)) => {
-                    let mut update =
-                        atlas_local_state::ParticipantEventChange::preserving(participant);
-                    update.current_hp = Some(hp.min(threshold));
-                    if hp > threshold {
-                        effects.push(ConditionConsequence::DirectHpLoss(hp - threshold));
-                    }
-                    changes.participant_changes.push(update);
-                }
-                _ => changes.pending.push(SavedPendingConsequence {
-                    consequence_key: format!("{request_id}:broken-threshold"),
-                    consequence: PendingConsequence::BrokenHpThreshold {
-                        participant_key: participant.participant_key.clone(),
-                    },
-                }),
+            let mut update = atlas_local_state::ParticipantEventChange::preserving(participant);
+            update.current_hp = Some(hp.min(threshold));
+            if hp > threshold {
+                effects.push(ConditionConsequence::DirectHpLoss(hp - threshold));
             }
+            changes.participant_changes.push(update);
+            // Missing threshold stays a reminder. Setting it through the normal
+            // editor applies this same consequence without a queued recovery form.
         }
         if has_condition(participant, ConditionRule::Dying)
             && !has_condition(&after, ConditionRule::Dying)
@@ -305,7 +254,28 @@ pub(in crate::encounters) fn plan_condition_change(
             effects.push(ConditionConsequence::BecomeProne);
         }
     }
+    let maximum_before = super::effective_hp_maximum(participant, level);
+    let maximum_after = super::effective_hp_maximum(&after, level);
+    let hp_change = (maximum_before != maximum_after
+        || effects.iter().any(|effect| {
+            matches!(
+                effect,
+                ConditionConsequence::DirectHpLoss(_)
+                    | ConditionConsequence::DrainedLevelRequired(_)
+            )
+        }))
+    .then(|| atlas_app_model::ConditionHpChangeView {
+        current_before: participant.current_hp,
+        current_after: changes
+            .participant_changes
+            .iter()
+            .find(|change| change.participant_key == participant.participant_key)
+            .map_or(participant.current_hp, |change| change.current_hp),
+        maximum_before,
+        maximum_after,
+    });
     Ok(ConditionConsequences {
+        hp_change,
         changes,
         participant_key: participant.participant_key.clone(),
         effects,
@@ -334,4 +304,61 @@ fn has_condition(participant: &EncounterParticipant, rule: ConditionRule) -> boo
 fn is_unconscious(participant: &EncounterParticipant) -> bool {
     has_condition(participant, ConditionRule::Unconscious)
         || has_condition(participant, ConditionRule::Dying)
+}
+
+fn broken_threshold(participant: &EncounterParticipant) -> Option<i64> {
+    participant
+        .conditions
+        .iter()
+        .filter(|condition| {
+            condition_rule_for_key(condition.condition_key.as_deref())
+                == Some(ConditionRule::Broken)
+        })
+        .find_map(|condition| match condition.parameters {
+            ConditionParameters::Broken { threshold } => threshold,
+            _ => None,
+        })
+}
+
+pub(in crate::encounters) fn subject_after_change(
+    participant: &EncounterParticipant,
+    change: &ConditionEventChange,
+) -> AppServiceResult<EncounterParticipant> {
+    let mut after = participant.clone();
+    match change {
+        ConditionEventChange::Add(input) => {
+            after
+                .conditions
+                .push(atlas_local_state::EncounterParticipantCondition {
+                    condition_id: -1,
+                    condition_key: input.condition_key.clone(),
+                    name: input.name.clone(),
+                    value: input.value,
+                    source_participant_key: input.source_participant_key.clone(),
+                    scope: input.scope.clone(),
+                    extra_action: input.extra_action.clone(),
+                    immunity_override: input.immunity_override,
+                    parameters: input.parameters.clone(),
+                    origin: input.origin.clone(),
+                    duration: input.duration.clone(),
+                    note: input.note.clone(),
+                    created_at: String::new(),
+                    updated_at: String::new(),
+                })
+        }
+        ConditionEventChange::Replace(input) => {
+            let row = after
+                .conditions
+                .iter_mut()
+                .find(|c| c.condition_id == input.condition_id)
+                .ok_or_else(|| AppServiceError::invalid_request("condition no longer exists"))?;
+            row.condition_key = input.condition_key.clone();
+            row.value = input.value;
+            row.parameters = input.parameters.clone();
+        }
+        ConditionEventChange::Remove { condition_id, .. } => {
+            after.conditions.retain(|c| c.condition_id != *condition_id)
+        }
+    }
+    Ok(after)
 }

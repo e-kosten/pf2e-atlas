@@ -1,6 +1,5 @@
 //! Input validation and DTO projection shared by live condition workflows.
-use super::rules::action_context::{ActionFact, ActionIssue, ActionJudgment, ActionKind};
-use crate::{AppServiceError, AppServiceResult};
+use super::rules::action_context::{ActionFact, ActionIssue, ActionJudgment};
 use atlas_app_model::*;
 
 pub(super) fn issue_view(
@@ -18,7 +17,7 @@ pub(super) fn issue_view(
             source_id,
             EncounterActionIssueKindView::NeedsConfusion,
             None,
-            "Choose how Confused directs this action.".into(),
+            "Confused: use offensive actions and choose targets randomly.".into(),
         ),
         ActionIssue::NeedsContext { source_id, reason } => (
             source_id,
@@ -104,25 +103,6 @@ fn fact_question(fact: ActionFact) -> &'static str {
     }
 }
 
-pub(super) fn fact_from_view(fact: EncounterActionFactView) -> ActionFact {
-    match fact {
-        EncounterActionFactView::FollowsControllerInstructions => {
-            ActionFact::FollowsControllerInstructions
-        }
-        EncounterActionFactView::Reaction => ActionFact::Reaction,
-        EncounterActionFactView::Manipulate => ActionFact::Manipulate,
-        EncounterActionFactView::Auditory => ActionFact::Auditory,
-        EncounterActionFactView::Concentrate => ActionFact::Concentrate,
-        EncounterActionFactView::Move => ActionFact::Move,
-        EncounterActionFactView::Attack => ActionFact::Attack,
-        EncounterActionFactView::MentalOnly => ActionFact::MentalOnly,
-        EncounterActionFactView::RelatesToFascination => ActionFact::RelatesToFascination,
-        EncounterActionFactView::FurthersEscape => ActionFact::FurthersEscape,
-        EncounterActionFactView::Cantrip => ActionFact::Cantrip,
-        EncounterActionFactView::VoluntaryIngestion => ActionFact::VoluntaryIngestion,
-    }
-}
-
 pub(super) fn fact_to_view(fact: ActionFact) -> EncounterActionFactView {
     match fact {
         ActionFact::FollowsControllerInstructions => {
@@ -165,110 +145,6 @@ fn prohibition_reason(rule: super::conditions::ConditionRule) -> &'static str {
         ConditionRule::Sickened => "Cannot voluntarily consume food or drink.",
         _ => "This action is prohibited by its condition.",
     }
-}
-
-pub(super) fn confusion_from_view(
-    value: &EncounterConfusionContextView,
-) -> AppServiceResult<super::rules::action_context::ConfusionChoice> {
-    use super::rules::action_context::ConfusionChoice as C;
-    Ok(match value {
-        EncounterConfusionContextView::Offensive {
-            viable_target_keys,
-            random_target_key,
-            offensive,
-        } => {
-            if viable_target_keys.len() > 1000
-                || viable_target_keys.iter().any(|key| key.len() > 256)
-                || random_target_key
-                    .as_ref()
-                    .is_some_and(|key| key.len() > 256)
-            {
-                return Err(AppServiceError::invalid_request(
-                    "Too many or invalid viable targets.",
-                ));
-            }
-            C::Offensive {
-                viable_target_keys: viable_target_keys.clone(),
-                random_target_key: random_target_key.clone(),
-                offensive: *offensive,
-            }
-        }
-        EncounterConfusionContextView::Facilitate { note } => {
-            let note = note
-                .as_ref()
-                .map(|note| note.trim().to_owned())
-                .filter(|note| !note.is_empty());
-            if note.as_ref().is_some_and(|note| note.len() > 4096) {
-                return Err(AppServiceError::invalid_request(
-                    "The facilitation note is too long.",
-                ));
-            }
-            C::Facilitate { note }
-        }
-        EncounterConfusionContextView::NoViableTargets => C::NoViableTargets,
-        EncounterConfusionContextView::UnableToAttack => C::UnableToAttack,
-    })
-}
-
-pub(super) fn validate_confusion_targets(
-    participants: &[atlas_local_state::EncounterParticipant],
-    actor: &str,
-    choice: Option<&super::rules::action_context::ConfusionChoice>,
-) -> AppServiceResult<()> {
-    if let Some(super::rules::action_context::ConfusionChoice::Offensive {
-        viable_target_keys,
-        ..
-    }) = choice
-    {
-        let mut unique = std::collections::BTreeSet::new();
-        if viable_target_keys.iter().any(|key| {
-            key == actor
-                || !participants
-                    .iter()
-                    .any(|participant| participant.participant_key == *key)
-                || !unique.insert(key)
-        }) {
-            return Err(AppServiceError::invalid_request(
-                "Confirm distinct viable targets in this encounter; use the self-target procedure when no others are viable.",
-            ));
-        }
-    }
-    Ok(())
-}
-
-pub(super) fn confusion_view(
-    participant: &atlas_local_state::EncounterParticipant,
-    choice: Option<&super::rules::action_context::ConfusionChoice>,
-    kind: ActionKind,
-    source_attack: bool,
-) -> Option<EncounterConfusionRequirementsView> {
-    super::rules::action_context::confusion_requirements(participant, choice, kind, source_attack)
-        .map(|value| EncounterConfusionRequirementsView {
-            source_ids: value.source_ids,
-            required_facts: value.required_facts,
-            selected_target_key: value.selected_target_key,
-            automatic_self_hit: value.automatic_self_hit,
-            wastes_action: value.wastes_action,
-        })
-}
-
-pub(super) fn checked_confusion(
-    participants: &[atlas_local_state::EncounterParticipant],
-    participant: &atlas_local_state::EncounterParticipant,
-    value: Option<&EncounterConfusionContextView>,
-) -> AppServiceResult<Option<super::rules::action_context::ConfusionChoice>> {
-    let choice = value.map(confusion_from_view).transpose()?;
-    if choice.is_some()
-        && !super::rules::causes::condition_causes(participant, None)
-            .iter()
-            .any(|cause| cause.rule == super::conditions::ConditionRule::Confused)
-    {
-        return Err(AppServiceError::invalid_request(
-            "The Confused procedure is not required for this participant.",
-        ));
-    }
-    validate_confusion_targets(participants, &participant.participant_key, choice.as_ref())?;
-    Ok(choice)
 }
 
 pub(super) fn strike_facts(

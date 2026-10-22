@@ -324,7 +324,7 @@ it("clears an expired reminder without inserting a success banner before the ref
   await waitFor(() => expect(result.current.data?.outgoing?.reminders).toEqual([]));
 });
 
-it("retains single and grouped rolls until the next turn begins", async () => {
+it("keeps persistent dice results out of the generic modal footer", async () => {
   const { result, run } = setup(vi.fn().mockResolvedValue(true));
   await waitFor(() => expect(result.current.loading).toBe(false));
   const first = {
@@ -347,11 +347,12 @@ it("retains single and grouped rolls until the next turn begins", async () => {
     refreshed: true,
     receipt: { encounter_key: "encounter", groups: [{ roll: null }, { roll: second }] },
   });
-  // Both updates may complete before React renders. Neither may replace the other.
+  // Persistent results are rendered by their sections, never duplicated in the modal footer.
   await act(async () => {
     await result.current.execute({
       kind: "persistent-recovery",
       request: {
+        resolution: "roll",
         participant_key: "actor",
         expected_encounter_revision: 7n,
         boundary_key: "outgoing",
@@ -385,7 +386,7 @@ it("retains single and grouped rolls until the next turn begins", async () => {
       },
     });
   });
-  expect(result.current.outcomes).toEqual([first, second]);
+  expect(result.current.outcomes).toEqual([]);
   await act(async () => {
     await result.current.begin();
   });

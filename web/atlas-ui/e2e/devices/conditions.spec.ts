@@ -12,7 +12,7 @@ async function selectOption(page: Page, name: string, value: string) {
   await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
 }
 
-test("persistent sources stay grouped after reload and Remove acts directly without a confirmation", async ({
+test("persistent sources stay visible after reload and Remove acts directly without a confirmation", async ({
   page,
 }, info) => {
   const created = await page.request.post("/api/encounters", {
@@ -96,11 +96,14 @@ test("persistent sources stay grouped after reload and Remove acts directly with
     await expect.poll(sourceCount).toBe(2);
     await page.reload();
     await openActor();
-    const group = page.locator(".encounter-conditions").getByRole("button", {
+    const conditions = page.locator(".encounter-conditions");
+    const links = conditions.getByRole("link", {
       name: new RegExp(`^Persistent Damage.*${damageType.label}`),
     });
-    await expect(group).toHaveCount(1);
-    await activate(group, info);
+    await expect(links).toHaveCount(2);
+    await expect(links.first()).toBeVisible();
+    await expect(links.last()).toBeVisible();
+    await expect(conditions.getByText("Superseded", { exact: true })).toBeVisible();
     const remove = page.getByRole("button", {
       name: `Remove ${definition.name}`,
       exact: true,

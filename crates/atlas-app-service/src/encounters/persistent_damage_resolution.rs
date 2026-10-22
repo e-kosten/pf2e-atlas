@@ -8,7 +8,6 @@ use atlas_app_model::{
 };
 use atlas_local_state::{
     ConditionEventOutcome, ConditionParameters, EncounterEventReceipt, PersistentDamageOutcome,
-    PersistentSelectionChange, PersistentSourceSelection,
 };
 
 impl AtlasAppService {
@@ -52,7 +51,11 @@ impl AtlasAppService {
             .as_ref()
             .map(|saved| super::outgoing_turns::frozen_participant(saved, participant))
             .transpose()?;
-        let damage_sources = frozen.as_ref().unwrap_or(participant);
+        let active = super::persistent_damage::active_damage_subject(
+            frozen.as_ref().unwrap_or(participant),
+            participant,
+        );
+        let damage_sources = &active;
         let round = boundary
             .as_ref()
             .map_or(snapshot.encounter.round_number, |saved| {
@@ -235,7 +238,6 @@ impl AtlasAppService {
             },
             || {
                 let mut outcomes = vec![];
-                let mut selections = vec![];
                 let mut total = 0i64;
                 for (group, input, selected, multiplier, roll, protection) in prepared {
                     let rolled = roll
@@ -276,18 +278,13 @@ impl AtlasAppService {
                             input.damage,
                             PersistentDamageInput::TableResult { .. }
                         ),
-                    });
-                    selections.push(PersistentSelectionChange {
-                        participant_key: participant.participant_key.clone(),
-                        selection: PersistentSourceSelection {
-                            episode_id: group.episode_id.into(),
-                            selected_source_id: selected,
-                            source_condition_ids: group
-                                .sources
-                                .iter()
-                                .map(|source| source.condition_id)
-                                .collect(),
-                        },
+                        protection: protection.map(|p| {
+                            atlas_local_state::PersistentDamageProtection {
+                                immune: p.immune,
+                                weakness: p.weakness,
+                                resistance: p.resistance,
+                            }
+                        }),
                     });
                 }
                 let hardness_absorbed = total.min(hardness);
@@ -304,7 +301,6 @@ impl AtlasAppService {
                         "Persistent damage could not be applied",
                     )
                 })?;
-                changes.selection_changes = selections;
                 changes
                     .outcomes
                     .push(ConditionEventOutcome::PersistentDamage {
@@ -342,6 +338,13 @@ pub(super) fn damage_view(
                         roll: group.roll,
                         amount: group.amount,
                         table_resolved: group.table_resolved,
+                        protection: group.protection.map(|p| {
+                            atlas_app_model::PersistentDamageProtectionView {
+                                immune: p.immune,
+                                weakness: p.weakness,
+                                resistance: p.resistance,
+                            }
+                        }),
                     })
                     .collect(),
                 total,

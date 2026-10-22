@@ -86,7 +86,7 @@ impl AtlasAppService {
                                         "This spell does not use an expenditure marker",
                                     )
                                 })?;
-                            let atlas_record::source_content::OwnedContentIdentity::Stable(id) =
+                            let atlas_domain::OwnedContentIdentity::Stable(id) =
                                 &spell.navigation.owners[0].identity
                             else {
                                 return Err(AppServiceError::invalid_request(

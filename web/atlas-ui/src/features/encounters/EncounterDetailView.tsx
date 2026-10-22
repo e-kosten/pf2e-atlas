@@ -1,11 +1,10 @@
 import { EncounterModalProvider } from "./EncounterModal";
+import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Grid } from "antd";
 import { Edit2 } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounter, getEncounterConditionDefinitions } from "../../api/atlasApi";
-import { EncounterConditionLifecycle } from "./EncounterConditionLifecycle";
-import { EncounterHpLifecycle } from "./EncounterHpLifecycle";
 import { useEncounterStrike } from "./useEncounterStrike";
 import { useEncounterMutations } from "./useEncounterMutations";
 import { EncounterInspectorPane } from "./EncounterInspectorPane";
@@ -68,6 +67,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
   });
+  usePageTitle(encounter.data?.encounter.name ?? "Encounter");
   const mutations = useEncounterMutations(
     route.slug,
     encounter.data?.encounter.encounter_key,
@@ -223,21 +223,6 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             />
           )}
           {recovery}
-          {encounter.data && (
-            <EncounterHpLifecycle
-              encounterRef={encounter.data.encounter.encounter_key}
-              revision={encounter.data.revision}
-              participants={encounter.data.participants}
-              disabled={disabled}
-              onResolve={async (request) => {
-                const result = await mutations.run({
-                  kind: "resolve-hp-lifecycle",
-                  request,
-                });
-                return result.active && result.refreshed;
-              }}
-            />
-          )}
           {turnReview.error && !turnReview.open && (
             <Alert
               type="error"
@@ -365,30 +350,25 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           }
           results={
             <EncounterInspectorPane
+              currentTurnKey={encounter.data?.current_turn_participant_key}
               onBeginStrike={strikes.launch}
               renderStrikeContext={strikes.renderContext}
-              conditionActions={
-                selected &&
-                encounter.data && (
-                  <EncounterConditionLifecycle
-                    key={`condition-lifecycle:${selected.participant_key}`}
-                    encounterRef={encounter.data.encounter.encounter_key}
-                    revision={encounter.data.revision}
-                    participant={selected}
-                    participants={encounter.data.participants}
-                    disabled={disabled}
-                    onApply={async (request) => {
-                      const result = await mutations.run({
-                        kind: "condition-lifecycle",
-                        request,
-                      });
-                      if (!("check" in result.receipt))
-                        throw new Error("Recovery result unavailable.");
-                      return result.receipt;
-                    }}
-                  />
-                )
-              }
+              onConditionRecovery={async (request) => {
+                const result = await mutations.run({
+                  kind: "condition-lifecycle",
+                  request,
+                });
+                if (!("check" in result.receipt))
+                  throw new Error("Recovery result unavailable.");
+                return result.receipt;
+              }}
+              onResolveHpLifecycle={async (request) => {
+                const result = await mutations.run({
+                  kind: "resolve-hp-lifecycle",
+                  request,
+                });
+                return result.active && result.refreshed;
+              }}
               encounterKey={encounter.data?.encounter.encounter_key ?? route.slug}
               artifactGeneration={encounter.data?.artifact_generation ?? null}
               encounterRevision={encounter.data?.revision ?? 0n}
@@ -554,19 +534,19 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             return receipt;
           }}
           onApplyPersistent={async (request) => {
-            const receipt = await turnReview.execute(
-              { kind: "persistent-damage", request },
-              "Persistent damage saved.",
-            );
+            const receipt = await turnReview.execute({
+              kind: "persistent-damage",
+              request,
+            });
             if (!receipt || !("groups" in receipt))
               throw new Error("Damage result unavailable.");
             return receipt;
           }}
           onRecoverPersistent={async (request) => {
-            const receipt = await turnReview.execute(
-              { kind: "persistent-recovery", request },
-              "Recovery recorded.",
-            );
+            const receipt = await turnReview.execute({
+              kind: "persistent-recovery",
+              request,
+            });
             if (!receipt || !("success" in receipt))
               throw new Error("Recovery result unavailable.");
             return receipt;

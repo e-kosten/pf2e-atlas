@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { ExternalLink, X } from "lucide-react";
 import type React from "react";
@@ -36,6 +37,7 @@ const RECORD_VIEW_WIDTH_SPECS = {
 
 export function RecordView({ route }: RecordViewProps) {
   const detail = useRecordDetail(route.recordKey, route.selection);
+  usePageTitle(detail.data?.presentation.identity.title ?? "Record");
   const preview = useRecordPreview();
   return (
     <>
@@ -111,6 +113,7 @@ export function RecordView({ route }: RecordViewProps) {
 
 export function ReaderView({ route }: ReaderViewProps) {
   const detail = useRecordDetail(route.recordKey, route.selection);
+  usePageTitle(detail.data?.presentation.identity.title ?? "Record");
   const reading = useReferenceReading(
     route.previewRecordKey
       ? {

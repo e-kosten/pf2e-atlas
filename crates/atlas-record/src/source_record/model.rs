@@ -2,7 +2,8 @@ use super::traversal::visit_source_nodes;
 use super::{
     ItemSourceView, SourceFieldView, SourceIdentityError, SourceNodeView, source_record_key,
 };
-use crate::source_content::{OwnedContentLocator, SourceContentLocator};
+use crate::source_content::SourceContentLocator;
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::RecordKey;
 use atlas_foundry_model::FoundryDocumentSource;
 

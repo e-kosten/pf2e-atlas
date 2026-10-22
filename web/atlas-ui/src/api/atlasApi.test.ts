@@ -8,6 +8,7 @@ import {
   getTraitDetail,
   getTraitRecords,
   searchPage,
+  getRelationshipOccurrences,
   discoverFilterValues,
   discoverFilterEditor,
   discoverFilterCounts,
@@ -18,6 +19,7 @@ import {
   getSavedLists,
   AtlasApiError,
   getEncounter,
+  getEncounterConditionLifecycleActions,
   getEncounterReference,
   updateEncounterParticipant,
   addEncounterManualParticipant,
@@ -1126,4 +1128,200 @@ it("rejects trait responses from another identity, artifact generation or Simila
     search_profile: "embeddinggemma",
   });
   await expect(getTraitRecords(request)).rejects.toThrow("selected search model");
+});
+
+it("posts exact relationship evidence pages and normalizes occurrence totals", async () => {
+  const constraint = {
+    direction: "incoming" as const,
+    selection: {
+      record_key: "items:armor",
+      embedded_path: [],
+      field: null,
+      passage: null,
+      source_fingerprint: "checked",
+    },
+    include_contents: true,
+  };
+  respond({
+    artifact_generation: "generation-a",
+    clause: {
+      clause_id: "link",
+      relationship: constraint,
+      record: {},
+      title: "Leather Armor",
+    },
+    result_record: {},
+    occurrences: [],
+    page: { number: 2, size: 3, count: 0, total: 9, has_more: true, next_page: 3 },
+  });
+  const controller = new AbortController();
+  const request = {
+    clause_id: "link",
+    filter: {
+      kind: "relationship" as const,
+      clause_id: "link",
+      relationship: constraint,
+    },
+    result_record_key: "actors:goblin",
+    page: { number: 2, size: 3 },
+    expected_artifact_generation: "generation-a",
+  };
+  const result = await getRelationshipOccurrences(request, controller.signal);
+  expect(result.page.total).toBe(9n);
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/search/relationship-occurrences",
+    expect.objectContaining({ method: "POST", signal: controller.signal }),
+  );
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(request);
+});
+
+it("normalizes recovery source associations for both check and non-check offers", async () => {
+  respond({
+    encounter_key: "encounter",
+    encounter_revision: 4,
+    participant_key: "actor",
+    actions: [
+      {
+        kind: "reminder",
+        condition_id: 26,
+        text: "Recovery guidance",
+        condition_ids: [26],
+        label: "Treat Wounds",
+        available: true,
+        unavailable_reason: null,
+      },
+      {
+        kind: "dying_recovery",
+        condition_ids: [27],
+        label: "Wake",
+        available: true,
+        unavailable_reason: null,
+        check: { dc: 10, modifier: 3 },
+      },
+    ],
+  });
+  const result = await getEncounterConditionLifecycleActions("encounter", "actor");
+  expect(result.actions[0].condition_ids).toEqual([26n]);
+  expect(result.actions[1]).toMatchObject({
+    condition_ids: [27n],
+    check: { dc: 10n, modifier: 3n },
+  });
+});
+
+it("normalizes the executable persistent-damage groups returned by turn review", async () => {
+  const api = await import("./atlasApi");
+  respond({
+    round_number: 2,
+    encounter_revision: 2,
+    damage_applied: false,
+    episodes: [],
+    damage_result: null,
+    recovery_results: [],
+    damage_groups: [
+      {
+        episode_id: "fire",
+        damage_type: "fire",
+        selected_source_id: 9,
+        sources: [
+          { condition_id: 9, formula: "2d6", multiplier: "normal", recovery_dc: 15 },
+        ],
+      },
+    ],
+  });
+  const review = await api.getEncounterPersistentReview("encounter", "actor");
+  expect(review.encounter_revision).toBe(2n);
+  expect(review.damage_groups[0].selected_source_id).toBe(9n);
+  expect(review.damage_groups[0].sources[0].condition_id).toBe(9n);
+  expect(review.damage_groups[0].sources[0].recovery_dc).toBe(15n);
+});
+
+it("normalizes persistent Add/Edit choices without losing source identity", async () => {
+  const api = await import("./atlasApi");
+  respond({
+    encounter_key: "test",
+    encounter_revision: 2,
+    consequences: [],
+    persistent_precedence: {
+      damage_type: "fire",
+      sources: [
+        { source: { kind: "edited" }, formula: "2d6", multiplier: "normal" },
+        {
+          source: { kind: "existing", condition_id: 45 },
+          formula: "1d12",
+          multiplier: "normal",
+        },
+      ],
+    },
+  });
+  const result = await api.previewEncounterCondition("test", "actor", {
+    request_id: "preview",
+    expected_encounter_revision: 2n,
+    participant_key: "actor",
+    event_intent: "apply",
+    decisions: { keep_upright: false },
+    condition_ref: "conditionitems:lDVqvLKA6eF3Df60",
+    scope: { kind: "everyone" },
+    extra_action: { kind: "unspecified" },
+    immunity_override: false,
+    parameters: {
+      kind: "persistent_damage",
+      formula: "2d6",
+      damage_type: "fire",
+      multiplier: "normal",
+      recovery: { kind: "standard" },
+    },
+  });
+  expect(result.persistent_precedence?.sources[1].source).toEqual({
+    kind: "existing",
+    condition_id: 45n,
+  });
+});
+
+it("normalizes reviewed and recorded protection facts", async () => {
+  const api = await import("./atlasApi");
+  const protection = { immune: true, weakness: 2, resistance: 3 };
+  respond({
+    encounter_revision: 4,
+    round_number: 1,
+    damage_groups: [],
+    episodes: [
+      {
+        episode_id: "bleed",
+        damage_resolution: { kind: "known", protection },
+        end_turn_recovery_available: true,
+        end_turn_recovery_unavailable_reason: null,
+        end_turn_roll_available: true,
+        end_turn_roll_unavailable_reason: null,
+      },
+    ],
+    damage_applied: true,
+    damage_result: {
+      encounter_key: "encounter",
+      request_id: "r",
+      total: 0,
+      hardness_absorbed: 0,
+      groups: [
+        {
+          episode_id: "bleed",
+          damage_type: "bleed",
+          source_condition_id: 4,
+          amount: 0,
+          roll: null,
+          table_resolved: false,
+          protection,
+        },
+      ],
+    },
+    recovery_results: [],
+  });
+  const review = await api.getEncounterPersistentReview("encounter", "actor");
+  expect(review.episodes[0].damage_resolution).toEqual({
+    kind: "known",
+    protection: { immune: true, weakness: 2n, resistance: 3n },
+  });
+  expect(review.damage_result?.groups[0].protection).toEqual({
+    immune: true,
+    weakness: 2n,
+    resistance: 3n,
+  });
 });

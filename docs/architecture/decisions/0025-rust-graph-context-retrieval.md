@@ -4,6 +4,18 @@
 
 Accepted
 
+Historical storage/flag and similarity details below are superseded by
+[ADR0046](./0046-source-backed-reference-artifact.md),
+[ADR0053](./0053-field-aware-search-fusion.md) and
+[ADR0057](./0057-relationship-scoped-search.md). Current graph reads use attributed
+relationship occurrences; current Similar has no graph/trait reranking. Full
+relationship search uses first-class Boolean predicates rather than the historical
+search flags mentioned in this record. Bounded graph links/uses remain separate
+from complete relationship-scoped result pages. CLI graph occurrences pages checked
+positive search-clause evidence using the full predicate, clause/result identity
+and expected artifact generation; it does not turn bounded graph neighbors into
+search eligibility.
+
 ## Context
 
 The TypeScript MCP runtime exposes rule-context tools that combine rule name lookup with reference graph collection. Early Rust migration scaffolding mirrored that shape with rule-specific DTOs, but the Rust CLI product model has since settled on explicit record identification and result-set search as separate user intents.

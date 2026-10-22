@@ -26,6 +26,7 @@ import type {
 } from "../generated/atlas";
 import { AtlasApp } from "./AtlasApp";
 import { SEARCH_PROFILE_PREFERENCE_KEY } from "../shared/search/SearchProfileContext";
+import { rootNavigation } from "../shared/records/useReferenceReading";
 import { encodeFilterUrl } from "../shared/filters/filterUrl";
 
 const apiMocks = vi.hoisted(() => ({
@@ -65,7 +66,14 @@ describe("AtlasApp routing", () => {
       matching_record_count: 0n,
       options: [],
     });
-    apiMocks.searchPage.mockResolvedValue(searchResultsPage());
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
+      ...searchResultsPage(),
+      sort:
+        request.sort ??
+        (request.criteria.kind === "list_records"
+          ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+          : { kind: "relevance" }),
+    }));
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
@@ -92,6 +100,41 @@ describe("AtlasApp routing", () => {
     );
   });
 
+  it("automatically recovers a broken filter in the real notification context without losing selected reading", async () => {
+    const selection = { ...rootNavigation("spell:heal"), spell_rank: 4 };
+    const params = new URLSearchParams({
+      q: "fire",
+      filter: "2.obsolete",
+      selection: JSON.stringify(selection),
+    });
+    history.replaceState(
+      { atlasSearchPage: 9 },
+      "",
+      "/search/records/spell:heal?" + params,
+    );
+    const length = history.length;
+    apiMocks.getRecordDetail.mockResolvedValue({
+      ...recordDetailFixture("spell:heal"),
+      selected: selection,
+    });
+    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+    await screen.findByText(
+      "Filters in this link couldn’t be restored and were cleared.",
+    );
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalled());
+    await screen.findByRole("heading", { name: "heal" });
+    expect(new URLSearchParams(window.location.search).get("q")).toBe("fire");
+    expect(new URLSearchParams(window.location.search).get("selection")).toBe(
+      JSON.stringify(selection),
+    );
+    expect(new URLSearchParams(window.location.search).has("filter")).toBe(false);
+    expect(history.length).toBe(length);
+    for (const [request] of apiMocks.searchPage.mock.calls) {
+      expect(request.page.number).toBe(1);
+      expect(request.criteria.filter).toBeNull();
+    }
+  });
+
   it("restores record and reader views from browser history without running search queries", async () => {
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
@@ -109,6 +152,7 @@ describe("AtlasApp routing", () => {
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
+    expect(document.title).toBe("heal · Atlas");
     expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
       "spell:heal",
       undefined,
@@ -125,6 +169,14 @@ describe("AtlasApp routing", () => {
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
+    expect(document.title).toBe("heal · Atlas");
+
+    history.pushState(null, "", "/search");
+    fireEvent.popState(window);
+    await waitFor(() => expect(document.title).toBe("Search · Atlas"));
+    history.pushState(null, "", "/lists");
+    fireEvent.popState(window);
+    await waitFor(() => expect(document.title).toBe("Lists · Atlas"));
   });
 
   it("waits for metadata before searching and gives the URL priority over preference and launch default", async () => {
@@ -140,6 +192,11 @@ describe("AtlasApp routing", () => {
       Promise.resolve({
         ...searchResultsPage(),
         search_profile: request.search_profile,
+        sort:
+          request.sort ??
+          (request.criteria.kind === "list_records"
+            ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+            : { kind: "relevance" }),
       }),
     );
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -205,6 +262,11 @@ describe("AtlasApp routing", () => {
         Promise.resolve({
           ...searchResultsPage(),
           search_profile: request.search_profile,
+          sort:
+            request.sort ??
+            (request.criteria.kind === "list_records"
+              ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+              : { kind: "relevance" }),
         }),
       );
       const first = render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -320,6 +382,11 @@ describe("AtlasApp routing", () => {
         Promise.resolve({
           ...searchResultsPage(),
           search_profile: request.search_profile,
+          sort:
+            request.sort ??
+            (request.criteria.kind === "list_records"
+              ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+              : { kind: "relevance" }),
         }),
       );
       const reader = render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -383,6 +450,11 @@ describe("AtlasApp routing", () => {
       Promise.resolve({
         ...searchResultsPage(["spell:heal"]),
         search_profile: request.search_profile,
+        sort:
+          request.sort ??
+          (request.criteria.kind === "list_records"
+            ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+            : { kind: "relevance" }),
       }),
     );
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -524,6 +596,11 @@ describe("AtlasApp routing", () => {
       Promise.resolve({
         ...searchResultsPage(),
         search_profile: request.search_profile,
+        sort:
+          request.sort ??
+          (request.criteria.kind === "list_records"
+            ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+            : { kind: "relevance" }),
       }),
     );
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -620,6 +697,8 @@ function emptyFilterEditor(): FilterEditorView {
 
 function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
   return {
+    relationship_clauses: [],
+    sort: { kind: "relevance" } as const,
     ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",
@@ -632,7 +711,11 @@ function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
       has_more: false,
       next_page: null,
     },
-    rows: recordKeys.map((key) => ({ record: summaryFixture(key), matches: [] })),
+    rows: recordKeys.map((key) => ({
+      record: summaryFixture(key),
+      relationship_evidence: [],
+      matches: [],
+    })),
     coverage: null,
   };
 }

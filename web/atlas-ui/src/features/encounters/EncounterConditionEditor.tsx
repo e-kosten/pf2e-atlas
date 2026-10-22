@@ -14,8 +14,10 @@ import {
   Segmented,
   Space,
   Tooltip,
+  Typography,
 } from "antd";
 import { createPortal } from "react-dom";
+import { EncounterPersistentPrecedence } from "./EncounterPersistentPrecedence";
 import { ConditionValueInput } from "./ConditionValueInput";
 import { Info, X } from "lucide-react";
 import { useEffect, useEffectEvent, useId, useState, type ReactNode } from "react";
@@ -60,7 +62,6 @@ export function EncounterConditionEditor({
   revision,
   onPreview,
   onSave,
-  onCancel,
   onRemove,
   onReload,
 }: {
@@ -82,7 +83,6 @@ export function EncounterConditionEditor({
     input: ConditionEventInput,
   ) => Promise<import("../../generated/atlas").ConditionEventPreviewView>;
   onSave: (input: ConditionEventInput) => Promise<void>;
-  onCancel: () => void;
   onRemove?: () => void;
   onReload?: () => void;
 }) {
@@ -182,7 +182,6 @@ export function EncounterConditionEditor({
       sickenedRecoveryDc:
         sickened?.recovery_dc === undefined ? undefined : Number(sickened.recovery_dc),
       wakingRule: unconscious?.waking ?? "normal",
-      attitudeSupernatural: attitude?.supernatural ?? false,
       conditionSubject: conditionSubjectKey,
       conditionSubjectDescription:
         subjectParameters?.subject?.kind === "other"
@@ -270,11 +269,9 @@ export function EncounterConditionEditor({
     );
   };
   const watchedDraft = Form.useWatch((values) => values, form);
-  const draftIdentity = JSON.stringify(watchedDraft);
-  const [validatedFields, setValidatedFields] = useState<string>();
-  const previewReady = preview.ready && validatedFields === draftIdentity;
+  const draftIdentity = JSON.stringify({ ...watchedDraft, note: undefined });
+  const [preparing, setPreparing] = useState(false);
   const notifyDraft = useEffectEvent((values: ConditionFormValues | undefined) => {
-    setValidatedFields(values ? draftIdentity : undefined);
     if (!values) {
       preview.reset();
       return;
@@ -286,18 +283,7 @@ export function EncounterConditionEditor({
     }
   });
   useEffect(() => {
-    let active = true;
-    void form
-      .validateFields({ validateOnly: true })
-      .then((values) => {
-        if (active) notifyDraft(values);
-      })
-      .catch(() => {
-        if (active) notifyDraft(undefined);
-      });
-    return () => {
-      active = false;
-    };
+    notifyDraft(form.getFieldsValue());
   }, [draftIdentity, form]);
   const actions = (
     <div className="encounter-condition-footer">
@@ -327,10 +313,8 @@ export function EncounterConditionEditor({
       <EncounterConditionEditorActions
         formId={formId ?? name}
         disabled={disabled}
-        pending={pending}
+        pending={pending || preparing}
         reloadRequired={!!onReload}
-        previewReady={previewReady}
-        onCancel={onCancel}
         onRemove={onRemove}
       />
     </div>
@@ -358,7 +342,7 @@ export function EncounterConditionEditor({
         id={formId ?? name}
         form={form}
         layout="vertical"
-        disabled={disabled}
+        disabled={disabled || preparing}
         initialValues={{
           durationUnit: condition?.duration?.unit ?? "none",
           durationAmount: condition?.duration
@@ -393,7 +377,6 @@ export function EncounterConditionEditor({
               ? undefined
               : Number(sickened.recovery_dc),
           wakingRule: unconscious?.waking ?? "normal",
-          attitudeSupernatural: attitude?.supernatural ?? false,
           conditionSubject: conditionSubjectKey,
           conditionSubjectDescription:
             subjectParameters?.subject?.kind === "other"
@@ -441,11 +424,15 @@ export function EncounterConditionEditor({
             setDetailsOpen(true);
         }}
         onFinish={async (values) => {
-          if (disabled || onReload || !previewReady) return;
+          if (disabled || preparing || onReload) return;
+          setPreparing(true);
           try {
-            await onSave(preview.apply(normalizeDraft(values)));
+            const request = await preview.prepare(normalizeDraft(values));
+            if (request) await onSave(request);
           } catch {
-            /* Retain draft. */
+            /* Retain draft; preview or mutation owner reports the error. */
+          } finally {
+            setPreparing(false);
           }
         }}
       >
@@ -464,21 +451,23 @@ export function EncounterConditionEditor({
               }))}
               optionRender={(option) => {
                 const entry = definitions.find((d) => d.condition_ref === option.value);
-                return entry?.eligibility && entry.eligibility.kind !== "available" ? (
-                  <Tooltip
-                    title={entry.eligibility.reason}
-                    trigger={["hover", "focus", "click"]}
-                  >
-                    <span
-                      style={{
-                        opacity: entry.eligibility.kind === "immune" ? 0.55 : 1,
-                      }}
-                    >
-                      {option.label}
-                    </span>
+                const eligibility = entry?.eligibility;
+                const immune = eligibility?.kind === "immune";
+                const label = (
+                  <span style={{ opacity: immune ? 0.55 : 1 }}>{option.label}</span>
+                );
+                const reason =
+                  eligibility && eligibility.kind !== "available"
+                    ? eligibility.reason
+                    : undefined;
+                const redundant =
+                  immune && reason === `Immune to ${entry?.name.toLowerCase()}.`;
+                return reason && !redundant ? (
+                  <Tooltip title={reason} trigger={["hover", "focus", "click"]}>
+                    {label}
                   </Tooltip>
                 ) : (
-                  option.label
+                  label
                 );
               }}
               onChange={(ref) => {
@@ -497,7 +486,6 @@ export function EncounterConditionEditor({
                     standardRecoveryDc == null ? undefined : Number(standardRecoveryDc),
                   sickenedRecoveryDc: undefined,
                   wakingRule: "normal",
-                  attitudeSupernatural: false,
                   conditionSubject: "__unknown",
                   conditionSubjectDescription: undefined,
                   frightenedRecovery: "end_turn",
@@ -534,6 +522,14 @@ export function EncounterConditionEditor({
                 />
               </Form.Item>
             </div>
+            {preview.persistentPrecedence && (
+              <EncounterPersistentPrecedence
+                precedence={preview.persistentPrecedence}
+                order={preview.persistentOrder}
+                disabled={pending || preview.loading}
+                onChange={preview.setPersistentOrder}
+              />
+            )}
             <Space align="start" wrap>
               <Form.Item name="persistentMultiplier" label="Multiplier">
                 <Select
@@ -566,7 +562,7 @@ export function EncounterConditionEditor({
                 definition?.editor_kind === "fleeing" ||
                 condition?.parameters.kind === "fleeing"
                   ? "Fleeing from"
-                  : "Fascinating subject"
+                  : "Subject"
               }
             >
               <Select
@@ -574,7 +570,7 @@ export function EncounterConditionEditor({
                   definition?.editor_kind === "fleeing" ||
                   condition?.parameters.kind === "fleeing"
                     ? "Fleeing from"
-                    : "Fascinating subject"
+                    : "Subject"
                 }
                 options={[
                   { value: "__unknown", label: "Unspecified" },
@@ -604,28 +600,12 @@ export function EncounterConditionEditor({
             )}
           </>
         )}
-        {(definition?.editor_kind === "attitude" || !!attitude) && (
-          <Form.Item
-            name="attitudeSupernatural"
-            valuePropName="checked"
-            rules={
-              participantKind === "pc"
-                ? [
-                    {
-                      validator: (_rule, value) =>
-                        value
-                          ? Promise.resolve()
-                          : Promise.reject(
-                              new Error("PC attitudes require a supernatural effect."),
-                            ),
-                    },
-                  ]
-                : []
-            }
-          >
-            <Checkbox>Supernatural effect</Checkbox>
-          </Form.Item>
-        )}
+        {(definition?.editor_kind === "attitude" || !!attitude) &&
+          participantKind === "pc" && (
+            <Typography.Paragraph type="secondary">
+              Only supernatural effects can impose an attitude on a PC.
+            </Typography.Paragraph>
+          )}
         {(definition?.editor_kind === "sickened" || !!sickened) && (
           <Form.Item
             name="sickenedRecoveryDc"
@@ -839,7 +819,15 @@ export function EncounterConditionEditor({
                 >
                   <InputNumber
                     aria-label="Duration amount"
+                    min={0}
                     step={1}
+                    onKeyDown={(event) => {
+                      if (event.key === "-") event.preventDefault();
+                    }}
+                    onPaste={(event) => {
+                      if (/^\s*[-−]/.test(event.clipboardData.getData("text")))
+                        event.preventDefault();
+                    }}
                     style={{ width: 88 }}
                   />
                 </Form.Item>
@@ -940,37 +928,30 @@ export function EncounterConditionEditorActions({
   disabled,
   pending,
   reloadRequired,
-  previewReady,
-  onCancel,
   onRemove,
 }: {
   formId: string;
   disabled: boolean;
   pending: boolean;
   reloadRequired: boolean;
-  previewReady: boolean;
-  onCancel: () => void;
   onRemove?: () => void;
 }) {
   return (
     <Space wrap>
-      <Button disabled={pending} onClick={onCancel}>
-        Cancel
-      </Button>
-      <Button
-        type="primary"
-        htmlType="submit"
-        form={formId}
-        disabled={disabled || reloadRequired || !previewReady}
-        loading={pending}
-      >
-        Apply
-      </Button>
       {onRemove && (
         <Button danger disabled={disabled} onClick={onRemove}>
           Remove
         </Button>
       )}
+      <Button
+        type="primary"
+        htmlType="submit"
+        form={formId}
+        disabled={disabled || reloadRequired}
+        loading={pending}
+      >
+        Apply
+      </Button>
     </Space>
   );
 }

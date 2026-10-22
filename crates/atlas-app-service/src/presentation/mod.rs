@@ -12,8 +12,8 @@ use crate::projection::{field_state, navigation_fingerprint};
 use action_cost::{casting_cost, item_action_cost};
 pub(crate) use actor::compose_participant;
 use atlas_app_model::*;
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::QueryFieldState;
-use atlas_record::source_content::OwnedContentLocator;
 use atlas_record::source_record::{
     ItemSourceView, SourceBackedRecord, SourceFieldView, SourceNodeView, SourceQueryView,
 };
@@ -454,6 +454,7 @@ fn selected_identity(
     };
     let family = node.source_type().value().unwrap_or(node.document_kind());
     RecordSummaryView {
+        unit_price_label: None,
         record_key: record.key().to_string(),
         title: node_title(node),
         kind: family.into(),

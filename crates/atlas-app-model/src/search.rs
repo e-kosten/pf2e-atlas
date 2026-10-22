@@ -25,6 +25,9 @@ pub struct SearchPageView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub sort: Option<atlas_domain::ResultSort>,
     #[serde(default)]
     #[ts(optional)]
     pub ranking: Option<atlas_domain::SearchRanking>,
@@ -64,6 +67,8 @@ pub enum SearchModeSummary {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsPage {
+    pub sort: atlas_domain::ResultSort,
+    pub relationship_clauses: Vec<RelationshipClauseSummaryView>,
     pub ranking: atlas_domain::SearchRanking,
     pub search_profile: atlas_domain::SearchProfileId,
     pub artifact_generation: String,
@@ -74,6 +79,7 @@ pub struct SearchResultsPage {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultRow {
+    pub relationship_evidence: Vec<RelationshipEvidenceView>,
     pub record: RecordSummaryView,
     pub matches: Vec<SearchWitnessView>,
 }
@@ -98,4 +104,49 @@ pub struct SearchCoverageView {
     pub semantic_unit_window: Option<usize>,
     pub candidate_roots: usize,
     pub count_basis: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RelationshipClauseSummaryView {
+    pub clause_id: String,
+    pub relationship: atlas_domain::QueryRelationship,
+    pub record: RecordSummaryView,
+    pub title: String,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum RelationshipClausePresentationView {
+    Available {
+        clause_id: String,
+        relationship: atlas_domain::QueryRelationship,
+        record: Box<RecordSummaryView>,
+        title: String,
+    },
+    Unavailable {
+        clause_id: String,
+        relationship: atlas_domain::QueryRelationship,
+        message: String,
+    },
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RelationshipEvidenceView {
+    pub clause_id: String,
+    pub occurrences: Vec<crate::RecordRelationshipView>,
+    pub page: SearchPageView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RelationshipOccurrencesRequest {
+    pub filter: QueryPredicate,
+    pub clause_id: String,
+    pub result_record_key: String,
+    pub page: SearchPageRequest,
+    pub expected_artifact_generation: String,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RelationshipOccurrencesPage {
+    pub artifact_generation: String,
+    pub clause: RelationshipClauseSummaryView,
+    pub result_record: RecordSummaryView,
+    pub occurrences: Vec<crate::RecordRelationshipView>,
+    pub page: SearchPageView,
 }

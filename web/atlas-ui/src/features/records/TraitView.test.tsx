@@ -1,11 +1,13 @@
+import { chooseAttributeSort } from "../../test/sortControls";
+import type { ResultSort } from "../../generated/atlas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import { AtlasApiError } from "../../api/atlasApi";
 import { RecordIdentity } from "../../shared/records/RecordPresentation";
 import { currentAtlasRoute } from "../../app/routes";
 import { TraitView } from "./TraitView";
-import type { TraitDetailView } from "../../generated/atlas";
+import type { TraitDetailView, TraitRecordsRequest } from "../../generated/atlas";
 import { summaryFixture } from "../../test/fixtures";
 
 const api = vi.hoisted(() => ({ getTraitDetail: vi.fn(), getTraitRecords: vi.fn() }));
@@ -31,7 +33,11 @@ const definition: TraitDetailView = {
 };
 beforeEach(() => {
   api.getTraitDetail.mockReset().mockResolvedValue(definition);
-  api.getTraitRecords.mockReset().mockResolvedValue({
+  api.getTraitRecords.mockReset().mockImplementation(async (request) => ({
+    search_profile: request.kind === "similar" ? request.search_profile : null,
+    ...(request.kind === "similar"
+      ? { sort: request.sort ?? { kind: "relevance" } }
+      : {}),
     trait_key: "trait:agile",
     kind: "members",
     artifact_generation: "generation-one",
@@ -49,7 +55,7 @@ beforeEach(() => {
     ],
     page: { number: 1, size: 20, count: 1, total: 1, has_more: false, next_page: null },
     coverage: null,
-  });
+  }));
 });
 function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -227,3 +233,137 @@ it("requests stored Similar with the selected profile and no text fallback", asy
     ),
   ).toBe(true);
 });
+
+it("restores the Similar tab/order from its URL and keeps other association requests unsorted", async () => {
+  api.getTraitRecords.mockImplementation(async (request) => ({
+    trait_key: request.trait_key,
+    kind: request.kind,
+    search_profile: request.kind === "similar" ? request.search_profile : null,
+    artifact_generation: "generation-one",
+    ...(request.kind === "similar"
+      ? { sort: request.sort ?? { kind: "relevance" } }
+      : {}),
+    rows: [],
+    page: {
+      number: request.page.number,
+      size: 20,
+      count: 0,
+      total: 0n,
+      has_more: false,
+      next_page: null,
+    },
+    coverage: null,
+  }));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <SearchProfileProvider id="embeddinggemma">
+        <TraitView
+          route={{
+            kind: "trait",
+            traitKey: "trait:agile",
+            query: "?tab=similar&sort=level_desc",
+          }}
+        />
+      </SearchProfileProvider>
+    </QueryClientProvider>,
+  );
+  await screen.findByRole("tab", { name: "Similar", selected: true });
+  await waitFor(() =>
+    expect(api.getTraitRecords.mock.lastCall?.[0]).toMatchObject({
+      kind: "similar",
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "level", direction: "desc" }],
+      } satisfies ResultSort,
+      page: { number: 1 },
+    }),
+  );
+  await chooseAttributeSort("unit_price", "asc");
+  await waitFor(() =>
+    expect(api.getTraitRecords.mock.lastCall?.[0].sort).toEqual({
+      kind: "attributes",
+      rules: [{ field: "unit_price", direction: "asc" }],
+    }),
+  );
+  expect(location.search).toContain("tab=similar");
+  expect(location.search).toContain("sort=unit_price_asc");
+  fireEvent.click(screen.getByRole("tab", { name: "References" }));
+  await waitFor(() =>
+    expect(api.getTraitRecords.mock.lastCall?.[0].kind).toBe("references"),
+  );
+  expect(api.getTraitRecords.mock.lastCall?.[0]).not.toHaveProperty("sort");
+});
+
+it.each([
+  { label: "attribute order", first: "sort=level_desc", second: "sort=unit_price_asc" },
+  { label: "Random seed", first: "sort=random&seed=42", second: "sort=random&seed=43" },
+])(
+  "retires a previous page when $label changes A → B → A",
+  async ({ first, second }) => {
+    api.getTraitRecords.mockImplementation(async (request: TraitRecordsRequest) => ({
+      trait_key: request.trait_key,
+      kind: request.kind,
+      search_profile: request.search_profile,
+      artifact_generation: request.expected_artifact_generation,
+      sort: request.sort ?? { kind: "relevance" },
+      rows: Array.from({ length: 20 }, (_, index) => ({
+        record: summaryFixture(
+          `weapons:page${request.page.number}-${index}`,
+          `Weapon ${request.page.number}:${index}`,
+        ),
+        navigation: {
+          record_key: `weapons:page${request.page.number}-${index}`,
+          embedded_path: [],
+          field: null,
+          passage: null,
+          source_fingerprint: null,
+        },
+      })),
+      page: {
+        number: request.page.number,
+        size: 20,
+        count: 20,
+        total: 80n,
+        has_more: request.page.number < 4,
+        next_page: request.page.number < 4 ? request.page.number + 1 : null,
+      },
+      coverage: null,
+    }));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const content = (query: string) => (
+      <QueryClientProvider client={client}>
+        <SearchProfileProvider id="embeddinggemma">
+          <TraitView
+            route={{
+              kind: "trait",
+              traitKey: "trait:agile",
+              query: "?tab=similar&" + query,
+            }}
+          />
+        </SearchProfileProvider>
+      </QueryClientProvider>
+    );
+    const view = render(content(first));
+    await screen.findByRole("tab", { name: "Similar", selected: true });
+    fireEvent.click(await screen.findByTitle("Next Page"));
+    await waitFor(() =>
+      expect(api.getTraitRecords.mock.lastCall?.[0].page.number).toBe(2),
+    );
+    fireEvent.click(screen.getByTitle("Next Page"));
+    await waitFor(() =>
+      expect(api.getTraitRecords.mock.lastCall?.[0].page.number).toBe(3),
+    );
+    const original = api.getTraitRecords.mock.lastCall![0].sort;
+    view.rerender(content(second));
+    await waitFor(() => {
+      expect(api.getTraitRecords.mock.lastCall?.[0].sort).not.toEqual(original);
+      expect(api.getTraitRecords.mock.lastCall?.[0].page.number).toBe(1);
+    });
+    view.rerender(content(first));
+    await waitFor(() => {
+      expect(api.getTraitRecords.mock.lastCall?.[0].sort).toEqual(original);
+      expect(api.getTraitRecords.mock.lastCall?.[0].page.number).toBe(1);
+    });
+  },
+);

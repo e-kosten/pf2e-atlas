@@ -440,19 +440,6 @@ pub(crate) fn update_condition(
         ));
     }
     validate_scope_members(connection, &condition.participant_key, &condition.scope)?;
-    if let Some(existing) = self::condition(connection, condition.condition_id)?
-        && existing.parameters != condition.parameters
-    {
-        let episodes = [&existing.parameters, &condition.parameters]
-            .into_iter()
-            .filter_map(|parameters| match parameters {
-                super::ConditionParameters::PersistentDamage { episode_id, .. } => Some(episode_id),
-                _ => None,
-            });
-        for episode in episodes {
-            connection.execute("DELETE FROM encounter_persistent_selections WHERE participant_id=?1 AND episode_id=?2",params![participant_id,episode])?;
-        }
-    }
     let now = now_rfc3339()?;
     let updated = connection.execute(
         "UPDATE encounter_participant_conditions
@@ -584,8 +571,8 @@ fn participants(
     let mut participants = rows.collect::<Result<Vec<_>, _>>()?;
     for participant in &mut participants {
         participant.conditions = participant_conditions(connection, &participant.participant_key)?;
-        participant.persistent_selections =
-            super::persistent_selections::read(connection, &participant.participant_key)?;
+        participant.persistent_precedence =
+            super::persistent_precedence::read(connection, &participant.participant_key)?;
         participant.expended_spells =
             super::spell_resources::read_expended(connection, &participant.participant_key)?;
         participant.spell_resources =
@@ -616,7 +603,7 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
     let participant_variant: String = row.get(3)?;
     let side: String = row.get(8)?;
     Ok(EncounterParticipant {
-        persistent_selections: Vec::new(),
+        persistent_precedence: Vec::new(),
         track_dying: row.get(23)?,
         level_override: row.get(25)?,
         base_death_threshold: row.get(26)?,
@@ -678,8 +665,8 @@ pub(crate) fn participant(
     participant.expended_spells =
         super::spell_resources::read_expended(connection, participant_key)?;
     participant.spell_resources = super::spell_resources::read(connection, participant_key)?;
-    participant.persistent_selections =
-        super::persistent_selections::read(connection, participant_key)?;
+    participant.persistent_precedence =
+        super::persistent_precedence::read(connection, participant_key)?;
     Ok(Some(participant))
 }
 

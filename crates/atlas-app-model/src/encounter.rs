@@ -281,6 +281,10 @@ pub enum StatModifierTypeView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct ActionBudgetView {
+    /// Status when the default allocation loses Quickened's extra action first.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub extra_action_unavailable_reason: Option<String>,
     pub quickened_sources: Vec<ConditionExtraActionView>,
     pub actions: RuntimeCountView,
     pub reactions: RuntimeCountView,
@@ -438,6 +442,11 @@ pub struct EncounterMutationView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterParticipantView {
+    pub knockout_options: Vec<crate::KnockoutOptionView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub knockout_unavailable_reason: Option<String>,
+    pub effective_max_hp: crate::NumberFactView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub level_override: Option<i64>,

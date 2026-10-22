@@ -32,6 +32,8 @@ fn fixture(semantic: bool) -> (FixtureWorker, RetrievalExecutor) {
 
 fn request(criteria: SearchCriteria, number: u32) -> SearchResultsRequest {
     SearchResultsRequest {
+        sort: None,
+
         ranking: None,
         search_profile: None,
         criteria,
@@ -247,7 +249,7 @@ fn lexical_pages_preserve_filters_counts_and_exact_owned_witnesses() {
     assert_eq!(witness.navigation.owners.len(), 1);
     assert_eq!(
         witness.navigation.owners[0].identity,
-        atlas_record::source_content::OwnedContentIdentity::Stable("owned00000000000".into())
+        atlas_domain::OwnedContentIdentity::Stable("owned00000000000".into())
     );
     assert_eq!(witness.label.as_deref(), Some("Owned flare"));
 }
@@ -461,4 +463,216 @@ fn invalid_pages_and_missing_similar_seeds_remain_explicit_errors() {
             .code,
         AppErrorCode::RecordNotFound
     );
+}
+
+#[test]
+fn relationship_pages_label_exact_entries_and_page_evidence_with_generation_guards() {
+    use atlas_app_model::RelationshipOccurrencesRequest;
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+        Ok(open_source_fixture(
+            vec![
+                record(
+                    "items",
+                    "Item",
+                    json!({"_id":"target0000000000","name":"Leather Armor","type":"armor"}),
+                ),
+                record(
+                    "actors",
+                    "Actor",
+                    json!({"_id":"actor00000000000","name":"Guard","type":"npc","items":[{"_id":"owned00000000000","name":"Guard's armor","type":"armor","_stats":{"compendiumSource":"Compendium.pf2e.items.Item.target0000000000"},"system":{"description":{"value":"<p>@UUID[Compendium.pf2e.items.Item.target0000000000]</p>"}}}]}),
+                ),
+            ],
+            false,
+        )?)
+    });
+    let f = fixture_worker_with_executor(executor);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let target = f.worker.record_detail("items:target0000000000").unwrap();
+    let constraint = atlas_domain::QueryRelationship {
+        direction: atlas_domain::QueryRelationshipDirection::Incoming,
+        selection: crate::relationship_search::query_selection(&target.selected).unwrap(),
+        include_contents: true,
+    };
+    let mut criteria = request(SearchCriteria::ListRecords { filter: None }, 1);
+    let filter = relationship_predicate(constraint.clone());
+    criteria.criteria = SearchCriteria::ListRecords {
+        filter: Some(filter.clone()),
+    };
+    let result = f.worker.search_page(criteria.clone(), &execution).unwrap();
+    assert_eq!(result.relationship_clauses[0].title, "Leather Armor");
+    assert_eq!(result.page.total, 1);
+    assert_eq!(result.rows[0].relationship_evidence[0].page.total, 2);
+    assert_eq!(
+        result.rows[0].relationship_evidence[0].occurrences[0]
+            .source_title
+            .as_deref(),
+        Some("Guard's armor")
+    );
+    assert!(
+        result.rows[0].relationship_evidence[0]
+            .occurrences
+            .iter()
+            .any(|o| o.origin == "structured" && o.kind == "CompendiumProvenance")
+    );
+    assert!(
+        result.rows[0].relationship_evidence[0]
+            .occurrences
+            .iter()
+            .any(|o| o.origin == "content")
+    );
+    let page = f
+        .worker
+        .relationship_occurrences(
+            RelationshipOccurrencesRequest {
+                filter: filter.clone(),
+                clause_id: "link".into(),
+                result_record_key: result.rows[0].record.record_key.clone(),
+                page: SearchPageRequest { number: 2, size: 1 },
+                expected_artifact_generation: result.artifact_generation.clone(),
+            },
+            &execution,
+        )
+        .unwrap();
+    assert_eq!((page.page.total, page.occurrences.len()), (2, 1));
+    assert!(!page.page.has_more);
+    let mut main = constraint.clone();
+    main.include_contents = false;
+    criteria.criteria = SearchCriteria::ListRecords {
+        filter: Some(relationship_predicate(main)),
+    };
+    assert_eq!(
+        f.worker
+            .search_page(criteria.clone(), &execution)
+            .unwrap()
+            .page
+            .total,
+        0
+    );
+    let mut invalid_constraint = constraint.clone();
+    invalid_constraint.selection.owners = vec![atlas_domain::OwnedContentLocator {
+        collection: "/items".into(),
+        identity: atlas_domain::OwnedContentIdentity::SnapshotLocal { index: 0 },
+    }];
+    criteria.criteria = SearchCriteria::TextSearch {
+        query: "needs unavailable inference".into(),
+        filter: Some(relationship_predicate(invalid_constraint)),
+        mode: RetrievalModeView::Semantic,
+    };
+    let invalid = f
+        .worker
+        .search_page(criteria.clone(), &execution)
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(
+        invalid.code,
+        AppErrorCode::InvalidRequest,
+        "selection fingerprint must fail before unavailable inference"
+    );
+    criteria.expected_artifact_generation = Some("stale".into());
+    let invalid = f
+        .worker
+        .search_page(criteria, &execution)
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(invalid.code, AppErrorCode::ArtifactGenerationChanged);
+    let invalid = f
+        .worker
+        .relationship_occurrences(
+            RelationshipOccurrencesRequest {
+                filter,
+                clause_id: "link".into(),
+                result_record_key: "actors:actor00000000000".into(),
+                page: SearchPageRequest { number: 1, size: 1 },
+                expected_artifact_generation: "stale".into(),
+            },
+            &execution,
+        )
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(invalid.code, AppErrorCode::ArtifactGenerationChanged);
+}
+
+#[test]
+fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field() {
+    use atlas_app_model::RecordDetailRequest;
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+        Ok(open_source_fixture(
+            vec![
+                record(
+                    "items",
+                    "Item",
+                    json!({"_id":"target0000000000","name":"Leather Armor","type":"armor"}),
+                ),
+                record(
+                    "actors",
+                    "Actor",
+                    json!({"_id":"actor00000000000","name":"Guard","type":"npc","items":[{"_id":"owned00000000000","name":"Guard's armor","type":"armor","_stats":{"compendiumSource":"Compendium.pf2e.items.Item.target0000000000"},"system":{"description":{"value":"<p>@UUID[Compendium.pf2e.items.Item.target0000000000]</p>"}}}]}),
+                ),
+            ],
+            false,
+        )?)
+    });
+    let f = fixture_worker_with_executor(executor);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let target = f.worker.record_detail("items:target0000000000").unwrap();
+    let mut criteria = request(SearchCriteria::ListRecords { filter: None }, 1);
+    criteria.criteria = SearchCriteria::ListRecords {
+        filter: Some(relationship_predicate(atlas_domain::QueryRelationship {
+            direction: atlas_domain::QueryRelationshipDirection::Incoming,
+            selection: crate::relationship_search::query_selection(&target.selected).unwrap(),
+            include_contents: true,
+        })),
+    };
+    let result = f.worker.search_page(criteria, &execution).unwrap();
+    let occurrences = &result.rows[0].relationship_evidence[0].occurrences;
+    for origin in ["structured", "content"] {
+        let occurrence = occurrences.iter().find(|o| o.origin == origin).unwrap();
+        let navigation = &occurrence.source_navigation;
+        assert!(
+            !navigation.owners.is_empty(),
+            "must open the referring item, not its parent"
+        );
+        assert_eq!(navigation.owners, occurrence.source.owners);
+        if origin == "structured" {
+            assert_eq!(occurrence.kind, "CompendiumProvenance");
+            assert_eq!(
+                occurrence.source.field, "/_stats/compendiumSource",
+                "raw provenance remains exact"
+            );
+            assert!(navigation.field.is_none());
+        } else {
+            assert_eq!(
+                navigation.field.as_deref(),
+                Some("/system/description/value")
+            );
+            assert_eq!(
+                navigation.field.as_deref(),
+                Some(occurrence.source.field.as_str())
+            );
+        }
+        let opened = f
+            .worker
+            .record_detail_at(RecordDetailRequest {
+                spell_rank: navigation.spell_rank,
+                record_key: navigation.record_key.clone(),
+                owners: navigation.owners.clone(),
+                fields: navigation.field.iter().cloned().collect(),
+                passage: navigation.passage.clone(),
+                source_fingerprint: navigation.source_fingerprint.clone(),
+            })
+            .unwrap();
+        assert_eq!(opened.selected.record_key, navigation.record_key);
+        assert_eq!(opened.selected.owners, navigation.owners);
+        assert_eq!(opened.selected.field, navigation.field);
+        assert_eq!(opened.selected.passage, navigation.passage);
+    }
+}
+
+fn relationship_predicate(
+    relationship: atlas_domain::QueryRelationship,
+) -> atlas_domain::QueryPredicate {
+    atlas_domain::QueryPredicate {
+        clause_id: Some("link".into()),
+        expression: atlas_domain::QueryExpression::Relationship { relationship },
+    }
 }

@@ -54,9 +54,9 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
         selection: RecordDetailRequest {
             spell_rank: None,
             record_key: "actors:aaaaaaaaaaaaaaaa".into(),
-            owners: vec![atlas_record::source_content::OwnedContentLocator {
+            owners: vec![atlas_domain::OwnedContentLocator {
                 collection: "/items".into(),
-                identity: atlas_record::source_content::OwnedContentIdentity::Stable(id.into()),
+                identity: atlas_domain::OwnedContentIdentity::Stable(id.into()),
             }],
             fields: vec![],
             passage: None,
@@ -311,11 +311,9 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
         selection: RecordDetailRequest {
             spell_rank: None,
             record_key: "actors:aaaaaaaaaaaaaaaa".into(),
-            owners: vec![atlas_record::source_content::OwnedContentLocator {
+            owners: vec![atlas_domain::OwnedContentLocator {
                 collection: "/items".into(),
-                identity: atlas_record::source_content::OwnedContentIdentity::Stable(
-                    "bbbbbbbbbbbbbbbb".into(),
-                ),
+                identity: atlas_domain::OwnedContentIdentity::Stable("bbbbbbbbbbbbbbbb".into()),
             }],
             fields: vec![],
             passage: None,
@@ -407,7 +405,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
     assert_eq!(selected_b.presentation.identity.title, "Stable ability");
 
     request_b.selection.owners[0].identity =
-        atlas_record::source_content::OwnedContentIdentity::SnapshotLocal { index: 0 };
+        atlas_domain::OwnedContentIdentity::SnapshotLocal { index: 0 };
     request_b.selection.source_fingerprint = Some("old-source-fingerprint".into());
     let navigation_error = b
         .worker

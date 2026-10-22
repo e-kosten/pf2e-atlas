@@ -50,20 +50,38 @@ export function useFilterDiscovery({
   vocabularyScope?: FilterVocabularyScope;
 }) {
   const editor = useQuery<FilterEditorView>({
-    queryKey: ["filter-discovery", "editor", ...catalogIdentity, context.filter],
+    queryKey: [
+      "filter-discovery",
+      "editor",
+      ...catalogIdentity,
+      context.expected_artifact_generation,
+      context.filter,
+    ],
     enabled,
     staleTime: Infinity,
     meta: { catalogIdentity },
     placeholderData: (previous, previousQuery) =>
       JSON.stringify(previousQuery?.meta?.catalogIdentity) ===
       JSON.stringify(catalogIdentity)
-        ? previous
+        ? context.expected_artifact_generation &&
+          previous?.artifact_generation !== context.expected_artifact_generation
+          ? undefined
+          : previous
+            ? { ...previous, relationship_clauses: [] }
+            : previous
         : undefined,
-    queryFn: ({ signal }) =>
-      discoverFilterEditor(
-        { selected_field_ids: [], filter: context.filter ?? undefined },
+    queryFn: async ({ signal }) => {
+      const response = await discoverFilterEditor(
+        {
+          selected_field_ids: [],
+          filter: context.filter ?? undefined,
+          expected_artifact_generation: context.expected_artifact_generation,
+        },
         signal,
-      ),
+      );
+      assertSearchIdentity(response, undefined, context.expected_artifact_generation);
+      return response;
+    },
   });
   return {
     filterEditor: editor.data,
@@ -163,7 +181,18 @@ function discoveryIdentity(value?: {
   if (!value) return null;
   const { filter: _filter, ...identity } = value.context;
   void _filter;
-  return identity;
+  function containsLink(node: QueryPredicate | null): boolean {
+    if (!node) return false;
+    if (node.kind === "relationship") return true;
+    if (node.kind === "all_of" || node.kind === "any_of")
+      return node.children.some(containsLink);
+    if (node.kind === "not" || node.kind === "exists")
+      return containsLink(node.predicate);
+    return false;
+  }
+  // Ordinary selection edits keep menu rows stable. Link eligibility includes
+  // its Boolean placement, so it cannot reuse an earlier universe's counts.
+  return containsLink(_filter) ? { ...identity, filter: _filter } : identity;
 }
 
 export const VOCABULARY_PAGE_SIZE = 40;

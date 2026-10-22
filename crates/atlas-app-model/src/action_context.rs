@@ -19,13 +19,6 @@ pub enum EncounterActionFactView {
     VoluntaryIngestion,
     FollowsControllerInstructions,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-pub struct EncounterActionJudgmentView {
-    pub source_condition_id: Option<i64>,
-    pub fact: EncounterActionFactView,
-    pub value: bool,
-}
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct EncounterCastingRemindersRequest {

@@ -3,7 +3,7 @@ use crate::{
     IndexError, input::SourceArtifactRecordInput, numeric::numeric_value,
     persistence::ProjectionRow,
 };
-use atlas_record::source_content::OwnedContentLocator;
+use atlas_domain::OwnedContentLocator;
 use atlas_record::source_record::{
     ActorIwrKind, ActorIwrType, ActorQueryView, ActorSave, ItemSourceView, SourceFieldView,
     SourceNodeView, SourceQueryView,

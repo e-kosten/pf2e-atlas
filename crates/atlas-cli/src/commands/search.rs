@@ -1,25 +1,20 @@
 use super::{
-    filters::build_filter,
-    product::{app_result, print_search_matches, print_summary, search_json},
+    filters::{build_filter, resolve_filter},
+    product::{app_result, print_search_matches, report_app_error},
 };
 use crate::client::{ClientOptions, connect};
-use atlas_app_model::{RetrievalModeView, SearchPageRequest};
-use atlas_cli_support::{write_json_data, write_json_error};
+use atlas_app_model::{RetrievalModeView, SearchCriteria, SearchPageRequest, SearchResultsRequest};
+use atlas_cli_support::write_json_data;
 use std::process::ExitCode;
 pub(crate) mod args;
 use args::SearchOptions;
 pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
-    let (filter, value) = match build_filter(&o.filter_options) {
-        Ok(v) => v,
-        Err(e) => {
-            if o.json {
-                write_json_error(e.code, e.message)?;
-                return Ok(ExitCode::from(2));
-            }
-            return Err(e.message);
-        }
-    };
+    let sort = super::result_order::requested_sort(&o.sort, o.seed)?;
     if o.print_filter {
+        let (_, value) = match build_filter(&o.filter_options) {
+            Ok(value) => value,
+            Err(error) => return report_app_error(error, o.json),
+        };
         if o.json {
             write_json_data(serde_json::json!({"predicate":value}))?;
         } else {
@@ -30,12 +25,8 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         }
         return Ok(ExitCode::SUCCESS);
     }
-    let page = SearchPageRequest {
-        number: o.page,
-        size: o.limit,
-    };
     let mode: RetrievalModeView = o.retrieval.into();
-    let s = match connect(ClientOptions {
+    let service = match connect(ClientOptions {
         search_profile: o.search_profile.clone(),
         path_mode: o.path_mode.into(),
         index: o.index,
@@ -47,78 +38,46 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         },
     }) {
         Ok(service) => service,
-        Err(error) => return crate::commands::product::report_app_error(error, o.json),
+        Err(error) => return report_app_error(error, o.json),
     };
-    if let Some(query) = o.query {
-        let result = match app_result(
-            s.search_text(
-                query,
-                filter,
-                page,
-                mode,
-                o.ranking,
-                o.search_profile.clone(),
-            ),
-            o.json,
-        )? {
-            std::ops::ControlFlow::Continue(value) => value,
-            std::ops::ControlFlow::Break(exit) => return Ok(exit),
-        };
-        if o.json {
-            let mut data = search_json(&result);
-            data["ranking"] = serde_json::to_value(o.ranking).map_err(|error| error.to_string())?;
-            write_json_data(data)?;
-        } else {
-            print_search_matches(&result.rows);
-            if result.coverage.exhaustive {
-                println!(
-                    "{} result{}{}",
-                    result.page.total,
-                    if result.page.total == 1 { "" } else { "s" },
-                    if result.page.has_more {
-                        "; more on the next page"
-                    } else {
-                        ""
-                    }
-                );
-            } else {
-                println!(
-                    "Showing {} results{}",
-                    result.page.count,
-                    if result.page.has_more {
-                        "; more on the next page"
-                    } else {
-                        ""
-                    }
-                );
-            }
-        }
-    } else {
-        let result = match app_result(
-            s.search_page(
-                atlas_app_model::SearchResultsRequest {
-                    ranking: None,
-                    search_profile: o.search_profile,
-                    criteria: atlas_app_model::SearchCriteria::ListRecords { filter },
-                    page,
-                    expected_artifact_generation: None,
+    let filter = match resolve_filter(&o.filter_options, &service) {
+        Ok(filter) => filter,
+        Err(error) => return report_app_error(error, o.json),
+    };
+    let criteria = match o.query {
+        Some(query) => SearchCriteria::TextSearch {
+            query,
+            filter,
+            mode,
+        },
+        None => SearchCriteria::ListRecords { filter },
+    };
+    let result = match app_result(
+        service.search_page(
+            SearchResultsRequest {
+                sort,
+                ranking: Some(o.ranking),
+                search_profile: o.search_profile,
+                criteria,
+                page: SearchPageRequest {
+                    number: o.page,
+                    size: o.limit,
                 },
-                &atlas_app_service::ReadExecutionContext::uncancellable(),
-            ),
-            o.json,
-        )? {
-            std::ops::ControlFlow::Continue(value) => value,
-            std::ops::ControlFlow::Break(exit) => return Ok(exit),
-        };
-        if o.json {
-            write_json_data(
-                serde_json::json!({"search_profile":result.search_profile,"artifact_generation":result.artifact_generation,"pagination":result.page,"results":result.rows.iter().map(|row|&row.record).collect::<Vec<_>>()}),
-            )?;
-        } else {
-            for row in result.rows {
-                print_summary(&row.record);
-            }
-        }
+                expected_artifact_generation: None,
+            },
+            &atlas_app_service::ReadExecutionContext::uncancellable(),
+        ),
+        o.json,
+    )? {
+        std::ops::ControlFlow::Continue(value) => value,
+        std::ops::ControlFlow::Break(exit) => return Ok(exit),
+    };
+    if o.json {
+        write_json_data(&result)?;
+    } else {
+        super::result_order::print_random_seed(&result.sort);
+        print_search_matches(&result.rows);
+        super::product::print_search_page_count(&result);
     }
     Ok(ExitCode::SUCCESS)
 }

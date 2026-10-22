@@ -58,11 +58,20 @@ impl AtlasAppService {
         let subject = hp_subject_context(self, participant, &input)?;
         let context = request.context.unwrap_or_default();
         validate_context(&snapshot, &context)?;
+        let effective_maximum = rules::effective_hp_maximum(participant, subject.level);
+        if matches!(input, HpEventInput::ResolvedHealing { .. })
+            && participant.max_hp.is_some()
+            && effective_maximum.is_none()
+        {
+            return Err(AppServiceError::invalid_request(
+                "Level or condition value needed to calculate maximum HP",
+            ));
+        }
         let changes = rules::hp_events::plan_hp_event(
             participant,
             &input,
             &hp_context_for_subject(context, &subject),
-            rules::effective_hp_maximum(participant, subject.level),
+            effective_maximum,
             &request_id,
         )?;
         EncounterEvent {
@@ -84,13 +93,24 @@ impl AtlasAppService {
             let encounter = session
                 .local_state()
                 .encounters()
-                .get(encounter_ref)?
+                .get_with_participants(encounter_ref)?
                 .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
             Ok(session
                 .local_state()
                 .encounters()
-                .pending_condition_consequences(&encounter.encounter_key)?
+                .pending_condition_consequences(&encounter.encounter.encounter_key)?
                 .into_iter()
+                .filter(|saved| {
+                    pending_hp_participant(&saved.consequence).is_none_or(|key| {
+                        encounter
+                            .participants
+                            .iter()
+                            .find(|p| p.participant_key == key)
+                            .is_some_and(|p| {
+                                rules::hp_events::pending_is_current(p, &saved.consequence)
+                            })
+                    })
+                })
                 .filter_map(|saved| match saved.consequence {
                     PendingConsequence::HpLifecycle {
                         participant_key,
@@ -100,6 +120,12 @@ impl AtlasAppService {
                         was_dying,
                         ..
                     } => Some(PendingHpLifecycleView {
+                        knockout_options: encounter
+                            .participants
+                            .iter()
+                            .find(|p| p.participant_key == participant_key)
+                            .map(|p| rules::hp_events::knockout_options(p, Some(&context)))
+                            .unwrap_or_default(),
                         required_facts: rules::hp_events::required_lifecycle_facts(
                             was_dying, &context,
                         ),
@@ -116,6 +142,7 @@ impl AtlasAppService {
                         after_hp,
                         context,
                     } => Some(PendingHpLifecycleView {
+                        knockout_options: vec![],
                         initiative_only: true,
                         required_facts: vec![HpLifecycleRequiredFactView::ResponsibleParticipant],
                         consequence_key: saved.consequence_key,
@@ -150,8 +177,28 @@ impl AtlasAppService {
                     AppServiceError::invalid_request("pending lifecycle decision no longer exists")
                 })
         })?;
+        let participants = self.with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(encounter_ref)?
+                .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?
+                .participants)
+        })?;
         let context = hp_context_input(request.context.clone());
         let correction = request.resolution == HpLifecycleResolutionView::KeepCurrentState;
+        if !correction
+            && pending_hp_participant(&pending.consequence).is_some_and(|key| {
+                !participants
+                    .iter()
+                    .find(|p| p.participant_key == key)
+                    .is_some_and(|p| rules::hp_events::pending_is_current(p, &pending.consequence))
+            })
+        {
+            return Err(AppServiceError::invalid_request(
+                "This knockout is no longer current. Refresh the encounter.",
+            ));
+        }
         match pending.consequence {
             PendingConsequence::HpLifecycle {
                 participant_key,
@@ -167,6 +214,11 @@ impl AtlasAppService {
                     rules::hp_events::merge_pending_context(&saved_context, &context)?
                 };
                 Ok(PendingHpLifecycleView {
+                    knockout_options: participants
+                        .iter()
+                        .find(|p| p.participant_key == participant_key)
+                        .map(|p| rules::hp_events::knockout_options(p, Some(&context)))
+                        .unwrap_or_default(),
                     consequence_key: pending.consequence_key,
                     participant_key,
                     before_hp,
@@ -192,6 +244,7 @@ impl AtlasAppService {
                     rules::hp_events::merge_pending_context(&saved_context, &context)?
                 };
                 Ok(PendingHpLifecycleView {
+                    knockout_options: vec![],
                     consequence_key: pending.consequence_key,
                     participant_key,
                     before_hp,
@@ -257,6 +310,13 @@ impl AtlasAppService {
             .iter()
             .find(|p| &p.participant_key == participant_key)
             .ok_or_else(participant_not_found)?;
+        if request.resolution == HpLifecycleResolutionView::Apply
+            && !rules::hp_events::pending_is_current(participant, &pending.consequence)
+        {
+            return Err(AppServiceError::invalid_request(
+                "This knockout is no longer current. Refresh the encounter.",
+            ));
+        }
         let subject = if request.resolution == HpLifecycleResolutionView::KeepCurrentState {
             workflow::ConditionSubjectContext {
                 participant: participant.clone(),
@@ -264,7 +324,6 @@ impl AtlasAppService {
                 reference_revision: None,
                 level: participant.level_override,
                 fortitude: None,
-                perception: None,
             }
         } else {
             workflow::condition_subject_context(self, participant)?
@@ -319,6 +378,50 @@ impl AtlasAppService {
         .map(mutation)
     }
 }
+fn pending_hp_participant(pending: &PendingConsequence) -> Option<&str> {
+    match pending {
+        PendingConsequence::HpLifecycle {
+            participant_key, ..
+        }
+        | PendingConsequence::InitiativePlacement {
+            participant_key, ..
+        } => Some(participant_key),
+        _ => None,
+    }
+}
+
+/// Retire invalidated decisions inside the same write that changed their subject.
+pub(super) fn retire_stale_hp_decisions(
+    session: &atlas_runtime::WorkspaceWrite,
+    encounter_key: &str,
+) -> AppServiceResult<()> {
+    let store = session.local_state().encounters();
+    let pending = store.pending_condition_consequences(encounter_key)?;
+    if !pending
+        .iter()
+        .any(|saved| pending_hp_participant(&saved.consequence).is_some())
+    {
+        return Ok(());
+    }
+    let snapshot = store
+        .get_with_participants(encounter_key)?
+        .ok_or_else(|| super::projection::encounter_not_found(encounter_key))?;
+    let obsolete = pending
+        .iter()
+        .filter_map(|saved| {
+            let key = pending_hp_participant(&saved.consequence)?;
+            let current = snapshot
+                .participants
+                .iter()
+                .find(|p| p.participant_key == key)
+                .is_some_and(|p| rules::hp_events::pending_is_current(p, &saved.consequence));
+            (!current).then_some(saved.consequence_key.as_str())
+        })
+        .collect::<Vec<_>>();
+    store.remove_pending_condition_consequences(encounter_key, &obsolete)?;
+    Ok(())
+}
+
 fn participant_not_found() -> AppServiceError {
     AppServiceError::new(
         atlas_app_model::AppErrorCode::EncounterParticipantNotFound,
@@ -376,7 +479,6 @@ pub(super) fn hp_subject_context(
             reference_revision: None,
             level: participant.level_override,
             fortitude: None,
-            perception: None,
         })
     }
 }
@@ -413,7 +515,7 @@ pub(super) fn hp_context_input(value: HpEventContextView) -> SavedHpEventContext
         base_death_threshold: value.base_death_threshold,
     }
 }
-fn hp_context_view(value: SavedHpEventContext) -> HpEventContextView {
+pub(super) fn hp_context_view(value: SavedHpEventContext) -> HpEventContextView {
     HpEventContextView {
         keep_current_initiative: value.keep_current_initiative,
         keep_upright: value.keep_upright,
@@ -788,12 +890,7 @@ mod hp_lifecycle_tests {
             &participant,
             "retch",
             ConditionLifecycleActionView::Retch {
-                confusion: None,
-                judgments: vec![],
                 condition_id: selected,
-                dc: None,
-                fortitude_modifier: None,
-                actions_spent: true,
                 check: LifecycleCheckInputView::TableDegree {
                     degree: CheckDegreeView::Success,
                 },
@@ -853,7 +950,7 @@ mod hp_lifecycle_tests {
         );
     }
     #[test]
-    fn confused_damage_has_one_saved_recovery_opportunity_and_explicit_source_selection() {
+    fn confused_damage_recovery_clears_eligible_sources_without_a_selection_form() {
         let (worker, key, participant) = fixture();
         add(
             &worker,
@@ -889,11 +986,8 @@ mod hp_lifecycle_tests {
             consequence_key,
             condition_ids,
             ..
-        } = &pending[0]
-        else {
-            panic!("expected Confused damage opportunity")
-        };
-        let selected = condition_ids[0];
+        } = &pending[0];
+        assert_eq!(condition_ids.len(), 2);
         lifecycle(
             &worker,
             &key,
@@ -901,8 +995,6 @@ mod hp_lifecycle_tests {
             "confused-recovery",
             ConditionLifecycleActionView::ConfusedDamageRecovery {
                 consequence_key: consequence_key.clone(),
-                condition_ids: vec![selected],
-                qualifying_damage: true,
                 check: Some(LifecycleCheckInputView::TableDegree {
                     degree: CheckDegreeView::Success,
                 }),
@@ -915,8 +1007,7 @@ mod hp_lifecycle_tests {
                 .is_empty()
         );
         let detail = worker.encounter(&key).unwrap();
-        assert_eq!(detail.participants[0].conditions.len(), 1);
-        assert_ne!(detail.participants[0].conditions[0].condition_id, selected);
+        assert!(detail.participants[0].conditions.is_empty());
     }
     #[test]
     fn frightened_end_turn_respects_held_source_and_independent_floor() {
@@ -948,7 +1039,7 @@ mod hp_lifecycle_tests {
             &key,
             &participant,
             "end-turn",
-            ConditionLifecycleActionView::FrightenedEndTurn { decisions: vec![] },
+            ConditionLifecycleActionView::FrightenedEndTurn,
         );
         let detail = worker.encounter(&key).unwrap();
         assert_eq!(detail.participants[0].conditions.len(), 2);
@@ -965,44 +1056,12 @@ mod hp_lifecycle_tests {
                 request_id: "another-end-turn".into(),
                 expected_encounter_revision: detail.revision,
                 participant_key: participant,
-                action: ConditionLifecycleActionView::FrightenedEndTurn { decisions: vec![] },
+                action: ConditionLifecycleActionView::FrightenedEndTurn,
             },
         );
         assert!(retry.is_err());
     }
-    #[test]
-    fn overnight_drained_recovery_does_not_restore_current_hp() {
-        let (worker, key, participant) = fixture();
-        add(
-            &worker,
-            &key,
-            &participant,
-            ConditionRule::Drained,
-            "drained",
-            Some(2),
-            Default::default(),
-        );
-        add(
-            &worker,
-            &key,
-            &participant,
-            ConditionRule::Fatigued,
-            "fatigue",
-            None,
-            Default::default(),
-        );
-        lifecycle(
-            &worker,
-            &key,
-            &participant,
-            "overnight",
-            ConditionLifecycleActionView::OvernightRest,
-        );
-        let detail = worker.encounter(&key).unwrap();
-        assert_eq!(detail.participants[0].current_hp, Some(10));
-        assert_eq!(detail.participants[0].conditions.len(), 1);
-        assert_eq!(detail.participants[0].conditions[0].value, Some(1));
-    }
+
     #[test]
     fn broken_crossing_has_one_damage_change_and_petrified_dies_without_dying() {
         let (worker, key, participant) = fixture();
@@ -1061,200 +1120,6 @@ mod hp_lifecycle_tests {
                 .iter()
                 .any(|condition| condition.condition_key.as_deref() == Some(dying))
         );
-    }
-    #[test]
-    fn saved_recoveries_and_mixed_menu_work_without_reference_data() {
-        let (worker, key, _) = fixture();
-        worker
-            .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-                encounter_ref: key.clone(),
-                record_ref: "Test Creature 1".into(),
-                quantity: 1,
-                initiative: None,
-            })
-            .unwrap();
-        let participant = worker
-            .encounter(&key)
-            .unwrap()
-            .participants
-            .into_iter()
-            .find(|p| p.record_key.is_some())
-            .unwrap()
-            .participant_key;
-        for (rule, value) in [
-            (ConditionRule::Unconscious, None),
-            (ConditionRule::Prone, None),
-            (ConditionRule::Drained, Some(2)),
-            (ConditionRule::Fatigued, None),
-            (ConditionRule::Wounded, Some(1)),
-            (ConditionRule::Sickened, Some(1)),
-        ] {
-            add(
-                &worker,
-                &key,
-                &participant,
-                rule,
-                &format!("seed-{rule:?}"),
-                value,
-                if rule == ConditionRule::Sickened {
-                    ConditionParametersInputView::Sickened {
-                        recovery_dc: Some(15),
-                    }
-                } else {
-                    Default::default()
-                },
-            );
-        }
-        let snapshot = || {
-            worker
-                .with_state(|session| {
-                    Ok(session
-                        .local_state()
-                        .encounters()
-                        .get_with_participants(&key)?
-                        .unwrap())
-                })
-                .unwrap()
-        };
-        let before = snapshot();
-        let actor = before
-            .participants
-            .iter()
-            .find(|p| p.participant_key == participant)
-            .unwrap();
-        let initial_hp = actor.current_hp;
-        let sickened = actor
-            .conditions
-            .iter()
-            .find(|c| {
-                c.condition_key.as_deref()
-                    == Some(
-                        modeled_condition_by_rule(ConditionRule::Sickened)
-                            .unwrap()
-                            .condition_ref,
-                    )
-            })
-            .unwrap()
-            .condition_id;
-        atlas_search::test_support::invalidate_reference(
-            worker.workspace_path(),
-            atlas_runtime::WORKSPACE_SCHEMA_VERSION,
-        )
-        .unwrap();
-        assert!(worker.encounter(&key).is_err());
-        let offers = worker
-            .condition_lifecycle_actions(&key, &participant, None)
-            .unwrap()
-            .actions;
-        for offer in &offers {
-            match offer.action {
-                ConditionRecoveryOfferView::Wake
-                | ConditionRecoveryOfferView::OvernightRest
-                | ConditionRecoveryOfferView::TreatWounds => assert!(offer.available),
-                ConditionRecoveryOfferView::Retch { .. }
-                | ConditionRecoveryOfferView::WakeFromNoise { .. } => {
-                    assert!(!offer.available);
-                    assert_eq!(
-                        offer.unavailable_reason.as_deref(),
-                        Some("Reference data unavailable")
-                    );
-                }
-                _ => {}
-            }
-        }
-        assert!(
-            offers
-                .iter()
-                .any(|o| matches!(o.action, ConditionRecoveryOfferView::Wake))
-        );
-        assert!(
-            offers
-                .iter()
-                .any(|o| matches!(o.action, ConditionRecoveryOfferView::Retch { .. }))
-        );
-        assert!(
-            !offers
-                .iter()
-                .any(|o| matches!(o.action, ConditionRecoveryOfferView::FullHpRest))
-        );
-        for action in [
-            ConditionLifecycleActionView::Retch {
-                confusion: None,
-                judgments: vec![],
-                condition_id: sickened,
-                dc: Some(15),
-                fortitude_modifier: Some(15),
-                actions_spent: true,
-                check: LifecycleCheckInputView::TableDegree {
-                    degree: CheckDegreeView::Success,
-                },
-            },
-            ConditionLifecycleActionView::FullHpRest { minutes: 10 },
-        ] {
-            assert!(
-                worker
-                    .apply_condition_lifecycle(
-                        &key,
-                        ApplyConditionLifecycleRequest {
-                            boundary_key: None,
-                            request_id: format!("blocked-{action:?}"),
-                            expected_encounter_revision: before.encounter.revision,
-                            participant_key: participant.clone(),
-                            action,
-                        }
-                    )
-                    .is_err()
-            );
-            assert_eq!(snapshot(), before);
-        }
-        for (id, action) in [
-            (
-                "wake",
-                ConditionLifecycleActionView::Wake {
-                    cause: WakeCauseView::Interact,
-                },
-            ),
-            ("night-one", ConditionLifecycleActionView::OvernightRest),
-            ("night-two", ConditionLifecycleActionView::OvernightRest),
-            (
-                "full-hp-rest",
-                ConditionLifecycleActionView::FullHpRest { minutes: 10 },
-            ),
-        ] {
-            let request = ApplyConditionLifecycleRequest {
-                boundary_key: None,
-                request_id: id.into(),
-                expected_encounter_revision: snapshot().encounter.revision,
-                participant_key: participant.clone(),
-                action,
-            };
-            let first = worker
-                .apply_condition_lifecycle(&key, request.clone())
-                .unwrap();
-            let saved = snapshot();
-            assert_eq!(
-                worker.apply_condition_lifecycle(&key, request).unwrap(),
-                first
-            );
-            assert_eq!(snapshot(), saved);
-        }
-        let after = snapshot();
-        let actor = after
-            .participants
-            .iter()
-            .find(|p| p.participant_key == participant)
-            .unwrap();
-        assert_eq!(actor.current_hp, initial_hp);
-        let remaining: Vec<_> = actor
-            .conditions
-            .iter()
-            .filter_map(|c| {
-                super::super::conditions::condition_rule_for_key(c.condition_key.as_deref())
-            })
-            .collect();
-        assert_eq!(remaining.len(), 2);
-        assert!(remaining.contains(&ConditionRule::Prone));
-        assert!(remaining.contains(&ConditionRule::Sickened));
     }
 
     #[test]
@@ -1437,7 +1302,6 @@ mod hp_lifecycle_tests {
             reference_revision: None,
             level: None,
             fortitude: None,
-            perception: None,
         };
         let context = hp_context_for_subject(
             HpEventContextView {
@@ -1462,7 +1326,7 @@ mod hp_lifecycle_tests {
         assert!(!added(ConditionRule::Prone));
     }
     #[test]
-    fn stable_recovery_restores_one_hp_and_source_controlled_sleep_survives_natural_healing() {
+    fn healing_wakes_stable_creature_and_natural_healing_preserves_sleep() {
         let (worker, key, participant) = fixture();
         event(
             &worker,
@@ -1476,12 +1340,13 @@ mod hp_lifecycle_tests {
                 ..Default::default()
             },
         );
-        lifecycle(
+        event(
             &worker,
             &key,
             &participant,
-            "stable-rest",
-            ConditionLifecycleActionView::StableRecovery { minutes: 10 },
+            "stable-heal",
+            HpEventInput::ResolvedHealing { amount: 1 },
+            Default::default(),
         );
         let detail = worker.encounter(&key).unwrap();
         assert_eq!(detail.participants[0].current_hp, Some(1));
@@ -1516,20 +1381,21 @@ mod hp_lifecycle_tests {
         );
     }
     #[test]
-    fn explicit_pending_correction_preserves_later_hp_and_does_not_invent_dying() {
+    fn healing_retires_pending_knockout_without_inventing_dying() {
         let (worker, key, participant) = fixture();
         event(
             &worker,
             &key,
             &participant,
-            "unknown-knockout",
+            "old-knockout",
             HpEventInput::ResolvedDamage { amount: 10 },
             Default::default(),
         );
-        let pending = worker
+        let old = worker
             .pending_encounter_hp_lifecycle(&key)
             .unwrap()
-            .remove(0);
+            .remove(0)
+            .consequence_key;
         event(
             &worker,
             &key,
@@ -1538,17 +1404,159 @@ mod hp_lifecycle_tests {
             HpEventInput::ResolvedHealing { amount: 2 },
             Default::default(),
         );
-        worker
-            .resolve_encounter_hp_lifecycle(
-                &key,
-                ResolveEncounterHpLifecycleRequest {
-                    resolution: HpLifecycleResolutionView::KeepCurrentState,
-                    request_id: "correct-pending".into(),
-                    expected_encounter_revision: worker.encounter(&key).unwrap().revision,
-                    consequence_key: pending.consequence_key,
-                    context: Default::default(),
+        assert!(
+            worker
+                .pending_encounter_hp_lifecycle(&key)
+                .unwrap()
+                .is_empty()
+        );
+        let detail = worker.encounter(&key).unwrap();
+        assert_eq!(detail.participants[0].current_hp, Some(2));
+        assert!(detail.participants[0].conditions.is_empty());
+        event(
+            &worker,
+            &key,
+            &participant,
+            "new-knockout",
+            HpEventInput::ResolvedDamage { amount: 2 },
+            Default::default(),
+        );
+        let pending = worker.pending_encounter_hp_lifecycle(&key).unwrap();
+        assert_eq!(pending.len(), 1);
+        assert_ne!(pending[0].consequence_key, old);
+    }
+
+    #[test]
+    fn exact_hp_correction_retires_old_knockout_permanently_but_temp_hp_does_not() {
+        let (worker, key, participant) = fixture();
+        event(
+            &worker,
+            &key,
+            &participant,
+            "knockout",
+            HpEventInput::ResolvedDamage { amount: 10 },
+            Default::default(),
+        );
+        for (id, action, should_remain) in [
+            (
+                "temp",
+                EncounterHpAction::SetTemporary { input: "5".into() },
+                true,
+            ),
+            (
+                "correct-hp",
+                EncounterHpAction::SetCurrent {
+                    input: Some("3".into()),
                 },
-            )
+                false,
+            ),
+            (
+                "correct-back-zero",
+                EncounterHpAction::SetCurrent {
+                    input: Some("0".into()),
+                },
+                false,
+            ),
+        ] {
+            worker
+                .apply_encounter_hp_action(
+                    &key,
+                    ApplyEncounterHpActionRequest {
+                        request_id: id.into(),
+                        participant_key: participant.clone(),
+                        expected_revision: worker.encounter(&key).unwrap().participants[0].revision,
+                        action,
+                        context: None,
+                    },
+                )
+                .unwrap();
+            assert_eq!(
+                !worker
+                    .pending_encounter_hp_lifecycle(&key)
+                    .unwrap()
+                    .is_empty(),
+                should_remain
+            );
+        }
+    }
+
+    #[test]
+    fn dying_wounded_and_doomed_edits_retire_the_old_knockout() {
+        for rule in [
+            ConditionRule::Dying,
+            ConditionRule::Wounded,
+            ConditionRule::Doomed,
+        ] {
+            let (worker, key, participant) = fixture();
+            event(
+                &worker,
+                &key,
+                &participant,
+                "knockout",
+                HpEventInput::ResolvedDamage { amount: 10 },
+                Default::default(),
+            );
+            add(
+                &worker,
+                &key,
+                &participant,
+                rule,
+                "correct-condition",
+                Some(1),
+                ConditionParametersInputView::None,
+            );
+            assert!(
+                worker
+                    .pending_encounter_hp_lifecycle(&key)
+                    .unwrap()
+                    .is_empty()
+            );
+            worker
+                .with_state(|session| {
+                    assert!(
+                        session
+                            .local_state()
+                            .encounters()
+                            .pending_condition_consequences(&key)?
+                            .is_empty()
+                    );
+                    Ok(())
+                })
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn legacy_stale_knockout_is_hidden_on_read_and_retired_by_the_next_write() {
+        let (worker, key, participant) = fixture();
+        event(
+            &worker,
+            &key,
+            &participant,
+            "knockout",
+            HpEventInput::ResolvedDamage { amount: 10 },
+            Default::default(),
+        );
+        worker
+            .with_write(|session| {
+                let store = session.local_state().encounters();
+                let snapshot = store.get_with_participants(&key)?.unwrap();
+                let mut change = atlas_local_state::ParticipantEventChange::preserving(
+                    &snapshot.participants[0],
+                );
+                change.current_hp = Some(3);
+                store.apply_condition_event(
+                    &key,
+                    "legacy-hp-correction",
+                    &serde_json::json!({}),
+                    snapshot.encounter.revision,
+                    atlas_local_state::PreparedConditionEvent {
+                        participant_changes: vec![change],
+                        ..Default::default()
+                    },
+                )?;
+                Ok(())
+            })
             .unwrap();
         assert!(
             worker
@@ -1556,18 +1564,47 @@ mod hp_lifecycle_tests {
                 .unwrap()
                 .is_empty()
         );
+        worker
+            .with_state(|session| {
+                assert_eq!(
+                    session
+                        .local_state()
+                        .encounters()
+                        .pending_condition_consequences(&key)?
+                        .len(),
+                    1
+                );
+                Ok(())
+            })
+            .unwrap();
+        add(
+            &worker,
+            &key,
+            &participant,
+            ConditionRule::Frightened,
+            "unrelated-condition",
+            Some(1),
+            ConditionParametersInputView::None,
+        );
+        worker
+            .with_state(|session| {
+                assert!(
+                    session
+                        .local_state()
+                        .encounters()
+                        .pending_condition_consequences(&key)?
+                        .is_empty()
+                );
+                Ok(())
+            })
+            .unwrap();
         assert_eq!(
             worker.encounter(&key).unwrap().participants[0].current_hp,
-            Some(2)
-        );
-        assert!(
-            worker.encounter(&key).unwrap().participants[0]
-                .conditions
-                .is_empty()
+            Some(3)
         );
     }
     #[test]
-    fn retch_missing_facts_can_record_failure_but_cannot_roll_or_skip_action_cost() {
+    fn retch_without_known_facts_accepts_table_outcome_but_cannot_roll() {
         let (worker, key, participant) = fixture();
         add(
             &worker,
@@ -1580,53 +1617,32 @@ mod hp_lifecycle_tests {
         );
         let detail = worker.encounter(&key).unwrap();
         let id = detail.participants[0].conditions[0].condition_id;
-        let action = |actions_spent, check| ConditionLifecycleActionView::Retch {
-            confusion: None,
-            judgments: vec![],
+        let action = |check| ConditionLifecycleActionView::Retch {
             condition_id: id,
-            dc: None,
-            fortitude_modifier: None,
-            actions_spent,
             check,
         };
-        for (name, action) in [
-            ("missing-facts", action(true, LifecycleCheckInputView::Roll)),
-            (
-                "unspent",
-                action(
-                    false,
-                    LifecycleCheckInputView::TableDegree {
-                        degree: CheckDegreeView::Failure,
-                    },
-                ),
-            ),
-        ] {
-            assert!(
-                worker
-                    .apply_condition_lifecycle(
-                        &key,
-                        ApplyConditionLifecycleRequest {
-                            boundary_key: None,
-                            request_id: name.into(),
-                            expected_encounter_revision: detail.revision,
-                            participant_key: participant.clone(),
-                            action
-                        }
-                    )
-                    .is_err()
-            );
-        }
+        assert!(
+            worker
+                .apply_condition_lifecycle(
+                    &key,
+                    ApplyConditionLifecycleRequest {
+                        boundary_key: None,
+                        request_id: "missing-facts".into(),
+                        expected_encounter_revision: detail.revision,
+                        participant_key: participant.clone(),
+                        action: action(LifecycleCheckInputView::Roll),
+                    }
+                )
+                .is_err()
+        );
         let result = lifecycle(
             &worker,
             &key,
             &participant,
             "failed-retch",
-            action(
-                true,
-                LifecycleCheckInputView::TableDegree {
-                    degree: CheckDegreeView::Failure,
-                },
-            ),
+            action(LifecycleCheckInputView::TableDegree {
+                degree: CheckDegreeView::Failure,
+            }),
         );
         assert_eq!(result.check.unwrap().degree, CheckDegreeView::Failure);
         assert_eq!(
@@ -1634,94 +1650,7 @@ mod hp_lifecycle_tests {
             Some(2)
         );
     }
-    #[test]
-    fn ordinary_noise_wakes_but_source_controlled_noise_does_not_and_wounded_rest_requires_full_hp()
-    {
-        let (worker, key, participant) = fixture();
-        add(
-            &worker,
-            &key,
-            &participant,
-            ConditionRule::Unconscious,
-            "sleep",
-            None,
-            Default::default(),
-        );
-        lifecycle(
-            &worker,
-            &key,
-            &participant,
-            "noise",
-            ConditionLifecycleActionView::WakeFromNoise {
-                dc: 15,
-                perception_modifier: None,
-                check: LifecycleCheckInputView::TableDegree {
-                    degree: CheckDegreeView::Success,
-                },
-            },
-        );
-        assert!(
-            worker.encounter(&key).unwrap().participants[0]
-                .conditions
-                .is_empty()
-        );
-        add(
-            &worker,
-            &key,
-            &participant,
-            ConditionRule::Unconscious,
-            "deep",
-            None,
-            ConditionParametersInputView::Unconscious {
-                waking: WakingRuleView::SourceControlled,
-            },
-        );
-        assert!(
-            worker
-                .apply_condition_lifecycle(
-                    &key,
-                    ApplyConditionLifecycleRequest {
-                        boundary_key: None,
-                        request_id: "deep-noise".into(),
-                        expected_encounter_revision: worker.encounter(&key).unwrap().revision,
-                        participant_key: participant.clone(),
-                        action: ConditionLifecycleActionView::WakeFromNoise {
-                            dc: 15,
-                            perception_modifier: None,
-                            check: LifecycleCheckInputView::TableDegree {
-                                degree: CheckDegreeView::Success
-                            }
-                        }
-                    }
-                )
-                .is_err()
-        );
-        add(
-            &worker,
-            &key,
-            &participant,
-            ConditionRule::Wounded,
-            "wounded",
-            Some(2),
-            Default::default(),
-        );
-        lifecycle(
-            &worker,
-            &key,
-            &participant,
-            "full-rest",
-            ConditionLifecycleActionView::FullHpRest { minutes: 10 },
-        );
-        let wounded = modeled_condition_by_rule(ConditionRule::Wounded)
-            .unwrap()
-            .condition_ref;
-        assert!(
-            !worker.encounter(&key).unwrap().participants[0]
-                .conditions
-                .iter()
-                .any(|condition| condition.condition_key.as_deref() == Some(wounded))
-        );
-    }
+
     #[test]
     fn direct_broken_entry_caps_once_and_never_raises_hp() {
         let (worker, key, _) = fixture();
@@ -1852,14 +1781,6 @@ mod hp_lifecycle_tests {
                 },
             ),
             (
-                "contradict-initiative",
-                HpEventContextView {
-                    critical: Some(false),
-                    keep_current_initiative: Some(false),
-                    ..Default::default()
-                },
-            ),
-            (
                 "contradict-waking-qualification",
                 HpEventContextView {
                     critical: Some(false),
@@ -1932,7 +1853,7 @@ mod hp_lifecycle_tests {
         );
     }
     #[test]
-    fn known_initiative_choice_cannot_be_replaced_by_ordinary_pending_apply() {
+    fn initiative_choice_can_be_edited_without_replaying_hp() {
         let (worker, key, participant) = fixture();
         event(
             &worker,
@@ -1952,7 +1873,7 @@ mod hp_lifecycle_tests {
             .unwrap()
             .remove(0);
         assert!(pending.initiative_only);
-        let mut request = ResolveEncounterHpLifecycleRequest {
+        let request = ResolveEncounterHpLifecycleRequest {
             resolution: HpLifecycleResolutionView::Apply,
             request_id: "change-initiative".into(),
             expected_encounter_revision: worker.encounter(&key).unwrap().revision,
@@ -1965,15 +1886,8 @@ mod hp_lifecycle_tests {
         assert!(
             worker
                 .preview_encounter_hp_lifecycle(&key, request.clone())
-                .is_err()
+                .is_ok()
         );
-        assert!(
-            worker
-                .resolve_encounter_hp_lifecycle(&key, request.clone())
-                .is_err()
-        );
-        request.resolution = HpLifecycleResolutionView::KeepCurrentState;
-        request.request_id = "correct-initiative".into();
         worker
             .resolve_encounter_hp_lifecycle(&key, request)
             .unwrap();

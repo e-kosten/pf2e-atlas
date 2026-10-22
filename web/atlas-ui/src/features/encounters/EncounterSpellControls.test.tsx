@@ -49,6 +49,7 @@ it("disables casting at JSON numeric zero and keeps the count visible", () => {
   const { rerender } = render(
     <App>
       <EncounterSpellControls
+        encounterRevision={1n}
         participant={participant}
         detail={detail}
         disabled={false}
@@ -67,6 +68,7 @@ it("disables casting at JSON numeric zero and keeps the count visible", () => {
   rerender(
     <App>
       <EncounterSpellControls
+        encounterRevision={1n}
         participant={participant}
         detail={detail}
         disabled={false}
@@ -164,6 +166,8 @@ it("preserves a draft and prevents overwrite when the participant revision chang
 function resourceParticipant() {
   return {
     revision: 7n,
+    knockout_options: [],
+    effective_max_hp: { state: "value", value: 20, adjustment: null },
     persistent_damage_groups: [],
     track_dying: false,
     mortality: "alive",
@@ -273,6 +277,7 @@ it("casts directly once in the existing surface without a second resource action
   render(
     <App>
       <EncounterSpellControls
+        encounterRevision={1n}
         participant={participant}
         detail={detail}
         disabled={false}
@@ -313,6 +318,7 @@ it("uses catalog identity only when the displayed reference lacks it", async () 
   const view = render(
     <App>
       <EncounterSpellControls
+        encounterRevision={1n}
         participant={participant}
         detail={detail}
         disabled={false}
@@ -332,6 +338,7 @@ it("uses catalog identity only when the displayed reference lacks it", async () 
   view.rerender(
     <App>
       <EncounterSpellControls
+        encounterRevision={1n}
         participant={participant}
         detail={stale}
         disabled={false}
@@ -366,13 +373,21 @@ it("retries unavailable reminders without disabling direct Cast and renders only
   vi.mocked(encounterCastingReminders)
     .mockRejectedValueOnce(new Error("Unavailable"))
     .mockResolvedValueOnce({
-      advisories: [{ source: "condition", label: "Check", reason: "DC 8 flat check" }],
+      advisories: [
+        { source: "condition", label: "Check", reason: "DC 8 flat check" },
+        {
+          source: "control",
+          label: "Controlled",
+          reason: "The controller chooses your actions.",
+        },
+      ],
     });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const view = render(
     <QueryClientProvider client={client}>
       <App>
         <EncounterSpellControls
+          encounterRevision={1n}
           encounterRef="encounter"
           participant={participant}
           detail={detail}
@@ -387,6 +402,9 @@ it("retries unavailable reminders without disabling direct Cast and renders only
   expect(screen.getByRole("button", { name: "Cast" })).toBeEnabled();
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   expect(await screen.findByText("Check · DC 8 flat check")).toBeVisible();
+  expect(
+    screen.getByText("Controlled · The controller chooses your actions").parentElement,
+  ).toBe(screen.getByText("Check · DC 8 flat check").parentElement);
   expect(screen.queryByText("Choose target geometry")).toBeNull();
   view.unmount();
   client.clear();
@@ -431,6 +449,7 @@ it("retains exact-spell reminders through revision refresh and shows errors with
     <QueryClientProvider client={client}>
       <App>
         <EncounterSpellControls
+          encounterRevision={current.revision}
           encounterRef="encounter"
           participant={current}
           detail={detail}
@@ -452,6 +471,97 @@ it("retains exact-spell reminders through revision refresh and shows errors with
   expect(screen.getByText(label)).toBe(reminder);
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   await waitFor(() => expect(screen.queryByText(label)).toBeNull());
+  client.clear();
+});
+
+it("refreshes condition reminders on the encounter revision without changing the Cast anchor", async () => {
+  const detail = detailFixture("actors:caster");
+  detail.presentation.body = { kind: "spell", value: spellFixture() };
+  detail.selected.spell_rank = 3;
+  const participant = resourceParticipant();
+  const grabbed: EncounterParticipantView["conditions"][number] = {
+    condition_id: 1n,
+    name: "Grabbed",
+    scope: { kind: "everyone" },
+    extra_action: { kind: "unspecified" },
+    immunity_override: false,
+    parameters: { kind: "none" },
+    created_at: "now",
+    updated_at: "now",
+  };
+  participant.conditions = [
+    grabbed,
+    { ...grabbed, condition_id: 2n, name: "Stupefied", value: 1n },
+  ];
+  participant.spellcasting!.spells = [
+    {
+      navigation: detail.selected,
+      entry_id: "entry",
+      title: "Fireball",
+      expended: null,
+      ranks: [{ rank: 3, resource_key: "rank3", unavailable_reason: null }],
+    },
+  ];
+  type Reminders = Awaited<ReturnType<typeof encounterCastingReminders>>;
+  let finishRefresh: (result: Reminders) => void = () => {};
+  vi.mocked(encounterCastingReminders)
+    .mockReset()
+    .mockResolvedValueOnce({
+      advisories: [
+        {
+          source: "condition",
+          label: "Grabbed, Stupefied",
+          reason: "DC 6 flat check or the spell is disrupted",
+        },
+      ],
+    })
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishRefresh = resolve;
+        }),
+    );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const view = (current: typeof participant, revision: bigint) => (
+    <QueryClientProvider client={client}>
+      <App>
+        <EncounterSpellControls
+          encounterRevision={revision}
+          encounterRef="encounter"
+          participant={current}
+          detail={detail}
+          disabled={false}
+          pending={false}
+          onAction={vi.fn()}
+        />
+      </App>
+    </QueryClientProvider>
+  );
+  const { rerender, unmount } = render(view(participant, 1n));
+  const oldText = "Grabbed, Stupefied · DC 6 flat check or the spell is disrupted";
+  await screen.findByText(oldText);
+  const castButton = screen.getByRole("button", { name: "Cast" });
+  // Removing a condition changes the encounter, while the participant revision stays 7.
+  rerender(view({ ...participant, conditions: [grabbed] }, 2n));
+  expect(screen.queryByText(oldText)).toBeNull();
+  await waitFor(() => expect(encounterCastingReminders).toHaveBeenCalledTimes(2));
+  await act(async () =>
+    finishRefresh({
+      advisories: [
+        {
+          source: "condition",
+          label: "Grabbed",
+          reason: "DC 5 flat check or the spell is disrupted",
+        },
+      ],
+    }),
+  );
+  expect(
+    await screen.findByText("Grabbed · DC 5 flat check or the spell is disrupted"),
+  ).toBeVisible();
+  expect(screen.getByRole("button", { name: "Cast" })).toBe(castButton);
+  expect(castButton).toBeEnabled();
+  unmount();
   client.clear();
 });
 
@@ -484,6 +594,7 @@ it.each(["participant", "selection", "generation"])(
       <QueryClientProvider client={client}>
         <App>
           <EncounterSpellControls
+            encounterRevision={1n}
             encounterRef="encounter"
             participant={current}
             detail={document}

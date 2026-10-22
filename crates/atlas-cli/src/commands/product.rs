@@ -36,10 +36,14 @@ pub(crate) fn emit<T: Serialize>(
 }
 pub(crate) fn print_summary(view: &atlas_app_model::RecordSummaryView) {
     println!(
-        "{} — {}{}",
+        "{} — {}{}{}",
         view.title,
         view.kind_label,
         view.level_label
+            .as_ref()
+            .map(|v| format!(" · {v}"))
+            .unwrap_or_default(),
+        view.unit_price_label
             .as_ref()
             .map(|v| format!(" · {v}"))
             .unwrap_or_default()
@@ -72,11 +76,61 @@ pub(crate) fn print_search_matches(records: &[atlas_app_model::SearchResultRow])
         {
             println!("  Matched: {label}");
         }
+        for evidence in &r.relationship_evidence {
+            for occurrence in &evidence.occurrences {
+                print_relationship_occurrence(occurrence);
+            }
+            if evidence.page.has_more {
+                println!(
+                    "  {} references; more available with `atlas graph occurrences`.",
+                    evidence.page.total
+                );
+            }
+        }
         println!();
     }
 }
-pub(crate) fn search_json(result: &atlas_app_model::SearchResultsView) -> serde_json::Value {
-    serde_json::json!({"search_profile":result.search_profile,"artifact_generation":result.artifact_generation,"pagination":result.page,"coverage":result.coverage,"results":result.rows})
+pub(crate) fn print_search_page_count(result: &atlas_app_model::SearchResultsPage) {
+    let exhaustive = result
+        .coverage
+        .as_ref()
+        .is_none_or(|coverage| coverage.exhaustive);
+    if exhaustive {
+        println!(
+            "{} result{}{}",
+            result.page.total,
+            if result.page.total == 1 { "" } else { "s" },
+            if result.page.has_more {
+                "; more on the next page"
+            } else {
+                ""
+            }
+        );
+    } else {
+        println!(
+            "Showing {} results{}",
+            result.page.count,
+            if result.page.has_more {
+                "; more on the next page"
+            } else {
+                ""
+            }
+        );
+    }
+}
+
+pub(crate) fn print_relationship_occurrence(occurrence: &atlas_app_model::RecordRelationshipView) {
+    println!(
+        "  {} → {}",
+        occurrence
+            .source_title
+            .as_deref()
+            .unwrap_or("Unnamed entry"),
+        occurrence
+            .target_title
+            .as_deref()
+            .unwrap_or("Unnamed entry")
+    );
 }
 
 /// Emit a whole-command failure with the same exit policy as batch items.
@@ -148,7 +202,7 @@ pub(crate) fn print_error_hint(error: &atlas_app_model::AppError) {
             "Run `atlas lists ls` to see existing list ids, or `atlas lists create <ID> --name <NAME>` to create one. Use the same --index and --path-mode options."
         }
         AppErrorCode::RecordResolutionMiss | AppErrorCode::RecordResolutionAmbiguous => {
-            "Run `atlas record resolve <NAME>` and use a returned pack:id key with --record. Use the same --index and --path-mode options."
+            "Run `atlas record resolve <NAME>` and use a returned canonical key. Use the same --index and --path-mode options."
         }
         AppErrorCode::InvalidRecordKey => {
             "Use a canonical pack:id key returned by `atlas record resolve <NAME>`."

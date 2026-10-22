@@ -1,14 +1,15 @@
 ---
 name: pf2e-atlas-cli
-description: Answer Pathfinder 2e reference questions using the local Atlas CLI, with strict identity lookup, source-attributed search, typed filters, graph context, saved lists and dice rolls.
+description: Answer Pathfinder 2e reference questions using the local Atlas CLI, with strict identity lookup, source-attributed search, typed filters, trait definitions, graph context, saved lists and dice rolls.
 ---
 
 Use `atlas` for PF2e questions. It reads a local artifact built from the Foundry
 PF2e source. Product reads work without the original source clone. Run
 `atlas --help` and subcommand help when the installed version's surface is unclear.
 Use the caller's workspace (`--index PATH`) consistently across related commands;
-otherwise Atlas uses its global workspace. Encounters are managed through
-`atlas web`; there is no encounter CLI command.
+otherwise Atlas uses its global workspace. In a checkout, use `--path-mode repo`
+only when the caller intends its local workspace. Saved encounters and reusable
+parties are managed through `atlas web`; they have no CLI commands.
 
 ## Installing Atlas
 
@@ -39,6 +40,20 @@ with the user before starting downloads and indexing. A first semantic build can
 take hours; installing the skill does not authorize that work by itself.
 For stable releases, supported platforms and manual archive installation, see
 [the installation guide](https://github.com/e-kosten/pf2e-atlas#quick-start).
+
+## Keeping the installed skill current
+
+After updating the executable, run `atlas agent skills doctor --json` to compare
+installed copies with that binary's bundled skill and detect workspace/global
+shadowing. Refresh the intended target and scope, for example:
+
+```sh
+atlas agent skills install --target codex --scope global --force --yes
+```
+
+Use the target/scope reported for the copy being updated. `--force` replaces local
+skill edits; preserve intentional customizations before using it. The installer
+uses the running binary's bundled instructions, not the latest repository file.
 
 ## Readiness and search profiles
 
@@ -79,8 +94,9 @@ Prefer JSON output. `record get` and `record resolve` return ordered
 or `status: unprocessed` with `reason: prior_runtime_failure`. Preserve successful
 siblings when a batch fails. Whole-command failures use a top-level `error`.
 Errors expose `code`, `message`, and optional `details` and recovery hints.
-Exit classes are 0 success, 1 miss/ambiguity, 2 invalid input, 3 runtime failure;
-mixed failures use the highest class. Other data commands use the usual
+Record batch exit classes are 0 success, 1 miss/ambiguity, 2 invalid input and
+3 runtime failure; mixed failures use the highest class. Other data commands use
+the usual
 `{ "status": "ok", "data": ... }` envelope. Deep index validation can return
 `status: "ok"` with `data.valid: false` and exit 3; check the payload as well as status.
 Do not treat a failure, ambiguity or bounded candidate count as a complete answer.
@@ -96,6 +112,8 @@ Keys are Foundry `pack:id` identities. Strict resolution accepts authored names,
 normalized names and verified aliases, preserving their evidence. Ambiguous
 resolution requires choosing the intended record; use its returned key in later
 commands. Name similarity and Suggested variants do not establish identity.
+`record resolve --alternatives N` limits displayed strict matches, while `total`
+retains their full count.
 
 `content.body` contains semantic creature, hazard, spell, activity, physical,
 table, or content facts. Read each fact's availability before using its value.
@@ -129,6 +147,24 @@ source path/hash. Presence tags and retained invalid/additional members are part
 of that checked representation; it is not original Foundry JSON. It works without
 the source clone and does not execute rules or macros.
 
+## Trait definitions
+
+Traits use exact `trait:<identifier>` keys, separate from Foundry `pack:id` records:
+
+```sh
+atlas trait get trait:agile --json
+atlas trait get trait:deadly-d8 --json
+atlas search --trait deadly-d8 --json
+```
+
+Keep variant suffixes such as `-d8`; do not substitute a base trait. Trait JSON
+includes the key, label, content, catalogs, source revision and indexing locale.
+A successful response can have `content: null`: report the missing definition
+rather than inventing text or substituting another trait. Trait membership uses
+the exact identifier; `--trait deadly` does not include `deadly-d8`. `record get`,
+`record resolve`, `graph` and CLI `similar` operate on records. Trait Members,
+References and Similar views are available in the web UI.
+
 ## Search and evidence
 
 Use strict resolution for a known name, search for a concept or partial name,
@@ -139,8 +175,11 @@ returned record and matching passage:
 atlas search 'Ghoul Fever' --retrieval fts --json
 atlas search 'a creature whose disease drains a victim over time' --json
 atlas search --kind creature --trait undead --json
+atlas search --kind creature --sort level_desc --json
+atlas search --kind equipment --sort level_desc --sort unit_price_asc --json
+atlas search --kind creature --sort random --seed 42 --json
 atlas search --where 'defenses.hp.maximum >= 80 && "undead" in traits' --json
-atlas similar 'Dirge of Doom' --kind spell --json
+atlas similar spells-srd:1xLVcA8Y1onw7toT --kind spell --json
 ```
 
 FTS targets names, verified aliases, typed vocabulary, embedded names and structurally
@@ -150,9 +189,27 @@ weights, and `--retrieval vector` selects semantic search alone. Hybrid
 `--ranking score` is the default; `--ranking rrf` compares rank-based fusion on
 the same data. Keep the default unless the caller asks to compare approaches.
 Ranking selection does not rebuild data and applies only to hybrid text search.
+`--limit` sets page size (1-100); `--page` starts at 1. Query-free browsing ignores
+text retrieval and ranking options.
+`--sort` accepts `name_asc`, `name_desc`, `level_asc`, `level_desc`,
+`unit_price_asc` or `unit_price_desc`. Repeat it for later tie-breaking attributes;
+each field appears at most once. Text and Similar also accept sole `relevance`.
+Browse defaults to name ascending; text and Similar default to relevance.
+Attribute sorting orders the complete matching set before pagination, without
+changing semantic candidate coverage or switching to FTS. Missing values appear
+last for each rule in either direction; later rules break ties before the final
+name/key order. `--sort random` shuffles the same complete matching set before
+paging. `--seed` accepts an unsigned32-bit integer only with Random; omission
+generates a seed reported in the result. Reuse it to retain the same order for
+unchanged matching records across pages. Random does not expand semantic coverage.
 A lexical-only workspace needs `--retrieval fts` for text queries.
 Similar uses the seed's stored root identity vector. Its filters constrain
 candidates, not seed resolution; resolve an ambiguous seed separately.
+Similar also accepts `--page` and `--limit` for stateless result pages.
+Browse, text search and Similar JSON share `data.rows` (record, matches,
+relationship_evidence), `data.page`, `data.relationship_clauses`, `data.coverage`,
+`data.mode`, ordering and artifact generation. Do not read the retired search
+`results`/`pagination` shapes or Similar's former nested `results` wrapper.
 Semantic/hybrid candidate windows are bounded: report the
 returned coverage and count basis honestly, never describe them as an exhaustive
 corpus census. Result scores are retrieval evidence, not probabilities. Inspect
@@ -191,7 +248,12 @@ atlas search --kind spell --where 'level <= 2' --json
 
 `filters fields` describes allowed choices; `filters values` retains all supplied
 filters and returns contextual counts (including zero-match closed choices).
-`--text` searches values, not record content. Value counts refer to distinct
+`--text` searches values, not record content. Relationship conditions use the
+same predicate and are retained in counts and statistics. `--query` adds record
+content context with `--retrieval` and `--search-profile`; `--list ID` restricts
+membership. `--artifact-generation` binds a prior generation, and optional
+`--clause-id` requests replacements at one clause. Unsupported grouped or text
+count contexts fail explicitly; do not reinterpret that as zero matches. Value counts refer to distinct
 parent records after remaster preference; source-availability statistics are
 before that preference and may count multiple collection occurrences per parent.
 Unavailable discovery is an error, never a zero count. For same-entry constraints,
@@ -224,13 +286,50 @@ categorical and Boolean fields return paged values plus availability counts.
 
 ## Relationships and saved lists
 
-Use graph commands for actual structural context:
+Use search for complete filtered record-reference results:
+
+```sh
+atlas search --kind creature --links-to 'Leather Armor' --json
+atlas search --links-to 'Leather Armor' --links-to 'Stunned' --json
+atlas search --linked-from 'Skeleton Guard' --json
+atlas similar 'Skeleton Guard' --links-to 'Leather Armor' --json
+```
+
+Each flag accepts a canonical key, strict name or verified alias. Resolution is
+independent of candidate filters, query and Similar seed. Repeated flags combine
+with AND. Ambiguity requires choosing a resolved key; never substitute a fuzzy hit.
+`--links-to` checks links from each result's whole entry; `--linked-from` checks
+links from the chosen whole entry. Their `--links-to-main-entry` and
+`--linked-from-main-entry` variants restrict the source to its main entry.
+Whole entry includes nested abilities, spells, equipment and other documents.
+References alone do not establish possession, worn equipment or condition effects.
+
+CEL `links_to(KEY[, SCOPE])` and `linked_from(KEY[, SCOPE])` combine with ordinary
+conditions using `&&`, `||`, `!` and parentheses. SCOPE is `whole_entry` (default)
+or `main_entry`. CEL requires canonical keys; resolve names first. An exact
+selection-map overload accepts the returned `record_key`, `embedded_path`,
+`field`, `passage`, `source_fingerprint` and optional `spell_rank`. Copy exact
+returned navigation, including snapshot-local fingerprints; never invent owner IDs.
+Link functions test root records and cannot appear inside authored `.exists`.
+`search --print-filter` needs no artifact; named link flags fail there with a
+resolution hint. Canonical flags and CEL still print the shared typed predicate.
+
+Search pages count distinct matching roots. Positive relevant relationship leaves
+carry clause IDs and bounded occurrence previews in each row. Unmatched OR
+branches and negative leaves do not invent link evidence. Page occurrences with
+`atlas graph occurrences RESULT_KEY --where ORIGINAL_EXPRESSION --clause-id ID
+--artifact-generation GENERATION --page N --json`. The clause selector is optional
+when exactly one positive link condition exists. Preserve the original expression
+and generation; changing it can change generated clause IDs. Stale generations
+fail explicitly. Occurrence counts and root counts are different.
+
+Use graph commands for bounded structural context, including unresolved links:
 
 ```sh
 atlas graph links 'Demoralize' --backlinks 8 --json
 atlas graph uses 'Frightened' --limit 25 --json
 atlas graph remaster PACK:ID --json
-atlas graph variants 'Dread Ampoule' --json
+atlas graph variants 'Dread Ampoule (Moderate)' --json
 ```
 
 Links preserve occurrences and source attribution, including unresolved targets.
@@ -246,17 +345,28 @@ Keep durable collections in saved lists:
 atlas lists create undead-research --name 'Undead Research' --json
 atlas lists add undead-research --record 'Skeleton Guard' --note 'A basic guard option' --json
 atlas lists show undead-research --json
+atlas lists show undead-research --sort level_asc --json
 atlas lists export undead-research --output undead-research.json
-atlas lists import undead-research.json --json
+atlas lists import undead-research.json --id undead-research-copy --json
 ```
 
 `lists create` also accepts repeated `--record` inputs to initialize a new list.
+`lists show --sort` accepts repeated attribute orders above, sole `saved_order`
+(the default), or `random` with optional `--seed`. Attribute and Random order are
+temporary and do not change saved positions.
 Use already resolved keys when names are ambiguous. Existing ids fail without
 changing the list; use `lists add` for later batches. Batch receipts preserve input
 order and report added/already-present/failed results. Any failed input exits
 nonzero while valid entries are saved; an all-miss create leaves an empty list.
-System errors roll back creation and additions together. `lists note <ID> <KEY>
---text <TEXT>` edits a note; `--clear` removes it, including for unavailable entries.
+System errors roll back creation and additions together. A batch can return
+`status: "ok"` with failed items and exit 1; inspect `data.failed_count` and each
+item outcome. `lists add` accepts positional refs, repeated `--record` inputs and
+`--stdin` (one ref per line); `--note` applies to each added record.
+`lists note <ID> <KEY> --text <TEXT>` edits a note; `--clear` removes it, including
+for unavailable entries.
+
+`lists export` writes portable JSON to stdout unless `--output PATH` is supplied.
+Importing an existing id fails unless `--replace` is explicitly requested.
 
 Lists share the persistent workspace with reference data. A missing record keeps
 its saved snapshot and explicit unresolved status after a reference update. Use

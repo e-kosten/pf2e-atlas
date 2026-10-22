@@ -3,6 +3,8 @@ use atlas_app_model::{
     RecordBadgeView, RecordNavigationView, RecordSummaryView, SearchCoverageView, SearchLaneView,
     SearchPageView, SearchWitnessView,
 };
+#[cfg(test)]
+use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
 use atlas_domain::{SourceLevelBasis, SourceRecordSummary};
 use atlas_search::{SearchCoverage, SearchLane, SearchPageInfo, SearchWitness};
 
@@ -13,12 +15,13 @@ pub fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
         .map(|k| k.as_str().to_owned())
         .unwrap_or_else(|| record.document_kind.to_lowercase());
     RecordSummaryView {
+        unit_price_label: None,
         record_key: record.key.to_string(),
         title: record
             .name
             .as_value()
             .cloned()
-            .unwrap_or_else(|| record.key.to_string()),
+            .unwrap_or_else(|| "Unnamed record".into()),
         kind_label: kind_label(&kind),
         kind,
         source_type: record.source_type.as_value().cloned(),
@@ -127,6 +130,7 @@ pub(crate) fn graph_section_view(
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> atlas_app_model::GraphSectionView {
     atlas_app_model::GraphSectionView {
+        filter: None,
         records: section
             .records
             .iter()
@@ -145,12 +149,14 @@ pub(crate) fn search_results_view(
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> atlas_app_model::SearchResultsView {
     atlas_app_model::SearchResultsView {
+        sort: result.sort,
         search_profile: result.search_profile,
         artifact_generation: result.artifact_generation,
         rows: result
             .records
             .into_iter()
             .map(|r| atlas_app_model::SearchResultRow {
+                relationship_evidence: vec![],
                 record: localized_summary_view(&r.record, retrieval),
                 matches: r
                     .matches
@@ -208,12 +214,15 @@ pub(crate) fn relationship_view(
 ) -> atlas_app_model::RecordRelationshipView {
     let (status, target, url) = content_reference_destination(o.resolution, fingerprint);
     atlas_app_model::RecordRelationshipView {
+        source_title: None,
+        target_title: None,
         source_navigation: RecordNavigationView {
             spell_rank: None,
             record_key: o.locator.record.to_string(),
             source_fingerprint: navigation_fingerprint(&o.locator.owners, fingerprint),
             owners: o.locator.owners.clone(),
-            field: Some(o.locator.field.clone()),
+            // Structural fields retain provenance but are not readable prose selections.
+            field: (o.origin == "content").then(|| o.locator.field.clone()),
             passage: None,
         },
         source: o.locator.into(),
@@ -312,7 +321,7 @@ pub(crate) fn field_state(
 }
 
 pub(crate) fn navigation_fingerprint(
-    owners: &[atlas_record::source_content::OwnedContentLocator],
+    owners: &[atlas_domain::OwnedContentLocator],
     fingerprint: &str,
 ) -> Option<String> {
     owners
@@ -320,7 +329,7 @@ pub(crate) fn navigation_fingerprint(
         .any(|o| {
             matches!(
                 o.identity,
-                atlas_record::source_content::OwnedContentIdentity::SnapshotLocal { .. }
+                atlas_domain::OwnedContentIdentity::SnapshotLocal { .. }
             )
         })
         .then(|| fingerprint.to_owned())
@@ -363,9 +372,56 @@ pub(crate) fn resolution_view(
 mod tests {
     use super::*;
     use atlas_record::source_content::{
-        ContentReferenceResolution, ContentReferenceTarget, OwnedContentIdentity,
-        OwnedContentLocator, SourceContentLocator,
+        ContentReferenceResolution, ContentReferenceTarget, SourceContentLocator,
     };
+
+    fn summary_with_name(name: atlas_domain::SourceQueryFact<String>) -> SourceRecordSummary {
+        use atlas_domain::{QueryFieldState, RecordKey, SourceQueryFact};
+        SourceRecordSummary {
+            key: RecordKey::parse("items:aaaaaaaaaaaaaaaa").unwrap(),
+            pack_label: "Items".into(),
+            document_kind: "Item".into(),
+            source_type: SourceQueryFact::known("equipment".into()),
+            name,
+            record_kind: SourceQueryFact::known(atlas_domain::RecordKind::Equipment),
+            level: SourceQueryFact::known(1.into()),
+            level_basis: Some(SourceLevelBasis::ItemLevel),
+            rarity: SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap(),
+            traits: SourceQueryFact::known(vec![]),
+            size: SourceQueryFact::unavailable(QueryFieldState::NotApplicable).unwrap(),
+            publication_title: SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap(),
+            publication_remaster: SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap(),
+            source_path: "items/unnamed.json".into(),
+            content_hash: "source-content".into(),
+        }
+    }
+
+    #[test]
+    fn summary_unavailable_names_use_human_title_and_keep_exact_record_identity() {
+        use atlas_domain::{QueryFieldState, SourceQueryFact};
+        for state in [
+            QueryFieldState::Missing,
+            QueryFieldState::Null,
+            QueryFieldState::Invalid,
+            QueryFieldState::NotApplicable,
+        ] {
+            let source = summary_with_name(SourceQueryFact::unavailable(state).unwrap());
+            let view = record_summary_view(&source);
+            assert_eq!(
+                (view.title.as_str(), view.record_key.as_str()),
+                ("Unnamed record", "items:aaaaaaaaaaaaaaaa"),
+                "{state:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn summary_authored_names_preserve_empty_and_whitespace_values() {
+        for name in ["Leather Armor", "", " \t ", "  Leather Armor  "] {
+            let source = summary_with_name(atlas_domain::SourceQueryFact::known(name.into()));
+            assert_eq!(record_summary_view(&source).title, name);
+        }
+    }
 
     fn effect_occurrence(id: &str, title: &str) -> atlas_search::SourceStoredRelationship {
         let mut occurrence = atlas_search::SourceStoredRelationship {

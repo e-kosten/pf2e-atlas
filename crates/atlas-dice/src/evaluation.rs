@@ -42,6 +42,18 @@ impl PreparedRoll {
         self.bounds
     }
 
+    /// Expected value for ordinary additive dice pools; unavailable for other expressions.
+    pub fn additive_average(&self) -> Option<f64> {
+        let (dice, constant) = additive_pool(&self.expression)?;
+        Some(
+            constant as f64
+                + dice
+                    .iter()
+                    .map(|sides| (f64::from(*sides) + 1.0) / 2.0)
+                    .sum::<f64>(),
+        )
+    }
+
     /// Compare additive dice pools without rolling or ranking by averages.
     /// Returns no ordering when the pools trade dice count, size, or constants.
     pub fn compare_magnitude(&self, other: &Self) -> Option<std::cmp::Ordering> {

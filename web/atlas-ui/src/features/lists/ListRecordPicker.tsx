@@ -74,8 +74,8 @@ export function ListRecordPicker({
       onCancel={close}
       onFinish={() => void submit()}
       selectedRecordKey={candidate}
-      onSelectedRecordKeyChange={(record) => {
-        setCandidate(record);
+      onSelectionChange={(selection) => {
+        setCandidate(selection?.record.record_key ?? null);
         add.reset();
         setReceipt(null);
       }}

@@ -101,6 +101,10 @@ pub(super) fn participant_view(
         .or_else(|| {
             (participant.participant_kind == ParticipantKind::Pc)
                 .then(|| participant_runtime_block(&participant))
+        })
+        .map(|mut block| {
+            super::rules::resolve_condition_subject_hints(&mut block, &participant, participants);
+            block
         });
     let status = if participant.participant_kind == ParticipantKind::Pc {
         EncounterParticipantStatusView::Manual
@@ -124,7 +128,58 @@ pub(super) fn participant_view(
                 .as_ref()
                 .map(|block| crate::presentation::actor::manual_presentation(&participant, block))
         });
+    let effective_max_hp = super::rules::hp_maximum_stat(
+        &participant,
+        stat_block
+            .as_ref()
+            .and_then(|block| block.adjusted_level.as_ref())
+            .and_then(serde_json::Number::as_i64),
+    )
+    .map(|stat| crate::presentation::actor::number_with_modifiers(&stat))
+    .unwrap_or_else(|| atlas_app_model::NumberFactView {
+        state: atlas_domain::QueryFieldState::Missing,
+        value: None,
+        adjustment: participant
+            .max_hp
+            .map(|maximum| atlas_app_model::NumberAdjustmentView {
+                authored: maximum.into(),
+                applied: vec![],
+                suppressed: vec![],
+                notes: vec![atlas_app_model::RuntimeEffectNoteView {
+                    source: "maximum-hp".into(),
+                    label: "Maximum HP".into(),
+                    reason: "Level or condition value needed.".into(),
+                }],
+            }),
+    });
+    let knockout_facts = record_detail
+        .map(|record| {
+            super::rules::source_applicability(
+                &record.detail.source,
+                participant.participant_kind == ParticipantKind::Hazard,
+            )
+        })
+        .unwrap_or_default();
+    let knockout_unavailable_reason =
+        super::conditions::modeled_condition_by_rule(super::conditions::ConditionRule::Dying)
+            .and_then(|dying| {
+                match super::rules::condition_applicability(dying, &participant, &knockout_facts) {
+                    Some(atlas_app_model::EncounterConditionEligibilityView::Immune { reason }) => {
+                        Some(reason)
+                    }
+                    None => Some("Dying does not apply to this participant kind.".into()),
+                    _ => None,
+                }
+            });
+    let knockout_options = if knockout_unavailable_reason.is_none() {
+        super::rules::hp_events::knockout_options(&participant, None)
+    } else {
+        vec![]
+    };
     EncounterParticipantView {
+        knockout_options,
+        knockout_unavailable_reason,
+        effective_max_hp,
         track_dying: participant.track_dying,
         level_override: participant.level_override,
         base_death_threshold: participant.base_death_threshold,
@@ -132,7 +187,10 @@ pub(super) fn participant_view(
             atlas_local_state::MortalityState::Alive => atlas_app_model::MortalityStateView::Alive,
             atlas_local_state::MortalityState::Dead => atlas_app_model::MortalityStateView::Dead,
         },
-        persistent_damage_groups: super::persistent_damage::group_views(&participant),
+        persistent_damage_groups: super::persistent_damage::group_views(
+            &participant,
+            record_detail.map(|record| &record.detail.source),
+        ),
         cast_unavailable_reason: super::rules::capabilities::cannot_act_reason(&participant)
             .map(str::to_owned),
         spellcasting: record_detail.map(|r| {
@@ -362,7 +420,7 @@ pub(super) fn condition_parameters_view(
                 }
             }),
         },
-        L::Attitude { supernatural } => V::Attitude { supernatural },
+        L::Attitude => V::Attitude,
         L::None => V::None,
         L::Broken { threshold } => V::Broken { threshold },
         L::Frightened { recovery } => V::Frightened {

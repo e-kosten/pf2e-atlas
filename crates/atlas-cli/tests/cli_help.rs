@@ -35,6 +35,12 @@ fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
         "--pack-name",
         "--rarity",
         "--retrieval",
+        "--sort",
+        "--seed",
+        "--links-to",
+        "--linked-from",
+        "--links-to-main-entry",
+        "--linked-from-main-entry",
     ] {
         assert!(search.contains(flag));
     }
@@ -45,10 +51,9 @@ fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
         "--filter-json",
         "--include-raw",
         "--fusion",
-        "--sort",
         "--min-price",
     ] {
-        assert!(!search.contains(old));
+        assert!(!search.contains(old), "retired flag is advertised: {old}");
     }
     assert!(help(&["index", "build"]).contains("--locale"));
     assert!(help(&["setup"]).contains("--locale"));
@@ -56,7 +61,7 @@ fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
     assert!(help(&["record", "get"]).contains("record source"));
     assert!(help(&["record", "source"]).contains("embedded documents"));
     assert!(help(&["filters", "fields"]).contains("operators"));
-    assert!(!help(&["similar"]).contains("weight"));
+    assert!(!help(&["similar"]).contains("--weight"));
 }
 
 #[test]
@@ -146,7 +151,15 @@ fn explicit_human_detail_conflicts_with_json_before_reading_an_artifact() {
 }
 #[test]
 fn retired_flags_fail_instead_of_becoming_a_broader_query() {
-    for flag in ["--metric", "--filter-json", "--references", "--include-raw"] {
+    for flag in [
+        "--metric",
+        "--references",
+        "--referenced-by",
+        "--filter-json",
+        "--include-raw",
+        "--fusion",
+        "--min-price",
+    ] {
         let o = Command::new(env!("CARGO_BIN_EXE_atlas"))
             .args(["search", flag, "x", "--json"])
             .output()
@@ -154,5 +167,37 @@ fn retired_flags_fail_instead_of_becoming_a_broader_query() {
         assert!(!o.status.success());
         let json: serde_json::Value = serde_json::from_slice(&o.stdout).unwrap();
         assert_eq!(json["status"], "error");
+    }
+}
+
+#[test]
+fn relationship_filters_and_occurrence_paging_are_discoverable_in_help() {
+    let search = help(&["search"]);
+    assert!(search.contains("links_to("));
+    assert!(search.contains("linked_from("));
+    for command in [
+        &["similar"][..],
+        &["filters", "values"][..],
+        &["record", "resolve"][..],
+    ] {
+        let text = help(command);
+        assert!(text.contains("--links-to"), "{command:?}");
+        assert!(text.contains("--linked-from-main-entry"), "{command:?}");
+    }
+    let occurrences = help(&["graph", "occurrences"]);
+    for flag in ["--artifact-generation", "--clause-id", "--page", "--limit"] {
+        assert!(occurrences.contains(flag));
+    }
+    let discovery = help(&["filters", "values"]);
+    for flag in [
+        "--query",
+        "--text",
+        "--retrieval",
+        "--search-profile",
+        "--list",
+        "--clause-id",
+        "--artifact-generation",
+    ] {
+        assert!(discovery.contains(flag));
     }
 }

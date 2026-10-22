@@ -103,7 +103,12 @@ export function useEncounterTurnReview({
           : "groups" in result.receipt
             ? result.receipt.groups.flatMap((group) => (group.roll ? [group.roll] : []))
             : [];
-      if (rolls.length) {
+      // Persistent outcomes belong to their damage section/recovery popover.
+      if (
+        rolls.length &&
+        command.kind !== "persistent-damage" &&
+        command.kind !== "persistent-recovery"
+      ) {
         setOutcomes((previous) => [...previous, ...rolls]);
       }
       if (result.refreshed) await refresh();

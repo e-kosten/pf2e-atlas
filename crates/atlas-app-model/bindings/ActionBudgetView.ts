@@ -4,4 +4,8 @@ import type { RuntimeCapabilityView } from "./RuntimeCapabilityView";
 import type { RuntimeCountView } from "./RuntimeCountView";
 import type { RuntimeEffectNoteView } from "./RuntimeEffectNoteView";
 
-export type ActionBudgetView = { quickened_sources: Array<ConditionExtraActionView>, actions: RuntimeCountView, reactions: RuntimeCountView, can_act: RuntimeCapabilityView, can_react: RuntimeCapabilityView, notes: Array<RuntimeEffectNoteView>, };
+export type ActionBudgetView = {
+/**
+ * Status when the default allocation loses Quickened's extra action first.
+ */
+extra_action_unavailable_reason?: string, quickened_sources: Array<ConditionExtraActionView>, actions: RuntimeCountView, reactions: RuntimeCountView, can_act: RuntimeCapabilityView, can_react: RuntimeCapabilityView, notes: Array<RuntimeEffectNoteView>, };

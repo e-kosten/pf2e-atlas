@@ -893,6 +893,7 @@ fn encounter_save_adjustments_restore_an_omitted_legacy_hazard_block() {
             replacements: vec![],
             unresolved_stats: vec![],
             values: vec![StatValueView {
+                notes: vec![],
                 ability: None,
                 target: crate::encounters::mechanics::StatisticTarget::Save(
                     crate::encounters::mechanics::StatisticSave::Will,
@@ -1764,9 +1765,9 @@ fn selected_kind_labels_are_title_case_without_changing_source_identifiers() {
             .record_detail_at(RecordDetailRequest {
                 record_key: key.into(),
                 spell_rank: None,
-                owners: vec![atlas_record::source_content::OwnedContentLocator {
+                owners: vec![atlas_domain::OwnedContentLocator {
                     collection: collection.into(),
-                    identity: atlas_record::source_content::OwnedContentIdentity::Stable(id.into()),
+                    identity: atlas_domain::OwnedContentIdentity::Stable(id.into()),
                 }],
                 fields: vec![],
                 passage: None,

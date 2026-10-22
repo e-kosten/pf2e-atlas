@@ -1,4 +1,14 @@
-import { Alert, Button, Collapse, Modal, Select, Spin, Tabs, Typography } from "antd";
+import {
+  Alert,
+  Button,
+  Collapse,
+  Modal,
+  Select,
+  Spin,
+  Space,
+  Tabs,
+  Typography,
+} from "antd";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchProfile } from "../search/SearchProfileContext";
@@ -8,6 +18,7 @@ import DOMPurify from "dompurify";
 import { AtlasApiError, getRelatedRecords, searchPage } from "../../api/atlasApi";
 import {
   atlasRoutePath,
+  currentAtlasRoute,
   navigateToAtlasRoute,
   shouldHandleAtlasRouteClick,
 } from "../../app/routes";
@@ -17,11 +28,18 @@ import type {
   RecordNavigationView,
   RecordSummaryView,
 } from "../../generated/atlas";
-import { DEFAULT_SEARCH_STATE, searchStateQueryString } from "../filters/searchState";
+import {
+  DEFAULT_SEARCH_STATE,
+  decodeSearchStateFromParams,
+  searchStateQueryString,
+} from "../filters/searchState";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
+
+import { linkLeaf } from "../filters/linkPredicates";
+import { relationshipSearchRoute } from "./relationshipSearch";
 
 export function RelatedRecords({
   detail,
@@ -140,13 +158,30 @@ function RelatedTabs({
       <Typography.Paragraph type="secondary">{empty}</Typography.Paragraph>
     );
   }
+  function viewAll(section: GraphSectionView) {
+    if (!section.filter) return null;
+    const route = relationshipSearchRoute(section.filter);
+    return (
+      <Typography.Link
+        href={atlasRoutePath(route)}
+        onClick={(event) => {
+          if (!shouldHandleAtlasRouteClick(event)) return;
+          event.preventDefault();
+          navigateToAtlasRoute(route);
+        }}
+      >
+        View all
+      </Typography.Link>
+    );
+  }
   function references(section: GraphSectionView, incoming: boolean) {
     if (!section.occurrences.length)
       return (
         <Typography.Paragraph type="secondary">
           {incoming
             ? "No references to this record were found."
-            : "No references were found here."}
+            : "No references were found here."}{" "}
+          {viewAll(section)}
         </Typography.Paragraph>
       );
     return (
@@ -191,6 +226,7 @@ function RelatedTabs({
             );
           })}
         </ul>
+        {viewAll(section)}
         {section.truncated && (
           <Typography.Paragraph type="secondary">
             Showing a limited set of references; additional references may exist.
@@ -208,18 +244,10 @@ function RelatedTabs({
             label: "References",
             children: (
               <>
-                {graph.outgoing.occurrences.length > 0 && (
-                  <>
-                    <h3>Referenced here</h3>
-                    {references(graph.outgoing, false)}
-                  </>
-                )}
-                {graph.backlinks.occurrences.length > 0 && (
-                  <>
-                    <h3>References to this record</h3>
-                    {references(graph.backlinks, true)}
-                  </>
-                )}
+                <h3>Referenced here</h3>
+                {references(graph.outgoing, false)}
+                <h3>References to this record</h3>
+                {references(graph.backlinks, true)}
               </>
             ),
           },
@@ -296,6 +324,33 @@ function RelatedTabs({
     : [];
   return (
     <div className="related-records__body">
+      <Space wrap className="related-records__actions">
+        {(["incoming", "outgoing"] as const).map((direction) => {
+          const route = relationshipSearchRoute(
+            linkLeaf({
+              direction,
+              selection: detail.selected,
+              include_contents: detail.selected.embedded_path.length === 0,
+            }),
+          );
+          return (
+            <Button
+              key={direction}
+              href={atlasRoutePath(route)}
+              onClick={(event) => {
+                if (!shouldHandleAtlasRouteClick(event)) return;
+                event.preventDefault();
+                navigateToAtlasRoute(route);
+              }}
+            >
+              {direction === "incoming"
+                ? "Find records linking here"
+                : "Browse links from here"}
+            </Button>
+          );
+        })}
+      </Space>
+
       {related.isFetching && (
         <div role="status" className="related-records__status">
           <Spin size="small" /> Loading related records…
@@ -413,7 +468,9 @@ function SimilarPreview({
         },
         signal,
       );
-      assertSearchIdentity(page, profile.id, detail.artifact_generation);
+      assertSearchIdentity(page, profile.id, detail.artifact_generation, {
+        kind: "relevance",
+      });
       return page;
     },
   });
@@ -423,7 +480,10 @@ function SimilarPreview({
     selectedRecordKey: null,
     query: searchStateQueryString(
       {
-        ...DEFAULT_SEARCH_STATE,
+        ...(currentAtlasRoute().kind === "search"
+          ? decodeSearchStateFromParams(new URLSearchParams(window.location.search))
+          : DEFAULT_SEARCH_STATE),
+        query: "",
         mode: "similar_records",
         similarSeed: seed,
       },

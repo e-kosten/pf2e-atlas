@@ -21,8 +21,9 @@ pub(crate) enum IndexCommand {
 
 #[derive(Debug, Args)]
 pub(crate) struct RecordInspectOptions {
+    #[arg(help = "Foundry root key in pack:id form")]
     pub(crate) key: String,
-    #[arg(long)]
+    #[arg(long, help = "Override the SQLite workspace path")]
     pub(crate) index: Option<PathBuf>,
     #[arg(
         long,
@@ -31,9 +32,9 @@ pub(crate) struct RecordInspectOptions {
     pub(crate) original: bool,
     #[arg(long, help = "Override the configured source clone path")]
     pub(crate) source: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global)]
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
     pub(crate) path_mode: CliPathMode,
-    #[arg(long)]
+    #[arg(long, help = "Emit the standard JSON envelope")]
     pub(crate) json: bool,
 }
 
