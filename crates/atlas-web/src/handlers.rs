@@ -654,6 +654,20 @@ pub(crate) async fn pending_encounter_condition_consequences(
         .await?,
     ))
 }
+pub(crate) async fn preview_encounter_drained_consequence(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+    payload: Result<Json<atlas_app_model::ResolveDrainedConsequenceRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.preview_encounter_drained_consequence(&encounter_ref, request)
+        })
+        .await?,
+    ))
+}
 pub(crate) async fn resolve_encounter_drained_consequence(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
@@ -740,20 +754,6 @@ pub(crate) async fn apply_persistent_damage(
     ))
 }
 
-pub(crate) async fn preview_encounter_retch(
-    State(state): State<AtlasWebState>,
-    Path(encounter_ref): Path<String>,
-    payload: Result<Json<atlas_app_model::EncounterRetchPreviewRequest>, JsonRejection>,
-) -> Result<impl IntoResponse, WebError> {
-    let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
-    Ok(Json(
-        call_service(state, move || {
-            service.preview_encounter_retch(&encounter_ref, request)
-        })
-        .await?,
-    ))
-}
 pub(crate) async fn preview_encounter_strike_context(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
@@ -916,6 +916,20 @@ pub(crate) async fn trait_records(
     Ok(Json(
         call_read_service(state, move |execution| {
             service.trait_records(request, &execution)
+        })
+        .await?,
+    ))
+}
+
+pub(crate) async fn relationship_occurrences(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::RelationshipOccurrencesRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_read_service(state, move |execution| {
+            service.relationship_occurrences(request, &execution)
         })
         .await?,
     ))

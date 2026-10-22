@@ -41,6 +41,7 @@ pub(crate) struct StatValueView {
     pub adjusted_value: serde_json::Number,
     pub modifiers: Vec<Modifier>,
     pub suppressed_modifiers: Vec<Modifier>,
+    pub notes: Vec<RuntimeEffectNoteView>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -1,5 +1,7 @@
 //! Exact authored localization references to uniquely identified trait vocabulary.
 use atlas_domain::TraitKey;
+#[cfg(test)]
+use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
 use atlas_foundry_model::generated::{FoundryTraitDefinition, trait_definitions};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -171,7 +173,6 @@ fn references_with_keys(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::source_content::{OwnedContentIdentity, OwnedContentLocator};
 
     fn public() -> ContentAudience {
         ContentAudience {

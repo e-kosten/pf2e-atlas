@@ -65,7 +65,7 @@ impl AtlasAppService {
         if saved_boundary.is_some()
             && !matches!(
                 request.action,
-                ConditionLifecycleActionView::FrightenedEndTurn { .. }
+                ConditionLifecycleActionView::FrightenedEndTurn
             )
         {
             return Err(AppServiceError::invalid_request(
@@ -81,66 +81,25 @@ impl AtlasAppService {
         if let Some(saved) = &saved_boundary {
             retain_outgoing_frightened(&mut participant, saved);
         }
-        let subject = if action_needs_source(&request.action, &participant) {
+        let subject = if action_needs_source(&request.action) {
             workflow::condition_subject_context(self, &participant)?
         } else {
             workflow::ConditionSubjectContext::from_saved(&participant)
         };
-        if let ConditionLifecycleActionView::ResolveBroken { threshold, .. } = &request.action {
-            let source = subject
-                .facts
-                .broken_threshold
-                .as_ref()
-                .and_then(serde_json::Number::as_i64);
-            if source.is_some_and(|source| source != *threshold) {
-                return Err(AppServiceError::invalid_request(
-                    "The entered Broken Threshold differs from the source",
-                ));
-            }
-            if subject.facts.broken_threshold_known_absent
-                && !participant.conditions.iter().any(|condition| {
-                    super::conditions::condition_rule_for_key(condition.condition_key.as_deref())
-                        == Some(ConditionRule::Broken)
-                        && condition.immunity_override
-                })
-            {
-                return Err(AppServiceError::invalid_request(
-                    "This object has no Broken Threshold",
-                ));
-            }
-        }
-        let maximum = rules::effective_hp_maximum(&participant, subject.level);
         let selected_pending = pending_for_action(&pending, &request.action);
-        let confusion =
-            if let ConditionLifecycleActionView::Retch { confusion, .. } = &request.action {
-                super::action_projection::checked_confusion(
-                    &snapshot.participants,
-                    &participant,
-                    confusion.as_ref(),
-                )?
-            } else {
-                None
-            };
-        validate_action(&participant, &request.action, confusion.as_ref())?;
-        let offer = rules::lifecycle::available_actions(
-            &participant,
-            subject.fortitude,
-            subject.perception,
-            maximum,
-            &pending,
-            &[],
-        )
-        .into_iter()
-        .find(|offer| rules::lifecycle::matches_action(&offer.action, &request.action))
-        .ok_or_else(|| {
-            AppServiceError::invalid_request("Recovery action is no longer available")
-        })?;
+        validate_action(&participant, &request.action)?;
+        let offer =
+            rules::lifecycle::available_actions(&participant, subject.fortitude, &pending, &[])
+                .into_iter()
+                .find(|offer| rules::lifecycle::matches_action(&offer.action, &request.action))
+                .ok_or_else(|| {
+                    AppServiceError::invalid_request("Recovery action is no longer available")
+                })?;
         let check = prepare_check(&request.action, &offer.action)?;
         // Validate source decisions and prepare consequences once, before any RNG.
         let planned = rules::lifecycle::prepare_lifecycle(
             &participant,
             &request.action,
-            maximum,
             selected_pending,
             &request.request_id,
         )?;
@@ -221,12 +180,6 @@ impl AtlasAppService {
                         condition_ids,
                         qualifying_damage,
                     }),
-                    PendingConsequence::BrokenHpThreshold { participant_key } => {
-                        Some(PendingConditionRecoveryView::BrokenThreshold {
-                            consequence_key: saved.consequence_key,
-                            participant_key,
-                        })
-                    }
                     _ => None,
                 })
                 .collect())
@@ -275,22 +228,12 @@ impl AtlasAppService {
         }
         let participant = &participant;
         let options = |source: &workflow::ConditionSubjectContext| {
-            rules::lifecycle::available_actions(
-                participant,
-                source.fortitude,
-                source.perception,
-                rules::effective_hp_maximum(participant, source.level),
-                &pending,
-                &claims,
-            )
+            rules::lifecycle::available_actions(participant, source.fortitude, &pending, &claims)
         };
         let mut actions = options(&workflow::ConditionSubjectContext::from_saved(participant));
-        // A full-HP offer may only become available once Drained's level is known.
         let needs_source = actions
             .iter()
-            .any(|option| offer_needs_source(&option.action, participant))
-            || (rules::hp_events::has(participant, ConditionRule::Wounded)
-                && full_hp_rest_needs_source(participant));
+            .any(|option| offer_needs_source(&option.action));
         if boundary.is_none() && needs_source {
             match workflow::condition_subject_context(self, participant) {
                 Ok(source) => actions = options(&source),
@@ -306,12 +249,8 @@ impl AtlasAppService {
                     ) {
                         return Err(error.into());
                     }
-                    for option in &mut actions {
-                        if option.available && offer_needs_source(&option.action, participant) {
-                            option.available = false;
-                            option.unavailable_reason = Some("Reference data unavailable".into());
-                        }
-                    }
+                    // Hints and table outcomes remain usable without reference
+                    // statistics; only the integrated roll requires those facts.
                 }
             }
         }
@@ -323,15 +262,12 @@ impl AtlasAppService {
         };
         if boundary.is_some() {
             view.actions.retain(|action| {
-                matches!(
-                    action.action,
-                    ConditionRecoveryOfferView::FrightenedEndTurn { .. }
-                )
+                matches!(action.action, ConditionRecoveryOfferView::FrightenedEndTurn)
             });
         }
         for option in &mut view.actions {
             if let ConditionRecoveryOfferView::Retch { issues, .. } = &mut option.action {
-                *issues = super::retch::evaluate(participant, &[], None)?
+                *issues = super::retch::evaluate(participant)
                     .issues
                     .into_iter()
                     .map(|issue| super::action_projection::issue_view(issue, participant))
@@ -341,35 +277,17 @@ impl AtlasAppService {
         Ok(view)
     }
 }
-fn full_hp_rest_needs_source(participant: &EncounterParticipant) -> bool {
-    participant.level_override.is_none()
-        && rules::hp_events::has(participant, ConditionRule::Drained)
-}
-
-fn action_needs_source(
-    action: &ConditionLifecycleActionView,
-    participant: &EncounterParticipant,
-) -> bool {
+fn action_needs_source(action: &ConditionLifecycleActionView) -> bool {
     matches!(
         action,
-        ConditionLifecycleActionView::Retch { .. }
-            | ConditionLifecycleActionView::WakeFromNoise { .. }
-            | ConditionLifecycleActionView::ResolveBroken { .. }
-    ) || (matches!(action, ConditionLifecycleActionView::FullHpRest { .. })
-        && full_hp_rest_needs_source(participant))
+        ConditionLifecycleActionView::Retch {
+            check: LifecycleCheckInputView::Roll,
+            ..
+        }
+    )
 }
-
-fn offer_needs_source(
-    offer: &ConditionRecoveryOfferView,
-    participant: &EncounterParticipant,
-) -> bool {
-    matches!(
-        offer,
-        ConditionRecoveryOfferView::Retch { .. }
-            | ConditionRecoveryOfferView::WakeFromNoise { .. }
-            | ConditionRecoveryOfferView::ResolveBroken { .. }
-    ) || (matches!(offer, ConditionRecoveryOfferView::FullHpRest)
-        && full_hp_rest_needs_source(participant))
+fn offer_needs_source(offer: &ConditionRecoveryOfferView) -> bool {
+    matches!(offer, ConditionRecoveryOfferView::Retch { .. })
 }
 
 fn pending_for_action<'a>(
@@ -378,9 +296,6 @@ fn pending_for_action<'a>(
 ) -> Option<&'a SavedPendingConsequence> {
     let key = match action {
         ConditionLifecycleActionView::ConfusedDamageRecovery {
-            consequence_key, ..
-        }
-        | ConditionLifecycleActionView::ResolveBroken {
             consequence_key, ..
         } => consequence_key,
         _ => return None,
@@ -399,11 +314,8 @@ fn lifecycle_claims(
         ConditionLifecycleActionView::StunnedActionsLost { .. } => {
             (EncounterBoundaryKind::TurnStart, "stunned-actions")
         }
-        ConditionLifecycleActionView::FrightenedEndTurn { .. } => {
+        ConditionLifecycleActionView::FrightenedEndTurn => {
             (EncounterBoundaryKind::TurnEnd, "frightened")
-        }
-        ConditionLifecycleActionView::WakeFromNoise { .. } => {
-            (EncounterBoundaryKind::TurnStart, "waking-noise")
         }
         _ => return vec![],
     };
@@ -425,51 +337,12 @@ fn prepare_check(
         (A::DyingRecovery { check }, O::DyingRecovery { check: facts }) => {
             (check, facts, None, None, Purpose::DyingRecovery, true, 0)
         }
-        (
-            A::Retch {
-                dc,
-                fortitude_modifier,
-                check,
-                ..
-            },
-            O::Retch { check: facts, .. },
-        ) => {
-            if facts.dc.is_some() && dc.is_some() && facts.dc != *dc {
-                return Err(AppServiceError::invalid_request(
-                    "Update this source's recovery DC before using a different DC",
-                ));
-            }
-            (
-                check,
-                facts,
-                *dc,
-                *fortitude_modifier,
-                Purpose::Retch,
-                false,
-                1,
-            )
+        (A::Retch { check, .. }, O::Retch { check: facts, .. }) => {
+            (check, facts, None, None, Purpose::Retch, false, 1)
         }
         (
-            A::WakeFromNoise {
-                dc,
-                perception_modifier,
-                check,
-            },
-            O::WakeFromNoise { check: facts },
-        ) => (
-            check,
-            facts,
-            Some(*dc),
-            *perception_modifier,
-            Purpose::WakeFromNoise,
-            false,
-            0,
-        ),
-        (
             A::ConfusedDamageRecovery {
-                qualifying_damage: true,
-                check: Some(check),
-                ..
+                check: Some(check), ..
             },
             O::ConfusedDamageRecovery { check: facts, .. },
         ) => (
@@ -485,7 +358,7 @@ fn prepare_check(
     };
     let input = input.clone();
     let dc = facts.dc.or(dc);
-    let modifier = choose_modifier(facts.modifier, modifier)?;
+    let modifier = facts.modifier.or(modifier);
     if dc.is_some_and(|dc| dc < 1) {
         return Err(AppServiceError::invalid_request(
             "Check DC must be positive",
@@ -495,7 +368,7 @@ fn prepare_check(
         && (dc.is_none() || modifier.is_none())
     {
         return Err(AppServiceError::invalid_request(
-            "Supply the source DC and current modifier, or record the table's degree of success",
+            "Roll requires a known recovery DC and current modifier; table outcomes need neither",
         ));
     }
     if let LifecycleCheckInputView::TableResult { natural, .. } = &input {
@@ -518,14 +391,6 @@ fn prepare_check(
         flat,
         table_actions,
     }))
-}
-fn choose_modifier(source: Option<i64>, supplied: Option<i64>) -> AppServiceResult<Option<i64>> {
-    if source.is_some() && supplied.is_some() && source != supplied {
-        return Err(AppServiceError::invalid_request(
-            "The entered modifier differs from the current encounter statistic",
-        ));
-    }
-    Ok(source.or(supplied))
 }
 type ResolvedCheck = (
     atlas_local_state::LifecycleCheckPurpose,
@@ -685,20 +550,20 @@ fn receipt_view(receipt: EncounterEventReceipt) -> ConditionLifecycleResultView 
 fn validate_action(
     participant: &EncounterParticipant,
     action: &ConditionLifecycleActionView,
-    confusion: Option<&super::rules::action_context::ConfusionChoice>,
 ) -> AppServiceResult<()> {
-    let ConditionLifecycleActionView::Retch { judgments, .. } = action else {
+    let ConditionLifecycleActionView::Retch {
+        check: LifecycleCheckInputView::Roll,
+        ..
+    } = action
+    else {
+        // An explicit table outcome records the GM's resolution; it does not ask
+        // Atlas to authorize or replay the action that produced it.
         return Ok(());
     };
-    let evaluation = super::retch::evaluate(participant, judgments, confusion)?;
-    if !evaluation.issues.is_empty() {
+    let evaluation = super::retch::evaluate(participant);
+    if !evaluation.issues.is_empty() || evaluation.disruption.is_some() {
         return Err(AppServiceError::invalid_request(
-            "Retch is prevented or needs a decision about an active condition",
-        ));
-    }
-    if evaluation.disruption.is_some() {
-        return Err(AppServiceError::invalid_request(
-            "Retch unexpectedly requires an additional disruption check",
+            "Resolve the Retch restrictions at the table, then record its outcome",
         ));
     }
     Ok(())

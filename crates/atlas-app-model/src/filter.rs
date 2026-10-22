@@ -35,6 +35,9 @@ pub enum FilterDiscoveryContext {
 pub struct DiscoverFilterEditorRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub expected_artifact_generation: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub filter: Option<QueryPredicate>,
     #[serde(default)]
     pub selected_field_ids: Vec<String>,
@@ -45,7 +48,7 @@ pub enum DiscoverFilterValuesRequest {
     Contextual {
         #[serde(default)]
         only_matching: bool,
-        context: FilterDiscoveryContext,
+        context: Box<FilterDiscoveryContext>,
         field_id: String,
         clause_id: Option<String>,
         text: Option<String>,
@@ -79,6 +82,8 @@ pub struct DiscoverFilterCountsRequest {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterEditorView {
+    pub artifact_generation: String,
+    pub relationship_clauses: Vec<crate::RelationshipClausePresentationView>,
     pub catalog_version: u32,
     pub limits: QueryLimits,
     pub groups: Vec<FilterEditorGroupView>,

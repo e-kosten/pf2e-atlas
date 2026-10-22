@@ -25,7 +25,7 @@ pub(crate) mod args;
 #[derive(Debug, Parser)]
 #[command(name = "atlas")]
 #[command(version)]
-#[command(about = "PF2e Atlas local search and index tooling")]
+#[command(about = "Search and read Pathfinder 2e references, manage saved lists, and roll dice")]
 #[command(
     after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas record get actionspf2e:1kGNdIIhuglAjIp9\n  atlas record resolve \"Treat Wounds\" --pack-name actionspf2e"
 )]
@@ -36,7 +36,7 @@ pub(crate) struct Cli {
         value_enum,
         default_value_t = CliProgressMode::Auto,
         help_heading = "Output",
-        help = "Control progress rendering: auto shows human progress on terminals, never suppresses routine progress, always forces it"
+        help = "Progress display: auto on terminals except with --json, always, or never"
     )]
     pub(crate) progress: CliProgressMode,
     #[command(subcommand)]
@@ -49,7 +49,7 @@ pub(crate) enum Command {
     Roll(RollArgs),
     #[command(about = "Install, repair, or check local Atlas runtime data")]
     Setup(SetupArgs),
-    #[command(about = "Build, check, and validate Atlas indexes")]
+    #[command(about = "Update and validate workspace reference data")]
     Index(IndexArgs),
     #[command(about = "Fetch and resolve Atlas records")]
     Record(RecordArgs),
@@ -59,7 +59,7 @@ pub(crate) enum Command {
     Graph(GraphArgs),
     #[command(about = "Find records similar to a seed record")]
     Similar(Box<SimilarOptions>),
-    #[command(about = "Run Atlas search commands")]
+    #[command(about = "Search by text or browse records with filters")]
     Search(Box<SearchOptions>),
     #[command(about = "Start the local Atlas web service")]
     Web(WebArgs),
@@ -67,7 +67,7 @@ pub(crate) enum Command {
     Filters(FiltersArgs),
     #[command(about = "Create and edit durable local saved lists", alias = "list")]
     Lists(ListsArgs),
-    #[command(about = "Validate and inspect authored tag data")]
+    #[command(about = "Validate authored tag data")]
     Tags(TagsArgs),
     #[command(about = "Install and inspect Atlas agent integrations")]
     Agent(AgentArgs),
@@ -130,6 +130,7 @@ impl Command {
             Self::Graph(args) => match &args.command {
                 GraphCommand::Links(options) => options.json,
                 GraphCommand::Uses(options) => options.json,
+                GraphCommand::Occurrences(options) => options.json,
                 GraphCommand::Variants(options) => options.json,
                 GraphCommand::Remaster(options) => options.json,
             },
@@ -185,6 +186,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
         Command::Graph(graph) => match graph.command {
             GraphCommand::Links(options) => commands::graph::run_graph_links(options),
             GraphCommand::Uses(options) => commands::graph::run_graph_uses(options),
+            GraphCommand::Occurrences(options) => commands::graph::occurrences::run(*options),
             GraphCommand::Variants(options) => commands::graph::run_graph_variants(options),
             GraphCommand::Remaster(options) => commands::graph::run_graph_remaster(options),
         },

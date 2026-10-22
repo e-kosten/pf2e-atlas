@@ -316,6 +316,7 @@ fn add_unlisted_npc_skills(block: &mut super::stat_block::StatBlockView) {
             continue;
         };
         block.values.push(super::stat_block::StatValueView {
+            notes: vec![],
             target,
             label: label.into(),
             ability: Some(ability),

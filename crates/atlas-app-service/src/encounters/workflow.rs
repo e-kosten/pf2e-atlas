@@ -528,6 +528,7 @@ impl AtlasAppService {
                         ),
                     )
                 })?;
+            super::hp_events::retire_stale_hp_decisions(session, &detail.encounter.encounter_key)?;
             Ok(EncounterMutationView {
                 encounter_key: detail.encounter.encounter_key,
             })
@@ -894,7 +895,6 @@ pub(super) struct ConditionSubjectContext {
     pub(super) reference_revision: Option<u64>,
     pub(super) level: Option<i64>,
     pub(super) fortitude: Option<i64>,
-    pub(super) perception: Option<i64>,
 }
 
 impl ConditionSubjectContext {
@@ -906,7 +906,6 @@ impl ConditionSubjectContext {
             reference_revision: None,
             level: participant.level_override,
             fortitude: None,
-            perception: None,
         }
     }
 }
@@ -982,17 +981,12 @@ pub(super) fn condition_subject_context(
                     block.effective_stat(&StatisticTarget::Save(StatisticSave::Fortitude))
                 })
                 .and_then(|number| number.as_i64());
-            let perception = block
-                .as_ref()
-                .and_then(|block| block.effective_stat(&StatisticTarget::Perception))
-                .and_then(|number| number.as_i64());
             let reference_revision = Some(session.reference_revision()?);
             Ok(ConditionSubjectContext {
                 participant,
                 facts,
                 level,
                 fortitude,
-                perception,
                 reference_revision,
             })
         },
@@ -1120,7 +1114,6 @@ mod immunity_override_tests {
             reference_revision: None,
             level: None,
             fortitude: None,
-            perception: None,
             facts: super::super::rules::ConditionApplicabilityFacts {
                 immunities: vec![super::super::rules::ConditionImmunity {
                     slug: "unconscious".into(),

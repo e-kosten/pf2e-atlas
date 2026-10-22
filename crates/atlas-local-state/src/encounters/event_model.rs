@@ -71,7 +71,7 @@ pub struct PreparedConditionEvent {
     pub pending: Vec<SavedPendingConsequence>,
     pub resolved_pending_keys: Vec<String>,
     pub outcomes: Vec<ConditionEventOutcome>,
-    pub selection_changes: Vec<PersistentSelectionChange>,
+    pub precedence_changes: Vec<PersistentPrecedenceChange>,
     pub initiative_moves: Vec<super::ReorderEncounterParticipant>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -135,6 +135,8 @@ pub struct PersistentDamageOutcome {
     pub roll: Option<atlas_dice::RollOutcome>,
     pub amount: i64,
     pub table_resolved: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protection: Option<PersistentDamageProtection>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -161,9 +163,17 @@ pub struct SavedHpEventContext {
 }
 
 #[derive(Debug, Clone)]
-pub struct PersistentSelectionChange {
+pub struct PersistentPrecedenceChange {
     pub participant_key: String,
-    pub selection: super::PersistentSourceSelection,
+    pub episode_id: String,
+    pub sources: Vec<ConditionEventSource>,
+}
+
+/// A source already saved, or an addition in this event's ordered list of additions.
+#[derive(Debug, Clone, Copy)]
+pub enum ConditionEventSource {
+    Existing(i64),
+    Added(usize),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -214,4 +224,11 @@ pub enum LifecycleCheckPurpose {
 pub struct ConditionEventBoundary<'a> {
     pub claims: &'a [EncounterBoundaryClaim],
     pub outgoing_boundary_key: Option<&'a str>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PersistentDamageProtection {
+    pub immune: bool,
+    pub weakness: i64,
+    pub resistance: i64,
 }

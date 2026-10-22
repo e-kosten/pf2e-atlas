@@ -13,6 +13,7 @@ const IMMUTABLE_REFERENCE_FAMILIES = new Set([
   "trait-records",
   "embedded-reading",
   "related",
+  "relationship-occurrences",
   "similar-preview",
   "encounter-record-detail",
 ]);

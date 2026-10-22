@@ -90,6 +90,23 @@ browser ranking picker or run `atlas search "harrowkin" --ranking score` to comp
 switching does not rebuild search data. Ranking applies to hybrid text search,
 not alphabetical browsing or Similar records.
 
+Browse, text search and Similar results can be ordered by name, level/rank or
+unit price. Open **Sort** in the browser or pass a CLI order such as
+`atlas search "healing" --kind spell --sort level_asc`. Sorting applies before
+pagination and preserves the search's matching set; semantic results still show
+bounded Top matches. Missing values appear last in either direction. Saved-list
+sorting is temporary and preserves the saved order. Add a second attribute rule
+to order ties, for example `--sort level_desc --sort unit_price_asc`.
+**Random** and **Shuffle** help explore matching records; a retained seed keeps
+the order repeatable while paging. In the CLI, use `--sort random --seed 42`, or
+omit `--seed` to generate one.
+
+In the browser, **Related** opens full **Links to** and **Linked from** results.
+Use **Links** beside the search filters to choose another entry. Each condition
+has its own direction and **Main entry only** / **Whole entry** scope. Advanced
+filters combine links and ordinary conditions with AND, OR and NOT. CLI search
+and Similar accept the same reference conditions through filter expressions.
+
 ### Platforms and versions
 
 The installer installs only the `atlas` CLI. The persistent workspace lives in user application-data storage; downloaded source and models stay in cache locations managed by `atlas setup`.
@@ -403,5 +420,9 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for source development and diagnostic c
 For questions about PF2e Atlas, use the [GitHub issue tracker](https://github.com/e-kosten/pf2e-atlas/issues).
 
 ## Paizo Community Use Notice
+
+Acquired reference content has separate content licenses from Atlas's Apache 2.0
+code. See the [trait description provenance review](docs/research/trait-description-provenance.md)
+for pinned source evidence and the remaining paragraph-level attribution work.
 
 PF2e Atlas uses trademarks and/or copyrights owned by Paizo Inc., used under Paizo's Community Use Policy (paizo.com/licenses/communityuse). We are expressly prohibited from charging you to use or access this content. PF2e Atlas is not published, endorsed, or specifically approved by Paizo. For more information about Paizo Inc. and Paizo products, visit paizo.com.

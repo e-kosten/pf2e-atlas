@@ -32,6 +32,8 @@ fn abandoned_public_read_never_opens_lazy_command_reader() {
     let error = service
         .search_page(
             SearchResultsRequest {
+                sort: None,
+
                 ranking: None,
                 search_profile: None,
                 criteria: SearchCriteria::ListRecords { filter: None },
@@ -104,7 +106,7 @@ fn abandoned_discovery_checks_before_saved_list_scope_reads_or_lazy_open() {
     for request in [
         DiscoverFilterValuesRequest::Contextual {
             only_matching: false,
-            context,
+            context: Box::new(context),
             field_id: "record.traits".into(),
             clause_id: None,
             text: None,

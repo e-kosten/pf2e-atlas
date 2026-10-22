@@ -72,7 +72,6 @@ it("preserves duration Stunned without manufacturing a numeric value", async () 
       disabled={false}
       pending={false}
       onSave={onSave}
-      onCancel={() => {}}
     />,
   );
   expect(screen.queryByRole("spinbutton", { name: "Condition value" })).toBeNull();
@@ -132,7 +131,6 @@ it("retains restricted extra actions and scoped participants independently of so
       disabled={false}
       pending={false}
       onSave={onSave}
-      onCancel={() => {}}
     />,
   );
   expect(screen.getByRole("combobox", { name: "Against" })).toBeVisible();
@@ -211,7 +209,6 @@ it("offers a deliberate override through the submit action", async () => {
       disabled={false}
       pending={false}
       onSave={onSave}
-      onCancel={() => {}}
     />,
   );
   expect(screen.queryByRole("textbox", { name: "GM override reason" })).toBeNull();
@@ -231,7 +228,6 @@ it("keeps optional details collapsed for basic entry and reveals them on request
       disabled={false}
       pending={false}
       onSave={vi.fn()}
-      onCancel={() => {}}
     />,
   );
   expect(screen.getByRole("button", { name: "Add duration" })).toBeVisible();
@@ -268,7 +264,6 @@ it("defaults round timing to self and lets the GM choose another boundary and tu
       disabled={false}
       pending={false}
       onSave={onSave}
-      onCancel={() => {}}
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Add duration" }));
@@ -302,51 +297,86 @@ it("defaults round timing to self and lets the GM choose another boundary and tu
       }),
     ),
   );
-});
-
-it("requires an explicit supernatural source when adding a PC attitude", async () => {
-  const onSave = vi.fn().mockResolvedValue(undefined);
-  render(
-    <EncounterConditionEditor
-      definitions={[
-        {
-          condition_ref: "conditionitems:test-attitude",
-          name: "Attitude",
-          editor_kind: "attitude",
-          supports_duration_instead_of_value: false,
-          scope_label: "Toward",
-          supports_extra_action: false,
-          eligibility: {
-            kind: "needs_context",
-            reason: "PC attitude requires a supernatural effect.",
-          },
-          has_value: false,
-          automation_level: "automated",
-          applies_to: [],
-          categories: [],
-        },
-      ]}
-      participants={[]}
-      participantKind="pc"
-      disabled={false}
-      pending={false}
-      onSave={onSave}
-      onCancel={() => {}}
-    />,
-  );
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
-  fireEvent.click(await screen.findByText("Attitude"));
-  await screen.findByRole("checkbox", { name: "Supernatural effect" });
-  expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
-  expect(onSave).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("checkbox", { name: "Supernatural effect" }));
+  const durationInput = screen.getByRole("spinbutton", { name: "Duration amount" });
+  expect(fireEvent.keyDown(durationInput, { key: "-" })).toBe(false);
+  expect(
+    fireEvent.paste(durationInput, { clipboardData: { getData: () => "-3" } }),
+  ).toBe(false);
+  expect(durationInput).toHaveValue("1");
+  // Out-of-range input from autofill or another input mechanism is clamped on blur.
+  fireEvent.change(durationInput, { target: { value: "-3" } });
+  fireEvent.blur(durationInput);
+  expect(durationInput).toHaveValue("0");
+  fireEvent.keyDown(durationInput, { key: "ArrowDown" });
+  expect(durationInput).toHaveValue("0");
   await apply();
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ parameters: { kind: "attitude", supernatural: true } }),
+      expect.objectContaining({
+        duration: {
+          amount: 0n,
+          unit: "rounds",
+          timing: { event: "start", participant_key: "b" },
+        },
+      }),
     ),
   );
+  expect(
+    previewCondition.mock.calls.every(
+      ([request]) => !request.duration || request.duration.amount >= 0n,
+    ),
+  ).toBe(true);
 });
+
+it.each(["pc", "creature"] as const)(
+  "records a %s attitude without a confirmation step",
+  async (participantKind) => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <EncounterConditionEditor
+        definitions={[
+          {
+            condition_ref: "conditionitems:test-attitude",
+            name: "Attitude",
+            editor_kind: "attitude",
+            supports_duration_instead_of_value: false,
+            scope_label: "Toward",
+            supports_extra_action: false,
+            eligibility: { kind: "available" },
+            has_value: false,
+            automation_level: "automated",
+            applies_to: [],
+            categories: [],
+          },
+        ]}
+        participants={[]}
+        participantKind={participantKind}
+        disabled={false}
+        pending={false}
+        onSave={onSave}
+      />,
+    );
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
+    fireEvent.click(await screen.findByText("Attitude"));
+    const reminder =
+      participantKind === "pc"
+        ? await screen.findByText(
+            "Only supernatural effects can impose an attitude on a PC.",
+          )
+        : screen.queryByText(
+            "Only supernatural effects can impose an attitude on a PC.",
+          );
+    if (participantKind === "pc") expect(reminder).toBeVisible();
+    else expect(reminder).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: "Supernatural effect" })).toBeNull();
+    await apply();
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({ parameters: { kind: "attitude" } }),
+      ),
+    );
+  },
+);
 
 it("keeps the fascinating subject separate from the effect's causal source", async () => {
   const onSave = vi.fn().mockResolvedValue(undefined);
@@ -376,9 +406,9 @@ it("keeps the fascinating subject separate from the effect's causal source", asy
       disabled={false}
       pending={false}
       onSave={onSave}
-      onCancel={() => {}}
     />,
   );
+  expect(screen.getByRole("combobox", { name: "Subject" })).toBeVisible();
   expect(screen.getByRole("textbox", { name: "Subject description" })).toHaveValue(
     "Dancing flame",
   );
@@ -425,7 +455,6 @@ it("edits a Fleeing subject independently of its causal source", async () => {
       disabled={false}
       pending={false}
       onSave={onSave}
-      onCancel={() => {}}
     />,
   );
   expect(screen.getByRole("combobox", { name: "Fleeing from" })).toBeInTheDocument();
@@ -491,7 +520,6 @@ function persistentEditor(unknown = false) {
       disabled={false}
       pending={false}
       onSave={onSave}
-      onCancel={vi.fn()}
     />,
   );
   return onSave;
@@ -517,7 +545,7 @@ it("offers one numeric default flat-check DC and one-row damage fields without r
     target: { value: "" },
   });
   await screen.findByText("Enter a whole number.");
-  expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   expect(onSave).not.toHaveBeenCalled();
   fireEvent.change(screen.getByRole("spinbutton", { name: "Flat check DC" }), {
     target: { value: "20" },

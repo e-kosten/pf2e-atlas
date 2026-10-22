@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Form, Input, Select } from "antd";
 import { ArrowLeft, Trash2 } from "lucide-react";
@@ -39,6 +40,7 @@ export function ListEditView({ route }: ListEditViewProps) {
     queryKey: ["saved-list", route.slug],
     queryFn: () => getSavedList(route.slug),
   });
+  usePageTitle(list.data?.list.name ?? "List");
   const tagOptions = useMemo(
     () =>
       savedListTagOptions(lists.data?.lists ?? []).map((tag) => ({

@@ -64,6 +64,8 @@ function participantFixture(
   overrides: Partial<EncounterParticipantView> = {},
 ): EncounterParticipantView {
   return {
+    knockout_options: [],
+    effective_max_hp: { state: "value", value: 40, adjustment: null },
     persistent_damage_groups: [],
     track_dying: false,
     mortality: "alive",

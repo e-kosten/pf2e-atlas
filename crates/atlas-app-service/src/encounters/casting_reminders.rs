@@ -106,7 +106,6 @@ fn reminders(
             kind: ActionKind::Cast,
             reaction,
             other_participant: None,
-            confusion: None,
             facts: &facts,
         },
     );

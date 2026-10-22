@@ -16,10 +16,46 @@ pub(crate) enum GraphCommand {
     Links(GraphLinksOptions),
     #[command(about = "Show records that reference or use a record")]
     Uses(GraphUsesOptions),
+    #[command(
+        about = "Page exact link occurrences for a search result and positive link condition"
+    )]
+    Occurrences(Box<GraphOccurrencesOptions>),
     #[command(about = "Show bounded Suggested variants with naming evidence")]
     Variants(GraphVariantsOptions),
     #[command(about = "Show legacy/remaster links for a record")]
     Remaster(GraphRemasterOptions),
+}
+
+#[derive(Debug, Args)]
+#[command(
+    after_help = "Repeat the search's complete filter and artifact generation. Use --clause-id from its relationship summaries when it has multiple positive link conditions.\nExample:\n  atlas graph occurrences PACK:ID --links-to 'Leather Armor' --artifact-generation GENERATION --page 2 --json"
+)]
+pub(crate) struct GraphOccurrencesOptions {
+    #[arg(help = "Canonical key of a returned search result")]
+    pub(crate) result_record_key: String,
+    #[command(flatten)]
+    pub(crate) filter_options: crate::cli::args::FilterOptions,
+    #[arg(
+        long,
+        help = "Positive link clause ID; optional when exactly one exists"
+    )]
+    pub(crate) clause_id: Option<String>,
+    #[arg(long, help = "Exact artifact generation returned by search")]
+    pub(crate) artifact_generation: String,
+    #[arg(
+        long,
+        default_value_t = 1,
+        help = "Occurrence page number, starting at 1"
+    )]
+    pub(crate) page: u32,
+    #[arg(long, default_value_t = 20, help = "Occurrences per page (1-100)")]
+    pub(crate) limit: u32,
+    #[arg(long, help = "Override the SQLite workspace path")]
+    pub(crate) index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
+    pub(crate) path_mode: CliPathMode,
+    #[arg(long, help = "Emit the standard JSON envelope")]
+    pub(crate) json: bool,
 }
 
 #[derive(Debug, Args)]
@@ -60,7 +96,7 @@ pub(crate) struct GraphUsesOptions {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas graph variants \"Dread Ampoule\"\n  atlas graph variants equipment-srd:IvFEJqp2MUew65nQ --json"
+    after_help = "Examples:\n  atlas graph variants \"Dread Ampoule (Moderate)\"\n  atlas graph variants equipment-srd:IvFEJqp2MUew65nQ --json"
 )]
 pub(crate) struct GraphVariantsOptions {
     #[arg(help = "Seed record key or strict resolvable record name")]

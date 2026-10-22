@@ -1,8 +1,15 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import type { ComponentProps, ReactNode } from "react";
 import { EncounterInspectorPane } from "./EncounterInspectorPane";
-import { detailFixture } from "../../test/fixtures";
+import { encounterParticipant, renderEncounter } from "./encounterTestFixtures";
+import { detailFixture, spellFixture } from "../../test/fixtures";
 
+vi.mock("../../api/atlasApi", () => ({
+  getEncounterConditionLifecycleActions: vi
+    .fn()
+    .mockResolvedValue({ encounter_revision: 1n, actions: [] }),
+  getEncounterHpLifecycle: vi.fn().mockResolvedValue([]),
+}));
 vi.mock("./EncounterParticipantSettings", () => ({
   EncounterParticipantSettings: () => null,
 }));
@@ -29,19 +36,23 @@ vi.mock("./EncounterSpellControls", () => ({
 
 it("keeps retained spell content read-only after a contextual refresh fails and enables it only after a successful retry", () => {
   const onSpellAction = vi.fn();
+  const spell = detailFixture("actors:mage");
+  spell.presentation.body = { kind: "spell", value: spellFixture() };
   const props = {
     disabled: false,
     previewLoading: false,
-    participant: {
+    encounterKey: "encounter",
+    encounterRevision: 1n,
+    participants: [],
+    participant: encounterParticipant({
       participant_key: "one",
       participant_kind: "creature",
-      participant_variant: "normal",
-    },
+    }),
     previewRecordKey: "actors:mage",
-    previewDetail: detailFixture("actors:mage"),
+    previewDetail: spell,
     onSpellAction,
   } as unknown as ComponentProps<typeof EncounterInspectorPane>;
-  const { rerender } = render(
+  const { rerender } = renderEncounter(
     <EncounterInspectorPane {...props} previewError={new Error("Refresh failed")} />,
   );
   expect(screen.getByRole("button", { name: "Cast" })).toBeDisabled();
@@ -51,4 +62,8 @@ it("keeps retained spell content read-only after a contextual refresh fails and 
   expect(screen.getByRole("button", { name: "Cast" })).toBeDisabled();
   rerender(<EncounterInspectorPane {...props} />);
   expect(screen.getByRole("button", { name: "Cast" })).toBeEnabled();
+  rerender(
+    <EncounterInspectorPane {...props} previewDetail={detailFixture("actors:mage")} />,
+  );
+  expect(screen.queryByRole("button", { name: "Cast" })).toBeNull();
 });

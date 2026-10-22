@@ -199,7 +199,11 @@ export function RecordPreviewPopover({
           onClose();
       }}
       content={
-        <section role="dialog" aria-label="Reference preview">
+        <section
+          className="record-preview-popover__surface"
+          role="dialog"
+          aria-label="Reference preview"
+        >
           <div className="record-preview-popover__header">
             <RecordPreviewActions
               actions={recordActions}

@@ -1,30 +1,42 @@
 import { Input } from "antd";
-import type { InputProps } from "antd";
-import { useRef, useState } from "react";
+import type { InputProps, InputRef } from "antd";
+import { useEffect, useRef, useState } from "react";
 
 export function EditableCommitField({
+  focusOnMount,
   ariaLabel,
+  blurOnEnter = true,
   className,
   disabled = false,
   inputMode,
+  onCancel,
   onCommit,
   placeholder,
   size,
   stopPropagation = false,
+  suffix,
   value,
   variant,
 }: {
+  focusOnMount?: boolean;
   ariaLabel: string;
+  blurOnEnter?: boolean;
   className?: string;
   disabled?: InputProps["disabled"];
   inputMode?: InputProps["inputMode"];
+  onCancel?: () => void;
   onCommit: (value: string) => void | Promise<unknown>;
   placeholder?: string;
   size?: InputProps["size"];
   stopPropagation?: boolean;
+  suffix?: InputProps["suffix"];
   value: string;
   variant?: InputProps["variant"];
 }) {
+  const inputRef = useRef<InputRef>(null);
+  useEffect(() => {
+    if (focusOnMount) inputRef.current?.focus({ cursor: "all" });
+  }, [focusOnMount]);
   const [draftState, setDraftState] = useState({
     committedValue: value,
     draft: value,
@@ -59,14 +71,17 @@ export function EditableCommitField({
     if (!commit) {
       setDraft(value);
     }
+    if (!commit || draft === value) onCancel?.();
   };
 
   return (
     <Input
+      ref={inputRef}
       aria-label={ariaLabel}
       className={className}
       disabled={disabled}
       inputMode={inputMode}
+      suffix={suffix}
       onBlur={() => finishEdit(true)}
       onChange={(event) => {
         editFinished.current = false;
@@ -83,7 +98,7 @@ export function EditableCommitField({
         if (event.key === "Enter") {
           event.preventDefault();
           finishEdit(true);
-          event.currentTarget.blur();
+          if (blurOnEnter) event.currentTarget.blur();
         }
         if (event.key === "Escape") {
           event.preventDefault();

@@ -30,7 +30,6 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/traits/detail", post(crate::handlers::trait_definition))
         .route("/api/traits/records", post(crate::handlers::trait_records))
         .route("/api/related",post(crate::handlers::related_records))
-        .route("/api/encounters/{encounter_ref}/retch/preview", post(crate::handlers::preview_encounter_retch))
         .route("/api/encounters/{encounter_ref}/strike-context",post(crate::handlers::preview_encounter_strike_context))
         .route("/api/encounters/{encounter_ref}/casting-reminders", post(crate::handlers::encounter_casting_reminders))
         .route("/api/encounters", get(encounters).post(create_encounter))
@@ -84,6 +83,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/encounters/{encounter_ref}/persistent-damage",post(crate::handlers::apply_persistent_damage))
         .route("/api/encounters/{encounter_ref}/persistent-recovery",post(crate::handlers::recover_persistent_damage))
         .route("/api/encounters/{encounter_ref}/condition-consequences",get(crate::handlers::pending_encounter_condition_consequences))
+        .route("/api/encounters/{encounter_ref}/condition-consequences/preview",post(crate::handlers::preview_encounter_drained_consequence))
         .route("/api/encounters/{encounter_ref}/condition-consequences/drained",post(crate::handlers::resolve_encounter_drained_consequence))
         .route("/api/encounters/{encounter_ref}/participants/{participant_key}/life-settings",axum::routing::patch(crate::handlers::set_encounter_life_settings))
         .route(
@@ -120,6 +120,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/filters/counts", post(crate::handlers::discover_filter_counts))
         .route("/api/filters/validate", post(crate::handlers::validate_filter))
         .route("/api/search/page", post(search_page))
+        .route("/api/search/relationship-occurrences", post(crate::handlers::relationship_occurrences))
         .route("/api/records/{record_key}", get(record_detail))
         .route("/api/encounters/{encounter_ref}/strike-options", post(crate::handlers::encounter_strike_options))
         .route("/api/encounters/{encounter_ref}/strike-rolls", post(crate::handlers::roll_encounter_strike))

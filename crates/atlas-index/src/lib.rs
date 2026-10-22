@@ -86,3 +86,9 @@ pub use traits::{
     TRAIT_SCHEMA_SQL, TraitDefinition, TraitMembership, TraitReference, TraitReferenceInput,
     TraitSeedChunk, TraitSourceLocation, TraitVectorInput,
 };
+
+mod relationship_query;
+pub use relationship_query::{RelationshipOccurrencePage, RelationshipOccurrencePageRequest};
+
+mod result_order;
+pub use result_order::SourceUnitPrice;

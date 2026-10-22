@@ -116,14 +116,16 @@ impl EncounterEvent<'_> {
             session.require_reference_revision(revision)?;
         }
         // Storage checks the current revision/claims before invoking a callback or RNG.
-        Ok(store.apply_condition_event_with_claims(
+        let receipt = store.apply_condition_event_with_claims(
             self.encounter_key,
             self.request_id,
             self.intent,
             self.expected_revision,
             boundary,
             evaluate,
-        )?)
+        )?;
+        super::hp_events::retire_stale_hp_decisions(session, self.encounter_key)?;
+        Ok(receipt)
     }
 }
 

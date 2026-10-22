@@ -1,6 +1,5 @@
 use super::super::conditions::{ConditionRule, modeled_condition_by_rule};
 use super::super::stat_block::StatisticTarget;
-use super::action_context::ConfusionChoice;
 use super::*;
 use atlas_local_state::*;
 use serde_json::json;
@@ -9,7 +8,7 @@ pub(super) fn participant() -> EncounterParticipant {
     EncounterParticipant {
         level_override: None,
         base_death_threshold: 4,
-        persistent_selections: vec![],
+        persistent_precedence: vec![],
         track_dying: false,
         mortality: Default::default(),
         spell_resources: vec![],
@@ -357,44 +356,15 @@ fn dazzled_targeting_uses_usable_precision_and_blinded_suppresses_it() {
 }
 
 #[test]
-fn confused_requires_declared_viability_and_projects_self_hit_without_a_roll() {
-    use super::action_context::{ActionKind, confusion_requirements};
+fn confused_keeps_action_guidance_without_a_target_selection_workflow() {
     let mut actor = participant();
+    assert!(!super::action_context::is_confused(&actor));
     actor.conditions = vec![condition(1, ConditionRule::Confused, None)];
-    let missing = confusion_requirements(&actor, None, ActionKind::Strike, true).unwrap();
-    assert!(!missing.required_facts.is_empty());
-    let choice = ConfusionChoice::Offensive {
-        viable_target_keys: vec!["enemy".into()],
-        random_target_key: Some("bystander".into()),
-        offensive: Some(true),
-    };
-    let invalid = confusion_requirements(&actor, Some(&choice), ActionKind::Cast, false).unwrap();
-    assert_eq!(invalid.selected_target_key, None);
-    assert!(!invalid.required_facts.is_empty());
-    let self_hit = confusion_requirements(
-        &actor,
-        Some(&ConfusionChoice::NoViableTargets),
-        ActionKind::Strike,
-        true,
-    )
-    .unwrap();
-    assert_eq!(self_hit.selected_target_key.as_deref(), Some("p"));
-    assert!(self_hit.automatic_self_hit);
-    let wasted = confusion_requirements(
-        &actor,
-        Some(&ConfusionChoice::UnableToAttack),
-        ActionKind::Strike,
-        true,
-    )
-    .unwrap();
-    assert!(wasted.wastes_action);
-    let facilitate = ConfusionChoice::Facilitate { note: None };
-    assert!(
-        confusion_requirements(&actor, Some(&facilitate), ActionKind::Retch, false)
-            .unwrap()
-            .required_facts
-            .is_empty()
-    );
+    assert!(super::action_context::is_confused(&actor));
+    assert!(matches!(
+        &super::super::retch::evaluate(&actor).issues[..],
+        [super::action_context::ActionIssue::NeedsConfusion { source_id: 1 }]
+    ));
 }
 
 #[test]
@@ -417,7 +387,6 @@ fn fascination_requires_its_subject() {
                 kind: ActionKind::Retch,
                 reaction: Some(false),
                 other_participant: None,
-                confusion: None,
                 facts: &facts,
             },
         )
@@ -461,7 +430,6 @@ fn fleeing_requires_its_explicit_subject() {
                 kind,
                 reaction: Some(false),
                 other_participant: None,
-                confusion: None,
                 facts: &facts,
             },
         )
@@ -669,92 +637,176 @@ fn controller_instructions_derive_from_active_sources_and_conflicts_stay_unknown
 }
 
 #[test]
-fn retch_judgments_are_independent_scoped_and_order_independent() {
-    use atlas_app_model::{EncounterActionFactView as F, EncounterActionJudgmentView as J};
+fn retch_exposes_independent_source_restrictions_without_collecting_answers() {
     let mut actor = participant();
     actor.conditions = vec![
         condition(1, ConditionRule::Fleeing, None),
         condition(2, ConditionRule::Fleeing, None),
         condition(3, ConditionRule::Controlled, None),
     ];
-    for source in &mut actor.conditions[..2] {
-        source.parameters = ConditionParameters::Fleeing {
-            subject: Some(ConditionSubject::Other {
-                description: format!("threat {}", source.condition_id),
-            }),
-        };
-    }
-    actor.conditions[2].source_participant_key = Some("controller".into());
-    let mut answers = vec![
-        J {
-            source_condition_id: Some(1),
-            fact: F::FurthersEscape,
-            value: true,
-        },
-        J {
-            source_condition_id: Some(2),
-            fact: F::FurthersEscape,
-            value: true,
-        },
-        J {
-            source_condition_id: Some(3),
-            fact: F::FollowsControllerInstructions,
-            value: true,
-        },
+    let result = super::super::retch::evaluate(&actor);
+    assert_eq!(result.issues.len(), 3);
+}
+
+#[test]
+fn missing_statistics_do_not_add_bookkeeping_notices_but_keep_table_reminders() {
+    let mut actor = participant();
+    actor.conditions = vec![
+        condition(1, ConditionRule::Enfeebled, Some(1)),
+        condition(2, ConditionRule::Clumsy, Some(1)),
+        condition(3, ConditionRule::Frightened, Some(1)),
+        condition(4, ConditionRule::Sickened, Some(1)),
+        condition(5, ConditionRule::OffGuard, None),
+        condition(6, ConditionRule::Encumbered, None),
+        condition(7, ConditionRule::Fatigued, None),
     ];
-    let evaluate = |answers: &[J]| super::super::retch::evaluate(&actor, answers, None);
-    assert_eq!(evaluate(&[]).unwrap().issues.len(), 3);
-    for _ in 0..answers.len() {
-        assert!(evaluate(&answers).unwrap().issues.is_empty());
-        answers.rotate_left(1);
+    for block in [
+        super::participant_runtime_block(&actor),
+        super::project_participant(&actor, &source_baseline(), true, &[]),
+    ] {
+        assert_eq!(block.unapplied_effects.len(), 1);
+        assert_eq!(
+            block.unapplied_effects[0].reason,
+            "Can't use exploration activities while traveling."
+        );
+        assert_eq!(block.unapplied_effects[0].condition_id, Some(7));
     }
-    assert_eq!(evaluate(&answers[..2]).unwrap().issues.len(), 1);
-    // Repeated identical answers are harmless; a contradiction is never accepted.
-    answers.push(answers[0].clone());
-    assert!(evaluate(&answers).unwrap().issues.is_empty());
-    answers.last_mut().unwrap().value = false;
-    assert!(evaluate(&answers).is_err());
-    let unrelated = J {
-        source_condition_id: Some(99),
-        fact: F::FurthersEscape,
-        value: true,
+}
+
+#[test]
+fn blinded_ranged_precision_preserves_known_perception_and_context() {
+    let input = atlas_search::test_support::record(
+        "actors",
+        "Actor",
+        json!({
+            "_id":"aaaaaaaaaaaaaaaa", "type":"npc", "name":"Bat",
+            "system": {"perception":{"mod":11, "vision":true, "senses":[
+                {"type":"echolocation", "acuity":"precise", "range":40}
+            ]}}
+        }),
+    );
+    let baseline = super::source_baseline(&input.record, "fixture", None).unwrap();
+    let mut p = participant();
+    p.conditions = vec![condition(1, ConditionRule::Blinded, None)];
+    let projected = project_participant(&p, &baseline, true, &[]);
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::Perception)
+            .and_then(serde_json::Number::as_i64),
+        Some(11)
+    );
+    let stat = projected
+        .values
+        .iter()
+        .find(|v| v.target == StatisticTarget::Perception)
+        .unwrap();
+    assert!(stat.notes[0].reason.contains("–4 status penalty"));
+    let echo = projected
+        .senses
+        .iter()
+        .find(|s| s.sense_type == "echolocation")
+        .unwrap();
+    assert_eq!(
+        echo.perception
+            .as_ref()
+            .and_then(serde_json::Number::as_f64),
+        Some(11.0)
+    );
+    assert_eq!(echo.range_feet, Some(40.into()));
+    assert_eq!(echo.available, Some(true));
+    assert_eq!(
+        projected
+            .senses
+            .iter()
+            .find(|s| s.sense_type == "vision")
+            .unwrap()
+            .available,
+        Some(false)
+    );
+
+    // Another status penalty still applies to the known value; don't add an
+    // unresolved Blinded penalty or count it twice.
+    p.conditions
+        .push(condition(2, ConditionRule::Frightened, Some(2)));
+    let projected = project_participant(&p, &baseline, true, &[]);
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::Perception)
+            .and_then(serde_json::Number::as_i64),
+        Some(9)
+    );
+    // Disabling the alternative sense establishes Blinded's penalty.
+    p.conditions
+        .push(condition(3, ConditionRule::Deafened, None));
+    let projected = project_participant(&p, &baseline, true, &[]);
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::Perception)
+            .and_then(serde_json::Number::as_i64),
+        Some(7)
+    );
+}
+
+#[test]
+fn behavioral_conditions_keep_row_hints_without_statistics() {
+    let mut actor = participant();
+    actor.conditions = vec![
+        condition(1, ConditionRule::Fascinated, None),
+        condition(2, ConditionRule::Fleeing, None),
+    ];
+    let notes = super::participant_runtime_block(&actor).unapplied_effects;
+    assert!(notes.iter().any(|note| note.condition_id == Some(1)
+        && note.reason == "Concentrate actions must relate to the subject of fascination."));
+    assert!(notes.iter().any(|note| note.condition_id == Some(2)
+        && note.reason == "Spend your actions escaping the source. Can't Delay or Ready."));
+}
+
+#[test]
+fn fascination_hint_resolves_current_named_subject_and_other_description() {
+    let mut actor = participant();
+    actor.conditions = vec![condition(1, ConditionRule::Fascinated, None)];
+    let mut subject = participant();
+    subject.participant_key = "subject".into();
+    subject.display_name = "Goblin Warrior".into();
+    let render = |actor: &EncounterParticipant, roster: &[EncounterParticipant]| {
+        let mut block = super::participant_runtime_block(actor);
+        super::resolve_condition_subject_hints(&mut block, actor, roster);
+        block
+            .unapplied_effects
+            .into_iter()
+            .find(|note| note.condition_id == Some(1))
+            .unwrap()
+            .reason
     };
-    assert!(evaluate(&[unrelated]).is_err());
-    assert!(
-        evaluate(&[J {
-            source_condition_id: None,
-            fact: F::FurthersEscape,
-            value: true
-        }])
-        .is_err()
+    assert_eq!(
+        render(&actor, &[]),
+        "Concentrate actions must relate to the subject of fascination."
     );
-    assert!(
-        evaluate(&[J {
-            source_condition_id: Some(1),
-            fact: F::Manipulate,
-            value: true
-        }])
-        .is_err()
+    actor.conditions[0].parameters = ConditionParameters::Fascinated {
+        subject: Some(ConditionSubject::Participant {
+            participant_key: subject.participant_key.clone(),
+        }),
+    };
+    assert_eq!(
+        render(&actor, &[subject.clone()]),
+        "Concentrate actions must relate to Goblin Warrior."
     );
-    assert!(
-        evaluate(&[J {
-            source_condition_id: Some(1),
-            fact: F::Manipulate,
-            value: false
-        }])
-        .is_err()
+    subject.display_name = "Goblin Captain".into();
+    assert_eq!(
+        render(&actor, &[subject]),
+        "Concentrate actions must relate to Goblin Captain."
     );
-    let prohibited = evaluate(&[J {
-        source_condition_id: Some(1),
-        fact: F::FurthersEscape,
-        value: false,
-    }])
-    .unwrap();
-    assert!(prohibited.issues.iter().any(|issue| matches!(
-        issue,
-        super::action_context::ActionIssue::Prohibited {
-            source_id: 1,
-            rule: ConditionRule::Fleeing
-        }
-    )));
+    assert_eq!(
+        render(&actor, &[]),
+        "Concentrate actions must relate to the subject of fascination."
+    );
+    actor.conditions[0].parameters = ConditionParameters::Fascinated {
+        subject: Some(ConditionSubject::Other {
+            description: "the glowing mirror".into(),
+        }),
+    };
+    assert_eq!(
+        render(&actor, &[]),
+        "Concentrate actions must relate to the glowing mirror."
+    );
 }

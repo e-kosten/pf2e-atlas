@@ -7,7 +7,10 @@ import type {
   EncounterTurnReminderView,
   EncounterTurnReviewView,
 } from "../../generated/atlas";
-import { EncounterConditionLifecycle } from "./EncounterConditionLifecycle";
+import {
+  EncounterConditionRecovery,
+  EncounterTurnRecoveryActions,
+} from "./EncounterConditionLifecycle";
 import { EncounterPersistentTurnReview } from "./EncounterPersistentTurnReview";
 import { DeleteOutlined } from "@ant-design/icons";
 import { type ReactNode } from "react";
@@ -58,7 +61,7 @@ export function EncounterTurnReview({
       "request_id"
     >,
   ) => Promise<import("../../generated/atlas").PersistentDamageResultView>;
-  onLifecycle: React.ComponentProps<typeof EncounterConditionLifecycle>["onApply"];
+  onLifecycle: React.ComponentProps<typeof EncounterConditionRecovery>["onApply"];
   onRecoverPersistent: (
     request: Omit<
       import("../../generated/atlas").RecoverPersistentDamageRequest,
@@ -68,7 +71,7 @@ export function EncounterTurnReview({
   onRemove: (
     reminder: Extract<
       EncounterTurnReminderView,
-      { kind: "duration_ending" | "duration_ended" }
+      { kind: "duration_ending" | "duration_ended" | "persistent_damage" }
     >,
     boundaryKey: string,
   ) => Promise<unknown>;
@@ -144,7 +147,7 @@ export function EncounterTurnReview({
         participants.find(
           (participant) => participant.participant_key === outgoing.participant_key,
         ) && (
-          <EncounterConditionLifecycle
+          <EncounterConditionRecovery
             key={outgoing.boundary_key}
             encounterRef={encounterRef}
             boundaryKey={outgoing.boundary_key}
@@ -155,10 +158,11 @@ export function EncounterTurnReview({
                   participant.participant_key === outgoing.participant_key,
               )!
             }
-            participants={participants}
             disabled={disabled || pending}
             onApply={onLifecycle}
-          />
+          >
+            <EncounterTurnRecoveryActions />
+          </EncounterConditionRecovery>
         )}
       <div className="encounter-turn-review">
         {reminders.some((reminder) => reminder.kind === "persistent_damage") && (
@@ -197,7 +201,8 @@ export function EncounterTurnReview({
                     {reminder.participant_name}: {reminder.condition_name}
                   </h3>
                   {(reminder.kind === "duration_ending" ||
-                    reminder.kind === "duration_ended") && (
+                    reminder.kind === "duration_ended" ||
+                    reminder.kind === "persistent_damage") && (
                     <Button
                       disabled={disabled || loading || !!error}
                       size="small"
@@ -280,7 +285,6 @@ function PersistentParticipants(
       }}
       encounterRevision={props.data.expected_revision}
       boundaryKey={outgoing.boundary_key}
-      recoveredEpisodeIds={outgoing.recovered_episode_ids}
     />
   );
 }

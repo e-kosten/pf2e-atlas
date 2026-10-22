@@ -109,7 +109,7 @@ pub(super) fn catalog(
         if spell_ids.get(id) != Some(&1)
             || !matches!(
                 owner.identity,
-                atlas_record::source_content::OwnedContentIdentity::Stable(_)
+                atlas_domain::OwnedContentIdentity::Stable(_)
             )
         {
             return;

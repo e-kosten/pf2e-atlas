@@ -1,11 +1,15 @@
 use crate::RecordPresentationView;
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::SourcePassageAddress;
-use atlas_record::source_content::{OwnedContentLocator, SourceContentLocator};
+use atlas_record::source_content::SourceContentLocator;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordSummaryView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub unit_price_label: Option<String>,
     pub record_key: String,
     pub title: String,
     pub kind: String,
@@ -66,6 +70,12 @@ pub struct RecordDetailView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordRelationshipView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub source_title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub target_title: Option<String>,
     pub source: ContentLocationView,
     pub source_navigation: RecordNavigationView,
     pub ordinal: usize,

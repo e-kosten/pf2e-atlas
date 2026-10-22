@@ -103,18 +103,19 @@ impl AtlasRetrievalService {
         &self,
         predicate: &atlas_domain::QueryPredicate,
     ) -> Result<atlas_index::ValidatedQuery, SearchError> {
-        Ok(atlas_index::validate_query(predicate)?)
+        let query = atlas_index::validate_query(predicate)?;
+        self.check_relationship_leaves(predicate)?;
+        Ok(query)
     }
     pub fn parse_where(&self, source: &str) -> Result<atlas_index::ValidatedQuery, SearchError> {
-        Ok(atlas_index::parse_where(source)?)
+        let query = atlas_index::parse_where(source)?;
+        self.validate_filter(query.predicate())
     }
     pub(crate) fn predicate(
         &self,
         predicate: Option<&atlas_domain::QueryPredicate>,
     ) -> Result<atlas_index::ValidatedQuery, SearchError> {
-        Ok(atlas_index::validate_query(
-            predicate.unwrap_or(&atlas_domain::QueryPredicate::boolean(true)),
-        )?)
+        self.validate_filter(predicate.unwrap_or(&atlas_domain::QueryPredicate::boolean(true)))
     }
 }
 

@@ -16,96 +16,149 @@ impl AtlasAppService {
         participant_key: &str,
         boundary_key: Option<&str>,
     ) -> AppServiceResult<atlas_app_model::PersistentReviewView> {
-        self.with_state(|session| {
-            let store = session.local_state().encounters();
-            let snapshot = store
-                .get_with_participants(encounter_ref)?
-                .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
-            let participant = snapshot
-                .participants
-                .iter()
-                .find(|p| p.participant_key == participant_key)
-                .ok_or_else(|| {
-                    AppServiceError::invalid_request("Participant is no longer in this encounter")
-                })?;
-            let boundary = super::outgoing_turns::boundary(
-                &store,
-                &snapshot.encounter.encounter_key,
-                boundary_key,
-                participant_key,
-            )?;
-            let frozen = boundary
-                .as_ref()
-                .map(|saved| super::outgoing_turns::frozen_participant(saved, participant))
-                .transpose()?;
-            let participant = frozen.as_ref().unwrap_or(participant);
-            let round = boundary
-                .as_ref()
-                .map_or(snapshot.encounter.round_number, |saved| {
-                    saved.snapshot.encounter.round_number
+        let (snapshot, boundary, round, claims, damage_result, recovery_results) = self
+            .with_state(|session| {
+                let store = session.local_state().encounters();
+                let snapshot = store
+                    .get_with_participants(encounter_ref)?
+                    .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
+                let participant = snapshot
+                    .participants
+                    .iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .ok_or_else(|| {
+                        AppServiceError::invalid_request(
+                            "Participant is no longer in this encounter",
+                        )
+                    })?;
+                let boundary = super::outgoing_turns::boundary(
+                    &store,
+                    &snapshot.encounter.encounter_key,
+                    boundary_key,
+                    participant_key,
+                )?;
+                let round = boundary
+                    .as_ref()
+                    .map_or(snapshot.encounter.round_number, |saved| {
+                        saved.snapshot.encounter.round_number
+                    });
+                let claims = store.boundary_claims(
+                    &snapshot.encounter.encounter_key,
+                    participant_key,
+                    round,
+                )?;
+                let damage_result = store
+                    .boundary_receipt(
+                        &snapshot.encounter.encounter_key,
+                        &boundary_claim(
+                            participant,
+                            round,
+                            atlas_local_state::EncounterBoundaryKind::PersistentDamage,
+                            "",
+                        ),
+                    )?
+                    .map(super::persistent_damage_resolution::damage_view)
+                    .transpose()?;
+                let mut recovery_results = vec![];
+                for claim in &claims {
+                    if claim.kind == atlas_local_state::EncounterBoundaryKind::PersistentRecovery
+                        && let Some(receipt) =
+                            store.boundary_receipt(&snapshot.encounter.encounter_key, claim)?
+                    {
+                        recovery_results.push(recovery_view(receipt)?);
+                    }
+                }
+                Ok((
+                    snapshot,
+                    boundary,
+                    round,
+                    claims,
+                    damage_result,
+                    recovery_results,
+                ))
+            })?;
+        let participant = snapshot
+            .participants
+            .iter()
+            .find(|p| p.participant_key == participant_key)
+            .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?;
+        let frozen = boundary
+            .as_ref()
+            .map(|saved| super::outgoing_turns::frozen_participant(saved, participant))
+            .transpose()?;
+        let active = active_damage_subject(frozen.as_ref().unwrap_or(participant), participant);
+        let record = participant.record_key.clone().and_then(|key| {
+            self.with_workspace(
+                &crate::ReadExecutionContext::uncancellable(),
+                move |session| {
+                    super::hydration::resolve_record_ref(session.retrieval_mut(), &key)
+                        .map(|record| record.source)
+                },
+            )
+            .ok()
+        });
+        let recorded = frozen.as_ref().unwrap_or(participant);
+        let episodes = super::rules::persistent_damage::participant_groups(recorded)
+            .into_iter()
+            .map(|group| {
+                let recovered = claims.contains(&boundary_claim(
+                    recorded,
+                    round,
+                    atlas_local_state::EncounterBoundaryKind::PersistentRecovery,
+                    group.episode_id,
+                ));
+                let damage_ready = damage_result.as_ref().is_some_and(|result| {
+                    result
+                        .groups
+                        .iter()
+                        .any(|result| result.episode_id == group.episode_id)
                 });
-            let claims =
-                store.boundary_claims(&snapshot.encounter.encounter_key, participant_key, round)?;
-            let damage_claim = boundary_claim(
-                participant,
+                let damage_resolution = match super::rules::damage::persistent_protection(
+                    record.as_ref(),
+                    participant,
+                    group.damage_type,
+                ) {
+                    Ok(p) => atlas_app_model::PersistentDamageResolutionView::Known {
+                        protection: atlas_app_model::PersistentDamageProtectionView {
+                            immune: p.immune,
+                            weakness: p.weakness,
+                            resistance: p.resistance,
+                        },
+                    },
+                    Err(reason) => {
+                        atlas_app_model::PersistentDamageResolutionView::Table { reason }
+                    }
+                };
+                atlas_app_model::PersistentEpisodeReviewView {
+                    episode_id: group.episode_id.into(),
+                    damage_resolution,
+                    end_turn_recovery_available: !recovered,
+                    end_turn_recovery_unavailable_reason: recovered
+                        .then(|| "Recovery already recorded for this turn.".into()),
+                    end_turn_roll_available: !recovered && damage_ready,
+                    end_turn_roll_unavailable_reason: if recovered {
+                        Some("Recovery already recorded for this turn.".into())
+                    } else if !damage_ready {
+                        Some("Record this turn’s damage before rolling recovery.".into())
+                    } else {
+                        None
+                    },
+                }
+            })
+            .collect();
+        Ok(atlas_app_model::PersistentReviewView {
+            encounter_revision: snapshot.encounter.revision,
+            damage_groups: group_views(&active, record.as_ref()),
+            round_number: round,
+            damage_applied: claims.contains(&boundary_claim(
+                recorded,
                 round,
                 atlas_local_state::EncounterBoundaryKind::PersistentDamage,
                 "",
-            );
-            let damage_applied = claims.contains(&damage_claim);
-            let damage_result = store
-                .boundary_receipt(&snapshot.encounter.encounter_key, &damage_claim)?
-                .map(super::persistent_damage_resolution::damage_view)
-                .transpose()?;
-            let mut recovery_results = vec![];
-            for claim in &claims {
-                if matches!(
-                    claim.kind,
-                    atlas_local_state::EncounterBoundaryKind::PersistentRecovery
-                ) && let Some(receipt) =
-                    store.boundary_receipt(&snapshot.encounter.encounter_key, claim)?
-                {
-                    recovery_results.push(recovery_view(receipt)?);
-                }
-            }
-            let episodes = super::rules::persistent_damage::participant_groups(participant)
-                .into_iter()
-                .map(|group| {
-                    let recovered = claims.contains(&boundary_claim(
-                        participant,
-                        round,
-                        atlas_local_state::EncounterBoundaryKind::PersistentRecovery,
-                        group.episode_id,
-                    ));
-                    let damage_ready = damage_result.as_ref().is_some_and(|result| {
-                        result
-                            .groups
-                            .iter()
-                            .any(|outcome| outcome.episode_id == group.episode_id)
-                    });
-                    atlas_app_model::PersistentEpisodeReviewView {
-                        episode_id: group.episode_id.into(),
-                        end_turn_recovery_available: !recovered,
-                        end_turn_recovery_unavailable_reason: recovered
-                            .then(|| "Recovery already recorded for this turn.".into()),
-                        end_turn_roll_available: !recovered && damage_ready,
-                        end_turn_roll_unavailable_reason: if recovered {
-                            Some("Recovery already recorded for this turn.".into())
-                        } else if !damage_ready {
-                            Some("Record this turn’s damage before rolling recovery.".into())
-                        } else {
-                            None
-                        },
-                    }
-                })
-                .collect();
-            Ok(atlas_app_model::PersistentReviewView {
-                round_number: round,
-                damage_applied,
-                episodes,
-                damage_result,
-                recovery_results,
-            })
+            )),
+            episodes,
+            damage_result,
+            recovery_results,
         })
     }
 
@@ -149,6 +202,10 @@ impl AtlasAppService {
                 .ok_or_else(|| {
                     AppServiceError::invalid_request("This persistent damage episode has ended")
                 })?;
+            let clearing = request.resolution == atlas_app_model::PersistentRecoveryResolution::Clear;
+            let dc = if clearing {
+                None
+            } else {
             let selected = request
                 .selected_source_id
                 .or(group.selected_source_id)
@@ -170,7 +227,9 @@ impl AtlasAppService {
             let dc = request.dc_override.or_else(|| super::rules::persistent_damage::recovery_dc(source));
             if dc.is_none() {return Err(AppServiceError::invalid_request("Enter the recovery DC"));}
             if dc.is_some_and(|dc| !(0..=100).contains(&dc)) {return Err(AppServiceError::invalid_request("Recovery DC must be between 0 and 100"));}
-            if request.mode == atlas_app_model::PersistentRecoveryMode::EndTurn {
+            dc
+            };
+            if !clearing && request.mode == atlas_app_model::PersistentRecoveryMode::EndTurn {
                 let damage = store
                     .boundary_receipt(
                         &encounter.encounter_key,
@@ -197,7 +256,7 @@ impl AtlasAppService {
             // Explicit recovery is GM-triggered and independent of initiative. Only
             // an end-turn resolution claims that turn's recovery; request receipts
             // still deduplicate retries for either mode.
-            let claims = if request.mode == atlas_app_model::PersistentRecoveryMode::EndTurn {
+            let claims = if !clearing && request.mode == atlas_app_model::PersistentRecoveryMode::EndTurn {
                 vec![boundary_claim(participant, round, atlas_local_state::EncounterBoundaryKind::PersistentRecovery, group.episode_id)]
             } else {
                 vec![]
@@ -207,26 +266,10 @@ impl AtlasAppService {
                 expected_revision: request.expected_encounter_revision, reference_revision: None, participant_revision: None,
             }.evaluate_in(session, atlas_local_state::ConditionEventBoundary { claims: &claims, outgoing_boundary_key: request.boundary_key.as_deref() },
                 || {
-                    let roll = if dc.is_some_and(|dc|(2..=20).contains(&dc)) {Some(atlas_dice::roll("1d20")?)} else {None};
+                    let roll = if !clearing && dc.is_some_and(|dc|(2..=20).contains(&dc)) {Some(atlas_dice::roll("1d20")?)} else {None};
                     let result = roll.as_ref().map(|roll| i64::from(roll.total));
-                    let success = dc.is_some_and(|dc|dc<=1 || (dc<=20 && result.is_some_and(|result|result>=dc)));
+                    let success = clearing || dc.is_some_and(|dc|dc<=1 || (dc<=20 && result.is_some_and(|result|result>=dc)));
                     Ok(PreparedConditionEvent {
-                        selection_changes: if success {
-                            vec![]
-                        } else {
-                            vec![atlas_local_state::PersistentSelectionChange {
-                                participant_key: participant.participant_key.clone(),
-                                selection: atlas_local_state::PersistentSourceSelection {
-                                    episode_id: group.episode_id.into(),
-                                    selected_source_id: selected,
-                                    source_condition_ids: group
-                                        .sources
-                                        .iter()
-                                        .map(|source| source.condition_id)
-                                        .collect(),
-                                },
-                            }]
-                        },
                         condition_changes: if success {
                             group
                                 .sources
@@ -295,12 +338,34 @@ fn recovery_view(receipt: EncounterEventReceipt) -> AppServiceResult<PersistentR
     outcome.ok_or_else(|| AppServiceError::invalid_request("Recovery result is unavailable"))
 }
 
+pub(super) fn active_damage_subject(
+    recorded: &atlas_local_state::EncounterParticipant,
+    current: &atlas_local_state::EncounterParticipant,
+) -> atlas_local_state::EncounterParticipant {
+    let mut subject = recorded.clone();
+    subject.conditions.retain(|source| {
+        !matches!(source.parameters, ConditionParameters::PersistentDamage { .. })
+            || current.conditions.iter().any(|condition| condition.condition_id == source.condition_id
+                && matches!((&source.parameters, &condition.parameters),
+                    (ConditionParameters::PersistentDamage {episode_id: old, ..}, ConditionParameters::PersistentDamage {episode_id: live, ..}) if old == live))
+    });
+    subject
+}
+
 pub(super) fn group_views(
     participant: &atlas_local_state::EncounterParticipant,
+    record: Option<&atlas_record::source_record::SourceBackedRecord>,
 ) -> Vec<PersistentDamageGroupView> {
     super::rules::persistent_damage::participant_groups(participant)
         .into_iter()
         .map(|group| PersistentDamageGroupView {
+            immunity_note: super::rules::damage::persistent_protection(
+                record,
+                participant,
+                group.damage_type,
+            )
+            .is_ok_and(|protection| protection.immune)
+            .then(|| format!("Immune to {}", group.damage_type)),
             episode_id: group.episode_id.into(),
             damage_type: group.damage_type.into(),
             selected_source_id: group.selected_source_id,

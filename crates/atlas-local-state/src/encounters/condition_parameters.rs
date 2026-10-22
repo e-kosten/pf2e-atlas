@@ -10,9 +10,7 @@ pub enum ConditionParameters {
     Fascinated {
         subject: Option<ConditionSubject>,
     },
-    Attitude {
-        supernatural: bool,
-    },
+    Attitude,
     Frightened {
         recovery: FrightenedRecovery,
     },

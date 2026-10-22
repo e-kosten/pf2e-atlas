@@ -10,6 +10,7 @@ import {
   Spin,
   Tooltip,
   Typography,
+  theme,
 } from "antd";
 import {
   ClearOutlined,
@@ -22,6 +23,7 @@ import {
   useContext,
   type ReactNode,
   useMemo,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -46,6 +48,7 @@ import type {
   FilterEditorFieldView,
   FilterEditorView,
   QueryPredicate,
+  QueryRelationship,
 } from "../../generated/atlas";
 import type { SearchWorkspaceState } from "../../features/search/useSearchWorkspace";
 import {
@@ -53,6 +56,7 @@ import {
   commonDraftCondition,
   commonDraftRange,
   BOOLEAN_CONDITION,
+  LINK_CONDITION,
   emptyGroup,
   numericLiteral,
   replaceCommonDraft,
@@ -70,7 +74,19 @@ import { CommonChoicePicker } from "./CommonChoicePicker";
 import { PrimaryToolbar } from "../ui/PrimaryToolbar";
 import { useFilterEditor } from "./useFilterEditor";
 import { isBuilderGroup, normalizeBuilderEdit } from "./builderEdits";
+import {
+  LinkPicker,
+  LinkPickerContext,
+  type LinkPickerProps,
+} from "./LinkPickerContext";
+import { LinkFilterControls, linkClauses, type LinkLeaf } from "./LinkFilterControls";
+import { sameRelationship } from "./linkPredicates";
 import { CollectionValueInput, isCompactCollection } from "./CollectionValueInput";
+
+const LinkEditingContext = createContext<{
+  open: (rule: PredicateRule, replace: (next: PredicateRule) => void) => void;
+  title: (leaf: LinkLeaf) => string;
+} | null>(null);
 
 export function FilterPanel({
   workspace,
@@ -86,12 +102,16 @@ export function FilterControls({
   includeSearch = true,
   layout = "panel",
   searchRowEnd,
+  similarSearch,
+  additionalFilters,
   children,
 }: {
   filterState: FilterPanelState;
   includeSearch?: boolean;
   layout?: "panel" | "toolbar" | "inline-toolbar";
   searchRowEnd?: ReactNode;
+  similarSearch?: { title: string; onClear: () => void; onSearch: () => void };
+  additionalFilters?: ReactNode;
   children?: ReactNode;
 }) {
   const { search, setSearch } = workspace;
@@ -104,6 +124,136 @@ export function FilterControls({
     [editor],
   );
   const prepared = useFilterEditor(search, fields, setSearch);
+  const Picker = useContext(LinkPickerContext);
+  const [picker, setPicker] = useState<
+    (LinkPickerProps & { key: string; advanced: boolean }) | null
+  >(null);
+  const [draftLabels, setDraftLabels] = useState<
+    Record<
+      string,
+      { relationship: QueryRelationship; title: string; generation: string }
+    >
+  >({});
+  const latestEditor = useRef(prepared);
+  useLayoutEffect(() => {
+    latestEditor.current = prepared;
+  }, [prepared]);
+  const generation =
+    workspace.filterDiscoveryContext?.expected_artifact_generation ??
+    editor?.artifact_generation;
+  const latestContext = useRef({ generation, filter: search.filter });
+  useLayoutEffect(() => {
+    latestContext.current = { generation, filter: search.filter };
+  }, [generation, search.filter]);
+  function linkTitle(leaf: LinkLeaf): string {
+    const draft = draftLabels[leaf.clause_id ?? ""];
+    if (
+      draft &&
+      (!generation || draft.generation === generation) &&
+      sameRelationship(draft.relationship, leaf.relationship)
+    )
+      return draft.title;
+    const presentation = editor?.relationship_clauses.find(
+      (entry) =>
+        entry.clause_id === leaf.clause_id &&
+        sameRelationship(entry.relationship, leaf.relationship),
+    );
+    if (
+      presentation &&
+      (!workspace.filterDiscoveryContext?.expected_artifact_generation ||
+        editor?.artifact_generation ===
+          workspace.filterDiscoveryContext.expected_artifact_generation)
+    )
+      return presentation.status === "available"
+        ? presentation.title +
+            (leaf.relationship.selection.embedded_path.length
+              ? ` · ${presentation.record.title}`
+              : "")
+        : "Record unavailable";
+    return workspace.filterDiscoveryError ? "Record unavailable" : "Loading record…";
+  }
+  function openPicker(
+    initial: QueryRelationship | undefined,
+    title: string | undefined,
+    id: string,
+    confirm: (relationship: QueryRelationship) => string | null,
+    advanced = false,
+  ) {
+    if (!Picker) throw new Error("Link condition picker provider is required");
+    const openingQuery = prepared.query;
+    setPicker({
+      key: crypto.randomUUID(),
+      advanced,
+      open: true,
+      initial,
+      initialTitle: title,
+      onCancel: () =>
+        setPicker((current) => (current ? { ...current, open: false } : null)),
+      onConfirm: (relationship, selection) => {
+        const currentGeneration = latestContext.current.generation;
+        if (
+          selection &&
+          currentGeneration &&
+          selection.artifact_generation !== currentGeneration
+        )
+          return "The reference collection changed. Refresh results before changing this condition.";
+        if (
+          advanced &&
+          JSON.stringify(latestEditor.current.query) !== JSON.stringify(openingQuery)
+        )
+          return "Filters changed. Reopen this condition before applying changes.";
+        if (
+          !advanced &&
+          initial &&
+          !linkClauses(latestContext.current.filter).some(
+            (leaf) =>
+              leaf.clause_id === id && sameRelationship(leaf.relationship, initial),
+          )
+        )
+          return "This condition changed. Reopen it before applying changes.";
+        const error = confirm(relationship);
+        if (error) return error;
+        if (selection)
+          setDraftLabels((current) => ({
+            ...current,
+            [id]: {
+              relationship,
+              title: selection.record.title,
+              generation: selection.artifact_generation,
+            },
+          }));
+        setPicker((current) => (current ? { ...current, open: false } : null));
+        return null;
+      },
+    });
+  }
+  const linkEditing = {
+    title: linkTitle,
+    open: (rule: PredicateRule, replace: (next: PredicateRule) => void) => {
+      const initial = rule.value?.selection
+        ? ({ ...rule.value, direction: rule.operator } as QueryRelationship)
+        : undefined;
+      const id = rule.id ?? crypto.randomUUID();
+      openPicker(
+        initial,
+        initial
+          ? linkTitle({ kind: "relationship", clause_id: id, relationship: initial })
+          : undefined,
+        id,
+        (relationship) => {
+          if (initial && sameRelationship(initial, relationship)) return null;
+          replace({
+            ...rule,
+            id,
+            operator: relationship.direction,
+            value: relationship,
+          });
+          return null;
+        },
+        true,
+      );
+    },
+  };
   const countWorkspace = {
     ...workspace,
     filterCountsEnabled:
@@ -129,6 +279,7 @@ export function FilterControls({
   const searchEntry = includeSearch && (
     <SearchEntry
       query={search.query}
+      similar={similarSearch}
       onSearch={(query) =>
         setSearch({
           ...search,
@@ -178,6 +329,49 @@ export function FilterControls({
           ) : null;
         })}
       </div>
+      <LinkFilterControls
+        filter={search.filter}
+        fields={fields}
+        title={linkTitle}
+        limit={editor?.limits.relationship_leaves}
+        onAdd={() => {
+          const limit = editor?.limits.relationship_leaves;
+          if (limit !== undefined && linkClauses(search.filter).length >= limit) {
+            setAdvanced(true);
+            return;
+          }
+          const id = crypto.randomUUID();
+          openPicker(undefined, undefined, id, (relationship) =>
+            latestEditor.current.addLink(relationship, id),
+          );
+        }}
+        onEdit={(leaf, relationship) => {
+          if (!relationship) {
+            openPicker(leaf.relationship, linkTitle(leaf), leaf.clause_id!, (next) =>
+              latestEditor.current.editLink(leaf, next),
+            );
+            return null;
+          }
+          const error = latestEditor.current.editLink(leaf, relationship);
+          const title = linkTitle(leaf);
+          if (
+            !error &&
+            generation &&
+            title !== "Loading record…" &&
+            title !== "Record unavailable"
+          )
+            setDraftLabels((current) => ({
+              ...current,
+              [leaf.clause_id!]: { relationship, title, generation },
+            }));
+          return error;
+        }}
+        onRemove={(leaf) => {
+          latestEditor.current.editLink(leaf, null);
+        }}
+        onAdvanced={() => setAdvanced(true)}
+      />
+      {additionalFilters}
       <div className="filter-panel-actions">
         <Button
           ref={advancedTrigger}
@@ -209,68 +403,76 @@ export function FilterControls({
     </>
   );
   return (
-    <aside
-      className={
-        layout === "panel"
-          ? "filter-panel"
-          : layout === "inline-toolbar"
-            ? "filter-toolbar filter-toolbar--inline"
-            : "filter-toolbar"
-      }
-    >
-      {children}
-      {!editor && workspace.filterDiscoveryLoading && (
-        <Spin description="Loading filters…">
-          <div className="filter-loading-placeholder" />
-        </Spin>
-      )}
-      {layout === "inline-toolbar" ? (
-        <PrimaryToolbar className="filter-controls__criteria filter-controls__inline">
-          {searchEntry}
-          {searchRowEnd}
-          {criteria}
-        </PrimaryToolbar>
-      ) : (
-        <>
-          {includeSearch && (
-            <PrimaryToolbar className="filter-controls__search-row">
-              {searchEntry}
-              {searchRowEnd}
-            </PrimaryToolbar>
-          )}
-          <CriteriaHost className="filter-controls__criteria">{criteria}</CriteriaHost>
-        </>
-      )}
-      <Drawer
-        title="Advanced filters"
-        placement="left"
-        size="min(100vw, 640px)"
-        open={advanced}
-        onClose={() => setAdvanced(false)}
+    <LinkEditingContext value={linkEditing}>
+      <aside
+        className={
+          layout === "panel"
+            ? "filter-panel"
+            : layout === "inline-toolbar"
+              ? "filter-toolbar filter-toolbar--inline"
+              : "filter-toolbar"
+        }
       >
-        <section className="advanced-filters" aria-label="Advanced filters">
-          {prepared.error &&
-            !search.filterError &&
-            search.filter &&
-            prepared.query &&
-            hasConfiguredCondition(prepared.query) && (
-              <Typography.Text type="secondary" role="status">
-                Changes pending
-              </Typography.Text>
+        {children}
+        {!editor && workspace.filterDiscoveryLoading && (
+          <Spin description="Loading filters…">
+            <div className="filter-loading-placeholder" />
+          </Spin>
+        )}
+        {layout === "inline-toolbar" ? (
+          <PrimaryToolbar className="filter-controls__criteria filter-controls__inline">
+            {searchEntry}
+            {searchRowEnd}
+            {criteria}
+          </PrimaryToolbar>
+        ) : (
+          <>
+            {includeSearch && (
+              <PrimaryToolbar className="filter-controls__search-row">
+                {searchEntry}
+                {searchRowEnd}
+              </PrimaryToolbar>
             )}
-          {advancedEditor}
-          {inlineError}
-        </section>
-      </Drawer>
-      {!advanced && prepared.error && inlineError}
-      {workspace.filterDiscoveryError && (
-        <Alert
-          type="error"
-          title="Filter information could not be loaded"
-          description={workspace.filterDiscoveryError}
-        />
+            <CriteriaHost className="filter-controls__criteria">
+              {criteria}
+            </CriteriaHost>
+          </>
+        )}
+        <Drawer
+          title="Advanced filters"
+          placement="left"
+          size="min(100vw, 640px)"
+          open={advanced}
+          onClose={() => setAdvanced(false)}
+        >
+          <section className="advanced-filters" aria-label="Advanced filters">
+            {prepared.error &&
+              !search.filterError &&
+              search.filter &&
+              prepared.query &&
+              hasConfiguredCondition(prepared.query) && (
+                <Typography.Text type="secondary" role="status">
+                  Changes pending
+                </Typography.Text>
+              )}
+            {advancedEditor}
+            {Picker && picker?.advanced && <LinkPicker {...picker} key={picker.key} />}
+            {inlineError}
+          </section>
+        </Drawer>
+        {!advanced && prepared.error && inlineError}
+        {workspace.filterDiscoveryError && (
+          <Alert
+            type="error"
+            title="Filter information could not be loaded"
+            description={workspace.filterDiscoveryError}
+          />
+        )}
+      </aside>
+      {Picker && picker && !picker.advanced && (
+        <LinkPicker {...picker} key={picker.key} />
       )}
-    </aside>
+    </LinkEditingContext>
   );
 }
 
@@ -466,6 +668,14 @@ function StructuredBuilder({
         autoSelectField={false}
         enableMountQueryChange={false}
         fields={[
+          ...(scope === null
+            ? [
+                {
+                  label: "Record links",
+                  options: [{ name: LINK_CONDITION, label: "Record links" }],
+                },
+              ]
+            : []),
           ...editor.groups
             .map((group) => ({
               label: group.label,
@@ -485,11 +695,19 @@ function StructuredBuilder({
           { name: "or", label: "Match any" },
         ]}
         getOperators={(id) =>
-          id === BOOLEAN_CONDITION
-            ? [{ name: "constant", label: "Matches" }]
-            : (
-                visible.find((field) => field.definition.id === id)?.operators ?? []
-              ).map((operator) => ({ name: operator.operator, label: operator.label }))
+          id === LINK_CONDITION
+            ? [
+                { name: "incoming", label: "Links to" },
+                { name: "outgoing", label: "Linked from" },
+              ]
+            : id === BOOLEAN_CONDITION
+              ? [{ name: "constant", label: "Matches" }]
+              : (
+                  visible.find((field) => field.definition.id === id)?.operators ?? []
+                ).map((operator) => ({
+                  name: operator.operator,
+                  label: operator.label,
+                }))
         }
         context={
           {
@@ -557,7 +775,11 @@ function FilterRule(props: RuleProps) {
         replace: (next) => replaceRule(props.path, next),
       }}
     >
-      <div className={rule.outerClassName} data-rule-id={props.rule.id}>
+      <div
+        className={rule.outerClassName}
+        data-rule-id={props.rule.id}
+        data-link-condition={props.rule.field === LINK_CONDITION || undefined}
+      >
         <RuleComponents {...rule} />
       </div>
     </RuleEditContext.Provider>
@@ -569,7 +791,11 @@ function isPositiveConjunction(group: RuleGroupType): boolean {
   return (
     group.combinator === "and" &&
     !group.not &&
-    group.rules.every((rule) => !("rules" in rule) || isPositiveConjunction(rule))
+    group.rules.every((rule) =>
+      "rules" in rule
+        ? isPositiveConjunction(rule)
+        : !(rule as PredicateRule).meta?.atlasExcluded,
+    )
   );
 }
 function BuilderFieldSelector(props: FieldSelectorProps) {
@@ -593,6 +819,14 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
           .map((field) => ({ value: field.definition.id, label: field.label })),
       }))
       .filter((group) => group.options.length),
+    ...(scope === null
+      ? [
+          {
+            label: "Record links",
+            options: [{ value: LINK_CONDITION, label: "Record links" }],
+          },
+        ]
+      : []),
     ...(props.value === BOOLEAN_CONDITION
       ? [
           {
@@ -640,6 +874,7 @@ function GroupMatchSelector(props: CombinatorSelectorProps) {
   return (
     <Select
       aria-label="Match conditions"
+      popupMatchSelectWidth={false}
       value={(group.not ? "not:" : "") + group.combinator}
       options={[
         { value: "and", label: "Match all" },
@@ -690,6 +925,28 @@ function FilterGroupBody(props: UseRuleGroup) {
 }
 function BuilderOperatorSelector(props: OperatorSelectorProps) {
   const editing = useContext(RuleEditContext);
+  if (props.field === LINK_CONDITION)
+    return (
+      <Select
+        className={props.className}
+        aria-label="Link condition"
+        value={(editing?.rule.meta?.atlasExcluded ? "not:" : "") + props.value}
+        disabled={props.disabled}
+        options={[
+          { value: "incoming", label: "Links to" },
+          { value: "outgoing", label: "Linked from" },
+          { value: "not:incoming", label: "Does not link to" },
+          { value: "not:outgoing", label: "Not linked from" },
+        ]}
+        onChange={(value) =>
+          editing?.replace({
+            ...editing.rule,
+            operator: value.replace("not:", ""),
+            meta: { ...editing.rule.meta, atlasExcluded: value.startsWith("not:") },
+          })
+        }
+      />
+    );
   const { editor } = props.context as BuilderContext;
   const field = editor.groups
     .flatMap((group) => group.fields)
@@ -751,8 +1008,51 @@ function BuilderOperatorSelector(props: OperatorSelectorProps) {
   );
 }
 function BuilderValueEditor(props: ValueEditorProps) {
+  const { token } = theme.useToken();
   const editing = useContext(RuleEditContext);
   const { editor, scope, workspace } = props.context as BuilderContext;
+  const links = useContext(LinkEditingContext);
+  if (props.field === LINK_CONDITION) {
+    const rule = props.rule as PredicateRule;
+    const relationship = rule.value?.selection
+      ? ({ ...rule.value, direction: rule.operator } as QueryRelationship)
+      : undefined;
+    const leaf = relationship
+      ? { kind: "relationship" as const, clause_id: rule.id!, relationship }
+      : null;
+    return (
+      <div className="filter-rule-value">
+        {scope !== null ? (
+          <Typography.Text type="danger" role="status">
+            Link conditions belong outside collection conditions.
+          </Typography.Text>
+        ) : (
+          <Button
+            disabled={props.disabled}
+            styles={{
+              root: {
+                maxWidth: "100%",
+                height: "auto",
+                minHeight: token.controlHeight,
+                whiteSpace: "normal",
+                textAlign: "start",
+                overflowWrap: "anywhere",
+              },
+            }}
+            onClick={() => {
+              if (!links || !editing)
+                throw new Error("Link condition picker provider is required");
+              links.open(editing.rule, editing.replace);
+            }}
+          >
+            {leaf
+              ? `${links?.title(leaf) ?? "Record unavailable"} · ${relationship?.include_contents ? "Whole entry" : "Main entry only"}`
+              : "Choose record"}
+          </Button>
+        )}
+      </div>
+    );
+  }
   if (props.field === BOOLEAN_CONDITION)
     return (
       <Select

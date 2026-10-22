@@ -1,4 +1,4 @@
-use super::{filters::build_filter, product::report_app_error};
+use super::{filters::resolve_filter, product::report_app_error};
 use crate::client::{ClientOptions, connect};
 use atlas_app_model::{
     EmbeddedReadingEntryView, EmbeddedReadingRequest, EmbeddedReadingSelection, RecordBodyView,
@@ -98,18 +98,6 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
 }
 
 pub(crate) fn run_record_resolve(o: RecordResolveOptions) -> Result<ExitCode, String> {
-    let (filter, _) = match build_filter(&o.filter_options) {
-        Ok(filter) => filter,
-        Err(error) => {
-            return report_app_error(
-                atlas_app_model::AppError::new(
-                    atlas_app_model::AppErrorCode::FilterInvalid,
-                    error.message,
-                ),
-                o.json,
-            );
-        }
-    };
     let s = match connect(ClientOptions {
         search_profile: None,
         path_mode: o.path_mode.into(),
@@ -118,6 +106,10 @@ pub(crate) fn run_record_resolve(o: RecordResolveOptions) -> Result<ExitCode, St
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
     }) {
         Ok(service) => service,
+        Err(error) => return report_app_error(error, o.json),
+    };
+    let filter = match resolve_filter(&o.filter_options, &s) {
+        Ok(filter) => filter,
         Err(error) => return report_app_error(error, o.json),
     };
     if let Err(error) = s.get_records(Vec::new()) {

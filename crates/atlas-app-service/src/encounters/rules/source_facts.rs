@@ -130,7 +130,7 @@ fn effective_precision(kind: SenseType, acuity: SourceFieldView<'_, &Acuity>) ->
 pub(in crate::encounters) fn source_baseline(
     record: &SourceBackedRecord,
     fingerprint: &str,
-    selection: Option<(&[atlas_record::source_content::OwnedContentLocator], u8)>,
+    selection: Option<(&[atlas_domain::OwnedContentLocator], u8)>,
 ) -> Option<StatBlockView> {
     use super::super::stat_block::*;
     use atlas_record::source_record::{ActorSave, SourceNodeView};
@@ -164,6 +164,7 @@ pub(in crate::encounters) fn source_baseline(
                     number: Option<&serde_json::Number>| {
         if let Some(number) = number {
             block.values.push(StatValueView {
+                notes: vec![],
                 target,
                 label,
                 ability,
@@ -306,7 +307,7 @@ pub(in crate::encounters) fn source_baseline(
         let index = activity_index;
         activity_index += 1;
         if let Some(number) = item.lore_modifier().value() {
-            block.values.push(StatValueView {target: StatisticTarget::Skill(format!("lore.{index}")), label: node.name().value().cloned().unwrap_or_default(), ability: Some(Ability::Intelligence), base_value: number.clone(), adjusted_value: number.clone(), modifiers: vec![], suppressed_modifiers: vec![]});
+            block.values.push(StatValueView { notes: vec![],target: StatisticTarget::Skill(format!("lore.{index}")), label: node.name().value().cloned().unwrap_or_default(), ability: Some(Ability::Intelligence), base_value: number.clone(), adjusted_value: number.clone(), modifiers: vec![], suppressed_modifiers: vec![]});
         }
         if let Some(variants)=item.lore_variants().value() {
             for (_,variant) in &variants.entries {
@@ -330,7 +331,7 @@ pub(in crate::encounters) fn source_baseline(
         let casting_ability = entry.and_then(casting_ability);
         let attack = entry.and_then(|entry| match entry {ItemSourceView::SpellcastingEntrySource(source) => SourceFieldView::from(&source.system).and_then(|s| (&s.spelldc).into()).and_then(|s| (&s.value).into()).value(), _ => None}).or_else(|| item.melee_attack().value());
         let dc = entry.and_then(|entry| match entry {ItemSourceView::SpellcastingEntrySource(source) => SourceFieldView::from(&source.system).and_then(|s| (&s.spelldc).into()).and_then(|s| (&s.dc).into()).value(), _ => None});
-        let mut activity = MechanicActivityView {calculation_unavailable: heightening_error, traits_known: traits.is_some(), is_ranged: ranged, activity_id: node.id().value().cloned().unwrap_or_default(), label: node.name().value().cloned().unwrap_or_default(), kind, traits: traits.unwrap_or_default(), navigation, notes: vec![], rolls: vec![], damage: vec![], attack_ability: if kind == MechanicActivityKindView::Strike {attack_ability} else {casting_ability}, difficulty_class: dc.map(|n| StatValueView {target: StatisticTarget::SpellDc, label: "Spell DC".into(), ability: casting_ability, base_value: n.clone(), adjusted_value: n.clone(), modifiers: vec![], suppressed_modifiers: vec![]}), spell_usage: spell_usage(item)};
+        let mut activity = MechanicActivityView {calculation_unavailable: heightening_error, traits_known: traits.is_some(), is_ranged: ranged, activity_id: node.id().value().cloned().unwrap_or_default(), label: node.name().value().cloned().unwrap_or_default(), kind, traits: traits.unwrap_or_default(), navigation, notes: vec![], rolls: vec![], damage: vec![], attack_ability: if kind == MechanicActivityKindView::Strike {attack_ability} else {casting_ability}, difficulty_class: dc.map(|n| StatValueView { notes: vec![],target: StatisticTarget::SpellDc, label: "Spell DC".into(), ability: casting_ability, base_value: n.clone(), adjusted_value: n.clone(), modifiers: vec![], suppressed_modifiers: vec![]}), spell_usage: spell_usage(item)};
         if let Some(number) = attack { activity.rolls.push(ActivityRollView {roll_id: "attack".into(), label: "Attack".into(), base_value: number.clone(), adjusted_value: number.clone(), surface: ActivityRollSurfaceView::AttackRoll, modifiers: vec![], suppressed_modifiers: vec![]}); }
         if let Some(damage) = item.melee_damage().value() {
             for (source_ordinal, (id, damage)) in damage.entries.iter().enumerate() {

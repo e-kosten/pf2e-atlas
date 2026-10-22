@@ -14,7 +14,7 @@ and [ADR index](./decisions/README.md) for the relevant owner.
 | --- | --- |
 | `atlas-foundry-model` | Generated authored Foundry DTOs, admission/field retention and versioned checked snapshots. No ingest/runtime/SQLite dependency. |
 | `atlas-record` | Minimal source-backed record, checked embedded addressing, consumer-required borrowed source views, content interpretation/selection and attributed relationship policies. Storage and presentation neutral. |
-| `atlas-domain` | Shared keys, predicates, query catalog/discovery vocabulary, summary facts and passage addresses. No SQLite or source parser ownership. |
+| `atlas-domain` | Shared keys, predicates including exact reference conditions, query catalog/discovery vocabulary, summary facts and neutral source addresses. No SQLite or source parser ownership. |
 | `atlas-embedding` | Two pinned baseline search profiles, shared segmentation/native input budgets, FastEmbed inference, retained shared query sessions and exact vector reuse identity. |
 | `atlas-ingest` | Source filesystem loading/provenance, admission reporting, explicit content/reference context, index inputs and build-time embedding execution. |
 | `atlas-storage` | Connection admission, bounded read/write sessions, maintenance ownership, transactional migrations and backups. No domain schema ownership. |
@@ -147,6 +147,15 @@ root seed and canonical filters. Related availability is a bounded app-service
 workflow over exact selected-owner graph reads and root-only verified suggestions,
 with complete artifact-generation cache identity and truthful empty/unavailable
 outcomes. It does not add a retrieval, ranking or stored-record model.
+
+Full relationship results use typed incoming/outgoing eligibility constraints
+alongside ordinary predicates and key scope. Index applies exact target and
+source-contents scope before browse/FTS/vector selection; occurrence previews never
+become capped neighbor-key filters. Search returns distinct roots, while app-service
+projects human selection labels and separately pageable reference evidence.
+The browser keeps active constraints visible beside ordinary filters and never
+falls back to record IDs for labels. See
+[ADR0057](./decisions/0057-relationship-scoped-search.md).
 
 App-service owns useful catalog control presentation, search pages, semantic
 family presentation and hydration. Reference reads project authored facts directly;

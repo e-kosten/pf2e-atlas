@@ -71,17 +71,9 @@ pub(in crate::encounters) fn persistent_protection(
                 return Ok(result);
             }
             Some(true) => {
-                unresolved = Some(format!(
-                    "Resolve the {} protection's exceptions, then enter the table result.",
-                    entry.kind
-                ))
+                unresolved = Some(format!("Resolve {} exceptions at the table.", entry.kind))
             }
-            None => {
-                unresolved = Some(format!(
-                    "Resolve {} against {damage_type}, then enter the table result.",
-                    entry.kind
-                ))
-            }
+            None => unresolved = Some(format!("Resolve {} at the table.", entry.kind)),
         }
     }
     for kind in immunities.uncertain_types {
@@ -115,16 +107,13 @@ pub(in crate::encounters) fn persistent_protection(
             let selector = selector
                 .as_str()
                 .ok_or_else(|| "Damage protection type is unavailable.".to_owned())?;
-            let applicable = matches_type(selector, damage_type).ok_or_else(|| {
-                format!("Resolve {selector} against {damage_type}, then enter the table result.")
-            })?;
+            let applicable = matches_type(selector, damage_type)
+                .ok_or_else(|| format!("Resolve {selector} at the table."))?;
             if !applicable {
                 continue;
             }
             if has_qualifiers(entry) {
-                return Err(format!(
-                    "Resolve the {selector} protection's exceptions, then enter the table result."
-                ));
+                return Err(format!("Resolve {selector} exceptions at the table."));
             }
             if weakness {
                 result.weakness = result.weakness.max(magnitude(entry)?);
@@ -177,6 +166,12 @@ fn matches_type(selector: &str, damage_type: &str) -> Option<bool> {
             "acid" | "cold" | "electricity" | "fire" | "force" | "sonic" | "vitality" | "void"
         )),
         "object-immunities" => Some(object_damage_immunity(damage_type)),
+        // Pinned actor/data/iwr.ts describes fear/emotion as item:type:effect,
+        // and sleep/death/healing/nonlethal as unhandled selectors. Persistent
+        // condition/document.ts reconstructs a damage packet, not the original
+        // disease/effect/attack. These effect immunities do not gate that packet.
+        "sleep" | "fear-effects" | "emotion" | "death-effects" | "healing"
+        | "nonlethal-attacks" | "disease" => Some(false),
         // Native condition identifiers describe effect immunity, not damage protection.
         kind if atlas_foundry_model::generated::condition_definitions::CONDITION_DEFINITIONS
             .iter()
@@ -247,5 +242,17 @@ mod tests {
         assert_eq!(matches_type("object-immunities", "fire"), Some(false));
         assert_eq!(matches_type("physical", "bleed"), Some(false));
         assert_eq!(matches_type("silver", "slashing"), None);
+        for effect in [
+            "sleep",
+            "fear-effects",
+            "emotion",
+            "death-effects",
+            "healing",
+            "nonlethal-attacks",
+            "disease",
+        ] {
+            assert_eq!(matches_type(effect, "fire"), Some(false));
+        }
+        assert_eq!(matches_type("magical", "fire"), None);
     }
 }

@@ -39,6 +39,14 @@ and Add forms. It does not advance the artifact epoch or retire shared detail,
 graph, catalog, vocabulary, saved-list or encounter caches. Contextual discovery
 carries profile and known generation; option counts load only for active pickers.
 
+Browser titles use `page name · Atlas`, with no query, result count, section
+hierarchy or secondary-preview name. Primary route components use `usePageTitle`;
+list and encounter readers keep their host's saved name. Standalone records and
+traits use their displayed title. Index pages use Search, Lists or Encounters.
+
+Saved-list contents use lexical text filtering and structured filters, preserving
+saved order. Main search and Add records retain semantic discovery.
+
 ## Boundaries
 
 - `web/atlas-ui` owns browser presentation, local browser state, URL state, API calls, and component composition.
@@ -130,6 +138,13 @@ Ant Design 6 is the selected component library. Generic application UI should us
 Wrap or compose Ant Design when Atlas has a repeated product interaction that should behave consistently across surfaces. Keep custom Atlas components for product-specific surfaces such as record presentation, PF2e stat/rendering layouts, rich result summaries when Ant list/table primitives cannot express the layout cleanly, and encounter-runtime panels. Do not hand-roll generic buttons, icon buttons, links, navigation controls, table selection states, overlays, or form controls when an Ant component exists.
 
 When styling Ant components, prefer `ConfigProvider` component tokens such as `Table.rowSelectedBg` and semantic global tokens such as `colorPrimaryBg`, `colorPrimaryBgHover`, `colorPrimaryBorder`, `colorPrimaryText`, `colorLink`, and `controlItemBgActive`. Avoid using `colorPrimary` directly as a foreground text color or low-opacity highlight fill.
+
+Calculation explanations use the shared `CalculationTable`: cause on the left,
+value on the right, with the resulting value emphasized at the bottom. Column
+alignment separates cause and value without colons. Keep overridden effects
+visible but muted with a dash in the value column; use the backend classification
+rather than recomputing stacking rules in the browser. Preserve useful modifier
+types and contextual notes alongside their cause.
 
 ## Styling
 
@@ -284,13 +299,52 @@ its `Kind: Advanced`-style opener at the same native Ant size as peer controls. 
 when a common control changes. Incomplete drafts stay local and do not execute
 or enter URLs.
 
-Search filter URLs use one versioned, self-contained lz-string encoding of the
-existing predicate JSON. Omit clause/scope editor identities and reconstruct
+Search filter URLs use one versioned, self-contained compact tuple encoding of
+the existing predicate, compressed with lz-string. Version 3 uses short node tags,
+a bare key for root-record selections, and fixed optional slots for exact embedded
+addresses and reading context. Trailing empty slots are omitted; direction, scope,
+passages, source fingerprints and spell ranks retain their full meaning. Use a
+URL-safe alphabet so compression output needs no additional percent escaping. Omit clause/scope editor identities and reconstruct
 distinct deterministic identities on restore, preserving exact groups, literals
 and collection scopes. Field/operator eligibility and query limits stay backend
 owned. Keep query text, similarity seed and nondefault page size as ordinary
 parameters; derive retrieval mode rather than serializing it. No CEL translation,
 saved-token registry or separate simple-filter URL dialect is introduced.
+Malformed or unsupported filter transport is cleared atomically, with one contextual
+Ant message explaining that filters were cleared. Replace the current URL entry,
+reset paging and preserve independent criteria and exact reading navigation.
+Decoded predicates remain subject to backend validation; field/record errors and
+retrieval failures never trigger automatic clearing.
+
+Result ordering uses one shared Ant Sort popover beside count and paging,
+including in search pickers and the Trait Similar tab. Browse defaults to Name
+A–Z, text/Similar to Relevance, and saved lists to Saved order. Keep requested
+order optional: a response's effective default must not turn into explicit URL
+intent. Selecting the displayed default deliberately does record intent.
+Explicit attribute orders survive criterion changes.
+Order changes reset paging and belong in request identity and native navigation,
+but not filter-count context. A sort choice alone leaves an empty search idle.
+The backend orders the entire eligible matching set before pagination; never
+sort loaded rows in the browser. Semantic totals retain their Top matches basis.
+Keep the word Sort visible alongside the active order. The popover has Sort by /
+Then by rules with field, direction, removal and accessible priority controls;
+reveal additional rules through Add another sort. Each field appears at most once.
+Relevance, Random and list-only Saved order replace the attribute sequence.
+Random generates a u32 seed on selection. Keep Shuffle beside its seed input
+inside the popover, preserving the toolbar anchor when switching modes. Seed
+editing/copying also stays inside the popover. Put the Copy seed icon at the
+field’s trailing edge with a tooltip and brief Copied feedback; keep the field
+and Shuffle on one row. Commit seed drafts on
+Enter/blur. Repeated sort URL tokens preserve rule priority; Random's seed remains
+stable through paging, reload and Back. Incoming malformed combinations are errors.
+Response identity checks compare complete sort values structurally. Retain loaded
+rows and titles with updating feedback during order changes; old placeholders
+never cross seed/criterion/scope/profile/generation boundaries in the bounded
+picker/Trait consumers. Keep pager controls wrapped within narrow panes, with
+Previous/page/Next together.
+Saved-list attribute and Random orders are temporary, preserve drafts, and disable
+drag reordering. Render supplied unit-price labels verbatim in existing row
+metadata whenever any attribute rule orders by price.
 
 The whole result summary previews on ordinary click or Space. Arrow/j/k move
 focus without changing selection; Enter opens the full reference in the same tab.
@@ -360,6 +414,12 @@ parse CEL, infer fields from records, or decide contextual capability in React.
 Reject unsafe integer input before creating numeric literals.
 
 ### Choosing an interaction surface
+
+Condition actions belong beside their condition's edit/remove controls. Keep
+recovery rolls and results anchored to those controls, including when success
+clears the condition. Do not introduce general action groups or disclosures
+between a participant's identity and HP. Pending damage decisions belong beside
+HP controls; shared overnight recovery belongs with participant actions.
 
 Apply the root AGENTS.md Product UI Controls principles first. Start with a direct
 action or inline control; use an anchored popover when a small action needs context.
@@ -610,8 +670,11 @@ opening, cached by complete selection and artifact generation. Render only conte
 categories; keep loading, unavailable checks and local retryable errors distinct
 from known empty categories. Similar is a separate root discovery preview using
 stateless search pages, with a native link into the ordinary search workspace.
-Similarity URLs preserve the root seed and canonical filters. Keyword entry replaces
-the seed; clearing it preserves filters. Contextual text counts are disabled while
+Similarity URLs preserve the root seed and canonical filters. The active Similar
+criterion occupies the main search control with its selectable, read-only human
+name; retain the same input shell, clear/search affordances and toolbar dimensions
+as keyword entry. Clearing it
+preserves other filters and returns focus to keyword entry. Contextual text counts are disabled while
 catalog choices and vocabulary remain available. Label bounded pages Top matches.
 Comparison panes reuse family presentation without recursively mounting related disclosures.
 Incoming references use checked `source_navigation`, outgoing references use the
@@ -620,6 +683,53 @@ they do not imply automatic scrolling to an individual marker. Counterparts and 
 relationships of an embedded selection. A separate Similar action can name the
 parent root explicitly. Exact root references use an empty owner path, not an
 all-owners graph query.
+
+Record-link conditions are structural leaves in the same predicate edited by
+common controls and Advanced. Use the existing group AND/OR/NOT owner and a Record
+links condition choice, not a fabricated catalog field or separate relationship
+array. Links with a chevron is a toolbar shortcut. It belongs to FilterControls/
+useFilterEditor so adding a root conjunction retains unfinished sibling drafts.
+Positive root conjunctions can expose individual editable chips. Mixed or negated
+expressions use one bounded human summary retaining operators and grouping; clicking
+opens Advanced. Never extract flat link chips from an OR/NOT expression. Clear filters
+clears the complete predicate while retaining text/Similar and result order.
+
+Reuse SearchPickerModal for record selection. Supply its concrete link-condition
+composer through a stable app-level component context with a lightweight shared-filter
+interface; FilterControls must not import its concrete picker and create a static
+cycle back through SearchPickerModal. Each owner retains local open/draft state;
+nested lookups use Ant overlays with innermost Escape and focus restoration.
+Selection callbacks carry one record summary and artifact generation, or null on
+reset. Existing list/encounter forms keep their selection and draft semantics.
+
+Lookup criteria are independent of parent search and membership. Defaults are
+Links to / Whole entry. Editing direction/scope preserves an existing exact embedded
+selection until an explicit root-row choice, including a row with the same parent
+key. Suppress duplicates only in a safe direct conjunction; never rewrite grouped
+expressions. Record/Related actions conjoin with the entire active Search expression
+or create a leaf-only search outside Search.
+
+Human clause presentations are keyed by clause ID, echoed exact leaf, generation
+and recovery epoch, including negative/zero-result conditions. Retained catalog
+fields must not lend stale source labels to a new identity. New uncommitted root
+choices get human draft labels from the generation-aware picker event. Never display
+IDs in labels, errors, tooltips or unavailable fallbacks. Root relationship conditions
+are rejected inside authored collection Exists scopes.
+
+Whole entry changes sources: matching result entries for Links to, or the selected
+source and its descendants for Linked from. Targets stay exact and descendants
+exclude siblings/parents. Related supplies a typed predicate, never a list of keys
+reconstructed from previews. Positive proof evidence and occurrence pages use clause
+IDs and the full predicate/generation. Negative absence and failed Boolean branches
+have no invented occurrence evidence; preview limits do not truncate result roots.
+Existing unsupported count states remain honest, with count-free vocabulary retained.
+
+Keep relationship discovery actions inside the Related experience with its
+reference previews and full-result escapes. Result relationship evidence reuses
+the shared Matches button/popover and its focus/dismissal behavior; do not expand
+a separate disclosure into each row. Source-to-target labels supply the useful
+evidence without a repeated Text reference label. Scope options use the existing
+source-side semantics, with a concrete example in their explanation popover.
 
 Search page keys include committed criteria, the local page number, the current
 artifact generation and the search owner's recovery epoch. An artifact generation
@@ -819,3 +929,43 @@ their cache from the committed receipt before invalidating list reads.
 Lightweight entry removal uses the shared danger button's controlled popover.
 Pending writes block dismissal; failures retain the confirmation and local error
 for explicit retry. Whole-list deletion retains its modal confirmation.
+
+Recovery popovers provide short rule hints and optional checks with already known
+DCs/modifiers. They never ask for missing DCs, prerequisites, recovery reasons or
+elapsed time. Use existing clear/decrement controls unless an action performs a
+meaningful coordinated update. Table outcomes use direct buttons; an unknown DC
+uses guidance and the existing statistic roller instead of another custom form.
+
+HP values use consistent typography for current, maximum and temporary HP;
+Add temp HP belongs beside those values. The status split button keeps the main
+defeat/mortality correction direct and opens knockout or dying controls from its
+arrow. Pending knockout and initiative decisions share that entry point. Closing
+the popover keeps a current decision available; it has no separate Skip action.
+Center inline HP number inputs. Preserve
+the mounted consequence preview while values are recalculated; stale previews
+may remain visible during loading, but must not authorize Apply.
+
+Persistent turn reminders show all sources directly, with the active source first
+and superseded entries muted. Recovery and per-type clear icons share one aligned
+action row. Clear records the table outcome without a DC form or dice roll; it
+ends that turn's applicable sources and leaves later sources intact. Table damage
+is labeled Damage taken with an After IWR tooltip. Incomplete persistent entries
+show only supplied details, without an internal Reminder prefix or empty metadata.
+
+Keep persistent turn review organized by damage type: sources, damage entry or
+result, then a labelled Recovery row with adjacent roll/clear icons. Do not
+repeat the types in separate damage and recovery lists. Keep receipts and dice
+outcomes with their section/popover rather than adding duplicate modal banners
+or footer rolls. Add/Edit presents a compact Damage precedence list using the shared sortable
+controls, with the backend default order and the first entry marked Active. Show
+it for ambiguity anywhere in the group, including lower fallbacks. Reordering is
+a local form edit with pointer/touch and keyboard support. Existing Apply saves
+the complete order and condition together; the condition list has
+no selection controls or separate confirmation flow.
+
+Damage review shows why a defense changes the amount, including known immunity
+before applying damage and recorded defense facts alongside the result. When an
+unresolved protection requires table damage, explain it before submission and
+select the table-result input. Deterministic turn actions such as reducing
+Frightened are direct labelled buttons; a dice icon must initiate a dice/check
+interaction rather than hide a plain counter action.

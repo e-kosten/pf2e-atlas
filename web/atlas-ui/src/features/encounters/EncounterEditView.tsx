@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button } from "antd";
 import { getEncounter } from "../../api/atlasApi";
@@ -15,6 +16,7 @@ function EncounterEditor({ route }: EncounterEditViewProps) {
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
   });
+  usePageTitle(encounter.data?.encounter.name ?? "Encounter");
   const mutations = useEncounterMutations(
     route.slug,
     encounter.data?.encounter.encounter_key,

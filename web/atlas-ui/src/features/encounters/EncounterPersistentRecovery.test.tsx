@@ -49,6 +49,7 @@ it("rolls recovery without requiring a table result and preserves the episode id
   fireEvent.click(await screen.findByRole("button", { name: "Roll" }));
   await waitFor(() =>
     expect(onRecover).toHaveBeenCalledWith({
+      resolution: "roll",
       mode: "explicit",
       boundary_key: null,
       expected_encounter_revision: 11n,
@@ -68,7 +69,9 @@ it("keeps recovery results inside the popover and offers no separate table-succe
   expect(screen.queryByRole("button", { name: "Succeeded" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Roll" }));
   await screen.findByText("Recovered · DC 15");
-  expect(screen.queryByRole("button", { name: "Roll" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Roll" })).toBeDisabled();
+  expect(screen.getByRole("spinbutton", { name: "Recovery DC" })).toHaveValue("15");
+  expect(screen.getByRole("spinbutton", { name: "Recovery DC" })).toBeDisabled();
 });
 it("requests an unresolved source and its missing DC instead of choosing or calculating them", async () => {
   const { onRecover } = setup({

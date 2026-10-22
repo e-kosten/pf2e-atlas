@@ -11,7 +11,7 @@ pub(crate) const DEFAULT_WEB_PORT: u16 = 4727;
     after_help = "Examples:\n  atlas web\n  atlas web --open\n  atlas web --port 4728 --path-mode repo"
 )]
 pub(crate) struct WebArgs {
-    #[arg(long,value_parser=crate::cli::args::parse_search_profile,help="Search profile: bge-base or embeddinggemma")]
+    #[arg(long,value_parser=crate::cli::args::parse_search_profile,help="Default search profile: bge-base or embeddinggemma; default: sole stored profile, or bge-base when both exist")]
     pub(crate) search_profile: Option<atlas_domain::SearchProfileId>,
     #[arg(
         long,
@@ -43,10 +43,7 @@ pub(crate) struct WebArgs {
         help = "Override the SQLite artifact path"
     )]
     pub(crate) index: Option<PathBuf>,
-    #[arg(
-        long,
-        help = "Bind this exact localhost port instead of auto-selecting from the default"
-    )]
+    #[arg(long, help = "Bind this localhost port; otherwise try ports 4727-4826")]
     pub(crate) port: Option<u16>,
     #[arg(long, help = "Open the local web URL in the default browser")]
     pub(crate) open: bool,

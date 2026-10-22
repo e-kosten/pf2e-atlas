@@ -92,16 +92,6 @@ pub(in crate::encounters) fn condition_applicability(
             reason: "Condition immunities are unavailable.".into(),
         });
     }
-    if participant.participant_kind == ParticipantKind::Pc
-        && matches!(
-            condition.slug,
-            "helpful" | "friendly" | "indifferent" | "unfriendly" | "hostile"
-        )
-    {
-        return Some(EncounterConditionEligibilityView::NeedsContext {
-            reason: "Only a supernatural effect can impose this attitude on a PC.".into(),
-        });
-    }
     Some(EncounterConditionEligibilityView::Available)
 }
 

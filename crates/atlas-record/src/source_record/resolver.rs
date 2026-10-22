@@ -1,8 +1,9 @@
 use super::traversal::visit_source_nodes;
 use crate::source_content::{
-    ContentReferenceResolver, ContentReferenceTarget, OwnedContentIdentity,
-    ResolvedContentReference, SourceContentLocator,
+    ContentReferenceResolver, ContentReferenceTarget, ResolvedContentReference,
+    SourceContentLocator,
 };
+use atlas_domain::OwnedContentIdentity;
 use atlas_domain::RecordKey;
 use atlas_foundry_model::FoundryDocumentSource;
 use std::collections::{BTreeMap, BTreeSet};

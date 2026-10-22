@@ -51,3 +51,17 @@ pub use traits::{
     TraitMembership, TraitMembershipResult, TraitReference, TraitReferenceResult,
     TraitSourceLocation,
 };
+
+pub use atlas_index::{RelationshipOccurrencePage, RelationshipOccurrencePageRequest};
+
+#[cfg(test)]
+mod relationship_tests;
+
+mod result_order;
+pub use atlas_index::SourceUnitPrice;
+
+#[cfg(test)]
+mod result_order_tests;
+
+mod relationship_selection;
+pub use relationship_selection::CheckedRelationshipSelection;

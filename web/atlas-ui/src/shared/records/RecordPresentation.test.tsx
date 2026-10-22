@@ -337,7 +337,7 @@ describe("semantic family presentation", () => {
       const row = screen.getByText("Resistances").parentElement!;
       expect(row).toHaveTextContent(
         state === "missing"
-          ? "fire [missing]; cold 0"
+          ? "fire —; cold 0"
           : `fire [${state}] (exceptions [${state}]) (double against [${state}]); cold 0`,
       );
       expect(row).not.toHaveTextContent("not_applicable");
@@ -357,9 +357,7 @@ describe("semantic family presentation", () => {
       },
     ]);
     const { container, rerender } = render(<DamageComponents damage={damage} />);
-    expect(container).toHaveTextContent(
-      "1d6 fire; kinds [invalid]; materials [missing]",
-    );
+    expect(container).toHaveTextContent("1d6 fire; kinds [invalid]; materials —");
     rerender(<DamageComponents damage={damage} patch />);
     expect(container).toHaveTextContent("kinds [invalid]; category cleared");
     expect(container).not.toHaveTextContent("materials");
@@ -458,7 +456,7 @@ describe("semantic family presentation", () => {
     }).parentElement!;
     expect(within(form).getByText("1d8+8")).toBeVisible();
     expect(within(form).getByText("Cleared")).toBeVisible();
-    expect(within(form).queryByText("[missing]")).toBeNull();
+    expect(within(form).queryByText("—")).toBeNull();
     expect(screen.queryByText("Cost")).toBeNull();
     expect(screen.queryByText("Requirements")).toBeNull();
   });
@@ -600,7 +598,7 @@ describe("semantic family presentation", () => {
     }).parentElement!;
     expect(within(change).getByText("60 feet")).toBeVisible();
     expect(within(change).getByText("No")).toBeVisible();
-    expect(within(change).queryByText("[missing]")).toBeNull();
+    expect(within(change).queryByText("—")).toBeNull();
     expect(screen.getByText("500 feet")).toBeVisible();
     expect(screen.queryByRole("combobox")).toBeNull();
   });
@@ -692,7 +690,9 @@ describe("optional authored reference facts", () => {
       render(
         <SpellReference spell={{ ...spellFixture(), area: unavailableFact(state) }} />,
       );
-      expect(screen.getByText("Area").parentElement).toHaveTextContent(`[${state}]`);
+      expect(screen.getByText("Area").parentElement).toHaveTextContent(
+        state === "missing" ? "—" : `[${state}]`,
+      );
     },
   );
 
@@ -755,7 +755,7 @@ describe("optional authored reference facts", () => {
           ])}
         />,
       );
-      expect(container).toHaveTextContent("[missing] [null]");
+      expect(container).toHaveTextContent("— [null]");
       if (state === "invalid")
         expect(container).toHaveTextContent("category [invalid]");
       else expect(container).not.toHaveTextContent("category");

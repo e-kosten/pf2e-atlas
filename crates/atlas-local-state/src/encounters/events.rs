@@ -89,6 +89,21 @@ impl EncountersRead<'_> {
     }
 }
 impl EncountersWrite<'_> {
+    /// Remove workflow-selected obsolete decisions as part of an already guarded write.
+    pub fn remove_pending_condition_consequences(
+        &self,
+        encounter_key: &str,
+        keys: &[&str],
+    ) -> LocalStateResult<()> {
+        for key in keys {
+            self.connection.execute(
+                "DELETE FROM encounter_pending_consequences WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND consequence_key=?2",
+                params![encounter_key, key],
+            )?;
+        }
+        Ok(())
+    }
+
     pub fn apply_condition_event(
         &self,
         encounter_key: &str,
@@ -323,7 +338,7 @@ impl EncountersWrite<'_> {
                     ));
                 }
             }
-            for change in changes.selection_changes {
+            for change in changes.precedence_changes {
                 if !snapshot
                     .participants
                     .iter()
@@ -331,10 +346,27 @@ impl EncountersWrite<'_> {
                 {
                     return Err(LocalStateError::ParticipantNotFound(change.participant_key));
                 }
-                super::persistent_selections::write(
+                let resolve = |source| match source {
+                    ConditionEventSource::Existing(id) => Ok(id),
+                    ConditionEventSource::Added(index) => added_condition_ids
+                        .get(index)
+                        .copied()
+                        .ok_or(LocalStateError::InvalidRollRequest(
+                            "event source addition is unavailable",
+                        )),
+                };
+                let members = change
+                    .sources
+                    .into_iter()
+                    .map(resolve)
+                    .collect::<LocalStateResult<Vec<_>>>()?;
+                super::persistent_precedence::write(
                     self.connection,
                     &change.participant_key,
-                    &change.selection,
+                    &super::PersistentSourcePrecedence {
+                        episode_id: change.episode_id,
+                        source_order: members,
+                    },
                 )?;
             }
             for pending in &changes.pending {

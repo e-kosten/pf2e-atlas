@@ -317,25 +317,26 @@ function LifeSettings({
               }}
             />
           </Form.Item>
-          <Segmented<EncounterParticipantView["mortality"]>
-            aria-label="Life status"
-            disabled={disabled}
-            value={pendingMortality ?? participant.mortality}
-            options={[
-              { value: "alive", label: "Alive" },
-              { value: "dead", label: "Dead" },
-            ]}
-            onChange={async (mortality) => {
-              setPendingMortality(mortality);
-              try {
-                await save({ track_dying: true, mortality });
-              } finally {
-                setPendingMortality(undefined);
-              }
-            }}
-          />
         </div>
       )}
+      <Segmented<EncounterParticipantView["mortality"]>
+        className="encounter-life-settings__status"
+        aria-label="Life status"
+        disabled={disabled}
+        value={pendingMortality ?? participant.mortality}
+        options={[
+          { value: "alive", label: "Alive" },
+          { value: "dead", label: "Dead" },
+        ]}
+        onChange={async (mortality) => {
+          setPendingMortality(mortality);
+          try {
+            await save({ track_dying: participant.track_dying, mortality });
+          } finally {
+            setPendingMortality(undefined);
+          }
+        }}
+      />
     </section>
   );
 }

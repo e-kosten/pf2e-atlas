@@ -17,23 +17,17 @@ pub(in crate::encounters) fn participant_groups(
 ) -> Vec<PersistentGroup<'_>> {
     let mut result = groups(&participant.conditions);
     for group in &mut result {
-        if group.selected_source_id.is_some() {
-            continue;
-        }
-        let members: Vec<_> = group
-            .sources
+        let saved = participant
+            .persistent_precedence
             .iter()
-            .map(|source| source.condition_id)
-            .collect();
-        group.selected_source_id = participant
-            .persistent_selections
-            .iter()
-            .find(|selection| {
-                selection.episode_id == group.episode_id
-                    && selection.source_condition_ids == members
-                    && members.contains(&selection.selected_source_id)
-            })
-            .map(|selection| selection.selected_source_id);
+            .find(|saved| saved.episode_id == group.episode_id);
+        group.sources = ordered_sources(
+            &group.sources,
+            saved
+                .map(|saved| saved.source_order.as_slice())
+                .unwrap_or_default(),
+        );
+        group.selected_source_id = group.sources.first().map(|source| source.condition_id);
     }
     result
 }
@@ -143,6 +137,230 @@ pub(in crate::encounters) fn recovery_dc(condition: &EncounterParticipantConditi
         },
         _ => None,
     }
+}
+
+fn average_default<'a>(
+    sources: &[&'a EncounterParticipantCondition],
+) -> Option<&'a EncounterParticipantCondition> {
+    sources
+        .iter()
+        .filter_map(|source| {
+            let ConditionParameters::PersistentDamage {
+                formula,
+                multiplier,
+                ..
+            } = &source.parameters
+            else {
+                return None;
+            };
+            let average = atlas_dice::prepare(formula).ok()?.additive_average()?;
+            let average = average
+                * match multiplier {
+                    DamageMultiplier::Normal => 1.0,
+                    DamageMultiplier::Double => 2.0,
+                    DamageMultiplier::Half => 0.5,
+                };
+            Some((*source, average))
+        })
+        .max_by(|a, b| {
+            a.1.total_cmp(&b.1)
+                .then_with(|| b.0.condition_id.cmp(&a.0.condition_id))
+        })
+        .map(|(source, _)| source)
+        .or_else(|| {
+            sources
+                .iter()
+                .find(|source| source.condition_id > 0)
+                .or_else(|| sources.first())
+                .copied()
+        })
+}
+
+/// Default to proven greater damage, then higher additive average for incomparable
+/// sources. The saved order controls every fallback, not just the active source.
+fn ordered_sources<'a>(
+    sources: &[&'a EncounterParticipantCondition],
+    saved: &[i64],
+) -> Vec<&'a EncounterParticipantCondition> {
+    let mut remaining = sources.to_vec();
+    let mut order = Vec::with_capacity(sources.len());
+    while let Some(default) = average_default(&remaining) {
+        let candidates: Vec<_> = remaining
+            .iter()
+            .copied()
+            .filter(|candidate| {
+                !remaining.iter().any(|other| {
+                    at_least_as_much(other, candidate) && !at_least_as_much(candidate, other)
+                })
+            })
+            .collect();
+        let next = average_default(&candidates).unwrap_or(default);
+        order.push(next);
+        remaining.retain(|source| source.condition_id != next.condition_id);
+    }
+    let preserved = saved.iter().filter_map(|id| {
+        sources
+            .iter()
+            .find(|source| source.condition_id == *id)
+            .copied()
+    });
+    // Insert new/changed sources in their default positions, preserving the
+    // relative order of every unchanged surviving source.
+    for (source, preserved) in order
+        .iter_mut()
+        .filter(|source| saved.contains(&source.condition_id))
+        .zip(preserved)
+    {
+        *source = preserved;
+    }
+    order
+}
+
+fn has_ambiguity(sources: &[&EncounterParticipantCondition]) -> bool {
+    sources.iter().enumerate().any(|(index, a)| {
+        sources[index + 1..]
+            .iter()
+            .any(|b| !at_least_as_much(a, b) && !at_least_as_much(b, a))
+    })
+}
+
+/// Prepare the complete order and expose it if any fallback comparison is ambiguous.
+pub(in crate::encounters) fn prepare_precedence(
+    participant: &atlas_local_state::EncounterParticipant,
+    change: &atlas_local_state::ConditionEventChange,
+    decision: Option<&[atlas_app_model::PersistentDamageSourceRefView]>,
+) -> crate::AppServiceResult<(
+    Option<atlas_app_model::PersistentDamagePrecedenceView>,
+    Option<atlas_local_state::PersistentPrecedenceChange>,
+)> {
+    use atlas_app_model::{
+        PersistentDamagePrecedenceEntryView, PersistentDamagePrecedenceView,
+        PersistentDamageSourceRefView as Source,
+    };
+    use atlas_local_state::{
+        ConditionEventChange, ConditionEventSource, PersistentPrecedenceChange,
+    };
+    let edited_id = match change {
+        ConditionEventChange::Add(_) => -1,
+        ConditionEventChange::Replace(input) => input.condition_id,
+        ConditionEventChange::Remove { .. } => return Ok((None, None)),
+    };
+    let mut after = super::events::subject_after_change(participant, change)?;
+    let parameters_changed = participant
+        .conditions
+        .iter()
+        .find(|c| c.condition_id == edited_id)
+        .zip(
+            after
+                .conditions
+                .iter()
+                .find(|c| c.condition_id == edited_id),
+        )
+        .is_some_and(|(old, new)| old.parameters != new.parameters);
+    if parameters_changed {
+        for saved in &mut after.persistent_precedence {
+            saved.source_order.retain(|id| *id != edited_id);
+        }
+    }
+    let groups = participant_groups(&after);
+    let Some(group) = groups.iter().find(|group| {
+        group
+            .sources
+            .iter()
+            .any(|source| source.condition_id == edited_id)
+    }) else {
+        if decision.is_some() {
+            return Err(crate::AppServiceError::invalid_request(
+                "This condition has no persistent damage precedence",
+            ));
+        }
+        return Ok((None, None));
+    };
+    let mut order: Vec<_> = group
+        .sources
+        .iter()
+        .map(|source| source.condition_id)
+        .collect();
+    if let Some(decision) = decision {
+        let requested: Vec<_> = decision
+            .iter()
+            .map(|source| match source {
+                Source::Edited => edited_id,
+                Source::Existing { condition_id } => *condition_id,
+            })
+            .collect();
+        let mut members = order.clone();
+        members.sort_unstable();
+        let mut supplied = requested.clone();
+        supplied.sort_unstable();
+        if members != supplied {
+            return Err(crate::AppServiceError::invalid_request(
+                "Order every current source in this damage group exactly once",
+            ));
+        }
+        order = requested;
+    }
+    let source_view = |id| {
+        if id == edited_id {
+            Source::Edited
+        } else {
+            Source::Existing { condition_id: id }
+        }
+    };
+    let preview = if has_ambiguity(&group.sources) {
+        let sources = order
+            .iter()
+            .map(|id| {
+                let source = group
+                    .sources
+                    .iter()
+                    .find(|source| source.condition_id == *id)
+                    .ok_or_else(|| {
+                        crate::AppServiceError::invalid_request(
+                            "Persistent damage source no longer exists",
+                        )
+                    })?;
+                let ConditionParameters::PersistentDamage {
+                    formula,
+                    multiplier,
+                    ..
+                } = &source.parameters
+                else {
+                    return Err(crate::AppServiceError::invalid_request(
+                        "Persistent damage source changed",
+                    ));
+                };
+                Ok(PersistentDamagePrecedenceEntryView {
+                    source: source_view(*id),
+                    formula: formula.clone(),
+                    multiplier: match multiplier {
+                        DamageMultiplier::Normal => atlas_app_model::DamageMultiplierView::Normal,
+                        DamageMultiplier::Double => atlas_app_model::DamageMultiplierView::Double,
+                        DamageMultiplier::Half => atlas_app_model::DamageMultiplierView::Half,
+                    },
+                })
+            })
+            .collect::<crate::AppServiceResult<Vec<_>>>()?;
+        Some(PersistentDamagePrecedenceView {
+            damage_type: group.damage_type.into(),
+            sources,
+        })
+    } else {
+        None
+    };
+    let reference = |id| {
+        if id == -1 {
+            ConditionEventSource::Added(0)
+        } else {
+            ConditionEventSource::Existing(id)
+        }
+    };
+    let precedence = PersistentPrecedenceChange {
+        participant_key: participant.participant_key.clone(),
+        episode_id: group.episode_id.into(),
+        sources: order.into_iter().map(reference).collect(),
+    };
+    Ok((preview, Some(precedence)))
 }
 
 #[cfg(test)]

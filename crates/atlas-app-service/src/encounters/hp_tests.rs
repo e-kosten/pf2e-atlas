@@ -57,6 +57,7 @@ fn disable_dying_tracking(worker: &AtlasAppService, key: &str, participant: &str
             key,
             participant,
             SetEncounterLifeSettingsRequest {
+                knockout_context: None,
                 mortality: None,
                 request_id: crate::test_support::next_request_id(),
                 expected_encounter_revision: revision,

@@ -2,10 +2,10 @@
 use crate::projection::{field_state, navigation_fingerprint};
 use crate::{AppServiceError, AppServiceResult};
 use atlas_app_model::*;
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::{QueryFieldState, RecordKey};
 use atlas_record::source_content::{
-    ContentAudience, ContentInteractionKind, ContentVisibilityRule, OwnedContentLocator,
-    SourceContentLocator,
+    ContentAudience, ContentInteractionKind, ContentVisibilityRule, SourceContentLocator,
 };
 use atlas_record::source_record::{SourceContentFormat, SourceContentSelection, SourceFieldView};
 

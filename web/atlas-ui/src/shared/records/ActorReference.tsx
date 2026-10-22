@@ -1,3 +1,4 @@
+import { CalculationTable, type CalculationRow } from "../ui/tables/CalculationTable";
 import { statusReasonLabel } from "./statusReasonLabel";
 import { TraitBadge } from "./TraitBadge";
 import { Alert, Button, Collapse, Popover, Tag } from "antd";
@@ -277,7 +278,7 @@ export function ActorFacts({
             {!encounter && <h3>Awareness and communication</h3>}
             {actor.perception.state !== "not_applicable" && (
               <FactRow label="Perception">
-                <NumberFact fact={actor.perception} signed />
+                <NumberFact fact={actor.perception} signed label="Perception" />
               </FactRow>
             )}
             {encounter && actor.runtime ? (
@@ -528,22 +529,28 @@ function ActorCombatBudget({ actor }: { actor: ActorPresentationView }) {
         <RuntimeCount count={budget.actions} />
         <RuntimeCount count={budget.reactions} />
       </div>
-      {budget.quickened_sources.map((source, index) => (
-        <FactRow label="Extra action" key={index}>
-          {source.kind === "unspecified"
-            ? "Unspecified"
-            : source.kind === "unrestricted"
-              ? "Unrestricted"
-              : [
-                  source.actions
-                    .map((action) => sentenceCase(action.replace(/_/g, " ")))
-                    .join(", "),
-                  source.guidance,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
+      {budget.extra_action_unavailable_reason ? (
+        <FactRow label="Extra action">
+          <span className="muted">{budget.extra_action_unavailable_reason}</span>
         </FactRow>
-      ))}
+      ) : (
+        budget.quickened_sources.map((source, index) => (
+          <FactRow label="Extra action" key={index}>
+            {source.kind === "unspecified"
+              ? "Unspecified"
+              : source.kind === "unrestricted"
+                ? "Unrestricted"
+                : [
+                    source.actions
+                      .map((action) => sentenceCase(action.replace(/_/g, " ")))
+                      .join(", "),
+                    source.guidance,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+          </FactRow>
+        ))
+      )}
       {!budget.can_act.available && budget.can_act.source !== "participant_status" && (
         <FactRow label="Can act">
           {statusReasonLabel("No", budget.can_act.reason)}
@@ -968,40 +975,48 @@ function RuntimeCount({ count }: { count: RuntimeCountView }) {
     count.suppressed_adjustments.length ||
     count.base_value !== count.adjusted_value ||
     count.segments.some((segment) => segment.restricted);
+  const rows: CalculationRow[] = [
+    { key: "base", label: "Base", value: String(count.base_value) },
+    ...count.adjustments.map((modifier) => ({
+      key: modifier.source,
+      label: modifier.label,
+      value: `${modifier.value > 0n ? "+" : ""}${modifier.value}`,
+      note: modifier.reason,
+    })),
+    ...count.suppressed_adjustments.map((modifier) => ({
+      key: `suppressed-${modifier.source}`,
+      label: modifier.label,
+      value: "—",
+      note: modifier.reason,
+      muted: true,
+    })),
+    ...count.segments.map((segment, index) => ({
+      key: `segment-${index}`,
+      label: segment.label,
+      value: String(segment.value),
+      note: segment.reason ?? (segment.restricted ? "Restricted" : undefined),
+    })),
+    {
+      key: "total",
+      label: "Total",
+      total: true,
+      value:
+        count.adjusted_value === null ? "Needs review" : String(count.adjusted_value),
+    },
+  ];
   return (
     <FactRow label={count.label}>
       {explanation ? (
         <Popover
           title={count.label}
+          trigger="click"
           content={
-            <div>
-              {count.explanation && <p>{count.explanation}</p>}
-              <p>Base: {String(count.base_value)}</p>
-              <p>
-                Total:{" "}
-                {count.adjusted_value === null
-                  ? "Needs review"
-                  : String(count.adjusted_value)}
-              </p>
-              {count.adjustments.map((modifier, index) => (
-                <p key={index}>
-                  {modifier.label} {modifier.value > 0n ? "+" : ""}
-                  {String(modifier.value)}
-                  {modifier.reason ? ` · ${modifier.reason}` : ""}
-                </p>
-              ))}
-              {count.suppressed_adjustments.map((modifier, index) => (
-                <p key={index}>
-                  {modifier.label}: {modifier.reason} (not counted)
-                </p>
-              ))}
-              {count.segments.map((segment, index) => (
-                <p key={index}>
-                  {segment.label}: {String(segment.value)}
-                  {segment.restricted ? " (restricted)" : ""}
-                </p>
-              ))}
-            </div>
+            <CalculationTable
+              label={`${count.label} calculation`}
+              valueLabel={count.label}
+              rows={rows}
+              explanation={count.explanation}
+            />
           }
         >
           <Button

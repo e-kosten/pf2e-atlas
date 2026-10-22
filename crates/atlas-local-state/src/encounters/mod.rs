@@ -1,15 +1,15 @@
 mod outgoing_turns;
 pub use outgoing_turns::SavedOutgoingTurn;
-mod persistent_selections;
-pub use persistent_selections::PersistentSourceSelection;
+mod persistent_precedence;
+pub use persistent_precedence::PersistentSourcePrecedence;
 mod event_model;
 mod events;
 pub use event_model::{
     CheckDegree, ConditionEventBoundary, ConditionEventChange, ConditionEventOutcome,
-    DamageLethality, EncounterBoundaryClaim, EncounterBoundaryKind, EncounterEventReceipt,
-    LifecycleCheckPurpose, ParticipantEventChange, PendingConsequence, PersistentDamageOutcome,
-    PersistentSelectionChange, PreparedConditionEvent, SavedHpEventContext,
-    SavedPendingConsequence,
+    ConditionEventSource, DamageLethality, EncounterBoundaryClaim, EncounterBoundaryKind,
+    EncounterEventReceipt, LifecycleCheckPurpose, ParticipantEventChange, PendingConsequence,
+    PersistentDamageOutcome, PersistentDamageProtection, PersistentPrecedenceChange,
+    PreparedConditionEvent, SavedHpEventContext, SavedPendingConsequence,
 };
 mod condition_parameters;
 pub use condition_parameters::{

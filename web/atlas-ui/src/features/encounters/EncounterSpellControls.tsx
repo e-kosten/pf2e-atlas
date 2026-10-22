@@ -45,9 +45,11 @@ export function EncounterSpellControls({
   error,
   onAction,
   encounterRef,
+  encounterRevision,
 }: Actions & {
   detail: RecordDetailView;
   encounterRef?: string;
+  encounterRevision: bigint;
 }) {
   const { message } = App.useApp();
   const inFlight = useRef(false);
@@ -136,6 +138,7 @@ export function EncounterSpellControls({
       {encounterRef && (
         <SpellCastingReminders
           encounterRef={encounterRef}
+          encounterRevision={encounterRevision}
           generation={detail.artifact_generation}
           participant={participant}
           selection={selection}
@@ -149,17 +152,29 @@ export function EncounterSpellControls({
 
 function SpellCastingReminders({
   encounterRef,
+  encounterRevision,
   generation,
   participant,
   selection,
 }: {
   encounterRef: string;
+  encounterRevision: bigint;
   generation: string;
   participant: EncounterParticipantView;
   selection: import("../../generated/atlas").RecordNavigationView;
 }) {
+  // Resource-only refreshes can retain advice; changed conditions/status cannot.
   const readingIdentity = JSON.stringify(
-    [encounterRef, participant.participant_key, generation, selection],
+    [
+      encounterRef,
+      participant.participant_key,
+      generation,
+      selection,
+      participant.conditions,
+      participant.defeated,
+      participant.hazard_disabled,
+      participant.mortality,
+    ],
     (_key, value) => (typeof value === "bigint" ? value.toString() : value),
   );
   const preview = useQuery({
@@ -168,7 +183,7 @@ function SpellCastingReminders({
       generation,
       encounterRef,
       participant.participant_key,
-      participant.revision.toString(),
+      encounterRevision.toString(),
       JSON.stringify(selection, (_key, value) =>
         typeof value === "bigint" ? value.toString() : value,
       ),
@@ -191,9 +206,13 @@ function SpellCastingReminders({
           </Button>
         </Space>
       )}
-      {reminders?.advisories.map((advisory, index) => (
-        <p key={index}>{statusReasonLabel(advisory.label, advisory.reason)}</p>
-      ))}
+      {!!reminders?.advisories.length && (
+        <div className="encounter-casting__reminders">
+          {reminders.advisories.map((advisory, index) => (
+            <p key={index}>{statusReasonLabel(advisory.label, advisory.reason)}</p>
+          ))}
+        </div>
+      )}
     </>
   );
 }

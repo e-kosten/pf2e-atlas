@@ -4,7 +4,8 @@ pub(crate) mod modifiers;
 mod projection;
 pub(in crate::encounters) mod senses;
 pub(super) use projection::{
-    effective_hp_maximum, participant_runtime_block, project_initiative, project_participant,
+    effective_hp_maximum, hp_maximum_stat, participant_runtime_block, project_initiative,
+    project_participant, resolve_condition_subject_hints,
 };
 mod applicability;
 pub(super) use applicability::{

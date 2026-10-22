@@ -8,12 +8,13 @@ import {
   Space,
   type FormInstance,
 } from "antd";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type {
   ApplyPersistentDamageRequest,
   EncounterParticipantView,
   PersistentDamageGroupView,
   PersistentDamageResultView,
+  PersistentDamageResolutionView,
 } from "../../generated/atlas";
 import { RollResult } from "../../shared/dice/RollResult";
 import { integerRule } from "./EncounterConditionEditor";
@@ -27,21 +28,28 @@ function DamageFields({
   group,
   form,
   label,
+  heading = true,
+  tableReason,
 }: {
   group: PersistentDamageGroupView;
   form: FormInstance<Values>;
   label: string;
+  heading?: boolean;
+  tableReason?: string;
 }) {
-  const mode = Form.useWatch(["groups", group.episode_id, "mode"], form) ?? "roll";
+  const draftMode = Form.useWatch(["groups", group.episode_id, "mode"], form) ?? "roll";
+  const mode = tableReason ? "table" : draftMode;
   const selected = group.sources.find(
     (source) => source.condition_id === group.selected_source_id,
   );
   return (
     <section>
-      <h4>
-        {label}
-        {selected ? ` · ${selected.formula}` : ""}
-      </h4>
+      {heading && (
+        <h4>
+          {label}
+          {selected ? ` · ${selected.formula}` : ""}
+        </h4>
+      )}
       {group.selected_source_id === null && (
         <Form.Item
           name={["groups", group.episode_id, "source"]}
@@ -59,11 +67,14 @@ function DamageFields({
           />
         </Form.Item>
       )}
-      <Form.Item name={["groups", group.episode_id, "mode"]}>
+      <Form.Item
+        name={["groups", group.episode_id, "mode"]}
+        getValueProps={(value) => ({ value: tableReason ? "table" : value })}
+      >
         <Segmented
           aria-label={`${label} damage result`}
           options={[
-            { value: "roll", label: "Roll in Atlas" },
+            { value: "roll", label: "Roll in Atlas", disabled: !!tableReason },
             { value: "table", label: "Table result" },
           ]}
         />
@@ -71,7 +82,8 @@ function DamageFields({
       {mode === "table" && (
         <Form.Item
           name={["groups", group.episode_id, "amount"]}
-          label="Damage after defenses"
+          label="Damage taken"
+          tooltip="After IWR"
           rules={[integerRule(true)]}
         >
           <InputNumber aria-label={`${label} damage amount`} step={1} />
@@ -91,6 +103,9 @@ export function EncounterPersistentDamageBatch({
   pending,
   onApply,
   savedResult,
+  displayGroups = participant.persistent_damage_groups,
+  renderGroup,
+  resolutions = {},
 }: {
   participant: EncounterParticipantView;
   encounterRevision: bigint;
@@ -104,44 +119,33 @@ export function EncounterPersistentDamageBatch({
     request: Omit<ApplyPersistentDamageRequest, "request_id">,
   ) => Promise<PersistentDamageResultView>;
   savedResult?: PersistentDamageResultView | null;
+  displayGroups?: PersistentDamageGroupView[];
+  resolutions?: Record<string, PersistentDamageResolutionView>;
+  renderGroup?: (group: PersistentDamageGroupView, damage: ReactNode) => ReactNode;
 }) {
   const [form] = Form.useForm<Values>();
-  const [revision, setRevision] = useState(encounterRevision);
+  const membership = participant.persistent_damage_groups
+    .map(
+      (group) =>
+        `${group.episode_id}:${group.sources.map((source) => source.condition_id).join(",")}`,
+    )
+    .join(";");
+  const [anchor, setAnchor] = useState({ membership, revision: encounterRevision });
+  if (anchor.membership !== membership)
+    setAnchor({ membership, revision: encounterRevision });
+  const revision =
+    anchor.membership === membership ? anchor.revision : encounterRevision;
   const [result, setResult] = useState<PersistentDamageResultView | null>(null);
   const [error, setError] = useState<string>();
   const committed = result ?? savedResult;
   const changed = revision !== encounterRevision;
-  if (damageApplied || committed)
-    return (
-      <>
-        {committed && (
-          <p>
-            Total: {committed.total.toString()} damage applied
-            {committed.hardness_absorbed > 0n
-              ? ` · Hardness absorbed ${committed.hardness_absorbed}`
-              : ""}
-          </p>
-        )}
-        {committed ? (
-          committed.groups.map((group) => (
-            <p key={group.episode_id}>
-              {damageTypes.find((type) => type.value === group.damage_type)?.label ??
-                group.damage_type}
-              : {group.amount.toString()}
-              {group.roll && <RollResult outcome={group.roll} />}
-            </p>
-          ))
-        ) : (
-          <p>Persistent damage applied</p>
-        )}
-      </>
-    );
+  const applied = damageApplied || !!committed;
   return (
     <>
       {error && (
         <Alert type="error" title="Persistent damage failed" description={error} />
       )}
-      {changed && (
+      {changed && !applied && (
         <Alert
           type="warning"
           title="Encounter changed"
@@ -149,7 +153,7 @@ export function EncounterPersistentDamageBatch({
             <Button
               onClick={() => {
                 form.resetFields();
-                setRevision(encounterRevision);
+                setAnchor({ membership, revision: encounterRevision });
               }}
             >
               Reload damage
@@ -160,12 +164,15 @@ export function EncounterPersistentDamageBatch({
       <Form
         form={form}
         layout="vertical"
-        disabled={disabled || pending || changed}
+        disabled={disabled || pending || (changed && !applied)}
         initialValues={{
           groups: Object.fromEntries(
             participant.persistent_damage_groups.map((group) => [
               group.episode_id,
-              { mode: "roll" },
+              {
+                mode:
+                  resolutions[group.episode_id]?.kind === "table" ? "table" : "roll",
+              },
             ]),
           ),
         }}
@@ -186,7 +193,8 @@ export function EncounterPersistentDamageBatch({
                     ? BigInt(draft.source)
                     : group.selected_source_id,
                   damage:
-                    draft.mode === "table"
+                    draft.mode === "table" ||
+                    resolutions[group.episode_id]?.kind === "table"
                       ? { kind: "table_result", amount: BigInt(draft.amount!) }
                       : { kind: "roll" },
                 };
@@ -213,32 +221,96 @@ export function EncounterPersistentDamageBatch({
           }
         }}
       >
-        {participant.persistent_damage_groups.map((group) => (
-          <DamageFields
-            key={group.episode_id}
-            group={group}
-            form={form}
-            label={
+        <div className="encounter-persistent-groups">
+          {displayGroups.map((group) => {
+            const label =
               damageTypes.find((type) => type.value === group.damage_type)?.label ??
-              group.damage_type
-            }
-          />
-        ))}
-        <Space wrap>
-          <Button
-            type="primary"
-            htmlType="submit"
-            disabled={
-              disabled ||
-              pending ||
-              changed ||
-              !participant.persistent_damage_groups.length
-            }
-            loading={pending}
-          >
-            Apply persistent damage
-          </Button>
-        </Space>
+              group.damage_type;
+            const active = participant.persistent_damage_groups.find(
+              (candidate) => candidate.episode_id === group.episode_id,
+            );
+            const result = committed?.groups.find(
+              (result) => result.episode_id === group.episode_id,
+            );
+            const resolution = resolutions[group.episode_id];
+            const protection = result
+              ? result.protection
+              : active && resolution?.kind === "known"
+                ? resolution.protection
+                : undefined;
+            const protectionNote = protection?.immune
+              ? `Immune to ${label.toLowerCase()}`
+              : protection
+                ? [
+                    protection.weakness > 0n && `Weakness ${protection.weakness}`,
+                    protection.resistance > 0n && `Resistance ${protection.resistance}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : undefined;
+            const damage = (
+              <>
+                {protectionNote && (
+                  <p className="encounter-condition-meta">{protectionNote}</p>
+                )}
+                {!applied && active && resolution?.kind === "table" && (
+                  <p className="encounter-condition-meta">{resolution.reason}</p>
+                )}
+                {result ? (
+                  <div className="encounter-persistent-applied">
+                    <span>
+                      {renderGroup
+                        ? `${result.amount} damage`
+                        : `${label}: ${result.amount}`}
+                    </span>
+                    {result.roll && <RollResult outcome={result.roll} />}
+                  </div>
+                ) : !applied && active ? (
+                  <DamageFields
+                    group={active}
+                    form={form}
+                    label={label}
+                    heading={!renderGroup}
+                    tableReason={
+                      resolution?.kind === "table" ? resolution.reason : undefined
+                    }
+                  />
+                ) : null}
+              </>
+            );
+            return (
+              <div key={group.episode_id}>
+                {renderGroup ? renderGroup(group, damage) : damage}
+              </div>
+            );
+          })}
+        </div>
+        {committed && (
+          <p className="encounter-persistent-total">
+            Total: {committed.total.toString()} damage applied
+            {committed.hardness_absorbed > 0n
+              ? ` · Hardness absorbed ${committed.hardness_absorbed}`
+              : ""}
+          </p>
+        )}
+        {applied && !committed && <p>Persistent damage applied</p>}
+        {!applied && participant.persistent_damage_groups.length > 0 && (
+          <Space wrap>
+            <Button
+              type="primary"
+              htmlType="submit"
+              disabled={
+                disabled ||
+                pending ||
+                changed ||
+                !participant.persistent_damage_groups.length
+              }
+              loading={pending}
+            >
+              Apply persistent damage
+            </Button>
+          </Space>
+        )}
       </Form>
     </>
   );

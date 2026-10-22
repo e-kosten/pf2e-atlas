@@ -7,6 +7,12 @@ export function encounterParticipant(
   overrides: Partial<EncounterParticipantView> = {},
 ): EncounterParticipantView {
   return {
+    effective_max_hp: {
+      state: overrides.max_hp === undefined ? "missing" : "value",
+      value: overrides.max_hp === undefined ? null : Number(overrides.max_hp),
+      adjustment: null,
+    },
+    knockout_options: [],
     participant_key: "actor",
     display_name: "Actor",
     participant_kind: "pc",

@@ -1,3 +1,4 @@
+import type { ResultSort } from "../../generated/atlas";
 import {
   detailFixture,
   summaryFixture,
@@ -49,6 +50,7 @@ const apiMocks = vi.hoisted(() => ({
   updateSavedListItemNote: vi.fn(),
   getSavedLists: vi.fn(),
   removeSavedListItem: vi.fn(),
+  reorderSavedListItem: vi.fn(),
   updateSavedList: vi.fn(),
 }));
 
@@ -68,6 +70,7 @@ vi.mock("../../api/atlasApi", async (original) => ({
   updateSavedListItemNote: apiMocks.updateSavedListItemNote,
   getSavedLists: apiMocks.getSavedLists,
   removeSavedListItem: apiMocks.removeSavedListItem,
+  reorderSavedListItem: apiMocks.reorderSavedListItem,
   updateSavedList: apiMocks.updateSavedList,
 }));
 
@@ -96,6 +99,10 @@ describe("list views", () => {
       Promise.resolve(valuesFixture(request.field_id)),
     );
     apiMocks.searchPage.mockResolvedValue({
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "name", direction: "asc" }],
+      } satisfies ResultSort,
       search_profile: "bge-base",
       artifact_generation: "generation-a",
       mode: { kind: "list_records" },
@@ -475,7 +482,7 @@ describe("list views", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
       "href",
-      "/records/actions:testAction1",
+      "/lists/research/records/actions:testAction1",
     );
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Saved records" })).toBeInTheDocument();
@@ -714,6 +721,94 @@ describe("list views", () => {
     },
   );
 
+  it("automatically recovers a list filter URL while retaining its query, order and selected member", async () => {
+    const query = "?filter=2.obsolete&q=Action&sort=name_asc";
+    history.replaceState(
+      null,
+      "",
+      "/lists/research/records/actions:testAction1" + query,
+    );
+    const length = history.length;
+    apiMocks.filterSavedList.mockImplementation(
+      async (request: { sort?: ResultSort }) => ({
+        ...savedListDetailFixture(),
+        sort: request.sort ?? { kind: "saved_order" },
+      }),
+    );
+    render(
+      <ListDetailView
+        route={{
+          kind: "list",
+          slug: "research",
+          selectedRecordKey: "actions:testAction1",
+          query,
+        }}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+    await screen.findByText(
+      "Filters in this link couldn’t be restored and were cleared.",
+    );
+    await screen.findByRole("heading", { name: "Test Action 1" });
+    expect(window.location.pathname).toBe(
+      "/lists/research/records/actions:testAction1",
+    );
+    expect(new URLSearchParams(window.location.search).get("q")).toBe("Action");
+    expect(new URLSearchParams(window.location.search).get("sort")).toBe("name_asc");
+    expect(new URLSearchParams(window.location.search).has("filter")).toBe(false);
+    expect(history.length).toBe(length);
+    expect(apiMocks.filterSavedList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        list_ref: "research",
+        query: "Action",
+        sort: { kind: "attributes", rules: [{ field: "name", direction: "asc" }] },
+      }),
+    );
+    expect(apiMocks.reorderSavedListItem).not.toHaveBeenCalled();
+  });
+
+  it("keeps temporary order in list URLs and native links without enabling reorder writes", async () => {
+    apiMocks.filterSavedList.mockImplementation(
+      async (request: { sort?: ResultSort }) => ({
+        ...savedListDetailFixture(),
+        sort: request.sort ?? { kind: "saved_order" },
+      }),
+    );
+    const route = {
+      kind: "list" as const,
+      slug: "research",
+      selectedRecordKey: "actions:testAction1",
+      query: "?sort=level_desc",
+    };
+    const view = render(<ListDetailView route={route} />, {
+      wrapper: queryClientWrapper(),
+    });
+    await screen.findByRole("heading", { name: "Test Action 1" });
+    fireEvent.click(await screen.findByRole("button", { name: "Add note" }));
+    const note = screen.getByRole("textbox", { name: "Note" });
+    fireEvent.change(note, { target: { value: "Keep this unsaved note" } });
+    expect(apiMocks.filterSavedList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sort: {
+          kind: "attributes",
+          rules: [{ field: "level", direction: "desc" }],
+        } satisfies ResultSort,
+      }),
+    );
+    expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
+      "href",
+      "/lists/research/records/actions:testAction1?sort=level_desc",
+    );
+    expect(screen.queryByRole("button", { name: "Reorder Test Action 1" })).toBeNull();
+    expect(apiMocks.reorderSavedListItem).not.toHaveBeenCalled();
+    view.rerender(<ListDetailView route={{ ...route, query: "?sort=saved_order" }} />);
+    await screen.findByRole("button", { name: "Reorder Test Action 1" });
+    expect(screen.getByRole("textbox", { name: "Note" })).toBe(note);
+    expect(note).toHaveValue("Keep this unsaved note");
+    expect(apiMocks.reorderSavedListItem).not.toHaveBeenCalled();
+    expect(apiMocks.updateSavedListItemNote).not.toHaveBeenCalled();
+  });
+
   it("preserves selected membership and nested reading while filters hide the selected member", async () => {
     apiMocks.filterSavedList.mockImplementation(
       async (request: { query?: string }) => ({
@@ -731,8 +826,11 @@ describe("list views", () => {
       />,
       { wrapper: queryClientWrapper() },
     );
+    const listTitle = `${savedListDetailFixture().list.name} · Atlas`;
+    await waitFor(() => expect(document.title).toBe(listTitle));
     fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
     await screen.findByRole("heading", { name: "Nested Rule" });
+    expect(document.title).toBe(listTitle);
     const input = screen.getByRole("searchbox", { name: "Search records" });
     fireEvent.change(input, { target: { value: "no matching records" } });
     fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
@@ -743,6 +841,11 @@ describe("list views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
     expect(await screen.findByRole("heading", { name: "Test Action 1" })).toBeVisible();
     expect(apiMocks.removeSavedListItem).not.toHaveBeenCalled();
+    fireEvent.change(input, { target: { value: "" } });
+    await waitFor(() =>
+      expect(apiMocks.filterSavedList.mock.lastCall?.[0].query).toBeUndefined(),
+    );
+    expect(await screen.findByRole("link", { name: /Test Action 1/ })).toBeVisible();
   });
 
   it("searches within a saved list through the filter route", async () => {
@@ -1118,6 +1221,7 @@ function savedListIndexFixture(): SavedListIndexView {
 
 function savedListDetailFixture(): SavedListDetailView {
   return {
+    sort: { kind: "saved_order" } as const,
     list: savedListIndexFixture().lists[0]!,
     items: [
       {

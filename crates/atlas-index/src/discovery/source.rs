@@ -1,7 +1,7 @@
 //! Contextual facets operate on named projections and exact counterfactual sets.
 use crate::query::{
     catalog::{Binding, descriptor, descriptors},
-    compiler::{bound_field, compile_node, compile_predicate, member_relation},
+    compiler::{CompiledPredicate, bound_field, compile_node, member_relation},
     validation::error,
 };
 use crate::{
@@ -100,23 +100,19 @@ pub fn validate_value_discovery(
     }
     Ok(())
 }
-fn key_filter(context: &QueryFacetContext, parameters: &mut Vec<Value>) -> String {
-    match &context.eligible_keys {
-        None => "1".to_owned(),
-        Some(keys) if keys.is_empty() => "0".to_owned(),
-        Some(keys) => {
-            let slots = keys
-                .iter()
-                .map(|key| {
-                    parameters.push(Value::Text(key.to_string()));
-                    format!("?{}", parameters.len())
-                })
-                .collect::<Vec<_>>()
-                .join(",");
-            format!("r.key IN ({slots})")
-        }
-    }
+fn compile_eligibility(
+    query: &ValidatedQuery,
+    context: &QueryFacetContext,
+) -> Result<CompiledPredicate, IndexError> {
+    let (eligible, parameters) =
+        crate::read_units::eligible_sql(query, context.eligible_keys.as_deref())?;
+    Ok(CompiledPredicate {
+        expression: format!("r.record_id IN ({eligible})"),
+        parameters,
+        proofs: Vec::new(),
+    })
 }
+
 fn field(id: &str) -> Result<&'static crate::query::catalog::Descriptor, IndexError> {
     descriptors()?
         .iter()
@@ -162,6 +158,7 @@ pub(crate) fn field_counts(
 ) -> Result<QueryFacetOutcome<QueryFieldCounts>, IndexError> {
     let id = &request.field;
     let d = field(id)?;
+
     let (query, member) = if let Some(clause_id) = &request.clause_id {
         let (base, _, member) = match remove_clause(&request.query, clause_id, d)? {
             QueryFacetOutcome::Available { value } => value,
@@ -175,15 +172,14 @@ pub(crate) fn field_counts(
     };
     let b = bound_field(d, d.definition.scope.as_deref());
     let (from, _) = occurrences(d)?;
-    let mut compiled = compile_predicate(&query)?;
-    let keys = key_filter(&request.context, &mut compiled.parameters);
+    let mut compiled = compile_eligibility(&query, &request.context)?;
     let member = member
         .as_ref()
         .map(|p| compile_node(p, d.definition.scope.as_deref(), &mut compiled.parameters))
         .transpose()?
         .unwrap_or_else(|| "1".to_owned());
     let sql = format!(
-        "SELECT {},COUNT(*),COUNT(DISTINCT r.record_id) FROM {from} ({}) AND ({keys}) AND ({member}) GROUP BY 1",
+        "SELECT {},COUNT(*),COUNT(DISTINCT r.record_id) FROM {from} ({}) AND ({member}) GROUP BY 1",
         b.state, compiled.expression
     );
     let mut statement = connection.prepare(&sql)?;
@@ -213,7 +209,7 @@ pub(crate) fn field_counts(
     }
     let (minimum, maximum) = if d.definition.field_type == QueryFieldType::Number {
         let sql = format!(
-            "SELECT MIN({}),MAX({}) FROM {from} ({}) AND ({keys}) AND ({member}) AND ({})='value'",
+            "SELECT MIN({}),MAX({}) FROM {from} ({}) AND ({member}) AND ({})='value'",
             b.value, b.value, compiled.expression, b.state
         );
         connection
@@ -397,6 +393,7 @@ pub fn facet_base_query(
     query: &ValidatedQuery,
 ) -> Result<QueryFacetOutcome<ValidatedQuery>, IndexError> {
     let descriptor = field(field_id)?;
+
     match clause_id {
         Some(id) => Ok(remove_clause(query, id, descriptor)?.map(|(base, _, _)| base)),
         None => Ok(QueryFacetOutcome::Available {
@@ -547,6 +544,7 @@ pub(crate) fn field_value_counts(
 ) -> Result<QueryFacetOutcome<QueryValueOptions>, IndexError> {
     validate_value_counts(&request.field, &request.values)?;
     let d = field(&request.field)?;
+
     let target = match request.clause_id.as_deref() {
         Some(id) => match remove_clause(&request.query, id, d)? {
             QueryFacetOutcome::Available {
@@ -625,20 +623,17 @@ fn count_options(
             })
         };
         let accepted = validate_query(&p)?;
-        let mut compiled = compile_predicate(&accepted)?;
-        let keys = key_filter(context, &mut compiled.parameters);
+        let (eligible, parameters) =
+            crate::read_units::eligible_sql(&accepted, context.eligible_keys.as_deref())?;
         let preference = if context.prefer_remaster {
             "WHERE NOT EXISTS(SELECT 1 FROM remaster_pairs p JOIN matches replacement ON replacement.record_id=p.remaster_record_id WHERE p.legacy_record_id=m.record_id)"
         } else {
             ""
         };
-        let sql = format!(
-            "WITH matches AS (SELECT r.record_id FROM records r WHERE ({}) AND ({keys})) SELECT COUNT(*) FROM matches m {preference}",
-            compiled.expression
-        );
-        let count = connection.query_row(&sql, params_from_iter(&compiled.parameters), |r| {
-            r.get::<_, u64>(0)
-        })?;
+        let sql =
+            format!("WITH matches AS ({eligible}) SELECT COUNT(*) FROM matches m {preference}");
+        let count =
+            connection.query_row(&sql, params_from_iter(&parameters), |r| r.get::<_, u64>(0))?;
         options.push(QueryValueOption {
             selected: selected.contains(&value),
             value,
@@ -658,6 +653,7 @@ pub(crate) fn field_values(
         request.text.as_deref(),
     )?;
     let d = field(&request.field)?;
+
     let (base, target, member) = if let Some(id) = &request.clause_id {
         let (base, target, member) = match remove_clause(&request.query, id, d)? {
             QueryFacetOutcome::Available { value } => value,
@@ -744,8 +740,7 @@ fn enumerate_values(
     context: &QueryFacetContext,
     member: Option<&QueryPredicate>,
 ) -> Result<Vec<QueryLiteral>, IndexError> {
-    let mut compiled = compile_predicate(base)?;
-    let keys = key_filter(context, &mut compiled.parameters);
+    let mut compiled = compile_eligibility(base, context)?;
     let (from, _) = occurrences(d)?;
     let b = bound_field(d, d.definition.scope.as_deref());
     let member = member
@@ -763,7 +758,7 @@ fn enumerate_values(
         format!("json_array({})", b.value)
     };
     let sql = format!(
-        "WITH known AS (SELECT {values_expr} AS values_json FROM {from} ({}) AND ({keys}) AND ({member}) AND ({})='value') SELECT DISTINCT v.value FROM known,json_each(known.values_json) v ORDER BY v.value",
+        "WITH known AS (SELECT {values_expr} AS values_json FROM {from} ({}) AND ({member}) AND ({})='value') SELECT DISTINCT v.value FROM known,json_each(known.values_json) v ORDER BY v.value",
         compiled.expression, b.state
     );
     let mut statement = connection.prepare(&sql)?;

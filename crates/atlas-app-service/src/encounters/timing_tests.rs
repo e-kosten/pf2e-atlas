@@ -837,7 +837,7 @@ fn latest_turn_replaces_old_reminders_and_retries_never_advance_twice() {
                     request_id: "old-end".into(),
                     expected_encounter_revision: before_old_action.encounter.revision,
                     participant_key: a,
-                    action: ConditionLifecycleActionView::FrightenedEndTurn { decisions: vec![] },
+                    action: ConditionLifecycleActionView::FrightenedEndTurn,
                 }
             )
             .is_err()

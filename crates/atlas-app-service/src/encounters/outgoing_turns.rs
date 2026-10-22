@@ -166,7 +166,7 @@ pub(super) fn latest_review(
             }
         })
         .collect::<Vec<_>>();
-    let groups = super::persistent_damage::group_views(&frozen);
+    let groups = super::persistent_damage::group_views(&frozen, None);
     if reminders.is_empty() && groups.is_empty() {
         return Ok(None);
     }

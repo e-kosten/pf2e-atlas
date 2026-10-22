@@ -49,6 +49,7 @@ export function ConditionValueInput({
         onBlur={onBlur}
         onKeyDown={onKeyDown}
         style={{ width: 64 }}
+        styles={{ input: { textAlign: "center" } }}
       />
       <Button
         disabled={disabled}

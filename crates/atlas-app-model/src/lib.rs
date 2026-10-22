@@ -1,48 +1,47 @@
 #![deny(unsafe_code)]
 pub use dice::{FlatCheckRollView, RollFlatCheckRequest};
 mod encounter_action;
-pub use encounter_action::{EncounterConfusionContextView, EncounterConfusionRequirementsView};
-pub use encounter_action::{
-    EncounterRetchPreviewRequest, EncounterRetchPreviewView, EncounterStrikeActionContextView,
-    EncounterTargetingRequirementsView,
-};
+pub use encounter_action::{EncounterStrikeActionContextView, EncounterTargetingRequirementsView};
 pub use encounter_action::{EncounterStrikeContextRequest, EncounterStrikeContextView};
 mod action_context;
 pub use action_context::{
     EncounterActionCheckSourceView, EncounterActionCheckView, EncounterActionFactView,
-    EncounterActionIssueKindView, EncounterActionIssueView, EncounterActionJudgmentView,
-    EncounterCastingRemindersRequest, EncounterCastingRemindersView,
+    EncounterActionIssueKindView, EncounterActionIssueView, EncounterCastingRemindersRequest,
+    EncounterCastingRemindersView,
 };
 mod persistent_damage;
 pub use persistent_damage::{
     ApplyPersistentDamageRequest, PersistentDamageGroupInput, PersistentDamageInput,
-    PersistentDamageOutcomeView, PersistentDamageResultView,
+    PersistentDamageOutcomeView, PersistentDamageProtectionView, PersistentDamageResolutionView,
+    PersistentDamageResultView,
 };
 pub use persistent_damage::{
     PersistentDamageGroupView, PersistentDamageSourceView, PersistentEpisodeReviewView,
-    PersistentRecoveryMode, PersistentRecoveryResultView, PersistentReviewView,
-    RecoverPersistentDamageRequest,
+    PersistentRecoveryMode, PersistentRecoveryResolution, PersistentRecoveryResultView,
+    PersistentReviewView, RecoverPersistentDamageRequest,
 };
 mod hp_events;
 pub use hp_events::{
     DamageLethalityView, HpEventContextView, HpLifecycleRequiredFactView,
-    HpLifecycleResolutionView, PendingHpLifecycleView, ResolveEncounterHpLifecycleRequest,
+    HpLifecycleResolutionView, KnockoutOptionView, PendingHpLifecycleView,
+    ResolveEncounterHpLifecycleRequest,
 };
 mod condition_recovery;
 pub use condition_recovery::{
     ApplyConditionLifecycleRequest, CheckDegreeView, ConditionLifecycleActionView,
     ConditionLifecycleActionsView, ConditionLifecycleOptionView, ConditionLifecycleResultView,
-    ConditionRecoveryOfferView, FrightenedRecoveryView, FrightenedSourceDecisionView,
-    LifecycleCheckFactsView, LifecycleCheckInputView, LifecycleCheckResultView,
-    PendingConditionRecoveryView, WakeCauseView,
+    ConditionRecoveryOfferView, FrightenedRecoveryView, LifecycleCheckFactsView,
+    LifecycleCheckInputView, LifecycleCheckResultView, PendingConditionRecoveryView,
 };
 mod condition_events;
 pub use condition_events::{
     ConditionApplicationDecisionsView, ConditionEditorKindView, ConditionEventConsequenceView,
-    ConditionEventIntentView, ConditionEventPreviewView, ConditionOriginView,
-    ConditionParametersInputView, ConditionParametersView, ConditionRemovalIntentView,
-    ConditionSubjectView, DamageMultiplierView, EncounterDamageTypeView, LevelOverrideInputView,
-    MortalityStateView, PendingConditionConsequenceView, PersistentRecoveryView,
+    ConditionEventIntentView, ConditionEventPreviewView, ConditionHpChangeView,
+    ConditionOriginView, ConditionParametersInputView, ConditionParametersView,
+    ConditionRemovalIntentView, ConditionSubjectView, DamageMultiplierView,
+    EncounterDamageTypeView, LevelOverrideInputView, MortalityStateView,
+    PendingConditionConsequenceView, PersistentDamagePrecedenceEntryView,
+    PersistentDamagePrecedenceView, PersistentDamageSourceRefView, PersistentRecoveryView,
     RemoveEncounterParticipantConditionRequest, ResolveDrainedConsequenceRequest,
     SetEncounterLifeSettingsRequest, WakingRuleView,
 };
@@ -162,9 +161,10 @@ pub use record::{
     RecordResolutionAmbiguousView, RecordResolutionCandidateView, RecordSummaryView,
 };
 pub use search::{
-    RetrievalModeView, SearchCoverageView, SearchCriteria, SearchLaneView, SearchModeSummary,
-    SearchPageRequest, SearchPageView, SearchResultRow, SearchResultsPage, SearchResultsRequest,
-    SearchWitnessView,
+    RelationshipClausePresentationView, RelationshipClauseSummaryView, RelationshipEvidenceView,
+    RelationshipOccurrencesPage, RelationshipOccurrencesRequest, RetrievalModeView,
+    SearchCoverageView, SearchCriteria, SearchLaneView, SearchModeSummary, SearchPageRequest,
+    SearchPageView, SearchResultRow, SearchResultsPage, SearchResultsRequest, SearchWitnessView,
 };
 
 #[cfg(test)]
@@ -211,8 +211,6 @@ mod tests {
         FlatCheckRollView::export_all_to(path).expect("flat check result");
         RollFlatCheckRequest::export_all_to(path).expect("flat check request");
         EncounterStrikeContextView::export_all_to(path).expect("strike attempt preview");
-        EncounterRetchPreviewView::export_all_to(path).expect("retch decisions");
-        EncounterRetchPreviewRequest::export_all_to(path).expect("action request bindings");
         EncounterStrikeActionContextView::export_all_to(path).expect("action preview bindings");
         ConditionRecoveryOfferView::export_all_to(path).expect("recovery offer bindings");
         ConditionLifecycleActionsView::export_all_to(path).expect("lifecycle actions bindings");
@@ -353,6 +351,9 @@ mod tests {
             .expect("RecordResolutionAmbiguousView bindings should export");
         RecordSummaryView::export_all_to(path).expect("RecordSummaryView bindings should export");
         SearchResultsPage::export_all_to(path).expect("SearchResultsPage bindings should export");
+        RelationshipOccurrencesRequest::export_all_to(path)
+            .expect("relationship request should export");
+        RelationshipOccurrencesPage::export_all_to(path).expect("relationship page should export");
 
         AddSavedListItemRequest::export_all_to(path)
             .expect("AddSavedListItemRequest bindings should export");

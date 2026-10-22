@@ -3,7 +3,7 @@ import type { RecordNavigationView } from "../generated/atlas";
 
 export type AtlasRoute =
   | { kind: "invalid"; message: string }
-  | { kind: "trait"; traitKey: string }
+  | { kind: "trait"; traitKey: string; query?: string }
   | {
       kind: "search";
       selectedRecordKey: string | null;
@@ -18,6 +18,7 @@ export type AtlasRoute =
   | {
       kind: "list";
       slug: string;
+      query?: string;
       selectedRecordKey: string | null;
       landing?: RecordNavigationView;
     }
@@ -52,7 +53,12 @@ export function parseAtlasRoute(pathname: string, search = ""): AtlasRoute {
 
 function parseRoute(pathname: string, search = ""): AtlasRoute {
   const trait = pathname.match(/^\/traits\/(.+)$/);
-  if (trait) return { kind: "trait", traitKey: decodeURIComponent(trait[1]) };
+  if (trait)
+    return {
+      kind: "trait",
+      traitKey: decodeURIComponent(trait[1]),
+      ...(search ? { query: search } : {}),
+    };
 
   const searchRecord = pathname.match(/^\/search\/records\/(.+)$/);
   if (searchRecord) {
@@ -109,6 +115,7 @@ function parseRoute(pathname: string, search = ""): AtlasRoute {
       kind: "list",
       slug: decodeURIComponent(listRecord[1]),
       selectedRecordKey: decodeURIComponent(listRecord[2]),
+      ...listQuery(search),
       landing: selectedNavigation(search, "landing"),
     };
   }
@@ -119,6 +126,7 @@ function parseRoute(pathname: string, search = ""): AtlasRoute {
       kind: "list",
       slug: decodeURIComponent(list[1]),
       selectedRecordKey: null,
+      ...listQuery(search),
     };
   }
 
@@ -145,7 +153,7 @@ export function currentAtlasRoute(): AtlasRoute {
 export function atlasRoutePath(route: AtlasRoute): string {
   switch (route.kind) {
     case "trait":
-      return `/traits/${recordKeyPathSegment(route.traitKey)}`;
+      return `/traits/${recordKeyPathSegment(route.traitKey)}` + (route.query ?? "");
     case "invalid":
       return "/search";
     case "search":
@@ -165,7 +173,10 @@ export function atlasRoutePath(route: AtlasRoute): string {
     case "lists":
       return listsPath();
     case "list":
-      return withLanding(listPath(route.slug, route.selectedRecordKey), route.landing);
+      return withLanding(
+        listPath(route.slug, route.selectedRecordKey) + (route.query ?? ""),
+        route.landing,
+      );
     case "listEdit":
       return listEditPath(route.slug);
     case "record":
@@ -187,6 +198,11 @@ export function atlasRoutePath(route: AtlasRoute): string {
       return path + (params.size ? "?" + params.toString() : "");
     }
   }
+}
+function listQuery(search: string): { query?: string } {
+  const params = new URLSearchParams(search);
+  params.delete("landing");
+  return params.size ? { query: "?" + params.toString() } : {};
 }
 function withSelection(path: string, selection?: RecordNavigationView) {
   if (!selection) return path;

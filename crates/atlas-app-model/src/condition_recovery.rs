@@ -23,65 +23,20 @@ pub enum ConditionLifecycleActionView {
         check: LifecycleCheckInputView,
     },
     Retch {
-        #[serde(default)]
-        confusion: Option<crate::EncounterConfusionContextView>,
-        #[serde(default)]
-        judgments: Vec<crate::EncounterActionJudgmentView>,
         condition_id: i64,
-        dc: Option<i64>,
-        fortitude_modifier: Option<i64>,
-        actions_spent: bool,
         check: LifecycleCheckInputView,
     },
-    FrightenedEndTurn {
-        decisions: Vec<FrightenedSourceDecisionView>,
-    },
-    TreatWounds {
-        healing_received: i64,
-    },
-    FullHpRest {
-        minutes: u32,
-    },
-    OvernightRest,
+    FrightenedEndTurn,
     StunnedActionsLost {
         condition_id: i64,
         actions_lost: i64,
     },
-    StableRecovery {
-        minutes: u32,
-    },
-    Wake {
-        cause: WakeCauseView,
-    },
-    WakeFromNoise {
-        dc: i64,
-        perception_modifier: Option<i64>,
-        check: LifecycleCheckInputView,
-    },
     ConfusedDamageRecovery {
         consequence_key: String,
-        condition_ids: Vec<i64>,
-        qualifying_damage: bool,
         check: Option<LifecycleCheckInputView>,
     },
-    ResolveBroken {
-        consequence_key: String,
-        threshold: i64,
-    },
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct FrightenedSourceDecisionView {
-    pub condition_id: i64,
-    pub reduce: bool,
-    pub minimum: Option<i64>,
-}
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum WakeCauseView {
-    Interact,
-    RestInterrupted,
-    RestCompleted,
-}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ApplyConditionLifecycleRequest {
     pub boundary_key: Option<String>,
@@ -113,10 +68,6 @@ pub enum PendingConditionRecoveryView {
         condition_ids: Vec<i64>,
         qualifying_damage: Option<bool>,
     },
-    BrokenThreshold {
-        consequence_key: String,
-        participant_key: String,
-    },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -142,20 +93,14 @@ pub enum ConditionRecoveryOfferView {
         check: LifecycleCheckFactsView,
         issues: Vec<crate::EncounterActionIssueView>,
     },
-    FrightenedEndTurn {
-        decision_source_ids: Vec<i64>,
+    FrightenedEndTurn,
+    Reminder {
+        condition_id: i64,
+        text: String,
     },
-    TreatWounds,
-    FullHpRest,
-    OvernightRest,
     StunnedActionsLost {
         condition_id: i64,
         actions_lost: Option<i64>,
-    },
-    StableRecovery,
-    Wake,
-    WakeFromNoise {
-        check: LifecycleCheckFactsView,
     },
     ConfusedDamageRecovery {
         consequence_key: String,
@@ -163,14 +108,13 @@ pub enum ConditionRecoveryOfferView {
         qualifying_damage: Option<bool>,
         check: LifecycleCheckFactsView,
     },
-    ResolveBroken {
-        consequence_key: String,
-    },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ConditionLifecycleOptionView {
     #[serde(flatten)]
     pub action: ConditionRecoveryOfferView,
+    /// Saved sources whose row can expose this recovery action.
+    pub condition_ids: Vec<i64>,
     pub label: String,
     pub available: bool,
     pub unavailable_reason: Option<String>,

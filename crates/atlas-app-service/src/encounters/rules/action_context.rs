@@ -1,4 +1,4 @@
-//! Pure action restrictions and flat-check obligations. Unknown facts stay questions.
+//! Pure action restrictions and flat-check obligations. Unknown facts stay contextual hints.
 use super::super::conditions::ConditionRule;
 use super::causes::condition_causes;
 use atlas_local_state::EncounterParticipant;
@@ -38,7 +38,6 @@ pub(in crate::encounters) struct ActionContext<'a> {
     pub kind: ActionKind,
     pub reaction: Option<bool>,
     pub other_participant: Option<&'a str>,
-    pub confusion: Option<&'a ConfusionChoice>,
     pub facts: &'a [ActionJudgment],
 }
 
@@ -226,52 +225,9 @@ pub(in crate::encounters) fn evaluate_action(
                 if context.reaction == Some(true) {
                     result.prohibit(id, rule);
                 } else if context.reaction == Some(false) {
-                    let requirements = confusion_requirements(
-                        participant,
-                        context.confusion,
-                        context.kind,
-                        context.fact(id, ActionFact::Attack) == Some(true),
-                    );
-                    if requirements
-                        .as_ref()
-                        .is_some_and(|requirements| !requirements.required_facts.is_empty())
-                    {
-                        result
-                            .issues
-                            .push(ActionIssue::NeedsConfusion { source_id: id });
-                    }
-                    match context.confusion {
-                        None => {}
-                        Some(ConfusionChoice::UnableToAttack) => result.prohibit(id, rule),
-                        Some(ConfusionChoice::Facilitate { .. })
-                            if context.kind == ActionKind::Strike
-                                || context.fact(id, ActionFact::Attack) == Some(true) =>
-                        {
-                            result.prohibit(id, rule);
-                        }
-                        Some(ConfusionChoice::Facilitate { .. }) => {}
-                        Some(
-                            choice @ (ConfusionChoice::Offensive { .. }
-                            | ConfusionChoice::NoViableTargets),
-                        ) => {
-                            match context.kind {
-                                ActionKind::Strike => {}
-                                ActionKind::Cast => {
-                                    result.requires(context, id, rule, ActionFact::Cantrip, true)
-                                }
-                                _ => result.prohibit(id, rule),
-                            }
-                            if let ConfusionChoice::Offensive {
-                                offensive: Some(false),
-                                ..
-                            } = choice
-                                && context.kind != ActionKind::Strike
-                                && context.fact(id, ActionFact::Attack) != Some(true)
-                            {
-                                result.prohibit(id, rule);
-                            }
-                        }
-                    }
+                    result
+                        .issues
+                        .push(ActionIssue::NeedsConfusion { source_id: id });
                 }
             }
             ConditionRule::Controlled => {
@@ -303,48 +259,10 @@ pub(in crate::encounters) fn evaluate_action(
     result
 }
 
-#[derive(Debug, Clone)]
-pub(in crate::encounters) struct ConfusionRequirements {
-    pub source_ids: Vec<i64>,
-    pub required_facts: Vec<String>,
-    pub selected_target_key: Option<String>,
-    pub automatic_self_hit: bool,
-    pub wastes_action: bool,
-}
-pub(in crate::encounters) fn confusion_requirements(
-    participant: &EncounterParticipant,
-    choice: Option<&ConfusionChoice>,
-    kind: ActionKind,
-    source_attack: bool,
-) -> Option<ConfusionRequirements> {
-    let source_ids = super::causes::condition_causes(participant, None)
-        .into_iter()
-        .filter(|cause| cause.rule == ConditionRule::Confused)
-        .map(|cause| cause.source.condition_id)
-        .collect::<Vec<_>>();
-    if source_ids.is_empty() {
-        return None;
-    }
-    let mut result = ConfusionRequirements {
-        source_ids,
-        required_facts: vec![],
-        selected_target_key: None,
-        automatic_self_hit: false,
-        wastes_action: false,
-    };
-    match choice {
-        None=>result.required_facts.push("Choose an offensive action, an action the GM permits to facilitate an attack, or the no-target procedure.".into()),
-        Some(ConfusionChoice::Offensive {viable_target_keys,random_target_key,offensive})=>{
-            if viable_target_keys.is_empty(){result.required_facts.push("Confirm viable targets, or choose no viable targets.".into());}
-            if let Some(target)=random_target_key {if viable_target_keys.contains(target) {result.selected_target_key=Some(target.clone());}else{result.required_facts.push("Choose the GM’s random target from the confirmed viable targets.".into());}}
-            else{result.required_facts.push("Record the GM’s random target from the confirmed viable targets.".into());}
-            if kind!=ActionKind::Strike&&!source_attack&&offensive.is_none(){result.required_facts.push("Confirm this cantrip is offensive.".into());}
-        }
-        Some(ConfusionChoice::Facilitate {..})=>{},
-        Some(ConfusionChoice::NoViableTargets)=>{result.selected_target_key=Some(participant.participant_key.clone());result.automatic_self_hit=true;},
-        Some(ConfusionChoice::UnableToAttack)=>result.wastes_action=true,
-    }
-    Some(result)
+pub(in crate::encounters) fn is_confused(participant: &EncounterParticipant) -> bool {
+    condition_causes(participant, None)
+        .iter()
+        .any(|cause| cause.rule == ConditionRule::Confused)
 }
 
 /// Resolve a source's current authority without reviving a stale adjudication.
@@ -387,18 +305,4 @@ pub(in crate::encounters) fn stupefied_casting_hint(
         }
     }
     result.disruption.map(|check| Ok(check.dc))
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::encounters) enum ConfusionChoice {
-    Offensive {
-        viable_target_keys: Vec<String>,
-        random_target_key: Option<String>,
-        offensive: Option<bool>,
-    },
-    Facilitate {
-        note: Option<String>,
-    },
-    NoViableTargets,
-    UnableToAttack,
 }

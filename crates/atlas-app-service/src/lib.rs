@@ -22,6 +22,7 @@ mod projection;
 mod read_execution;
 mod records;
 mod related;
+mod relationship_search;
 mod retrieval;
 mod search_pages;
 mod service;
@@ -43,3 +44,11 @@ pub use filters::{RawFilterCountsRequest, RawFilterValuesRequest};
 pub use projection::record_summary_view;
 pub use read_execution::ReadExecutionContext;
 pub use service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
+
+#[cfg(test)]
+mod relationship_discovery_tests;
+
+mod result_order;
+
+#[cfg(test)]
+mod result_order_tests;

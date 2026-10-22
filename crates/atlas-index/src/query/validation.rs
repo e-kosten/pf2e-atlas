@@ -104,6 +104,9 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
                 field.len() + values.iter().map(String::len).sum::<usize>()
             }
             QueryExpression::StateMatch { field, .. } => field.len(),
+            QueryExpression::Relationship { relationship } => serde_json::to_string(relationship)
+                .map_err(|_| error("relationship", "Invalid link selection", None))?
+                .len(),
             QueryExpression::Exists {
                 collection,
                 scope_id,
@@ -142,6 +145,25 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
             }
         };
         let result = (|| match &p.expression {
+            QueryExpression::Relationship { relationship } => {
+                if scope.is_some() {
+                    return Err(error(
+                        "mixed_scope",
+                        "Link conditions apply to records, not collection members",
+                        None,
+                    ));
+                }
+                if p.clause_id.is_none() {
+                    return Err(error(
+                        "clause_id",
+                        "Link conditions require a clause ID",
+                        None,
+                    ));
+                }
+                let s = &relationship.selection;
+                if s.owners.len()>32 || s.field.as_ref().is_some_and(|f|f.len()>512) || s.owners.iter().any(|o|o.collection.len()>512 || matches!(&o.identity,atlas_domain::OwnedContentIdentity::Stable(id) if id.len()>512)) { return Err(error("relationship_selection","Link selection exceeds its address bounds",None)); }
+                Ok(())
+            }
             QueryExpression::BooleanConstant { .. } => Ok(()),
             QueryExpression::Compare { field, op, value } => {
                 let d = resolve(field)?;
@@ -267,6 +289,21 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
         &mut scopes,
         &mut bytes,
     )?;
+    fn count_links(p: &QueryPredicate) -> usize {
+        match &p.expression {
+            QueryExpression::Relationship { .. } => 1,
+            QueryExpression::AllOf { children } | QueryExpression::AnyOf { children } => {
+                children.iter().map(count_links).sum()
+            }
+            QueryExpression::Not { predicate } | QueryExpression::Exists { predicate, .. } => {
+                count_links(predicate)
+            }
+            _ => 0,
+        }
+    }
+    if count_links(predicate) > QueryLimits::default().relationship_leaves {
+        return Err(error("query_limit", "Use at most 16 link conditions", None));
+    }
     Ok(ValidatedQuery {
         predicate: predicate.clone(),
     })

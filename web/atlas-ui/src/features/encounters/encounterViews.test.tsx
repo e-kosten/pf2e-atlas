@@ -31,6 +31,7 @@ import type {
   RecordPresentationView,
   RecordSummaryView,
   SearchResultsPage,
+  SearchResultsRequest,
 } from "../../generated/atlas";
 import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
@@ -193,6 +194,10 @@ function setupPersistentReview(damageApplied = false) {
     next_turn_unavailable_reason: null,
   }));
   apiMocks.getEncounterPersistentReview.mockImplementation(async () => ({
+    encounter_revision: serverEncounter.revision,
+    damage_groups: state.recoveryResults.some((result) => result.success)
+      ? []
+      : participant.persistent_damage_groups,
     round_number: 1n,
     damage_applied: state.damageApplied,
     episodes: state.recoveryResults.length
@@ -250,7 +255,7 @@ async function submitPersistentDamage(review: HTMLElement, amount: string) {
   fireEvent.click(
     within(review).getByRole("button", { name: "Apply persistent damage" }),
   );
-  await within(review).findByText("Persistent damage saved.");
+  await within(review).findByText(/Total: .* damage applied/);
 }
 async function submitPersistentRecovery(review: HTMLElement) {
   const recover = await within(review).findByRole("button", {
@@ -278,6 +283,8 @@ describe("encounter views", () => {
     apiMocks.getEncounterHpLifecycle.mockResolvedValue([]);
     apiMocks.getEncounterConditionLifecycleActions.mockResolvedValue({ actions: [] });
     apiMocks.getEncounterPersistentReview.mockResolvedValue({
+      encounter_revision: serverEncounter.revision,
+      damage_groups: [],
       round_number: 1n,
       damage_applied: false,
       episodes: [],
@@ -291,7 +298,14 @@ describe("encounter views", () => {
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
-    apiMocks.searchPage.mockResolvedValue(searchResultsFixture());
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
+      ...searchResultsFixture(),
+      sort:
+        request.sort ??
+        (request.criteria.kind === "list_records"
+          ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+          : { kind: "relevance" }),
+    }));
     apiMocks.getEncounterTurnReview.mockImplementation(() =>
       Promise.resolve({
         encounter_key: "encounter_ambush",
@@ -2172,7 +2186,9 @@ describe("encounter views", () => {
       ),
     ).toBeInTheDocument();
     expect(hp).toHaveValue("3");
-    expect(screen.getByText("9/12 +5")).toBeInTheDocument();
+    expect(screen.getByLabelText("HP summary")).toHaveTextContent(
+      /9\s*\/\s*12\s*\+\s*5\s*temp/,
+    );
     expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledOnce();
     expect(apiMocks.getEncounter).toHaveBeenCalledTimes(2);
   });
@@ -2498,7 +2514,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledTimes(3),
     );
-    expect(apiMocks.previewEncounterCondition).toHaveBeenCalledTimes(previewCalls + 1);
+    expect(apiMocks.previewEncounterCondition).toHaveBeenCalledTimes(previewCalls);
     expect(
       apiMocks.updateEncounterParticipantCondition.mock.calls[2][2].request_id,
     ).not.toBe(firstRequest.request_id);
@@ -2824,6 +2840,12 @@ function participantFixture(
   overrides: Partial<EncounterParticipantView>,
 ): EncounterParticipantView {
   return {
+    knockout_options: [],
+    effective_max_hp: {
+      state: overrides.max_hp === undefined ? "missing" : "value",
+      value: overrides.max_hp === undefined ? null : Number(overrides.max_hp),
+      adjustment: null,
+    },
     revision: 0n,
     persistent_damage_groups: [],
     track_dying: false,
@@ -2852,6 +2874,8 @@ function participantFixture(
 
 function searchResultsFixture(): SearchResultsPage {
   return {
+    relationship_clauses: [],
+    sort: { kind: "relevance" } as const,
     ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",
@@ -2868,6 +2892,7 @@ function searchResultsFixture(): SearchResultsPage {
     rows: [
       {
         record: recordSummaryFixture("actors:goblin", "Goblin Warrior"),
+        relationship_evidence: [],
         matches: [],
       },
     ],

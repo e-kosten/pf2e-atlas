@@ -1,3 +1,6 @@
+import type { ResultSort } from "../../generated/atlas";
+import { linkLeaf } from "../filters/linkPredicates";
+import { decodeFilterUrl, encodeFilterUrl } from "../filters/filterUrl";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
   act,
@@ -19,6 +22,11 @@ import { detailFixture, summaryFixture } from "../../test/fixtures";
 import { AtlasApiError } from "../../api/atlasApi";
 import { useRecordDetail } from "./useRecordDetail";
 import { RelatedRecords } from "./RelatedRecords";
+import {
+  DEFAULT_SEARCH_STATE,
+  decodeSearchStateFromParams,
+  searchStateQueryString,
+} from "../filters/searchState";
 
 const api = vi.hoisted(() => ({
   getRelatedRecords: vi.fn(),
@@ -123,6 +131,7 @@ describe("shared related disclosure", () => {
     vi.clearAllMocks();
     api.getRelatedRecords.mockResolvedValue(relatedFixture());
     api.searchPage.mockResolvedValue({
+      sort: { kind: "relevance" } as const,
       ranking: "score" as const,
       search_profile: "bge-base",
       artifact_generation: "test-generation",
@@ -147,7 +156,13 @@ describe("shared related disclosure", () => {
   it("requests one bounded availability operation on opening and hides empty category controls", async () => {
     renderRelated();
     expect(api.getRelatedRecords).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("link", { name: "Find records linking here" }),
+    ).toBeNull();
     openRelated();
+    expect(
+      screen.getByRole("link", { name: "Find records linking here" }),
+    ).toBeVisible();
     expect(await screen.findByRole("link", { name: "Referenced spell" })).toBeVisible();
     expect(api.getRelatedRecords).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("tab", { name: "Remaster" })).toBeNull();
@@ -282,6 +297,59 @@ describe("shared related disclosure", () => {
     expect(screen.queryByText("About these suggestions")).toBeNull();
     expect(screen.queryByText(/internal-count-basis/)).toBeNull();
   });
+  it("retains active search constraints and explicit order in the Similar escape link", async () => {
+    const state = {
+      ...DEFAULT_SEARCH_STATE,
+      query: "fire",
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "unit_price", direction: "desc" }],
+      } satisfies ResultSort,
+      filter: {
+        kind: "all_of" as const,
+        children: [
+          { kind: "in" as const, field: "kind", values: ["creature"] },
+          {
+            kind: "relationship" as const,
+            clause_id: "link-0",
+            relationship: {
+              direction: "incoming" as const,
+              include_contents: false,
+              selection: {
+                record_key: "items:armor",
+                embedded_path: [],
+                field: null,
+                passage: null,
+                source_fingerprint: "source",
+              },
+            },
+          },
+        ],
+      },
+    };
+    history.replaceState(null, "", "/search" + searchStateQueryString(state));
+    renderRelated();
+    openRelated();
+    fireEvent.click(await screen.findByRole("button", { name: "Similar records" }));
+    const link = await screen.findByRole("link", { name: "See more similar records" });
+    const restored = decodeSearchStateFromParams(
+      new URL(link.getAttribute("href")!, window.location.origin).searchParams,
+    );
+    expect(restored).toMatchObject({
+      query: "",
+      similarSeed: "actors:seed",
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "unit_price", direction: "desc" }],
+      } satisfies ResultSort,
+      filter: decodeFilterUrl(encodeFilterUrl(state.filter)),
+    });
+    expect(api.searchPage).toHaveBeenCalledWith(
+      expect.not.objectContaining({ sort: expect.anything() }),
+      expect.any(AbortSignal),
+    );
+  });
+
   it("switches only Similar evidence and deep links, retaining graph discovery and native navigation", async () => {
     const detail = detailFixture("actors:seed", "Viewed creature");
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -318,6 +386,8 @@ describe("shared related disclosure", () => {
       expected_artifact_generation: detail.artifact_generation,
     });
     const page = (profile: string, title: string): SearchResultsPage => ({
+      relationship_clauses: [],
+      sort: { kind: "relevance" } as const,
       ranking: "score" as const,
       search_profile: profile,
       artifact_generation: detail.artifact_generation,
@@ -331,7 +401,13 @@ describe("shared related disclosure", () => {
         next_page: null,
         has_more: false,
       },
-      rows: [{ record: summaryFixture("actors:" + profile, title), matches: [] }],
+      rows: [
+        {
+          record: summaryFixture("actors:" + profile, title),
+          relationship_evidence: [],
+          matches: [],
+        },
+      ],
     });
     await act(async () => finishNew(page("embeddinggemma", "Current suggestion")));
     await act(async () => finishOld(page("bge-base", "Old suggestion")));
@@ -393,4 +469,80 @@ describe("shared related disclosure", () => {
     ).toBeNull();
     expect(api.getRelatedRecords).toHaveBeenCalledTimes(1);
   });
+});
+
+it("opens each Related direction with its checked selection and effective contents scope", async () => {
+  history.replaceState(null, "", "/");
+  const detail = detailFixture("actors:seed", "Viewed creature");
+  detail.selected = {
+    ...detail.selected,
+    embedded_path: [{ collection: "items", identity: { Stable: "checked-ability" } }],
+    source_fingerprint: "exact-snapshot",
+  };
+  const response = relatedFixture();
+  const graph = response.references.content;
+  graph.outgoing.filter = linkLeaf(
+    {
+      direction: "outgoing",
+      selection: detail.selected,
+      include_contents: false,
+    },
+    "outgoing",
+  );
+  graph.backlinks.filter = linkLeaf(
+    {
+      direction: "incoming",
+      selection: detail.selected,
+      include_contents: true,
+    },
+    "incoming",
+  );
+  api.getRelatedRecords.mockResolvedValue(response);
+  renderRelated(detail);
+  openRelated();
+  const links = await screen.findAllByRole("link", { name: "View all" });
+  expect(links).toHaveLength(2);
+  for (const [index, link] of links.entries()) {
+    const url = new URL(link.getAttribute("href")!, "http://atlas.local");
+    const criteria = decodeFilterUrl(url.searchParams.get("filter")!);
+    expect(criteria).toEqual(
+      decodeFilterUrl(
+        encodeFilterUrl(index === 0 ? graph.outgoing.filter! : graph.backlinks.filter!),
+      ),
+    );
+  }
+});
+
+it("keeps discovery actions inside Related and exact View all links available for empty directions", async () => {
+  const response = relatedFixture();
+  const graph = response.references.content;
+  const selected = detailFixture("actors:seed", "Viewed creature").selected;
+  graph.outgoing = {
+    records: [],
+    occurrences: [],
+    truncated: false,
+    filter: linkLeaf({
+      direction: "outgoing",
+      selection: selected,
+      include_contents: false,
+    }),
+  };
+  graph.backlinks = {
+    records: [],
+    occurrences: [],
+    truncated: false,
+    filter: linkLeaf({
+      direction: "incoming",
+      selection: selected,
+      include_contents: true,
+    }),
+  };
+  api.getRelatedRecords.mockResolvedValue(response);
+  renderRelated();
+  expect(screen.queryByRole("link", { name: "Browse links from here" })).toBeNull();
+  openRelated();
+  expect(
+    await screen.findByRole("link", { name: "Browse links from here" }),
+  ).toBeVisible();
+  expect(await screen.findAllByRole("link", { name: "View all" })).toHaveLength(2);
 });

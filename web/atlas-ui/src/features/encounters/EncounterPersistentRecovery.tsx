@@ -1,4 +1,5 @@
-import { Alert, Button, Form, InputNumber, Popover, Select } from "antd";
+import { Dice5 } from "lucide-react";
+import { Alert, Button, Form, InputNumber, Popover, Select, Tooltip } from "antd";
 import { useState } from "react";
 import type {
   PersistentDamageGroupView,
@@ -22,6 +23,7 @@ export function EncounterPersistentRecovery({
   available,
   unavailableReason,
   size = "small",
+  appearance = "button",
   rollAvailable = available,
   rollUnavailableReason,
   onRecover,
@@ -33,6 +35,7 @@ export function EncounterPersistentRecovery({
   mode: "end_turn" | "explicit";
   available: boolean;
   size?: "small" | "middle";
+  appearance?: "button" | "icon";
   unavailableReason?: string | null;
   rollAvailable?: boolean;
   rollUnavailableReason?: string | null;
@@ -69,7 +72,14 @@ export function EncounterPersistentRecovery({
     form.setFieldsValue({ dc: dc == null ? null : Number(dc) });
   };
   const run = async () => {
-    if (disabled || pending || (changed && !result) || !available || !rollAvailable)
+    if (
+      disabled ||
+      pending ||
+      result?.success ||
+      (changed && !result) ||
+      !available ||
+      !rollAvailable
+    )
       return;
     try {
       const values = await form.validateFields(["source", "dc"]);
@@ -86,6 +96,7 @@ export function EncounterPersistentRecovery({
       setError(undefined);
       await dice.run(async () => {
         const completed = await onRecover({
+          resolution: "roll",
           mode,
           boundary_key: boundaryKey,
           expected_encounter_revision: result ? encounterRevision : revision,
@@ -110,6 +121,7 @@ export function EncounterPersistentRecovery({
     <>
       <Popover
         title={`${damageType} recovery`}
+        placement="bottomRight"
         open={open}
         trigger="click"
         onOpenChange={(next) => {
@@ -147,9 +159,9 @@ export function EncounterPersistentRecovery({
             <Form
               form={form}
               layout="inline"
-              disabled={disabled || pending || (changed && !result)}
+              disabled={disabled || pending || result?.success || (changed && !result)}
             >
-              {!result?.success && group.selected_source_id === null && (
+              {group.selected_source_id === null && (
                 <Form.Item
                   name="source"
                   label="Damage source"
@@ -177,38 +189,38 @@ export function EncounterPersistentRecovery({
                   />
                 </Form.Item>
               )}
-              {(!result || !result.success) && (
-                <div className="encounter-recovery-roll">
-                  <Form.Item
-                    name="dc"
-                    label="Flat check DC"
-                    style={{ marginBottom: 0, marginInlineEnd: 0 }}
-                    rules={[integerRule(true)]}
-                  >
-                    <InputNumber
-                      aria-label="Recovery DC"
-                      min={0}
-                      max={100}
-                      precision={0}
-                      style={{ width: 72 }}
-                    />
-                  </Form.Item>
-                  <Button
-                    type="primary"
-                    disabled={
-                      disabled ||
-                      pending ||
-                      (changed && !result) ||
-                      !rollAvailable ||
-                      dice.busy
-                    }
-                    loading={pending || dice.busy}
-                    onClick={() => void run()}
-                  >
-                    {result ? "Reroll" : "Roll"}
-                  </Button>
-                </div>
-              )}
+              <div className="encounter-recovery-roll">
+                <Form.Item
+                  name="dc"
+                  label="Flat check DC"
+                  style={{ marginBottom: 0, marginInlineEnd: 0 }}
+                  rules={[integerRule(true)]}
+                >
+                  <InputNumber
+                    aria-label="Recovery DC"
+                    min={0}
+                    max={100}
+                    precision={0}
+                    style={{ width: 72 }}
+                  />
+                </Form.Item>
+                <Button
+                  type="primary"
+                  className="encounter-recovery-roll__submit"
+                  disabled={
+                    disabled ||
+                    pending ||
+                    result?.success ||
+                    (changed && !result) ||
+                    !rollAvailable ||
+                    dice.busy
+                  }
+                  loading={pending || dice.busy}
+                  onClick={() => void run()}
+                >
+                  {result && !result.success ? "Reroll" : "Roll"}
+                </Button>
+              </div>
               {!rollAvailable && rollUnavailableReason && (
                 <p>{rollUnavailableReason}</p>
               )}
@@ -229,14 +241,25 @@ export function EncounterPersistentRecovery({
           </div>
         }
       >
-        <Button
-          size={size}
-          aria-label={`Roll ${damageType} recovery`}
-          disabled={disabled || (!available && !result)}
-          onClick={(event) => event.stopPropagation()}
+        <Tooltip
+          title={
+            appearance === "icon" && !open ? `Roll ${damageType} recovery` : undefined
+          }
+          trigger={["hover", "focus"]}
         >
-          Roll recovery
-        </Button>
+          <Button
+            type={appearance === "icon" ? "text" : "default"}
+            icon={
+              appearance === "icon" ? <Dice5 size={14} aria-hidden="true" /> : undefined
+            }
+            size={size}
+            aria-label={`Roll ${damageType} recovery`}
+            disabled={disabled || (!available && !result)}
+            onClick={(event) => event.stopPropagation()}
+          >
+            {appearance === "icon" ? null : "Roll recovery"}
+          </Button>
+        </Tooltip>
       </Popover>
       {!available && unavailableReason && (
         <span className="muted">{unavailableReason}</span>

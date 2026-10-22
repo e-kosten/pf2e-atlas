@@ -564,7 +564,15 @@ pub(crate) fn compose_participant(
                     notes: vec![RuntimeEffectNoteView {
                         source: format!("condition:{}", replacement.condition_id),
                         label: replacement.condition_name.clone(),
-                        reason: format!("Sets {} to {}.", target, replacement.value),
+                        reason: format!(
+                            "Sets {} to {}.",
+                            match target {
+                                "ac" => "AC",
+                                "hazard.hardness" => "hardness",
+                                _ => target,
+                            },
+                            replacement.value
+                        ),
                     }],
                 });
             }
@@ -573,15 +581,7 @@ pub(crate) fn compose_participant(
             return;
         }
         if let Some(v) = block.values.iter().find(|v| v.target.key() == target) {
-            fact.value = Some(v.adjusted_value.clone());
-            if !v.modifiers.is_empty() || !v.suppressed_modifiers.is_empty() {
-                fact.adjustment = Some(NumberAdjustmentView {
-                    authored: v.base_value.clone(),
-                    applied: modifier_views(&v.modifiers),
-                    suppressed: modifier_views(&v.suppressed_modifiers),
-                    notes: vec![],
-                });
-            }
+            *fact = number_with_modifiers(v);
         }
     };
     overlay(&mut a.armor_class, "ac");
@@ -732,6 +732,7 @@ pub(crate) fn manual_presentation(
     RecordPresentationView {
         classification: "PC".into(),
         identity: RecordSummaryView {
+            unit_price_label: None,
             record_key: participant.participant_key.clone(),
             title: participant.display_name.clone(),
             kind: "pc".into(),
@@ -813,6 +814,24 @@ fn activity_frequency(item: ItemSourceView<'_>) -> FactView<ActivityFrequencyVie
             .to_owned()
         })),
     }))
+}
+
+pub(crate) fn number_with_modifiers(
+    stat: &crate::encounters::mechanics::StatValueView,
+) -> NumberFactView {
+    NumberFactView {
+        state: QueryFieldState::Value,
+        value: Some(stat.adjusted_value.clone()),
+        adjustment: (!stat.modifiers.is_empty()
+            || !stat.suppressed_modifiers.is_empty()
+            || !stat.notes.is_empty())
+        .then(|| NumberAdjustmentView {
+            authored: stat.base_value.clone(),
+            applied: modifier_views(&stat.modifiers),
+            suppressed: modifier_views(&stat.suppressed_modifiers),
+            notes: stat.notes.clone(),
+        }),
+    }
 }
 
 fn modifier_views(modifiers: &[crate::encounters::mechanics::Modifier]) -> Vec<StatModifierView> {

@@ -116,20 +116,36 @@ pub(crate) fn run_lists_ls(o: ListLsOptions) -> Result<ExitCode, String> {
     emit(app_result(s.saved_lists(), o.json)?, o.json)
 }
 pub(crate) fn run_lists_show(o: ListShowOptions) -> Result<ExitCode, String> {
+    let sort = super::result_order::requested_sort(&o.sort, o.seed)?;
     let s = match client(o.paths) {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
-    let mut view = match app_result(s.saved_list(&o.slug), o.json)? {
+    let mut view = match app_result(
+        if sort.is_some() {
+            s.filter_saved_list(atlas_app_model::FilterSavedListRequest {
+                sort,
+                list_ref: o.slug.clone(),
+                query: None,
+                filter: None,
+            })
+        } else {
+            s.saved_list(&o.slug)
+        },
+        o.json,
+    )? {
         std::ops::ControlFlow::Continue(value) => value,
         std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };
     if o.keys_only {
         if o.json {
             write_json_data(
-                serde_json::json!({"list":view.list,"record_keys":view.items.iter().map(|i|&i.record_key).collect::<Vec<_>>()}),
+                serde_json::json!({"sort":view.sort,"list":view.list,"record_keys":view.items.iter().map(|i|&i.record_key).collect::<Vec<_>>()}),
             )?;
         } else {
+            if let atlas_domain::ResultSort::Random { seed } = view.sort {
+                eprintln!("Random seed: {seed}");
+            }
             for i in view.items {
                 println!("{}", i.record_key);
             }
@@ -150,13 +166,25 @@ pub(crate) fn run_lists_show(o: ListShowOptions) -> Result<ExitCode, String> {
 }
 fn print_list(v: &SavedListDetailView) {
     println!("{} — {}", v.list.slug, v.list.name);
+    super::result_order::print_random_seed(&v.sort);
     for i in &v.items {
         let name = i
             .record
             .as_ref()
             .map(|r| r.title.as_str())
             .unwrap_or(&i.snapshot.title);
-        println!("{}\t{}\t{}\t{:?}", i.position, i.record_key, name, i.status);
+        println!(
+            "{}\t{}\t{}\t{:?}{}",
+            i.position,
+            i.record_key,
+            name,
+            i.status,
+            i.record
+                .as_ref()
+                .and_then(|r| r.unit_price_label.as_ref())
+                .map(|p| format!("\t{p}"))
+                .unwrap_or_default()
+        );
         if let Some(note) = &i.note {
             println!("  {note}");
         }

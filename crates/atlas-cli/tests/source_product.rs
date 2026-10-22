@@ -170,12 +170,12 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
         "'healing' in traits",
         "--json",
     ]);
-    assert_eq!(results["results"].as_array().unwrap().len(), 1);
-    let record = &results["results"][0]["record"];
+    assert_eq!(results["rows"].as_array().unwrap().len(), 1);
+    let record = &results["rows"][0]["record"];
     assert!(record.get("source_path").is_none());
     assert!(record.get("content_hash").is_none());
     assert!(record.get("source_json").is_none());
-    let witness = &results["results"][0]["matches"][0];
+    let witness = &results["rows"][0]["matches"][0];
     assert!(witness["navigation"]["field"].is_string());
     assert_eq!(results["coverage"]["exhaustive"], true);
     let navigation = &witness["navigation"];
@@ -731,7 +731,7 @@ fn unsupported_cel_and_inconsistent_workspace_schema_fail_closed() {
     assert!(
         String::from_utf8(o.stdout)
             .unwrap()
-            .contains("invalid_filter")
+            .contains("filter_invalid")
     );
     let db = rusqlite::Connection::open(&f.index).unwrap();
     db.pragma_update(None, "user_version", 0).unwrap();

@@ -1,77 +1,51 @@
-import { EncounterModal } from "./EncounterModal";
-import { actionIssueQuestionLabel, actionIssueSourceLabel } from "./actionIssueLabels";
-import { ConfusionContextFields } from "./ConfusionContextFields";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Alert,
-  Button,
-  Checkbox,
-  Collapse,
-  Form,
-  InputNumber,
-  Select,
-  Space,
-  Tooltip,
-} from "antd";
-import { useState } from "react";
-import {
-  getEncounterConditionLifecycleActions,
-  previewEncounterRetch,
-} from "../../api/atlasApi";
+import { Alert, Button, Popover, Space, Tooltip } from "antd";
+import { createContext, use, useState, type ReactNode } from "react";
+import { Dice5, HeartPulse } from "lucide-react";
+import { RollResult } from "../../shared/dice/RollResult";
+import { useDiceRoll } from "../../shared/dice/useDiceRoll";
+import { getEncounterConditionLifecycleActions } from "../../api/atlasApi";
 import type {
   ApplyConditionLifecycleRequest,
   ConditionLifecycleActionView,
   ConditionLifecycleOptionView,
   ConditionLifecycleResultView,
   EncounterParticipantView,
-  EncounterActionJudgmentView,
-  EncounterConfusionContextView,
-  EncounterActionIssueView,
+  EncounterParticipantConditionView,
+  LifecycleCheckInputView,
 } from "../../generated/atlas";
-import { ActionIssueContext } from "./ActionIssueContext";
-import { integerRule } from "./EncounterConditionEditor";
-import {
-  LifecycleCheckFields,
-  lifecycleCheck,
-  type LifecycleCheckValues,
-} from "./LifecycleCheckFields";
-type Values = LifecycleCheckValues & {
-  dc?: number;
-  modifier?: number;
-  actionsSpent?: boolean;
-  minutes?: number;
-  healing?: number;
-  actionsLost?: number;
-  threshold?: number;
-  qualifying?: string;
-  cause?: "interact" | "rest_interrupted" | "rest_completed";
-  sources?: string[];
-  frightened?: Record<string, { reduce?: string; minimum?: number }>;
-  judgments?: Record<string, string>;
+type RecoveryControls = {
+  conditionActions: (id: bigint) => ReactNode;
+  retainedCondition?: EncounterParticipantConditionView;
+  notice?: ReactNode;
+  turnActions?: ReactNode;
 };
-const signedInteger = {
-  validator: (_rule: unknown, value: number | undefined) =>
-    Number.isSafeInteger(value)
-      ? Promise.resolve()
-      : Promise.reject(new Error("Enter a whole number.")),
-};
+const RecoveryContext = createContext<RecoveryControls>({
+  conditionActions: () => null,
+});
+export const useConditionRecoveryControls = () => use(RecoveryContext);
+export function EncounterTurnRecoveryActions() {
+  return useConditionRecoveryControls().turnActions;
+}
 const optionKey = (option: ConditionLifecycleOptionView) =>
   `${option.kind}:${"condition_id" in option ? option.condition_id : ""}:${"consequence_key" in option ? option.consequence_key : ""}`;
-export function EncounterConditionLifecycle({
+
+/** One query owner; condition rows and turn reminders place its hints and actions. */
+export function EncounterConditionRecovery({
   encounterRef,
   boundaryKey = null,
   revision,
   participant,
-  participants,
   disabled,
   onApply,
+  children,
 }: {
   encounterRef: string;
   boundaryKey?: string | null;
   revision: bigint;
   participant: EncounterParticipantView;
-  participants: EncounterParticipantView[];
   disabled: boolean;
+  children: ReactNode;
   onApply: (
     request: Omit<ApplyConditionLifecycleRequest, "request_id">,
   ) => Promise<ConditionLifecycleResultView>;
@@ -98,299 +72,243 @@ export function EncounterConditionLifecycle({
         : undefined,
   });
   const [selected, setSelected] = useState<{
-    option: ConditionLifecycleOptionView;
+    anchor: string;
+    option?: ConditionLifecycleOptionView;
     revision: bigint;
+    condition?: EncounterParticipantConditionView;
   } | null>(null);
-  const [result, setResult] = useState<ConditionLifecycleResultView | null>(null);
-  if (query.error)
+  const options = query.data?.actions ?? [];
+  const renderActions = (
+    anchor: string,
+    choices: ConditionLifecycleOptionView[],
+    label: string,
+    icon: ReactNode,
+    conditionId?: bigint,
+  ) => {
+    const active = selected?.anchor === anchor;
+    if (!choices.length && !active) return null;
+    const unavailable =
+      choices.length > 0 && choices.every((choice) => !choice.available);
     return (
+      <Popover
+        key={anchor}
+        open={active}
+        trigger="click"
+        placement="bottom"
+        destroyOnHidden
+        title={active && selected.option ? selected.option.label : label}
+        onOpenChange={(open) => {
+          if (disabled) return;
+          setSelected(
+            open
+              ? {
+                  anchor,
+                  revision: query.data?.encounter_revision ?? revision,
+                  option: choices.length === 1 ? choices[0] : undefined,
+                  condition: participant.conditions.find(
+                    (condition) => condition.condition_id === conditionId,
+                  ),
+                }
+              : null,
+          );
+        }}
+        content={
+          active ? (
+            <div
+              className="encounter-recovery-popover"
+              role="dialog"
+              aria-label={selected.option?.label ?? label}
+              onKeyDownCapture={(event) => {
+                if (
+                  event.key === "Escape" &&
+                  !disabled &&
+                  !event.currentTarget.querySelector(
+                    '[role="combobox"][aria-expanded="true"]',
+                  )
+                ) {
+                  event.stopPropagation();
+                  setSelected(null);
+                }
+              }}
+            >
+              {selected.option ? (
+                <RecoveryContent
+                  key={`${optionKey(selected.option)}:${selected.revision}`}
+                  option={selected.option}
+                  changed={selected.revision !== revision}
+                  disabled={disabled || query.isFetching}
+                  onReload={() => {
+                    const option = options.find(
+                      (option) => optionKey(option) === optionKey(selected.option!),
+                    );
+                    if (option) setSelected({ ...selected, option, revision });
+                    else setSelected(null);
+                  }}
+                  onApply={async (action) => {
+                    const result = await onApply({
+                      boundary_key: boundaryKey,
+                      expected_encounter_revision: selected.revision,
+                      participant_key: participant.participant_key,
+                      action,
+                    });
+                    void query.refetch();
+                    return result;
+                  }}
+                />
+              ) : (
+                <Space orientation="vertical" align="start">
+                  {choices.map((option) => (
+                    <Tooltip key={optionKey(option)} title={option.unavailable_reason}>
+                      <Button
+                        disabled={disabled || !option.available}
+                        onClick={() => setSelected({ ...selected, option })}
+                      >
+                        {option.label}
+                      </Button>
+                    </Tooltip>
+                  ))}
+                </Space>
+              )}
+            </div>
+          ) : null
+        }
+      >
+        <Tooltip
+          title={
+            active ? undefined : unavailable ? choices[0]?.unavailable_reason : label
+          }
+          trigger={["hover", "focus"]}
+        >
+          <Button
+            type="text"
+            size="small"
+            icon={icon}
+            aria-label={label}
+            className={
+              conditionId === undefined ? undefined : "encounter-condition-recovery"
+            }
+            disabled={disabled || unavailable}
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && !disabled) setSelected(null);
+            }}
+          />
+        </Tooltip>
+      </Popover>
+    );
+  };
+  const turnOptions =
+    selected?.anchor.startsWith("turn:") &&
+    selected.option &&
+    !options.some((option) => optionKey(option) === optionKey(selected.option!))
+      ? [...options, selected.option]
+      : options;
+  const controls: RecoveryControls = {
+    conditionActions: (id) =>
+      renderActions(
+        `condition:${id}`,
+        options.filter((option) => option.condition_ids.includes(id)),
+        `Recover ${participant.conditions.find((condition) => condition.condition_id === id)?.name ?? selected?.condition?.name ?? "condition"}`,
+        <HeartPulse size={14} aria-hidden="true" />,
+        id,
+      ),
+    retainedCondition:
+      selected?.condition &&
+      !participant.conditions.some(
+        (condition) => condition.condition_id === selected.condition!.condition_id,
+      )
+        ? selected.condition
+        : undefined,
+    turnActions: (
+      <Space wrap>
+        {turnOptions.map((option) =>
+          option.kind === "frightened_end_turn" ? (
+            <TurnFrightenedReduction
+              key={optionKey(option)}
+              option={option}
+              disabled={disabled || query.isFetching}
+              onApply={async () => {
+                await onApply({
+                  boundary_key: boundaryKey,
+                  expected_encounter_revision:
+                    query.data?.encounter_revision ?? revision,
+                  participant_key: participant.participant_key,
+                  action: { kind: "frightened_end_turn" },
+                });
+                void query.refetch();
+              }}
+            />
+          ) : (
+            renderActions(
+              `turn:${optionKey(option)}`,
+              [option],
+              option.label,
+              <Dice5 size={14} aria-hidden="true" />,
+            )
+          ),
+        )}
+      </Space>
+    ),
+    notice: query.error ? (
       <Alert
         type="error"
         title="Could not load recovery actions"
         action={<Button onClick={() => void query.refetch()}>Retry</Button>}
       />
-    );
-  if (!query.data?.actions.length && !selected && !result) return null;
-  return (
-    <>
-      <Collapse
-        ghost
-        items={[
-          {
-            key: "recovery",
-            label: "Recovery and rest",
-            children: (
-              <Space wrap>
-                {query.data?.actions.map((option, index) => (
-                  <Tooltip
-                    key={`${optionKey(option)}:${index}`}
-                    title={option.unavailable_reason}
-                    trigger={["hover", "focus", "click"]}
-                  >
-                    <span tabIndex={option.available ? undefined : 0}>
-                      <Button
-                        size="small"
-                        disabled={disabled || query.isFetching || !option.available}
-                        onClick={() =>
-                          setSelected({
-                            option,
-                            revision: query.data!.encounter_revision,
-                          })
-                        }
-                      >
-                        {option.label}
-                      </Button>
-                    </span>
-                  </Tooltip>
-                ))}
-              </Space>
-            ),
-          },
-        ]}
-      />
-      {result && (
-        <p role="status">
-          {result.check
-            ? [
-                result.check.degree.replace(/_/g, " "),
-                result.check.table_result !== null
-                  ? `Result ${result.check.table_result}`
-                  : result.check.roll
-                    ? `Result ${result.check.roll.total}`
-                    : null,
-                result.check.dc === null ? null : `DC ${result.check.dc}`,
-              ]
-                .filter(Boolean)
-                .join(" · ")
-            : "Recovery saved"}
-        </p>
-      )}
-      <EncounterModal
-        title={selected?.option.label ?? "Recovery"}
-        open={!!selected}
-        footer={null}
-        destroyOnHidden
-        closable={!disabled}
-        keyboard={!disabled}
-        mask={{ closable: !disabled }}
-        onCancel={() => {
-          if (!disabled) setSelected(null);
-        }}
-      >
-        {selected && (
-          <LifecycleForm
-            key={`${optionKey(selected.option)}:${selected.revision}`}
-            encounterRef={encounterRef}
-            option={selected.option}
-            participant={participant}
-            participants={participants}
-            revision={selected.revision}
-            changed={selected.revision !== revision}
-            disabled={disabled || query.isFetching}
-            onReload={() => {
-              const option = query.data?.actions.find(
-                (option) => optionKey(option) === optionKey(selected.option),
-              );
-              if (option) setSelected({ option, revision });
-              else setSelected(null);
-            }}
-            onApply={async (action) => {
-              const value = await onApply({
-                boundary_key: boundaryKey,
-                expected_encounter_revision: selected.revision,
-                participant_key: participant.participant_key,
-                action,
-              });
-              setResult(value);
-              setSelected(null);
-              void query.refetch();
-            }}
-          />
-        )}
-      </EncounterModal>
-    </>
-  );
+    ) : null,
+  };
+  return <RecoveryContext value={controls}>{children}</RecoveryContext>;
 }
-function LifecycleForm({
-  encounterRef,
-  revision,
+function RecoveryContent({
   option,
-  participant,
-  participants,
   changed,
   disabled,
   onReload,
   onApply,
 }: {
-  encounterRef: string;
   option: ConditionLifecycleOptionView;
-  participant: EncounterParticipantView;
-  participants: EncounterParticipantView[];
-  revision: bigint;
   changed: boolean;
   disabled: boolean;
   onReload: () => void;
-  onApply: (action: ConditionLifecycleActionView) => Promise<void>;
+  onApply: (
+    action: ConditionLifecycleActionView,
+  ) => Promise<ConditionLifecycleResultView>;
 }) {
-  const [form] = Form.useForm<Values>();
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string>();
-  const [confusion, setConfusion] = useState<EncounterConfusionContextView | null>(
-    null,
-  );
-  const [judgments, setJudgments] = useState<EncounterActionJudgmentView[]>([]);
-  const initialIssues = option.kind === "retch" ? option.issues : [];
+  const dice = useDiceRoll<ConditionLifecycleResultView>();
+  const apply = (action: ConditionLifecycleActionView) =>
+    dice.run(() => onApply(action));
+  const blocked = disabled || dice.busy || changed;
   const check = "check" in option ? option.check : undefined;
-  const [questions, setQuestions] = useState<EncounterActionIssueView[]>(
-    initialIssues.filter((issue) => issue.kind === "needs_fact" && issue.fact !== null),
-  );
-  const actionPreview = useQuery({
-    queryKey: [
-      "lifecycle-action-preview",
-      encounterRef,
-      participant.participant_key,
-      revision.toString(),
-      confusion,
-      JSON.stringify(judgments, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value,
-      ),
-    ],
-    queryFn: () =>
-      previewEncounterRetch(encounterRef, {
-        participant_key: participant.participant_key,
-        confusion,
-        judgments,
-      }),
-    enabled: option.kind === "retch" && !changed,
-    placeholderData: (previous, query) =>
-      query?.queryKey[1] === encounterRef &&
-      query.queryKey[2] === participant.participant_key
-        ? previous
-        : undefined,
-  });
-  const issues =
-    option.kind === "retch"
-      ? (actionPreview.data?.issues ?? option.issues)
-      : initialIssues;
-  const newQuestions = issues.filter(
-    (issue) =>
-      issue.kind === "needs_fact" &&
-      issue.fact !== null &&
-      !questions.some(
-        (question) =>
-          question.source_condition_id === issue.source_condition_id &&
-          question.fact === issue.fact,
-      ),
-  );
-  if (newQuestions.length) setQuestions([...questions, ...newQuestions]);
-  const actionBlocked =
-    option.kind === "retch" &&
-    (actionPreview.isFetching ||
-      !!actionPreview.error ||
-      !actionPreview.data ||
-      issues.length > 0 ||
-      !!actionPreview.data.confusion?.required_facts.length ||
-      !!actionPreview.data.confusion?.wastes_action);
-  const qualifyingValue = Form.useWatch("qualifying", form);
-  const checkMode = Form.useWatch("checkMode", form);
-  const qualifies =
-    qualifyingValue === undefined
-      ? option.kind === "confused_damage_recovery"
-        ? option.qualifying_damage
-        : null
-      : qualifyingValue === "yes";
-  const sourceLabel = (id: bigint) => {
-    const source = participant.conditions.find((source) => source.condition_id === id);
-    return source
-      ? `${source.name}${source.value === undefined ? "" : ` ${source.value}`}`
-      : `Source ${id}`;
-  };
-  function build(values: Values): ConditionLifecycleActionView {
-    const dc = values.dc === undefined ? (check?.dc ?? null) : BigInt(values.dc);
-    const modifier =
-      values.modifier === undefined
-        ? (check?.modifier ?? null)
-        : BigInt(values.modifier);
+  const canRoll =
+    check?.dc != null &&
+    check.modifier != null &&
+    (option.kind !== "retch" || option.issues.length === 0);
+  const withCheck = (check: LifecycleCheckInputView): ConditionLifecycleActionView => {
     switch (option.kind) {
       case "dying_recovery":
-        return { kind: option.kind, check: lifecycleCheck(values) };
+        return { kind: option.kind, check };
       case "retch":
-        return {
-          kind: option.kind,
-          condition_id: option.condition_id,
-          dc,
-          fortitude_modifier: modifier,
-          actions_spent: values.actionsSpent === true,
-          judgments,
-          confusion,
-          check: lifecycleCheck(values),
-        };
-      case "frightened_end_turn":
-        return {
-          kind: option.kind,
-          decisions: option.decision_source_ids.map((condition_id) => {
-            const decision = values.frightened?.[condition_id.toString()];
-            if (!decision?.reduce)
-              throw new Error("Choose whether each source reduces.");
-            return {
-              condition_id,
-              reduce: decision.reduce === "yes",
-              minimum:
-                decision.reduce === "no"
-                  ? null
-                  : decision.minimum === undefined
-                    ? null
-                    : BigInt(decision.minimum),
-            };
-          }),
-        };
-      case "treat_wounds":
-        return { kind: option.kind, healing_received: BigInt(values.healing!) };
-      case "stable_recovery":
-      case "full_hp_rest":
-        return { kind: option.kind, minutes: values.minutes! };
-      case "overnight_rest":
-        return { kind: option.kind };
-      case "stunned_actions_lost":
-        if (option.actions_lost === null)
-          throw new Error("Action forecast unavailable.");
-        return {
-          kind: option.kind,
-          condition_id: option.condition_id,
-          actions_lost: BigInt(option.actions_lost),
-        };
-      case "wake":
-        if (!values.cause) throw new Error("Choose what wakes the participant.");
-        return { kind: option.kind, cause: values.cause };
-      case "wake_from_noise":
-        if (dc === null) throw new Error("Enter the noise DC.");
-        return {
-          kind: option.kind,
-          dc,
-          perception_modifier: modifier,
-          check: lifecycleCheck(values),
-        };
+        return { kind: option.kind, condition_id: option.condition_id, check };
       case "confused_damage_recovery":
-        return {
-          kind: option.kind,
-          consequence_key: option.consequence_key,
-          condition_ids:
-            qualifies === false || values.checkMode === "decline"
-              ? []
-              : (values.sources ?? []).map(BigInt),
-          qualifying_damage: qualifies === true,
-          check:
-            qualifies === false || values.checkMode === "decline"
-              ? null
-              : lifecycleCheck(values),
-        };
-      case "resolve_broken":
-        return {
-          kind: option.kind,
-          consequence_key: option.consequence_key,
-          threshold: BigInt(values.threshold!),
-        };
+        return { kind: option.kind, consequence_key: option.consequence_key, check };
+      default:
+        throw new Error("This recovery does not use a check.");
     }
+  };
+  if (option.kind === "reminder") return <p>{option.text}</p>;
+  if (dice.result) {
+    const result = dice.result.check;
+    return (
+      <div role="status">
+        {result?.roll && <RollResult outcome={result.roll} pending={dice.animating} />}
+        {(!result?.roll || !dice.animating) && (
+          <p>
+            {result
+              ? `${result.degree.replace(/_/g, " ")}${result.dc === null ? "" : ` · DC ${result.dc}`}`
+              : "Saved"}
+          </p>
+        )}
+      </div>
+    );
   }
   return (
     <>
@@ -399,288 +317,138 @@ function LifecycleForm({
           type="warning"
           title="Encounter changed"
           action={
-            <Button
-              disabled={disabled}
-              onClick={() => {
-                form.resetFields();
-                onReload();
-              }}
-            >
+            <Button disabled={disabled} onClick={onReload}>
               Reload recovery
             </Button>
           }
         />
       )}
-      {error && <Alert type="error" title="Recovery failed" description={error} />}
-      <Form
-        form={form}
-        layout="vertical"
-        disabled={disabled || saving || changed}
-        initialValues={{ checkMode: "roll" }}
-        onFinish={async (values) => {
-          setError(undefined);
-          setSaving(true);
-          try {
-            await onApply(build(values));
-          } catch (value) {
-            setError(value instanceof Error ? value.message : "Recovery failed.");
-          } finally {
-            setSaving(false);
-          }
-        }}
-      >
-        {option.kind === "retch" && (
-          <ConfusionContextFields
-            requirements={actionPreview.data?.confusion}
-            value={confusion}
-            participants={participants}
-            onChange={setConfusion}
-          />
-        )}
-        {check &&
-          option.kind !== "confused_damage_recovery" &&
-          (check.dc !== null || check.modifier !== null) && (
-            <p>
-              {check.dc === null ? "" : `DC ${check.dc}`}
-              {check.dc !== null && check.modifier !== null ? " · " : ""}
-              {check.modifier === null
-                ? ""
-                : `Modifier ${check.modifier >= 0n ? "+" : ""}${check.modifier}`}
-            </p>
-          )}
-        {actionPreview.error && (
-          <Alert
-            type="error"
-            title="Could not review action"
-            action={<Button onClick={() => void actionPreview.refetch()}>Retry</Button>}
-          />
-        )}
-        {questions.map((question) => (
-          <Form.Item
-            key={`${question.source_condition_id}:${question.fact}`}
-            label={
-              <>
-                {question.reason}
-                <ActionIssueContext source={question} participants={participants} />
-              </>
-            }
-          >
-            <Select
-              aria-label={actionIssueQuestionLabel(
-                question.reason,
-                question,
-                participants,
-                question.source_condition_id,
-              )}
-              value={
-                judgments.find(
-                  (judgment) =>
-                    judgment.source_condition_id === question.source_condition_id &&
-                    judgment.fact === question.fact,
-                )?.value === true
-                  ? "yes"
-                  : judgments.find(
-                        (judgment) =>
-                          judgment.source_condition_id ===
-                            question.source_condition_id &&
-                          judgment.fact === question.fact,
-                      )?.value === false
-                    ? "no"
-                    : undefined
-              }
-              options={[
-                { value: "yes", label: "Yes" },
-                { value: "no", label: "No" },
-              ]}
-              onChange={(value) =>
-                setJudgments((previous) => [
-                  ...previous.filter(
-                    (judgment) =>
-                      judgment.source_condition_id !== question.source_condition_id ||
-                      judgment.fact !== question.fact,
-                  ),
-                  {
-                    source_condition_id: question.source_condition_id,
-                    fact: question.fact!,
-                    value: value === "yes",
-                  },
-                ])
-              }
-            />
-          </Form.Item>
-        ))}
-        {issues
-          .filter((issue) => issue.kind !== "needs_fact")
-          .map((issue, index) => (
-            <p key={index}>
-              {actionIssueSourceLabel(issue, participants)}: {issue.reason}
-            </p>
+      {dice.error && (
+        <Alert type="error" title="Recovery failed" description={dice.error} />
+      )}
+      {option.kind === "retch" && (
+        <>
+          <p>Retch · 1 action. Success reduces Sickened by 1; critical success by 2.</p>
+          {option.issues.map((issue, index) => (
+            <p key={index}>{issue.reason}</p>
           ))}
-        {check?.dc === null && (
-          <Form.Item name="dc" label="DC" rules={[integerRule(true)]}>
-            <InputNumber aria-label="Recovery DC" />
-          </Form.Item>
-        )}
-        {check?.modifier === null && (
-          <Form.Item
-            name="modifier"
-            label={
-              option.kind === "retch"
-                ? "Current Fortitude modifier"
-                : "Current Perception modifier"
-            }
-            rules={[signedInteger]}
-          >
-            <InputNumber aria-label="Recovery modifier" />
-          </Form.Item>
-        )}
-        {option.kind === "retch" && (
-          <Form.Item
-            name="actionsSpent"
-            valuePropName="checked"
-            rules={[
-              {
-                validator: (_rule, value) =>
-                  value
-                    ? Promise.resolve()
-                    : Promise.reject(new Error("Confirm the actions were spent.")),
-              },
-            ]}
-          >
-            <Checkbox>Actions spent</Checkbox>
-          </Form.Item>
-        )}
-        {(option.kind === "stable_recovery" || option.kind === "full_hp_rest") && (
-          <Form.Item name="minutes" label="Minutes rested" rules={[integerRule(true)]}>
-            <InputNumber aria-label="Minutes rested" min={0} />
-          </Form.Item>
-        )}
-        {option.kind === "treat_wounds" && (
-          <Form.Item
-            name="healing"
-            label="Healing received"
-            rules={[integerRule(true)]}
-          >
-            <InputNumber aria-label="Healing received" min={0} />
-          </Form.Item>
-        )}
-        {option.kind === "stunned_actions_lost" && option.actions_lost !== null && (
-          <p>Actions lost: {option.actions_lost}</p>
-        )}
-        {option.kind === "resolve_broken" && (
-          <Form.Item
-            name="threshold"
-            label="Broken threshold"
-            rules={[integerRule(true)]}
-          >
-            <InputNumber aria-label="Broken threshold" min={0} />
-          </Form.Item>
-        )}
-        {option.kind === "wake" && (
-          <Form.Item
-            name="cause"
-            label="Wake from"
-            rules={[{ required: true, message: "Choose what wakes the participant." }]}
-          >
-            <Select
-              aria-label="Wake cause"
-              options={[
-                { value: "interact", label: "Interact" },
-                { value: "rest_interrupted", label: "Rest interrupted" },
-                { value: "rest_completed", label: "Rest completed" },
-              ]}
-            />
-          </Form.Item>
-        )}
-        {option.kind === "confused_damage_recovery" &&
-          option.qualifying_damage === null && (
-            <Form.Item
-              name="qualifying"
-              label="Attack or spell damage?"
-              rules={[
-                { required: true, message: "Choose whether the damage qualifies." },
-              ]}
+        </>
+      )}
+      {option.kind === "confused_damage_recovery" && (
+        <p>After damage from an attack or spell, DC 11 flat check to end Confused.</p>
+      )}
+      {check && (
+        <>
+          {canRoll && (
+            <Button
+              type="primary"
+              loading={dice.busy}
+              className="encounter-recovery-roll__submit"
+              disabled={blocked}
+              onClick={() => void apply(withCheck({ kind: "roll" }))}
             >
-              <Select
-                aria-label="Qualifying damage"
-                options={[
-                  { value: "yes", label: "Yes" },
-                  { value: "no", label: "No" },
-                ]}
-              />
-            </Form.Item>
+              Roll{check.dc === null ? "" : ` · DC ${check.dc}`}
+            </Button>
           )}
-        {option.kind === "confused_damage_recovery" &&
-          qualifies !== false &&
-          checkMode !== "decline" && (
-            <Form.Item
-              name="sources"
-              label="Sources"
-              rules={[{ required: true, message: "Choose the affected sources." }]}
-            >
-              <Select
-                mode="multiple"
-                aria-label="Recovery sources"
-                options={option.source_condition_ids.map((id) => ({
-                  value: id.toString(),
-                  label: sourceLabel(id),
-                }))}
-              />
-            </Form.Item>
+          {option.kind !== "confused_damage_recovery" && (
+            <>
+              <p>Rolled at the table</p>
+              <Space wrap>
+                {(option.kind === "dying_recovery"
+                  ? ([
+                      "critical_success",
+                      "success",
+                      "failure",
+                      "critical_failure",
+                    ] as const)
+                  : (["success", "critical_success"] as const)
+                ).map((degree) => (
+                  <Button
+                    key={degree}
+                    disabled={blocked}
+                    onClick={() =>
+                      void apply(withCheck({ kind: "table_degree", degree }))
+                    }
+                  >
+                    {degree
+                      .replace(/_/g, " ")
+                      .replace(/^./, (value) => value.toUpperCase())}
+                  </Button>
+                ))}
+              </Space>
+            </>
           )}
-        {option.kind === "frightened_end_turn" &&
-          option.decision_source_ids.map((id) => (
-            <Space key={id.toString()} wrap>
-              <Form.Item
-                name={["frightened", id.toString(), "reduce"]}
-                label={sourceLabel(id)}
-                rules={[
-                  { required: true, message: "Choose whether this source reduces." },
-                ]}
-              >
-                <Select
-                  aria-label={`Reduce ${sourceLabel(id)}`}
-                  options={[
-                    { value: "yes", label: "Reduce" },
-                    { value: "no", label: "Keep" },
-                  ]}
-                />
-              </Form.Item>
-              <Form.Item
-                name={["frightened", id.toString(), "minimum"]}
-                label="Minimum"
-                dependencies={[["frightened", id.toString(), "reduce"]]}
-                rules={[
-                  {
-                    validator: (_rule, value) =>
-                      form.getFieldValue(["frightened", id.toString(), "reduce"]) ===
-                        "yes" && value == null
-                        ? Promise.reject(new Error("Enter the source minimum."))
-                        : Promise.resolve(),
-                  },
-                  integerRule(false),
-                ]}
-              >
-                <InputNumber aria-label={`Minimum for ${sourceLabel(id)}`} min={0} />
-              </Form.Item>
-            </Space>
-          ))}
-        {check &&
-          (option.kind !== "confused_damage_recovery" || qualifies !== false) && (
-            <LifecycleCheckFields
-              form={form}
-              allowDecline={option.kind === "confused_damage_recovery"}
-            />
-          )}
+        </>
+      )}
+      {option.kind === "frightened_end_turn" && (
         <Button
-          htmlType="submit"
           type="primary"
-          loading={saving}
-          disabled={disabled || changed || actionBlocked}
+          loading={dice.busy}
+          disabled={blocked}
+          onClick={() => void apply({ kind: option.kind })}
         >
-          Record
+          Reduce by 1
         </Button>
-      </Form>
+      )}
+      {option.kind === "stunned_actions_lost" && (
+        <>
+          <p>{option.actions_lost?.toString()} actions lost</p>
+          <Button
+            type="primary"
+            loading={dice.busy}
+            disabled={blocked || option.actions_lost === null}
+            onClick={() =>
+              void apply({
+                kind: option.kind,
+                condition_id: option.condition_id,
+                actions_lost: option.actions_lost!,
+              })
+            }
+          >
+            Apply reduction
+          </Button>
+        </>
+      )}
+    </>
+  );
+}
+
+function TurnFrightenedReduction({
+  option,
+  disabled,
+  onApply,
+}: {
+  option: ConditionLifecycleOptionView;
+  disabled: boolean;
+  onApply: () => Promise<void>;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string>();
+  return (
+    <>
+      <Tooltip title={option.unavailable_reason}>
+        <Button
+          size="small"
+          disabled={disabled || pending || !option.available}
+          loading={pending}
+          onClick={async () => {
+            setPending(true);
+            setError(undefined);
+            try {
+              await onApply();
+            } catch (cause) {
+              setError(
+                cause instanceof Error ? cause.message : "Could not reduce Frightened.",
+              );
+            } finally {
+              setPending(false);
+            }
+          }}
+        >
+          {option.label}
+        </Button>
+      </Tooltip>
+      {error && <Alert type="error" title={error} />}
     </>
   );
 }

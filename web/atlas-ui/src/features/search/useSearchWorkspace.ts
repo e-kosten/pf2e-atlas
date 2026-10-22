@@ -9,10 +9,16 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { searchPage } from "../../api/atlasApi";
 import { assertSearchIdentity } from "../../shared/search/searchIdentity";
-import type { FilterEditorView, SearchResultsPage } from "../../generated/atlas";
+import type {
+  FilterEditorView,
+  SearchResultsPage,
+  QueryPredicate,
+} from "../../generated/atlas";
 import {
   buildFilterDiscoveryContext,
   buildSearchRequest,
+  effectiveResultSort,
+  normalizeSortTransition,
   DEFAULT_SEARCH_STATE,
   SIMILAR_QUERY_CONFLICT,
   encodeSearchExecutionState,
@@ -55,11 +61,13 @@ export type SearchWorkspaceState = {
   reading: ReferenceReading;
   positions: BrowsePositions;
   setSearch: (next: SearchFormState) => void;
+  recoverFilterUrl: (restored: SearchFormState) => void;
   selectedRecordKey: string | null;
   selectRecord: (recordKey: string | null) => void;
   pageNumber: number;
   setPageNumber: (page: number) => void;
   resultPage: SearchResultsPage | undefined;
+  resultFilter: QueryPredicate | null;
   filterEditor: FilterEditorView | undefined;
   filterCountsEnabled?: boolean;
   filterCountQueryKey?: readonly unknown[];
@@ -107,6 +115,7 @@ export function useSearchWorkspace({
     initialWorkspaceInteractionState,
   );
   const { search, selectedRecordKey, activeSearch } = interaction;
+
   const [pagingProfile, setPagingProfile] = useState(searchProfile);
   const profileChanged = pagingProfile !== searchProfile;
   // Adjust the execution page in this render, before any new-profile query can run.
@@ -166,11 +175,12 @@ export function useSearchWorkspace({
     const onUrlStateChange = () => {
       const route = currentAtlasRoute();
       if (route.kind !== "search") return;
+      const restored = initialWorkspaceInteractionState();
       dispatch({
         type: "url.restored",
-        search: initialWorkspaceInteractionState().search,
+        search: restored.search,
         selectedRecordKey: route.selectedRecordKey,
-        pageNumber: history.state?.atlasSearchPage ?? 1,
+        pageNumber: restored.pageNumber,
       });
       inspectReading(
         route.selectedRecordKey
@@ -203,13 +213,16 @@ export function useSearchWorkspace({
     retrieval.generation,
     pageNumber,
   ];
-  const resultsQuery = useQuery<SearchResultsPage>({
+  const resultsQuery = useQuery<{
+    page: SearchResultsPage;
+    filter: QueryPredicate | null;
+  }>({
     queryKey: resultsKey,
     enabled: canRunResultSearch && !retrieval.recovering,
     staleTime: 20_000,
     placeholderData: (previous, previousQuery) =>
-      previous?.search_profile === searchProfile &&
-      previous.ranking === (activeSearch.ranking ?? "score") &&
+      previous?.page.search_profile === searchProfile &&
+      previous.page.ranking === (activeSearch.ranking ?? "score") &&
       previousQuery?.queryKey[2] === retrieval.epoch &&
       previousQuery.queryKey[3] === retrieval.generation
         ? previous
@@ -229,7 +242,12 @@ export function useSearchWorkspace({
         ),
         signal,
       );
-      assertSearchIdentity(page, searchProfile, retrieval.generation);
+      assertSearchIdentity(
+        page,
+        searchProfile,
+        retrieval.generation,
+        effectiveResultSort(activeSearch),
+      );
       if (
         activeSearch.query.trim() &&
         page.ranking !== (activeSearch.ranking ?? "score")
@@ -245,7 +263,7 @@ export function useSearchWorkspace({
             page.artifact_generation,
             pageNumber,
           ],
-          page,
+          { page, filter: activeSearch.filter },
         );
         setRetrieval((current) =>
           current.epoch === retrieval.epoch && !current.recovering
@@ -253,7 +271,7 @@ export function useSearchWorkspace({
             : current,
         );
       }
-      return page;
+      return { page, filter: activeSearch.filter };
     },
   });
   const resultsPaused = isArtifactGenerationChanged(resultsQuery.error);
@@ -327,9 +345,16 @@ export function useSearchWorkspace({
   });
 
   function setSearch(next: SearchFormState) {
+    // A submitted canonical address is navigation, independent of search eligibility.
+    const recordKey = next.query.trim();
+    if (next.query !== search.query && /^[^:\s]+:[^:\s]+$/u.test(recordKey)) {
+      selectRecord(recordKey);
+      return;
+    }
     // Keyword entry intentionally replaces similarity, while ordinary filters retain it.
     if (next.query.trim()) next = { ...next, similarSeed: null, mode: "text_search" };
     else next = { ...next, mode: next.similarSeed ? "similar_records" : "browse" };
+    next = normalizeSortTransition(search, next);
     if (
       next.filterError === SIMILAR_QUERY_CONFLICT &&
       (next.query !== search.query || next.similarSeed !== search.similarSeed)
@@ -369,6 +394,13 @@ export function useSearchWorkspace({
   return {
     search,
     setSearch,
+    recoverFilterUrl: (restored) =>
+      dispatch({
+        type: "url.restored",
+        search: restored,
+        selectedRecordKey,
+        pageNumber: 1,
+      }),
     reading,
     positions,
     selectedRecordKey,
@@ -384,7 +416,8 @@ export function useSearchWorkspace({
         );
       }
     },
-    resultPage: canRunResultSearch ? resultsQuery.data : undefined,
+    resultPage: canRunResultSearch ? resultsQuery.data?.page : undefined,
+    resultFilter: canRunResultSearch ? (resultsQuery.data?.filter ?? null) : null,
     filterEditor: filterDiscovery.filterEditor,
     filterCountsEnabled:
       filterDiscovery.filterCountsEnabled &&

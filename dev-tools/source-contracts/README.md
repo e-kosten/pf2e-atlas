@@ -82,6 +82,51 @@ and dependency lock as needed, then regenerate Rust. Schema comparisons can extr
 two revisions into ignored directories and diff their graphs. No large intermediate
 graph is committed.
 
+### Trait changes during an upstream upgrade
+
+Retain fresh extraction outputs for both sources before replacing the old pin.
+Use each version's appropriate declaration dependencies as described below:
+
+```sh
+npm --prefix dev-tools/source-contracts run extract -- \
+  --source scratch/pf2e-before --out scratch/traits-before --strict
+npm --prefix dev-tools/source-contracts run extract -- \
+  --source scratch/pf2e-after --out scratch/traits-after --strict
+npm --prefix dev-tools/source-contracts run compare-traits -- \
+  --before scratch/traits-before --after scratch/traits-after \
+  --out scratch/trait-upgrade-report
+```
+
+`compare-traits` reads `summary.json` and `trait-catalog.json` from each extraction,
+prints change counts/identifiers/fields, and writes `OUT/trait-changes.json` with
+before/after details. `OUT/trait-changes.md` presents coverage counts and readable
+before/after wording, mapping and membership changes. Paths are relative to the invoking directory, including
+when run through npm. A comparison exits zero when changes are found: changes
+are for review, not inherently an extraction failure. Invalid, incomplete,
+duplicate or conflicting trait evidence exits one before replacing a report.
+Unrelated declaration-graph incompleteness does not invalidate an otherwise
+complete trait comparison; generation/admission still have their separate gates.
+
+The report preserves exact identifiers and distinguishes added/removed traits,
+label/description key changes, resolved-text changes and catalog memberships.
+Shared description keys do not merge variants. Missing, empty and nonempty text
+remain distinguishable; rarity and otherTags stay outside the trait namespace.
+JSON and Markdown include the authored before/after text for local upgrade
+review. Markdown renders that text literally rather than executing its HTML or
+macros. Keep generated reports with the ignored extraction evidence; they are
+not new content-license grants or inputs to release packaging.
+Catalog membership counts are vocabulary bindings, not counts of records carrying
+a trait. Source line movement alone does not count as a semantic trait change.
+
+Reports retain the recorded source version/digest/commit and SHA-256 hashes of the
+two actual extraction files. They compare retained evidence, not a fresh source
+checkout: the recorded identity is not an independent attestation of extraction
+bytes. Use fresh extraction for an upgrade and retain the evidence alongside the
+report. No timestamp or absolute input path enters the JSON report. Existing
+pinned-generation freshness and full-corpus validation remain required; this
+comparison does not assign aliases, content licenses or executable mechanics.
+See the [description provenance review](../../docs/research/trait-description-provenance.md).
+
 The emitter resolves one complete selection and assigns shared value owners globally.
 Outputs include common Item/Actor/physical components, `items/families/*`,
 `actors/families/*`, `documents/*`, `rules/*` and their indexes. Family source and

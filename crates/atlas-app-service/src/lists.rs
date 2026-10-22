@@ -42,13 +42,20 @@ impl AtlasAppService {
     }
 
     pub fn saved_list(&self, list_ref: &str) -> AppServiceResult<SavedListDetailView> {
-        self.saved_list_with_filter(list_ref, None, None, false)
+        self.saved_list_with_filter(
+            list_ref,
+            None,
+            None,
+            false,
+            atlas_domain::ResultSort::SavedOrder {},
+        )
     }
 
     pub fn filter_saved_list(
         &self,
         request: FilterSavedListRequest,
     ) -> AppServiceResult<SavedListDetailView> {
+        let sort = crate::result_order::saved_list_sort(request.sort)?;
         let filter = request.filter;
         let query = request
             .query
@@ -56,7 +63,13 @@ impl AtlasAppService {
             .map(str::trim)
             .filter(|query| !query.is_empty());
         let has_match_scope = filter.is_some() || query.is_some();
-        self.saved_list_with_filter(&request.list_ref, filter.as_ref(), query, has_match_scope)
+        self.saved_list_with_filter(
+            &request.list_ref,
+            filter.as_ref(),
+            query,
+            has_match_scope,
+            sort,
+        )
     }
 
     pub fn create_saved_list(
@@ -583,6 +596,7 @@ impl AtlasAppService {
         filter: Option<&atlas_domain::QueryPredicate>,
         query: Option<&str>,
         has_match_scope: bool,
+        sort: atlas_domain::ResultSort,
     ) -> AppServiceResult<SavedListDetailView> {
         let initial = self.with_state(|session| {
             session
@@ -597,6 +611,7 @@ impl AtlasAppService {
             .any(|item| RecordKey::parse(&item.record_key).is_ok())
         {
             return Ok(SavedListDetailView {
+                sort,
                 list: saved_list_summary(initial.list),
                 items: initial
                     .items
@@ -623,7 +638,7 @@ impl AtlasAppService {
                     .iter()
                     .filter_map(|item| RecordKey::parse(&item.record_key).ok())
                     .collect::<Vec<_>>();
-                let records_by_key = if let Some(query) = query.as_deref() {
+                let mut records_by_key = if let Some(query) = query.as_deref() {
                     searched_saved_list_records(
                         session.retrieval_mut(),
                         &active_keys,
@@ -639,16 +654,62 @@ impl AtlasAppService {
                 } else {
                     hydrate_saved_list_records(session.retrieval_mut(), &list.items)?
                 };
-                Ok(SavedListDetailView {
-                    list: saved_list_summary(list.list),
-                    items: list
-                        .items
-                        .into_iter()
-                        .filter(|item| {
-                            !has_match_scope || records_by_key.contains_key(&item.record_key)
+                if sort.is_unit_price() {
+                    let mut views = records_by_key
+                        .values()
+                        .map(|r| r.view.clone())
+                        .collect::<Vec<_>>();
+                    crate::result_order::price_labels(session.retrieval_mut(), &mut views)?;
+                    for view in views {
+                        if let Some(record) = records_by_key.get_mut(&view.record_key) {
+                            record.view = view;
+                        }
+                    }
+                }
+                let mut items = list
+                    .items
+                    .into_iter()
+                    .filter(|item| {
+                        !has_match_scope || records_by_key.contains_key(&item.record_key)
+                    })
+                    .map(|item| saved_list_item_view(item, &records_by_key))
+                    .collect::<Vec<_>>();
+                if sort.is_record_order() {
+                    let keys = items
+                        .iter()
+                        .filter(|item| records_by_key.contains_key(&item.record_key))
+                        .map(|item| {
+                            RecordKey::parse(&item.record_key).map_err(|_| {
+                                AppServiceError::invalid_request("The saved record is unavailable")
+                            })
                         })
-                        .map(|item| saved_list_item_view(item, &records_by_key))
-                        .collect(),
+                        .collect::<AppServiceResult<Vec<_>>>()?;
+                    let ordered = session
+                        .retrieval_mut()
+                        .order_record_keys(&keys, sort.clone())?;
+                    let mut active = std::collections::BTreeMap::new();
+                    let mut unavailable = Vec::new();
+                    for item in items {
+                        if records_by_key.contains_key(&item.record_key) {
+                            active.insert(item.record_key.clone(), item);
+                        } else {
+                            unavailable.push(item);
+                        }
+                    }
+                    items = ordered
+                        .into_iter()
+                        .map(|key| {
+                            active.remove(&key.to_string()).ok_or_else(|| {
+                                AppServiceError::invalid_request("The saved record is unavailable")
+                            })
+                        })
+                        .collect::<AppServiceResult<Vec<_>>>()?;
+                    items.extend(unavailable);
+                }
+                Ok(SavedListDetailView {
+                    sort,
+                    list: saved_list_summary(list.list),
+                    items,
                 })
             },
         )
@@ -789,6 +850,7 @@ fn searched_saved_list_records(
     loop {
         let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
         let result = retrieval.search_text(TextSearchRequest {
+            sort: atlas_domain::ResultSort::Relevance {},
             ranking: Default::default(),
             search_profile: None,
             query: &query,

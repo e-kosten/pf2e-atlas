@@ -12,6 +12,10 @@ pub struct PersistentDamageSourceView {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentDamageGroupView {
+    /// Present only when current damage protection facts establish immunity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub immunity_note: Option<String>,
     pub episode_id: String,
     pub damage_type: String,
     pub sources: Vec<PersistentDamageSourceView>,
@@ -22,6 +26,8 @@ pub struct PersistentDamageGroupView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct RecoverPersistentDamageRequest {
+    #[serde(default)]
+    pub resolution: PersistentRecoveryResolution,
     pub boundary_key: Option<String>,
     pub mode: PersistentRecoveryMode,
     pub request_id: String,
@@ -33,6 +39,14 @@ pub struct RecoverPersistentDamageRequest {
     pub dc_override: Option<i64>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum PersistentRecoveryResolution {
+    #[default]
+    Roll,
+    Clear,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum PersistentRecoveryMode {
@@ -42,6 +56,8 @@ pub enum PersistentRecoveryMode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentReviewView {
+    pub encounter_revision: i64,
+    pub damage_groups: Vec<PersistentDamageGroupView>,
     pub round_number: i64,
     pub damage_applied: bool,
     pub episodes: Vec<PersistentEpisodeReviewView>,
@@ -51,6 +67,7 @@ pub struct PersistentReviewView {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentEpisodeReviewView {
+    pub damage_resolution: PersistentDamageResolutionView,
     pub end_turn_recovery_unavailable_reason: Option<String>,
     pub end_turn_roll_available: bool,
     pub end_turn_roll_unavailable_reason: Option<String>,
@@ -108,4 +125,24 @@ pub struct PersistentDamageOutcomeView {
     pub roll: Option<atlas_dice::RollOutcome>,
     pub amount: i64,
     pub table_resolved: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub protection: Option<PersistentDamageProtectionView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PersistentDamageResolutionView {
+    Known {
+        protection: PersistentDamageProtectionView,
+    },
+    Table {
+        reason: String,
+    },
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PersistentDamageProtectionView {
+    pub immune: bool,
+    pub weakness: i64,
+    pub resistance: i64,
 }

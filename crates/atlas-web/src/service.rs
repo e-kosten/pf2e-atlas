@@ -126,6 +126,12 @@ pub(crate) trait AtlasWebService: Send + Sync {
         execution: &ReadExecutionContext,
     ) -> Result<SearchResultsPage, AppServiceError>;
 
+    fn relationship_occurrences(
+        &self,
+        request: atlas_app_model::RelationshipOccurrencesRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::RelationshipOccurrencesPage, AppServiceError>;
+
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError>;
     fn encounter_reference(
         &self,
@@ -171,6 +177,11 @@ pub(crate) trait AtlasWebService: Send + Sync {
         &self,
         encounter_ref: &str,
     ) -> Result<Vec<atlas_app_model::PendingConditionConsequenceView>, AppServiceError>;
+    fn preview_encounter_drained_consequence(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveDrainedConsequenceRequest,
+    ) -> Result<atlas_app_model::ConditionHpChangeView, AppServiceError>;
     fn resolve_encounter_drained_consequence(
         &self,
         encounter_ref: &str,
@@ -287,11 +298,6 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: RollInitiativeRequest,
     ) -> Result<InitiativeRollView, AppServiceError>;
 
-    fn preview_encounter_retch(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::EncounterRetchPreviewRequest,
-    ) -> Result<atlas_app_model::EncounterRetchPreviewView, AppServiceError>;
     fn preview_encounter_strike_context(
         &self,
         encounter_ref: &str,
@@ -543,6 +549,14 @@ impl AtlasWebService for AtlasAppService {
         self.search_page(request, execution)
     }
 
+    fn relationship_occurrences(
+        &self,
+        request: atlas_app_model::RelationshipOccurrencesRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::RelationshipOccurrencesPage, AppServiceError> {
+        self.relationship_occurrences(request, execution)
+    }
+
     fn record_detail(&self, record_key: &str) -> Result<RecordDetailView, AppServiceError> {
         self.record_detail(record_key)
     }
@@ -567,6 +581,13 @@ impl AtlasWebService for AtlasAppService {
         encounter_ref: &str,
     ) -> Result<Vec<atlas_app_model::PendingConditionConsequenceView>, AppServiceError> {
         self.pending_encounter_condition_consequences(encounter_ref)
+    }
+    fn preview_encounter_drained_consequence(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveDrainedConsequenceRequest,
+    ) -> Result<atlas_app_model::ConditionHpChangeView, AppServiceError> {
+        self.preview_encounter_drained_consequence(encounter_ref, request)
     }
     fn resolve_encounter_drained_consequence(
         &self,
@@ -734,13 +755,6 @@ impl AtlasWebService for AtlasAppService {
         self.roll_encounter_initiative(encounter_ref, request)
     }
 
-    fn preview_encounter_retch(
-        &self,
-        encounter_ref: &str,
-        request: atlas_app_model::EncounterRetchPreviewRequest,
-    ) -> Result<atlas_app_model::EncounterRetchPreviewView, AppServiceError> {
-        self.preview_encounter_retch(encounter_ref, request)
-    }
     fn preview_encounter_strike_context(
         &self,
         encounter_ref: &str,

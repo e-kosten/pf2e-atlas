@@ -27,6 +27,8 @@ const participant: EncounterParticipantView = {
   track_dying: true,
   mortality: "alive",
   base_death_threshold: 4n,
+  knockout_options: [],
+  effective_max_hp: { state: "value", value: 20, adjustment: null },
   persistent_damage_groups: [
     {
       episode_id: "fire",
@@ -161,4 +163,94 @@ it("shows the server total after shared Hardness without claiming per-type total
   expect(screen.getByText(/Hardness absorbed 5/)).toBeVisible();
   expect(screen.getByText("Fire: 5")).toBeVisible();
   expect(screen.queryByText("Fire: 5 damage applied")).not.toBeInTheDocument();
+});
+
+it("shows immunity before damage and retains the recorded reason when reference advice changes", async () => {
+  const source = {
+    ...participant,
+    persistent_damage_groups: [participant.persistent_damage_groups[0]],
+  };
+  const protection = { immune: true, weakness: 0n, resistance: 0n };
+  const onApply = vi.fn().mockResolvedValue({
+    encounter_key: "encounter",
+    request_id: "immune",
+    groups: [
+      {
+        episode_id: "fire",
+        damage_type: "fire",
+        source_condition_id: 7n,
+        roll: null,
+        amount: 0n,
+        table_resolved: false,
+        protection,
+      },
+    ],
+    total: 0n,
+    hardness_absorbed: 0n,
+  });
+  const props = {
+    participant: source,
+    encounterRevision: 6n,
+    generation: "generation",
+    damageApplied: false,
+    damageTypes: [{ value: "fire", label: "Fire" }],
+    disabled: false,
+    pending: false,
+    onApply,
+  };
+  const { rerender } = render(
+    <EncounterPersistentDamageBatch
+      {...props}
+      resolutions={{ fire: { kind: "known", protection } }}
+    />,
+  );
+  expect(screen.getByText("Immune to fire")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Apply persistent damage" }));
+  await screen.findByText("Total: 0 damage applied");
+  rerender(
+    <EncounterPersistentDamageBatch
+      {...props}
+      resolutions={{
+        fire: { kind: "known", protection: { ...protection, immune: false } },
+      }}
+    />,
+  );
+  expect(screen.getByText("Immune to fire")).toBeVisible();
+});
+
+it("explains unresolved protections and starts with an editable table amount", async () => {
+  const onApply = vi.fn().mockResolvedValue({ ...result, total: 3n });
+  render(
+    <EncounterPersistentDamageBatch
+      participant={{
+        ...participant,
+        persistent_damage_groups: [participant.persistent_damage_groups[0]],
+      }}
+      encounterRevision={6n}
+      generation="generation"
+      damageApplied={false}
+      damageTypes={[{ value: "fire", label: "Fire" }]}
+      disabled={false}
+      pending={false}
+      onApply={onApply}
+      resolutions={{ fire: { kind: "table", reason: "Resolve silver at the table." } }}
+    />,
+  );
+  expect(screen.getByText("Resolve silver at the table.")).toBeVisible();
+  const amount = await screen.findByRole("spinbutton", { name: "Fire damage amount" });
+  fireEvent.change(amount, { target: { value: "3" } });
+  fireEvent.click(screen.getByRole("button", { name: "Apply persistent damage" }));
+  await waitFor(() =>
+    expect(onApply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        groups: [
+          {
+            episode_id: "fire",
+            selected_source_id: 7n,
+            damage: { kind: "table_result", amount: 3n },
+          },
+        ],
+      }),
+    ),
+  );
 });
