@@ -1014,7 +1014,7 @@ impl AtlasWebService for MockService {
         &self,
         _request: DiscoverFilterEditorRequest,
     ) -> Result<FilterEditorView, AppServiceError> {
-        Ok(serde_json::from_value(json!({"catalog_version":2,"common_field_ids":["kind"],"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"kind","path":"kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","short_choices":true,"applicable":true,"unit_fields":[],"collection_control":null,"placement":"initially_visible","label":"Kind","help":null,"choices":[{"value":"rule","label":"Rule"}],"operators":[{"operator":"eq","label":"is","operand":"scalar"},{"operator":"in","label":"is any of","operand":"list"},{"operator":"state","label":"availability is","operand":"state"}]}]}]})).expect("typed catalog fixture"))
+        Ok(serde_json::from_value(json!({"artifact_generation":"current-generation","relationship_clauses":[],"catalog_version":2,"common_field_ids":["kind"],"limits":{"source_bytes":16384,"nodes":256,"depth":32,"literal_list":128,"relationship_leaves":16},"groups":[{"id":"standard","label":"Standard","fields":[{"definition":{"id":"kind","path":"kind","scope":null,"field_type":"string","label":"Kind","family_types":[],"units":null,"basis":"authored","choices":["rule"],"operators":["eq","in","state"],"examples":[],"value_discovery":"closed_choices"},"control":"text","short_choices":true,"applicable":true,"unit_fields":[],"collection_control":null,"placement":"initially_visible","label":"Kind","help":null,"choices":[{"value":"rule","label":"Rule"}],"operators":[{"operator":"eq","label":"is","operand":"scalar"},{"operator":"in","label":"is any of","operand":"list"},{"operator":"state","label":"availability is","operand":"state"}]}]}]})).expect("typed catalog fixture"))
     }
     fn discover_filter_values(
         &self,
@@ -1734,7 +1734,7 @@ fn search_results_page(page_number: u32) -> SearchResultsPage {
             atlas_domain::SortField::Name,
             atlas_domain::SortDirection::Asc,
         ),
-        relationships: vec![],
+        relationship_clauses: vec![],
         ranking: Default::default(),
         search_profile: atlas_domain::SearchProfileId::new("bge-base"),
         artifact_generation: "current-generation".into(),

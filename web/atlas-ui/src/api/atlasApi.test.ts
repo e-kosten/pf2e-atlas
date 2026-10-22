@@ -846,14 +846,24 @@ it("posts exact relationship evidence pages and normalizes occurrence totals", a
   };
   respond({
     artifact_generation: "generation-a",
-    constraint: { constraint, record: {}, title: "Leather Armor" },
+    clause: {
+      clause_id: "link",
+      relationship: constraint,
+      record: {},
+      title: "Leather Armor",
+    },
     result_record: {},
     occurrences: [],
     page: { number: 2, size: 3, count: 0, total: 9, has_more: true, next_page: 3 },
   });
   const controller = new AbortController();
   const request = {
-    constraint,
+    clause_id: "link",
+    filter: {
+      kind: "relationship" as const,
+      clause_id: "link",
+      relationship: constraint,
+    },
     result_record_key: "actors:goblin",
     page: { number: 2, size: 3 },
     expected_artifact_generation: "generation-a",

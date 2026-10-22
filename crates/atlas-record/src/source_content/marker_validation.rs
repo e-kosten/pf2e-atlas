@@ -1,8 +1,8 @@
 use super::{
     ContentInteraction, ContentReferenceKind, ContentReferenceOccurrence,
-    ContentReferenceResolution, ContentReferenceTarget, OwnedContentIdentity, OwnedContentLocator,
-    SourceContentLocator,
+    ContentReferenceResolution, ContentReferenceTarget, SourceContentLocator,
 };
+use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
 use scraper::{Html, Selector};
 use sha2::{Digest, Sha256};
 use std::{

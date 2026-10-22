@@ -12,8 +12,8 @@ use crate::projection::{field_state, navigation_fingerprint};
 use action_cost::{casting_cost, item_action_cost};
 pub(crate) use actor::compose_participant;
 use atlas_app_model::*;
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::QueryFieldState;
-use atlas_record::source_content::OwnedContentLocator;
 use atlas_record::source_record::{
     ItemSourceView, SourceBackedRecord, SourceFieldView, SourceNodeView, SourceQueryView,
 };

@@ -18,7 +18,7 @@ export function sameSearchPageContext(
 
 /** Never display retrieval evidence under a different model or collection. */
 export function assertSearchIdentity(
-  response: { search_profile: string; artifact_generation: string; sort?: ResultSort },
+  response: { search_profile?: string; artifact_generation: string; sort?: ResultSort },
   profile: string | null | undefined,
   generation?: string | null,
   sort?: ResultSort,

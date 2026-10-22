@@ -1,4 +1,6 @@
 import type { ResultSort } from "../../generated/atlas";
+import { linkLeaf } from "../filters/linkPredicates";
+import { decodeFilterUrl, encodeFilterUrl } from "../filters/filterUrl";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
   act,
@@ -303,20 +305,27 @@ describe("shared related disclosure", () => {
         kind: "attributes",
         rules: [{ field: "unit_price", direction: "desc" }],
       } satisfies ResultSort,
-      filter: { kind: "in" as const, field: "kind", values: ["creature"] },
-      relationships: [
-        {
-          direction: "incoming" as const,
-          include_contents: false,
-          selection: {
-            record_key: "items:armor",
-            embedded_path: [],
-            field: null,
-            passage: null,
-            source_fingerprint: "source",
+      filter: {
+        kind: "all_of" as const,
+        children: [
+          { kind: "in" as const, field: "kind", values: ["creature"] },
+          {
+            kind: "relationship" as const,
+            clause_id: "link-0",
+            relationship: {
+              direction: "incoming" as const,
+              include_contents: false,
+              selection: {
+                record_key: "items:armor",
+                embedded_path: [],
+                field: null,
+                passage: null,
+                source_fingerprint: "source",
+              },
+            },
           },
-        },
-      ],
+        ],
+      },
     };
     history.replaceState(null, "", "/search" + searchStateQueryString(state));
     renderRelated();
@@ -333,8 +342,7 @@ describe("shared related disclosure", () => {
         kind: "attributes",
         rules: [{ field: "unit_price", direction: "desc" }],
       } satisfies ResultSort,
-      filter: state.filter,
-      relationships: state.relationships,
+      filter: decodeFilterUrl(encodeFilterUrl(state.filter)),
     });
     expect(api.searchPage).toHaveBeenCalledWith(
       expect.not.objectContaining({ sort: expect.anything() }),
@@ -378,7 +386,7 @@ describe("shared related disclosure", () => {
       expected_artifact_generation: detail.artifact_generation,
     });
     const page = (profile: string, title: string): SearchResultsPage => ({
-      relationships: [],
+      relationship_clauses: [],
       sort: { kind: "relevance" } as const,
       ranking: "score" as const,
       search_profile: profile,
@@ -464,6 +472,7 @@ describe("shared related disclosure", () => {
 });
 
 it("opens each Related direction with its checked selection and effective contents scope", async () => {
+  history.replaceState(null, "", "/");
   const detail = detailFixture("actors:seed", "Viewed creature");
   detail.selected = {
     ...detail.selected,
@@ -472,16 +481,22 @@ it("opens each Related direction with its checked selection and effective conten
   };
   const response = relatedFixture();
   const graph = response.references.content;
-  graph.outgoing.constraint = {
-    direction: "outgoing",
-    selection: detail.selected,
-    include_contents: false,
-  };
-  graph.backlinks.constraint = {
-    direction: "incoming",
-    selection: detail.selected,
-    include_contents: true,
-  };
+  graph.outgoing.filter = linkLeaf(
+    {
+      direction: "outgoing",
+      selection: detail.selected,
+      include_contents: false,
+    },
+    "outgoing",
+  );
+  graph.backlinks.filter = linkLeaf(
+    {
+      direction: "incoming",
+      selection: detail.selected,
+      include_contents: true,
+    },
+    "incoming",
+  );
   api.getRelatedRecords.mockResolvedValue(response);
   renderRelated(detail);
   openRelated();
@@ -489,11 +504,12 @@ it("opens each Related direction with its checked selection and effective conten
   expect(links).toHaveLength(2);
   for (const [index, link] of links.entries()) {
     const url = new URL(link.getAttribute("href")!, "http://atlas.local");
-    const encoded = url.searchParams.get("relationships")!;
-    const criteria = JSON.parse(encoded.slice(2));
-    expect(criteria).toEqual([
-      index === 0 ? graph.outgoing.constraint : graph.backlinks.constraint,
-    ]);
+    const criteria = decodeFilterUrl(url.searchParams.get("filter")!);
+    expect(criteria).toEqual(
+      decodeFilterUrl(
+        encodeFilterUrl(index === 0 ? graph.outgoing.filter! : graph.backlinks.filter!),
+      ),
+    );
   }
 });
 
@@ -505,13 +521,21 @@ it("keeps discovery actions inside Related and exact View all links available fo
     records: [],
     occurrences: [],
     truncated: false,
-    constraint: { direction: "outgoing", selection: selected, include_contents: false },
+    filter: linkLeaf({
+      direction: "outgoing",
+      selection: selected,
+      include_contents: false,
+    }),
   };
   graph.backlinks = {
     records: [],
     occurrences: [],
     truncated: false,
-    constraint: { direction: "incoming", selection: selected, include_contents: true },
+    filter: linkLeaf({
+      direction: "incoming",
+      selection: selected,
+      include_contents: true,
+    }),
   };
   api.getRelatedRecords.mockResolvedValue(response);
   renderRelated();

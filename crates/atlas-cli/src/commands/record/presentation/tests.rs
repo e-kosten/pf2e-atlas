@@ -1,6 +1,6 @@
 use super::*;
 use atlas_app_model::*;
-use atlas_record::source_content::{OwnedContentIdentity, OwnedContentLocator};
+use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
 
 // Most fact fixtures have no separately loaded owned prose.
 fn render_record(

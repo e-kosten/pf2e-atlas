@@ -1,4 +1,4 @@
-use super::{filters::build_filter, product::app_result};
+use super::{filters::resolve_filter, product::app_result};
 use crate::client::{ClientOptions, connect};
 use atlas_app_service::{RawFilterCountsRequest, RawFilterValuesRequest};
 use atlas_cli_support::write_json_data;
@@ -22,6 +22,7 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
             s.discover_filter_editor(atlas_app_model::DiscoverFilterEditorRequest {
                 filter: None,
                 selected_field_ids: vec![],
+                expected_artifact_generation: None,
             }),
             o.json,
         )? {
@@ -150,22 +151,48 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
     Ok(ExitCode::SUCCESS)
 }
 pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, String> {
-    let (filter, _) = build_filter(&o.filter_options).map_err(|e| e.message)?;
     let s = match connect(ClientOptions {
-        search_profile: None,
+        search_profile: o.search_profile.clone(),
         path_mode: o.path_mode.into(),
         index: o.index,
         embedding_cache: None,
-        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
+        retrieval_mode: if o.query.is_some()
+            && !matches!(o.retrieval, super::search::args::CliRetrievalMode::Fts)
+        {
+            atlas_app_service::AppServiceRetrievalMode::OnDemandEmbeddings
+        } else {
+            atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings
+        },
     }) {
         Ok(service) => service,
         Err(error) => return crate::commands::product::report_app_error(error, o.json),
     };
+    let filter = match resolve_filter(&o.filter_options, &s) {
+        Ok(filter) => filter,
+        Err(error) => return super::product::report_app_error(error, o.json),
+    };
+    let context = match o.list_ref {
+        Some(list_ref) => atlas_app_model::FilterDiscoveryContext::SavedList {
+            list_ref,
+            filter,
+            text: o.query,
+            mode: o.retrieval.into(),
+            search_profile: o.search_profile,
+            expected_artifact_generation: o.artifact_generation,
+        },
+        None => atlas_app_model::FilterDiscoveryContext::Filtered {
+            filter,
+            text: o.query,
+            mode: o.retrieval.into(),
+            search_profile: o.search_profile,
+            expected_artifact_generation: o.artifact_generation,
+        },
+    };
     let counts = match app_result(
         s.discover_raw_filter_counts(RawFilterCountsRequest {
             field: o.field.clone(),
-            filter: filter.clone(),
-            clause_id: None,
+            context: context.clone(),
+            clause_id: o.clause_id.clone(),
         }),
         o.json,
     )? {
@@ -194,8 +221,8 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
         let values = match app_result(
             s.discover_raw_filter_values(RawFilterValuesRequest {
                 field: o.field,
-                filter,
-                clause_id: None,
+                context,
+                clause_id: o.clause_id,
                 text: o.text,
                 offset: o.offset,
                 limit: o.limit,
@@ -228,9 +255,7 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
             if (next_offset as u64) < values.total_values {
                 println!("Next page: repeat with --offset {next_offset}");
             }
-            println!(
-                "Counts are distinct parent records for each value, retaining all supplied filters."
-            );
+            println!("Counts are distinct parent records for each suggested value.");
             if definition.scope.is_some() {
                 println!(
                     "An existing collection filter may match a different entry; use one exists(...) for same-entry constraints."

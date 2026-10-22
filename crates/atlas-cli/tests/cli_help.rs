@@ -37,6 +37,10 @@ fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
         "--retrieval",
         "--sort",
         "--seed",
+        "--links-to",
+        "--linked-from",
+        "--links-to-main-entry",
+        "--linked-from-main-entry",
     ] {
         assert!(search.contains(flag));
     }
@@ -163,5 +167,37 @@ fn retired_flags_fail_instead_of_becoming_a_broader_query() {
         assert!(!o.status.success());
         let json: serde_json::Value = serde_json::from_slice(&o.stdout).unwrap();
         assert_eq!(json["status"], "error");
+    }
+}
+
+#[test]
+fn relationship_filters_and_occurrence_paging_are_discoverable_in_help() {
+    let search = help(&["search"]);
+    assert!(search.contains("links_to("));
+    assert!(search.contains("linked_from("));
+    for command in [
+        &["similar"][..],
+        &["filters", "values"][..],
+        &["record", "resolve"][..],
+    ] {
+        let text = help(command);
+        assert!(text.contains("--links-to"), "{command:?}");
+        assert!(text.contains("--linked-from-main-entry"), "{command:?}");
+    }
+    let occurrences = help(&["graph", "occurrences"]);
+    for flag in ["--artifact-generation", "--clause-id", "--page", "--limit"] {
+        assert!(occurrences.contains(flag));
+    }
+    let discovery = help(&["filters", "values"]);
+    for flag in [
+        "--query",
+        "--text",
+        "--retrieval",
+        "--search-profile",
+        "--list",
+        "--clause-id",
+        "--artifact-generation",
+    ] {
+        assert!(discovery.contains(flag));
     }
 }

@@ -437,17 +437,17 @@ fn sorting_ties_keep_canonical_keys_and_relationship_scopes_do_not_rebind_editio
         });
     let (service, _artifact) = open_input_fixture(fixture).unwrap();
     let keys = [key(0), key(1)];
-    let relationships = [RelationshipConstraint {
-        direction: SourceRelationshipDirection::Incoming,
-        record: key(2),
-        owners: vec![],
-        field: None,
-        include_contents: false,
-    }];
+    let relationship = crate::relationship_tests::criterion(
+        SourceRelationshipDirection::Incoming,
+        key(2),
+        vec![],
+        false,
+    );
     let filter = serde_json::from_value(
         json!({"kind":"compare","field":"kind","op":"eq","value":"equipment"}),
     )
     .unwrap();
+    let filter = crate::relationship_tests::link_filter(Some(&filter), &[relationship]);
     for sort in attributes().into_iter().chain([
         ResultSort::Random { seed: 0 },
         ResultSort::Random { seed: u32::MAX },
@@ -468,10 +468,7 @@ fn sorting_ties_keep_canonical_keys_and_relationship_scopes_do_not_rebind_editio
             .list_records(
                 ListRecordsRequest::new(Some(&filter), SearchPage::default())
                     .with_sort(sort)
-                    .with_scope(RecordScope::Constrained {
-                        keys: Some(&keys),
-                        relationships: &relationships,
-                    }),
+                    .with_scope(RecordScope::Keys(&keys)),
             )
             .unwrap();
         assert_eq!(result.record_keys, vec![key(0)]);

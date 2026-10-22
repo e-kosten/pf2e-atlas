@@ -38,6 +38,7 @@ import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
 
+import { linkLeaf } from "../filters/linkPredicates";
 import { relationshipSearchRoute } from "./relationshipSearch";
 
 export function RelatedRecords({
@@ -158,8 +159,8 @@ function RelatedTabs({
     );
   }
   function viewAll(section: GraphSectionView) {
-    if (!section.constraint) return null;
-    const route = relationshipSearchRoute(section.constraint);
+    if (!section.filter) return null;
+    const route = relationshipSearchRoute(section.filter);
     return (
       <Typography.Link
         href={atlasRoutePath(route)}
@@ -325,11 +326,13 @@ function RelatedTabs({
     <div className="related-records__body">
       <Space wrap className="related-records__actions">
         {(["incoming", "outgoing"] as const).map((direction) => {
-          const route = relationshipSearchRoute({
-            direction,
-            selection: detail.selected,
-            include_contents: detail.selected.embedded_path.length === 0,
-          });
+          const route = relationshipSearchRoute(
+            linkLeaf({
+              direction,
+              selection: detail.selected,
+              include_contents: detail.selected.embedded_path.length === 0,
+            }),
+          );
           return (
             <Button
               key={direction}

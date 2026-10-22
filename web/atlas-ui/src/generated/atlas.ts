@@ -244,9 +244,6 @@ export type { TraitAssociationKind } from "../../../../crates/atlas-app-model/bi
 export type { TraitRecordView } from "../../../../crates/atlas-app-model/bindings/TraitRecordView";
 export type { TraitContentView } from "../../../../crates/atlas-app-model/bindings/TraitContentView";
 export type { PreparedReferenceView } from "../../../../crates/atlas-app-model/bindings/PreparedReferenceView";
-export type { RelationshipConstraintSummaryView } from "../../../../crates/atlas-app-model/bindings/RelationshipConstraintSummaryView";
-export type { RelationshipConstraintView } from "../../../../crates/atlas-app-model/bindings/RelationshipConstraintView";
-export type { RelationshipDirectionView } from "../../../../crates/atlas-app-model/bindings/RelationshipDirectionView";
 export type { RelationshipEvidenceView } from "../../../../crates/atlas-app-model/bindings/RelationshipEvidenceView";
 export type { RelationshipOccurrencesPage } from "../../../../crates/atlas-app-model/bindings/RelationshipOccurrencesPage";
 export type { RelationshipOccurrencesRequest } from "../../../../crates/atlas-app-model/bindings/RelationshipOccurrencesRequest";
@@ -254,3 +251,8 @@ export type { ResultSort } from "../../../../crates/atlas-app-model/bindings/Res
 export type { SortField } from "../../../../crates/atlas-app-model/bindings/SortField";
 export type { SortDirection } from "../../../../crates/atlas-app-model/bindings/SortDirection";
 export type { SortRule } from "../../../../crates/atlas-app-model/bindings/SortRule";
+export type { QueryRelationshipDirection } from "../../../../crates/atlas-app-model/bindings/QueryRelationshipDirection";
+export type { QueryRecordSelection } from "../../../../crates/atlas-app-model/bindings/QueryRecordSelection";
+export type { QueryRelationship } from "../../../../crates/atlas-app-model/bindings/QueryRelationship";
+export type { RelationshipClauseSummaryView } from "../../../../crates/atlas-app-model/bindings/RelationshipClauseSummaryView";
+export type { RelationshipClausePresentationView } from "../../../../crates/atlas-app-model/bindings/RelationshipClausePresentationView";

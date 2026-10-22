@@ -39,6 +39,22 @@ Whole-command failures use `error`. Data-bearing responses use `data`; record ba
 
 JSON payloads are written to stdout. Routine progress is not part of the JSON contract and is controlled separately from payload output. By default, progress renders only for human terminal sessions and is suppressed for JSON or non-terminal automation; users can force or suppress progress with the global `--progress` option or the `ATLAS_PROGRESS` environment variable.
 
+### Current search contract
+
+Browse, text and Similar JSON use the common app-service SearchResultsPage inside
+`data`. Rows contain records and attributable matches/reference evidence; top-level
+clause presentations, effective order, mode, profile, generation, page and coverage
+retain the same semantics as web search. Similar's seed is part of its mode summary.
+Summary-only browse payloads and separate Similar wrappers are replaced directly;
+there are no parallel compatibility aliases for rows or evidence. Canonical keys
+and checked source addresses remain machine identity, separate from human labels.
+
+Relationship evidence identifies a predicate clause, not a positional constraint
+array. Only positive clauses in successful Boolean proofs contribute occurrences.
+Occurrence paging takes the full predicate, clause/result identity and expected
+generation. Contextual CLI discovery uses the same predicate/context contract.
+See [ADR0057](./0057-relationship-scoped-search.md).
+
 ### Current record batch contract
 
 `record get` and `record resolve` emit exactly one JSON document, including for a

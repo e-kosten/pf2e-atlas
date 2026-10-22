@@ -1,8 +1,9 @@
 use crate::projection::{navigation_fingerprint, relationship_views};
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::{AppErrorCode, RecordDetailRequest, RecordDetailView, RecordNavigationView};
+use atlas_domain::OwnedContentIdentity;
 use atlas_domain::{QueryPredicate, RecordKey, SourcePassageAddress};
-use atlas_record::source_content::{OwnedContentIdentity, SourceContentLocator};
+use atlas_record::source_content::SourceContentLocator;
 use atlas_record::source_record::{
     SourceContentFormat, SourceContentRole, SourceFieldView, recover_source_passage,
 };

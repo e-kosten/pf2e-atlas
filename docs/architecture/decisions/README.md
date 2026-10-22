@@ -4,7 +4,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 ## Current ADRs
 
-- [`0057-relationship-scoped-search.md`](./0057-relationship-scoped-search.md): typed source-scoped relationship eligibility, distinct-root search pages, independently paged occurrence evidence and visible human-named relationship criteria.
+- [`0057-relationship-scoped-search.md`](./0057-relationship-scoped-search.md): first-class Boolean reference predicates across web/CLI, checked source admission, distinct-root pages, clause-addressed positive proof evidence and human-named criteria.
 
 - [`0056-trait-reference-entities.md`](./0056-trait-reference-entities.md): typed trait identities, pinned source definitions, exact membership/reference evidence and stored-vector Similar into normal records.
 

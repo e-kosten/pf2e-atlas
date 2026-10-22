@@ -868,3 +868,74 @@ describe("structural boolean constants in the maintained builder", () => {
     },
   );
 });
+
+it("round trips exact link leaves in mixed Boolean groups, atomic NOT and double NOT", () => {
+  const relationship = {
+    direction: "outgoing" as const,
+    include_contents: false,
+    selection: {
+      record_key: "actors:parent",
+      embedded_path: [
+        { collection: "items", identity: { SnapshotLocal: { index: 4 } } },
+      ],
+      field: "description",
+      passage: { kind: "identity" as const },
+      source_fingerprint: "exact-source",
+    },
+  };
+  const leaf: QueryPredicate = {
+    kind: "relationship",
+    clause_id: "link",
+    relationship,
+  };
+  const expressions: QueryPredicate[] = [
+    leaf,
+    { kind: "not", clause_id: "not-link", predicate: leaf },
+    {
+      kind: "not",
+      clause_id: "outer-not",
+      predicate: { kind: "not", clause_id: "inner-not", predicate: leaf },
+    },
+    {
+      kind: "all_of",
+      clause_id: "root",
+      children: [
+        {
+          kind: "compare",
+          clause_id: "kind",
+          field: "kind",
+          op: "eq",
+          value: "creature",
+        },
+        {
+          kind: "any_of",
+          clause_id: "alternatives",
+          children: [
+            leaf,
+            {
+              kind: "not",
+              clause_id: "exclude",
+              predicate: {
+                ...leaf,
+                clause_id: "other",
+                relationship: { ...relationship, direction: "incoming" },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  ];
+  const fields = [fieldFixture("kind")];
+  for (const expression of expressions)
+    expect(builderPredicate(predicateBuilder(expression, fields), fields)).toEqual(
+      expression,
+    );
+  expect(() =>
+    builderPredicate(
+      predicateBuilder(leaf, [], "embedded.equipment"),
+      [],
+      "embedded.equipment",
+    ),
+  ).toThrow("Link conditions belong outside collection conditions.");
+});

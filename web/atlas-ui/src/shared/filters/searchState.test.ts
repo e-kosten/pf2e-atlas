@@ -1,5 +1,5 @@
 import type { ResultSort } from "../../generated/atlas";
-import type { RelationshipConstraintView } from "../../generated/atlas";
+import type { QueryRelationship } from "../../generated/atlas";
 import { encodeFilterUrl } from "./filterUrl";
 import {
   DEFAULT_SEARCH_STATE,
@@ -388,7 +388,7 @@ it("blocks obsolete filter links instead of running an unfiltered search", () =>
 });
 
 it("carries complete relationship constraints in browse and saved-list discovery contexts", () => {
-  const relationship: RelationshipConstraintView = {
+  const relationship: QueryRelationship = {
     direction: "outgoing",
     include_contents: true,
     selection: {
@@ -403,12 +403,22 @@ it("carries complete relationship constraints in browse and saved-list discovery
   };
   const state = {
     ...DEFAULT_SEARCH_STATE,
-    relationships: [relationship],
-    filter: { kind: "in" as const, field: "kind", values: ["equipment"] },
+
+    filter: {
+      kind: "all_of" as const,
+      children: [
+        { kind: "in" as const, field: "kind", values: ["equipment"] },
+        {
+          kind: "relationship" as const,
+          clause_id: "link-0",
+          relationship: relationship,
+        },
+      ],
+    },
   };
   expect(buildFilterDiscoveryContext(state, "bge-base", "generation-a")).toEqual({
     kind: "filtered",
-    relationships: [relationship],
+
     filter: state.filter,
     text: null,
     mode: "hybrid",
@@ -418,7 +428,7 @@ it("carries complete relationship constraints in browse and saved-list discovery
   expect(buildSavedListFilterDiscoveryContext("research", state)).toMatchObject({
     kind: "saved_list",
     list_ref: "research",
-    relationships: [relationship],
+
     filter: state.filter,
     text: null,
     mode: "lexical",

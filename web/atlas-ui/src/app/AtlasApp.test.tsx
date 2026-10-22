@@ -661,7 +661,7 @@ function emptyFilterEditor(): FilterEditorView {
 
 function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
   return {
-    relationships: [],
+    relationship_clauses: [],
     sort: { kind: "relevance" } as const,
     ranking: "score" as const,
     search_profile: "bge-base",

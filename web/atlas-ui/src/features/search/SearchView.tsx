@@ -5,7 +5,6 @@ import { FilterControls } from "../../shared/filters/FilterPanel";
 import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
 import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
-import { RelationshipFilters } from "./RelationshipFilters";
 import { SearchModelSelect } from "./SearchModelSelect";
 import { SearchProfileNotice } from "../../shared/search/SearchProfileNotice";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
@@ -31,7 +30,6 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
       <FilterControls
         filterState={workspace}
         layout="toolbar"
-        additionalFilters={<RelationshipFilters workspace={workspace} />}
         similarSearch={
           workspace.search.similarSeed
             ? {
@@ -111,7 +109,8 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
               : "Search or choose filters."
         }
         rows={workspace.resultPage?.rows ?? []}
-        relationships={workspace.resultPage?.relationships}
+        relationshipClauses={workspace.resultPage?.relationship_clauses}
+        filter={workspace.resultFilter}
         generation={workspace.resultPage?.artifact_generation}
         onRefreshResults={workspace.refreshResults}
         loading={loading}

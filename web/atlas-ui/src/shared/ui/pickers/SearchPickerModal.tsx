@@ -18,7 +18,11 @@ import {
   assertSearchIdentity,
   sameSearchPageContext,
 } from "../../search/searchIdentity";
-import type { SearchResultsPage, SearchResultsRequest } from "../../../generated/atlas";
+import type {
+  RecordSummaryView,
+  SearchResultsPage,
+  SearchResultsRequest,
+} from "../../../generated/atlas";
 import {
   DEFAULT_SEARCH_STATE,
   buildFilterDiscoveryContext,
@@ -36,6 +40,11 @@ import {
   retireImmutableReferenceQueries,
 } from "../../queries/immutableReferenceQueries";
 
+export type PickerSelection = {
+  record: RecordSummaryView;
+  artifact_generation: string;
+};
+
 export function SearchPickerModal<FormValues>({
   buildRequest,
   disabled = false,
@@ -45,13 +54,13 @@ export function SearchPickerModal<FormValues>({
   form,
   onCancel,
   onFinish,
-  onSelectedRecordKeyChange,
-  onSelectedRecordNameChange,
+  onSelectionChange,
   open,
   okButtonProps,
   selectedRecordKey,
   title,
   dismissLabel = "Cancel",
+  confirmLabel = "Add",
   status,
 }: {
   buildRequest: (query: string) => SearchResultsRequest;
@@ -62,13 +71,13 @@ export function SearchPickerModal<FormValues>({
   form: FormInstance<FormValues>;
   onCancel: () => void;
   onFinish: (values: FormValues) => void;
-  onSelectedRecordKeyChange: (recordKey: string | null) => void;
-  onSelectedRecordNameChange?: (name: string) => void;
+  onSelectionChange: (selection: PickerSelection | null) => void;
   open: boolean;
   okButtonProps?: ModalProps["okButtonProps"];
   selectedRecordKey: string | null;
   title: string;
   dismissLabel?: string;
+  confirmLabel?: string;
   status?: React.ReactNode;
 }) {
   const formId = useId();
@@ -199,7 +208,7 @@ export function SearchPickerModal<FormValues>({
       epoch: current.epoch + 1,
       recovering: false,
     }));
-    onSelectedRecordKeyChange(null);
+    onSelectionChange(null);
   };
   return (
     <ConfigProvider componentDisabled={disabled}>
@@ -269,6 +278,10 @@ export function SearchPickerModal<FormValues>({
         )}
         <ReferenceBrowser
           rows={currentRows}
+          relationshipClauses={recordResults.data?.relationship_clauses}
+          filter={request.criteria.filter}
+          generation={recordResults.data?.artifact_generation}
+          onRefreshResults={refreshResults}
           loading={
             !recordResults.error && !search.filterError && recordResults.isFetching
           }
@@ -276,8 +289,11 @@ export function SearchPickerModal<FormValues>({
           selectedRecordKey={selectedRecordKey}
           onSelect={(row) => {
             if (!disabled) {
-              onSelectedRecordKeyChange(row.record.record_key);
-              onSelectedRecordNameChange?.(row.record.title);
+              if (recordResults.data)
+                onSelectionChange({
+                  record: row.record,
+                  artifact_generation: recordResults.data.artifact_generation,
+                });
             }
           }}
           reading={reading}
@@ -355,7 +371,7 @@ export function SearchPickerModal<FormValues>({
               type="primary"
               htmlType="submit"
             >
-              Add
+              {confirmLabel}
             </Button>
           </Space>
         </Form>

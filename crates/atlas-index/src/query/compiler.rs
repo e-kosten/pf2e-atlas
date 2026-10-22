@@ -10,6 +10,7 @@ use rusqlite::types::Value;
 pub(crate) struct CompiledPredicate {
     pub expression: String,
     pub parameters: Vec<Value>,
+    pub proofs: Vec<(String, String)>,
 }
 #[derive(Debug, Clone)]
 pub(crate) struct BoundField {
@@ -252,7 +253,7 @@ pub(crate) fn member_relation(
             .unwrap_or_default()
     ))
 }
-fn parameter(parameters: &mut Vec<Value>, value: Value) -> String {
+pub(crate) fn parameter(parameters: &mut Vec<Value>, value: Value) -> String {
     parameters.push(value);
     format!("?{}", parameters.len())
 }
@@ -267,21 +268,80 @@ pub(crate) fn compile_predicate(
     query: &ValidatedQuery,
 ) -> Result<CompiledPredicate, crate::IndexError> {
     let mut parameters = Vec::new();
-    let expression = compile_node(query.predicate(), None, &mut parameters)?;
+    let tree = compile_tree(query.predicate(), None, &mut parameters)?;
+    let mut proofs = Vec::new();
+    tree.positive_proofs(true, "1", &mut proofs);
+    let expression = tree.truth;
     Ok(CompiledPredicate {
         expression: format!("(r.document_kind!='Macro' AND ({expression}))"),
         parameters,
+        proofs,
     })
+}
+#[derive(Clone, Copy)]
+enum BooleanNode {
+    All,
+    Any,
+    Not,
+    Leaf,
+}
+struct CompiledTruth {
+    truth: String,
+    kind: BooleanNode,
+    children: Vec<CompiledTruth>,
+    relationship_id: Option<String>,
+}
+impl CompiledTruth {
+    fn positive_proofs(&self, required: bool, guard: &str, out: &mut Vec<(String, String)>) {
+        match self.kind {
+            BooleanNode::Not => self.children[0].positive_proofs(!required, guard, out),
+            BooleanNode::All | BooleanNode::Any => {
+                for child in &self.children {
+                    let alternative = matches!(self.kind, BooleanNode::All) && !required
+                        || matches!(self.kind, BooleanNode::Any) && required;
+                    let guard = if alternative {
+                        format!(
+                            "({guard}) AND ({}) IS {}",
+                            child.truth,
+                            if required { "TRUE" } else { "FALSE" }
+                        )
+                    } else {
+                        guard.into()
+                    };
+                    child.positive_proofs(required, &guard, out);
+                }
+            }
+            BooleanNode::Leaf => {
+                if required && let Some(id) = &self.relationship_id {
+                    out.push((
+                        id.clone(),
+                        format!("({guard}) AND ({}) IS TRUE", self.truth),
+                    ));
+                }
+            }
+        }
+    }
 }
 pub(crate) fn compile_node(
     p: &QueryPredicate,
     scope: Option<&str>,
     parameters: &mut Vec<Value>,
 ) -> Result<String, crate::IndexError> {
+    Ok(compile_tree(p, scope, parameters)?.truth)
+}
+fn compile_tree(
+    p: &QueryPredicate,
+    scope: Option<&str>,
+    parameters: &mut Vec<Value>,
+) -> Result<CompiledTruth, crate::IndexError> {
+    let mut children_trees = Vec::new();
     let guarded = |state: String, value: String| {
         format!("CASE WHEN ({state})='value' THEN ({value}) ELSE NULL END")
     };
-    Ok(match &p.expression {
+    let truth = match &p.expression {
+        QueryExpression::Relationship { relationship } => {
+            crate::relationship_query::compile_relationship(relationship, parameters)?
+        }
         QueryExpression::BooleanConstant { value } => if *value { "1" } else { "0" }.to_owned(),
         QueryExpression::Compare { field, op, value } => {
             let d = checked_descriptor(scope, field)?;
@@ -351,7 +411,7 @@ pub(crate) fn compile_node(
             let d = checked_descriptor(None, collection)?;
             let state = bound_field(d, None).state;
             let relation = member_relation(d, None, "c")?;
-            let child = compile_node(predicate, Some(collection), parameters)?;
+            let child = compile_tree(predicate, Some(collection), parameters)?.truth;
             let child = if matches!(d.binding, Binding::Embedded { .. }) {
                 format!("CASE WHEN c.source_type_state='value' THEN ({child}) ELSE NULL END")
             } else {
@@ -373,14 +433,38 @@ pub(crate) fn compile_node(
                 "({})",
                 children
                     .iter()
-                    .map(|c| compile_node(c, scope, parameters))
+                    .map(|c| {
+                        let tree = compile_tree(c, scope, parameters)?;
+                        let truth = tree.truth.clone();
+                        children_trees.push(tree);
+                        Ok::<_, crate::IndexError>(truth)
+                    })
                     .collect::<Result<Vec<_>, _>>()?
                     .join(op)
             )
         }
         QueryExpression::Not { predicate } => {
-            format!("NOT ({})", compile_node(predicate, scope, parameters)?)
+            let tree = compile_tree(predicate, scope, parameters)?;
+            let truth = format!("NOT ({})", tree.truth);
+            children_trees.push(tree);
+            truth
         }
+    };
+    let kind = match &p.expression {
+        QueryExpression::AllOf { .. } => BooleanNode::All,
+        QueryExpression::AnyOf { .. } => BooleanNode::Any,
+        QueryExpression::Not { .. } => BooleanNode::Not,
+        _ => BooleanNode::Leaf,
+    };
+    Ok(CompiledTruth {
+        truth,
+        kind,
+        children: children_trees,
+        relationship_id: if matches!(p.expression, QueryExpression::Relationship { .. }) {
+            p.clause_id.clone()
+        } else {
+            None
+        },
     })
 }
 fn checked_descriptor(

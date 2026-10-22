@@ -9,6 +9,8 @@ import {
   type ResolvedColorScheme,
 } from "../shared/theme/atlasTheme";
 import { AppShell } from "./AppShell";
+import { LinkPickerContext } from "../shared/filters/LinkPickerContext";
+import { LinkConditionPicker } from "../shared/filters/LinkConditionPicker";
 import {
   ATLAS_ROUTE_CHANGE_EVENT,
   currentAtlasRoute,
@@ -133,41 +135,43 @@ export function AtlasApp() {
     >
       <App component={false}>
         <SearchProfileContext value={searchProfile}>
-          <AppShell
-            activeView={route.kind}
-            colorScheme={colorScheme}
-            onColorSchemeChange={updateColorScheme}
-            onNavigateSearch={() =>
-              navigateToAtlasRoute({ kind: "search", selectedRecordKey: null })
-            }
-            onNavigateEncounters={() => navigateToAtlasRoute({ kind: "encounters" })}
-            onNavigateLists={() => navigateToAtlasRoute({ kind: "lists" })}
-            resolvedColorScheme={resolvedColorScheme}
-            readiness={readiness.data}
-            readinessError={readiness.error}
-            checkingReadiness={readiness.isFetching}
-            onCheckReadiness={() => void readiness.refetch()}
-          >
-            <Suspense fallback={<RouteLoading />}>
-              {route.kind === "invalid" && <InvalidRoute message={route.message} />}
-              {route.kind === "search" && <SearchView workspace={workspace} />}
-              {route.kind === "encounters" && <EncounterIndexView route={route} />}
-              {route.kind === "encounter" && <EncounterDetailView route={route} />}
-              {route.kind === "encounterEdit" && <EncounterEditView route={route} />}
-              {route.kind === "lists" && <ListIndexView route={route} />}
-              {route.kind === "list" && (
-                <ListDetailView key={route.slug} route={route} />
-              )}
-              {route.kind === "listEdit" && <ListEditView route={route} />}
-              {route.kind === "trait" && (
-                <TraitView key={route.traitKey} route={route} />
-              )}
-              {route.kind === "record" && (
-                <RecordView key={atlasRoutePath(route)} route={route} />
-              )}
-              {route.kind === "reader" && <ReaderView route={route} />}
-            </Suspense>
-          </AppShell>
+          <LinkPickerContext value={LinkConditionPicker}>
+            <AppShell
+              activeView={route.kind}
+              colorScheme={colorScheme}
+              onColorSchemeChange={updateColorScheme}
+              onNavigateSearch={() =>
+                navigateToAtlasRoute({ kind: "search", selectedRecordKey: null })
+              }
+              onNavigateEncounters={() => navigateToAtlasRoute({ kind: "encounters" })}
+              onNavigateLists={() => navigateToAtlasRoute({ kind: "lists" })}
+              resolvedColorScheme={resolvedColorScheme}
+              readiness={readiness.data}
+              readinessError={readiness.error}
+              checkingReadiness={readiness.isFetching}
+              onCheckReadiness={() => void readiness.refetch()}
+            >
+              <Suspense fallback={<RouteLoading />}>
+                {route.kind === "invalid" && <InvalidRoute message={route.message} />}
+                {route.kind === "search" && <SearchView workspace={workspace} />}
+                {route.kind === "encounters" && <EncounterIndexView route={route} />}
+                {route.kind === "encounter" && <EncounterDetailView route={route} />}
+                {route.kind === "encounterEdit" && <EncounterEditView route={route} />}
+                {route.kind === "lists" && <ListIndexView route={route} />}
+                {route.kind === "list" && (
+                  <ListDetailView key={route.slug} route={route} />
+                )}
+                {route.kind === "listEdit" && <ListEditView route={route} />}
+                {route.kind === "trait" && (
+                  <TraitView key={route.traitKey} route={route} />
+                )}
+                {route.kind === "record" && (
+                  <RecordView key={atlasRoutePath(route)} route={route} />
+                )}
+                {route.kind === "reader" && <ReaderView route={route} />}
+              </Suspense>
+            </AppShell>
+          </LinkPickerContext>
         </SearchProfileContext>
       </App>
     </ConfigProvider>

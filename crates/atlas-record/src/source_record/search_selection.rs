@@ -4,7 +4,8 @@ use super::{
     SourceFieldView, SourceNodeView, SourceQueryView,
 };
 use super::{content::select_content, traversal::visit_source_nodes};
-use crate::source_content::{ContentAudience, OwnedContentLocator, SourceContentLocator};
+use crate::source_content::{ContentAudience, SourceContentLocator};
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::{RecordKey, SourceByteRange, SourcePassageAddress};
 use scraper::{ElementRef, Html};
 use sha2::{Digest, Sha256};

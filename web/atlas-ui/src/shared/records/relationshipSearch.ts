@@ -1,14 +1,15 @@
+import { appendLink } from "../filters/linkPredicates";
 import { currentAtlasRoute, type AtlasRoute } from "../../app/routes";
-import type { RelationshipConstraintView } from "../../generated/atlas";
+import type { QueryPredicate } from "../../generated/atlas";
 import {
   DEFAULT_SEARCH_STATE,
   decodeSearchStateFromParams,
   searchStateQueryString,
 } from "../filters/searchState";
 
-/** Known-record entry points replace the current relationship and retain search criteria. */
+/** Known-record links AND one exact condition with the complete active expression. */
 export function relationshipSearchRoute(
-  constraint: RelationshipConstraintView,
+  filter: QueryPredicate,
   profile?: string | null,
 ): AtlasRoute {
   const route = currentAtlasRoute();
@@ -17,11 +18,18 @@ export function relationshipSearchRoute(
     route.kind === "search"
       ? decodeSearchStateFromParams(params)
       : DEFAULT_SEARCH_STATE;
+  const next =
+    filter.kind === "relationship"
+      ? appendLink(search.filter, filter)
+      : search.filter
+        ? { kind: "all_of" as const, children: [search.filter, filter] }
+        : filter;
+  if (route.kind === "search" && next === search.filter) return route;
   return {
     kind: "search",
     selectedRecordKey: null,
     query: searchStateQueryString(
-      { ...search, relationships: [constraint] },
+      { ...search, filter: next },
       profile ?? params.get("search_profile"),
     ),
   };

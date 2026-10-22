@@ -58,6 +58,9 @@ pub struct QueryPredicate {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum QueryExpression {
+    Relationship {
+        relationship: crate::QueryRelationship,
+    },
     BooleanConstant {
         value: bool,
     },
@@ -147,6 +150,7 @@ pub struct QueryCapability {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 pub struct QueryLimits {
     pub source_bytes: usize,
+    pub relationship_leaves: usize,
     pub nodes: usize,
     pub depth: usize,
     pub literal_list: usize,
@@ -155,6 +159,7 @@ impl Default for QueryLimits {
     fn default() -> Self {
         Self {
             source_bytes: 16_384,
+            relationship_leaves: 16,
             nodes: 256,
             depth: 32,
             literal_list: 128,

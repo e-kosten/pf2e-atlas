@@ -39,7 +39,7 @@ fn relative(e: &IdedExpr, var: Option<&str>) -> Result<String, QueryError> {
         None => Ok(p),
     }
 }
-fn literal(e: &IdedExpr) -> Result<QueryLiteral, QueryError> {
+pub(super) fn literal(e: &IdedExpr) -> Result<QueryLiteral, QueryError> {
     match &e.expr {
         Expr::Literal(LiteralValue::String(s)) => Ok(QueryLiteral::String(s.inner().to_owned())),
         Expr::Literal(LiteralValue::Boolean(v)) => Ok(QueryLiteral::Boolean(*v.inner())),
@@ -136,6 +136,18 @@ fn lower(
             QueryExpression::BooleanConstant { value: *v.inner() }
         }
         Expr::Call(c) if c.target.is_none() => match c.func_name.as_str() {
+            "links_to" | "linked_from" => {
+                if var.is_some() {
+                    return Err(error(
+                        "mixed_scope",
+                        "Link conditions apply to records, not collection members",
+                        None,
+                    ));
+                }
+                QueryExpression::Relationship {
+                    relationship: super::cel_relationship::lower(&c.func_name, &c.args)?,
+                }
+            }
             operators::LOGICAL_AND | operators::LOGICAL_OR if c.args.len() == 2 => {
                 let children = c
                     .args
@@ -415,7 +427,10 @@ pub fn parse_where(source: &str) -> Result<ValidatedQuery, QueryError> {
             error.source_span = Some((0, source.len()));
             error
         })?;
-    let lowered = lower(&ast, None, 0, &mut 0).and_then(|p| validate_query(&p));
+    let lowered = lower(&ast, None, 0, &mut 0).and_then(|mut p| {
+        atlas_domain::assign_relationship_clause_ids(&mut p)?;
+        validate_query(&p)
+    });
     lowered.map_err(|mut e| {
         e.source_span = Some((0, source.len()));
         e

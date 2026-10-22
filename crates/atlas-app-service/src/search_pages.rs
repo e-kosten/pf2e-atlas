@@ -25,7 +25,6 @@ impl AtlasAppService {
         {
             let expected = request.expected_artifact_generation.clone();
             let filter = filter.clone();
-            let relationships = request.relationships.clone().unwrap_or_default();
             self.with_retrieval(execution, move |r| {
                 let actual = r.artifact_generation()?;
                 if let Some(expected) = expected
@@ -40,7 +39,6 @@ impl AtlasAppService {
                 if let Some(filter) = filter {
                     r.validate_filter(&filter)?;
                 }
-                crate::relationship_search::prepare_constraints(r, &relationships)?;
                 Ok(())
             })?;
             self.prepare_query(
@@ -66,15 +64,15 @@ impl AtlasAppService {
             }
             let search_profile =
                 retrieval.resolve_search_profile(request.search_profile.as_ref(), false)?;
-            let (relationships, relationship_summaries) =
-                crate::relationship_search::prepare_constraints(
-                    retrieval,
-                    request.relationships.as_deref().unwrap_or_default(),
-                )?;
-            let scope = RecordScope::Constrained {
-                keys: None,
-                relationships: &relationships,
+            let filter = match &request.criteria {
+                SearchCriteria::ListRecords { filter }
+                | SearchCriteria::TextSearch { filter, .. }
+                | SearchCriteria::SimilarRecords { filter, .. } => filter.as_ref(),
             };
+            let relationship_summaries =
+                crate::relationship_search::prepare_filter(retrieval, filter)?;
+            let evidence_filter = filter.cloned();
+            let scope = RecordScope::All;
             let (mode, mut rows, page, coverage) = match request.criteria {
                 SearchCriteria::SimilarRecords {
                     seed_record_key,
@@ -167,21 +165,37 @@ impl AtlasAppService {
                     row.record = record;
                 }
             }
-            for row in &mut rows {
+            let keys = rows
+                .iter()
+                .map(|row| {
+                    atlas_domain::RecordKey::parse(&row.record.record_key).map_err(|_| {
+                        AppServiceError::invalid_request("The result record is unavailable")
+                    })
+                })
+                .collect::<AppServiceResult<Vec<_>>>()?;
+            let proofs = if let Some(filter) = &evidence_filter {
+                retrieval.relationship_proofs(filter, &keys)?
+            } else {
+                vec![]
+            };
+            for (row, key) in rows.iter_mut().zip(keys) {
                 projection_execution.check()?;
-                let key = atlas_domain::RecordKey::parse(&row.record.record_key).map_err(|_| {
-                    AppServiceError::invalid_request("The result record is unavailable")
-                })?;
-                for (constraint_index, constraint) in relationships.iter().enumerate() {
+                for summary in &relationship_summaries {
+                    if !proofs
+                        .iter()
+                        .any(|(record, id)| record == &key && id == &summary.clause_id)
+                    {
+                        continue;
+                    }
                     let (occurrences, page) = crate::relationship_search::evidence_page(
                         retrieval,
-                        constraint,
+                        &summary.relationship,
                         &key,
                         SearchPage::new(1, 3)?,
                     )?;
                     row.relationship_evidence
                         .push(atlas_app_model::RelationshipEvidenceView {
-                            constraint_index,
+                            clause_id: summary.clause_id.clone(),
                             occurrences,
                             page,
                         });
@@ -189,7 +203,7 @@ impl AtlasAppService {
             }
             Ok(SearchResultsPage {
                 sort,
-                relationships: relationship_summaries,
+                relationship_clauses: relationship_summaries,
                 ranking: request.ranking.unwrap_or_default(),
                 search_profile,
                 artifact_generation,
