@@ -4,24 +4,30 @@ import { useRef, useState } from "react";
 
 export function EditableCommitField({
   ariaLabel,
+  blurOnEnter = true,
   className,
   disabled = false,
   inputMode,
   onCommit,
+  onCancel,
   placeholder,
   size,
   stopPropagation = false,
+  suffix,
   value,
   variant,
 }: {
   ariaLabel: string;
+  blurOnEnter?: boolean;
   className?: string;
   disabled?: InputProps["disabled"];
   inputMode?: InputProps["inputMode"];
   onCommit: (value: string) => void | Promise<unknown>;
+  onCancel?: () => void;
   placeholder?: string;
   size?: InputProps["size"];
   stopPropagation?: boolean;
+  suffix?: InputProps["suffix"];
   value: string;
   variant?: InputProps["variant"];
 }) {
@@ -67,6 +73,7 @@ export function EditableCommitField({
       className={className}
       disabled={disabled}
       inputMode={inputMode}
+      suffix={suffix}
       onBlur={() => finishEdit(true)}
       onChange={(event) => {
         editFinished.current = false;
@@ -83,12 +90,13 @@ export function EditableCommitField({
         if (event.key === "Enter") {
           event.preventDefault();
           finishEdit(true);
-          event.currentTarget.blur();
+          if (blurOnEnter) event.currentTarget.blur();
         }
         if (event.key === "Escape") {
           event.preventDefault();
           finishEdit(false);
           event.currentTarget.blur();
+          onCancel?.();
         }
       }}
       placeholder={placeholder}

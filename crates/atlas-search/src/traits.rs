@@ -18,6 +18,7 @@ pub struct TraitReferenceResult {
     pub page: SearchPageInfo,
 }
 pub struct SimilarTraitRequest<'a> {
+    pub sort: atlas_domain::ResultSort,
     pub trait_key: &'a TraitKey,
     pub search_profile: Option<&'a SearchProfileId>,
     pub filter: Option<&'a QueryPredicate>,
@@ -67,6 +68,7 @@ impl AtlasRetrievalService {
         &self,
         request: SimilarTraitRequest<'_>,
     ) -> Result<Option<SimilarTraitResult>, SearchError> {
+        Self::validate_search_sort(&request.sort)?;
         let Some(seed) = self.index.trait_definition(request.trait_key)? else {
             return Ok(None);
         };
@@ -85,7 +87,8 @@ impl AtlasRetrievalService {
             vector: Some(&vector),
             exclude: None,
         })?;
-        let results = self.finish_results(&profile, roots, request.page, true, window)?;
+        let results =
+            self.finish_results(&profile, roots, request.page, true, window, request.sort)?;
         Ok(Some(SimilarTraitResult { seed, results }))
     }
 }
@@ -148,6 +151,7 @@ mod tests {
         let (service, _artifact) = open_input_fixture(fixture).unwrap();
         let result = service
             .similar_trait(SimilarTraitRequest {
+                sort: atlas_domain::ResultSort::Relevance {},
                 trait_key: &key,
                 search_profile: None,
                 filter: None,
@@ -171,6 +175,7 @@ mod tests {
         let (fixture, key) = fixture(false);
         let (service, _artifact) = open_input_fixture(fixture).unwrap();
         let result = service.similar_trait(SimilarTraitRequest {
+            sort: atlas_domain::ResultSort::Relevance {},
             trait_key: &key,
             search_profile: None,
             filter: None,

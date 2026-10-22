@@ -153,12 +153,20 @@ impl SqliteIndexReader {
         query: &ValidatedQuery,
         keys: Option<&[RecordKey]>,
         prefer_remaster: bool,
+        sort: atlas_domain::ResultSort,
         offset: usize,
         limit: usize,
     ) -> Result<SourceKeyPage, IndexError> {
         if limit > 1024 {
             return Err(IndexError::Invalid("browse page exceeds 1024 roots".into()));
         }
+        sort.validate()
+            .map_err(|message| IndexError::Invalid(message.into()))?;
+        let order = if matches!(sort, atlas_domain::ResultSort::Random { .. }) {
+            None
+        } else {
+            Some(crate::result_order::attribute_order(&sort)?)
+        };
         let (eligible, mut params) = eligible_sql(query, keys)?;
         let preference = if prefer_remaster {
             " AND NOT EXISTS(SELECT 1 FROM remaster_pairs rp WHERE rp.legacy_record_id=r.record_id AND rp.remaster_record_id IN (SELECT record_id FROM eligible))"
@@ -175,6 +183,23 @@ impl SqliteIndexReader {
             params_from_iter(params.iter()),
             |r| r.get(0),
         )?;
+        if let atlas_domain::ResultSort::Random { seed } = sort {
+            self.count_statement();
+            let mut statement = c.prepare(&base)?;
+            let values = statement
+                .query_map(params_from_iter(params.iter()), |r| r.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut keys = values
+                .into_iter()
+                .map(parse_key)
+                .collect::<Result<Vec<_>, _>>()?;
+            crate::result_order::random_order(&mut keys, seed);
+            return Ok(SourceKeyPage {
+                keys: keys.into_iter().skip(offset).take(limit).collect(),
+                total: usize::try_from(total).map_err(|e| IndexError::Invalid(e.to_string()))?,
+            });
+        }
+        let order = order.ok_or_else(|| IndexError::Invalid("missing attribute order".into()))?;
         params.push(Value::Integer(
             i64::try_from(limit).map_err(|e| IndexError::Invalid(e.to_string()))?,
         ));
@@ -182,9 +207,7 @@ impl SqliteIndexReader {
             i64::try_from(offset).map_err(|e| IndexError::Invalid(e.to_string()))?,
         ));
         self.count_statement();
-        let mut statement = c.prepare(&format!(
-            "{base} ORDER BY r.name_lookup_key,r.key LIMIT ? OFFSET ?"
-        ))?;
+        let mut statement = c.prepare(&format!("{base} ORDER BY {order} LIMIT ? OFFSET ?"))?;
         let values = statement
             .query_map(params_from_iter(params.iter()), |r| r.get::<_, String>(0))?
             .collect::<Result<Vec<_>, _>>()?;

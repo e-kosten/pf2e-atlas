@@ -1,7 +1,7 @@
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { Alert, Button, Empty, Pagination, Spin, Tabs, Typography } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AtlasApiError, getTraitRecords } from "../../api/atlasApi";
 import {
   atlasRoutePath,
@@ -13,12 +13,26 @@ import type {
   TraitAssociationKind,
   TraitDetailView,
   TraitRecordsRequest,
+  TraitRecordsPage,
 } from "../../generated/atlas";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHeader";
 import { useTraitDetail } from "../../shared/records/useTraitDetail";
 import { PreparedContentBody } from "../../shared/records/PreparedContent";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
+import { ResultSortControl } from "../../shared/search/ResultSortControl";
+import {
+  DEFAULT_SEARCH_STATE,
+  decodeResultSort,
+  encodeResultSort,
+  effectiveResultSort,
+  type SearchFormState,
+} from "../../shared/filters/searchState";
+import {
+  assertSearchIdentity,
+  sameSearchPageContext,
+  sameResultSort,
+} from "../../shared/search/searchIdentity";
 import {
   isArtifactGenerationChanged,
   retireImmutableReferenceQueries,
@@ -93,6 +107,7 @@ export function TraitView({
                   query.data.artifact_generation,
                 ])}
                 detail={query.data}
+                route={route}
                 onReload={() => void reload()}
               />
             </article>
@@ -109,16 +124,36 @@ export function TraitView({
 
 function TraitAssociations({
   detail,
+  route,
   onReload,
 }: {
   detail: TraitDetailView;
+  route: Extract<AtlasRoute, { kind: "trait" }>;
   onReload: () => void;
 }) {
-  const [kind, setKind] = useState<TraitAssociationKind>("members");
+  const [state, setState] = useState(() =>
+    traitAssociationState(route.query, detail.trait_key),
+  );
+  const previousQuery = useRef(route.query);
+  useEffect(() => {
+    if (previousQuery.current === route.query) return;
+    previousQuery.current = route.query;
+    setState(traitAssociationState(route.query, detail.trait_key));
+  }, [route.query, detail.trait_key]);
+  function update(kind: TraitAssociationKind, search = state.search) {
+    const params = new URLSearchParams(route.query);
+    if (kind === "members") params.delete("tab");
+    else params.set("tab", kind);
+    encodeResultSort(params, search.sort);
+    const query = params.size ? "?" + params.toString() : undefined;
+    previousQuery.current = query;
+    setState({ kind, search });
+    navigateToAtlasRoute({ ...route, query });
+  }
   return (
     <Tabs
-      activeKey={kind}
-      onChange={(value) => setKind(value as TraitAssociationKind)}
+      activeKey={state.kind}
+      onChange={(value) => update(value as TraitAssociationKind)}
       items={[
         { key: "members", label: "Has this trait" },
         { key: "references", label: "References" },
@@ -130,6 +165,8 @@ function TraitAssociations({
             key={JSON.stringify([item.key, detail.artifact_generation])}
             detail={detail}
             kind={item.key as TraitAssociationKind}
+            search={state.search}
+            setSearch={(search) => update(state.kind, search)}
             onReload={onReload}
           />
         ),
@@ -138,16 +175,44 @@ function TraitAssociations({
   );
 }
 
+function traitAssociationState(
+  query: string | undefined,
+  traitKey: string,
+): { kind: TraitAssociationKind; search: SearchFormState } {
+  const params = new URLSearchParams(query);
+  const tab = params.get("tab");
+  const { sort, sortError } = decodeResultSort(params, "search", true);
+  return {
+    kind: tab === "similar" || tab === "references" ? tab : "members",
+    search: {
+      ...DEFAULT_SEARCH_STATE,
+      similarSeed: traitKey,
+      sort,
+      filterError: sortError,
+    },
+  };
+}
+
 function TraitRecords({
   detail,
   kind,
   onReload,
+  search,
+  setSearch,
 }: {
   detail: TraitDetailView;
   kind: TraitAssociationKind;
   onReload: () => void;
+  search: SearchFormState;
+  setSearch: (search: SearchFormState) => void;
 }) {
-  const [page, setPage] = useState(1);
+  const [paging, setPaging] = useState({ sort: search.sort, number: 1 });
+  const orderChanged = kind === "similar" && !sameResultSort(paging.sort, search.sort);
+  // Retire the prior order's page before constructing any new request. Returning
+  // to that order must start at page one too, rather than revive its old page.
+  if (orderChanged) setPaging({ sort: search.sort, number: 1 });
+  const page = orderChanged ? 1 : paging.number;
+  const setPage = (number: number) => setPaging({ sort: search.sort, number });
   const profile = useSearchProfile();
   const request: TraitRecordsRequest = {
     trait_key: detail.trait_key,
@@ -156,11 +221,28 @@ function TraitRecords({
     expected_artifact_generation: detail.artifact_generation,
     search_profile: profile.id,
     ranking: "score",
+    ...(kind === "similar" && search.sort ? { sort: search.sort } : {}),
   };
-  const query = useQuery({
+  const query = useQuery<TraitRecordsPage>({
     queryKey: ["trait-records", request],
-    queryFn: ({ signal }) => getTraitRecords(request, signal),
-    enabled: kind !== "similar" || !profile.loading,
+    placeholderData: (previous, previousQuery) =>
+      kind === "similar" &&
+      previousQuery &&
+      sameSearchPageContext(previousQuery.queryKey[1] as TraitRecordsRequest, request)
+        ? previous
+        : undefined,
+    queryFn: async ({ signal }) => {
+      const response = await getTraitRecords(request, signal);
+      if (kind === "similar")
+        assertSearchIdentity(
+          { ...response, search_profile: response.search_profile ?? "" },
+          profile.id,
+          detail.artifact_generation,
+          effectiveResultSort(search),
+        );
+      return response;
+    },
+    enabled: kind !== "similar" || (!profile.loading && !search.filterError),
   });
   const changed = isArtifactGenerationChanged(query.error);
   const unavailable =
@@ -179,6 +261,27 @@ function TraitRecords({
       }
       aria-busy={query.isFetching}
     >
+      {kind === "similar" && (
+        <div className="result-pane-header">
+          <span>
+            {query.isPlaceholderData
+              ? "Updating results"
+              : data?.coverage?.exhaustive === false
+                ? "Top matches"
+                : "Similar records"}
+          </span>
+          <ResultSortControl
+            search={search}
+            setSearch={(next) => {
+              setPage(1);
+              setSearch(next);
+            }}
+          />
+        </div>
+      )}
+      {kind === "similar" && search.filterError && (
+        <Alert type="error" title={search.filterError} />
+      )}
       {query.error && (
         <Alert
           showIcon
@@ -215,7 +318,7 @@ function TraitRecords({
       {query.isLoading && <Spin delay={500} />}
       {data && (
         <>
-          {data.coverage && !data.coverage.exhaustive && (
+          {kind !== "similar" && data.coverage && !data.coverage.exhaustive && (
             <Typography.Paragraph type="secondary">Top matches</Typography.Paragraph>
           )}
           {!data.rows.length ? (
@@ -250,6 +353,21 @@ function TraitRecords({
                         ? `${row.source_label} · ${row.record.title}`
                         : row.record.title}
                     </Typography.Link>
+                    {kind === "similar" && row.record.unit_price_label && (
+                      <Typography.Text type="secondary">
+                        {" "}
+                        · {row.record.unit_price_label}
+                      </Typography.Text>
+                    )}
+                    {kind === "similar" &&
+                      data.sort?.kind === "attributes" &&
+                      data.sort.rules.some((rule) => rule.field === "level") &&
+                      row.record.level_label && (
+                        <Typography.Text type="secondary">
+                          {" "}
+                          · {row.record.level_label}
+                        </Typography.Text>
+                      )}
                     {row.reference_direction && (
                       <Typography.Text type="secondary">
                         {" "}

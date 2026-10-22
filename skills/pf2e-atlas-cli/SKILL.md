@@ -175,6 +175,9 @@ returned record and matching passage:
 atlas search 'Ghoul Fever' --retrieval fts --json
 atlas search 'a creature whose disease drains a victim over time' --json
 atlas search --kind creature --trait undead --json
+atlas search --kind creature --sort level_desc --json
+atlas search --kind equipment --sort level_desc --sort unit_price_asc --json
+atlas search --kind creature --sort random --seed 42 --json
 atlas search --where 'defenses.hp.maximum >= 80 && "undead" in traits' --json
 atlas similar spells-srd:1xLVcA8Y1onw7toT --kind spell --json
 ```
@@ -188,9 +191,21 @@ the same data. Keep the default unless the caller asks to compare approaches.
 Ranking selection does not rebuild data and applies only to hybrid text search.
 `--limit` sets page size (1-100); `--page` starts at 1. Query-free browsing ignores
 text retrieval and ranking options.
+`--sort` accepts `name_asc`, `name_desc`, `level_asc`, `level_desc`,
+`unit_price_asc` or `unit_price_desc`. Repeat it for later tie-breaking attributes;
+each field appears at most once. Text and Similar also accept sole `relevance`.
+Browse defaults to name ascending; text and Similar default to relevance.
+Attribute sorting orders the complete matching set before pagination, without
+changing semantic candidate coverage or switching to FTS. Missing values appear
+last for each rule in either direction; later rules break ties before the final
+name/key order. `--sort random` shuffles the same complete matching set before
+paging. `--seed` accepts an unsigned32-bit integer only with Random; omission
+generates a seed reported in the result. Reuse it to retain the same order for
+unchanged matching records across pages. Random does not expand semantic coverage.
 A lexical-only workspace needs `--retrieval fts` for text queries.
 Similar uses the seed's stored root identity vector. Its filters constrain
 candidates, not seed resolution; resolve an ambiguous seed separately.
+Similar also accepts `--page` and `--limit` for stateless result pages.
 Semantic/hybrid candidate windows are bounded: report the
 returned coverage and count basis honestly, never describe them as an exhaustive
 corpus census. Result scores are retrieval evidence, not probabilities. Inspect
@@ -284,11 +299,15 @@ Keep durable collections in saved lists:
 atlas lists create undead-research --name 'Undead Research' --json
 atlas lists add undead-research --record 'Skeleton Guard' --note 'A basic guard option' --json
 atlas lists show undead-research --json
+atlas lists show undead-research --sort level_asc --json
 atlas lists export undead-research --output undead-research.json
 atlas lists import undead-research.json --id undead-research-copy --json
 ```
 
 `lists create` also accepts repeated `--record` inputs to initialize a new list.
+`lists show --sort` accepts repeated attribute orders above, sole `saved_order`
+(the default), or `random` with optional `--seed`. Attribute and Random order are
+temporary and do not change saved positions.
 Use already resolved keys when names are ambiguous. Existing ids fail without
 changing the list; use `lists add` for later batches. Batch receipts preserve input
 order and report added/already-present/failed results. Any failed input exits

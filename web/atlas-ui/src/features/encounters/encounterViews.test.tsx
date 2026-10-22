@@ -30,6 +30,7 @@ import type {
   RecordPresentationView,
   RecordSummaryView,
   SearchResultsPage,
+  SearchResultsRequest,
 } from "../../generated/atlas";
 import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
@@ -113,7 +114,14 @@ describe("encounter views", () => {
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
       Promise.resolve(recordDetailFixture(recordKey)),
     );
-    apiMocks.searchPage.mockResolvedValue(searchResultsFixture());
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
+      ...searchResultsFixture(),
+      sort:
+        request.sort ??
+        (request.criteria.kind === "list_records"
+          ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+          : { kind: "relevance" }),
+    }));
     apiMocks.getEncounterTurnReview.mockImplementation(() =>
       Promise.resolve({
         encounter_key: "encounter_ambush",
@@ -2780,6 +2788,7 @@ function participantFixture(
 function searchResultsFixture(): SearchResultsPage {
   return {
     relationships: [],
+    sort: { kind: "relevance" } as const,
     ranking: "score" as const,
     search_profile: "bge-base",
     artifact_generation: "generation-a",

@@ -1,6 +1,157 @@
 import { expect, test } from "@playwright/test";
 import { encodeFilterUrl } from "../src/shared/filters/filterUrl";
 
+test("Sort rules and seeded Random remain usable at 390px", async ({
+  page,
+  context,
+}) => {
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await page.goto(
+    "/search?filter=" +
+      encodeURIComponent(
+        encodeFilterUrl({ kind: "in", field: "kind", values: ["creature"] }),
+      ),
+  );
+  await expect(page.locator("[data-record-key]").first()).toBeVisible();
+  await page.getByRole("button", { name: /^Sort:/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Sort results" });
+  const choose = async (name: string, option: string) => {
+    await dialog.getByRole("combobox", { name, exact: true }).click();
+    await page
+      .getByText(option, { exact: true })
+      .filter({ visible: true })
+      .last()
+      .click();
+  };
+  await choose("Sort field 1", "Level / Rank");
+  await choose("Sort direction 1", "High to low");
+  await dialog.getByRole("button", { name: "Add another sort", exact: true }).click();
+  await choose("Sort field 2", "Unit price");
+  await dialog.getByRole("button", { name: "Move sort rule 2 up" }).click();
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.getAll("sort").join(",") === "unit_price_asc,level_desc",
+  );
+  const bounds = await dialog.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(1000);
+  await choose("Sort mode", "Random");
+  const seed = dialog.getByRole("textbox", { name: "Random seed" });
+  await expect(seed).toHaveValue(/^\d+$/);
+  const original = new URL(page.url()).searchParams.get("seed");
+  await seed.fill(original === "0" ? "1" : "0");
+  await seed.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Sort: Random", exact: true }),
+  ).toBeFocused();
+  expect(new URL(page.url()).searchParams.get("seed")).toBe(original);
+  await page.getByRole("button", { name: "Sort: Random", exact: true }).click();
+  await expect(seed).toHaveValue(original!);
+  await seed.fill("0");
+  expect(new URL(page.url()).searchParams.get("seed")).toBe(original);
+  await seed.press("Enter");
+  await expect(page).toHaveURL((url) => url.searchParams.get("seed") === "0");
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: new URL(page.url()).origin,
+  });
+  const copy = dialog.getByRole("button", { name: "Copy seed", exact: true });
+  await copy.click();
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe("0");
+  await expect(
+    page.getByText("Copied", { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
+  await seed.fill("43");
+  await copy.click();
+  await expect(page).toHaveURL((url) => url.searchParams.get("seed") === "43");
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe("43");
+  await seed.fill("0");
+  await seed.press("Enter");
+  const shuffle = dialog.getByRole("button", { name: "Shuffle", exact: true });
+  const seedBounds = await dialog.locator(".result-sort__seed-input").boundingBox();
+  const shuffleBounds = await shuffle.boundingBox();
+  expect(seedBounds).not.toBeNull();
+  expect(shuffleBounds).not.toBeNull();
+  expect(Math.abs(seedBounds!.y - shuffleBounds!.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(seedBounds!.height - shuffleBounds!.height)).toBeLessThanOrEqual(1);
+  const copyBounds = await dialog
+    .getByRole("button", { name: "Copy seed", exact: true })
+    .boundingBox();
+  expect(copyBounds).not.toBeNull();
+  expect(copyBounds!.x).toBeGreaterThanOrEqual(seedBounds!.x + seedBounds!.width / 2);
+  expect(copyBounds!.x + copyBounds!.width).toBeLessThanOrEqual(
+    seedBounds!.x + seedBounds!.width,
+  );
+  expect(copyBounds!.y).toBeGreaterThanOrEqual(seedBounds!.y);
+  expect(copyBounds!.y + copyBounds!.height).toBeLessThanOrEqual(
+    seedBounds!.y + seedBounds!.height,
+  );
+  expect(seedBounds!.x + seedBounds!.width).toBeLessThanOrEqual(shuffleBounds!.x);
+  expect(shuffleBounds!.x + shuffleBounds!.width).toBeLessThanOrEqual(390);
+  await shuffle.click();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.searchParams.get("sort") === "random" && url.searchParams.get("seed") !== "0",
+  );
+  const shuffled = new URL(page.url()).searchParams.get("seed");
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Sort: Random", exact: true }),
+  ).toBeVisible();
+  expect(new URL(page.url()).searchParams.get("seed")).toBe(shuffled);
+});
+
+for (const width of [390, 320]) {
+  test(`sorting and complete page navigation fit within the result pane at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto(
+      "/search?sort=unit_price_asc&filter=" +
+        encodeURIComponent(
+          encodeFilterUrl({
+            kind: "in",
+            clause_id: "kind",
+            field: "kind",
+            values: ["creature"],
+          }),
+        ),
+    );
+    const results = page.getByRole("region", { name: "Search results", exact: true });
+    await expect(results.locator("[data-record-key]").first()).toBeVisible();
+    const pane = await results.boundingBox();
+    expect(pane).not.toBeNull();
+    // Check actual control shells against the pane, not just document overflow.
+    for (const control of await results.locator(".pager > *").all()) {
+      const box = await control.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(pane!.x);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(pane!.x + pane!.width);
+    }
+    const navigation = results.getByRole("group", { name: "Result pages" });
+    const previous = await navigation
+      .getByRole("button", { name: "Previous page" })
+      .boundingBox();
+    const next = await navigation
+      .getByRole("button", { name: "Next page" })
+      .boundingBox();
+    expect(previous).not.toBeNull();
+    expect(next).not.toBeNull();
+    expect(Math.abs(previous!.y - next!.y)).toBeLessThanOrEqual(1);
+    await navigation.getByRole("button", { name: "Next page" }).click();
+    await expect(navigation.getByRole("textbox", { name: "Current page" })).toHaveValue(
+      "2",
+    );
+    await expect(results.locator("[data-record-key]").first()).toBeVisible();
+  });
+}
+
 // These checks use the caller's real source artifact and application service.
 for (const width of [1440, 1100, 390]) {
   for (const similar of [false, true]) {

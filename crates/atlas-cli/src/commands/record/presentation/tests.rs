@@ -268,6 +268,7 @@ fn absent_number() -> NumberFactView {
 }
 fn summary(title: &str, family: &str) -> RecordSummaryView {
     RecordSummaryView {
+        unit_price_label: None,
         record_key: "creatures:caster".into(),
         title: title.into(),
         kind: family.into(),

@@ -1,3 +1,4 @@
+import type { ResultSort } from "../../generated/atlas";
 import type { RelationshipConstraintView } from "../../generated/atlas";
 import { encodeFilterUrl } from "./filterUrl";
 import {
@@ -8,7 +9,186 @@ import {
   buildFilterDiscoveryContext,
   buildSavedListFilterDiscoveryContext,
   hasExecutableSearch,
+  effectiveResultSort,
+  normalizeSortTransition,
+  encodeSearchExecutionState,
+  encodeResultSort,
+  decodeResultSort,
 } from "./searchState";
+describe("result order intent", () => {
+  it("round trips complete ordered rules without materializing defaults", () => {
+    const sort: ResultSort = {
+      kind: "attributes",
+      rules: [
+        { field: "level", direction: "desc" },
+        { field: "unit_price", direction: "asc" },
+        { field: "name", direction: "desc" },
+      ],
+    };
+    const params = new URLSearchParams(
+      searchStateQueryString({ ...DEFAULT_SEARCH_STATE, sort }),
+    );
+    expect(params.getAll("sort")).toEqual([
+      "level_desc",
+      "unit_price_asc",
+      "name_desc",
+    ]);
+    expect(decodeSearchStateFromParams(params).sort).toEqual(sort);
+    const old = new URLSearchParams("sort=random&seed=3");
+    encodeResultSort(old, sort);
+    expect(old.has("seed")).toBe(false);
+    encodeResultSort(old, undefined);
+    expect(old.size).toBe(0);
+  });
+  it.each([0, 4294967295])(
+    "keeps Random seed %s through URL/request identity and stays idle alone",
+    (seed) => {
+      const state = {
+        ...DEFAULT_SEARCH_STATE,
+        sort: { kind: "random", seed } satisfies ResultSort,
+      };
+      expect(
+        decodeSearchStateFromParams(new URLSearchParams(searchStateQueryString(state)))
+          .sort,
+      ).toEqual(state.sort);
+      expect(buildSearchRequest(state, 1).sort).toEqual(state.sort);
+      expect(hasExecutableSearch(state)).toBe(false);
+      expect(buildFilterDiscoveryContext(state)).toEqual(
+        buildFilterDiscoveryContext(DEFAULT_SEARCH_STATE),
+      );
+    },
+  );
+  it.each([
+    "sort=random",
+    "sort=random&seed=",
+    "sort=random&seed=-1",
+    "sort=random&seed=4294967296",
+    "sort=random&seed=1.1",
+    "sort=random&seed=1oops",
+    "sort=random&seed=1e2",
+    "sort=random&seed=Infinity",
+    "sort=random&seed=0&seed=0",
+    "seed=0",
+    "sort=name_asc&seed=1",
+    "sort=relevance&seed=1",
+    "sort=random&sort=name_asc&seed=1",
+    "sort=relevance&sort=relevance",
+    "sort=relevance&sort=name_asc",
+    "sort=saved_order&sort=name_asc",
+    "sort=name_asc&sort=name_desc",
+    "sort=level_desc&sort=level_desc",
+    "sort=",
+    "sort=unknown_asc",
+  ])("rejects malformed sort grammar %s", (query) => {
+    expect(
+      decodeResultSort(new URLSearchParams(query), "search", true).sortError,
+    ).toBeTruthy();
+    expect(
+      decodeSearchStateFromParams(new URLSearchParams(query)).filterError,
+    ).toBeTruthy();
+  });
+  it("keeps automatic defaults out of URLs and requests but preserves an explicit default", () => {
+    const automatic = decodeSearchStateFromParams(new URLSearchParams());
+    expect(automatic.sort).toBeUndefined();
+    expect(effectiveResultSort(automatic)).toEqual({
+      kind: "attributes",
+      rules: [{ field: "name", direction: "asc" }],
+    });
+    expect(buildSearchRequest(automatic, 1)).not.toHaveProperty("sort");
+    expect(
+      hasExecutableSearch({
+        ...automatic,
+        sort: {
+          kind: "attributes",
+          rules: [{ field: "name", direction: "desc" }],
+        } satisfies ResultSort,
+      }),
+    ).toBe(false);
+    const explicit = {
+      ...automatic,
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "name", direction: "asc" }],
+      } satisfies ResultSort,
+    };
+    expect(searchStateQueryString(explicit)).toContain("sort=name_asc");
+    expect(buildSearchRequest(explicit, 1).sort).toEqual({
+      kind: "attributes",
+      rules: [{ field: "name", direction: "asc" }],
+    });
+    expect(
+      decodeSearchStateFromParams(new URLSearchParams(searchStateQueryString(explicit)))
+        .sort,
+    ).toEqual({ kind: "attributes", rules: [{ field: "name", direction: "asc" }] });
+    expect(encodeSearchExecutionState(explicit)).not.toBe(
+      encodeSearchExecutionState(automatic),
+    );
+  });
+  it("defaults semantic criteria to Relevance and lists to Saved order while retaining explicit attributes", () => {
+    for (const criterion of [{ query: "fire" }, { similarSeed: "items:seed" }]) {
+      const automatic = { ...DEFAULT_SEARCH_STATE, ...criterion };
+      expect(effectiveResultSort(automatic)).toEqual({ kind: "relevance" });
+      expect(effectiveResultSort(automatic, "saved_list")).toEqual({
+        kind: "saved_order",
+      });
+      const explicit = {
+        ...automatic,
+        sort: {
+          kind: "attributes",
+          rules: [{ field: "level", direction: "desc" }],
+        } satisfies ResultSort,
+      };
+      expect(effectiveResultSort(explicit)).toEqual({
+        kind: "attributes",
+        rules: [{ field: "level", direction: "desc" }],
+      });
+      expect(
+        normalizeSortTransition(explicit, { ...explicit, query: "", similarSeed: null })
+          .sort,
+      ).toEqual({ kind: "attributes", rules: [{ field: "level", direction: "desc" }] });
+      const relevant = { ...automatic, sort: { kind: "relevance" } as const };
+      expect(
+        normalizeSortTransition(relevant, { ...relevant, query: "", similarSeed: null })
+          .sort,
+      ).toBeUndefined();
+    }
+  });
+  it.each(["sort=unknown", "sort=saved_order", "sort=relevance"])(
+    "rejects incompatible search URL %s",
+    (query) => {
+      const state = decodeSearchStateFromParams(new URLSearchParams(query));
+      expect(state.filterError).toBeTruthy();
+      expect(hasExecutableSearch(state)).toBe(false);
+    },
+  );
+  it("validates list orders separately and excludes ordering from discovery membership", () => {
+    expect(
+      decodeSearchStateFromParams(
+        new URLSearchParams("q=fire&sort=relevance"),
+        "saved_list",
+      ).filterError,
+    ).toBeTruthy();
+    expect(
+      decodeSearchStateFromParams(
+        new URLSearchParams("q=fire&sort=saved_order"),
+        "saved_list",
+      ).filterError,
+    ).toBeNull();
+    const state = {
+      ...DEFAULT_SEARCH_STATE,
+      sort: {
+        kind: "attributes",
+        rules: [{ field: "unit_price", direction: "desc" }],
+      } satisfies ResultSort,
+    };
+    expect(buildFilterDiscoveryContext(state)).toEqual(
+      buildFilterDiscoveryContext(DEFAULT_SEARCH_STATE),
+    );
+    expect(buildSavedListFilterDiscoveryContext("research", state)).toEqual(
+      buildSavedListFilterDiscoveryContext("research", DEFAULT_SEARCH_STATE),
+    );
+  });
+});
 describe("source query state", () => {
   it("preserves ranking independently of the query and rejects unknown strategies", () => {
     for (const ranking of ["rrf", "score"] as const) {

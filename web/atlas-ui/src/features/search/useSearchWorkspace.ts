@@ -13,6 +13,8 @@ import type { FilterEditorView, SearchResultsPage } from "../../generated/atlas"
 import {
   buildFilterDiscoveryContext,
   buildSearchRequest,
+  effectiveResultSort,
+  normalizeSortTransition,
   DEFAULT_SEARCH_STATE,
   SIMILAR_QUERY_CONFLICT,
   encodeSearchExecutionState,
@@ -229,7 +231,12 @@ export function useSearchWorkspace({
         ),
         signal,
       );
-      assertSearchIdentity(page, searchProfile, retrieval.generation);
+      assertSearchIdentity(
+        page,
+        searchProfile,
+        retrieval.generation,
+        effectiveResultSort(activeSearch),
+      );
       if (
         activeSearch.query.trim() &&
         page.ranking !== (activeSearch.ranking ?? "score")
@@ -336,6 +343,7 @@ export function useSearchWorkspace({
     // Keyword entry intentionally replaces similarity, while ordinary filters retain it.
     if (next.query.trim()) next = { ...next, similarSeed: null, mode: "text_search" };
     else next = { ...next, mode: next.similarSeed ? "similar_records" : "browse" };
+    next = normalizeSortTransition(search, next);
     if (
       next.filterError === SIMILAR_QUERY_CONFLICT &&
       (next.query !== search.query || next.similarSeed !== search.similarSeed)

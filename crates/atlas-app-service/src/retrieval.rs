@@ -3,8 +3,7 @@ use atlas_app_model::AppErrorCode;
 use atlas_domain::{QueryPredicate, RecordKey};
 use atlas_search::{
     GraphContextRequest, ListRecordsRequest, RecordRefResolutionResult, RemasterLinksRequest,
-    ResolveRecordRefRequest, SearchPage, SimilarRecordRequest, TextSearchRequest,
-    VariantGroupRequest,
+    ResolveRecordRefRequest, SearchPage, SimilarRecordRequest, VariantGroupRequest,
 };
 impl AtlasAppService {
     pub fn list_records(
@@ -25,51 +24,22 @@ impl AtlasAppService {
             })
         })
     }
-    pub fn search_text(
-        &self,
-        query: String,
-        filter: Option<QueryPredicate>,
-        page: atlas_app_model::SearchPageRequest,
-        mode: atlas_app_model::RetrievalModeView,
-        ranking: atlas_domain::SearchRanking,
-        search_profile: Option<atlas_domain::SearchProfileId>,
-    ) -> AppServiceResult<atlas_app_model::SearchResultsView> {
-        let page = SearchPage::new(page.number, page.size)?;
-        let checked_filter = filter.clone();
-        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
-            if let Some(filter) = checked_filter {
-                r.validate_filter(&filter)?;
-            }
-            Ok(())
-        })?;
-        let prepared = self.prepare_query(search_profile.as_ref(), &query, retrieval_mode(mode))?;
-        self.with_prepared_workspace(
-            &crate::ReadExecutionContext::uncancellable(),
-            prepared,
-            move |workspace| {
-                let r = workspace.retrieval_mut();
-                let result = r.search_text(TextSearchRequest {
-                    ranking,
-                    search_profile: search_profile.as_ref(),
-                    query: &query,
-                    mode: retrieval_mode(mode),
-                    filter: filter.as_ref(),
-                    scope: atlas_search::RecordScope::All,
-                    page,
-                    prefer_remaster: true,
-                })?;
-                Ok(crate::projection::search_results_view(result, r))
-            },
-        )
-    }
     pub fn similar_records(
         &self,
         record_ref: String,
+        sort: Option<atlas_domain::ResultSort>,
         filter: Option<QueryPredicate>,
         page: atlas_app_model::SearchPageRequest,
         search_profile: Option<atlas_domain::SearchProfileId>,
     ) -> AppServiceResult<Option<atlas_app_model::SimilarRecordsView>> {
         let page = SearchPage::new(page.number, page.size)?;
+        let sort = sort.unwrap_or(atlas_domain::ResultSort::Relevance {});
+        sort.validate().map_err(AppServiceError::invalid_request)?;
+        if matches!(sort, atlas_domain::ResultSort::SavedOrder {}) {
+            return Err(AppServiceError::invalid_request(
+                "Saved order is available only for saved lists",
+            ));
+        }
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             let key = match r.resolve_record_ref(ResolveRecordRefRequest {
                 record_ref: &record_ref,
@@ -89,7 +59,8 @@ impl AtlasAppService {
                     ));
                 }
             };
-            Ok(r.similar_records(SimilarRecordRequest {
+            r.similar_records(SimilarRecordRequest {
+                sort: sort.clone(),
                 search_profile: search_profile.as_ref(),
                 record_key: &key,
                 filter: filter.as_ref(),
@@ -97,10 +68,27 @@ impl AtlasAppService {
                 page,
                 prefer_remaster: true,
             })?
-            .map(|s| atlas_app_model::SimilarRecordsView {
-                seed: crate::projection::localized_summary_view(&s.seed, r),
-                results: crate::projection::search_results_view(s.results, r),
-            }))
+            .map(
+                |s| -> AppServiceResult<atlas_app_model::SimilarRecordsView> {
+                    let mut results = crate::projection::search_results_view(s.results, r);
+                    if sort.is_unit_price() {
+                        let mut records = results
+                            .rows
+                            .iter()
+                            .map(|row| row.record.clone())
+                            .collect::<Vec<_>>();
+                        crate::result_order::price_labels(r, &mut records)?;
+                        for (row, record) in results.rows.iter_mut().zip(records) {
+                            row.record = record;
+                        }
+                    }
+                    Ok(atlas_app_model::SimilarRecordsView {
+                        seed: crate::projection::localized_summary_view(&s.seed, r),
+                        results,
+                    })
+                },
+            )
+            .transpose()
         })
     }
     pub fn graph_context(

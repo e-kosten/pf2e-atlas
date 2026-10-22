@@ -7,6 +7,7 @@ pub(crate) mod index;
 pub(crate) mod lists;
 pub(crate) mod product;
 pub(crate) mod record;
+pub(crate) mod result_order;
 pub(crate) mod roll;
 pub(crate) mod search;
 pub(crate) mod setup;

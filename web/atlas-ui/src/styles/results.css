@@ -44,12 +44,26 @@
 
 .pager {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
   gap: 8px;
 }
 
 .pager--compact {
   gap: 4px;
+}
+
+.pager > * {
+  flex-shrink: 0;
+}
+
+.pager__navigation {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .pager > span {

@@ -22,6 +22,14 @@ preference retain their existing contracts. Similar-record search is unaffected.
 only transport the selection. No user-adjustable weights or old lexical policy
 are retained. Switching ranking requires no rebuild or document inference.
 
+Attribute rules and seeded Random order are later presentation orders over the complete admitted root
+set, after the existing edition preference and before paging. They neither change
+fusion inputs nor apply exact-name/alias relevance tiers ahead of the chosen
+attribute. Score/RRF continues to determine relevance order independently; the
+admitted roots, coverage and match witnesses remain available under either order.
+Relevance, Random and attribute sequences are alternative ordering modes; neither
+Random nor an attribute tie breaker adds a retrieval lane or blending weight.
+
 ## Rationale and consequences
 
 Full-corpus evaluation favored the field-aware lexical policy across both embedding

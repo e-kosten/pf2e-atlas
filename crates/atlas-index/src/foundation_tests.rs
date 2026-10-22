@@ -402,7 +402,17 @@ fn roundtrip_summary_content_and_macro_scope() {
     let all = validate_query(&QueryPredicate::boolean(true)).unwrap();
     assert_eq!(
         reader
-            .eligible_keys(&all, None, false, 0, 100)
+            .eligible_keys(
+                &all,
+                None,
+                false,
+                atlas_domain::ResultSort::attribute(
+                    atlas_domain::SortField::Name,
+                    atlas_domain::SortDirection::Asc
+                ),
+                0,
+                100
+            )
             .unwrap()
             .keys
             .len(),
@@ -1034,7 +1044,17 @@ fn explicit_alias_and_remaster_evidence_are_collision_preserving() {
     let all = validate_query(&QueryPredicate::boolean(true)).unwrap();
     assert_eq!(
         reader
-            .eligible_keys(&all, None, true, 0, 100)
+            .eligible_keys(
+                &all,
+                None,
+                true,
+                atlas_domain::ResultSort::attribute(
+                    atlas_domain::SortField::Name,
+                    atlas_domain::SortDirection::Asc
+                ),
+                0,
+                100
+            )
             .unwrap()
             .total,
         2
@@ -1045,6 +1065,10 @@ fn explicit_alias_and_remaster_evidence_are_collision_preserving() {
                 &all,
                 Some(std::slice::from_ref(input.records[1].record.key())),
                 true,
+                atlas_domain::ResultSort::attribute(
+                    atlas_domain::SortField::Name,
+                    atlas_domain::SortDirection::Asc
+                ),
                 0,
                 100
             )

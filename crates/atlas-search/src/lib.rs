@@ -58,3 +58,9 @@ pub use atlas_index::{
 
 #[cfg(test)]
 mod relationship_tests;
+
+mod result_order;
+pub use atlas_index::SourceUnitPrice;
+
+#[cfg(test)]
+mod result_order_tests;
