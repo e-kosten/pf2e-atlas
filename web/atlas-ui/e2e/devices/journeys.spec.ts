@@ -250,7 +250,10 @@ test("list tags, editing and explicit Add survive constrained space", async ({
       await expect(
         page.getByLabel("All list tags", { exact: true }).locator("span"),
       ).toHaveCount(20);
+      // Touch activation does not establish keyboard focus in WebKit.
+      await more.focus();
       await page.keyboard.press("Escape");
+      await expect(page.getByLabel("All list tags", { exact: true })).toBeHidden();
       await expect(more).toBeFocused();
     }
     await activate(page.getByRole("link", { name: "Edit list", exact: true }), info);
