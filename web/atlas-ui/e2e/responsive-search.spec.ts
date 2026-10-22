@@ -1,7 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { encodeFilterUrl } from "../src/shared/filters/filterUrl";
 
-test("Sort rules and seeded Random remain usable at 390px", async ({ page }) => {
+test("Sort rules and seeded Random remain usable at 390px", async ({
+  page,
+  context,
+}) => {
   await page.setViewportSize({ width: 390, height: 1000 });
   await page.goto(
     "/search?filter=" +
@@ -51,6 +54,25 @@ test("Sort rules and seeded Random remain usable at 390px", async ({ page }) => 
   expect(new URL(page.url()).searchParams.get("seed")).toBe(original);
   await seed.press("Enter");
   await expect(page).toHaveURL((url) => url.searchParams.get("seed") === "0");
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: new URL(page.url()).origin,
+  });
+  const copy = dialog.getByRole("button", { name: "Copy seed", exact: true });
+  await copy.click();
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe("0");
+  await expect(
+    page.getByText("Copied", { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
+  await seed.fill("43");
+  await copy.click();
+  await expect(page).toHaveURL((url) => url.searchParams.get("seed") === "43");
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe("43");
+  await seed.fill("0");
+  await seed.press("Enter");
   const shuffle = dialog.getByRole("button", { name: "Shuffle", exact: true });
   const seedBounds = await dialog.locator(".result-sort__seed-input").boundingBox();
   const shuffleBounds = await shuffle.boundingBox();

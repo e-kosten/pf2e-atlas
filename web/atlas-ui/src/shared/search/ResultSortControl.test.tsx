@@ -170,8 +170,8 @@ it("copies a valid committed draft through the field's icon and confirms success
   });
   act(() => input.focus());
   fireEvent.change(input, { target: { value: "43" } });
-  // Native pointer/Tab navigation blurs and commits before the Copy click.
-  act(() => input.blur());
+  fireEvent.mouseDown(button);
+  expect(button).toHaveFocus();
   await act(async () => fireEvent.click(button));
   expect(changed.mock.lastCall?.[0].sort).toEqual({ kind: "random", seed: 43 });
   expect(copy).toHaveBeenCalledWith("43");
@@ -180,6 +180,33 @@ it("copies a valid committed draft through the field's icon and confirms success
   expect(within(button).getByRole("img", { name: "check" })).toBeInTheDocument();
   fireEvent.mouseEnter(button);
   expect(await screen.findByRole("tooltip", { name: "Copied" })).toBeInTheDocument();
+});
+
+it("copies an edited seed immediately after a prior success while keeping the pointer target stable", async () => {
+  const copy = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: copy },
+  });
+  const changed = setup({
+    ...DEFAULT_SEARCH_STATE,
+    sort: { kind: "random", seed: 42 },
+  });
+  await open();
+  const input = screen.getByRole("textbox", { name: "Random seed" });
+  const button = screen.getByRole("button", { name: "Copy seed" });
+  await act(async () => fireEvent.click(button));
+  expect(copy).toHaveBeenLastCalledWith("42");
+  expect(within(button).getByRole("img", { name: "check" })).toBeInTheDocument();
+  act(() => input.focus());
+  fireEvent.change(input, { target: { value: "43" } });
+  fireEvent.mouseDown(button);
+  expect(screen.getByRole("button", { name: "Copy seed" })).toBe(button);
+  expect(button).toHaveFocus();
+  await act(async () => fireEvent.click(button));
+  expect(changed.mock.lastCall?.[0].sort).toEqual({ kind: "random", seed: 43 });
+  expect(copy.mock.calls).toEqual([["42"], ["43"]]);
+  expect(screen.getByRole("status")).toHaveTextContent("Seed copied");
 });
 
 it("disables copy for an invalid seed draft and reports actual clipboard failure without success feedback", async () => {
@@ -191,9 +218,10 @@ it("disables copy for an invalid seed draft and reports actual clipboard failure
   setup({ ...DEFAULT_SEARCH_STATE, sort: { kind: "random", seed: 42 } });
   await open();
   const input = screen.getByRole("textbox", { name: "Random seed" });
-  fireEvent.change(input, { target: { value: "invalid" } });
-  fireEvent.blur(input);
   const button = screen.getByRole("button", { name: "Copy seed" });
+  act(() => input.focus());
+  fireEvent.change(input, { target: { value: "invalid" } });
+  fireEvent.mouseDown(button);
   expect(button).toBeDisabled();
   fireEvent.click(button);
   expect(copy).not.toHaveBeenCalled();

@@ -374,12 +374,17 @@ function SeedField({
                 size="small"
                 disabled={error?.seed === seed}
                 styles={{
+                  icon: { pointerEvents: "none" },
                   root: {
                     marginBlock:
                       (token.fontSize * token.lineHeight - token.controlHeightSM) / 2,
                   },
                 }}
                 icon={copyStatus === "copied" ? <CheckOutlined /> : <CopyOutlined />}
+                onMouseDown={(event) => {
+                  event.stopPropagation();
+                  event.currentTarget.focus({ preventScroll: true });
+                }}
                 onClick={() => void copySeed()}
               />
             </Tooltip>
