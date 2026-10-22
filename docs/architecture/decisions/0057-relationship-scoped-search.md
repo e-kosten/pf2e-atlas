@@ -1,6 +1,6 @@
 # ADR 0057: Relationship-scoped search and attributed result evidence
 
-Status: accepted; implementation in progress.
+Status: accepted.
 Date: 2026-10-21
 
 ## Context
@@ -71,10 +71,15 @@ The browser displays active relationship constraints at the top level alongside
 ordinary filters. Controls use human names, with kind/publication/parent names
 where disambiguation is needed, and never display record IDs as a fallback.
 Exact keys remain in typed identity and navigation, not visible relationship copy.
-The first workflow creates one constraint from a record action or Related's
-View all links. Later direct creation reuses the shared list/encounter search
-picker and permits multiple independent constraints combined with AND. Their
-underlying model and eligibility do not require a separate engine at that point.
+Constraints originate from record actions, Related's View all links, or the
+top-level Add link filter action. Direct creation reuses the shared list/encounter
+search picker, whose lookup is independent of current result criteria. Each
+confirmation appends one root selection with its own direction and source scope;
+existing exact embedded selections remain intact. Multiple constraints combine
+with AND. Exact duplicates are rejected locally, including edits that would
+produce a duplicate; different directions or scopes remain distinct. Adding or
+editing resets result paging, while cancellation and rejected duplicates preserve
+the current criteria and page. The same typed eligibility owns every workflow.
 
 Similar remains a separate search criterion. Its active seed occupies the same
 search control as keyword entry, with a named, selectable, read-only criterion
@@ -89,7 +94,6 @@ retaining different bounded response shapes. Existing encounter-owned Related
 readers keep their exact selections and recovery behavior. No source/model pin,
 artifact re-preparation, semantic recipe, or saved-state replacement is implied.
 
-Attribute sorting and the direct multi-relationship picker are separate PRs.
 General OR/NOT relationship expressions, inferred gameplay relationships,
 multi-hop traversal and trait membership reinterpretation remain outside this
 decision. Trait identities and associations retain

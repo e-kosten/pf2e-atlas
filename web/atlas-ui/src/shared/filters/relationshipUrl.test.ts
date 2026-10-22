@@ -1,5 +1,9 @@
 import type { RelationshipConstraintView } from "../../generated/atlas";
-import { decodeRelationships, encodeRelationships } from "./relationshipUrl";
+import {
+  decodeRelationships,
+  encodeRelationships,
+  MAX_RELATIONSHIP_FILTERS,
+} from "./relationshipUrl";
 import {
   buildSearchRequest,
   DEFAULT_SEARCH_STATE,
@@ -58,4 +62,43 @@ it("rejects malformed relationship links without displaying their raw contents",
   expect(state.filterError).not.toContain("secret:record-key");
   expect(hasExecutableSearch(state)).toBe(false);
   expect(decodeRelationships(encodeRelationships([constraint]))).toEqual([constraint]);
+});
+
+it("round trips multiple ordered constraints with exact embedded scope and explicit Random order", () => {
+  const constraints = [
+    constraint,
+    {
+      ...constraint,
+      direction: "outgoing" as const,
+      include_contents: false,
+      selection: { ...constraint.selection, embedded_path: [] },
+    },
+  ];
+  const search = {
+    ...DEFAULT_SEARCH_STATE,
+    relationships: constraints,
+    sort: { kind: "random" as const, seed: 0 },
+  };
+  const restored = decodeSearchStateFromParams(
+    new URLSearchParams(searchStateQueryString(search)),
+  );
+  expect(restored.relationships).toEqual(constraints);
+  expect(restored.sort).toEqual(search.sort);
+  expect(buildSearchRequest(restored, 2).relationships).toEqual(constraints);
+  expect(encodeSearchExecutionState(restored)).not.toBe(
+    encodeSearchExecutionState({
+      ...restored,
+      relationships: [...constraints].reverse(),
+    }),
+  );
+});
+
+it("uses the same collection limit for admitted relationship links", () => {
+  const full = Array.from({ length: MAX_RELATIONSHIP_FILTERS }, () => constraint);
+  expect(decodeRelationships(encodeRelationships(full))).toHaveLength(
+    MAX_RELATIONSHIP_FILTERS,
+  );
+  expect(() => decodeRelationships(encodeRelationships([...full, constraint]))).toThrow(
+    "Invalid relationship filter URL",
+  );
 });

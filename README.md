@@ -101,6 +101,11 @@ to order ties, for example `--sort level_desc --sort unit_price_asc`.
 the order repeatable while paging. In the CLI, use `--sort random --seed 42`, or
 omit `--seed` to generate one.
 
+In the browser, **Related** opens full **Links to** and **Linked from** results.
+Use **Add link filter** beside the search filters to choose another entry. Each
+link filter has its own direction and **Main entry only** / **Whole entry** scope;
+multiple link filters must all match and combine with ordinary search filters.
+
 ### Platforms and versions
 
 The installer installs only the `atlas` CLI. The persistent workspace lives in user application-data storage; downloaded source and models stay in cache locations managed by `atlas setup`.

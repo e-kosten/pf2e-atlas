@@ -170,3 +170,82 @@ it("switches direction in place while retaining exact selection, scope and other
     relationships: [relationship, other],
   });
 });
+
+it.each(["direction", "scope"])(
+  "rejects a %s edit into an exact duplicate without changing either chip or parent criteria",
+  async (edit) => {
+    const state = workspace();
+    const other = {
+      ...constraint,
+      ...(edit === "direction"
+        ? { direction: "outgoing" as const }
+        : { include_contents: false }),
+    };
+    state.search.relationships = [constraint, other];
+    render(<RelationshipFilters workspace={state} />);
+    fireEvent.click(
+      screen.getAllByRole("button", {
+        name: /Links to Leather Armor|Linked from Leather Armor/,
+      })[0],
+    );
+    fireEvent.click(
+      await screen.findByRole("radio", {
+        name: edit === "direction" ? "Linked from" : "Main entry only",
+      }),
+    );
+    expect(
+      await screen.findByText("This link filter is already added."),
+    ).toHaveAttribute("role", "status");
+    expect(state.setSearch).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("group", { name: "Relationship filter" })).toHaveLength(
+      2,
+    );
+  },
+);
+
+it("removes only the selected relationship while preserving the other exact constraint", () => {
+  const state = workspace();
+  const other = {
+    ...constraint,
+    direction: "outgoing" as const,
+    include_contents: false,
+  };
+  state.search.relationships = [constraint, other];
+  render(<RelationshipFilters workspace={state} />);
+  fireEvent.click(
+    screen.getAllByRole("button", { name: "Remove relationship filter" })[0],
+  );
+  expect(state.setSearch).toHaveBeenCalledWith({
+    ...state.search,
+    relationships: [other],
+  });
+});
+
+it("retires an open chip's popover and duplicate feedback before the next chip shifts into its place", async () => {
+  const state = workspace();
+  const other = { ...constraint, direction: "outgoing" as const };
+  state.search.relationships = [constraint, other];
+  const view = render(<RelationshipFilters workspace={state} />);
+  vi.mocked(state.setSearch).mockImplementation((next) => {
+    state.search = next;
+    view.rerender(<RelationshipFilters workspace={state} />);
+  });
+  const chip = screen.getByRole("button", { name: /Links to Leather Armor/ });
+  fireEvent.click(chip);
+  fireEvent.click(await screen.findByRole("radio", { name: "Linked from" }));
+  expect(chip).toHaveAttribute("aria-expanded", "true");
+  expect(
+    await screen.findByText("This link filter is already added."),
+  ).toBeInTheDocument();
+  fireEvent.click(
+    screen.getAllByRole("button", { name: "Remove relationship filter" })[0],
+  );
+  expect(
+    screen.getByRole("button", { name: /Linked from Leather Armor/ }),
+  ).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(screen.getByRole("button", { name: /Linked from Leather Armor/ }));
+  await waitFor(() =>
+    expect(screen.queryByText("This link filter is already added.")).toBeNull(),
+  );
+  expect(state.search.relationships).toEqual([other]);
+});
