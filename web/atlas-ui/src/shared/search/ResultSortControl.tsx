@@ -9,7 +9,7 @@ import {
 } from "@ant-design/icons";
 import { Button, Popover, Select, Tooltip, Typography, theme } from "antd";
 import type { GetRef } from "antd";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   ResultSort,
   SortDirection,
@@ -264,6 +264,7 @@ export function ResultSortControl({
             {sort.kind === "random" && (
               <>
                 <SeedField
+                  active={open && !disabled}
                   seed={sort.seed}
                   onCommit={(seed) => commit({ kind: "random", seed })}
                   onCancel={close}
@@ -297,11 +298,13 @@ export function ResultSortControl({
 }
 
 function SeedField({
+  active,
   seed,
   onCommit,
   onCancel,
   onShuffle,
 }: {
+  active: boolean;
   seed: number;
   onCommit: (seed: number) => void;
   onCancel: () => void;
@@ -309,6 +312,7 @@ function SeedField({
 }) {
   const { token } = theme.useToken();
   const [error, setError] = useState<{ seed: number; message: string } | null>(null);
+  const [copyTooltipOpen, setCopyTooltipOpen] = useState(false);
   const [copyState, setCopyState] = useState<{
     seed: number;
     status: "idle" | "copied" | "failed";
@@ -317,6 +321,19 @@ function SeedField({
   // Retire feedback and pending actions even when a seed later returns to an old value.
   if (copyState.seed !== seed) setCopyState({ seed, status: "idle", request: null });
   const copyStatus = copyState.seed === seed ? copyState.status : "idle";
+  useEffect(() => {
+    if (copyStatus !== "copied") return;
+    const request = copyState.request;
+    const timeout = window.setTimeout(() => {
+      setCopyState((current) =>
+        current.seed === seed && current.request === request
+          ? { ...current, status: "idle" }
+          : current,
+      );
+      setCopyTooltipOpen(false);
+    }, 1500);
+    return () => window.clearTimeout(timeout);
+  }, [copyStatus, copyState.request, seed]);
   async function copySeed() {
     const request = {};
     setCopyState({ seed, status: "idle", request });
@@ -347,13 +364,21 @@ function SeedField({
             <Tooltip
               title={copyStatus === "copied" ? "Copied" : "Copy seed"}
               trigger={["hover", "focus"]}
+              fresh
+              open={active && (copyStatus === "copied" || copyTooltipOpen)}
+              onOpenChange={setCopyTooltipOpen}
             >
               <Button
                 aria-label="Copy seed"
                 type="text"
                 size="small"
                 disabled={error?.seed === seed}
-                styles={{ root: { marginBlock: -token.lineWidth } }}
+                styles={{
+                  root: {
+                    marginBlock:
+                      (token.fontSize * token.lineHeight - token.controlHeightSM) / 2,
+                  },
+                }}
                 icon={copyStatus === "copied" ? <CheckOutlined /> : <CopyOutlined />}
                 onClick={() => void copySeed()}
               />

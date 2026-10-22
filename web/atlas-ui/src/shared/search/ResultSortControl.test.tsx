@@ -250,6 +250,63 @@ it("retires copied feedback and late clipboard results when the seed changes, in
   expect(screen.getByRole("textbox", { name: "Random seed" })).toBe(input);
 });
 
+it("shows Copied after success without requiring hover/focus and dismisses the confirmation", async () => {
+  const copy = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: copy },
+  });
+  setup({ ...DEFAULT_SEARCH_STATE, sort: { kind: "random", seed: 42 } });
+  await open();
+  vi.useFakeTimers();
+  try {
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Copy seed" })),
+    );
+    await act(async () => vi.advanceTimersByTime(0));
+    expect(screen.getByRole("status")).toHaveTextContent("Seed copied");
+    expect(screen.getByRole("tooltip", { name: "Copied" })).toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTime(2000));
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(screen.queryByRole("tooltip", { name: /^(Copied|Copy seed)$/ })).toBeNull();
+    expect(
+      within(screen.getByRole("button", { name: "Copy seed" })).queryByRole("img", {
+        name: "check",
+      }),
+    ).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("retires a success timer when the seed changes without closing the new seed's tooltip early", async () => {
+  const copy = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: copy },
+  });
+  setup({ ...DEFAULT_SEARCH_STATE, sort: { kind: "random", seed: 42 } });
+  await open();
+  vi.useFakeTimers();
+  try {
+    const button = screen.getByRole("button", { name: "Copy seed" });
+    const input = screen.getByRole("textbox", { name: "Random seed" });
+    await act(async () => fireEvent.click(button));
+    await act(async () => vi.advanceTimersByTime(1000));
+    fireEvent.change(input, { target: { value: "43" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    await act(async () => fireEvent.click(button));
+    await act(async () => vi.advanceTimersByTime(600));
+    expect(copy).toHaveBeenLastCalledWith("43");
+    expect(screen.getByRole("tooltip", { name: "Copied" })).toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTime(1400));
+    expect(screen.queryByRole("tooltip", { name: /^(Copied|Copy seed)$/ })).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("cancels an uncommitted seed on Escape before dismissal or focus restoration can blur-commit it", async () => {
   history.replaceState(null, "", "/search?sort=random&seed=42");
   const changed = setup(
