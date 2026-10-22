@@ -119,7 +119,7 @@ pub enum RelationshipClausePresentationView {
     Available {
         clause_id: String,
         relationship: atlas_domain::QueryRelationship,
-        record: RecordSummaryView,
+        record: Box<RecordSummaryView>,
         title: String,
     },
     Unavailable {

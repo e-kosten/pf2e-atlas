@@ -48,7 +48,7 @@ pub enum DiscoverFilterValuesRequest {
     Contextual {
         #[serde(default)]
         only_matching: bool,
-        context: FilterDiscoveryContext,
+        context: Box<FilterDiscoveryContext>,
         field_id: String,
         clause_id: Option<String>,
         text: Option<String>,

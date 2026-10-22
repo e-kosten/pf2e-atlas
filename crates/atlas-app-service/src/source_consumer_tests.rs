@@ -945,7 +945,7 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
         .discover_filter_values(
             DiscoverFilterValuesRequest::Contextual {
                 only_matching: false,
-                context: context.clone(),
+                context: Box::new(context.clone()),
                 field_id: "rarity".into(),
                 clause_id: Some("choice".into()),
                 text: None,
