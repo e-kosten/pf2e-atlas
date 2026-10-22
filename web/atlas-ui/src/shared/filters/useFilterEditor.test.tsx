@@ -105,3 +105,39 @@ describe("persistent filter editing lifecycle", () => {
     expect(result.current.editor.error).toBe("Enter a finite numeric value");
   });
 });
+
+it("ANDs a link with the entire committed tree while retaining an unfinished numeric sibling", () => {
+  const { result } = harness();
+  const query: RuleGroupType = {
+    combinator: "and",
+    rules: [{ id: "hp", field: hp.id, operator: "gte", value: "-" }],
+  };
+  act(() => result.current.editor.change(query));
+  const relationship = {
+    direction: "incoming" as const,
+    include_contents: true,
+    selection: {
+      record_key: "items:armor",
+      embedded_path: [],
+      field: null,
+      passage: null,
+      source_fingerprint: null,
+    },
+  };
+  act(() => {
+    expect(result.current.editor.addLink(relationship, "new-link")).toBeNull();
+  });
+  expect(result.current.search.filter).toMatchObject({
+    kind: "all_of",
+    children: [
+      initial.filter,
+      { kind: "relationship", clause_id: "new-link", relationship },
+    ],
+  });
+  expect(result.current.editor.query?.rules[0]).toMatchObject({ value: "-" });
+  expect(result.current.editor.query?.rules[1]).toMatchObject({
+    id: "new-link",
+    value: relationship,
+  });
+  expect(result.current.editor.error).toBe("Enter a finite numeric value");
+});

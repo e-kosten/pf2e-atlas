@@ -1,6 +1,6 @@
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::{RecordKey, SourceRecordSummary};
 use atlas_index::SourceStoredRelationship;
-use atlas_record::source_content::OwnedContentLocator;
 pub struct GraphContextRequest {
     pub seed: RecordKey,
     pub owners: Option<Vec<OwnedContentLocator>>,
@@ -164,13 +164,13 @@ impl AtlasRetrievalService {
 impl AtlasRetrievalService {
     pub fn relationship_occurrence_page(
         &self,
-        constraint: &crate::RelationshipConstraint,
+        relationship: &atlas_domain::QueryRelationship,
         result: &RecordKey,
         page: crate::SearchPage,
     ) -> Result<(Vec<SourceStoredRelationship>, crate::SearchPageInfo), SearchError> {
         let result = self.index.relationship_occurrence_page(
             atlas_index::RelationshipOccurrencePageRequest {
-                constraint,
+                relationship,
                 result,
                 offset: page.offset()? as usize,
                 limit: page.size() as usize,

@@ -30,9 +30,6 @@ pub struct SearchResultsRequest {
     pub sort: Option<atlas_domain::ResultSort>,
     #[serde(default)]
     #[ts(optional)]
-    pub relationships: Option<Vec<RelationshipConstraintView>>,
-    #[serde(default)]
-    #[ts(optional)]
     pub ranking: Option<atlas_domain::SearchRanking>,
     #[ts(optional)]
     pub search_profile: Option<atlas_domain::SearchProfileId>,
@@ -71,7 +68,7 @@ pub enum SearchModeSummary {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsPage {
     pub sort: atlas_domain::ResultSort,
-    pub relationships: Vec<RelationshipConstraintSummaryView>,
+    pub relationship_clauses: Vec<RelationshipClauseSummaryView>,
     pub ranking: atlas_domain::SearchRanking,
     pub search_profile: atlas_domain::SearchProfileId,
     pub artifact_generation: String,
@@ -109,33 +106,38 @@ pub struct SearchCoverageView {
     pub count_basis: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum RelationshipDirectionView {
-    Incoming,
-    Outgoing,
-}
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct RelationshipConstraintView {
-    pub direction: RelationshipDirectionView,
-    pub selection: RecordNavigationView,
-    pub include_contents: bool,
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct RelationshipConstraintSummaryView {
-    pub constraint: RelationshipConstraintView,
+pub struct RelationshipClauseSummaryView {
+    pub clause_id: String,
+    pub relationship: atlas_domain::QueryRelationship,
     pub record: RecordSummaryView,
     pub title: String,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum RelationshipClausePresentationView {
+    Available {
+        clause_id: String,
+        relationship: atlas_domain::QueryRelationship,
+        record: RecordSummaryView,
+        title: String,
+    },
+    Unavailable {
+        clause_id: String,
+        relationship: atlas_domain::QueryRelationship,
+        message: String,
+    },
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RelationshipEvidenceView {
-    pub constraint_index: usize,
+    pub clause_id: String,
     pub occurrences: Vec<crate::RecordRelationshipView>,
     pub page: SearchPageView,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RelationshipOccurrencesRequest {
-    pub constraint: RelationshipConstraintView,
+    pub filter: QueryPredicate,
+    pub clause_id: String,
     pub result_record_key: String,
     pub page: SearchPageRequest,
     pub expected_artifact_generation: String,
@@ -143,7 +145,7 @@ pub struct RelationshipOccurrencesRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RelationshipOccurrencesPage {
     pub artifact_generation: String,
-    pub constraint: RelationshipConstraintSummaryView,
+    pub clause: RelationshipClauseSummaryView,
     pub result_record: RecordSummaryView,
     pub occurrences: Vec<crate::RecordRelationshipView>,
     pub page: SearchPageView,

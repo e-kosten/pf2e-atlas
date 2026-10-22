@@ -111,11 +111,10 @@ pub use record::{
     RecordResolutionAmbiguousView, RecordResolutionCandidateView, RecordSummaryView,
 };
 pub use search::{
-    RelationshipConstraintSummaryView, RelationshipConstraintView, RelationshipDirectionView,
-    RelationshipEvidenceView, RelationshipOccurrencesPage, RelationshipOccurrencesRequest,
-    RetrievalModeView, SearchCoverageView, SearchCriteria, SearchLaneView, SearchModeSummary,
-    SearchPageRequest, SearchPageView, SearchResultRow, SearchResultsPage, SearchResultsRequest,
-    SearchWitnessView,
+    RelationshipClausePresentationView, RelationshipClauseSummaryView, RelationshipEvidenceView,
+    RelationshipOccurrencesPage, RelationshipOccurrencesRequest, RetrievalModeView,
+    SearchCoverageView, SearchCriteria, SearchLaneView, SearchModeSummary, SearchPageRequest,
+    SearchPageView, SearchResultRow, SearchResultsPage, SearchResultsRequest, SearchWitnessView,
 };
 
 #[cfg(test)]

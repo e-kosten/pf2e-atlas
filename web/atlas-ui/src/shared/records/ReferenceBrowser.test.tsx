@@ -27,7 +27,7 @@ import type {
   EmbeddedReadingBatchView,
   RecordDetailView,
   SearchResultRow,
-  RelationshipConstraintSummaryView,
+  RelationshipClauseSummaryView,
 } from "../../generated/atlas";
 
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -67,7 +67,7 @@ function Harness({
 }: {
   positions?: BrowsePositions;
   resultRows?: SearchResultRow[];
-  relationships?: RelationshipConstraintSummaryView[];
+  relationships?: RelationshipClauseSummaryView[];
   generation?: string;
 }) {
   const [selected, select] = useState<string | null>(null);
@@ -76,7 +76,19 @@ function Harness({
     <ReferenceBrowser
       positions={positions}
       rows={resultRows}
-      relationships={relationships}
+      relationshipClauses={relationships}
+      filter={
+        relationships?.length
+          ? {
+              kind: "all_of",
+              children: relationships.map((entry) => ({
+                kind: "relationship",
+                clause_id: entry.clause_id,
+                relationship: entry.relationship,
+              })),
+            }
+          : null
+      }
       generation={generation}
       selectedRecordKey={selected}
       onSelect={(row) => select(row.record.record_key)}
@@ -372,8 +384,9 @@ it("combines text and relationship evidence in the existing Matches popover and 
     passage: null,
     source_fingerprint: null,
   };
-  const constraint: RelationshipConstraintSummaryView = {
-    constraint: { direction: "incoming", selection: target, include_contents: true },
+  const constraint: RelationshipClauseSummaryView = {
+    clause_id: "link",
+    relationship: { direction: "incoming", selection: target, include_contents: true },
     title: "Leather Armor",
     record: summaryFixture("items:armor", "Leather Armor"),
   };
@@ -381,7 +394,7 @@ it("combines text and relationship evidence in the existing Matches popover and 
     ...rows[0],
     relationship_evidence: [
       {
-        constraint_index: 0,
+        clause_id: "link",
         page: {
           number: 1,
           size: 3,

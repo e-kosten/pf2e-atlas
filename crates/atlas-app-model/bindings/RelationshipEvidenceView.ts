@@ -2,4 +2,4 @@
 import type { RecordRelationshipView } from "./RecordRelationshipView";
 import type { SearchPageView } from "./SearchPageView";
 
-export type RelationshipEvidenceView = { constraint_index: number, occurrences: Array<RecordRelationshipView>, page: SearchPageView, };
+export type RelationshipEvidenceView = { clause_id: string, occurrences: Array<RecordRelationshipView>, page: SearchPageView, };

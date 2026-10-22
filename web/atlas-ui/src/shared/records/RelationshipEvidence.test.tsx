@@ -7,7 +7,7 @@ import { RelationshipEvidence } from "./RelationshipEvidence";
 import { rootNavigation } from "./useReferenceReading";
 import type {
   RecordRelationshipView,
-  RelationshipConstraintSummaryView,
+  RelationshipClauseSummaryView,
   RelationshipEvidenceView,
 } from "../../generated/atlas";
 
@@ -16,8 +16,9 @@ vi.mock("../../api/atlasApi", async (original) => ({
   getRelationshipOccurrences: vi.fn(),
 }));
 const api = vi.mocked(getRelationshipOccurrences);
-const constraint: RelationshipConstraintSummaryView = {
-  constraint: {
+const constraint: RelationshipClauseSummaryView = {
+  clause_id: "link",
+  relationship: {
     direction: "incoming",
     selection: rootNavigation("items:armor"),
     include_contents: true,
@@ -50,7 +51,7 @@ const occurrence: RecordRelationshipView = {
   target_title: "Leather Armor",
 };
 const evidence: RelationshipEvidenceView = {
-  constraint_index: 0,
+  clause_id: "link",
   occurrences: [occurrence],
   page: { number: 1, size: 1, count: 1, total: 2n, has_more: true, next_page: 2 },
 };
@@ -64,6 +65,11 @@ function setup() {
       <QueryClientProvider client={client}>
         <RelationshipEvidence
           evidence={evidence}
+          filter={{
+            kind: "relationship",
+            clause_id: constraint.clause_id,
+            relationship: constraint.relationship,
+          }}
           summary={constraint}
           resultKey="actors:goblin"
           generation="generation-a"
@@ -79,7 +85,7 @@ beforeEach(() => vi.clearAllMocks());
 it("shows bounded provenance on demand and requests further pages with the complete checked constraint", async () => {
   api.mockResolvedValue({
     artifact_generation: "generation-a",
-    constraint,
+    clause: constraint,
     result_record: summaryFixture("actors:goblin", "Goblin"),
     occurrences: [{ ...occurrence, source_title: "Goblin equipment", ordinal: 4 }],
     page: { ...evidence.page, number: 2, has_more: false, next_page: null },
@@ -101,7 +107,12 @@ it("shows bounded provenance on demand and requests further pages with the compl
   expect(await screen.findByRole("link", { name: "Goblin equipment" })).toBeVisible();
   expect(api).toHaveBeenCalledWith(
     {
-      constraint: constraint.constraint,
+      clause_id: constraint.clause_id,
+      filter: {
+        kind: "relationship",
+        clause_id: constraint.clause_id,
+        relationship: constraint.relationship,
+      },
       result_record_key: "actors:goblin",
       page: { number: 2, size: 1 },
       expected_artifact_generation: "generation-a",
@@ -131,7 +142,7 @@ it("keeps occurrence failure local and delegates generation recovery to the sear
 it("resets evidence paging and retained content when the exact relationship changes", async () => {
   api.mockResolvedValue({
     artifact_generation: "generation-a",
-    constraint,
+    clause: constraint,
     result_record: summaryFixture("actors:goblin", "Goblin"),
     occurrences: [{ ...occurrence, source_title: "Old evidence page", ordinal: 4 }],
     page: { ...evidence.page, number: 2, has_more: false, next_page: null },
@@ -140,13 +151,18 @@ it("resets evidence paging and retained content when the exact relationship chan
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
   const content = (
-    summary: RelationshipConstraintSummaryView,
+    summary: RelationshipClauseSummaryView,
     preview: RelationshipEvidenceView,
   ) => (
     <ConfigProvider theme={{ token: { motion: false } }}>
       <QueryClientProvider client={client}>
         <RelationshipEvidence
           evidence={preview}
+          filter={{
+            kind: "relationship",
+            clause_id: summary.clause_id,
+            relationship: summary.relationship,
+          }}
           summary={summary}
           resultKey="actors:goblin"
           generation="generation-a"
@@ -160,8 +176,8 @@ it("resets evidence paging and retained content when the exact relationship chan
   const next = {
     ...constraint,
     title: "Stunned",
-    constraint: {
-      ...constraint.constraint,
+    relationship: {
+      ...constraint.relationship,
       selection: rootNavigation("conditions:stunned"),
     },
   };
@@ -182,7 +198,7 @@ it("resets evidence paging and retained content when the exact relationship chan
 it("treats a response generation mismatch as explicit result refresh recovery", async () => {
   api.mockResolvedValue({
     artifact_generation: "generation-b",
-    constraint,
+    clause: constraint,
     result_record: summaryFixture("actors:goblin", "Goblin"),
     occurrences: [],
     page: evidence.page,

@@ -53,11 +53,9 @@ fn related_availability_is_exact_owner_scoped_generation_checked_and_nonempty() 
     assert!(content.outgoing.occurrences[0].source.owners.is_empty());
     assert!(matches!(result.counterparts, RelatedCategoryView::Empty));
     let mut owned = request.clone();
-    owned.selection.owners = vec![atlas_record::source_content::OwnedContentLocator {
+    owned.selection.owners = vec![atlas_domain::OwnedContentLocator {
         collection: "/items".into(),
-        identity: atlas_record::source_content::OwnedContentIdentity::Stable(
-            "owned00000000000".into(),
-        ),
+        identity: atlas_domain::OwnedContentIdentity::Stable("owned00000000000".into()),
     }];
     let result = f.worker.related_records(owned.clone()).unwrap();
     let RelatedCategoryView::Content { content } = result.references else {
@@ -77,7 +75,7 @@ fn related_availability_is_exact_owner_scoped_generation_checked_and_nonempty() 
         RelatedCategoryView::Unavailable { .. }
     ));
     owned.selection.owners[0].identity =
-        atlas_record::source_content::OwnedContentIdentity::SnapshotLocal { index: 1 };
+        atlas_domain::OwnedContentIdentity::SnapshotLocal { index: 1 };
     assert!(
         f.worker.related_records(owned).is_err(),
         "snapshot-local fingerprint is independently required"

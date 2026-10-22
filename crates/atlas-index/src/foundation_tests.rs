@@ -1,4 +1,5 @@
 use super::*;
+use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
 use atlas_domain::{
     SourcePassageAddress,
     query::{QueryFieldState, QueryPredicate},
@@ -1133,10 +1134,7 @@ fn migration_round_trip_matches_canonical_ddl() {
 
 #[test]
 fn relationships_keep_source_owner_and_validate_owned_targets() {
-    use atlas_record::source_content::{
-        ContentReferenceResolution, ContentReferenceTarget, OwnedContentIdentity,
-        OwnedContentLocator,
-    };
+    use atlas_record::source_content::{ContentReferenceResolution, ContentReferenceTarget};
     use atlas_record::source_record::{SourceReferenceIndex, resolve_source_relationships};
     let mut input = fixture(false);
     input.records[0] = record(

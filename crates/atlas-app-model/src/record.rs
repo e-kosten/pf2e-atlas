@@ -1,6 +1,7 @@
 use crate::RecordPresentationView;
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::SourcePassageAddress;
-use atlas_record::source_content::{OwnedContentLocator, SourceContentLocator};
+use atlas_record::source_content::SourceContentLocator;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

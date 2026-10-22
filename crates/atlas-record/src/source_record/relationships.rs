@@ -1,8 +1,9 @@
 use super::nodes::{actor_fields, item_fields};
 use super::{FieldAvailability, ItemSourceView, SourceFieldView, SourceNodeView};
 use crate::source_content::{
-    ContentReferenceResolution, ContentReferenceResolver, OwnedContentLocator, SourceContentLocator,
+    ContentReferenceResolution, ContentReferenceResolver, SourceContentLocator,
 };
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 

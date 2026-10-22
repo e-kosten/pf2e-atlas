@@ -1,7 +1,8 @@
 use super::content::select_content;
 use super::traversal::visit_source_nodes;
 use super::{SourceBackedRecord, SourceFieldView, SourceNodeView, SourceQueryView};
-use crate::source_content::{ContentAudience, ContentVisibilityRule, OwnedContentLocator};
+use crate::source_content::{ContentAudience, ContentVisibilityRule};
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::RecordKey;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

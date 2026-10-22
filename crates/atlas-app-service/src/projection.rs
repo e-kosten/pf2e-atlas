@@ -3,6 +3,8 @@ use atlas_app_model::{
     RecordBadgeView, RecordNavigationView, RecordSummaryView, SearchCoverageView, SearchLaneView,
     SearchPageView, SearchWitnessView,
 };
+#[cfg(test)]
+use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
 use atlas_domain::{SourceLevelBasis, SourceRecordSummary};
 use atlas_search::{SearchCoverage, SearchLane, SearchPageInfo, SearchWitness};
 
@@ -128,7 +130,7 @@ pub(crate) fn graph_section_view(
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> atlas_app_model::GraphSectionView {
     atlas_app_model::GraphSectionView {
-        constraint: None,
+        filter: None,
         records: section
             .records
             .iter()
@@ -319,7 +321,7 @@ pub(crate) fn field_state(
 }
 
 pub(crate) fn navigation_fingerprint(
-    owners: &[atlas_record::source_content::OwnedContentLocator],
+    owners: &[atlas_domain::OwnedContentLocator],
     fingerprint: &str,
 ) -> Option<String> {
     owners
@@ -327,7 +329,7 @@ pub(crate) fn navigation_fingerprint(
         .any(|o| {
             matches!(
                 o.identity,
-                atlas_record::source_content::OwnedContentIdentity::SnapshotLocal { .. }
+                atlas_domain::OwnedContentIdentity::SnapshotLocal { .. }
             )
         })
         .then(|| fingerprint.to_owned())
@@ -370,8 +372,7 @@ pub(crate) fn resolution_view(
 mod tests {
     use super::*;
     use atlas_record::source_content::{
-        ContentReferenceResolution, ContentReferenceTarget, OwnedContentIdentity,
-        OwnedContentLocator, SourceContentLocator,
+        ContentReferenceResolution, ContentReferenceTarget, SourceContentLocator,
     };
 
     fn summary_with_name(name: atlas_domain::SourceQueryFact<String>) -> SourceRecordSummary {

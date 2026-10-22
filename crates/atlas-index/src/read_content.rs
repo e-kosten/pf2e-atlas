@@ -3,10 +3,11 @@ use crate::{
     IndexError, SourceArtifactDiagnostic, SourcePreparedContent, SourceRelationshipDetails,
     SourceStoredRelationship, SqliteIndexReader,
 };
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::{RecordKey, SourcePassageAddress};
 use atlas_record::source_content::{
     ContentInteraction, ContentReferenceOccurrence, ContentReferenceResolution,
-    ContentReferenceTarget, ContentVisibilityRule, OwnedContentLocator, SourceContentLocator,
+    ContentReferenceTarget, ContentVisibilityRule, SourceContentLocator,
 };
 use rusqlite::{params_from_iter, types::Value};
 use serde::{Deserialize, Serialize};

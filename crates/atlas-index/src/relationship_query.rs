@@ -1,19 +1,11 @@
-//! Full relationship eligibility is independent of occurrence response budgets.
-use crate::{IndexError, SourceRelationshipDirection, SourceStoredRelationship, SqliteIndexReader};
-use atlas_domain::RecordKey;
-use atlas_record::source_content::OwnedContentLocator;
+//! Relationship leaves share the query compiler's parameters and exact owner semantics.
+use crate::query::compiler::parameter;
+use crate::{IndexError, SourceStoredRelationship, SqliteIndexReader};
+use atlas_domain::{QueryRelationship, QueryRelationshipDirection, RecordKey};
 use rusqlite::{params_from_iter, types::Value};
 
-#[derive(Debug, Clone)]
-pub struct RelationshipConstraint {
-    pub direction: SourceRelationshipDirection,
-    pub record: RecordKey,
-    pub owners: Vec<OwnedContentLocator>,
-    pub field: Option<String>,
-    pub include_contents: bool,
-}
 pub struct RelationshipOccurrencePageRequest<'a> {
-    pub constraint: &'a RelationshipConstraint,
+    pub relationship: &'a QueryRelationship,
     pub result: &'a RecordKey,
     pub offset: usize,
     pub limit: usize,
@@ -22,71 +14,58 @@ pub struct RelationshipOccurrencePage {
     pub occurrences: Vec<SourceStoredRelationship>,
     pub total: u64,
 }
-
-/// Predicate over an occurrence alias `o`; exact target ownership is never broadened.
 fn occurrence_scope(
-    constraint: &RelationshipConstraint,
+    relationship: &QueryRelationship,
     source_alias: &str,
-) -> Result<(String, Vec<Value>), IndexError> {
-    let owners = serde_json::to_string(&constraint.owners)?;
-    let mut values = vec![Value::Text(constraint.record.to_string())];
-    let mut sql = match constraint.direction {
-        SourceRelationshipDirection::Incoming => {
-            values.push(Value::Text(owners.clone()));
-            "t.key=? AND COALESCE(o.target_owners_json,'[]')=?".to_owned()
+    params: &mut Vec<Value>,
+) -> Result<String, IndexError> {
+    let selection = &relationship.selection;
+    let key = parameter(params, Value::Text(selection.record_key.to_string()));
+    let owners = serde_json::to_string(&selection.owners)?;
+    let owner = parameter(params, Value::Text(owners.clone()));
+    let mut sql = match relationship.direction {
+        QueryRelationshipDirection::Incoming => {
+            format!("t.key={key} AND COALESCE(o.target_owners_json,'[]')={owner}")
         }
-        SourceRelationshipDirection::Outgoing => {
-            values.push(Value::Text(owners.clone()));
-            if constraint.include_contents {
-                // JSON array element equality preserves exact source-address components.
+        QueryRelationshipDirection::Outgoing => {
+            if relationship.include_contents {
+                let prefix = parameter(params, Value::Text(owners));
                 format!(
-                    "{source_alias}.key=? AND json_array_length(o.owners_json)>=json_array_length(?) AND NOT EXISTS(SELECT 1 FROM json_each(?) selected WHERE json_extract(o.owners_json,'$['||selected.key||']')<>selected.value)"
+                    "{source_alias}.key={key} AND json_array_length(o.owners_json)>=json_array_length({owner}) AND NOT EXISTS(SELECT 1 FROM json_each({prefix}) selected WHERE json_extract(o.owners_json,'$['||selected.key||']')<>selected.value)"
                 )
             } else {
-                format!("{source_alias}.key=? AND o.owners_json=?")
+                format!("{source_alias}.key={key} AND o.owners_json={owner}")
             }
         }
     };
-    match constraint.direction {
-        SourceRelationshipDirection::Incoming => {
-            if constraint.field.is_some() {
-                return Err(IndexError::Invalid(
-                    "incoming references do not select a destination field".into(),
-                ));
-            }
-            if !constraint.include_contents {
+    match relationship.direction {
+        QueryRelationshipDirection::Incoming => {
+            if !relationship.include_contents {
                 sql.push_str(" AND o.owners_json='[]'");
             }
         }
-        SourceRelationshipDirection::Outgoing => {
-            if constraint.include_contents {
-                values.push(Value::Text(owners.clone()));
-            }
-            if let Some(field) = &constraint.field {
-                sql.push_str(" AND o.field_path=?");
-                values.push(Value::Text(field.clone()));
+        QueryRelationshipDirection::Outgoing => {
+            if let Some(field) = &selection.field {
+                let value = parameter(params, Value::Text(field.clone()));
+                sql.push_str(&format!(" AND o.field_path={value}"));
             }
         }
     }
-    Ok((sql, values))
+    Ok(sql)
 }
-
-pub(crate) fn eligibility(
-    constraint: &RelationshipConstraint,
-) -> Result<(String, Vec<Value>), IndexError> {
-    let (scope, values) = occurrence_scope(constraint, "s")?;
-    let candidate = match constraint.direction {
-        SourceRelationshipDirection::Incoming => "o.record_id",
-        SourceRelationshipDirection::Outgoing => "o.target_record_id",
+pub(crate) fn compile_relationship(
+    relationship: &QueryRelationship,
+    params: &mut Vec<Value>,
+) -> Result<String, IndexError> {
+    let scope = occurrence_scope(relationship, "s", params)?;
+    let candidate = match relationship.direction {
+        QueryRelationshipDirection::Incoming => "o.record_id",
+        QueryRelationshipDirection::Outgoing => "o.target_record_id",
     };
-    Ok((
-        format!(
-            "r.record_id IN (SELECT {candidate} FROM relationship_occurrences o JOIN records s ON s.record_id=o.record_id JOIN records t ON t.record_id=o.target_record_id WHERE s.document_kind<>'Macro' AND t.document_kind<>'Macro' AND o.resolution IN ('resolved_record','resolved_owned') AND {scope})"
-        ),
-        values,
+    Ok(format!(
+        "r.record_id IN (SELECT {candidate} FROM relationship_occurrences o JOIN records s ON s.record_id=o.record_id JOIN records t ON t.record_id=o.target_record_id WHERE s.document_kind<>'Macro' AND t.document_kind<>'Macro' AND o.resolution IN ('resolved_record','resolved_owned') AND {scope})"
     ))
 }
-
 impl SqliteIndexReader {
     pub fn relationship_occurrence_page(
         &self,
@@ -97,39 +76,94 @@ impl SqliteIndexReader {
                 "relationship evidence page must contain 1..=100 occurrences".into(),
             ));
         }
-        let (scope, mut values) = occurrence_scope(request.constraint, "r")?;
-        let candidate = match request.constraint.direction {
-            SourceRelationshipDirection::Incoming => "r.key=?",
-            SourceRelationshipDirection::Outgoing => "t.key=?",
+        let mut params = Vec::new();
+        let scope = occurrence_scope(request.relationship, "r", &mut params)?;
+        let result = parameter(&mut params, Value::Text(request.result.to_string()));
+        let candidate = match request.relationship.direction {
+            QueryRelationshipDirection::Incoming => format!("r.key={result}"),
+            QueryRelationshipDirection::Outgoing => format!("t.key={result}"),
         };
-        values.push(Value::Text(request.result.to_string()));
         let where_sql = format!(
             "r.document_kind<>'Macro' AND t.document_kind<>'Macro' AND o.resolution IN ('resolved_record','resolved_owned') AND {scope} AND {candidate}"
         );
         let joins = "FROM relationship_occurrences o JOIN records r ON r.record_id=o.record_id JOIN records t ON t.record_id=o.target_record_id";
-        let c = self.native()?;
         self.count_statement();
-        let total: u64 = c.query_row(
+        let total = self.native()?.query_row(
             &format!("SELECT count(*) {joins} WHERE {where_sql}"),
-            params_from_iter(values.iter()),
-            |row| row.get(0),
+            params_from_iter(params.iter()),
+            |r| r.get(0),
         )?;
-        values.push(Value::Integer(request.limit as i64));
-        values.push(Value::Integer(
-            i64::try_from(request.offset).map_err(|e| IndexError::Invalid(e.to_string()))?,
-        ));
-        // Reuse the checked occurrence decoder and its exact provenance fields.
-        let select = crate::read_content::RELATIONSHIP_SELECT;
+        let limit = parameter(&mut params, Value::Integer(request.limit as i64));
+        let offset = parameter(
+            &mut params,
+            Value::Integer(
+                i64::try_from(request.offset).map_err(|e| IndexError::Invalid(e.to_string()))?,
+            ),
+        );
         self.count_statement();
-        let mut statement = c.prepare(&format!(
-            "{select} WHERE {where_sql} ORDER BY o.occurrence_id LIMIT ? OFFSET ?"
+        let mut statement = self.native()?.prepare(&format!(
+            "{} WHERE {where_sql} ORDER BY o.occurrence_id LIMIT {limit} OFFSET {offset}",
+            crate::read_content::RELATIONSHIP_SELECT
         ))?;
         let occurrences = statement
             .query_map(
-                params_from_iter(values.iter()),
+                params_from_iter(params.iter()),
                 crate::read_content::relationship_row,
             )?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(RelationshipOccurrencePage { occurrences, total })
+    }
+    /// Positive link leaves participating in successful Boolean proofs, using the compiled SQL truth.
+    pub fn relationship_proofs(
+        &self,
+        query: &crate::ValidatedQuery,
+        keys: &[RecordKey],
+    ) -> Result<Vec<(RecordKey, String)>, IndexError> {
+        let mut compiled = crate::query::compiler::compile_predicate(query)?;
+        if compiled.proofs.is_empty() || keys.is_empty() {
+            return Ok(vec![]);
+        }
+        let requested = parameter(
+            &mut compiled.parameters,
+            Value::Text(serde_json::to_string(
+                &keys.iter().map(ToString::to_string).collect::<Vec<_>>(),
+            )?),
+        );
+        let columns = compiled
+            .proofs
+            .iter()
+            .map(|(_, proof)| format!("({proof}) IS TRUE"))
+            .collect::<Vec<_>>()
+            .join(",");
+        let sql = format!(
+            "SELECT r.key,{columns} FROM records r JOIN json_each({requested}) requested ON requested.value=r.key WHERE ({}) IS TRUE",
+            compiled.expression
+        );
+        self.count_statement();
+        let mut statement = self.native()?.prepare(&sql)?;
+        let rows = statement
+            .query_map(params_from_iter(compiled.parameters.iter()), |row| {
+                let key = row.get::<_, String>(0)?;
+                let ids = compiled
+                    .proofs
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, (id, _))| match row.get::<_, bool>(i + 1) {
+                        Ok(true) => Some(Ok(id.clone())),
+                        Ok(false) => None,
+                        Err(e) => Some(Err(e)),
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok((key, ids))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut proofs = Vec::new();
+        for (key, ids) in rows {
+            let key = crate::read_units::parse_key(key)?;
+            for id in ids {
+                proofs.push((key.clone(), id));
+            }
+        }
+        Ok(proofs)
     }
 }

@@ -1,3 +1,4 @@
+use atlas_domain::OwnedContentLocator;
 use std::collections::BTreeMap;
 
 use atlas_domain::RecordKey;
@@ -16,22 +17,6 @@ pub struct SourceContentLocator {
     pub record: RecordKey,
     pub owners: Vec<OwnedContentLocator>,
     pub field: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
-#[ts(rename = "EmbeddedContentLocator")]
-pub struct OwnedContentLocator {
-    pub collection: String,
-    pub identity: OwnedContentIdentity,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
-#[ts(rename = "EmbeddedContentIdentity")]
-pub enum OwnedContentIdentity {
-    /// A source ID whose validity and uniqueness were checked by the caller.
-    Stable(String),
-    /// Missing/duplicate/invalid IDs retain content without claiming stable identity.
-    SnapshotLocal { index: usize },
 }
 
 /// Explicit projection inputs, not a Foundry permission/runtime emulator.

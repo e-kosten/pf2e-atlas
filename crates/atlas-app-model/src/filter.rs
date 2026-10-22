@@ -11,9 +11,6 @@ use ts_rs::TS;
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum FilterDiscoveryContext {
     Filtered {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        relationships: Option<Vec<crate::RelationshipConstraintView>>,
         #[ts(optional)]
         search_profile: Option<atlas_domain::SearchProfileId>,
         #[ts(optional)]
@@ -23,9 +20,6 @@ pub enum FilterDiscoveryContext {
         mode: RetrievalModeView,
     },
     SavedList {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        relationships: Option<Vec<crate::RelationshipConstraintView>>,
         #[ts(optional)]
         search_profile: Option<atlas_domain::SearchProfileId>,
         #[ts(optional)]
@@ -39,6 +33,9 @@ pub enum FilterDiscoveryContext {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct DiscoverFilterEditorRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub expected_artifact_generation: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub filter: Option<QueryPredicate>,
@@ -85,6 +82,8 @@ pub struct DiscoverFilterCountsRequest {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterEditorView {
+    pub artifact_generation: String,
+    pub relationship_clauses: Vec<crate::RelationshipClausePresentationView>,
     pub catalog_version: u32,
     pub limits: QueryLimits,
     pub groups: Vec<FilterEditorGroupView>,

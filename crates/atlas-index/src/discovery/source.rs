@@ -109,6 +109,7 @@ fn compile_eligibility(
     Ok(CompiledPredicate {
         expression: format!("r.record_id IN ({eligible})"),
         parameters,
+        proofs: Vec::new(),
     })
 }
 
@@ -370,11 +371,7 @@ fn remove_clause(
     if expected.definition.scope.is_none() {
         return match root_field_context(query.predicate(), &expected.definition.path) {
             Some(base) => Ok(QueryFacetOutcome::Available {
-                value: (
-                    validate_query(&base)?.with_relationships(&query.relationships),
-                    target,
-                    None,
-                ),
+                value: (validate_query(&base)?, target, None),
             }),
             None => Ok(QueryFacetOutcome::Unavailable {
                 reason: FacetUnavailableReason::NonConjunctiveContext,
@@ -385,11 +382,7 @@ fn remove_clause(
         return Ok(QueryFacetOutcome::Unavailable { reason });
     }
     Ok(QueryFacetOutcome::Available {
-        value: (
-            validate_query(&base)?.with_relationships(&query.relationships),
-            target,
-            removal.member,
-        ),
+        value: (validate_query(&base)?, target, removal.member),
     })
 }
 /// The same supported self-exclusion used by counts/values supplies search's
@@ -629,7 +622,7 @@ fn count_options(
                 children: vec![query.predicate().clone(), candidate],
             })
         };
-        let accepted = validate_query(&p)?.with_relationships(&query.relationships);
+        let accepted = validate_query(&p)?;
         let (eligible, parameters) =
             crate::read_units::eligible_sql(&accepted, context.eligible_keys.as_deref())?;
         let preference = if context.prefer_remaster {

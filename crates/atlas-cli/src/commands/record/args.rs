@@ -1,7 +1,7 @@
 use crate::cli::args::FilterOptions;
 use atlas_cli_support::CliPathMode;
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::SourcePassageAddress;
-use atlas_record::source_content::OwnedContentLocator;
 use clap::{Args, Subcommand, ValueEnum};
 use std::path::PathBuf;
 #[derive(Debug, Args)]
