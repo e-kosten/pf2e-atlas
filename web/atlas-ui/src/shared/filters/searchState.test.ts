@@ -275,13 +275,18 @@ describe("source query state", () => {
       "list_records",
     );
   });
-  it("blocks malformed URLs and invalid numeric drafts", () => {
+  it("recovers malformed filter transport while retaining the text query", () => {
     const state = decodeSearchStateFromParams(
       new URLSearchParams("filter=bad&q=dragon"),
     );
-    expect(state.filterError).toBeTruthy();
-    expect(hasExecutableSearch(state)).toBe(false);
-    expect(() => buildSearchRequest(state, 1)).toThrow();
+    expect(state.filterError).toBeNull();
+    expect(state.filterWasReset).toBe(true);
+    expect(hasExecutableSearch(state)).toBe(true);
+    expect(buildSearchRequest(state, 1).criteria).toMatchObject({
+      kind: "text_search",
+      query: "dragon",
+      filter: null,
+    });
   });
   it("bounds page sizes without changing valid zero-valued filters", () => {
     const state = decodeSearchStateFromParams(
@@ -378,13 +383,18 @@ it("carries the selected profile through text and Similar deep links and context
   });
 });
 
-it("blocks obsolete filter links instead of running an unfiltered search", () => {
+it("recovers obsolete filter links without retaining a legacy decoder", () => {
   const state = decodeSearchStateFromParams(
     new URLSearchParams({ q: "fire", filter: "1.old" }),
   );
-  expect(state.filterError).toContain("unsupported filter version");
-  expect(hasExecutableSearch(state)).toBe(false);
-  expect(() => buildSearchRequest(state, 1)).toThrow("unsupported filter version");
+  expect(state.filterError).toBeNull();
+  expect(state.filterWasReset).toBe(true);
+  expect(hasExecutableSearch(state)).toBe(true);
+  expect(buildSearchRequest(state, 1).criteria).toMatchObject({
+    kind: "text_search",
+    query: "fire",
+    filter: null,
+  });
 });
 
 it("carries complete relationship constraints in browse and saved-list discovery contexts", () => {

@@ -132,9 +132,14 @@ existing envelope, replacing summary-only result payloads. Contextual CLI discov
 uses the shared context, and graph occurrences pages the same clause evidence.
 Existing graph links/uses remain bounded previews and never become eligibility.
 
-URLs serialize the canonical predicate only. Retired relationships parameters are
-explicit unsupported-format errors with a clear-filter action; they are never
-silently ignored. No converter or old request/execution path is retained.
+URLs serialize the canonical predicate through a versioned compact browser
+transport. Unsupported or malformed filter transport, including retired
+relationships parameters, clears the complete expression automatically, replaces
+the URL entry and resets paging. One nonblocking message reports the cleared
+filters; independent criteria and exact reading navigation remain intact. A
+decoded predicate with invalid fields or selections remains an editable validation
+error. Retrieval failures never clear filters. No converter or old request/execution
+path is retained.
 
 Similar remains a separate search criterion. Its named, selectable read-only seed
 occupies the keyword search shell with identical clear/search affordances. Clearing

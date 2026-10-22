@@ -1,3 +1,4 @@
+import { useFilterUrlRecovery } from "../../shared/filters/useFilterUrlRecovery";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { Alert, Button, Select } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
@@ -15,6 +16,7 @@ import {
 
 export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
   usePageTitle("Search");
+  useFilterUrlRecovery(workspace.search, workspace.recoverFilterUrl);
   const profile = useSearchProfile();
   const hasCriteria = hasExecutableSearch(workspace.search);
   const failed = Boolean(
