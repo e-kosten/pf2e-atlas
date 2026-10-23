@@ -476,6 +476,53 @@ fn actual_model_build_reuses_exact_inputs_with_fresh_source_attribution() {
     assert!(changed.reused_inputs > 0);
     assert_eq!(changed.semantic_unit_count, first.semantic_unit_count);
     atlas_index::validate_artifact(&changed.output_path).unwrap();
+    // An independently addressable root with identical selected input must reuse
+    // the existing values without merging either root's filtered witnesses.
+    let mut duplicate: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(fixture.0.join("packs/items/useful.json")).unwrap(),
+    )
+    .unwrap();
+    duplicate["_id"] = serde_json::json!("cccccccccccccccc");
+    fs::write(
+        fixture.0.join("packs/items/duplicate.json"),
+        serde_json::to_vec(&duplicate).unwrap(),
+    )
+    .unwrap();
+    let shared = build_artifact(options.clone()).unwrap();
+    assert_eq!(shared.inferred_inputs, 0);
+    assert_eq!(shared.reused_inputs, first.inferred_inputs);
+    assert_eq!(shared.semantic_unit_count, changed.semantic_unit_count * 2);
+    let reader = atlas_index::test_support::open_reader(&shared.output_path).unwrap();
+    let profile = atlas_domain::SearchProfileId::new("bge-base");
+    let original = atlas_domain::RecordKey::parse("items:aaaaaaaaaaaaaaaa").unwrap();
+    let other = atlas_domain::RecordKey::parse("items:cccccccccccccccc").unwrap();
+    let vector = reader
+        .seed_identity_vector(&profile, &original)
+        .unwrap()
+        .unwrap()
+        .vector;
+    let all = atlas_index::validate_query(&atlas_domain::QueryPredicate::boolean(true)).unwrap();
+    let mut ids = std::collections::BTreeSet::new();
+    for root in [original, other] {
+        let hits = reader
+            .vector_candidates(
+                &profile,
+                &vector,
+                &all,
+                Some(std::slice::from_ref(&root)),
+                100,
+            )
+            .unwrap();
+        assert_eq!(hits.len(), changed.semantic_unit_count);
+        for hit in hits {
+            assert_eq!(hit.location.record, root);
+            assert!(ids.insert(hit.location.unit_id));
+            if hit.location.field.is_some() {
+                assert!(reader.recover_passage(&hit.location).unwrap().is_some());
+            }
+        }
+    }
+    drop(reader);
     options.reuse_embeddings = false;
     let forced = build_artifact(options).unwrap();
     assert_eq!(forced.reused_inputs, 0);

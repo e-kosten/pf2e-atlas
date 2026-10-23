@@ -138,6 +138,12 @@ pub(super) fn record(pack: &str, kind: &str, v: Value) -> SourceArtifactRecordIn
     }
 }
 pub(super) fn fixture(semantic: bool) -> IndexBuildInput {
+    fixture_with_description(
+        semantic,
+        "<h2>Flame</h2><p>@Check[reflex|dc:20] Dragon breath.</p>",
+    )
+}
+pub(super) fn fixture_with_description(semantic: bool, description: &str) -> IndexBuildInput {
     let records = vec![
         record(
             "actors",
@@ -147,7 +153,7 @@ pub(super) fn fixture(semantic: bool) -> IndexBuildInput {
         record(
             "items",
             "Item",
-            json!({"_id":"bbbbbbbbbbbbbbbb","name":"Dragon Staff","type":"weapon","system":{"level":{"value":0},"traits":{"value":[],"rarity":"common"},"price":{"value":{"gp":2},"per":1},"bulk":{"value":1},"description":{"value":"<h2>Flame</h2><p>@Check[reflex|dc:20] Dragon breath.</p>"}}}),
+            json!({"_id":"bbbbbbbbbbbbbbbb","name":"Dragon Staff","type":"weapon","system":{"level":{"value":0},"traits":{"value":[],"rarity":"common"},"price":{"value":{"gp":2},"per":1},"bulk":{"value":1},"description":{"value":description}}}),
         ),
         record(
             "items",

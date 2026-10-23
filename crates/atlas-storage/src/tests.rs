@@ -6,7 +6,7 @@ const FIRST: Migration = Migration {
     name: "user-state",
     sql: "CREATE TABLE saved(id INTEGER PRIMARY KEY,title TEXT NOT NULL) STRICT; INSERT INTO saved VALUES(1,'retained');",
 };
-fn fixture() -> (tempfile::TempDir, Workspace) {
+pub(super) fn fixture() -> (tempfile::TempDir, Workspace) {
     let dir = tempfile::tempdir().unwrap();
     let workspace = Workspace::at(dir.path().join("atlas.sqlite")).unwrap();
     workspace.migrate(&[FIRST], |_| Ok(())).unwrap();
@@ -654,11 +654,31 @@ fn typed_backfill_runs_atomically_and_its_identity_is_authenticated() {
 fn physical_reclamation_preserves_saved_data_and_logical_revision() {
     let (_dir, workspace) = fixture();
     let owner = workspace.update_owner().unwrap();
-    let session = owner.maintenance(1, "physical maintenance").unwrap();
-    session.connection().execute_batch("CREATE TABLE obsolete(value BLOB); INSERT INTO obsolete VALUES(zeroblob(1048576)); DROP TABLE obsolete;").unwrap();
+    assert!(!owner.reclaim_space(1).unwrap());
+    let write = workspace.write(1).unwrap();
+    write.connection().execute_batch("CREATE TABLE obsolete(value BLOB); INSERT INTO obsolete VALUES(zeroblob(40*1024*1024));").unwrap();
+    write.commit().unwrap();
+    let write = workspace.write(1).unwrap();
+    write
+        .connection()
+        .execute_batch("DROP TABLE obsolete")
+        .unwrap();
+    write.commit().unwrap();
+    // Materialize the committed free pages in the main file before measuring.
+    let connection = rusqlite::Connection::open(workspace.path()).unwrap();
+    connection
+        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
+        .unwrap();
+    drop(connection);
     let before = std::fs::metadata(workspace.path()).unwrap().len();
-    session.reclaim_space().unwrap();
-    drop(session);
+    assert!(before >= 40 * 1024 * 1024);
+    assert!(owner.reclaim_space(1).unwrap());
+    let after = std::fs::metadata(workspace.path()).unwrap().len();
+    assert!(
+        before - after >= 32 * 1024 * 1024,
+        "before={before}, after={after}"
+    );
+    assert!(!owner.reclaim_space(1).unwrap());
     drop(owner);
     let read = workspace.read(1).unwrap();
     assert_eq!(read.reference_revision().unwrap(), 0);
@@ -668,5 +688,4 @@ fn physical_reclamation_preserves_saved_data_and_logical_revision() {
             .unwrap(),
         "retained"
     );
-    assert!(std::fs::metadata(workspace.path()).unwrap().len() <= before + 1048576);
 }

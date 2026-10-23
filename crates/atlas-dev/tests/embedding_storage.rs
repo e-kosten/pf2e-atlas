@@ -130,10 +130,18 @@ fn full_corpus_storage_upgrade_preserves_values_and_reuse() {
     let workspace = atlas_runtime::initialize_workspace(&path).unwrap();
     eprintln!("migration seconds={:.2}", start.elapsed().as_secs_f64());
     let owner = workspace.update_owner().unwrap();
-    owner
-        .reclaim_space(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
-        .unwrap();
+    assert!(
+        owner
+            .reclaim_space(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+            .unwrap(),
+        "the full-corpus fixture must cross the reclamation threshold and have capacity"
+    );
     drop(owner);
+    let after_size = std::fs::metadata(&path).unwrap().len();
+    assert!(
+        before_size > after_size + 32 * 1024 * 1024,
+        "before={before_size}, after={after_size}"
+    );
     let read = workspace
         .read(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
         .unwrap();
@@ -208,7 +216,7 @@ fn full_corpus_storage_upgrade_preserves_values_and_reuse() {
     );
     eprintln!(
         "storage before_bytes={before_size} after_bytes={} vectors_sha256={vectors} saved_sha256={saved}",
-        std::fs::metadata(&path).unwrap().len()
+        after_size
     );
     // TempDir removes the corpus, migration backup and all sidecars on return.
 }

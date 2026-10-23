@@ -137,9 +137,13 @@ pre-KNN eligibility, candidate windows and fusion policy are unchanged.
 Schema migration performs typed backfills inside the checksum-verified migration
 transaction, preserving native values and unfinished forced work without requiring
 source/model assets. Explicit setup/build reclaims at least 32 MiB of free SQLite
-pages through storage-owned maintenance after a successful update. Startup never
-vacuums. A failed physical reclamation retains complete reference data and uses
-validated maintenance recovery, without requiring inference again.
+pages through storage-owned maintenance after a successful update. Before closing
+admission, storage checks workspace and SQLite temporary-volume capacity against
+a conservative budget of twice the database size. Insufficient or unknown capacity skips
+optional reclamation with a diagnostic and leaves the update usable. This preflight
+does not reserve space. Startup never vacuums. A failed physical reclamation retains
+complete reference data and uses validated maintenance recovery, without requiring
+inference again.
 
 Unchanged admitted sources reuse checked DTOs and prepared content when the source
 and preparation identities agree. References are resolved again against the current
