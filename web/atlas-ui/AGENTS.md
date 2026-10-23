@@ -2,6 +2,11 @@
 
 This package owns the React browser frontend for PF2e Atlas. Follow these rules when editing files under `web/atlas-ui`.
 
+Start composition and presentation reviews with the
+[design principles and Atlas examples](docs/frontend-guidelines.md#design-principles).
+Use the detailed sections there for padding ownership, reading widths, disclosures
+and update continuity; do not introduce a competing feature-local design policy.
+
 ## Frontend Ownership
 
 - Keep product semantics in Rust app-service/app-model contracts. The frontend should render generated DTOs and call the thin API client; it should not duplicate retrieval, filtering, ranking, record projection, saved-list, or encounter product rules.
@@ -24,6 +29,7 @@ Before creating a feature-local interaction pattern, check `src/shared/ui`.
 - In reading/scanning views, editable values need a persistent subtle cue, with inputs revealed on activation. Use the neutral filled value-button pattern for inline encounter HP; spell rank has its adjacent Change rank action. Keep fields visible for data-entry tasks. Follow [Reading and editing values](docs/frontend-guidelines.md#reading-and-editing-values); hover alone must not establish editability.
 - Use `SearchPickerModal` for modal record-search selection flows.
 - Use `PaneIconButton` and `PaneIconLink` for pane-header icon actions.
+- Use `BrowsePaneHeader` in selected-record workspaces; `BrowseReader` owns alignment of the two natural header rows, including wrapped controls. Do not independently fix their heights.
 - Use `DangerActionButton` for buttons that open a destructive confirmation before running the action.
 - Keep lower-level helpers such as `useConfirmDangerAction` for non-button callbacks where a shared button is not the right shape.
 
@@ -33,12 +39,14 @@ For overlays and secondary tasks, follow
 [Choosing an interaction surface](docs/frontend-guidelines.md#choosing-an-interaction-surface).
 For record browsing, links and nested previews, follow
 [In-place reference reading](docs/frontend-guidelines.md#in-place-reference-reading).
-Reuse the shared browse/reader and preview owners with exact backend navigation;
+Reuse BrowseReader for selected results and RecordReferenceDrawer for linked documents on every viewport, with exact backend navigation;
 keep feature selection and mutations separate. Do not invent feature-local
 Popover/Drawer or link-navigation policies.
 
 ## CSS Layout
 
+- Each content boundary has one padding owner. DocumentPagePane owns a standalone page's inset around its identity and flush detail; RecordDetailPane owns the inset in a selected-results reader. A reference Drawer body owns its inset and its detail is flush. The page/pane host owns background, border and shadow; reusable detail content must not introduce a nested card. RecordPresentation adds no outer padding. Use the spacing and control-group ownership examples in the frontend guidelines.
+- Single-entity pages lead with the entity name and its actions. Do not add a generic Reference or Details pane bar above the actual title. Pane labels belong to workspaces with distinct regions.
 - Put reusable component styles under `src/styles/ui`.
 - Put feature-specific styles under the owning feature stylesheet.
 - Keep page-level structure unframed unless the existing shared layout primitive intentionally frames it.

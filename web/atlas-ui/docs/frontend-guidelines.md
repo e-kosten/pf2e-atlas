@@ -47,6 +47,46 @@ traits use their displayed title. Index pages use Search, Lists or Encounters.
 Saved-list contents use lexical text filtering and structured filters, preserving
 saved order. Main search and Add records retain semantic discovery.
 
+## Design principles
+
+Choose by the user's task and the content's meaning. Each rule below has an
+intended use and a concrete failure case; existing UI is not automatically a
+positive example. Linked sections define detailed behavior and shared owners.
+
+| Decision                 | Rule                                                                                                                                                                           | Use                                                                                                                                                                                                                               | Avoid                                                                                                                                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Component ownership      | Use Ant for generic UI, shared Atlas compositions for repeated behavior, and product-specific layouts for game facts.                                                          | Reuse `RecordReferenceDrawer` for linked records. See [Shared UI Layer](#shared-ui-layer).                                                                                                                                        | A feature-local record overlay or a custom button that recreates Ant behavior.                                                                                                                  |
+| Padding and spacing      | Give each boundary one inset owner; children own internal gaps. Align header, body and footer insets.                                                                          | Drawer body padding around flush record content; 8px control, 16px group and 24px section gaps; normal gutters 24px desktop/16px phone. See [Padding and control-group ownership](#padding-and-control-group-ownership).          | A padded Card inside a padded Drawer, missing body inset, or negative margins to repair nesting.                                                                                                |
+| Control groups           | Adjacent inputs and buttons share size and aligned height; importance uses variant.                                                                                            | Default-sized toolbar controls; a separate dense row may be uniformly small.                                                                                                                                                      | A small secondary icon button beside a default-sized text action, or local pixel-height repairs.                                                                                                |
+| Reading width            | Bound the complete single-column document; keep workspace chrome attached to its pane.                                                                                         | Allfood title, traits, facts and prose share a readable column within the full search pane. See [Styling](#styling).                                                                                                              | Capping prose alone under a wider identity block, stretching prose across the screen, or adding filler to occupy space.                                                                         |
+| Entity hierarchy         | Lead a single-entity page with its identity; group related metadata below it.                                                                                                  | Allfood's name, classification/rank, aligned traits and attribution.                                                                                                                                                              | A generic Reference bar above the name or detached trait pills floating beside unrelated controls.                                                                                              |
+| Reading and editing      | In reading/scanning views, keep values readable with a persistent cue for editing; reveal the editor on activation. Keep fields visible when entry is the primary task.        | Current/temp HP use subtle neutral filled buttons; spell rank has a visible Change rank action. See [Reading and editing values](#reading-and-editing-values).                                                                    | Permanent number fields throughout a read-oriented panel, or editable values indistinguishable from static text until hover.                                                                    |
+| Actions and copy         | Keep frequent actions near their context. Use named icons for familiar compact actions and text for unfamiliar choices; each note must add a fact, consequence or next action. | An accessible icon with a concise tooltip; base rank shown inside the picker. See [Choosing an interaction surface](#choosing-an-interaction-surface).                                                                            | Cryptic unfamiliar icons, tooltips repeating clear labels, duplicate Base rank captions or a checkmark repeating selected-row fill.                                                             |
+| Disclosures              | Keep essential rules inline; disclose secondary material only for a selective-reading task, with a clear title and enclosing boundary.                                         | Bordered Ant Heightening details around related extra facts, with authored heightening prose still inline. See [Record presentation](#record-presentation).                                                                       | Bare expanding text, nested accordions, hiding essential rules, or adding a disclosure merely because another section uses one.                                                                 |
+| Rules and current values | Distinguish selected results from their rules; preserve qualifiers, clears and unavailable facts.                                                                              | Fireball's current damage changes with rank; its per-rank increase stays constant.                                                                                                                                                | Presenting a constant increase as current damage, or inferring that Animal Form's replacement statistics stack like Sound Body's benefits.                                                      |
+| Updates and failures     | Preserve controls, focus, drafts, scroll and valid same-identity content; keep loading/failure local and allow deliberate content growth.                                      | Initial filter placeholders occupy control slots; rank changes preserve the trigger; retained content has a local refresh error and Retry.                                                                                        | Replacing search chrome with a spinner, remounting on value changes, treating unavailable data as empty, borrowing another identity's content, or clipping substantial detail to freeze height. |
+| Navigation and focus     | Reuse shared navigation and exact native destinations; restore the initiating context.                                                                                         | Linked records open one Drawer with local nested history; full-page/modified links stay native; initial focus goes to the heading and close returns to the opener. See [In-place reference reading](#in-place-reference-reading). | Stacked document Drawers, guessed destinations, a separate reader mode, focus jumping to Add to list, or resetting host scroll.                                                                 |
+
+For affected rules, verify the result in the running UI:
+
+- Inspect computed insets and actual adjacent control heights; matching props or
+  token names alone do not establish alignment. Check wrapping at intermediate
+  widths as well as desktop and phone, in both appearances.
+- Edit a small value and delay or fail its refresh. Confirm the same control,
+  draft, focus, reading anchor and surrounding geometry survive where identity
+  permits retention; show retained content distinctly from successful updates.
+- Open optional details and substantial content. Confirm essential facts remain
+  visible and all expanded content and actions remain reachable.
+- Exercise keyboard activation, nested Escape, close/return and exact native links.
+  An editable value needs an accessible action name and visible focus treatment.
+
+These rules do not prescribe a universal character count or force complex kinds
+into a prose layout. Creature and roll-table layouts require individual review.
+The usefulness of a particular optional section remains a separate decision from
+its styling. Review overlay dismissal in ordinary, dirty, pending and nested
+states; do not remove a mutation guard to make every overlay dismiss identically.
+Inline-expression evaluation belongs to its separate workstream.
+
 ## Boundaries
 
 - `web/atlas-ui` owns browser presentation, local browser state, URL state, API calls, and component composition.
@@ -80,7 +120,7 @@ Check visual consistency across surfaces, density modes, themes and viewport siz
 Search and saved-list browsing compose `shared/records/BrowseReader` with their
 own rows, requests and actions. `RecordBrowseSummary` owns shared record identity
 and activation; `ReferenceReader` owns the reader controls and reading position,
-including the explicit Reader companion pane. Keep match explanations in search
+for the selected result. Linked documents use RecordReferenceDrawer. Keep match explanations in search
 and membership/order/unresolved snapshots in lists. Do not fabricate search DTOs
 to reuse a layout or copy the browsing interaction into another feature.
 
@@ -186,11 +226,97 @@ types and contextual notes alongside their cause.
 - Do not create nested cards or duplicate pane/index/table styles in feature modules.
 - Prefer stable layout dimensions for repeated controls so dynamic labels, icons, loading states, and validation text do not shift the page.
 
-Give authored prose one left-aligned readable column, including its headings,
-lists and horizontal rules. Apply it through shared record presentation so panes
-and previews agree. Identity headers and mechanics can use their available width;
-wide authored tables retain deliberate local overflow rather than widening the
-page. Compact density changes spacing, not the available record information.
+Give single-column record pages one document width, including their toolbar,
+identity, traits, facts, prose, lists and horizontal rules. Bound the whole sheet
+instead of cutting the prose short inside a wider sheet. Search/list browsing
+has a different host: its selected-reader pane fills its split region, with a
+continuous background and workspace toolbar attached to the results divider.
+Center the complete single-column document inside that pane with a readable
+maximum width and one content inset. Identity, traits, facts, prose and related
+content share this document width. The pane background and workspace toolbar
+continue to fill their region; do not center or constrain the pane itself as a
+floating sheet. Use the same shared reader policy for search and saved lists.
+Most record kinds retain a simple reading flow; wider panes do not justify filler
+or a permanent supporting column. Complex kinds such as creatures and roll tables
+may use their width for meaningful structures after individual review.
+In a reference Drawer the document fills its body.
+Simple records use one identity flow: title/action glyph and document actions,
+then classification/rank and traits, then source attribution. Spell identity is
+static text beside a muted Change rank menu; spell traits have their own row.
+Do not reserve an invisible reset slot or repeat base-rank copy outside the rank
+menu. Let the title and action group share a row when they fit, including on phone; wrap for
+actual content rather than forcing every narrow header into separate rows.
+
+Spell reading order is identity, supplied casting facts and damage, authored prose,
+then structured heightening/forms. For example, Allfood's Cast and Target are
+available before its description and authored Heightened paragraphs. Preserve
+both authored prose and typed heightening; do not parse or deduplicate one against
+the other. Omit the renderer-added Description heading when a simple record has
+one principal description field. Battle Medicine then reads Prerequisites,
+authored Requirements and prose without a competing generic heading. Keep all
+authored headings and other content-field labels, and label multiple description
+fields separately. Retain the field label for unavailable prose so the affected
+content remains clear. Creature/hazard reading order is reviewed independently.
+Creature/hazard workspaces may use broader mechanics layouts after their own
+review; their prose may have a readable measure. Wide authored tables retain deliberate
+local overflow rather than widening the page. Compact density changes spacing,
+not the available record information.
+
+### Padding and control-group ownership
+
+Use semantic spacing roles: 8px for neighboring controls, 16px for related groups,
+and 24px for major sections. Ant-derived --space-control, --space-group and
+--space-section supply these roles. Page gutters and comfortable bodies normally
+use 24px, reduced to 16px on narrow screens. Full-bleed workspaces delegate the
+inset to their toolbar/pane bodies rather than adding a second page inset.
+
+Every boundary has one owner. DocumentPagePane owns a standalone page's inset
+around its composed identity and flush detail. RecordDetailPane owns the body
+inset inside a selected-results reader. A reference Drawer body owns its inset
+and the contained detail is flush. The
+page/pane host owns the surface background, border and shadow: reusable detail
+content must not bring another card into an overlay. For example, Battle Medicine
+in a Drawer has one reading surface, not a padded surround and nested card. The
+shared RecordPresentation arranges facts/prose and adds no outer padding. An
+encounter pane owns the inset around its product-specific content. Header/footer
+insets align with their body. A section supplies internal gaps, not another body
+inset. Do not repair nesting with negative margins or arbitrary local padding.
+
+A single-entity page starts with the entity name and its actions. Do not put a
+generic Reference or Details bar above Allfood's title or a trait definition.
+Keep the action component mounted while the identity arrives or refreshes, so an
+open saved-list dialog survives the read. Use pane labels where they distinguish
+actual regions, such as search results and Preview.
+
+Apply Ant region insets through its documented semantic styles, using the shared
+spacing variables. An Atlas class alone can lose to the library's selector. The
+reference Drawer's content-sized header must not flex-shrink: its bounded overflow
+keeps a long identity reachable while the body scrolls independently. Verify the
+title, close action and computed body/header insets after opening on phone and
+desktop; DOM presence and focus assertions do not establish visible geometry.
+
+Paired browse headers use BrowsePaneHeader. Its inner row owns control spacing
+and padding; BrowseReader owns the common header height through
+useBrowseHeaderAlignment. Measure natural rows so wrapping can grow both headers
+and unwrapping can shrink them again. Do not set independent fixed heights or
+match headers with feature-local padding. On phone only the visible pane needs
+its natural height. The results and Preview separators must align at each split
+width, including multi-row pagination and loading/empty results.
+
+One action/control group uses one Ant size. Inputs, Selects, text buttons and
+icon buttons in a toolbar align at that size; icon-only and secondary do not imply
+small. Express importance with button type. Independent dense row/inline groups
+may uniformly use small controls. Do not add pixel-height repairs or per-control
+providers. Review rendered control heights, inset and targets together at wide,
+intermediate and phone widths in both themes; matching size props is insufficient.
+
+Keep essential facts inline. An optional collapse needs a selective-reading task,
+such as a long reference list or nonmechanical creature narrative during combat.
+Do not hide mixed source prose merely because its label says description. Prefer
+ordinary headings/scrolling when the task requires most sections. Use an aligned
+full-width Ant header, explicit expanded state and consistent body inset; preserve
+open state on refresh. No nested or automatically expanding collapses. Source
+narrative normally remains inline on its full reference page.
 
 ## Responsive design and acceptance
 
@@ -467,13 +593,13 @@ Choose the surface by the user's task, then adapt it to available space. Reuse
 the shared owner for that interaction rather than choosing independently in each
 feature.
 
-| Surface                 | Default use                                                                       | Examples                                       |
-| ----------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------- |
-| Tooltip                 | Short, noninteractive explanation                                                 | Icon labels                                    |
-| Popover                 | Quick anchored lookup or small interaction that keeps surrounding content visible | Encounter spell references; match explanations |
-| Drawer                  | Substantial secondary task, or reference reading on narrow screens                | Advanced filters; phone reference previews     |
-| Modal                   | Bounded decision or edit requiring focused attention                              | HP settings; condition editing                 |
-| Existing reader or page | Sustained reading and browsing                                                    | Search result reader; full record              |
+| Surface                 | Default use                                               | Examples                                               |
+| ----------------------- | --------------------------------------------------------- | ------------------------------------------------------ |
+| Tooltip                 | Short, noninteractive explanation                         | Icon labels                                            |
+| Popover                 | Small anchored interaction or fact explanation            | Roll results; calculation explanations; match evidence |
+| Drawer                  | Contextual document reading or substantial secondary task | Linked references; Original record; Advanced filters   |
+| Modal                   | Bounded decision or edit requiring focused attention      | HP settings; condition editing                         |
+| Existing reader or page | Sustained reading and browsing                            | Search result reader; full record                      |
 
 Essential content must be available through click/tap and keyboard activation,
 not only hover. Escape dismisses the innermost surface, and closing restores
@@ -481,8 +607,7 @@ focus to its opener. Preserve the underlying selection, scroll position and
 unfinished edits. Use native Ant positioning and lifecycle; keep one shared
 record renderer across hosts with navigation appropriate to the context.
 
-Reference previews follow the policy below, including local Back, responsive
-hosts and delayed loading feedback. Do not change hosts after loading based on
+Reference previews follow the policy below, including local Back, one Drawer host and delayed loading feedback. Do not change hosts after loading based on
 record length. Extended reading remains available through normal page navigation;
 a pinned reader would be a separate product feature.
 
@@ -500,81 +625,72 @@ prerequisite for an ordinary at-table roll.
 
 ### In-place reference reading
 
-Use the current reader for selected search results, saved-list members and Add
-candidates. Inline document references open the shared reference preview while
-preserving that reader and its scroll position: native Ant Popover at `md` and
-above, native Ant Drawer below `md` (768px). Use the same quick-lookup interaction
-in reference pages and encounters. Explicit Reader view retains its dedicated
-secondary reading pane. Following a reference does not change the selected result,
-Add candidate, list membership or encounter participant.
-Both hosts use `RecordDetailPane` and the same family renderer. Long records
-scroll inside their host; do not switch hosts after loading based on record
-length or family. Inline owned abilities follow their existing reading policy;
-arbitrary linked documents do not become inline expansions. The title appears
-once; generic Reference labels remain accessible without visible overlay headings.
+There is one record page and one contextual reference Drawer. There is no separate
+Reader mode, companion layout or reader route. Search results, saved-list members
+and Add candidates keep their primary selected-record detail pane; following a
+reference does not replace that selection or commit a mutation.
 
-Top-level entity links, permalinks and Open full page actions navigate normally
-in the same tab. Resolved in-place document links carry the exact native href and
-intercept only unmodified activation; preserve modified and middle clicks.
-Within a reading context, document references follow one policy. Tooltips are
-for short noninteractive hints, not documents; small fact explanations can use
-accessible Popovers without becoming document-reading sessions.
+Use `RecordReferenceDrawer` for linked records and Original record links on every
+viewport. Trait badges retain native typed trait-page destinations; never coerce
+their identities to record keys. It overlays the host
+without reserving an empty column or compressing the underlying layout. It is
+full width on narrow screens and has a generous bounded reading width otherwise.
+Nested references replace the document in the same Drawer and keep a bounded
+local history. Never stack document Drawers or choose a host after seeing content
+length. Small fact explanations and short local choices may still use Popover.
 
-Preserve complete backend navigation, including embedded owners, field/passage,
-fingerprint, selected spell rank and landing. Rank changes update the current
-document through a separate rank-change callback; they are not reference-link
-activations. Full-page links open the exact selected copy. Original
-record is a separate action offered only for a resolved structured
-`CompendiumProvenance` relationship and opens its page at the selected rank.
-Encounter preview detail remains composed
-by Rust from participant state, with separate presentation/address cache identity;
-never substitute baseline detail or add a second activity-only renderer.
-Unavailable references remain visible inert labels, without guessed destinations.
+Drawer Back restores the prior exact address, selected rank, landing and reading
+position. Close and Escape finish the reference session and restore its original
+opener without scrolling the host. Browser history remains ordinary page
+navigation. Native full-page links, modified clicks and middle clicks preserve
+browser behavior and exact destinations. Opening a reference does not alter an
+Add candidate, saved-list membership, selected participant or unfinished draft.
 
-Follow nested references in the same reader or preview rather than stacking
-document overlays. Back restores the prior exact address and scroll position;
-final Close restores the original opener. Reading does not commit a mutation,
-change an Add candidate or discard drafts. Keep feature forms and their
-pending/error lifecycle in their feature owner.
+Preserve the complete backend address: record key, embedded path, field/passage,
+fingerprint, selected spell rank and separate landing. Rank changes update the
+current document through their own callback. Original record follows verified
+structured provenance for an embedded copy; an encounter participant's root
+Original record opens its indexed baseline. Neither replaces a customized copy
+nor guesses a destination by name. Unavailable references remain explicit inert
+labels, without invented links.
 
-Transient record previews omit related-record sections in every context,
-including their narrow-screen drawer presentation. Full record readers retain
-relationship discovery. Prepared HTML links use the same semantic link color as
-application links in both themes, including visited links. Shared result rows
-emphasize identity and kind/level; match evidence is a secondary control. Rarity
-uses the same labeled badge in result rows and record headings, separate from
-traits. Bounded search totals read as top matches, not exhaustive record counts
-or internal passage-window sizes.
+The Drawer uses the same RecordDetailPane and family renderer as full pages.
+Its header shows the document title once and its consistent action group remains
+reachable while the body scrolls. Use the shared stacked identity composition:
+title/actions, grouped classification and textual action cost, traits, then source attribution.
+Keep these facts left aligned; do not leave an empty full-page title slot or
+push type to a detached right edge. Action glyphs stay beside the title; textual
+costs such as Treat Wounds' supplied "passive" belong with metadata, not in its
+heading. Keep rank selection and exact owner/original links in this shared
+identity, without duplicating them in the body. Phone action groups wrap by row;
+substantial header details can scroll within a bounded header so the document
+body remains reachable. Transient references omit Related sections;
+full pages retain relationship discovery. The Drawer body owns one content
+inset; the embedded detail/family presentation does not add another.
 
-Activity summaries link to a deeper view only when the service's
-`has_reference_details` flag identifies additional reference information. Use
-that same contract in regular readers and encounters. Fully expanded inline
-abilities retain their explicit permalinks for direct addressing. References in
-source prose, including effect-application references, are a separate policy and
-remain intact pending the effect-reference research.
+Preserve valid same-identity content through fetching and local failure. Delay
+progress feedback by 500 ms and never replace readable content with a loading
+skeleton. Retained content must be distinguished from a successful refresh.
+Invalidated generations and different sources/owners cannot lend stale content.
+Encounter previews keep their separate participant/presentation-bound cache and
+Rust-composed facts; they never seed immutable reference caches. Gameplay controls
+remain disabled when current context is unavailable.
 
-Use matched React 19 runtime and type packages with Ant Design 6. Preserve root
-StrictMode and native Ant focus/Escape handling. Escape closes the innermost
-source-information dialog first, returning focus to its marker; the next Escape
-closes the preview. Keep a closing Drawer mounted through
-`afterOpenChange(false)`, then restore the original trigger. Do not destroy it
-during native animation or skip that callback.
+Keep the Drawer mounted through afterOpenChange(false), then clear the session
+and restore focus. Initial focus goes to its document heading, not the first
+action button. Updating the displayed record must not move focus from a connected
+control. Native source-information dialogs retain innermost Escape and
+return focus to their marker before another Escape closes the reference. When
+navigation removes the focused link, focus a surviving reading target without
+stealing focus from a connected control or nested dialog. Use the real Drawer body
+for history restoration and embedded landing; resize/reflow and reduced motion
+must not restart landing or discard drafts. Preserve the same content anchor
+rather than demanding an identical pixel offset after text reflow.
 
-When reference navigation removes focused content, move focus to a surviving
-reading target without stealing connected, intentional or nested-dialog focus.
-Initial desktop reference reads delay the trigger's loading indicator by 500 ms
-using Ant's built-in delay. Open the content-sized native popover as soon as the
-record or error arrives; never delay ready content to display an indicator. Do not
-open a short loading panel that jumps as content loads. Pending reads remain dismissible
-with Escape or an outside click; visible popovers and phone drawers retain native
-dismissal and positioning. Moving focus into a preview must not scroll its owner.
-When viewport resizing reflows an open anchored preview, preserve its visible
-opener using native scrolling; keep tablet and desktop encounter pane scrolling
-consistent. Phone drawers retain their underlying reading position.
-Use the actual reader/preview scroll container, contain overlay scrolling and
-retain reading/results positions. Narrow Results returns focus to its initiating
-row. Reuse the shared reader/preview owners and native link activation guard;
-do not create feature-local overlay or navigation policies.
+Prepared HTML links retain the shared semantic link color in both themes,
+including visited links. Source effect references retain their supplied meaning;
+activity detail links still follow the service has_reference_details decision.
+No reader-mode URL adapter or alternate rendering path is retained.
 
 ### Record presentation
 
@@ -631,12 +747,13 @@ separate from this baseline/change policy; never guess emptiness from prose/HTML
 Physical prices format the supplied currency number facts without inferring free
 from empty prices; table results use their one fact-owned link collection.
 
-`DocumentIdentityHeader` supplies the same identity layout for records and traits:
-the name and selected activity glyph on the left and the compact classification
-on the right, wrapping to the actual pane. Record classification labels come from
+`DocumentIdentityHeader` supplies shared identity structure for records and traits.
+Simple records use stacked identity metadata, with classification and its optional
+control together and traits on their own row. Keep the name and selected activity
+glyph together and wrap to the actual pane. Record classification labels come from
 the service; the trait document uses the title-cased Trait classification.
-`DocumentPagePane` provides their common Reference page chrome. Record-only actions
-such as Add to list and Reader view stay in the record composition. Full pages use
+`DocumentPagePane` provides their common page layout without a generic Reference bar. Record-only actions
+such as Add to list stay in the record composition. Full pages use
 native browser history for Back; they expose Retry or Reload only with a local
 error or changed collection. Recovery rereads the current local reference data. Show the title glyph once and ability modifiers before skills.
 Do not infer game semantics from prose or show ordinary technical keys.
@@ -658,16 +775,70 @@ fingerprint, artifact refresh epoch or encounter-context change. An explicit
 generation mismatch invalidates retained content. `RelatedRecords` is the shared
 secondary disclosure inside that pane.
 
-Spell headers show classification once, a compact rank selector and a
-Base rank caption below it when the selected rank differs from base. Reset rank
-sits beside that caption, leaving classification adjacent to the selector. Reset rank restores the opening casting rank for an
-owned spell or the base rank for a standalone spell. Its reserved space prevents
-header movement. Selecting a rank is permitted for prose-only heightening too;
-do not claim that unstructured rules have been calculated. Annotating prose as
-applicable requires reliable source semantics, not just an ordinal heading.
+Spell headers show the supplied classification/rank as static text, with a muted
+Change rank button and an anchored Ant menu. The menu identifies the base rank;
+do not repeat a Base rank caption beside the trigger. For an owned spell it exposes
+return to its opening casting rank. Preserve the trigger while fetching, return
+focus after selection or Escape without scrolling, and close the menu before a
+containing Drawer on Escape. Traits occupy a separate aligned row.
 
-Reference composition puts prose first and groups facts/mechanics according to
-pane width. Encounter composition puts current HP, conditions and actions first;
+Rank selection can update some facts while others retain base values. Preserve
+the backend's explicit unavailable note and original-rank identity when a preview
+fails; do not add a generic warning to every higher-rank selection. Fly 7 is a concrete partial
+case: its duration change is in prose rather than the structured duration fact.
+Keep all authored heightening prose inline, including dependencies and choices.
+Sound Body inherits earlier benefits, Animal Form replaces statistics, and
+Enlarge permits alternative versions; ordinal headings cannot establish their
+effective combination. Never parse prose or infer those mechanics in the browser.
+
+Structured rank changes supplement the prose and supplied selected-rank facts.
+Keep them under one optional Heightening details disclosure rather than another
+expanded account of the same spell. Allfood's current Target and Fireball's current
+damage remain inline; their full authored heightening text stays visible. Do not
+infer which source facts duplicate prose: less common unique structured facts
+must remain reachable. Inside the disclosure, use compact rank/change rows and
+mark only an exact selected row, without marking all lower rows active or claiming
+a complete effective spell. The selected fill and aria-current identify that row;
+do not add a redundant checkmark. Omit an empty sparse patch such as Dancing Shield's
+rank-4 patch, while retaining its prose, explicit clears and unavailable facts.
+Keep unique structured facts even when no Heightened prose heading exists.
+Put supplied selected-rank damage with the casting facts: Fireball's 6d6 at rank 3
+becomes 10d6 at rank 5 through the existing backend projection. Its per-rank 2d6
+increase is a rule and stays constant; it is not the selected-rank result. Omit a
+known zero area increase in this baseline rule summary, retaining nonzero and
+unavailable values and explicit patch clears. Do not infer which structured
+changes duplicate prose or add instructions merely to explain both displays.
+
+Spell descriptions stay authored when the selected rank changes. Inline-expression
+evaluation is a separate workstream; do not substitute formulas or infer prose
+heightening during presentation changes.
+
+Optional reference accordions use a clear title and a visible boundary around
+their related content. The current Heightening details panel is a positive visual
+example: the header, enclosing border and body form one recognizable section;
+its usefulness as a section is a separate product decision. Prefer Ant Collapse's
+bordered composition. Avoid a bare chevron or heading that expands unbounded text
+into the surrounding document. Do not wrap the Collapse in another Card: the
+reading host owns its page/pane inset, Collapse owns header/body insets, and child
+content adds only its own internal row spacing. A single bounded section may hold
+several related facts; do not create nested accordions or parallel disclosures
+for pieces of the same task. Essential rules and frequently used controls stay
+inline, and the expanded content must remain keyboard-accessible and scrollable.
+
+Initial filter discovery uses quiet placeholders in the common-filter control
+slots. Do not insert a separate loading block above the search row: search input,
+model/ranking choices, Links and Advanced filters stay mounted. Placeholder shapes
+describe layout only, not available filter definitions or choices. The server's
+catalog remains authoritative. During an ordinary refresh, retain the existing
+identity-checked catalog through useFilterDiscovery; never retain invalidated
+generation or different-catalog definitions to stabilize a layout. Verify a delayed
+real response at desktop and phone widths, with an unfinished focused search draft;
+the search row, toolbar height and results origin should remain stable.
+
+Reference composition prioritizes the current reading task and groups related
+facts/mechanics without separating essential qualifiers. Spell casting facts and
+current damage precede prose as described above; creature reference order needs
+its own review. Encounter composition puts current HP, conditions and actions first;
 participant edits and maximum-HP configuration live in secondary disclosures.
 Immediate Ability-class activities read inline by default through bounded
 embedded-reading batches, with an optional whole-section Collapse. The existing
@@ -683,8 +854,7 @@ from selected addresses. Native small permalinks and parent breadcrumbs retain
 modified clicks and known search/list/reader history context. Compact reference
 presentation changes density without suppressing content, facts or availability.
 
-Encounter quick lookup uses the same complete family reader in native
-Popover/Drawer. Its separate contextual cache holds the requested document view,
+Encounter quick lookup uses the same complete family reader in RecordReferenceDrawer. Its separate contextual cache holds the requested document view,
 keyed by participant presentation and exact selection. Rust composes current
 participant facts and explanations on each request; presentation changes trigger
 a fresh request without seeding immutable reference caches.
@@ -878,8 +1048,8 @@ gameplay derivation in Rust; the browser submits explicit edit intent and revisi
 Encounter composition permits collapsing the roster only; its participant reader
 stays available and fills the remaining pane. Shared `WorkspaceLayout` accepts
 explicit collapsible pane identities without changing other browsing defaults.
-Encounter preview hosts explicitly carry encounter context. Both wide popovers
-and phone drawers omit owner-return captions and Related records; actual
+Encounter reference Drawers explicitly carry encounter context and omit
+owner-return captions and Related records; actual
 reading-history Back and Original record provenance remain independent. Direct
 record pages retain owner context and Related records. Drawers use their native
 header and close control, with the document title shown once.
