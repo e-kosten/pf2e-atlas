@@ -745,6 +745,35 @@ No reader-mode URL adapter or alternate rendering path is retained.
 
 ### Record presentation
 
+Before redesigning a record family, audit its generated Foundry DTO fields through
+the borrowed source views, app-service presentation and rendered UI. The current
+presentation DTO is not a completeness specification. Check nested facts,
+qualifiers and root/embedded variants against populated records; a declared DTO
+member does not guarantee a supplied value after admission.
+
+Give relevant field groups an explicit disposition: already presented (including
+authored prose or tables), useful but omitted, intentionally excluded from the
+current reading task, or requiring new modeling/source support. For example,
+Longsword's supplied damage dice/type are useful omitted reference facts; source
+migration metadata and a character's equipped state do not automatically belong
+on its reference page. Preserve missing/null/invalid separately from known zero,
+false and empty values. Preserve documented source-default policies; do not invent
+a fallback just because the generated schema declares a member.
+
+Add needed typed presentation fields under their Rust owner when existing source
+facts are in scope. Identify substantial modeling or derived-rule work separately;
+do not infer mechanics from prose or render raw rule-element payloads to claim
+coverage. Preserve authored structures that already communicate the facts unless
+an agreed redesign improves the reading task while retaining their meaning. Steel
+Shield's source table remains a table, rather than duplicating it with a custom
+stat layout. Treat unavailable or conflicting facts explicitly.
+
+Validate coverage across affected full pages, results/readers, Drawers and lists,
+and encounters where applicable. A layout-only preview does not establish field
+coverage, and a field census does not establish rendering correctness. Record
+findings and decisions in the task's existing audit/plan, with concrete source
+examples and any remaining gaps.
+
 Use “Original” in product labels for source values before encounter adjustments.
 Keep technical terms such as “authored” in implementation and architecture
 discussion rather than user-facing copy.
