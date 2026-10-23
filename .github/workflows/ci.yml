@@ -51,7 +51,7 @@ env:
 
 jobs:
   changes:
-    if: github.event_name != 'workflow_dispatch'
+    if: inputs.browser-run == ''
     name: validation selection
     runs-on: ubuntu-24.04
     outputs:
@@ -222,12 +222,12 @@ jobs:
           retention-days: 3
 
   browser-debug:
-    if: github.event_name == 'workflow_dispatch'
+    if: inputs.browser-run != ''
     name: focused Linux browser diagnosis
     runs-on: ubuntu-24.04
-    env:
-      ATLAS_BROWSER_ARTIFACT: ${{ github.workspace }}/../browser-artifact
     steps:
+      - name: Select artifact directory outside the checkout
+        run: echo "ATLAS_BROWSER_ARTIFACT=$RUNNER_TEMP/browser-artifact" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -417,7 +417,7 @@ jobs:
 
   validation:
     name: validation complete
-    if: always() && github.event_name != 'workflow_dispatch'
+    if: always() && inputs.browser-run == ''
     needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill]
     runs-on: ubuntu-24.04
     steps:
