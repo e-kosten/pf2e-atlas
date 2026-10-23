@@ -30,6 +30,14 @@ impl SourceReferenceIndex {
             .iter()
             .find_map(|prefix| tail.strip_prefix(prefix))
             .unwrap_or(tail);
+        // Root-only summary reads cannot verify an owned path. Reject its
+        // structural markers even if a root's name resembles that whole path.
+        if [".Item.", ".JournalEntryPage.", ".TableResult."]
+            .iter()
+            .any(|marker| identifier.contains(marker))
+        {
+            return None;
+        }
         (!pack.is_empty() && !identifier.is_empty()).then_some((pack, identifier))
     }
 
