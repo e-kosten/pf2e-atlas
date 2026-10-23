@@ -197,8 +197,14 @@ shared Ant-based primitives. A new component needs a clear responsibility or
 actual reuse need; local copies of the same family layout are not independent
 presentation owners.
 
-Reference reading puts descriptive prose before grouped mechanics; encounters
-prioritize current combat state and actions. Family sections adapt to actual pane
+Reference reading uses family-specific task order: spells put supplied casting
+facts and damage before authored prose, followed by structured heightening and forms.
+Other reference families use their own task order; encounters
+prioritize current combat state and actions. A single principal description in a
+simple record needs no renderer-added Description heading; authored headings,
+other field labels and multiple description fields remain intact. These are
+browser composition rules, not changed projections or source parsing.
+Family sections adapt to actual pane
 width rather than assuming full-window width. Reference consumers show the same
 content and facts; compact density does not suppress sections. Immediate
 Ability-class action/effect/feat content reads inline by default through a
@@ -218,10 +224,10 @@ loaded text with local retry. A direct late owner starts at its bounded range,
 with explicit omitted-earlier content and backward/forward continuation. Anchors
 encode the complete checked owner address, while a separate landing state keeps
 parent return distinct from selected identity. Native permalinks and breadcrumbs
-preserve modified clicks and known search/list/reader context.
+preserve modified clicks and known search/list/record context.
 
 Encounter native quick lookup returns the complete selected-document view through
-the shared family renderer, with compact density. Rust app-service composes the
+the shared family renderer in a contextual Drawer. Rust app-service composes the
 selected view from one checked parent and the participant's current local state,
 retaining adjusted activities, casting rosters, complete spell details and runtime
 notes, and customized equipment. Runtime results have a separate participant and
@@ -240,13 +246,14 @@ display a generic Reference heading; native accessible labels remain available.
 
 Search and saved-list browsing share the browser's results/reader composition and
 record-summary activation while retaining feature-owned queries, match evidence,
-membership and ordering. The same reference reader serves the explicit Reader
-companion. Following document links changes local reading position, independently
-of selection or mutation drafts. A bounded session history restores exact
-navigation and scroll; browser history remains ordinary route navigation.
-Where no reader is present, shared previews use a desktop Popover and a Drawer
-below md (768px), with one renderer and one nested reading session. Native exact hrefs
-retain deliberate full-page and modified-click navigation. These browser rules
+membership and ordering. Following document links opens one shared contextual
+Ant Drawer on every viewport, independently of primary selection or mutation
+drafts. Nested links reuse that session; bounded local history restores exact
+navigation and scroll. Browser history remains ordinary route navigation.
+Full pages use the same family renderer. The separate Reader mode, companion
+layout and route are removed without an adapter. Native exact hrefs retain
+full-page and modified-click navigation. Original record links use the same
+contextual reading session while preserving typed provenance and local identity. These browser rules
 live in the frontend guidelines; they do not introduce stored content, a generic
 navigation framework or new backend presentation semantics.
 
@@ -263,7 +270,6 @@ immutable artifact-context hash for generation-aware secondary queries. This doe
 not replace source fingerprints in snapshot-local navigation. Similar remains a
 root discovery criterion in the stateless search-page workflow of ADR0049, with a
 body-free seed summary and truthful bounded pages, rather than a relationship.
-
 
 Embedded activity summaries expose `has_reference_details` from app-service.
 Selected item-body dispatch is shared with that decision: spell, physical and
