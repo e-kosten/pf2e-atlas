@@ -11,6 +11,7 @@ mod error;
 mod executor;
 mod filter;
 mod filters;
+mod flat_check;
 mod lists;
 mod parties;
 #[cfg(test)]

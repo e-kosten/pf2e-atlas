@@ -1,3 +1,4 @@
+import { ConfigProvider } from "antd";
 import { fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { ContentFields, RecordPresentation } from "./RecordPresentation";
 import {
@@ -293,8 +294,11 @@ it.each([false, true])(
       suppressed_adjustments: [],
     });
     actor.runtime = {
+      senses: [],
+      contextual_armor_class: [],
       action_budget: hasBudget
         ? {
+            quickened_sources: [],
             actions: count("Actions", 0n),
             reactions: count("Reactions", 0n),
             can_act: { available: false, reason: "Unconscious blocks actions." },
@@ -340,10 +344,10 @@ it.each([false, true])(
       expect(screen.getByText("Actions").parentElement).toHaveTextContent("0");
       expect(screen.getByText("Reactions").parentElement).toHaveTextContent("0");
       expect(screen.getByText("Can act").parentElement).toHaveTextContent(
-        "Unconscious blocks actions.",
+        "No · Unconscious blocks actions",
       );
       expect(screen.getByText("Can react").parentElement).toHaveTextContent(
-        "Unconscious blocks reactions.",
+        "No · Unconscious blocks reactions",
       );
     }
     fireEvent.click(screen.getByRole("button", { name: "Runtime details" }));
@@ -361,7 +365,12 @@ it.each([false, true])(
     expect(
       screen.queryByRole("heading", { name: "Skills and ability modifiers" }),
     ).toBeNull();
-    actor.runtime = { action_budget: null, unapplied_effects: [] };
+    actor.runtime = {
+      senses: [],
+      contextual_armor_class: [],
+      action_budget: null,
+      unapplied_effects: [],
+    };
     rerender(
       <RecordPresentation
         presentation={detail.presentation}
@@ -442,3 +451,197 @@ it("combines Lore and other skills with capitalized labels and signed modifiers"
   );
   expect(screen.queryByRole("link", { name: "Dragon Lore" })).toBeNull();
 });
+
+it("keeps sense summaries concise and explains contextual Perception beside its known value", async () => {
+  const actor = actorFixture();
+  actor.perception = {
+    ...numberFact(11),
+    adjustment: {
+      authored: 11,
+      applied: [],
+      suppressed: [],
+      notes: [
+        {
+          source: "condition:1",
+          label: "Blinded",
+          reason:
+            "Vision-based Perception checks automatically critically fail. If vision is your only precise sense, you take a –4 status penalty to Perception checks.",
+        },
+      ],
+    },
+  };
+  actor.runtime = {
+    senses: [
+      {
+        sense_type: "vision",
+        precision: "precise",
+        range_feet: null,
+        available: false,
+        perception: null,
+        reason: "Blinded",
+      },
+      {
+        sense_type: "echolocation",
+        precision: "precise",
+        range_feet: 40,
+        available: null,
+        perception: 11,
+        reason: "Confirm the target is within range.",
+      },
+    ],
+    contextual_armor_class: [],
+    action_budget: null,
+    unapplied_effects: [],
+  };
+  const detail = detailFixture("actors:bat", "Giant Bat");
+  detail.presentation.body = { kind: "creature", value: actor };
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <RecordPresentation
+        presentation={detail.presentation}
+        encounter
+        onReference={vi.fn()}
+      />
+    </ConfigProvider>,
+  );
+  expect(screen.getByText("precise · Unavailable (Blinded)")).toBeVisible();
+  expect(screen.getByText("precise · 40 feet")).toBeVisible();
+  expect(screen.queryByText(/Availability unknown|Confirm the target/)).toBeNull();
+  expect(screen.queryByText(/Perception \+11/)).toBeNull();
+  expect(screen.getByText("Perception").parentElement).toHaveTextContent("+11");
+  const info = screen.getByRole("button", { name: "Show explanation for Perception" });
+  expect(info).toHaveTextContent("");
+  fireEvent.click(info);
+  await waitFor(() =>
+    expect(screen.getByText(/If vision is your only precise sense/)).toBeVisible(),
+  );
+});
+
+it("groups turn-start actions and reactions with the extra-action restriction", () => {
+  const actor = actorFixture();
+  const count = (label: string, value: bigint) => ({
+    label,
+    base_value: value,
+    adjusted_value: value,
+    segments: [],
+    adjustments: [],
+    suppressed_adjustments: [],
+  });
+  actor.runtime = {
+    senses: [],
+    contextual_armor_class: [],
+    unapplied_effects: [],
+    action_budget: {
+      actions: count("Actions", 4n),
+      reactions: count("Reactions", 1n),
+      quickened_sources: [{ kind: "unrestricted" }],
+      can_act: { available: true },
+      can_react: { available: true },
+      notes: [],
+    },
+  };
+  const detail = detailFixture("actors:goblin", "Goblin");
+  detail.presentation.body = { kind: "creature", value: actor };
+  render(
+    <RecordPresentation
+      presentation={detail.presentation}
+      encounter
+      onReference={vi.fn()}
+    />,
+  );
+  const block = within(screen.getByRole("region", { name: "At turn start" }));
+  expect(block.getByText("Actions")).toBeVisible();
+  expect(block.getByText("Reactions")).toBeVisible();
+  expect(block.getByText("Unrestricted")).toBeVisible();
+  expect(block.queryByText(/Next regain|allowance/)).toBeNull();
+});
+
+it.each([
+  { name: "full", stunned: 2n, slowed: 1n, total: 2n, additionalSlowedLoss: 0n },
+  { name: "partial", stunned: 1n, slowed: 2n, total: 2n, additionalSlowedLoss: 1n },
+])(
+  "shows each condition once for $name Stunned/Slowed overlap",
+  async ({ stunned, slowed, total, additionalSlowedLoss }) => {
+    const actor = actorFixture();
+    const slowedRow = {
+      source: "slowed",
+      label: `Slowed ${slowed}`,
+      value: -slowed,
+      reason: additionalSlowedLoss
+        ? "1 action already lost to Stunned."
+        : "Overridden by Stunned",
+    };
+    actor.runtime = {
+      senses: [],
+      contextual_armor_class: [],
+      unapplied_effects: [],
+      action_budget: {
+        extra_action_unavailable_reason: "Lost to Stunned",
+        quickened_sources: [
+          { kind: "restricted", actions: ["stride", "strike"], guidance: null },
+        ],
+        actions: {
+          label: "Actions",
+          base_value: 3n,
+          adjusted_value: total,
+          segments: [],
+          adjustments: [
+            { source: "quickened", label: "Quickened", value: 1n },
+            { source: "stunned", label: `Stunned ${stunned}`, value: -stunned },
+            ...(additionalSlowedLoss
+              ? [{ ...slowedRow, value: -additionalSlowedLoss }]
+              : []),
+          ],
+          suppressed_adjustments: additionalSlowedLoss ? [] : [slowedRow],
+        },
+        reactions: {
+          label: "Reactions",
+          base_value: 1n,
+          adjusted_value: 0n,
+          adjustments: [],
+          suppressed_adjustments: [],
+          segments: [],
+        },
+        can_act: { available: false, reason: "Stunned." },
+        can_react: { available: false, reason: "Stunned." },
+        notes: [],
+      },
+    };
+    const detail = detailFixture("actors:dragon", "Dragon");
+    detail.presentation.body = { kind: "creature", value: actor };
+    render(
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <RecordPresentation
+          presentation={detail.presentation}
+          encounter
+          onReference={vi.fn()}
+        />
+      </ConfigProvider>,
+    );
+    expect(screen.getByText("Extra action").parentElement).toHaveTextContent(
+      "Lost to Stunned",
+    );
+    expect(screen.queryByText("Stride, Strike")).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show explanation for Actions" }),
+    );
+    const calculation = within(
+      await screen.findByRole("region", { name: "Actions calculation" }),
+    );
+    await waitFor(() => expect(calculation.getByRole("table")).toBeVisible());
+    expect(calculation.getAllByText(`Slowed ${slowed}`)).toHaveLength(1);
+    const row = calculation.getByRole("row", { name: new RegExp(`Slowed ${slowed}`) });
+    expect(row).toHaveTextContent(slowedRow.reason);
+    expect(
+      calculation.getByRole("row", {
+        name: new RegExp(`Stunned ${stunned} -${stunned}`),
+      }),
+    ).toBeVisible();
+    expect(calculation.getByRole("row", { name: `Total ${total}` })).toBeVisible();
+    expect(
+      calculation.queryByText(
+        /Forecast only|Overlapping|not counted|You can lose|Only the loss/,
+      ),
+    ).toBeNull();
+  },
+);

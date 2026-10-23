@@ -43,7 +43,11 @@ preparation; developer admission reports remain usable for unsupported sources.
 Private TypeScript tooling resolves pinned Foundry declarations and emits modular
 Rust under `atlas-foundry-model/src/source_model/generated`. Large extracted
 graphs are ignored caches; CI regenerates/checks committed Rust. Ordinary builds
-need neither Node nor the upstream checkout. Generation ownership, recursive
+need neither Node nor the upstream checkout. The same generation pipeline publishes
+standard-condition facts and guarded trait-immunity declarations. Condition pack
+bytes have a separate generation digest; adding static rule facts does not change
+the DTO decoding contract or require new reference SQL. Encounter evaluation consumes
+compiled declarations and checked actor/saved facts under ADR0055. Generation ownership, recursive
 identity, templates and authored profiles follow ADR0034–40.
 
 Strict authored parsing and admission are distinct. Admission retains useful
@@ -486,8 +490,11 @@ Exact correction formulas retain their zero floor and never acquire a maximum
 clamp. Null explicitly clears
 current/maximum availability. Formula length, arithmetic and browser-safe final
 input bounds are checked; dice and general expressions are unsupported. Damage
-absorbs temporary HP first, floors current HP at zero and marks zero HP defeated;
-healing caps at a known maximum and does not clear defeated. Missing current HP
+absorbs temporary HP first and floors current HP at zero. Participants tracking
+Dying enter the shared mortality/lifecycle planner; untracked participants retain
+Defeated/Disabled participation behavior. Healing caps at condition-adjusted maximum
+HP and resolves eligible Dying/Unconscious causes without clearing unrelated sources
+or participation markers. Missing current HP
 rejects damage/healing rather than inventing a value. These actions return the
 same durable receipt, independently of subsequent presentation refresh. The
 three-field HP editor sends SetValues with only supplied raw inputs; an explicit
@@ -500,15 +507,22 @@ place these notes on their cards without hiding unrelated runtime context.
 Local-state initialization and migrations commit schema and metadata together.
 List metadata/tags, quantity additions and removal with replacement turn each
 have one write transaction. Next turn chooses from the same locked snapshot it
-updates, using pure app-service policy. A side-effect-free turn review returns the
-encounter revision; Continue checks it in the immediate transaction before applying
-old-END/new-START duration decrements and the new turn. Every relevant durable
-encounter mutation advances that revision. Duration rounds store one remaining
+updates, using pure app-service policy. Next turn checks expected revision and request
+identity, applies old-END/new-START duration decrements and saves outgoing boundary
+context in the same transaction. It skips participants without initiative. Matching
+retries recover their receipt; stale distinct commands conflict. The browser presents
+reminders after advancement, and dismissal changes no saved state. The latest
+completed turn retains the original participant, round and condition
+sources/episodes while its notification is open. A later advancement supersedes
+that boundary; closing the notification changes no gameplay state. There is no
+acknowledgment or past-turn queue. Every relevant durable encounter mutation advances that revision. Duration rounds store one remaining
 amount and explicit participant/event anchor; zero retains the condition until
 explicit removal, unresolved anchors never tick, and nonround units are reminders.
-Manual Set turn, reorder and removal never tick. Only canonical Persistent Damage
-supplies its owner-END damage/recovery table reminder; no dice, HP, severity or
-expiry action is automatic. Participant replacements require an
+Manual Set turn, reorder and removal never tick. Persistent Damage review groups
+simultaneous types into an explicit damage event, then offers separate per-episode
+recovery. Table-resolved totals bypass mitigation; Atlas rolls use checked damage
+protections, with Hardness applied once to the combined event. Rolls and lifecycle
+recovery require explicit commands; merely opening a review changes nothing. Participant replacements require an
 expected revision and fail with a typed conflict when stale. Condition IDs are
 not reused, and condition edits check participant ownership inside the write.
 Existing-encounter mutations return a durable canonical-key receipt rather than
@@ -544,9 +558,14 @@ data does not imply runtime execution support. See the active backlog and ADR004
 App-service projects current acting/reacting capability separately from a
 PF2e 8.6.1 next-regain forecast. Unknown condition values produce an unavailable
 forecast. Quickened restrictions and overlapping Stunned/Slowed losses remain
-visible; reads never recover conditions. Ordinary casting uses the same backend
-capability reason as browser controls; explicit past-use and resource corrections
-remain available. See ADR 0048 for the bounded policy.
+visible; reads never recover conditions. Explicit Stunned action-loss events use
+the same forecast and record the GM-confirmed loss without maintaining a current
+action ledger. Ordinary strikes retain direct guarded rolls with optional reference
+checks; ordinary casting records table-resolved use from the spell popover. Casting reminders and optional strike context are read-only, with no durable
+action-attempt workflow. Source-specific judgments support the actual Retch
+lifecycle action. Scoped detection effects derive from active conditions, without
+a saved relationship baseline or editing API. Spell use, resource corrections and
+retained dice keep their existing guarded write owners. See ADR 0048 and ADR 0055.
 
 Hazards use Active/Disabled in place of creature Active/Defeated. Damage reaching
 zero disables a hazard; healing does not reactivate it. HP remains separate. Automatic turns

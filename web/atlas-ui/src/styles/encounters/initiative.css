@@ -104,10 +104,41 @@
   gap: 12px;
   width: max-content;
   max-width: min(480px, calc(100vw - 48px));
+  max-height: calc(100dvh - 96px);
+  overflow-y: auto;
 }
 .strike-roll-control__toolbar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.strike-roll-control--expanded {
+  width: min(520px, calc(100vw - 48px));
+  height: min(560px, calc(100dvh - 96px));
+  grid-template-rows: auto auto;
+  align-content: start;
+}
+.strike-roll-control__context {
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+.strike-roll-control--expanded {
+  display: flex;
+  flex-direction: column;
+}
+.strike-roll-control--expanded > :not(.strike-roll-control__context) {
+  flex-shrink: 0;
+}
+
+.strike-assistance {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  padding: 4px 4px 12px;
+}
+.strike-assistance p {
+  margin: 0;
 }

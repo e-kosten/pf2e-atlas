@@ -24,7 +24,7 @@ export function RecordPreviewActions({
       <div className="encounter-actions record-preview-toolbar__navigation">
         {readingHistory?.canGoBack && (
           <Button
-            size="small"
+            size={actions ? "middle" : "small"}
             icon={<ArrowLeft size={14} />}
             onClick={readingHistory.onBack}
           >
@@ -40,14 +40,14 @@ export function RecordPreviewActions({
             event.preventDefault();
             onOpenFullPage();
           }}
-          size="small"
+          size={actions ? "middle" : "small"}
         />
         {showClose && (
           <Button
             aria-label="Close reference preview"
             icon={<X size={14} />}
             onClick={onClose}
-            size="small"
+            size={actions ? "middle" : "small"}
           />
         )}
       </div>

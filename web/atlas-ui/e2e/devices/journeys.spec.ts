@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import type { Page } from "@playwright/test";
 import {
   activate,
   landedSearch,
@@ -447,21 +448,35 @@ test("encounter references retain their owner, scroll and native destination", a
     ).toBeFocused();
     if (widePreview) {
       const popup = page.locator(".record-preview-popover");
+      await popup.evaluate((node) => {
+        node.animate([{ transform: "scale(0.8)" }, { transform: "scale(1)" }], {
+          duration: 800,
+          easing: "ease-out",
+        });
+      });
       await page.setViewportSize({ width: 844, height: 390 });
+      await popup.evaluate((node) =>
+        Promise.allSettled(node.getAnimations().map((motion) => motion.finished)),
+      );
       await expect
         .poll(async () => {
           const box = await popup.boundingBox();
-          return (
-            !!box &&
-            box.x >= -1 &&
-            box.y >= -1 &&
-            box.x + box.width <= 845 &&
-            box.y + box.height <= 391
-          );
+          return {
+            box,
+            withinViewport:
+              !!box &&
+              box.x >= -1 &&
+              box.y >= -1 &&
+              box.x + box.width <= 845 &&
+              box.y + box.height <= 391,
+          };
         })
-        .toBe(true);
+        .toMatchObject({ withinViewport: true });
       await noPageOverflow(page);
     }
+    await expect(
+      page.getByRole("link", { name: "Open reference full page", exact: true }),
+    ).toBeFocused();
     const outer = await page.evaluate(() => scrollY);
     // Capture a real scroll position even when the nested reference is already visible.
     await host.evaluate((node) => {

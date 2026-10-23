@@ -81,9 +81,11 @@ impl From<atlas_runtime::RuntimeError> for AppServiceError {
 impl From<LocalStateError> for AppServiceError {
     fn from(error: LocalStateError) -> Self {
         let code = match &error {
+            LocalStateError::EncounterBoundaryConflict => AppErrorCode::EncounterTurnConflict,
             LocalStateError::InvalidParty(_)
             | LocalStateError::InvalidSlug { .. }
             | LocalStateError::InvalidRollRequest(_)
+            | LocalStateError::InvalidConditionEvent(_)
             | LocalStateError::RollRequestConflict
             | LocalStateError::Dice(_)
             | LocalStateError::InvalidListRef { .. }
@@ -139,6 +141,7 @@ impl From<LocalStateError> for AppServiceError {
             );
             app_error.retryable = Some(false);
         }
+
         Self { error: app_error }
     }
 }

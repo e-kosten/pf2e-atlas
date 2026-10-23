@@ -59,3 +59,14 @@
 .atlas-roll__total {
   min-width: 4ch;
 }
+
+.atlas-flat-check {
+  display: grid;
+  gap: 8px;
+}
+.atlas-flat-check__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}

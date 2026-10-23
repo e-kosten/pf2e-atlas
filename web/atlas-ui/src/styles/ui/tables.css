@@ -32,3 +32,19 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+
+.calculation-table {
+  width: min(300px, calc(100vw - 48px));
+}
+
+.calculation-table__muted {
+  color: var(--muted);
+}
+
+.calculation-table__note {
+  display: block;
+  max-width: 24ch;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 12px;
+}

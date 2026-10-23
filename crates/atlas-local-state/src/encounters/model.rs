@@ -1,7 +1,8 @@
+use super::{ConditionOrigin, ConditionParameters, MortalityState};
 use atlas_domain::RecordKey;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Encounter {
     pub revision: i64,
     pub encounter_key: String,
@@ -16,7 +17,7 @@ pub struct Encounter {
     pub updated_at: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EncounterStatus {
     Draft,
@@ -45,8 +46,13 @@ impl EncounterStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncounterParticipant {
+    pub level_override: Option<i64>,
+    pub base_death_threshold: i64,
+    pub persistent_precedence: Vec<super::PersistentSourcePrecedence>,
+    pub track_dying: bool,
+    pub mortality: MortalityState,
     pub spell_resources: Vec<SpellResource>,
     pub expended_spells: Vec<String>,
     pub revision: i64,
@@ -75,7 +81,7 @@ pub struct EncounterParticipant {
     pub conditions: Vec<EncounterParticipantCondition>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ParticipantVariant {
     Normal,
@@ -101,20 +107,66 @@ impl ParticipantVariant {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ConditionScope {
+    #[default]
+    Everyone,
+    SelectedParticipants {
+        participant_keys: Vec<String>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ConditionExtraAction {
+    #[default]
+    Unspecified,
+    Unrestricted,
+    Restricted {
+        actions: Vec<ConditionAction>,
+        guidance: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConditionAction {
+    Stride,
+    Strike,
+    Step,
+    Leap,
+    Stand,
+    Interact,
+    CastSpell,
+    Sustain,
+    Escape,
+    Crawl,
+    Fly,
+    Swim,
+    Climb,
+    Burrow,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncounterParticipantCondition {
     pub condition_id: i64,
     pub condition_key: Option<String>,
     pub name: String,
     pub value: Option<i64>,
     pub source_participant_key: Option<String>,
+    pub scope: ConditionScope,
+    pub extra_action: ConditionExtraAction,
+    pub immunity_override: bool,
+    pub parameters: ConditionParameters,
+    pub origin: Option<ConditionOrigin>,
     pub duration: Option<ConditionDuration>,
     pub note: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ParticipantKind {
     Creature,
@@ -140,7 +192,7 @@ impl ParticipantKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ParticipantSide {
     Pc,
@@ -172,7 +224,7 @@ impl ParticipantSide {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncounterWithParticipants {
     pub encounter: Encounter,
     pub participants: Vec<EncounterParticipant>,
@@ -262,6 +314,11 @@ pub struct AddEncounterParticipantCondition {
     pub name: String,
     pub value: Option<i64>,
     pub source_participant_key: Option<String>,
+    pub scope: ConditionScope,
+    pub extra_action: ConditionExtraAction,
+    pub immunity_override: bool,
+    pub parameters: ConditionParameters,
+    pub origin: Option<ConditionOrigin>,
     pub duration: Option<ConditionDuration>,
     pub note: Option<String>,
 }
@@ -275,11 +332,16 @@ pub struct UpdateEncounterParticipantCondition {
     pub name: String,
     pub value: Option<i64>,
     pub source_participant_key: Option<String>,
+    pub scope: ConditionScope,
+    pub extra_action: ConditionExtraAction,
+    pub immunity_override: bool,
+    pub parameters: ConditionParameters,
+    pub origin: Option<ConditionOrigin>,
     pub duration: Option<ConditionDuration>,
     pub note: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ParticipantHpOrigin {
     DerivedPristine,
@@ -306,7 +368,7 @@ impl ParticipantHpOrigin {
         }
     }
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ParticipantVariantOrigin {
     DefaultUnadjusted,
@@ -334,7 +396,7 @@ impl ParticipantVariantOrigin {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ConditionDurationUnit {
     Rounds,
@@ -352,7 +414,7 @@ impl ConditionDurationUnit {
         }
     }
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ConditionTurnEvent {
     Start,
@@ -366,12 +428,12 @@ impl ConditionTurnEvent {
         }
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionTiming {
     pub participant_key: String,
     pub event: ConditionTurnEvent,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionDuration {
     pub amount: i64,
     pub unit: ConditionDurationUnit,
@@ -383,7 +445,7 @@ pub struct EncounterTurnUpdate {
     pub durations: Vec<(i64, i64)>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpellResource {
     pub key: String,
     pub capacity: i64,

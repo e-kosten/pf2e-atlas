@@ -1,4 +1,6 @@
-import { Button, Popover } from "antd";
+import { Button, Popover, Tooltip } from "antd";
+import { CalculationTable } from "../ui/tables/CalculationTable";
+import { Info } from "lucide-react";
 import type { ReactNode } from "react";
 import type { FactView, NumberFactView } from "../../generated/atlas";
 
@@ -28,7 +30,25 @@ export function factText<T>(
     ? format(fact.value)
     : fact.state === "not_applicable"
       ? ""
-      : `[${fact.state}]`;
+      : fact.state === "missing"
+        ? "—"
+        : `[${fact.state}]`;
+}
+
+function MissingFact({ label }: { label?: string }) {
+  const explanation = label ? `${label} is unavailable.` : "Value is unavailable.";
+  return (
+    <Tooltip title={explanation} trigger={["hover", "focus"]}>
+      <Button
+        type="text"
+        size="small"
+        className="record-missing"
+        aria-label={explanation}
+      >
+        —
+      </Button>
+    </Tooltip>
+  );
 }
 
 export function NumberFact({
@@ -45,42 +65,62 @@ export function NumberFact({
   const format = (value: number) => `${signed && value >= 0 ? "+" : ""}${value}${unit}`;
   const text = factText(fact, format);
   const adjustment = fact.adjustment;
+  if (fact.state === "missing" && !adjustment) return <MissingFact label={label} />;
   if (!adjustment) return <>{text}</>;
+  const contextual = adjustment.notes.length > 0;
   return (
-    <Popover
-      trigger="click"
-      title="Effective value"
-      content={
-        <div className="record-number-explanation">
-          <p>Original: {format(adjustment.authored)}</p>
-          <p>Effective: {text}</p>
-          {adjustment.applied.map((modifier, index) => (
-            <p key={index}>
-              {modifier.label}: {String(modifier.value)} ({modifier.modifier_type})
-            </p>
-          ))}
-          {adjustment.suppressed.map((modifier, index) => (
-            <p key={index}>
-              {modifier.label}: {String(modifier.value)} (suppressed)
-            </p>
-          ))}
-          {adjustment.notes.map((note, index) => (
-            <p key={index}>
-              {note.label}: {note.reason}
-            </p>
-          ))}
-        </div>
-      }
-    >
-      <Button
-        aria-label={label ? `Show explanation for ${label}` : undefined}
-        className="record-number"
-        type="link"
-        size="small"
+    <span className={contextual ? "record-number-context" : undefined}>
+      {contextual && text}
+      <Popover
+        trigger="click"
+        title="Effective value"
+        content={
+          <CalculationTable
+            label={`${label ?? "Value"} calculation`}
+            valueLabel={label ?? "Value"}
+            rows={[
+              {
+                key: "original",
+                label: "Original",
+                value: format(adjustment.authored),
+              },
+              ...adjustment.applied.map((modifier, index) => ({
+                key: `applied-${index}`,
+                label: modifier.label,
+                value: `${modifier.value > 0n ? "+" : ""}${modifier.value}${unit}`,
+                note: modifier.modifier_type,
+              })),
+              ...adjustment.suppressed.map((modifier, index) => ({
+                key: `suppressed-${index}`,
+                label: modifier.label,
+                value: "—",
+                note: `${modifier.value > 0n ? "+" : ""}${modifier.value}${unit} ${modifier.modifier_type} · Overridden`,
+                muted: true,
+              })),
+              ...adjustment.notes.map((note, index) => ({
+                key: `note-${index}`,
+                label: note.label,
+                value: "—",
+                note: note.reason,
+              })),
+              { key: "effective", label: "Effective", value: text, total: true },
+            ]}
+          />
+        }
       >
-        {text}
-      </Button>
-    </Popover>
+        <Button
+          aria-label={
+            label ? `Show explanation for ${label}` : "Show value explanation"
+          }
+          className={contextual ? undefined : "record-number"}
+          type={contextual ? "text" : "link"}
+          size="small"
+          icon={contextual ? <Info size={14} aria-hidden="true" /> : undefined}
+        >
+          {contextual ? null : text}
+        </Button>
+      </Popover>
+    </span>
   );
 }
 
@@ -98,7 +138,15 @@ export function FactLine<T>({
   required?: boolean;
 }) {
   if (!hasReadingFact(fact, { patch, required })) return null;
-  return <FactRow label={label}>{factText(fact, format, { patch, required })}</FactRow>;
+  return (
+    <FactRow label={label}>
+      {fact.state === "missing" ? (
+        <MissingFact label={label} />
+      ) : (
+        factText(fact, format, { patch, required })
+      )}
+    </FactRow>
+  );
 }
 
 export function FactRow({ label, children }: { label: string; children: ReactNode }) {

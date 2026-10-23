@@ -226,6 +226,20 @@ export function SpellReference({ spell }: { spell: SpellPresentationView }) {
           {note.label}: {note.reason}
         </p>
       ))}
+      {(spell.runtime_attack || spell.runtime_difficulty_class) && (
+        <div className="record-fact-list">
+          {spell.runtime_attack && (
+            <FactRow label="Spell attack">
+              <NumberFact fact={spell.runtime_attack} signed />
+            </FactRow>
+          )}
+          {spell.runtime_difficulty_class && (
+            <FactRow label="Spell DC">
+              <NumberFact fact={spell.runtime_difficulty_class} />
+            </FactRow>
+          )}
+        </div>
+      )}
       <div className="spell-reference__casting">
         <FactLine
           label="Traditions"

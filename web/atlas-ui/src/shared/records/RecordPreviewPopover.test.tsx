@@ -105,6 +105,36 @@ describe("RecordPreviewPopover", () => {
     ).toBeVisible();
   });
   it.each(["desktop", "narrow"])(
+    "%s encounter preview keeps one shared Close beside its actions",
+    async (viewport) => {
+      vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: viewport === "desktop" });
+      const onClose = vi.fn();
+      render(
+        <ConfigProvider theme={{ token: { motion: false } }}>
+          <RecordPreviewPopover
+            context="encounter"
+            actions={<button>Cast</button>}
+            anchor={document.createElement("button")}
+            detail={detailFixture("spells:fear", "Fear")}
+            loading={false}
+            onClose={onClose}
+            onOpenFullPage={vi.fn()}
+            onReference={vi.fn()}
+          />
+        </ConfigProvider>,
+      );
+      const close = await screen.findByRole("button", {
+        name: "Close reference preview",
+      });
+      expect(
+        screen.getByRole("button", { name: "Cast" }).closest(".record-preview-toolbar"),
+      ).toContainElement(close);
+      expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
+      fireEvent.click(close);
+      expect(onClose).toHaveBeenCalledOnce();
+    },
+  );
+  it.each(["desktop", "narrow"])(
     "%s keeps genuine Back while respecting visible-owner context",
     async (viewport) => {
       vi.spyOn(Grid, "useBreakpoint").mockReturnValue({

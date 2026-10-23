@@ -1,5 +1,6 @@
+import { EncounterModal } from "./EncounterModal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Form, Input, Modal, Popconfirm, Select } from "antd";
+import { Alert, Button, Form, Input, Popconfirm, Select } from "antd";
 import { useEffect, useId, useRef } from "react";
 import { createEncounter } from "../../api/atlasApi";
 import type {
@@ -40,7 +41,7 @@ export function CreateEncounterModal({
     },
   });
   return (
-    <Modal
+    <EncounterModal
       title="New encounter"
       open={open}
       onCancel={onCancel}
@@ -71,7 +72,7 @@ export function CreateEncounterModal({
           <Input />
         </Form.Item>
       </Form>
-    </Modal>
+    </EncounterModal>
   );
 }
 
@@ -97,7 +98,7 @@ export function EditEncounterModal({
   error?: string;
 }) {
   return (
-    <Modal
+    <EncounterModal
       title="Settings"
       open={open}
       destroyOnHidden
@@ -117,7 +118,7 @@ export function EditEncounterModal({
         onDelete={onDelete}
         onSave={onSave}
       />
-    </Modal>
+    </EncounterModal>
   );
 }
 

@@ -18,17 +18,17 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
 /// Deliberately break only reference readiness to exercise saved-state recovery.
-pub fn invalidate_reference(path: impl AsRef<std::path::Path>) -> Result<(), crate::SearchError> {
+pub fn invalidate_reference(
+    path: impl AsRef<std::path::Path>,
+    workspace_schema: u32,
+) -> Result<(), crate::SearchError> {
     let workspace = atlas_storage::Workspace::at(path)
         .map_err(|e| crate::SearchError::query_failed(e.to_string()))?;
     let owner = workspace
         .update_owner()
         .map_err(|e| crate::SearchError::query_failed(e.to_string()))?;
     let maintenance = owner
-        .maintenance(
-            atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
-            "invalid reference test fixture",
-        )
+        .maintenance(workspace_schema, "invalid reference test fixture")
         .map_err(|e| crate::SearchError::query_failed(e.to_string()))?;
     maintenance.publish(|c| {
         c.execute("DELETE FROM artifact_context", [])?;

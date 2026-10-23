@@ -77,3 +77,16 @@ test('nominal recursive anchors still validate all reachable field and collectio
     array('BadList','Unknown'),{id:'Unknown',kind:'unsupported',reason:'fixture'}];
   assert.throws(()=>generateRustModules(input(nodes,['Link'])),/Unsupported selected construct/);
 });
+
+test('damage vocabulary exposes all extracted alternatives and their exact keys without changing other enums',()=>{
+  const nodes:GraphNode[]=[
+    {id:'AcidToken',kind:'literal',value:'acid'},
+    {id:'FutureToken',kind:'literal',value:'future-flame'},
+    {id:'ModularConfigDamageType',kind:'union',members:['FutureToken','AcidToken']},
+    {id:'OrdinaryEnum',kind:'union',members:['AcidToken','FutureToken']},
+  ];
+  const rust=generateRustModules(input(nodes,['ModularConfigDamageType','OrdinaryEnum']))['common.rs'];
+  assert.match(rust,/pub const ALL: &'static \[Self\] = &\[Self::Acid,Self::FutureFlame\]/);
+  assert.match(rust,/Self::FutureFlame => "future-flame"/);
+  assert.doesNotMatch(rust,/impl OrdinaryEnum/);
+});

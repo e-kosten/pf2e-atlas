@@ -1,6 +1,6 @@
 import { usePreviewReadingPosition } from "./usePreviewReadingPosition";
 import { Grid, Popover, Spin } from "antd";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import { RecordPreviewDrawer } from "./RecordPreviewDrawer";
@@ -86,6 +86,15 @@ export function RecordPreviewPopover({
     readingRef.ref,
   );
   const popover = useRef<import("antd").TooltipRef>(null);
+  const alignAfterMotion = useCallback(() => {
+    const popup = popover.current?.popupElement;
+    if (!popup) return;
+    void Promise.allSettled(
+      popup.getAnimations().map((motion) => motion.finished),
+    ).then(() => {
+      if (popover.current?.popupElement === popup) popover.current.forceAlign();
+    });
+  }, []);
   const [bounds, setBounds] = useState<DOMRect>();
   // Let Ant measure the actual document before the first visible placement.
   // A short loading popup would move when replaced by the full record.
@@ -113,7 +122,15 @@ export function RecordPreviewPopover({
   useLayoutEffect(() => {
     let resizeFrame = 0;
     const update = () => {
-      setBounds(anchor?.getBoundingClientRect());
+      const next = anchor?.getBoundingClientRect();
+      setBounds((current) =>
+        current?.left === next?.left &&
+        current?.top === next?.top &&
+        current?.width === next?.width &&
+        current?.height === next?.height
+          ? current
+          : next,
+      );
     };
     const resize = () => {
       cancelAnimationFrame(resizeFrame);
@@ -122,6 +139,7 @@ export function RecordPreviewPopover({
         // Preserve that reading anchor; Ant still owns popup positioning.
         if (!narrow) anchor?.scrollIntoView({ block: "nearest", inline: "nearest" });
         update();
+        alignAfterMotion();
       });
     };
     update();
@@ -132,7 +150,7 @@ export function RecordPreviewPopover({
       window.removeEventListener("resize", resize);
       window.removeEventListener("scroll", update, true);
     };
-  }, [anchor, narrow]);
+  }, [anchor, narrow, alignAfterMotion]);
   useLayoutEffect(() => {
     popover.current?.forceAlign();
   }, [bounds]);
@@ -167,10 +185,12 @@ export function RecordPreviewPopover({
       classNames={{ root: "record-preview-popover" }}
       ref={popover}
       afterOpenChange={(open) => {
-        if (open)
+        if (open) {
+          requestAnimationFrame(alignAfterMotion);
           popover.current?.popupElement
             .querySelector<HTMLElement>("a[href],button")
             ?.focus({ preventScroll: true });
+        }
       }}
       open={Boolean(bounds && (detail || error))}
       placement="right"
@@ -191,7 +211,11 @@ export function RecordPreviewPopover({
           onClose();
       }}
       content={
-        <section role="dialog" aria-label="Reference preview">
+        <section
+          className="record-preview-popover__surface"
+          role="dialog"
+          aria-label="Reference preview"
+        >
           <div className="record-preview-popover__header">
             <RecordPreviewActions
               actions={recordActions}

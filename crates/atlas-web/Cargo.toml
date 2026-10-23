@@ -12,6 +12,7 @@ atlas-app-service.workspace = true
 atlas-domain.workspace = true
 axum.workspace = true
 rust-embed = { workspace = true, features = ["debug-embed"] }
+serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 

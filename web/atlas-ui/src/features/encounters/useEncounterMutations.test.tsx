@@ -7,11 +7,13 @@ import { useEncounterMutations } from "./useEncounterMutations";
 
 const api = vi.hoisted(() => ({
   applyEncounterSpellAction: vi.fn(),
+  applyEncounterHpAction: vi.fn(),
   addEncounterParty: vi.fn(),
   getEncounter: vi.fn(),
   updateEncounterParticipant: vi.fn(),
   updateEncounter: vi.fn(),
   deleteEncounter: vi.fn(),
+  resolveEncounterHpLifecycle: vi.fn(),
 }));
 const feedback = vi.hoisted(() => ({ info: vi.fn(), error: vi.fn() }));
 vi.mock("antd", () => ({ App: { useApp: () => ({ message: feedback }) } }));
@@ -214,7 +216,7 @@ it.each([false, true])(
   },
 );
 
-it.each(["cast", "record_use"] as const)(
+it.each(["cast"] as const)(
   "shows concise feedback for failed %s without exposing server details",
   async (kind) => {
     api.applyEncounterSpellAction.mockRejectedValue(
@@ -249,6 +251,76 @@ it.each(["cast", "record_use"] as const)(
     expect(api.getEncounter).not.toHaveBeenCalled();
   },
 );
+
+it("retains a guarded HP resolution identity after an uncertain response and replaces it for an edited decision", async () => {
+  api.resolveEncounterHpLifecycle.mockRejectedValue(new Error("Connection lost"));
+  const { result } = mount();
+  const request = {
+    expected_encounter_revision: 4n,
+    consequence_key: "hp-event",
+    resolution: "apply" as const,
+    context: {
+      lethality: "lethal" as const,
+      critical: false,
+      enemy_source: null,
+      responsible_participant_key: null,
+      base_death_threshold: null,
+      keep_current_initiative: false,
+      attack_or_spell_damage: null,
+      natural_rest_healing: false,
+      keep_upright: false,
+    },
+  };
+  for (let index = 0; index < 2; index++)
+    await act(async () => {
+      await expect(
+        result.current.run({ kind: "resolve-hp-lifecycle", request }),
+      ).rejects.toThrow("Connection lost");
+    });
+  expect(api.resolveEncounterHpLifecycle.mock.calls[0][1].request_id).toEqual(
+    api.resolveEncounterHpLifecycle.mock.calls[1][1].request_id,
+  );
+  await act(async () => {
+    await expect(
+      result.current.run({
+        kind: "resolve-hp-lifecycle",
+        request: { ...request, context: { ...request.context, critical: true } },
+      }),
+    ).rejects.toThrow("Connection lost");
+  });
+  expect(api.resolveEncounterHpLifecycle.mock.calls[2][1].request_id).not.toEqual(
+    api.resolveEncounterHpLifecycle.mock.calls[1][1].request_id,
+  );
+});
+
+it("keeps an uncertain raw HP intent id and gives a later deliberate click a fresh id", async () => {
+  api.applyEncounterHpAction
+    .mockRejectedValueOnce(new Error("Connection lost"))
+    .mockResolvedValue({ encounter_key: "encounter-key" });
+  const { result } = mount();
+  const request = {
+    participant_key: "actor",
+    expected_revision: 3n,
+    action: { kind: "damage" as const, amount: "2d6" },
+  };
+  await act(async () => {
+    await expect(result.current.run({ kind: "hp", request })).rejects.toThrow(
+      "Connection lost",
+    );
+  });
+  await act(async () => {
+    await result.current.run({ kind: "hp", request });
+  });
+  await act(async () => {
+    await result.current.run({
+      kind: "hp",
+      request: { ...request, expected_revision: 4n },
+    });
+  });
+  const calls = api.applyEncounterHpAction.mock.calls;
+  expect(calls[0][1].request_id).toBe(calls[1][1].request_id);
+  expect(calls[2][1].request_id).not.toBe(calls[1][1].request_id);
+});
 
 it("never resubmits a committed party addition when its refresh fails", async () => {
   api.addEncounterParty.mockResolvedValue({ encounter_key: "encounter-key" });

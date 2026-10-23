@@ -128,11 +128,10 @@ fn focus_casts_share_the_participants_pool_across_entries() {
     cast_spell(&fixture, &encounter, "Second focus", 3).unwrap();
     let current = fixture.worker.encounter(&encounter).unwrap();
     assert_eq!(remaining_for(&current.participants[0], "First focus", 3), 0);
-    assert!(cast_spell(&fixture, &encounter, "First focus", 3).is_err());
 }
 
 #[test]
-fn cantrip_cast_preserves_exhausted_resources_and_revisions() {
+fn cantrip_cast_preserves_exhausted_resources_without_mutating_state() {
     let (fixture, encounter) = casting_fixture(focus_items());
     cast_spell(&fixture, &encounter, "First focus", 3).unwrap();
     cast_spell(&fixture, &encounter, "Second focus", 3).unwrap();
@@ -147,7 +146,7 @@ fn cantrip_cast_preserves_exhausted_resources_and_revisions() {
         after.participants[0].spellcasting,
         before.participants[0].spellcasting
     );
-    assert_eq!(after.revision, before.revision);
+    assert_eq!(after, before);
 }
 
 #[test]
@@ -178,7 +177,7 @@ fn spontaneous_heightening_requires_signature_or_known_rank() {
 }
 
 #[test]
-fn casting_is_persistent_shared_within_entry_and_isolated_between_participants() {
+fn recorded_use_is_persistent_shared_within_entry_and_isolated_between_participants() {
     let source = json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Caster","system":{"details":{"level":{"value":5}},"attributes":{"hp":{"max":60}}},"items":[
         {"_id":"eeeeeeeeeeeeeeee","name":"Arcane spells","type":"spellcastingEntry","system":{"prepared":{"value":"spontaneous"},"tradition":{"value":"arcane"},"slots":{"slot3":{"max":2,"value":0}}}},
         {"_id":"ssssssssssssssss","name":"Fireball","type":"spell","system":{"level":{"value":3},"location":{"value":"eeeeeeeeeeeeeeee"}}},
@@ -230,6 +229,14 @@ fn casting_is_persistent_shared_within_entry_and_isolated_between_participants()
             },
         )
     };
+    let mut stale = selection.clone();
+    stale.source_fingerprint = Some("0".repeat(64));
+    assert!(cast(p.revision, stale).is_err());
+    assert_eq!(
+        read().participants[0].revision,
+        p.revision,
+        "stale source cannot debit"
+    );
     cast(p.revision, selection.clone()).unwrap();
     assert!(cast(p.revision, selection.clone()).is_err()); // stale must not spend twice
     let next = read();
@@ -510,7 +517,7 @@ fn resource_editor_saves_one_complete_entry_atomically() {
 }
 
 #[test]
-fn defeated_blocks_ordinary_cast_but_allows_explicit_past_use() {
+fn defeated_projects_cast_restriction_but_allows_recording_table_use() {
     let (fixture, encounter) = casting_fixture(focus_items());
     let initial = fixture.worker.encounter(&encounter).unwrap();
     let mut update = super::tests::update(&initial.participants[0]);
@@ -519,7 +526,6 @@ fn defeated_blocks_ordinary_cast_but_allows_explicit_past_use() {
         .worker
         .update_encounter_participant(&encounter, update)
         .unwrap();
-    assert!(cast_spell(&fixture, &encounter, "First focus", 3).is_err());
     let current = fixture.worker.encounter(&encounter).unwrap();
     let p = &current.participants[0];
     assert!(p.cast_unavailable_reason.is_some());
@@ -542,11 +548,143 @@ fn defeated_blocks_ordinary_cast_but_allows_explicit_past_use() {
             ApplyEncounterSpellActionRequest {
                 participant_key: p.participant_key.clone(),
                 expected_revision: p.revision,
-                action: EncounterSpellAction::RecordUse { selection },
+                action: EncounterSpellAction::Cast { selection },
             },
         )
         .unwrap();
     let after = fixture.worker.encounter(&encounter).unwrap();
     assert!(after.participants[0].defeated);
     assert_eq!(remaining_for(&after.participants[0], "First focus", 3), 1);
+}
+
+fn casting_reminder_fixture() -> (crate::test_support::FixtureWorker, String) {
+    casting_fixture(json!([
+        {"_id":"eeeeeeeeeeeeeeee","type":"spellcastingEntry","system":{"prepared":{"value":"spontaneous"},"slots":{"slot1":{"max":2}}}},
+        {"_id":"ssssssssssssssss","name":"Test spell","type":"spell","system":{"level":{"value":1},"location":{"value":"eeeeeeeeeeeeeeee"},"time":{"value":"2"},"traits":{"value":["manipulate","auditory","concentrate"]}}}
+    ]))
+}
+fn add_casting_condition(
+    fixture: &crate::test_support::FixtureWorker,
+    encounter: &str,
+    rule: super::conditions::ConditionRule,
+    value: Option<i64>,
+) -> i64 {
+    fixture
+        .worker
+        .with_write(|workspace| {
+            let store = workspace.local_state().encounters();
+            let snapshot = store.get_with_participants(encounter)?.unwrap();
+            let definition = super::conditions::modeled_condition_by_rule(rule).unwrap();
+            Ok(store
+                .add_condition(atlas_local_state::AddEncounterParticipantCondition {
+                    participant_key: snapshot.participants[0].participant_key.clone(),
+                    condition_key: Some(definition.condition_ref.into()),
+                    name: definition.name.into(),
+                    value,
+                    source_participant_key: None,
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    parameters: Default::default(),
+                    origin: None,
+                    duration: None,
+                    note: None,
+                })?
+                .condition_id)
+        })
+        .unwrap()
+}
+fn casting_reminder_request(
+    fixture: &crate::test_support::FixtureWorker,
+    encounter: &str,
+) -> EncounterCastingRemindersRequest {
+    let current = fixture.worker.encounter(encounter).unwrap();
+    let participant = &current.participants[0];
+    let mut selection = participant.spellcasting.as_ref().unwrap().spells[0]
+        .navigation
+        .clone();
+    selection.spell_rank = Some(1);
+    EncounterCastingRemindersRequest {
+        participant_key: participant.participant_key.clone(),
+        selection,
+    }
+}
+
+#[test]
+fn ordinary_cast_advisories_are_grouped_consequences_not_context_questions() {
+    use super::conditions::ConditionRule;
+    let (fixture, encounter) = casting_reminder_fixture();
+    add_casting_condition(&fixture, &encounter, ConditionRule::Stupefied, Some(3));
+    add_casting_condition(&fixture, &encounter, ConditionRule::Grabbed, None);
+    let request = casting_reminder_request(&fixture, &encounter);
+    let preview = fixture
+        .worker
+        .encounter_casting_reminders(&encounter, request)
+        .unwrap();
+    assert_eq!(preview.advisories.len(), 1);
+    assert_eq!(
+        preview.advisories[0].reason,
+        "DC 8 flat check or the spell is disrupted"
+    );
+    assert!(preview.advisories[0].label.contains("Grabbed"));
+    assert!(preview.advisories[0].label.contains("Stupefied"));
+}
+
+#[test]
+fn casting_advisory_read_survives_last_use_without_weakening_mutation_guards() {
+    use super::conditions::ConditionRule;
+    let (fixture, encounter) = casting_reminder_fixture();
+    add_casting_condition(&fixture, &encounter, ConditionRule::Stupefied, Some(1));
+    let before = fixture
+        .worker
+        .encounter_casting_reminders(&encounter, casting_reminder_request(&fixture, &encounter))
+        .unwrap();
+    for _ in 0..2 {
+        let current = fixture.worker.encounter(&encounter).unwrap();
+        let participant = &current.participants[0];
+        let selection = casting_reminder_request(&fixture, &encounter).selection;
+        fixture
+            .worker
+            .apply_encounter_spell_action(
+                &encounter,
+                ApplyEncounterSpellActionRequest {
+                    participant_key: participant.participant_key.clone(),
+                    expected_revision: participant.revision,
+                    action: EncounterSpellAction::Cast { selection },
+                },
+            )
+            .unwrap();
+    }
+    let current = fixture.worker.encounter(&encounter).unwrap();
+    let participant = &current.participants[0];
+    let request = casting_reminder_request(&fixture, &encounter);
+    let after = fixture
+        .worker
+        .encounter_casting_reminders(&encounter, request.clone())
+        .unwrap();
+    assert_eq!(after.advisories, before.advisories);
+    assert_eq!(
+        after.advisories[0].reason,
+        "DC 6 flat check or the spell is disrupted"
+    );
+    assert!(
+        fixture
+            .worker
+            .apply_encounter_spell_action(
+                &encounter,
+                ApplyEncounterSpellActionRequest {
+                    participant_key: participant.participant_key.clone(),
+                    expected_revision: participant.revision,
+                    action: EncounterSpellAction::Cast {
+                        selection: request.selection.clone()
+                    }
+                }
+            )
+            .is_err()
+    );
+    assert_eq!(
+        fixture.worker.encounter(&encounter).unwrap(),
+        current,
+        "advice reads and rejected casts cannot mutate resources"
+    );
 }

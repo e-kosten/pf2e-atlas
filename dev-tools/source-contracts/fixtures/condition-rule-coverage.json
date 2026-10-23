@@ -1,0 +1,288 @@
+{
+  "adapters": [
+    {
+      "slug": "blinded",
+      "ordinal": 1,
+      "key": "Immunity",
+      "digest": "5cb2dfaff789fda07b39f9114a83fff813a5cbc2088dd4996f5d1f2f386bb689",
+      "owner": "rules/senses"
+    },
+    {
+      "slug": "confused",
+      "ordinal": 0,
+      "key": "ActiveEffectLike",
+      "digest": "5c7cbc10adbc552a3fb9a49937e2fd3cd4f56918361edb50578a1f88f39658a4",
+      "owner": "manual:flanking"
+    },
+    {
+      "slug": "confused",
+      "ordinal": 1,
+      "key": "RollOption",
+      "digest": "cb2cfaff187b72675ed34ee9f42069ca00c38a62c73375e6901e92869334cba5",
+      "owner": "manual:allegiance"
+    },
+    {
+      "slug": "confused",
+      "ordinal": 2,
+      "key": "RollOption",
+      "digest": "500b5da698ede53c48683bd4a1f9ffa4baec6ef4bf83a220fb07e648484c5c3d",
+      "owner": "manual:allegiance"
+    },
+    {
+      "slug": "confused",
+      "ordinal": 4,
+      "key": "Note",
+      "digest": "03952bffc916445cea74fd571853107056b35ae8edfd844fe7e9ca63c3fe8362",
+      "owner": "rules/action_context"
+    },
+    {
+      "slug": "deafened",
+      "ordinal": 1,
+      "key": "Immunity",
+      "digest": "5b3d804386c032d913c772ff0c64ecc60bc64d2acf7664631c8b0d1c040d3bfc",
+      "owner": "rules/senses"
+    },
+    {
+      "slug": "deafened",
+      "ordinal": 2,
+      "key": "ItemAlteration",
+      "digest": "df0b1928c65b9156ad78b65b4b402a86eeaf1ab438841bf52b43f6deda75197c",
+      "owner": "rules/action_context"
+    },
+    {
+      "slug": "deafened",
+      "ordinal": 3,
+      "key": "ItemAlteration",
+      "digest": "8f3ed7db1149a8ca1d3d8767af8acb0cd9a94c136fa2dcaeef0cbfbb57ca7361",
+      "owner": "rules/action_context"
+    },
+    {
+      "slug": "deafened",
+      "ordinal": 4,
+      "key": "ItemAlteration",
+      "digest": "96622748f6c5a2794edf3fa5a80bb41dde5ec667aeccf77d0063ff1d47fe067f",
+      "owner": "rules/action_context"
+    },
+    {
+      "slug": "deafened",
+      "ordinal": 5,
+      "key": "AdjustDegreeOfSuccess",
+      "digest": "9734644dbbc39816a35693242444c950548b8eac60b859b7a23961a01a07cd68",
+      "owner": "rules/senses"
+    },
+    {
+      "slug": "grabbed",
+      "ordinal": 2,
+      "key": "ItemAlteration",
+      "digest": "5993450b62669e333ad41c74beefa24949e812fe1d5ca1b57c8f47d936ca204e",
+      "owner": "rules/action_context"
+    },
+    {
+      "slug": "grabbed",
+      "ordinal": 3,
+      "key": "ItemAlteration",
+      "digest": "97791ef28d256a51afa0b6bbb805b700ff2012d44bf3bd2ef63c22fdb68aeeef",
+      "owner": "rules/action_context"
+    },
+    {
+      "slug": "grabbed",
+      "ordinal": 4,
+      "key": "ItemAlteration",
+      "digest": "71c023e3374f414cd487beac1fac4ae40641412aa42a9242bae9937d92835bc4",
+      "owner": "rules/action_context"
+    },
+    {
+      "slug": "paralyzed",
+      "ordinal": 0,
+      "key": "ActiveEffectLike",
+      "digest": "5c7cbc10adbc552a3fb9a49937e2fd3cd4f56918361edb50578a1f88f39658a4",
+      "owner": "manual:flanking"
+    },
+    {
+      "slug": "restrained",
+      "ordinal": 0,
+      "key": "ActiveEffectLike",
+      "digest": "5c7cbc10adbc552a3fb9a49937e2fd3cd4f56918361edb50578a1f88f39658a4",
+      "owner": "manual:flanking"
+    },
+    {
+      "slug": "restrained",
+      "ordinal": 3,
+      "key": "ItemAlteration",
+      "digest": "26b0692d5ad501d803198d977633ff0652b8a9e3dd9bcb2d5953a94bc2c522b1",
+      "owner": "rules/action_context"
+    },
+    {
+      "slug": "restrained",
+      "ordinal": 4,
+      "key": "ItemAlteration",
+      "digest": "283a0dd29523314eb89a33cb65b0a6ba3a5ebe4648a7eb1b9c97c50c4b58b3d6",
+      "owner": "rules/action_context"
+    },
+    {
+      "slug": "restrained",
+      "ordinal": 5,
+      "key": "ItemAlteration",
+      "digest": "83939840a6213bf8af232c5bfdbb16da547b19966f4d32fdb7e2b318ee00c9a1",
+      "owner": "rules/action_context"
+    },
+    {
+      "slug": "restrained",
+      "ordinal": 6,
+      "key": "Note",
+      "digest": "60918fa697ac27921d627e30a8a879a4933c4e4e16c85706d1e8bb6f4b506030",
+      "owner": "rules/action_context"
+    },
+    {
+      "slug": "sickened",
+      "ordinal": 1,
+      "key": "ItemAlteration",
+      "digest": "68d7fd25cb3bd77cdf2c908ffc5e06f13f4bd81bc4149afab8563f4b7229942f",
+      "owner": "rules/action_context"
+    },
+    {
+      "slug": "stupefied",
+      "ordinal": 1,
+      "key": "ItemAlteration",
+      "digest": "a2c4e8dc0d039142eba804915eb316eacf263772789a5550a855b92c2fb3e81d",
+      "owner": "rules/action_context"
+    }
+  ],
+  "overrides": [
+    {
+      "from": "blinded",
+      "to": "dazzled",
+      "owner": "rules/causes"
+    },
+    {
+      "from": "friendly",
+      "to": "helpful",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "friendly",
+      "to": "indifferent",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "friendly",
+      "to": "unfriendly",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "friendly",
+      "to": "hostile",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "helpful",
+      "to": "friendly",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "helpful",
+      "to": "indifferent",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "helpful",
+      "to": "unfriendly",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "helpful",
+      "to": "hostile",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "hostile",
+      "to": "helpful",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "hostile",
+      "to": "friendly",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "hostile",
+      "to": "indifferent",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "hostile",
+      "to": "unfriendly",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "indifferent",
+      "to": "helpful",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "indifferent",
+      "to": "friendly",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "indifferent",
+      "to": "unfriendly",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "indifferent",
+      "to": "hostile",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "restrained",
+      "to": "grabbed",
+      "owner": "rules/causes"
+    },
+    {
+      "from": "stunned",
+      "to": "slowed",
+      "owner": "rules/capabilities"
+    },
+    {
+      "from": "unfriendly",
+      "to": "helpful",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "unfriendly",
+      "to": "friendly",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "unfriendly",
+      "to": "indifferent",
+      "owner": "manual:attitude"
+    },
+    {
+      "from": "unfriendly",
+      "to": "hostile",
+      "owner": "manual:attitude"
+    }
+  ],
+  "persistentGrants": [
+    {
+      "slug": "dying",
+      "ordinal": 0,
+      "digest": "328858c5cea16fd4f0706da2f9439585c8eb23fe3907ac00ace20cd64ea45aa3",
+      "owner": "rules/causes-and-lifecycle"
+    },
+    {
+      "slug": "unconscious",
+      "ordinal": 1,
+      "digest": "2209399b8dc68c8ee9069064879472156b3850205b93081de1f9d68fd410f729",
+      "owner": "rules/causes-and-lifecycle"
+    },
+    {
+      "slug": "unconscious",
+      "ordinal": 3,
+      "digest": "aa253bb6d40c6cab38fc88de37f9f4bcc2e3ac79ce86d1152c8693a70b1b41ef",
+      "owner": "rules/events"
+    }
+  ]
+}

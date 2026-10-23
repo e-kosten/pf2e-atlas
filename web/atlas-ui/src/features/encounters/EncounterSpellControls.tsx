@@ -1,8 +1,11 @@
+import { statusReasonLabel } from "../../shared/records/statusReasonLabel";
+import { useRetainedRecord } from "../../shared/records/useRetainedRecord";
+import { EncounterModal } from "./EncounterModal";
 import {
+  Alert,
   App,
   Button,
   InputNumber,
-  Modal,
   Popover,
   Space,
   Tooltip,
@@ -10,8 +13,10 @@ import {
 } from "antd";
 import { Minus, Plus, Settings2 } from "lucide-react";
 import type { CastingAnnotations } from "../../shared/records/ActorReference";
+import { useQuery } from "@tanstack/react-query";
+import { encounterCastingReminders } from "../../api/atlasApi";
 import { spellResourceCount, spellResourceExhausted } from "./spellResourceDisplay";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type {
   EncounterParticipantView,
   EncounterSpellAction,
@@ -37,26 +42,72 @@ export function EncounterSpellControls({
   disabled,
   pending,
   recovery,
+  error,
   onAction,
-}: Actions & { detail: RecordDetailView }) {
+  encounterRef,
+  encounterRevision,
+}: Actions & {
+  detail: RecordDetailView;
+  encounterRef?: string;
+  encounterRevision: bigint;
+}) {
   const { message } = App.useApp();
-  const selection = detail.selected;
+  const inFlight = useRef(false);
+  const displayedSelection = detail.selected;
   const catalog = participant.spellcasting;
   const spell = catalog?.spells.find(
     (s) =>
-      s.navigation.record_key === selection.record_key &&
+      s.navigation.record_key === displayedSelection.record_key &&
       JSON.stringify(s.navigation.embedded_path) ===
-        JSON.stringify(selection.embedded_path),
+        JSON.stringify(displayedSelection.embedded_path),
   );
   if (!spell || detail.presentation.body.kind !== "spell") return null;
-  if (spell.expended !== null) {
-    return (
-      <div className="encounter-casting__controls">
-        <Space>
+  const rank = detail.presentation.body.value.rank;
+  const selectedRank =
+    displayedSelection.spell_rank ??
+    (rank.state === "value" ? Number(rank.value) : undefined);
+  const selection = {
+    ...spell.navigation,
+    source_fingerprint:
+      displayedSelection.source_fingerprint ?? spell.navigation.source_fingerprint,
+    spell_rank: selectedRank,
+  };
+  const option = spell.ranks.find((r) => r.rank === selectedRank);
+  const resource = catalog?.resources.find((r) => r.key === option?.resource_key);
+  const unavailable =
+    (spell.expended ? "Expended" : null) ??
+    option?.unavailable_reason ??
+    (!option
+      ? "Casting unavailable"
+      : resource && spellResourceExhausted(resource)
+        ? "No uses remaining"
+        : undefined);
+  const cast = async () => {
+    if (inFlight.current || disabled || pending || unavailable) return;
+    inFlight.current = true;
+    try {
+      if (await onAction({ kind: "cast", selection }))
+        void message.success("Use recorded", 2);
+    } catch {
+      /* The mutation owner reports the failure. */
+    } finally {
+      inFlight.current = false;
+    }
+  };
+  return (
+    <div className="encounter-casting__controls">
+      <Space wrap>
+        <Button
+          type="primary"
+          disabled={disabled || pending || !!unavailable}
+          loading={pending}
+          onClick={() => void cast()}
+        >
+          Cast
+        </Button>
+        {spell.expended === true && (
           <Button
-            size="small"
-            disabled={disabled}
-            loading={pending}
+            disabled={disabled || pending}
             onClick={() =>
               void onAction({
                 kind: "set_expended",
@@ -67,64 +118,6 @@ export function EncounterSpellControls({
           >
             {spell.expended ? "Restore" : "Expend"}
           </Button>
-        </Space>
-        {recovery}
-      </div>
-    );
-  }
-  const rank = detail.presentation.body.value.rank;
-  const selectedRank =
-    selection.spell_rank ?? (rank.state === "value" ? Number(rank.value) : undefined);
-  const option = spell.ranks.find((r) => r.rank === selectedRank);
-  const resource = catalog?.resources.find((r) => r.key === option?.resource_key);
-  const unavailable =
-    option?.unavailable_reason ??
-    (!option
-      ? "Casting unavailable"
-      : resource && spellResourceExhausted(resource)
-        ? "No uses remaining"
-        : undefined);
-  const run = async (retrospective = false) => {
-    if (
-      await onAction({
-        kind: retrospective ? "record_use" : "cast",
-        selection: { ...selection, spell_rank: selectedRank },
-      })
-    )
-      void message.success(retrospective ? "Use recorded" : "Cast recorded", 2);
-  };
-  return (
-    <div className="encounter-casting__controls">
-      <Space wrap>
-        <Button
-          type="primary"
-          size="small"
-          disabled={
-            disabled ||
-            pending ||
-            !!unavailable ||
-            !!participant.cast_unavailable_reason
-          }
-          loading={pending}
-          onClick={() => void run()}
-        >
-          Cast
-        </Button>
-        {participant.cast_unavailable_reason && (
-          <Typography.Text type="secondary">
-            {participant.cast_unavailable_reason}
-          </Typography.Text>
-        )}
-        {participant.cast_unavailable_reason && resource && (
-          <Tooltip title="Record a past use without changing this participant’s current status.">
-            <Button
-              size="small"
-              disabled={disabled || pending || !!unavailable}
-              onClick={() => void run(true)}
-            >
-              Record past use
-            </Button>
-          </Tooltip>
         )}
         {resource ? (
           <ResourceCount resource={resource} />
@@ -135,7 +128,6 @@ export function EncounterSpellControls({
         )}
         {resource?.can_undo && (
           <Button
-            size="small"
             disabled={disabled}
             onClick={() => void onAction({ kind: "undo", resource_key: resource.key })}
           >
@@ -143,8 +135,85 @@ export function EncounterSpellControls({
           </Button>
         )}
       </Space>
+      {encounterRef && (
+        <SpellCastingReminders
+          encounterRef={encounterRef}
+          encounterRevision={encounterRevision}
+          generation={detail.artifact_generation}
+          participant={participant}
+          selection={selection}
+        />
+      )}
+      {error && <Alert type="error" title="Could not cast" description={error} />}
       {recovery}
     </div>
+  );
+}
+
+function SpellCastingReminders({
+  encounterRef,
+  encounterRevision,
+  generation,
+  participant,
+  selection,
+}: {
+  encounterRef: string;
+  encounterRevision: bigint;
+  generation: string;
+  participant: EncounterParticipantView;
+  selection: import("../../generated/atlas").RecordNavigationView;
+}) {
+  // Resource-only refreshes can retain advice; changed conditions/status cannot.
+  const readingIdentity = JSON.stringify(
+    [
+      encounterRef,
+      participant.participant_key,
+      generation,
+      selection,
+      participant.conditions,
+      participant.defeated,
+      participant.hazard_disabled,
+      participant.mortality,
+    ],
+    (_key, value) => (typeof value === "bigint" ? value.toString() : value),
+  );
+  const preview = useQuery({
+    queryKey: [
+      "spell-casting-reminders",
+      generation,
+      encounterRef,
+      participant.participant_key,
+      encounterRevision.toString(),
+      JSON.stringify(selection, (_key, value) =>
+        typeof value === "bigint" ? value.toString() : value,
+      ),
+    ],
+    queryFn: () =>
+      encounterCastingReminders(encounterRef, {
+        participant_key: participant.participant_key,
+        selection,
+      }),
+    retry: false,
+  });
+  const reminders = useRetainedRecord(readingIdentity, preview.data, preview.error);
+  return (
+    <>
+      {preview.error && (
+        <Space>
+          <Typography.Text type="secondary">Reminders unavailable</Typography.Text>
+          <Button type="link" onClick={() => void preview.refetch()}>
+            Retry
+          </Button>
+        </Space>
+      )}
+      {!!reminders?.advisories.length && (
+        <div className="encounter-casting__reminders">
+          {reminders.advisories.map((advisory, index) => (
+            <p key={index}>{statusReasonLabel(advisory.label, advisory.reason)}</p>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -215,7 +284,7 @@ export function EncounterSpellResources({
           }
         />
       </Tooltip>
-      <Modal
+      <EncounterModal
         title={title}
         open={!!draft}
         onCancel={cancel}
@@ -294,7 +363,7 @@ export function EncounterSpellResources({
           )
         )}
         {recovery}
-      </Modal>
+      </EncounterModal>
     </>
   );
 }

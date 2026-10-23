@@ -130,8 +130,14 @@
   height: auto;
   font-weight: 700;
 }
-.record-number-explanation p {
-  margin: 4px 0;
+.record-number-context {
+  display: inline-flex;
+  align-items: center;
+}
+.record-missing {
+  color: var(--muted);
+  padding: 0;
+  height: auto;
 }
 .actor-reference__facts {
   display: grid;
@@ -289,6 +295,20 @@
 }
 .actor-reference__combat-budget {
   align-self: start;
+  display: grid;
+  gap: 4px;
+}
+.actor-reference__combat-budget h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.actor-reference__turn-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  align-items: baseline;
 }
 .actor-reference__secondary {
   display: grid;
@@ -425,4 +445,30 @@
 
 .record-reference__prerequisites > strong {
   flex-shrink: 0;
+}
+
+.encounter-casting__controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  font-weight: normal;
+}
+.encounter-casting__reminders {
+  display: grid;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.encounter-casting__reminders p {
+  margin: 0;
+}
+
+/* Cast occupies the toolbar's first row; its contextual details span both columns. */
+.record-preview-toolbar > .encounter-casting__controls {
+  display: contents;
+}
+.record-preview-toolbar > .encounter-casting__controls > :not(:first-child) {
+  grid-column: 1 / -1;
 }

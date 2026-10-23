@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft } from "lucide-react";
 import { Alert, Button, Popover } from "antd";
-import { Fragment, useState } from "react";
+import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { getEncounterStrikeOptions, rollEncounterStrike } from "../../api/atlasApi";
 import type {
   ActorActivityView,
@@ -10,10 +11,10 @@ import type {
   EncounterStrikeRollView,
   RollEncounterStrikeRequest,
   RollMode,
-  StrikeRollKind,
 } from "../../generated/atlas";
-import { RollResult } from "../../shared/dice/RollResult";
 import { RollModeControl } from "../../shared/dice/RollModeControl";
+import { RollResult } from "../../shared/dice/RollResult";
+import type { StrikeLaunch } from "./useEncounterStrike";
 import { useDiceRoll } from "../../shared/dice/useDiceRoll";
 import { useDicePopoverFocus } from "../../shared/dice/useDicePopoverFocus";
 import { isDefiniteRollRejection } from "../../shared/dice/rollLifecycle";
@@ -27,12 +28,16 @@ export function EncounterStrikeControl({
   participant,
   activity,
   disabled,
+  onBeginStrike,
+  renderStrikeContext,
 }: {
   encounterKey: string;
   generation: string;
   participant: EncounterParticipantView;
   activity: ActorActivityView;
   disabled: boolean;
+  onBeginStrike: (request: StrikeLaunch) => void;
+  renderStrikeContext?: (requestId: string) => ReactNode;
 }) {
   const nav = activity.navigation;
   const reference: EncounterReferenceRequest = {
@@ -95,9 +100,10 @@ export function EncounterStrikeControl({
               {index > 0 && <span aria-hidden="true"> / </span>}
               <StrikeRollPopover
                 {...common}
-                kind="attack"
-                attackNumber={choice.attack_number}
                 label={signed(choice.modifier)}
+                attackNumber={choice.attack_number}
+                onBeginStrike={onBeginStrike}
+                renderStrikeContext={renderStrikeContext}
               />
             </Fragment>
           ))
@@ -112,12 +118,7 @@ export function EncounterStrikeControl({
       {damageText ? (
         <div>
           <strong>Damage </strong>
-          <StrikeRollPopover
-            {...common}
-            kind="damage"
-            attackNumber={1}
-            label={damageText}
-          />
+          <StrikeRollPopover {...common} label={damageText} />
         </div>
       ) : (
         <DamageComponents damage={activity.damage} />
@@ -139,9 +140,10 @@ function StrikeRollPopover({
   options,
   disabled,
   refresh,
-  kind,
-  attackNumber,
   label,
+  attackNumber,
+  onBeginStrike,
+  renderStrikeContext,
 }: {
   encounterKey: string;
   participantKey: string;
@@ -150,17 +152,26 @@ function StrikeRollPopover({
   options: EncounterStrikeOptionsView | undefined;
   disabled: boolean;
   refresh: () => Promise<EncounterStrikeOptionsView>;
-  kind: StrikeRollKind;
-  attackNumber: number;
   label: string;
+  attackNumber?: number;
+  onBeginStrike?: (request: StrikeLaunch) => void;
+  renderStrikeContext?: (requestId: string) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const { trigger, content, afterOpenChange } = useDicePopoverFocus(open);
   const [mode, setMode] = useState<RollMode>("normal");
+  const [original, setOriginal] = useState<RollEncounterStrikeRequest>();
+  const [contextOpen, setContextOpen] = useState(false);
+  const popover = useRef<import("antd").TooltipRef>(null);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => popover.current?.forceAlign());
+    return () => cancelAnimationFrame(frame);
+  }, [open, contextOpen]);
+  const { trigger, content, afterOpenChange } = useDicePopoverFocus(open);
   const [retry, setRetry] = useState<RollEncounterStrikeRequest>();
   const roll = useDiceRoll<EncounterStrikeRollView>();
-  const actionLabel =
-    kind === "attack" ? `${title} attack ${label}` : `${title} damage`;
+  const attack = attackNumber !== undefined;
+  const actionLabel = `${title} ${attack ? "attack" : "damage"}`;
   const act = () =>
     void roll.run(async () => {
       const current = retry ? undefined : await refresh();
@@ -170,14 +181,16 @@ function StrikeRollPopover({
         expected_participant_revision: current!.expected_participant_revision,
         participant_key: participantKey,
         reference,
-        attack_number: attackNumber,
+        attack_number: attackNumber ?? 1,
         mode,
         modifier_override: null,
-        roll_kind: kind,
+        roll_kind: attack ? ("attack" as const) : ("damage" as const),
       };
+      if (!retry) setContextOpen(false);
       setRetry(request);
       try {
         const result = await rollEncounterStrike(encounterKey, request);
+        setOriginal(request);
         setRetry(undefined);
         return result;
       } catch (cause) {
@@ -189,8 +202,13 @@ function StrikeRollPopover({
     });
   return (
     <Popover
+      ref={popover}
       trigger="click"
       placement="bottom"
+      align={{
+        offset: [0, 0],
+        overflow: { adjustX: true, adjustY: true, shiftX: true, shiftY: true },
+      }}
       open={open}
       afterOpenChange={afterOpenChange}
       onOpenChange={(next) => {
@@ -201,15 +219,24 @@ function StrikeRollPopover({
         <div
           ref={content}
           tabIndex={-1}
-          className="strike-roll-control"
+          className={`strike-roll-control${contextOpen ? " strike-roll-control--expanded" : ""}`}
           role="dialog"
           aria-label={actionLabel}
         >
           <div className="strike-roll-control__toolbar">
+            {contextOpen && (
+              <Button
+                type="text"
+                icon={<ArrowLeft size={16} />}
+                aria-label="Back to roll"
+                title="Back to roll"
+                onClick={() => setContextOpen(false)}
+              />
+            )}
             <strong>
-              {title} · {kind === "attack" ? `Attack ${label}` : "Damage"}
+              {title} · {contextOpen ? "Target & checks" : attack ? "Attack" : "Damage"}
             </strong>
-            {kind === "attack" && (
+            {attack && (
               <RollModeControl
                 label={title}
                 value={mode}
@@ -218,15 +245,48 @@ function StrikeRollPopover({
               />
             )}
           </div>
-          {!roll.result && (
-            <div>
-              {kind === "attack"
-                ? `${mode === "normal" ? "1d20" : mode === "fortune" ? "2d20 (highest)" : "2d20 (lowest)"} ${label}`
-                : label}
-            </div>
-          )}
+          {!roll.result && <div>{label}</div>}
           {roll.result?.attack && (
             <RollResult outcome={roll.result.attack} pending={roll.animating} />
+          )}
+          {attack &&
+            options?.applied?.map((hint) => (
+              <div key={hint.source}>
+                Applied · {hint.label} · {hint.reason}
+              </div>
+            ))}
+          {attack &&
+            options?.conditional?.map((hint) => (
+              <div key={hint.source}>
+                Context · {hint.label} · {hint.reason}
+              </div>
+            ))}
+          {attack && (
+            <>
+              {!contextOpen && (
+                <Button
+                  disabled={disabled || roll.busy || !original || !roll.result?.attack}
+                  onClick={() => {
+                    if (!original || !roll.result?.attack) return;
+                    setContextOpen(!contextOpen);
+                    if (!contextOpen)
+                      onBeginStrike?.({
+                        strike: { participant_key: participantKey, reference },
+                        attackNumber: attackNumber!,
+                        rollId: original.request_id,
+                        rolledModifier: roll.result?.attack_modifier,
+                      });
+                  }}
+                >
+                  Target &amp; checks
+                </Button>
+              )}
+              {contextOpen && original && (
+                <div className="strike-roll-control__context">
+                  {renderStrikeContext?.(original.request_id)}
+                </div>
+              )}
+            </>
           )}
           {roll.result?.damage.map((component) => (
             <div key={component.id}>
@@ -251,8 +311,14 @@ function StrikeRollPopover({
               roll.result.damage_totals.some((t) => t.raw_total !== t.total)) && (
               <small>Minimum damage applied.</small>
             )}
-          {kind === "damage" && options?.damage_unavailable && (
-            <Alert type="info" title={options.damage_unavailable} />
+          {(attack ? options?.unavailable : options?.damage_unavailable) && (
+            <Alert
+              type="info"
+              title={
+                (attack ? options?.unavailable : options?.damage_unavailable) ??
+                undefined
+              }
+            />
           )}
           {roll.error && (
             <Alert
@@ -269,7 +335,7 @@ function StrikeRollPopover({
               disabled={
                 disabled ||
                 roll.busy ||
-                (kind === "damage" && options?.damage_available === false)
+                (attack ? !!options?.unavailable : options?.damage_available === false)
               }
               loading={roll.busy && !roll.animating ? { delay: 300 } : false}
               onClick={act}
@@ -286,7 +352,7 @@ function StrikeRollPopover({
         size="small"
         style={{ padding: 0, height: "auto", whiteSpace: "normal", textAlign: "left" }}
         disabled={disabled}
-        aria-label={`Roll ${actionLabel}`}
+        aria-label={attack ? `Strike ${title} attack ${label}` : `Roll ${actionLabel}`}
       >
         {label}
       </Button>

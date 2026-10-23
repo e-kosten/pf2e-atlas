@@ -24,6 +24,8 @@ pub struct StoredStrikeRoll {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum StoredStrikeOutcome {
     Attack {
+        #[serde(default)]
+        modifier: Option<i32>,
         outcome: RollOutcome,
     },
     Damage {
@@ -124,6 +126,7 @@ mod tests {
             roll: StoredStrikeRoll {
                 title: "Claw".into(),
                 outcome: StoredStrikeOutcome::Attack {
+                    modifier: Some(0),
                     outcome: atlas_dice::prepare("17")?.roll()?,
                 },
             },

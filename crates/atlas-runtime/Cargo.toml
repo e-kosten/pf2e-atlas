@@ -6,6 +6,9 @@ license.workspace = true
 publish.workspace = true
 rust-version.workspace = true
 
+[features]
+test-support = []
+
 [dependencies]
 atlas-domain.workspace = true
 atlas-foundry-model.workspace = true

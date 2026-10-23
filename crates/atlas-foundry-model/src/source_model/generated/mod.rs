@@ -801,3 +801,5 @@ mod trait_definitions;
 pub use trait_definitions::{
     FoundryTraitDefinition, FoundryTraitSourceLocation, trait_definition, trait_definitions,
 };
+
+pub mod condition_definitions;

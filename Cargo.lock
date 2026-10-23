@@ -428,6 +428,7 @@ dependencies = [
  "atlas-search",
  "axum",
  "rust-embed",
+ "serde",
  "serde_json",
  "tempfile",
  "tokio",

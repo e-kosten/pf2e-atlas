@@ -1,4 +1,5 @@
-import { Form, InputNumber } from "antd";
+import { Form } from "antd";
+import { ConditionValueInput } from "./ConditionValueInput";
 import { useRef, useState } from "react";
 
 export function EncounterConditionValue({
@@ -6,11 +7,13 @@ export function EncounterConditionValue({
   value,
   disabled,
   onCommit,
+  onClear,
 }: {
   name: string;
   value: bigint | undefined;
   disabled: boolean;
   onCommit: (value: bigint) => Promise<boolean>;
+  onClear?: () => Promise<boolean>;
 }) {
   const [draft, setDraft] = useState<number | null | undefined>(undefined);
   const [error, setError] = useState<string>();
@@ -19,8 +22,8 @@ export function EncounterConditionValue({
     draft === undefined ? (value === undefined ? null : Number(value)) : draft;
   const commit = async (input: number | null) => {
     if (disabled || inFlight.current) return;
-    if (input === null || !Number.isSafeInteger(input) || input < 0) {
-      setError("Enter a whole number, zero or greater.");
+    if (input === null || !Number.isSafeInteger(input) || input < 1) {
+      setError("Enter a whole number, one or greater.");
       return;
     }
     setError(undefined);
@@ -40,13 +43,11 @@ export function EncounterConditionValue({
       validateStatus={error ? "error" : undefined}
       help={error}
     >
-      <InputNumber
-        mode="spinner"
-        style={{ width: 144 }}
-        aria-label={`${name} value`}
-        disabled={disabled}
-        step={1}
+      <ConditionValueInput
+        name={`${name} value`}
+        removeLabel={`Remove ${name}`}
         value={shown}
+        disabled={disabled}
         onChange={(input) => {
           setDraft(input);
           setError(undefined);
@@ -59,6 +60,21 @@ export function EncounterConditionValue({
             void commit(shown);
           }
         }}
+        onRemove={
+          onClear
+            ? async () => {
+                if (disabled || inFlight.current) return;
+                inFlight.current = true;
+                try {
+                  if (await onClear()) setDraft(undefined);
+                } catch {
+                  /* Mutation owner reports failure. */
+                } finally {
+                  inFlight.current = false;
+                }
+              }
+            : undefined
+        }
       />
     </Form.Item>
   );

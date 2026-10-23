@@ -1,0 +1,261 @@
+# ADR 0055: Shared Encounter Condition Evaluation
+
+Status: accepted.
+Date: 2026-10-19
+
+## Context
+
+Condition effects span displayed statistics, strikes, spells, senses, turn review,
+HP and recovery. Implementing each surface independently creates contradictory
+numbers and allows actions to bypass restrictions. Some effects are derived;
+others change saved state once. Treating both as display adjustments repeats
+consequences on reads or loses independent sources.
+
+## Decision
+
+`atlas-app-service::encounters::rules` owns condition policy. Its source adapter
+reads checked `atlas-record` views into internal typed facts. Statistic targets,
+abilities, causes, modifiers and action judgments are domain facts. Outgoing
+presentation DTOs are not inputs to calculation. Display and mutation consumers
+use the same evaluated facts; presentation translates them without rule arithmetic.
+
+Standard condition identities, value metadata, numerical declarations, grants and
+overrides come from the pinned generated condition catalog in `atlas-foundry-model`.
+The private source-contract tool also extracts the complete supported trait-to-immunity
+helper into guarded declarations. New trait branches using supported syntax regenerate
+without trait-specific application code; unsupported control flow or rule fields stop
+generation. Reviewed adapter/lifetime dispositions account for source declarations
+that need explicit Atlas semantics. Product kind applicability, scope, automation
+labels and exceptional lifetimes remain application policy.
+
+One selector/value/predicate adapter serves statistics, strikes, spells, damage,
+initiative and effective HP. Generated declarations are immutable source facts,
+not executable JavaScript or a second general rule engine. The catalog has its own
+pack-byte/declaration/coverage identity, independent of the DTO snapshot contract.
+The generated damage-type vocabulary supplies both editor choices and source-fact
+keys. Consumer code does not maintain another list or enum-to-key mapping.
+Normal execution needs neither Node nor the source checkout.
+
+One checked effective-immunity adapter combines authored entries and generated
+trait rules for condition applicability and persistent damage. It preserves authored
+exceptions and the engine's authored-entry precedence. Known positive facts survive
+partial data; incomplete authored lists and uncertain trait rules remain explicit.
+Unknown traits never become an empty trait list. Effect immunity such as mental
+immunity does not become blanket immunity to all conditions it could cause.
+
+Independent saved condition sources retain identity, scope, parameters, duration
+and origin. Resolve scope before suppression and derive maintained grants without
+saving duplicate child rows. Removing one source cannot remove an independent
+effect. Persistent consequences, such as Drained HP loss and falling Prone, use
+explicit event plans. Correcting an entry differs from applying an effect now.
+Behavioral subjects, such as a fascination or threat, are distinct from the source
+that applied the condition. Missing subjects require context only when an action
+depends on them; the causal source is not an implicit substitute.
+
+Unknown facts stay unknown. An unavailable calculation does not silently use an
+authored subtotal, assume a missing trait is false, or substitute an unheightened
+spell. Ask only for facts relevant to the requested operation. Browsing a creature
+does not require selecting a target or supplying geometry. UI action availability
+and required inputs come from Rust projections; the browser does not switch on
+condition names to implement policy.
+
+`atlas-local-state` owns atomic event writes, receipts and pending consequences. A write recovers an existing receipt before checking revisions,
+then validates the current snapshot before rolling or changing state. The same
+request cannot repeat HP loss, resource expenditure, checks or turn processing.
+Accepted boundaries also have unique participant/round/scope claims, so changing
+the request ID cannot repeat the boundary. Reads and manual turn selection are
+not lifecycle events.
+
+A direct attack roll retains backend numerical adjustments and source/receipt
+guards. Optional Target & checks assistance is read-only, stays beside the original
+roll and cannot reroll or rewrite it. The spell popover reads condition reminders
+and records a direct guarded use through the existing resource mutation owner.
+Recording use asserts expenditure, not targeting success, completed checks or
+permission to act. Reference flat checks are dice for the GM, not a saved action
+state machine. Retch's fixed traits feed the shared evaluator. Unresolved
+restrictions remain hints; recovery does not collect action judgments. Integrated
+Retch rolls require known source DC, current Fortitude and resolved restrictions.
+A table outcome records the GM's resolution without replaying its prerequisites.
+The action evaluator covers the live Strike, Cast and Retch workflows. Actions
+the product cannot initiate do not have query branches.
+There is no general action-query API, durable attempt history,
+frozen action context or alternative cost-commit path.
+
+HP events distinguish resolved damage, resolved healing, direct loss and exact
+correction. Already mitigated table amounts never receive defenses a second time.
+Saved maximum HP remains baseline capacity; condition-adjusted capacity is derived.
+One attributed maximum-HP projection feeds source-backed statistics, manual-PC HP,
+the inspector summary/meter and healing limits. Missing condition inputs leave the
+effective cap unknown; a known baseline is never treated as an unlimited healing
+cap. Direct current/temp edits are exact corrections and do not replay damage or
+healing consequences. Drained arrival previews stay anchored to the changed row;
+missing level is supplied once there and remains a saved participant fact.
+Track Dying and mortality are distinct from Defeated/Disabled participation markers.
+The Dead/Defeated status entry can start dying tracking at0HP through the same
+knockout planner, preserving HP and atomically applying the chosen outcome. An
+explicit Markalive correction preserves the tracking preference and retires stale
+HP/initiative decisions. Source applicability and the reference revision guard
+still apply. Backend-projected knockout choices preserve known damage facts;
+initiative placement remains editable and is committed with the knockout outcome.
+Pending HP decisions are applicable only while their recorded HP/dying state remains
+current. Reads hide obsolete decisions without changing saved state. Encounter
+events and direct participant edits retire them within the guarded write that
+invalidates them, so returning to 0 HP cannot revive an older knockout. Storage
+only deletes the workflow-selected keys; app-service owns applicability. Closing
+the knockout popover leaves a current decision available; there is no separate
+Skip action.
+The UI suggests the active turn, rather than identifying it with the damage source;
+no active turn defaults to keeping position. Initiative-only entries use the
+concrete Moveinitiative action rather than a generic HP decision form.
+Explicit level overrides and death thresholds are saved participant facts, not
+values inferred from notes or transient form state.
+
+Incomplete persistent damage is a typed reminder source retaining optional formula,
+damage type, and entered settings. It does not join automated damage/recovery episodes.
+Completing its details uses the same guarded condition update and episode admission
+as other automated sources. Reminders remain visible and removable at the table.
+Persistent damage retains complete sources within typed episodes. Select the greater amount
+only when comparison is established. Otherwise the default precedence uses higher
+additive-dice averages without claiming a rules comparison. Add/Edit exposes the
+complete source order whenever any pair is ambiguous, including fallback sources
+below a uniquely strongest source. Apply saves that order and the condition in
+one event. Reads ignore absent members while preserving every survivor's relative
+order; membership changes do not erase lower preferences. New sources enter their
+default positions; formula/recovery edits reconsider only the changed source,
+while metadata-only edits retain the whole order. Damage and recovery consume
+precedence without replacing it. The rules owner returns nonempty groups with
+one active source and the complete source order. Projection, damage and recovery
+consume that same selection. Damage and recovery requests identify episodes;
+the guarded backend snapshot supplies their active source. Source comparison and ordering
+belong in Add/Edit, with no second source picker in damage or recovery. Storage resolves typed addition references after
+allocating their IDs in the event transaction; there is no intermediate write. Apply active
+damage types simultaneously through one HP event, then resolve recovery separately.
+Successful recovery clears its episode; individual expiry/removal can reveal a
+weaker source. Physical-table recovery has a direct per-type Clear intent beside the recovery
+roller. It ends the recorded episode's matching current sources without a DC,
+source-selection form, simulated roll, HP change or turn-recovery claim. It
+preserves other types and sources added after the outgoing boundary. The review
+and damage command share an executable-source projection intersecting the recorded
+sources with current episode membership, so ended sources cannot be charged later.
+Review responses pair those groups with their encounter revision so clearing a
+source cannot invalidate the remaining batch while the parent turn view refreshes.
+Explicit recovery rolls are independent of initiative progression; durable request
+receipts deduplicate retries without imposing a once-per-round allowance. Only
+end-turn recovery claims its boundary. Recovery dice and outcomes remain in the
+anchored recovery popover; individual source rows retain ordinary removal.
+Outcomes and boundary claims provide replay-safe review.
+
+The compact attack roller remains immediately usable. Optional attack assistance
+projects applicable conditions and checks from the shared rules owner. Its flat-check
+rolls are reference dice and never assert that target detection, an attack, or an
+action has been resolved. Unknown table facts remain reminders instead of a required
+questionnaire. No action-attempt API or persistence is retained for an unused
+workflow. Casting reminders read against the encounter revision because condition-only
+changes do not advance the participant resource/settings revision. Retained advice
+is valid only while the spell, source generation, participant conditions and status
+remain unchanged; resource-only refreshes preserve the anchored spell view.
+
+Next turn advances atomically before the browser presents one notification for the
+turn just completed. Closing by Escape, backdrop or the close icon finishes the
+interaction without changing HP, conditions or initiative. Reads and refreshes do
+not reopen it. There is no acknowledgment, past-turn queue, selector or pagination.
+Durable advance receipts retain the original participant and frozen source context
+for retry safety while the current notification is open. Only the latest completed
+boundary is actionable; advancing again supersedes it. Receipts remain storage
+history, not a reminder inbox. Start-turn Dying and Stunned recovery remain
+explicit inspector actions, not silently replayed outgoing events. Waking from
+noise is guidance alongside the existing Perception roller, not a DC-entry form.
+
+Observer-relative effects derive directly from active condition sources and their
+scope. Hidden/Undetected produce only the affected observer's defense and targeting
+context; absence never means Observed. Invisible alone does not establish detection.
+Controlled retains source attribution and instructions; conflicting instructions
+remain a table decision. There are no saved baseline/adjudication layers, relationship
+editing APIs or observer-event automation without a UI workflow.
+
+One condition-system migration follows the published party and trait migrations. Unpublished
+prototype states do not become historical upgrades or compatibility paths.
+
+Condition eligibility reads typed immunity coverage and hazard health facts directly
+from checked source views. It does not hydrate record presentation or correlate
+presentation entries by position. Subject facts use the caller's participant snapshot;
+source and encounter revisions guard the eventual write.
+
+Recovery offers are action-specific data, not a nullable field bag plus a parallel
+required-input schema. Rust associates offers with saved condition source IDs;
+one browser recovery owner presents hints and meaningful actions in condition
+rows. Pending HP decisions stay beside HP controls.
+There is no generic action/disclosure slot between participant identity and HP.
+Recovery hints/results remain anchored to the requested action, including while
+successful resolution removes the associated condition. Listing and check
+submission share the offered source facts. Known checks use the shared dice
+surface; table outcomes use direct controls without raw-result entry. Missing DCs,
+modifiers, elapsed time and recovery reasons never become required recovery fields.
+Wounded, waking and overnight recovery use hints and existing row controls rather
+than separate validation commands. Broken uses its derived/source threshold and
+normal condition editing; missing thresholds do not queue a recovery form.
+A request-local prepared lifecycle plan validates source decisions before RNG and
+resolves the actual check outcome once; it is never saved as an attempt. The concrete
+encounter event executor owns receipt recovery, reference/participant checks and
+entry to local-state's guarded callback. Storage remains the sole atomic write owner.
+
+Recovery reads reference facts only for an integrated Retch roll's current
+Fortitude. Hints, table outcomes and saved-counter recovery have no reference
+dependency or reference revision guard. When reference statistics are unavailable,
+hints and table outcomes remain usable; no integrated roll is offered. Outcome
+validation retains the specific rule message through the atomic boundary; failed
+outcomes save no receipt or boundary claim.
+
+Condition editing has one control-to-command adapter and one session owner for its
+request draft, query-backed preview and submission. Semantic preview effects identify
+their participant independently of storage change ordering. Persistent edit inputs
+retain optional formula/type but carry no resolved episode identity. Rust admits
+reminders versus complete sources and selects or preserves the canonical episode.
+Stored states remain distinct. HP damage/healing uses the product HP action command;
+resolved damage, healing and direct loss remain internal policy inputs.
+
+## Consequences
+
+Rule changes belong in the shared owner with cross-consumer acceptance cases.
+Transport handlers remain thin; frontend forms collect intentional typed inputs.
+Saved-state tables do not evaluate PF2e rules. Source adapters do not execute a
+general Foundry rules or macro engine. Untracked equipment and behavioral choices
+use specific reminders or adjudication, not invented automation.
+
+This extends ADR0048's atomic workflow contract. Old condition arithmetic and
+implicit action-intent bypasses must be removed as part of the implementation, rather
+than retained as compatibility paths. Full coverage and validation are tracked in
+the current condition-system plan; this decision does not itself certify completion.
+
+A sense-dependent Perception penalty does not erase an otherwise known statistic.
+The rules projection retains the known value and attaches its conditional explanation
+to that statistic; authored sense precision/range and condition availability remain
+visible alongside it. No target distance is invented for an untargeted overview.
+
+The action-regain explanation shows each condition once with its actual contribution.
+Fully covered Slowed is suppressed; partial coverage includes a numeric explanation
+from the rules owner. Quickened's extra-action status assumes losing that action
+first when actions are lost. This is display policy, not saved action allocation or
+a spending ledger. Recovery remains an explicit condition-row operation.
+
+Persistent damage review projects the same per-type protections used by the damage
+command. Immunity, weakness and resistance attribution stays beside the damage
+entry/result; applied roll receipts retain those facts rather than inferring a
+past result from today's reference data. Table totals bypass defense automation
+and carry no implied protection calculation. Effect admission immunities (including
+sleep, disease and fear) do not block an already-recorded persistent damage packet;
+unknown damage-relevant selectors and exceptions still require a table result.
+Non-random end-turn Frightened reduction is a direct reminder action, without a
+roller/popover step. Guarded revisions and boundary claims still protect retries.
+
+### Attitude and behavioral reminders
+
+Attitudes can be recorded without confirming their supernatural origin. A PC attitude
+form shows a concise rules reminder; it does not require an extra admission fact or
+an immunity override solely because the participant is a PC. Condition immunity
+handling remains separate. Attitude parameters carry no supernatural flag.
+
+Behavioral condition row hints and action-specific casting reminders are projected
+by the shared rule owner. Persistent damage group projections may include an immunity
+note established by the same damage-protection evaluation used for resolution;
+the frontend renders that fact without reinterpreting trait or immunity rules.

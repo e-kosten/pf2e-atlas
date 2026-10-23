@@ -32,7 +32,8 @@ describe("reference fact reading policy", () => {
     expect(screen.getByText("Formula").parentElement).toHaveTextContent("Empty");
     expect(screen.getByText("Weight").parentElement).toHaveTextContent("0");
     expect(screen.getByText("Complex").parentElement).toHaveTextContent("false");
-    for (const state of ["missing", "null", "invalid"])
+    expect(screen.getByLabelText("Missing is unavailable.")).toHaveTextContent("—");
+    for (const state of ["null", "invalid"])
       expect(screen.getByText(`[${state}]`)).toBeVisible();
   });
 
@@ -203,7 +204,7 @@ describe("reference fact reading policy", () => {
     if (presentation.body.kind !== "roll_table") throw new Error("fixture");
     presentation.body.value.results = unavailableFact("missing");
     rerender(<RecordPresentation presentation={presentation} onReference={vi.fn()} />);
-    expect(screen.getByText("Results").parentElement).toHaveTextContent("[missing]");
+    expect(screen.getByText("Results").parentElement).toHaveTextContent("—");
     presentation.body = {
       kind: "table_result",
       value: {

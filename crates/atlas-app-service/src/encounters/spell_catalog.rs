@@ -45,6 +45,7 @@ pub(super) fn catalog(
     record: &SourceBackedRecord,
     saved: &[SpellResource],
     expended: &[String],
+    fingerprint: Option<&str>,
 ) -> EncounterSpellcastingView {
     let mut entries: BTreeMap<&str, Vec<&SpellcastingEntrySource>> = BTreeMap::new();
     record.visit_immediate_actor_items(|_, _, item| {
@@ -260,7 +261,7 @@ pub(super) fn catalog(
                 spell_rank: None,
                 field: None,
                 passage: None,
-                source_fingerprint: None,
+                source_fingerprint: fingerprint.map(str::to_owned),
             },
             entry_id: entry_id.into(),
             title,
@@ -275,7 +276,7 @@ pub(super) fn catalog(
 }
 
 pub(super) fn initial_resources(record: &SourceBackedRecord) -> Vec<SpellResource> {
-    catalog(record, &[], &[])
+    catalog(record, &[], &[], None)
         .resources
         .into_iter()
         .map(|r| SpellResource {

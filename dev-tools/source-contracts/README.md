@@ -480,3 +480,25 @@ The PF2e 8.6.1 pin has 45 roots: five document kinds (all 25 Item and eight Acto
 The summary records a source digest, source version, Git commit/dirty state when the source is a checkout, TypeScript version and dependency lock digest. Archives have no Git identity. The source digest covers relative names and bytes of `src`, `types`, the package and system manifests, compiler config and English localization; it is independent of checkout location. The lock digest identifies the intended environment; it does not attest an arbitrary external `node_modules` installation.
 
 Save outputs for each source revision and use a normal JSON diff to discover field, vocabulary and metadata changes. Extraction output is developer evidence, not a runtime admission gate or a tracked generated Rust model. See the [source-contract experiment](../../docs/backlog/history/items/rust-source-contract-generation.md) and [selective recovery inventory](../../docs/backlog/items/rust-integration-recovery.md) for the remaining work.
+
+## Condition and trait-immunity facts
+
+The generated condition catalog selects identities, numeric/value metadata, modifiers,
+grants, overrides and HP-loss expressions from `packs/pf2e/conditions`. Its typed
+expression/predicate projection accepts only supported shapes. The trait-immunity
+extractor accounts for every statement in the selected `setImmunitiesFromTraits`
+helper; it emits actor/trait/authored-entry predicates rather than executing upstream
+code or matching a hardcoded list of trait names. New unsupported syntax fails.
+
+`fixtures/condition-rule-coverage.json` records reviewed Atlas adapters, exceptional
+persistent-grant lifetimes and override dispositions. Unreviewed declarations, stale
+entries, grant cycles and unknown destinations fail generation. Condition source
+files are part of the private pinned export and are checked against the separate
+`conditionSourceDigest` in `source-pin.json`. An older export missing these inputs
+must be removed/regenerated through the tool-owned cache workflow. The caller's
+checkout and the runtime managed cache are never repaired by generation.
+
+`condition_definitions.rs` carries its own catalog identity/provenance. It does not
+copy condition descriptions, change the checked snapshot format or introduce a
+runtime filesystem/Node dependency. Application policy owns contextual meaning,
+lifetimes and events. See ADR0055 for this consumer boundary.

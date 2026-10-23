@@ -163,3 +163,16 @@ test('runtime acquisition identity comes from the same canonical declaration pin
   const root = rustFiles(input)['mod.rs'];
   for (const value of [pin.repository, pin.commit, pin.systemVersion]) assert.ok(root.includes(JSON.stringify(value)));
 });
+
+test('condition facts cover the full pinned pack and retain all native relationship inputs', () => {
+  const catalog = input.conditionCatalog;
+  assert.ok(catalog);
+  assert.equal(catalog.conditions.length,43);
+  assert.equal(catalog.conditions.flatMap(condition=>condition.modifiers).length,15);
+  assert.equal(catalog.conditions.flatMap(condition=>condition.grants).length,12);
+  assert.equal(catalog.conditions.flatMap(condition=>condition.overrides).length,23);
+  assert.equal(catalog.immunities.length,19);
+  assert.equal(catalog.conditions.filter(condition=>condition.hpLoss).length,1);
+  assert.match(catalog.digest,/^[a-f0-9]{64}$/);
+  assert.match(generateRustModules(input)['condition_definitions.rs'], /pub enum ConditionId/);
+});

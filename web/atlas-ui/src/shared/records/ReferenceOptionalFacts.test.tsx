@@ -23,10 +23,10 @@ describe("optional reference content", () => {
       };
       const { rerender } = render(<SpellReference spell={spell} />);
       expect(screen.getByText("Heightening").parentElement).toHaveTextContent(
-        `[${state}]`,
+        state === "missing" ? "—" : `[${state}]`,
       );
       expect(screen.getByText("Spell forms").parentElement).toHaveTextContent(
-        `[${state}]`,
+        state === "missing" ? "—" : `[${state}]`,
       );
       rerender(
         <SpellReference
@@ -84,7 +84,9 @@ describe("optional reference content", () => {
           spell={{ ...spellFixture(), defense: unavailableFact(state) }}
         />,
       );
-      expect(screen.getByText("Defense").parentElement).toHaveTextContent(`[${state}]`);
+      expect(screen.getByText("Defense").parentElement).toHaveTextContent(
+        state === "missing" ? "—" : `[${state}]`,
+      );
     },
   );
   it.each<PreparedFieldBodyView>([
@@ -187,9 +189,7 @@ describe("optional reference content", () => {
     });
     render(<SpellReference spell={spell} />);
     expect(screen.getByText("Damage increase 1").parentElement).toHaveTextContent("0");
-    expect(screen.getByText("Damage increase 2").parentElement).toHaveTextContent(
-      "[missing]",
-    );
+    expect(screen.getByText("Damage increase 2").parentElement).toHaveTextContent("—");
     expect(screen.getByText("Damage increase 3").parentElement).toHaveTextContent(
       "[invalid]",
     );

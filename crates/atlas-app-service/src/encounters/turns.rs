@@ -65,6 +65,11 @@ pub(super) fn next_turn_after_removed(
 fn eligible_turn_participants(participants: &[EncounterParticipant]) -> Vec<&EncounterParticipant> {
     participants
         .iter()
-        .filter(|p| p.initiative.is_some() && !p.defeated && !p.hazard_disabled)
+        .filter(|p| {
+            p.initiative.is_some()
+                && !p.defeated
+                && !p.hazard_disabled
+                && p.mortality != atlas_local_state::MortalityState::Dead
+        })
         .collect()
 }

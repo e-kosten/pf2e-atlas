@@ -416,6 +416,36 @@ Workspace migration 6 converts defeated hazards to disabled and prevents hazards
 from storing the creature defeated marker. It preserves HP and creature status.
 Migration 5 remains immutable because it has been applied to preview workspaces.
 
+### Encounter condition system
+
+Workspace migration 9 applies the condition system directly after the published
+party (7) and trait vocabulary (8) migrations. It adds scoped condition inputs,
+extra-action restrictions, immunity overrides, typed parameters and independent
+application origins, plus
+participant dying-tracking, mortality, level overrides and death thresholds.
+Everyone and selected participants remain distinct scopes; unspecified,
+unrestricted and restricted extra actions remain distinct states. Notes are
+optional guidance, never executable rule input. No intermediate development
+schemas or conversion of prototype fields are part of this migration.
+
+Saved `max_hp` remains pre-condition capacity. Derived condition statistics never
+charge persistent consequences on reads. App-service prepares explicit bounded
+events; local-state applies their condition/HP changes, pending decisions and
+versioned receipts atomically. Application identities stay consumed after removal,
+so a retry cannot grant the same consequence again. Unconscious-created Prone
+remains after waking. Persistent-damage comparisons retain exact episode/source
+membership; boundary claims prevent replaying completed turn processing.
+
+Outgoing turn receipts store request identities and typed pre-advance saved-state
+snapshots. Advancement commits the boundary and next turn together. Only the latest
+completed boundary is actionable; closing the notification changes no saved state.
+There is no acknowledgment queue or persisted action-attempt/relationship workflow.
+Spell reminders and optional strike context are read-only projections. Spell
+resource writes and retained dice use their existing guarded mutation owners.
+
+This saved-domain migration preserves reference artifacts, parties, lists and
+existing encounters. Published migrations 1–8 remain unchanged.
+
 ### PF2e 8.6.1 reference preparation
 
 The current source contract includes ammunition as an equipment family. NPC skills

@@ -287,6 +287,35 @@ it("loads complete selected views in an isolated participant cache and refreshes
   expect(api.getRecordDetail).not.toHaveBeenCalled();
 });
 
+it("keeps the mounted document and reading position through a pending contextual refresh and shows a real refresh failure", async () => {
+  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true, xl: true });
+  const jaws = activityFixture();
+  const { update } = mount(jaws);
+  fireEvent.click(screen.getByRole("button", { name: "Jaws quick lookup" }));
+  const prose = await screen.findByText(/Exact local Jaws prose/);
+  const popup = screen.getByRole("dialog", { name: "Reference preview" });
+  const body = document.querySelector<HTMLElement>(".record-preview-popover__body")!;
+  body.scrollTop = 180;
+  let reject: (error: Error) => void = () => {};
+  api.getEncounterReference.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      }),
+  );
+  update({ ...jaws, attack: numberFact(17) });
+  await waitFor(() => expect(api.getEncounterReference).toHaveBeenCalledTimes(2));
+  expect(screen.getByRole("dialog", { name: "Reference preview" })).toBe(popup);
+  expect(screen.getByText(/Exact local Jaws prose/)).toBe(prose);
+  expect(body.scrollTop).toBe(180);
+  await act(async () => reject(new Error("Context refresh failed")));
+  await screen.findByText(/Context refresh failed/);
+  expect(screen.getByText(/Exact local Jaws prose/)).toBe(prose);
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Retry" })).toBeVisible(),
+  );
+});
+
 it("keeps changed participants and stale generations explicit without baseline fallback", async () => {
   vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: true });
   const jaws = activityFixture();

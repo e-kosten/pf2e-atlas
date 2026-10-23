@@ -5,12 +5,12 @@ PF2e-derived source models and trait metadata
 Source project: Pathfinder 2nd Edition system for Foundry Virtual Tabletop
 Source repository: https://github.com/foundryvtt/pf2e
 Source commit: 28d9d156f252d084371d994dc359509b49eadf18 (PF2e 8.6.1)
-Source files: authored TypeScript source declarations under src/ and trait catalogs in src/scripts/config/traits.ts
+Source files: authored TypeScript source declarations under src/ and trait catalogs in src/scripts/config/traits.ts, trait-immunity declarations in src/module/actor/creature/helpers.ts, and selected mechanical condition facts in packs/pf2e/conditions
 Generated files: crates/atlas-foundry-model/src/source_model/generated/
 Attribution: Copyright 2019 Hooking and contributors to the Pathfinder 2nd Edition system for Foundry Virtual Tabletop.
 License: Apache License, Version 2.0
 
-Modifications: Atlas extracts and transforms the authored source declarations and catalog mappings into Rust models, source-family metadata, trait identifiers, localization-key mappings, catalog memberships and source locations. This generated metadata does not contain localized rules descriptions.
+Modifications: Atlas extracts and transforms the authored source declarations and catalog mappings into Rust models, source-family metadata, trait identifiers, localization-key mappings, catalog memberships and source locations. Atlas also compiles selected condition identities, numeric and relationship facts, and guarded trait-immunity declarations. Condition descriptions and native executable JavaScript are not included in that catalog. This generated metadata does not contain localized rules descriptions.
 
 The complete Apache License text is reproduced below. This source-code and metadata attribution does not cover separately acquired game rules descriptions.
 

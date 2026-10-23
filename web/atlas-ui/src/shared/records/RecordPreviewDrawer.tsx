@@ -50,7 +50,7 @@ export function RecordPreviewDrawer({
       }}
       focusable={{ focusTriggerAfterClose: false }}
       className="record-preview-drawer"
-      closable={{ placement: "end" }}
+      closable={recordActions ? false : { placement: "end" }}
       open={open}
       placement="right"
       title={
@@ -62,6 +62,16 @@ export function RecordPreviewDrawer({
         </>
       }
       size="min(560px, 100vw)"
+      styles={{
+        header: {
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) auto",
+          gap: 8,
+          flex: "0 0 auto",
+        },
+        extra: { gridColumn: "1 / -1", gridRow: 2, minWidth: 0 },
+        close: { gridColumn: 2, gridRow: 1 },
+      }}
       classNames={{
         header: "record-preview-drawer__header",
         body: "record-preview-drawer__body",
@@ -70,7 +80,7 @@ export function RecordPreviewDrawer({
         <div ref={actions}>
           <RecordPreviewActions
             actions={recordActions}
-            showClose={false}
+            showClose={!!recordActions}
             readingHistory={readingHistory}
             onClose={onClose}
             onOpenFullPage={onOpenFullPage}
