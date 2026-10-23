@@ -46,6 +46,7 @@ Popover/Drawer or link-navigation policies.
 ## CSS Layout
 
 - Each content boundary has one padding owner. DocumentPagePane owns a standalone page's inset around its identity and flush detail; RecordDetailPane owns the inset in a selected-results reader. A reference Drawer body owns its inset and its detail is flush. The page/pane host owns background, border and shadow; reusable detail content must not introduce a nested card. RecordPresentation adds no outer padding. Use the spacing and control-group ownership examples in the frontend guidelines.
+- Standalone record/trait page frames grow with their content and use native page scrolling, including from the outer margin. Keep bounded scrolling in search readers and Drawers; do not make a standalone document card a separate vertical scroll region. See the frontend guide for scroll ownership and authored-table overflow.
 - Single-entity pages lead with the entity name and its actions. Do not add a generic Reference or Details pane bar above the actual title. Pane labels belong to workspaces with distinct regions.
 - Put reusable component styles under `src/styles/ui`.
 - Put feature-specific styles under the owning feature stylesheet.

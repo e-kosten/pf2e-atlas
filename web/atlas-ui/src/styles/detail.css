@@ -54,7 +54,7 @@
   grid-template-columns: var(--pane-columns, minmax(0, 1fr));
   column-gap: 0;
   row-gap: var(--panel-gap);
-  height: 100%;
+  height: auto;
   min-height: 0;
   padding: var(--space-section);
 }
@@ -63,7 +63,7 @@
   --record-page-inset: var(--space-section);
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
   padding: var(--record-page-inset);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);

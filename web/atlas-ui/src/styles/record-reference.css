@@ -36,7 +36,27 @@
   overflow-x: auto;
 }
 .prepared-content table {
+  width: 100%;
+  border-collapse: collapse;
   overflow-wrap: normal;
+}
+.prepared-content :is(th, td) {
+  padding: var(--space-control) var(--space-group);
+  border-bottom: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+}
+.prepared-content th {
+  font-weight: 650;
+}
+.prepared-content__table-scroll {
+  max-width: 100%;
+  margin-block: var(--space-control) var(--space-group);
+  overflow-x: auto;
+}
+.prepared-content__table-scroll:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
 }
 .record-reference__header {
   border-bottom: 1px solid var(--line);
@@ -208,6 +228,9 @@
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line);
 }
+.spell-reference__ritual-checks {
+  margin-block: var(--space-control);
+}
 .spell-reference__change {
   margin-top: 10px;
   padding-left: 12px;
@@ -238,6 +261,9 @@
   margin: 0;
 }
 @container record-pane (max-width: 420px) {
+  .prepared-content :is(th, td) {
+    padding-inline: var(--space-control);
+  }
   .spell-reference__rank-change {
     grid-template-columns: 4.5rem minmax(0, 1fr);
     gap: var(--space-control);

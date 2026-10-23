@@ -22,7 +22,11 @@ pub fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
             .as_value()
             .cloned()
             .unwrap_or_else(|| "Unnamed record".into()),
-        kind_label: kind_label(&kind),
+        kind_label: if kind == "spell" && record.spell_ritual.as_value() == Some(&true) {
+            "Ritual".into()
+        } else {
+            kind_label(&kind)
+        },
         kind,
         source_type: record.source_type.as_value().cloned(),
         level_label: record.level.as_value().map(|level| {
@@ -386,6 +390,7 @@ mod tests {
             record_kind: SourceQueryFact::known(atlas_domain::RecordKind::Equipment),
             level: SourceQueryFact::known(1.into()),
             level_basis: Some(SourceLevelBasis::ItemLevel),
+            spell_ritual: SourceQueryFact::unavailable(QueryFieldState::NotApplicable).unwrap(),
             rarity: SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap(),
             traits: SourceQueryFact::known(vec![]),
             size: SourceQueryFact::unavailable(QueryFieldState::NotApplicable).unwrap(),
@@ -393,6 +398,34 @@ mod tests {
             publication_remaster: SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap(),
             source_path: "items/unnamed.json".into(),
             content_hash: "source-content".into(),
+        }
+    }
+
+    #[test]
+    fn ritual_display_label_requires_known_ritual_identity_and_keeps_spell_kind() {
+        use atlas_domain::{QueryFieldState, RecordKind, SourceQueryFact};
+        let mut source = summary_with_name(SourceQueryFact::known("Resurrect".into()));
+        source.source_type = SourceQueryFact::known("spell".into());
+        source.record_kind = SourceQueryFact::known(RecordKind::Spell);
+        for (ritual, label) in [
+            (SourceQueryFact::known(true), "Ritual"),
+            (SourceQueryFact::known(false), "Spell"),
+            (
+                SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap(),
+                "Spell",
+            ),
+            (
+                SourceQueryFact::unavailable(QueryFieldState::Invalid).unwrap(),
+                "Spell",
+            ),
+        ] {
+            source.spell_ritual = ritual;
+            let view = record_summary_view(&source);
+            assert_eq!(
+                (view.kind.as_str(), view.kind_label.as_str()),
+                ("spell", label)
+            );
+            assert_eq!(view.record_key, source.key.to_string());
         }
     }
 

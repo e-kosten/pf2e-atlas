@@ -40,6 +40,27 @@ it("keeps ritual checks and zero casters visible and counteraction quiet only wh
   expect(screen.getByText("Counteract").parentElement).toHaveTextContent("[invalid]");
 });
 
+it("distinguishes an unspecified ritual caster count from zero and keeps empty checks honest", () => {
+  render(
+    <SpellReference
+      spell={{
+        ...spellFixture(),
+        ritual: knownFact({
+          primary_check: knownFact("Arcana (legendary) or Occultism (legendary)"),
+          secondary_casters: { ...numberFact(0), state: "null", value: null },
+          secondary_checks: knownFact(""),
+        }),
+      }}
+    />,
+  );
+  expect(screen.getByText("Secondary casters").parentElement).toHaveTextContent(
+    "Not specified",
+  );
+  expect(screen.getByText("Secondary checks").parentElement).toHaveTextContent(
+    "None listed",
+  );
+});
+
 it("shows prerequisites and effect duration from the shared projection", () => {
   const activity = {
     ...activityFixture("Effect"),

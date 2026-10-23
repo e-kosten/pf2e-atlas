@@ -267,6 +267,7 @@ export function SpellReference({
   spell: SpellPresentationView;
   children?: ReactNode;
 }) {
+  const ritual = spell.ritual.state === "value" ? spell.ritual.value : null;
   return (
     <div className="spell-reference">
       {spell.rank_note && <p>{spell.rank_note}</p>}
@@ -300,22 +301,27 @@ export function SpellReference({
           <FactLine label="Requirements" fact={spell.requirements} />
         )}
         {spell.cost && <FactLine label="Cost" fact={spell.cost} />}
-        {spell.ritual.value ? (
-          <>
-            <FactLine
-              label="Primary check"
-              fact={spell.ritual.value.primary_check}
-              required
-            />
+        {ritual ? (
+          <div className="spell-reference__ritual-checks">
+            <FactLine label="Primary check" fact={ritual.primary_check} required />
             <FactRow label="Secondary casters">
-              <NumberFact fact={spell.ritual.value.secondary_casters} />
+              {ritual.secondary_casters.state === "null" ? (
+                "Not specified"
+              ) : (
+                <NumberFact fact={ritual.secondary_casters} label="Secondary casters" />
+              )}
             </FactRow>
-            <FactLine
-              label="Secondary checks"
-              fact={spell.ritual.value.secondary_checks}
-              required
-            />
-          </>
+            {ritual.secondary_checks.state === "value" &&
+            !ritual.secondary_checks.value?.trim() ? (
+              <FactRow label="Secondary checks">None listed</FactRow>
+            ) : (
+              <FactLine
+                label="Secondary checks"
+                fact={ritual.secondary_checks}
+                required
+              />
+            )}
+          </div>
         ) : (
           spell.ritual.state !== "missing" && (
             <FactLine label="Ritual casting" fact={spell.ritual} />

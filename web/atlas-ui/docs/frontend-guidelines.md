@@ -288,6 +288,15 @@ Keep the action component mounted while the identity arrives or refreshes, so an
 open saved-list dialog survives the read. Use pane labels where they distinguish
 actual regions, such as search results and Preview.
 
+Standalone record and trait pages use native document scrolling. DocumentPagePane
+and its card grow with the content; do not constrain the card to viewport height
+or give it an independent vertical scrollbar. Wheel scrolling over the surrounding
+margin and PageDown must move the same page, and the end of a long record must
+remain reachable. Search results/readers and reference Drawers retain bounded
+scroll regions because they coexist with other reading context; preserve their
+landing, close and Back boundaries. A wide authored table may scroll horizontally
+inside its own region without moving the surrounding prose.
+
 Apply Ant region insets through its documented semantic styles, using the shared
 spacing variables. An Atlas class alone can lose to the library's selector. The
 reference Drawer's content-sized header must not flex-shrink: its bounded overflow
@@ -803,6 +812,24 @@ Compact result classification uses the supplied kind and level/rank labels;
 removing the Level/Rank display prefix does not create a typed fact. Product record
 paths use literal colons through the shared serializer; keep API encoding and
 complete selection identity intact.
+
+Rituals use the service-provided Ritual display label in summaries and detailed
+identity, including selected ranks. Their canonical spell kind, record key and
+filter membership stay unchanged. Group casting time/cost and ritual checks
+before the authored prose, without nested cards or extra disclosures. Preserve
+compound check qualifications and caster counts: Atone's supplied zero remains
+0; Borrow Time's null count reads Not specified; an authored empty secondary-check
+string reads None listed. Do not infer that no secondary checks are required from
+a zero caster count, or replace an unspecified count with zero.
+
+For authored HTML tables, PreparedContent preserves native rows, captions,
+headers, source links and controls. Its wrapper owns local horizontal overflow;
+cells own their inset: space-control vertically and space-group horizontally,
+with space-control on both axes in compact panes. Use semantic row separators.
+Only overflowing wrappers add a keyboard stop and labelled region. Do not pan the
+whole prose block with the table, force every table into permanent overflow, or
+rebuild authored rules as a calculated application table. An unchanged-content
+refresh must retain the table nodes, horizontal position and focused source link.
 
 `RecordDetailPane` owns shared detail loading, unavailable-record, refresh-error,
 retry and back states. Keep query errors with their affected pane and feature

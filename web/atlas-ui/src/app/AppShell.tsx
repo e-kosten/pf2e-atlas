@@ -91,7 +91,10 @@ export function AppShell({
     readinessError?.message ??
     (readiness?.status === "blocked" ? readiness.message : null);
   return (
-    <div className="atlas-app" data-theme={resolvedColorScheme}>
+    <div
+      className={`atlas-app${activeView === "record" || activeView === "trait" ? " atlas-app--document" : ""}`}
+      data-theme={resolvedColorScheme}
+    >
       <Typography.Link
         className="skip-link"
         href="#atlas-main"

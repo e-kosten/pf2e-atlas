@@ -13,6 +13,14 @@
   min-height: 0;
   overflow: auto;
 }
+.atlas-app--document {
+  height: auto;
+  min-height: 100dvh;
+  overflow: visible;
+}
+.atlas-app--document > .atlas-app__content {
+  overflow: visible;
+}
 .atlas-app__content:focus-visible {
   outline: 2px solid var(--active-border);
   outline-offset: -2px;

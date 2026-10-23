@@ -39,7 +39,10 @@ export function SpellRankControl({
         open={open}
         onOpenChange={setOpen}
         menu={{
-          "aria-label": "Spell rank",
+          "aria-label":
+            spell.ritual.state === "value" && spell.ritual.value
+              ? "Ritual rank"
+              : "Spell rank",
           selectable: true,
           selectedKeys: [String(rank)],
           onKeyDown: closeOnEscape,

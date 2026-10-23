@@ -71,6 +71,44 @@ export function PreparedContentBody({
     () => (body.kind === "html" ? sanitizePreparedHtml(body.html) : ""),
     [body],
   );
+  useLayoutEffect(() => {
+    if (!container.current || !html) return;
+    const tables = Array.from(container.current.querySelectorAll("table")).filter(
+      (table) => !table.parentElement?.closest("table"),
+    );
+    const updateOverflow = () => {
+      for (const table of tables) {
+        const region = table.parentElement!;
+        if (region.scrollWidth > region.clientWidth) {
+          region.tabIndex = 0;
+          region.setAttribute("role", "region");
+          region.setAttribute(
+            "aria-label",
+            table.caption?.textContent?.trim() || "Reference table",
+          );
+        } else {
+          region.removeAttribute("tabindex");
+          region.removeAttribute("role");
+          region.removeAttribute("aria-label");
+        }
+      }
+    };
+    const observer = new ResizeObserver(updateOverflow);
+    for (const table of tables) {
+      // Keep the authored nodes and reading position on unchanged-content updates.
+      let region = table.parentElement!;
+      if (!region.classList.contains("prepared-content__table-scroll")) {
+        region = document.createElement("div");
+        region.className = "prepared-content__table-scroll";
+        table.replaceWith(region);
+        region.append(table);
+      }
+      observer.observe(region);
+      observer.observe(table);
+    }
+    updateOverflow();
+    return () => observer.disconnect();
+  }, [html]);
   // Native links must exist before parent reading hosts restore a bookmark.
   useLayoutEffect(() => {
     if (body.kind !== "html") return;
