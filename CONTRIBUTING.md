@@ -658,7 +658,7 @@ After a failed device run, repeat the failing spec/project against that run's
 compiled candidate instead of rerunning all gates:
 
 ```bash
-gh workflow run ci.yml --ref feat/my-branch \
+gh workflow run browser-debug.yml --ref feat/my-branch \
   -f browser-run=RUN_ID -f file=turn-reminders.spec.ts \
   -f project=phone-webkit -f grep='recovery' -f repeat=5
 ```
@@ -667,8 +667,10 @@ Use a run from this repository with an unexpired `browser-fixture` artifact. The
 manual run checks out the artifact's exact source commit and uses the same Ubuntu
 24.04, Node 22 and lockfile-pinned Playwright installation as ordinary CI. It runs
 only the selected case, with traces/screenshots/report retained even on failure;
-it does not replace the full PR check or emit its `validation complete` result. The workflow must be registered on the
-default branch before GitHub permits dispatch. For local diagnosis, pass the
+it does not replace the full PR check or emit its `validation complete` result.
+The new `browser-debug.yml` workflow becomes directly dispatchable once it is
+registered on the default branch. Its replay/capture job was exercised before
+extraction; main/nightly verification keeps its own permissions and checks. For local diagnosis, pass the
 same spec, `--project`, `--grep` and `--repeat-each` arguments to Playwright directly.
 
 ### Visual references

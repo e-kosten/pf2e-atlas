@@ -1,0 +1,99 @@
+name: browser debug
+
+on:
+  workflow_dispatch:
+    inputs:
+      browser-run:
+        description: CI run ID containing the candidate browser-fixture artifact
+        required: true
+        type: string
+      file:
+        description: Device spec filename
+        default: turn-reminders.spec.ts
+        type: string
+      project:
+        type: choice
+        default: phone-webkit
+        options: [desktop-chromium, phone-chromium, phone-webkit, tablet-webkit, all]
+      grep:
+        description: Optional test-title regular expression
+        type: string
+      capture:
+        description: Capture candidate visual references for explicit review (does not update Git)
+        type: boolean
+        default: false
+      repeat:
+        description: Repeat count (1-30)
+        default: '3'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: browser-debug-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-debug:
+    name: focused Linux browser diagnosis
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Select artifact directory outside the checkout
+        run: echo "ATLAS_BROWSER_ARTIFACT=$RUNNER_TEMP/browser-artifact" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v7
+        with:
+          name: browser-fixture
+          path: ${{ env.ATLAS_BROWSER_ARTIFACT }}
+          run-id: ${{ inputs.browser-run }}
+          github-token: ${{ github.token }}
+      - name: Select the artifact's source commit
+        id: candidate
+        run: |
+          node --input-type=module <<'JS' >> "$GITHUB_OUTPUT"
+          import { readFileSync } from 'node:fs';
+          const manifest = JSON.parse(readFileSync(`${process.env.ATLAS_BROWSER_ARTIFACT}/manifest.json`));
+          if (!/^[a-f0-9]{40}$/.test(manifest.commit)) throw new Error('Invalid artifact commit');
+          console.log(`commit=${manifest.commit}`);
+          JS
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.candidate.outputs.commit }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/atlas-ui/package-lock.json
+      - run: npm --prefix web/atlas-ui ci
+      - run: chmod +x "$ATLAS_BROWSER_ARTIFACT/browser_fixture"
+      - run: npm --prefix web/atlas-ui exec -- playwright install --with-deps chromium webkit
+      - name: Repeat the focused case
+        working-directory: web/atlas-ui
+        env:
+          SPEC: ${{ inputs.file }}
+          PROJECT: ${{ inputs.project }}
+          GREP: ${{ inputs.grep }}
+          REPEAT: ${{ inputs.repeat }}
+          CAPTURE: ${{ inputs.capture }}
+        run: |
+          [[ "$SPEC" =~ ^[a-z][a-z0-9-]*\.spec\.ts$ && -f "e2e/devices/$SPEC" ]]
+          [[ "$REPEAT" =~ ^([1-9]|[12][0-9]|30)$ ]]
+          project_args=()
+          if [[ "$PROJECT" != all ]]; then project_args+=(--project="$PROJECT"); fi
+          snapshot_args=()
+          if [[ "$CAPTURE" == true ]]; then snapshot_args+=(--update-snapshots=all); fi
+          npm exec -- playwright test --config playwright.devices.config.ts "${snapshot_args[@]}" "$SPEC" "${project_args[@]}" --grep="$GREP" --repeat-each="$REPEAT"
+      - name: Focused browser evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: focused-browser-evidence
+          path: |
+            scratch/responsive-validation/browser/
+            web/atlas-ui/e2e/devices/visual/linux/
+            ${{ env.ATLAS_BROWSER_ARTIFACT }}/manifest.json
+          retention-days: 3
