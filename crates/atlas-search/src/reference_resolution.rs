@@ -65,6 +65,11 @@ mod tests {
                     "Item",
                     json!({"_id":"cccccccccccccccc","type":"feat","name":"Unique"}),
                 ),
+                record(
+                    "items",
+                    "Item",
+                    json!({"_id":"dddddddddddddddd","type":"feat","name":"parent.Item.child"}),
+                ),
             ],
             false,
         )
@@ -74,6 +79,7 @@ mod tests {
             "Compendium.pf2e.items.Item.Unique",
             "Compendium.pf2e.items.Actor.aaaaaaaaaaaaaaaa",
             "Same Name",
+            "Compendium.pf2e.items.Item.parent.Item.child",
         ] {
             assert!(
                 retrieval
