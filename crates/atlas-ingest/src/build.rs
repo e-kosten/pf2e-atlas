@@ -386,7 +386,9 @@ pub(crate) fn build_artifact(
     drop(maintenance);
     // Publication has committed and validated; physical reclamation can be
     // retried without inference and does not advance reference revision.
-    update_owner.reclaim_space(schema)?;
+    update_owner
+        .reclaim_space(schema)
+        .map_err(|error| IngestError::SpaceReclamationFailed(error.to_string()))?;
     let report = BuildArtifactReport {
         profiles,
         output_path: options.output_path,
