@@ -24,7 +24,7 @@ describe("atlas routes", () => {
     history.replaceState(null, "", "/");
   });
 
-  it("parses search, lists, standalone record, and reader routes", () => {
+  it("parses search, lists, and standalone record routes", () => {
     expect(currentAtlasRoute()).toEqual({ kind: "search", selectedRecordKey: null });
 
     history.replaceState(null, "", "/search?q=heal");
@@ -79,13 +79,6 @@ describe("atlas routes", () => {
       slug: "session-prep",
       selectedRecordKey: "spell:heal",
     });
-
-    history.replaceState(null, "", "/reader/spell%3Aheal?preview=condition%3Awounded");
-    expect(currentAtlasRoute()).toEqual({
-      kind: "reader",
-      recordKey: "spell:heal",
-      previewRecordKey: "condition:wounded",
-    });
   });
 
   it("builds and navigates route URLs", () => {
@@ -93,13 +86,12 @@ describe("atlas routes", () => {
     window.addEventListener("atlas-route-change", listener);
 
     navigateToAtlasRoute({
-      kind: "reader",
+      kind: "record",
       recordKey: "spell:heal",
-      previewRecordKey: "condition:wounded",
     });
 
-    expect(window.location.pathname).toBe("/reader/spell:heal");
-    expect(window.location.search).toBe("?preview=condition%3Awounded");
+    expect(window.location.pathname).toBe("/records/spell:heal");
+    expect(window.location.search).toBe("");
     expect(listener).toHaveBeenCalledTimes(1);
     expect(atlasRoutePath({ kind: "record", recordKey: "spell:heal" })).toBe(
       "/records/spell:heal",
@@ -169,27 +161,10 @@ describe("atlas routes", () => {
       recordKey,
       selection,
     });
-    const reader = new URL(
-      atlasRoutePath({
-        kind: "reader",
-        recordKey,
-        selection,
-        previewRecordKey: recordKey,
-        previewSelection: selection,
-      }),
-      "http://localhost",
-    );
-    expect(parseAtlasRoute(reader.pathname, reader.search)).toEqual({
-      kind: "reader",
-      recordKey,
-      selection,
-      previewRecordKey: recordKey,
-      previewSelection: selection,
-    });
   });
 });
 
-it.each(["search", "list", "reader"])(
+it.each(["search", "list", "record"])(
   "returns an embedded selection to its known %s context with distinct exact landing and native href",
   (kind) => {
     const parent = "actors:checked";
@@ -213,7 +188,7 @@ it.each(["search", "list", "reader"])(
         ? "/search/records/actors:checked" + query
         : kind === "list"
           ? "/lists/session/records/actors:checked" + query
-          : "/reader/actors:checked" + query;
+          : "/records/actors:checked" + query;
     history.replaceState(null, "", original);
     navigateToAtlasRoute({ kind: "record", recordKey: parent, selection });
     const selectedUrl = window.location.pathname + window.location.search;

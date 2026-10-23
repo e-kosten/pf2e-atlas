@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ContentFields } from "./RecordPresentation";
 import { SpellChanges, SpellReference } from "./SpellReference";
 import type {
   PreparedFieldBodyView,
+  SpellChangeView,
   SpellPresentationView,
 } from "../../generated/atlas";
 import {
@@ -13,6 +14,102 @@ import {
 } from "../../test/fixtures";
 
 describe("optional reference content", () => {
+  it("keeps supplied damage before prose and omits a zero area increase without losing the scaling rule", () => {
+    const spell = spellFixture();
+    spell.damage = knownFact([
+      {
+        id: "0",
+        formula: knownFact("10d6"),
+        damage_type: knownFact("fire"),
+        kinds: knownFact(["damage"]),
+        category: unavailableFact("null"),
+        materials: knownFact([]),
+        apply_modifier: knownFact(false),
+      },
+    ]);
+    spell.heightening = knownFact({
+      kind: "interval",
+      interval: numberFact(1),
+      area: numberFact(0),
+      damage: knownFact([{ id: "0", formula: knownFact("2d6") }]),
+    });
+    render(
+      <SpellReference spell={spell}>
+        <p>Authored fireball description.</p>
+      </SpellReference>,
+    );
+    const damage = screen.getByText("10d6");
+    expect(
+      damage.compareDocumentPosition(
+        screen.getByText("Authored fireball description."),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.queryByText("Area increase")).toBeNull();
+    expect(screen.queryByText("Damage increase")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Heightening details" }));
+    expect(screen.getByText("Damage increase").parentElement).toHaveTextContent("2d6");
+    expect(screen.queryByText("Area increase")).toBeNull();
+    expect(screen.queryByText(/Some values may remain/)).toBeNull();
+    expect(screen.queryByText(/Read with the spell text/)).toBeNull();
+  });
+
+  it("retains an explicit unavailable rank preview note", () => {
+    render(
+      <SpellReference
+        spell={{
+          ...spellFixture(),
+          rank_note: "Showing original mechanics; rank 5 preview is unavailable.",
+        }}
+      />,
+    );
+    expect(
+      screen.getByText("Showing original mechanics; rank 5 preview is unavailable."),
+    ).toBeVisible();
+  });
+  it("omits empty rank patches while keeping explicit clears, unavailable changes and authored rules", async () => {
+    const missing = <T,>() => unavailableFact<T>("missing");
+    const changes: SpellChangeView = {
+      cast: missing(),
+      range: missing(),
+      target: missing(),
+      area: missing(),
+      defense: missing(),
+      duration: missing(),
+      sustained: missing(),
+      traits: missing(),
+      traditions: missing(),
+      damage: missing(),
+      heightening: missing(),
+    };
+    const spell = spellFixture();
+    spell.rank = numberFact(5);
+    spell.heightening = knownFact({
+      kind: "fixed",
+      levels: knownFact([
+        { rank: 4, changes: knownFact(changes) },
+        { rank: 5, changes: knownFact({ ...changes, target: knownFact("") }) },
+        { rank: 6, changes: unavailableFact("null") },
+      ]),
+    });
+    render(
+      <SpellReference spell={spell}>
+        <p>As 4th rank, plus an additional benefit.</p>
+      </SpellReference>,
+    );
+    expect(screen.getByText("As 4th rank, plus an additional benefit.")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Heightening details" }));
+    expect(screen.queryByRole("heading", { name: "Rank 4" })).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "Rank 5" })).toBeVisible(),
+    );
+    expect(
+      screen.getByRole("heading", { name: "Rank 5" }).parentElement,
+    ).toHaveAttribute("aria-current", "true");
+    expect(screen.getByText("Empty")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Rank 6" })).toBeVisible();
+    expect(screen.getByText("Cleared")).toBeVisible();
+    expect(screen.getByText("As 4th rank, plus an additional benefit.")).toBeVisible();
+  });
   it.each(["missing", "null", "invalid"] as const)(
     "retains unavailable heightening/forms parents (%s) while omitting source-embedded inapplicable structures",
     (state) => {
@@ -188,6 +285,7 @@ describe("optional reference content", () => {
       ]),
     });
     render(<SpellReference spell={spell} />);
+    fireEvent.click(screen.getByRole("button", { name: "Heightening details" }));
     expect(screen.getByText("Damage increase 1").parentElement).toHaveTextContent("0");
     expect(screen.getByText("Damage increase 2").parentElement).toHaveTextContent("—");
     expect(screen.getByText("Damage increase 3").parentElement).toHaveTextContent(

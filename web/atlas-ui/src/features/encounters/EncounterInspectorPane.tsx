@@ -1,3 +1,4 @@
+import { EncounterOriginalRecord } from "./EncounterOriginalRecord";
 import { EncounterLifeStatus } from "./EncounterLifeStatus";
 import { EncounterConditionRecovery } from "./EncounterConditionLifecycle";
 import { FactRow, factText } from "../../shared/records/presentationFacts";
@@ -17,7 +18,7 @@ import {
   encounterCastingAnnotations,
 } from "./EncounterSpellControls";
 import { participantUpdate } from "./participantEdits";
-import { RecordPreviewPopover } from "../../shared/records/RecordPreviewPopover";
+import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
 import { RecordPresentation } from "../../shared/records/RecordPresentation";
 import type { RecordPreviewAnchor } from "../../shared/records/recordPreviewTypes";
 import { EncounterParticipantSettings } from "./EncounterParticipantSettings";
@@ -217,7 +218,7 @@ export function EncounterInspectorPane({
         />
       </EncounterConditionRecovery>
       {previewRecordKey && (
-        <RecordPreviewPopover
+        <RecordReferenceDrawer
           actions={
             previewDetail?.presentation.body.kind === "spell" && (
               <EncounterSpellControls
@@ -434,7 +435,12 @@ function EncounterParticipantSurface({
             )}
           </p>
         </div>
-        {!hasHp && <div className="encounter-reference__actions">{statusControl}</div>}
+        <div className="encounter-reference__actions">
+          {participant.record_key && (
+            <EncounterOriginalRecord recordKey={participant.record_key} />
+          )}
+          {!hasHp && statusControl}
+        </div>
       </div>
       {participant.status === "unresolved" && (
         <p>Original record unavailable. Saved participant settings remain editable.</p>

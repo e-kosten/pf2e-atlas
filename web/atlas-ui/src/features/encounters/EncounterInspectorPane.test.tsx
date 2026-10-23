@@ -16,8 +16,8 @@ vi.mock("./EncounterParticipantSettings", () => ({
 vi.mock("./EncounterConditionControls", () => ({
   EncounterConditionControls: () => null,
 }));
-vi.mock("../../shared/records/RecordPreviewPopover", () => ({
-  RecordPreviewPopover: ({ actions }: { actions: ReactNode }) => <>{actions}</>,
+vi.mock("../../shared/records/RecordReferenceDrawer", () => ({
+  RecordReferenceDrawer: ({ actions }: { actions: ReactNode }) => <>{actions}</>,
 }));
 vi.mock("./EncounterSpellControls", () => ({
   encounterCastingAnnotations: () => undefined,

@@ -18,7 +18,7 @@ import {
   detailFixture,
   knownFact,
 } from "../../test/fixtures";
-import { RecordPreviewPopover } from "./RecordPreviewPopover";
+import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
 import { useRecordPreview } from "./useRecordPreview";
 
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -28,18 +28,18 @@ vi.mock("../../api/atlasApi", async (original) => ({
 }));
 
 it.each([
-  ["popover", "strike", "landed"],
-  ["drawer", "strike", "landed"],
-  ["popover", "ability", "landed"],
-  ["drawer", "ability", "landed"],
-  ["popover", "ability", "selected"],
-  ["drawer", "ability", "selected"],
+  ["desktop", "strike", "landed"],
+  ["narrow", "strike", "landed"],
+  ["desktop", "ability", "landed"],
+  ["narrow", "ability", "landed"],
+  ["desktop", "ability", "selected"],
+  ["narrow", "ability", "selected"],
 ] as const)(
   "restores %s history after the %s mounts in %s reading, retaining position and final opener",
   async (host, kind, reading) => {
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({
-      md: host === "popover",
-      xs: host === "drawer",
+      md: host === "desktop",
+      xs: host === "narrow",
     });
     const activity = { ...activityFixture("Jaws", "actors:ghoul"), kind };
     const parent = detailFixture(
@@ -105,7 +105,7 @@ it.each([
             Open landed parent
           </button>
           {preview.recordKey && (
-            <RecordPreviewPopover
+            <RecordReferenceDrawer
               anchor={preview.anchor}
               detail={preview.detail}
               landing={preview.landing}
@@ -121,10 +121,7 @@ it.each([
         </>
       );
     }
-    const selector =
-      host === "drawer"
-        ? ".record-preview-drawer__body"
-        : ".record-preview-popover__body";
+    const selector = ".record-preview-drawer__body";
     const root = document.documentElement;
     const priorOuterScroll = root.scrollTop;
     root.scrollTop = 0;
@@ -213,7 +210,7 @@ it.each([
       fireEvent.click(nested);
       await waitFor(() =>
         expect(
-          screen.getByRole(host === "drawer" ? "dialog" : "heading", {
+          screen.getByRole(host === "narrow" ? "dialog" : "heading", {
             name: "Linked rule",
           }),
         ).toBeVisible(),
@@ -239,7 +236,7 @@ it.each([
       await waitFor(() => expect(scroll.scrollTop).toBe(425));
       expect(returned).toHaveFocus();
       expect(document.documentElement.scrollTop).toBe(0);
-      const closeName = host === "drawer" ? "Close" : "Close reference preview";
+      const closeName = "Close reference preview";
       fireEvent.click(screen.getByRole("button", { name: closeName }));
       await waitFor(() =>
         expect(screen.queryByRole("button", { name: closeName })).toBeNull(),

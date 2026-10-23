@@ -14,7 +14,6 @@ import { LinkConditionPicker } from "../shared/filters/LinkConditionPicker";
 import {
   ATLAS_ROUTE_CHANGE_EVENT,
   currentAtlasRoute,
-  atlasRoutePath,
   navigateToAtlasRoute,
   type AtlasRoute,
 } from "./routes";
@@ -69,11 +68,6 @@ const TraitView = lazy(() =>
 const RecordView = lazy(() =>
   import("../features/records/RecordViews").then((module) => ({
     default: module.RecordView,
-  })),
-);
-const ReaderView = lazy(() =>
-  import("../features/records/RecordViews").then((module) => ({
-    default: module.ReaderView,
   })),
 );
 export function AtlasApp() {
@@ -166,9 +160,8 @@ export function AtlasApp() {
                   <TraitView key={route.traitKey} route={route} />
                 )}
                 {route.kind === "record" && (
-                  <RecordView key={atlasRoutePath(route)} route={route} />
+                  <RecordView key={route.recordKey} route={route} />
                 )}
-                {route.kind === "reader" && <ReaderView route={route} />}
               </Suspense>
             </AppShell>
           </LinkPickerContext>

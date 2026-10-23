@@ -28,14 +28,6 @@ export type AtlasRoute =
       recordKey: string;
       selection?: RecordNavigationView;
       landing?: RecordNavigationView;
-    }
-  | {
-      kind: "reader";
-      recordKey: string;
-      previewRecordKey: string | null;
-      selection?: RecordNavigationView;
-      previewSelection?: RecordNavigationView;
-      landing?: RecordNavigationView;
     };
 
 export const ATLAS_ROUTE_CHANGE_EVENT = "atlas-route-change";
@@ -130,19 +122,6 @@ function parseRoute(pathname: string, search = ""): AtlasRoute {
     };
   }
 
-  const reader = pathname.match(/^\/reader\/(.+)$/);
-  if (reader) {
-    const previewRecordKey = new URLSearchParams(search).get("preview");
-    return {
-      kind: "reader",
-      recordKey: decodeURIComponent(reader[1]),
-      previewRecordKey,
-      landing: selectedNavigation(search, "landing"),
-      selection: selectedNavigation(search),
-      previewSelection: selectedNavigation(search, "previewSelection"),
-    };
-  }
-
   return { kind: "search", selectedRecordKey: null };
 }
 
@@ -187,16 +166,6 @@ export function atlasRoutePath(route: AtlasRoute): string {
             : ""),
         route.landing,
       );
-    case "reader": {
-      const path = readerPath(route.recordKey);
-      const params = new URLSearchParams();
-      if (route.previewRecordKey) params.set("preview", route.previewRecordKey);
-      if (route.selection) params.set("selection", JSON.stringify(route.selection));
-      if (route.previewSelection)
-        params.set("previewSelection", JSON.stringify(route.previewSelection));
-      if (route.landing) params.set("landing", JSON.stringify(route.landing));
-      return path + (params.size ? "?" + params.toString() : "");
-    }
   }
 }
 function listQuery(search: string): { query?: string } {
@@ -343,9 +312,6 @@ export function recordPath(recordKey: string): string {
   return `/records/${recordKeyPathSegment(recordKey)}`;
 }
 
-export function readerPath(recordKey: string): string {
-  return `/reader/${recordKeyPathSegment(recordKey)}`;
-}
 function recordKeyPathSegment(recordKey: string): string {
   return encodeURIComponent(recordKey).replace(/%3A/g, ":");
 }

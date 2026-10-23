@@ -155,8 +155,6 @@
 
 .pane-toggle {
   flex: 0 0 auto;
-  width: 26px !important;
-  height: 26px;
   color: var(--muted);
 }
 
@@ -268,7 +266,7 @@
 
 .filter-panel,
 .results-panel,
-.detail-panel {
+.workspace-pane > .detail-panel {
   min-width: 0;
   min-height: 0;
   border: 1px solid var(--line);

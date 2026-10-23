@@ -297,14 +297,9 @@ test("life status stays compact and stable while saving, without replacing the s
     });
     expect(geometry.trailing).toBeLessThan(8);
     expect(geometry.width - geometry.optionWidth).toBeLessThan(12);
-    const original = dialog.getByRole("button", {
-      name: "Original record",
-      exact: true,
-    });
-    await original.scrollIntoViewIfNeeded();
-    expect((await original.boundingBox())!.y).toBeGreaterThan(
-      (await group.boundingBox())!.y,
-    );
+    await expect(
+      dialog.getByRole("link", { name: "Original record", exact: true }),
+    ).toHaveCount(0);
     await dead.scrollIntoViewIfNeeded();
     const nameNode = await name.elementHandle();
     const dialogNode = await dialog.elementHandle();
@@ -346,6 +341,13 @@ test("life status stays compact and stable while saving, without replacing the s
       path: info.outputPath("life-status-confirmed.png"),
       animations: "disabled",
     });
+    await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+    await expect(dialog).toBeHidden();
+    const original = page.getByRole("link", { name: "Original record", exact: true });
+    await expect(original).toBeVisible();
+    expect(await original.getAttribute("href")).toContain(
+      "/records/browser-actors:sentinel00000001",
+    );
   } finally {
     await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
   }

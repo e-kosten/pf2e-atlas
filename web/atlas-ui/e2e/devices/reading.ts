@@ -41,7 +41,7 @@ export async function readThenBack(
   const link = host.getByRole("link", { name: targetName, exact: true }).last();
   await expect(link).toBeVisible();
   // Put the departing link in the actual scroll host, then capture the position
-  // at activation time. Subsequent reflow is checked by anchor, not pixel identity.
+  // at activation time. An unchanged document/viewport must retain that position.
   await link.scrollIntoViewIfNeeded();
   await link.focus();
   const position = await host.evaluate((node) => node.scrollTop);
@@ -50,34 +50,18 @@ export async function readThenBack(
   // Keyboard activation avoids a pointer's pre-click scroll changing the bookmark.
   await link.press("Enter");
   const drawer = page.locator(".record-preview-drawer");
-  const title = async (name: string | RegExp) => {
-    if (await drawer.isVisible())
-      await expect(page.getByRole("dialog", { name })).toBeVisible();
-    else
-      await expect(
-        (returnMode === "close"
-          ? page.locator(".record-preview-popover__body")
-          : host
-        ).getByRole("heading", { name }),
-      ).toBeVisible();
-  };
-  await title(targetName);
+  await expect(page.getByRole("dialog", { name: targetName })).toBeVisible();
+  await expect(drawer).toHaveCount(1);
   if (returnMode === "close") {
-    const narrow = await drawer.isVisible();
     await activate(
-      page.getByRole("button", {
-        name: narrow ? "Close" : "Close reference preview",
-        exact: true,
-      }),
+      page.getByRole("button", { name: "Close reference preview", exact: true }),
       info,
     );
-    await expect(
-      narrow ? drawer : page.locator(".record-preview-popover"),
-    ).toBeHidden();
+    await expect(drawer).toBeHidden();
     await expect(host.getByRole("heading", { name: /^Signal Pulse\b/ })).toBeVisible();
   } else {
     await activate(page.getByRole("button", { name: "Back", exact: true }), info);
-    await title(/^Signal Pulse\b/);
+    await expect(page.getByRole("dialog", { name: /^Signal Pulse\b/ })).toBeVisible();
   }
   await expect
     .poll(() => host.evaluate((node) => node.scrollTop))

@@ -146,7 +146,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   };
 
   const close = useCallback(() => {
-    if (opener.current?.isConnected) opener.current.focus();
+    if (opener.current?.isConnected) opener.current.focus({ preventScroll: true });
     opener.current = null;
     session.current += 1;
     setReloadState(null);
@@ -172,9 +172,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
           JSON.stringify(selection) !== JSON.stringify(navigation) ||
           JSON.stringify(landing) !== JSON.stringify(nextLanding))
       ) {
-        const scrollHost = anchor?.closest<HTMLElement>(
-          ".record-preview-popover__body,.record-preview-drawer__body",
-        );
+        const scrollHost = anchor?.closest<HTMLElement>(".record-preview-drawer__body");
         setHistory((prior) =>
           [
             ...prior,
