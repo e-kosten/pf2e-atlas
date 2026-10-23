@@ -1,5 +1,10 @@
 import { expect, test } from "./fixtures";
-for (const outcome of ["table", "roll"] as const) {
+for (const outcome of [
+  "table",
+  "roll",
+  "automatic success",
+  "automatic failure",
+] as const) {
   test(`Next turn presents one notification and ${outcome} recovery uses the current turn`, async ({
     page,
   }, info) => {
@@ -147,7 +152,7 @@ for (const outcome of ["table", "roll"] as const) {
       await expect(
         reminders.getByRole("button", { name: "Handled at table", exact: true }),
       ).toHaveCount(0);
-      if (outcome === "roll") {
+      if (outcome !== "table") {
         await reminders.getByText("Table result", { exact: true }).click();
         await reminders
           .getByRole("spinbutton", { name: "Fire damage amount", exact: true })
@@ -165,16 +170,49 @@ for (const outcome of ["table", "roll"] as const) {
               participant.participant_key === actor.participant_key,
           ).current_hp,
         ).toBe(28);
-      }
-      if (outcome === "roll") {
         await reminders
           .getByRole("button", { name: "Roll Fire recovery", exact: true })
           .click();
         await expect(
           page.getByRole("spinbutton", { name: "Recovery DC", exact: true }),
         ).toHaveValue("15");
+        if (outcome !== "roll")
+          await page
+            .getByRole("spinbutton", { name: "Recovery DC", exact: true })
+            .fill(outcome === "automatic success" ? "0" : "100");
+        const anchor = reminders.getByRole("button", {
+          name: "Roll Fire recovery",
+          exact: true,
+        });
+        const before = await anchor.boundingBox();
+        const completed = page.waitForResponse(
+          (response) =>
+            response.url().endsWith("/persistent-recovery") &&
+            response.request().method() === "POST",
+        );
         await page.getByRole("button", { name: "Roll", exact: true }).click();
-        await expect(page.locator(".atlas-roll").last()).toBeVisible();
+        const response = await completed;
+        expect(response.ok()).toBeTruthy();
+        const receipt = await response.json();
+        if (outcome === "roll") {
+          expect(receipt.roll).not.toBeNull();
+          await expect(page.locator(".atlas-roll").last()).toBeVisible();
+        } else {
+          expect(receipt.roll).toBeNull();
+          expect(receipt.success).toBe(outcome === "automatic success");
+        }
+        await expect(
+          page.getByText(
+            `${receipt.success ? "Recovered" : "Still active"} · DC ${receipt.dc}`,
+            { exact: true },
+          ),
+        ).toBeVisible();
+        await expect(reminders).toBeVisible();
+        const after = await anchor.boundingBox();
+        expect(before).not.toBeNull();
+        expect(after).not.toBeNull();
+        expect(Math.abs(after!.x - before!.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(after!.y - before!.y)).toBeLessThanOrEqual(1);
         await page.screenshot({
           path: info.outputPath("persistent-shared-dice.png"),
           fullPage: true,
@@ -185,7 +223,18 @@ for (const outcome of ["table", "roll"] as const) {
             `${path}/persistent-review?participant_key=${actor.participant_key}&boundary_key=${encodeURIComponent(boundary)}`,
           )
         ).json();
-        expect(result.recovery_results[0].roll).not.toBeNull();
+        expect(result.recovery_results[0]).toEqual(receipt);
+        expect(receipt.dc).toBe(
+          outcome === "roll" ? 15 : outcome === "automatic success" ? 0 : 100,
+        );
+        expect(result.damage_groups).toHaveLength(receipt.success ? 0 : 1);
+        const revisionBeforeClose = (await (await page.request.get(path)).json())
+          .revision;
+        await reminders.getByRole("button", { name: "Close", exact: true }).click();
+        await expect(reminders).not.toBeVisible();
+        expect((await (await page.request.get(path)).json()).revision).toBe(
+          revisionBeforeClose,
+        );
         return;
       }
       // A recovery resolved at the table uses the ordinary clear affordance.

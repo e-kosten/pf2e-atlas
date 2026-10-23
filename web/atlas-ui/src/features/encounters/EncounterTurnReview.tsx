@@ -80,8 +80,10 @@ export function EncounterTurnReview({
   const outgoing =
     candidate && candidate.boundary_key === boundaryKey ? candidate : undefined;
   const reminders = outgoing?.reminders ?? [];
+  const hasPersistentDamage = !!outgoing?.persistent_damage_groups.length;
   const meaningful =
     reminders.length > 0 ||
+    hasPersistentDamage ||
     outcomes.length > 0 ||
     !!error ||
     !!actionError ||
@@ -165,7 +167,7 @@ export function EncounterTurnReview({
           </EncounterConditionRecovery>
         )}
       <div className="encounter-turn-review">
-        {reminders.some((reminder) => reminder.kind === "persistent_damage") && (
+        {hasPersistentDamage && (
           <PersistentParticipants
             data={data}
             outgoing={outgoing}
