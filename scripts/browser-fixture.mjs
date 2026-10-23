@@ -12,7 +12,10 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const artifactFiles = ["browser_fixture", "index.html"];
+const executableName = "browser_fixture";
+const indexName = "index.html";
+const artifactFiles = [executableName, indexName];
+const cargoArgs = ["--locked", "-p", "atlas-web", "--example", executableName];
 const hash = (path) =>
   createHash("sha256").update(readFileSync(path)).digest("hex");
 const head = () =>
@@ -22,10 +25,12 @@ const head = () =>
   }).trim();
 const quote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
 
-export function browserArtifact(
-  directory = process.env.ATLAS_BROWSER_ARTIFACT,
-) {
-  if (!directory) return undefined;
+export function browserFixture(directory = process.env.ATLAS_BROWSER_ARTIFACT) {
+  if (!directory)
+    return {
+      command: `cargo run ${cargoArgs.join(" ")} --`,
+      index: resolve(root, "web/atlas-ui/dist", indexName),
+    };
   const path = resolve(directory);
   const manifest = JSON.parse(
     readFileSync(resolve(path, "manifest.json"), "utf8"),
@@ -41,8 +46,8 @@ export function browserArtifact(
       throw new Error(`Browser artifact checksum mismatch: ${name}`);
   }
   return {
-    command: quote(resolve(path, "browser_fixture")),
-    index: resolve(path, "index.html"),
+    command: quote(resolve(path, executableName)),
+    index: resolve(path, indexName),
   };
 }
 
@@ -62,26 +67,25 @@ if (
     throw new Error(
       "Commit source changes before packaging a browser fixture.",
     );
-  execFileSync(
-    "cargo",
-    ["build", "--locked", "-p", "atlas-web", "--example", "browser_fixture"],
-    { cwd: root, stdio: "inherit" },
-  );
+  execFileSync("cargo", ["build", ...cargoArgs], {
+    cwd: root,
+    stdio: "inherit",
+  });
   if (process.platform === "linux")
     execFileSync(
       "strip",
-      ["--strip-debug", "target/debug/examples/browser_fixture"],
+      ["--strip-debug", "target/debug/examples/" + executableName],
       { cwd: root, stdio: "inherit" },
     );
   mkdirSync(directory, { recursive: true });
   copyFileSync(
-    resolve(root, "target/debug/examples/browser_fixture"),
-    resolve(directory, "browser_fixture"),
+    resolve(root, "target/debug/examples/" + executableName),
+    resolve(directory, executableName),
   );
-  chmodSync(resolve(directory, "browser_fixture"), 0o755);
+  chmodSync(resolve(directory, executableName), 0o755);
   copyFileSync(
-    resolve(root, "web/atlas-ui/dist/index.html"),
-    resolve(directory, "index.html"),
+    resolve(root, "web/atlas-ui/dist", indexName),
+    resolve(directory, indexName),
   );
   writeFileSync(
     resolve(directory, "manifest.json"),
@@ -98,5 +102,5 @@ if (
       2,
     ) + "\n",
   );
-  browserArtifact(directory);
+  browserFixture(directory);
 }

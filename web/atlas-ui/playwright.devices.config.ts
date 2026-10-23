@@ -1,11 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 import { resolve } from "node:path";
-import { browserArtifact } from "../../scripts/browser-fixture.mjs";
+import { browserFixture } from "../../scripts/browser-fixture.mjs";
 
 const port = Number(process.env.ATLAS_DEVICE_PORT ?? 8796);
 if (!Number.isInteger(port) || port < 1 || port > 65535)
   throw new Error("ATLAS_DEVICE_PORT must be a port from 1 through 65535.");
-const artifact = browserArtifact();
+const fixture = browserFixture();
 const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
@@ -73,9 +73,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: artifact
-      ? `${artifact.command} 127.0.0.1:${port}`
-      : `cargo run --locked -p atlas-web --example browser_fixture -- 127.0.0.1:${port}`,
+    command: `${fixture.command} 127.0.0.1:${port}`,
     cwd: resolve(import.meta.dirname, "../.."),
     url: `${baseURL}/api/readiness`,
     reuseExistingServer: false,

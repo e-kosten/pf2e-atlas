@@ -59,23 +59,30 @@ test("browser artifacts reject stale source, corrupt contents and incompatible h
       readFileSync(resolve(root, "build-order"), "utf8"),
       process.platform === "linux" ? "cargo\nstrip\n" : "cargo\n",
     );
-    const { browserArtifact } = await import(pathToFileURL(script));
-    const selected = browserArtifact(artifact);
+    const { browserFixture } = await import(pathToFileURL(script));
+    const selected = browserFixture(artifact);
     assert.equal(readFileSync(selected.index, "utf8"), "candidate frontend");
     execFileSync("sh", ["-c", selected.command]);
-    assert.equal(browserArtifact(""), undefined);
+    assert.equal(
+      readFileSync(browserFixture("").index, "utf8"),
+      "candidate frontend",
+    );
+    assert.match(
+      browserFixture("").command,
+      /^cargo run .* --example browser_fixture --$/,
+    );
     for (const file of ["browser_fixture", "index.html"]) {
       const path = resolve(artifact, file);
       const original = readFileSync(path);
       writeFileSync(path, "wrong candidate");
-      assert.throws(() => browserArtifact(artifact), /checksum/);
+      assert.throws(() => browserFixture(artifact), /checksum/);
       writeFileSync(path, original);
     }
     const path = resolve(artifact, "manifest.json");
     const manifest = JSON.parse(readFileSync(path));
     for (const key of ["commit", "platform", "arch"]) {
       writeFileSync(path, JSON.stringify({ ...manifest, [key]: "wrong" }));
-      assert.throws(() => browserArtifact(artifact), /another/);
+      assert.throws(() => browserFixture(artifact), /another/);
     }
     writeFileSync(path, JSON.stringify(manifest));
     writeFileSync(
