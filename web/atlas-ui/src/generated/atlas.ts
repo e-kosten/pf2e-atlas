@@ -343,3 +343,13 @@ export type { AmmunitionReferenceView } from "../../../../crates/atlas-app-model
 export type { KitReferenceView } from "../../../../crates/atlas-app-model/bindings/KitReferenceView";
 export type { KitEntryReferenceView } from "../../../../crates/atlas-app-model/bindings/KitEntryReferenceView";
 export type { PhysicalMaterialReferenceView } from "../../../../crates/atlas-app-model/bindings/PhysicalMaterialReferenceView";
+export type { AncestryReferenceView } from "../../../../crates/atlas-app-model/bindings/AncestryReferenceView";
+export type { ArmyReferenceView } from "../../../../crates/atlas-app-model/bindings/ArmyReferenceView";
+export type { AttributeChoiceView } from "../../../../crates/atlas-app-model/bindings/AttributeChoiceView";
+export type { ClassReferenceView } from "../../../../crates/atlas-app-model/bindings/ClassReferenceView";
+export type { DeityReferenceView } from "../../../../crates/atlas-app-model/bindings/DeityReferenceView";
+export type { DeitySanctificationView } from "../../../../crates/atlas-app-model/bindings/DeitySanctificationView";
+export type { ObjectDefensesReferenceView } from "../../../../crates/atlas-app-model/bindings/ObjectDefensesReferenceView";
+export type { ReferenceGrantView } from "../../../../crates/atlas-app-model/bindings/ReferenceGrantView";
+export type { VehicleReferenceView } from "../../../../crates/atlas-app-model/bindings/VehicleReferenceView";
+export type { HeritageReferenceView } from "../../../../crates/atlas-app-model/bindings/HeritageReferenceView";

@@ -117,6 +117,14 @@ is separate from saved encounter timing: encounter/unlimited units ignore numeri
 sentinels and inapplicable turn-expiry metadata, matching the pinned system policy.
 These facts are projected once in app-service for CLI and shared browser readers.
 
+Ancestry, class, deity, vehicle and army reference profiles project supplied facts
+without character building or gameplay execution. Class proficiencies are initial
+ranks; grants retain source levels and deity spells retain granted ranks. Verified
+root links reuse record-owned identity/name resolution through bounded summary-only
+search reads, without decoding linked bodies. Campaign prerequisites share the
+attributed content selection used for feat prerequisites; content/v9 binds that
+selection. Existing artifacts require normal republication, not a browser fallback.
+
 Physical reference bodies use a typed subtype union for weapons, armor, shields,
 containers, ammunition and kits. App-service projects existing checked source
 facts, including base weapon damage and separate rune labels; it does not compute

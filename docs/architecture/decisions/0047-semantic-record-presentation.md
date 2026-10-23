@@ -313,3 +313,17 @@ keep the explicit Spell association. Conflicting/unavailable provenance does not
 choose a winner. This establishes contextual reading, not activation, consumption,
 targeting or casting execution semantics. Neither the graph edge nor the authored
 source is rewritten to make the display work.
+
+Read-only ancestry, class, deity, vehicle and army reference bodies carry supplied
+semantic facts with explicit availability. Class proficiencies are initial ranks,
+not an effective character build; army resources are supplied template values,
+not saved encounter expenditure. Class/ancestry grants and deity spell grants
+retain their supplied level/rank and resolve only verified root destinations.
+The record-owned SourceReferenceIndex identity/name policy is shared with a bounded,
+body-free search lookup over summaries; detail projection does not decode linked
+source documents or guess destinations from labels. Ambiguity remains unresolved.
+
+Campaign-feature prerequisites share attributed rich-field selection with feat
+prerequisites. Content interpretation version 9 includes that selection; existing
+artifacts require normal republication. Reference profile additions themselves
+are transient app projections and require no schema change or new gameplay rules.

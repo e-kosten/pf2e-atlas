@@ -60,6 +60,12 @@ pub enum RecordBodyView {
     Spell(Box<SpellPresentationView>),
     Activity(Box<ActorActivityView>),
     PhysicalReference(Box<PhysicalPresentationView>),
+    Ancestry(Box<crate::AncestryReferenceView>),
+    Heritage(Box<crate::HeritageReferenceView>),
+    Class(Box<crate::ClassReferenceView>),
+    Deity(Box<crate::DeityReferenceView>),
+    Vehicle(Box<crate::VehicleReferenceView>),
+    Army(Box<crate::ArmyReferenceView>),
     RollTable(Box<RollTablePresentationView>),
     TableResult(Box<TableResultPresentationView>),
     Journal(Box<JournalPresentationView>),
@@ -189,6 +195,9 @@ pub enum ActorActivityKindView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorActivityView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub first_level_only: Option<FactView<bool>>,
     pub is_ranged: FactView<bool>,
     pub effect_duration: FactView<EffectDurationView>,
     pub self_effect: FactView<ActivityEffectReferenceView>,

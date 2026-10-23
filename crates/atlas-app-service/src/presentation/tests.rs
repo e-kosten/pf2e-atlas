@@ -1918,3 +1918,184 @@ fn selected_kind_labels_are_title_case_without_changing_source_identifiers() {
         assert_eq!(detail.record.record_key, key);
     }
 }
+
+#[test]
+fn reference_profiles_keep_choices_and_unavailable_source_distinct() {
+    let project = |kind: &str, system: serde_json::Value| {
+        let input = record(
+            "items",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":kind,"system":system}),
+        );
+        let SourceNodeView::Item(item) =
+            SourceQueryView::new(input.record.source(), "items", "").source
+        else {
+            panic!("item");
+        };
+        reference_profiles::item(item).unwrap()
+    };
+    let RecordBodyView::Ancestry(v) = project(
+        "ancestry",
+        json!({"hp":10,"speed":0,"boosts":{"first":{"value":["con","wis"]}},"languages":{"value":[]},"vision":"darkvision"}),
+    ) else {
+        panic!("ancestry");
+    };
+    assert_eq!(v.hit_points.value.unwrap().as_u64(), Some(10));
+    assert_eq!(v.speed.value.unwrap().as_u64(), Some(0));
+    assert_eq!(
+        v.boosts.value.unwrap()[0].choices.value,
+        Some(vec!["Constitution".into(), "Wisdom".into()])
+    );
+    assert_eq!(v.languages.value, Some(vec![]));
+    assert_eq!(v.reach.state, QueryFieldState::Missing);
+    let RecordBodyView::Class(v) = project(
+        "class",
+        json!({"savingThrows":{"fortitude":0,"reflex":null,"will":9}}),
+    ) else {
+        panic!("class");
+    };
+    assert_eq!(v.fortitude.value.as_deref(), Some("Untrained"));
+    assert_eq!(v.reflex.state, QueryFieldState::Null);
+    assert_eq!(v.will.state, QueryFieldState::Invalid);
+    let RecordBodyView::Deity(v) = project(
+        "deity",
+        json!({"font":[],"sanctification":{"modal":"must","what":["unholy"]}}),
+    ) else {
+        panic!("deity");
+    };
+    assert_eq!(v.fonts.value, Some(vec![]));
+    assert_eq!(
+        v.sanctification.value.unwrap().requirement.value.as_deref(),
+        Some("must")
+    );
+    for (system, state) in [
+        (json!(null), QueryFieldState::Null),
+        (json!(42), QueryFieldState::Invalid),
+    ] {
+        let RecordBodyView::Ancestry(v) = project("ancestry", system) else {
+            panic!("ancestry");
+        };
+        assert_eq!(v.hit_points.state, state);
+        assert_eq!(v.boosts.state, state);
+    }
+}
+
+#[test]
+fn reference_profile_links_use_exact_source_identity_and_granted_spell_rank() {
+    let (retrieval, _artifact)=open_source_fixture(vec![
+        record("spells","Item",json!({"_id":"aaaaaaaaaaaaaaaa","name":"Fireball","type":"spell","system":{"level":{"value":3}}})),
+        record("other","Item",json!({"_id":"bbbbbbbbbbbbbbbb","name":"Fireball","type":"spell"})),
+    ],false).unwrap();
+    let input = record(
+        "deities",
+        "Item",
+        json!({"_id":"cccccccccccccccc","type":"deity","system":{"spells":{"5":"Compendium.pf2e.spells.Item.Fireball","7":"Compendium.pf2e.absent.Item.Fireball"}}}),
+    );
+    let SourceNodeView::Item(item) =
+        SourceQueryView::new(input.record.source(), "deities", "").source
+    else {
+        panic!("deity");
+    };
+    let mut body = reference_profiles::item(item).unwrap();
+    reference_profiles::resolve_links(&mut body, &retrieval).unwrap();
+    let RecordBodyView::Deity(v) = body else {
+        panic!("deity");
+    };
+    let spells = v.spells.value.unwrap();
+    let matched = spells
+        .iter()
+        .find(|spell| spell.level.value.as_ref().unwrap().as_u64() == Some(5))
+        .unwrap();
+    assert_eq!(
+        matched.navigation.as_ref().unwrap().record_key,
+        "spells:aaaaaaaaaaaaaaaa"
+    );
+    assert_eq!(matched.navigation.as_ref().unwrap().spell_rank, Some(5));
+    assert_eq!(matched.name.value.as_deref(), Some("Fireball"));
+    assert!(
+        spells
+            .iter()
+            .find(|spell| spell.level.value.as_ref().unwrap().as_u64() == Some(7))
+            .unwrap()
+            .navigation
+            .is_none()
+    );
+}
+
+#[test]
+fn campaign_prerequisites_share_attributed_content_selection() {
+    let input = record(
+        "campaign",
+        "Item",
+        json!({"_id":"aaaaaaaaaaaaaaaa","type":"campaignFeature","system":{"prerequisites":{"value":[{"value":"Loyalty 14"},{"value":"trained in Politics"}]},"actionType":{"value":"passive"},"frequency":{"max":2,"per":"day"}}}),
+    );
+    let node = SourceQueryView::new(input.record.source(), "campaign", "").source;
+    let selected = node
+        .content_selections()
+        .into_iter()
+        .filter(|field| field.role == atlas_record::source_record::SourceContentRole::Prerequisite)
+        .collect::<Vec<_>>();
+    assert_eq!(selected.len(), 2);
+    assert_eq!(selected[0].field, "/system/prerequisites/value/0/value");
+    assert_eq!(
+        selected[1].text.value().map(String::as_str),
+        Some("trained in Politics")
+    );
+    let SourceNodeView::Item(item) = node else {
+        panic!("item");
+    };
+    assert!(matches!(
+        selected_item_body(item),
+        SelectedItemBody::Activity { .. }
+    ));
+    let activity = actor::authored_activity(
+        item,
+        RecordNavigationView {
+            record_key: "campaign:aaaaaaaaaaaaaaaa".into(),
+            owners: vec![],
+            spell_rank: None,
+            field: None,
+            passage: None,
+            source_fingerprint: None,
+        },
+    );
+    assert_eq!(
+        activity
+            .frequency
+            .value
+            .unwrap()
+            .maximum
+            .value
+            .unwrap()
+            .as_u64(),
+        Some(2)
+    );
+}
+
+#[test]
+fn reference_profiles_use_vehicle_defenses_and_army_maximum_not_current_hp() {
+    let input = record(
+        "vehicles",
+        "Actor",
+        json!({"_id":"aaaaaaaaaaaaaaaa","type":"vehicle","system":{"attributes":{"ac":{"value":10},"hp":{"value":3,"max":16},"hardness":5,"collisionDC":{"value":14},"collisionDamage":{"value":"2d4"}},"details":{"crew":"1 pilot","speed":"swim 20 feet (rowed)","price":15}}}),
+    );
+    let node = SourceQueryView::new(input.record.source(), "vehicles", "").source;
+    let RecordBodyView::Vehicle(v) = reference_profiles::actor(&input.record, node).unwrap() else {
+        panic!("vehicle");
+    };
+    assert_eq!(v.defenses.armor_class.value.unwrap().as_u64(), Some(10));
+    assert_eq!(v.defenses.hit_points.value.unwrap().as_u64(), Some(16));
+    assert_eq!(v.collision_damage.value.as_deref(), Some("2d4"));
+    let input = record(
+        "armies",
+        "Actor",
+        json!({"_id":"bbbbbbbbbbbbbbbb","type":"army","system":{"attributes":{"hp":{"value":1,"max":4,"routThreshold":2}},"weapons":{"melee":{"name":"Weapons","potency":0},"ranged":null}}}),
+    );
+    let node = SourceQueryView::new(input.record.source(), "armies", "").source;
+    let RecordBodyView::Army(v) = reference_profiles::actor(&input.record, node).unwrap() else {
+        panic!("army");
+    };
+    assert_eq!(v.hit_points.value.unwrap().as_u64(), Some(4));
+    assert_eq!(v.rout_threshold.value.unwrap().as_u64(), Some(2));
+    assert_eq!(v.ranged_weapon.state, QueryFieldState::Null);
+}

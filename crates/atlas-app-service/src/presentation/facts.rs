@@ -73,3 +73,18 @@ pub(super) fn identifiers<T: Serialize>(v: SourceFieldView<'_, &Vec<T>>) -> Fact
             .unwrap_or_else(identifier_failure)
     }))
 }
+
+pub(super) fn size_label(
+    size: &atlas_foundry_model::generated::PhysicalSystemSourceSize,
+) -> String {
+    use atlas_foundry_model::generated::PhysicalSystemSourceSize::*;
+    match size {
+        Grg => "Gargantuan",
+        Huge => "Huge",
+        Lg => "Large",
+        Med => "Medium",
+        Sm => "Small",
+        Tiny => "Tiny",
+    }
+    .into()
+}

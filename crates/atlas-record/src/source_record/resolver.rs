@@ -20,6 +20,56 @@ pub struct SourceReferenceIndex {
 }
 
 impl SourceReferenceIndex {
+    /// Candidate lookup only: the complete reference must still pass this index's
+    /// exact identity/name policy. Names may contain periods; never split them.
+    pub fn root_lookup_hint(target: &str) -> Option<(&str, &str)> {
+        let target = target.strip_prefix("Compendium.").unwrap_or(target);
+        let target = target.strip_prefix("pf2e.")?;
+        let (pack, tail) = target.split_once('.')?;
+        let identifier = ["Item.", "Actor.", "JournalEntry.", "RollTable."]
+            .iter()
+            .find_map(|prefix| tail.strip_prefix(prefix))
+            .unwrap_or(tail);
+        (!pack.is_empty() && !identifier.is_empty()).then_some((pack, identifier))
+    }
+
+    /// Body-free root resolution uses the same checked identity/name aliases as
+    /// full source preparation. This does not admit owned-node destinations.
+    pub fn insert_root_summary(&mut self, summary: &atlas_domain::SourceRecordSummary) {
+        let key = &summary.key;
+        if !self.roots.insert(key.clone()) {
+            self.duplicate_roots.insert(key.clone());
+        }
+        let resolved = ResolvedContentReference {
+            target: ContentReferenceTarget::Record { key: key.clone() },
+            display_name: summary.name.as_value().cloned(),
+            item_family: (summary.document_kind == "Item")
+                .then(|| summary.source_type.as_value().cloned())
+                .flatten(),
+        };
+        self.insert(
+            format!(
+                "Compendium.pf2e.{}.{}.{}",
+                key.pack(),
+                summary.document_kind,
+                key.id()
+            ),
+            resolved.clone(),
+        );
+        self.insert(
+            format!("pf2e.{}.{}", key.pack(), key.id()),
+            resolved.clone(),
+        );
+        if let Some(name) = summary.name.as_value() {
+            for alias in name_aliases(key.pack().as_str(), &summary.document_kind, name) {
+                self.names
+                    .entry(alias)
+                    .and_modify(|value| *value = None)
+                    .or_insert(Some(resolved.clone()));
+            }
+        }
+    }
+
     pub fn insert_source(&mut self, key: &RecordKey, source: &FoundryDocumentSource) {
         if !self.roots.insert(key.clone()) {
             self.duplicate_roots.insert(key.clone());
