@@ -171,11 +171,111 @@ fn reuse_rejects_corrupt_values_and_native_count_mismatches() {
     validate_artifact(&path).unwrap();
 }
 #[test]
+fn new_record_reuses_native_inputs_and_keeps_distinct_filtered_witnesses() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("atlas.sqlite");
+    let mut input = crate::foundation_tests::fixture(true);
+    publish_input(&path, &input).unwrap();
+    let original = input.records[1].record.key().clone();
+    let mut added = crate::foundation_tests::record(
+        "items",
+        "Item",
+        serde_json::json!({"_id":"eeeeeeeeeeeeeeee","name":"Dragon Staff","type":"weapon","system":{"level":{"value":0},"traits":{"value":[],"rarity":"common"},"price":{"value":{"gp":2},"per":1},"bulk":{"value":1},"description":{"value":"<h2>Flame</h2><p>@Check[reflex|dc:20] Dragon breath.</p>"}}}),
+    );
+    added.preparation_context_hash = input.context.preparation_sha256().unwrap();
+    let key = added.record.key().clone();
+    let new_units = input
+        .semantic_units
+        .iter()
+        .filter(|unit| unit.record == original)
+        .cloned()
+        .map(|mut unit| {
+            unit.record = key.clone();
+            unit
+        })
+        .collect::<Vec<_>>();
+    let model = &input.context.search_profiles[0];
+    let workspace = initialize_workspace(&path).unwrap();
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    let reuse = read_reusable_embeddings(
+        &read,
+        model,
+        &new_units.iter().map(prepared).collect::<Vec<_>>(),
+    )
+    .unwrap();
+    for unit in &new_units {
+        assert_eq!(reuse[&prepared(unit).reuse_key], unit.vector);
+    }
+    drop(read);
+    let lexical = input
+        .lexical_units
+        .iter()
+        .filter(|unit| unit.record == original)
+        .cloned()
+        .map(|mut unit| {
+            unit.record = key.clone();
+            unit
+        })
+        .collect::<Vec<_>>();
+    input.records.push(added);
+    input.context.source_file_count += 1;
+    input.lexical_units.extend(lexical);
+    input.semantic_units.extend(new_units.clone());
+    publish_input(&path, &input).unwrap();
+    let reader = open_reader(&path).unwrap();
+    let all = crate::validate_query(&atlas_domain::QueryPredicate::boolean(true)).unwrap();
+    let model = &input.context.search_profiles[0];
+    let mut occurrence_ids = std::collections::BTreeSet::new();
+    for record in [original, key] {
+        let hits = reader
+            .vector_candidates(
+                &model.profile_id,
+                &new_units[0].vector,
+                &all,
+                Some(std::slice::from_ref(&record)),
+                100,
+            )
+            .unwrap();
+        assert_eq!(hits.len(), new_units.len());
+        for hit in hits {
+            assert_eq!(hit.location.record, record);
+            assert!(occurrence_ids.insert(hit.location.unit_id));
+            if hit.location.field.is_some() {
+                assert!(reader.recover_passage(&hit.location).unwrap().is_some());
+            }
+        }
+    }
+    assert_eq!(occurrence_ids.len(), new_units.len() * 2);
+}
+
+#[test]
 fn publication_updates_slots_in_place_and_retains_attribution_per_occurrence() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("atlas.sqlite");
     let mut input = crate::foundation_tests::fixture(true);
     publish_input(&path, &input).unwrap();
+    let all = crate::validate_query(&atlas_domain::QueryPredicate::boolean(true)).unwrap();
+    let model = &input.context.search_profiles[0];
+    let reader = open_reader(&path).unwrap();
+    let old_passage = reader
+        .vector_candidates(
+            &model.profile_id,
+            &input.semantic_units[0].vector,
+            &all,
+            None,
+            100,
+        )
+        .unwrap()
+        .into_iter()
+        .find(|hit| {
+            reader
+                .recover_passage(&hit.location)
+                .unwrap()
+                .is_some_and(|text| text.contains("Dragon breath"))
+        })
+        .unwrap()
+        .location;
+    drop(reader);
     let c = rusqlite::Connection::open(&path).unwrap();
     let ids = c
         .prepare("SELECT unit_id,location_id FROM semantic_units ORDER BY unit_id")
@@ -192,6 +292,10 @@ fn publication_updates_slots_in_place_and_retains_attribution_per_occurrence() {
         })
         .unwrap();
     drop(c);
+    input = crate::foundation_tests::fixture_with_description(
+        true,
+        "<h2>Flame</h2><p>@Check[reflex|dc:20] Changed dragon breath.</p>",
+    );
     for unit in &mut input.semantic_units {
         unit.vector.fill(0.);
         unit.vector[23] = 1.;
@@ -205,7 +309,14 @@ fn publication_updates_slots_in_place_and_retains_attribution_per_occurrence() {
         .unwrap()
         .collect::<Result<Vec<_>, _>>()
         .unwrap();
-    assert_eq!(ids, after);
+    assert_eq!(
+        ids.iter().map(|(id, _)| id).collect::<Vec<_>>(),
+        after.iter().map(|(id, _)| id).collect::<Vec<_>>()
+    );
+    assert_ne!(
+        ids, after,
+        "changed source addresses must replace their locations"
+    );
     assert_eq!(
         c.query_row(&format!("SELECT count(*) FROM {table}_chunks"), [], |r| {
             r.get::<_, usize>(0)
@@ -215,6 +326,33 @@ fn publication_updates_slots_in_place_and_retains_attribution_per_occurrence() {
     );
     assert_eq!(count(&c, "pending_embedding_values"), 0);
     assert_eq!(count(&c, "semantic_units"), input.semantic_units.len());
+    drop(c);
+    let reader = open_reader(&path).unwrap();
+    let model = &input.context.search_profiles[0];
+    let new_passage = reader
+        .vector_candidates(
+            &model.profile_id,
+            &input.semantic_units[0].vector,
+            &all,
+            None,
+            100,
+        )
+        .unwrap()
+        .into_iter()
+        .find(|hit| hit.location.unit_id == old_passage.unit_id)
+        .unwrap()
+        .location;
+    assert_eq!(new_passage.record, old_passage.record);
+    assert_eq!(new_passage.owners, old_passage.owners);
+    assert_eq!(new_passage.field, old_passage.field);
+    assert_ne!(new_passage.address, old_passage.address);
+    assert!(
+        reader
+            .recover_passage(&new_passage)
+            .unwrap()
+            .unwrap()
+            .contains("Changed dragon breath")
+    );
 }
 
 #[test]

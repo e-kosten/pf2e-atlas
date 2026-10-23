@@ -126,4 +126,9 @@ evidence, not release or hosted-CI acceptance.
 Physical free-page reclamation runs only during explicit maintenance, outside a
 SQL transaction under exclusive admission and a durable recovery marker. It keeps
 workspace identity and logical reference revision; interrupted reclamation uses
-the existing validated maintenance recovery. Startup never vacuums implicitly.
+the existing validated maintenance recovery. Before starting, storage checks free
+space on the workspace and SQLite temporary volumes, conservatively budgeting
+twice the logical database size on each. Insufficient or uncheckable capacity
+skips optional reclamation without setting maintenance or failing the completed
+reference update. The preflight cannot reserve capacity against other processes.
+Startup never vacuums implicitly.

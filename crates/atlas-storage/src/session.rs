@@ -112,25 +112,6 @@ impl UpdateOwner {
         Ok(true)
     }
 
-    /// Explicit update-time reclamation. A small free list is left for ordinary
-    /// SQLite reuse; this never runs from startup or ordinary read admission.
-    pub fn reclaim_space(&self, schema: u32) -> StorageResult<bool> {
-        {
-            let read = self.workspace.read(schema)?;
-            let bytes: u64 = read.connection().query_row(
-                "SELECT page_size*freelist_count FROM pragma_page_size(),pragma_freelist_count()",
-                [],
-                |r| r.get(0),
-            )?;
-            if bytes < 32 * 1024 * 1024 {
-                return Ok(false);
-            }
-        }
-        let session = self.maintenance(schema, "reclaiming database space")?;
-        session.reclaim_space()?;
-        Ok(true)
-    }
-
     /// Blocks new product sessions, then durably marks maintenance before work
     /// that may span transactions. An interrupted updater must explicitly resume.
     pub fn maintenance(&self, schema: u32, reason: &str) -> StorageResult<MaintenanceSession<'_>> {
@@ -159,23 +140,6 @@ impl MaintenanceSession<'_> {
     /// expose partially updated projections to normal readers.
     pub fn connection(&self) -> &Connection {
         &self.connection
-    }
-
-    /// Reclaim free database pages during an explicit update, never an ordinary
-    /// read/startup. Keeps exclusive admission and a durable recovery marker
-    /// across VACUUM, which cannot run inside a transaction. Logical revisions
-    /// and saved data are unchanged. Failure leaves maintenance closed.
-    pub fn reclaim_space(&self) -> StorageResult<()> {
-        self.connection.execute(
-            "UPDATE workspace SET maintenance='reclaiming database space' WHERE id=1",
-            [],
-        )?;
-        self.connection.execute_batch(
-            "PRAGMA wal_checkpoint(TRUNCATE); VACUUM; PRAGMA wal_checkpoint(TRUNCATE);",
-        )?;
-        self.connection
-            .execute("UPDATE workspace SET maintenance=NULL WHERE id=1", [])?;
-        Ok(())
     }
 
     /// Validate and publish the complete delta and clear maintenance atomically.

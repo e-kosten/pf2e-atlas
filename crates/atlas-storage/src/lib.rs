@@ -9,6 +9,7 @@ mod backup;
 mod error;
 mod locking;
 mod migration;
+mod reclamation;
 mod session;
 mod snapshot;
 mod workspace;
