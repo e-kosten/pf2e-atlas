@@ -10,6 +10,7 @@ and update continuity; do not introduce a competing feature-local design policy.
 ## Frontend Ownership
 
 - Keep product semantics in Rust app-service/app-model contracts. The frontend should render generated DTOs and call the thin API client; it should not duplicate retrieval, filtering, ranking, record projection, saved-list, or encounter product rules.
+- Before redesigning a record family, audit generated Foundry DTO fields through source views, presentation and UI; do not assume the current presentation DTO is complete. Follow [Record presentation](docs/frontend-guidelines.md#record-presentation) for field dispositions, source examples and coverage checks.
 - Use Ant Design as the component library for generic application UI. Prefer Ant components for buttons, icon buttons, links, navigation controls, forms, tables, modals, popovers, tooltips, selectors, checkboxes, alerts, empty/loading states, tags, and pagination before adding custom controls.
 - Hand-roll UI only when the surface is product-specific, such as record presentation, PF2e stat/rendering layouts, rich result summaries that Ant list/table primitives cannot express cleanly, or encounter-runtime panels.
 - Use Atlas theme tokens and existing CSS variables. Do not add ad hoc raw colors or one-off palettes. Derive custom Atlas state variables from Ant semantic tokens, not raw brand tokens such as `colorPrimary`, where the variable represents selected, active, link, hover, or focus behavior.
