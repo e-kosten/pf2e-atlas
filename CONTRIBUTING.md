@@ -667,7 +667,7 @@ Use a run from this repository with an unexpired `browser-fixture` artifact. The
 manual run checks out the artifact's exact source commit and uses the same Ubuntu
 24.04, Node 22 and lockfile-pinned Playwright installation as ordinary CI. It runs
 only the selected case, with traces/screenshots/report retained even on failure;
-it does not replace the full PR check. The workflow must be registered on the
+it does not replace the full PR check or emit its `validation complete` result. The workflow must be registered on the
 default branch before GitHub permits dispatch. For local diagnosis, pass the
 same spec, `--project`, `--grep` and `--repeat-each` arguments to Playwright directly.
 

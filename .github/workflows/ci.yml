@@ -414,7 +414,7 @@ jobs:
       - run: sh scripts/validation/research.sh
 
   validation:
-    name: validation complete
+    name: ${{ inputs.browser-run && 'focused replay only' || 'validation complete' }}
     if: ${{ !cancelled() && inputs.browser-run == '' }}
     needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill]
     runs-on: ubuntu-24.04
