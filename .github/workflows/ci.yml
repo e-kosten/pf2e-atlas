@@ -172,8 +172,6 @@ jobs:
           path: web/atlas-ui/dist
       - name: Compile and authenticate browser candidate
         run: |
-          cargo build --locked -p atlas-web --example browser_fixture
-          strip --strip-debug target/debug/examples/browser_fixture
           node scripts/browser-fixture.mjs scratch/browser-artifact
           cat scratch/browser-artifact/manifest.json >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
@@ -214,7 +212,7 @@ jobs:
         working-directory: web/atlas-ui
         run: npm exec -- playwright test --config playwright.devices.config.ts --shard=${{ matrix.shard }}/2
       - name: Browser evidence
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: device-browsers-${{ matrix.shard }}
@@ -274,7 +272,7 @@ jobs:
           if [[ "$CAPTURE" == true ]]; then snapshot_args+=(--update-snapshots=all); fi
           npm exec -- playwright test --config playwright.devices.config.ts "${snapshot_args[@]}" "$SPEC" "${project_args[@]}" --grep="$GREP" --repeat-each="$REPEAT"
       - name: Focused browser evidence
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: focused-browser-evidence
@@ -417,7 +415,7 @@ jobs:
 
   validation:
     name: validation complete
-    if: always() && inputs.browser-run == ''
+    if: ${{ !cancelled() && inputs.browser-run == '' }}
     needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill]
     runs-on: ubuntu-24.04
     steps:
