@@ -99,6 +99,37 @@ inside its container and record names readable. Loading, an empty collection,
 filtered emptiness and a failed read are distinct states; preserve existing data
 on failed refresh and provide local Retry.
 
+### Reading and editing values
+
+On surfaces primarily used for reading or scanning, present editable values as
+readable content with a persistent visual cue for editing. Reveal the editor on
+activation. Hover and keyboard focus reinforce the cue rather than introduce it;
+the interaction must be recognizable without a mouse. Keep fields visible when
+entering or adjusting values is the primary task, such as the HP change amount
+or encounter setup forms.
+
+For compact single-value edits, make the value itself a quiet button. Current and
+temporary encounter HP use Ant's neutral filled Button with the surrounding
+value typography; maximum HP remains plain text because it has no inline edit.
+Keep the cue subtle but visible in both appearances, with an adequate target and
+clear keyboard focus. Do not make read-only values look editable. The two failure
+cases are a row of permanent number fields that dominates scanning, and plain
+numbers whose editability appears only on hover. Extra pencil icons and helper
+copy are unnecessary when the button treatment already supplies the cue.
+
+`EncounterHpValue` composes the shared `EditableCommitField` for this interaction.
+Keep keyboard activation, an accessible Edit label, Enter/blur commit and Escape
+cancellation. Preserve drafts during pending reads and show validation or mutation
+failures locally. Do not put an extra Change HP action or modal in front of this
+existing quick edit. A substantial edit involving several related decisions can
+use a dedicated form or overlay; presentation does not bypass confirmation,
+validation or backend mutation policy.
+
+A named adjacent action is another visible editing cue: reference spell rank
+stays readable beside Change rank, which opens its choices. Do not leave a Select
+permanently in the identity block. This is the accepted spell composition, not a
+requirement to add a Change button beside every editable value.
+
 ### Primary toolbars
 
 Compose primary input, selector and action rows with `PrimaryToolbar`. Controls

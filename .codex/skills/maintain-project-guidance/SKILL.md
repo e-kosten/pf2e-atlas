@@ -46,12 +46,13 @@ skill describes maintenance practice, not a second source of product rules.
   Preserve necessary scope and rationale while pruning duplication and stale
   catalogs. Do not rewrite unrelated guidance to satisfy an arbitrary line count.
 
-For example, “show facts before editing controls” is too broad. A scoped rule is:
-“During reference reading, show spell rank as text beside Change rank. During
-encounter play, keep HP directly editable through its value-shaped control.”
-The positive cases are static spell identity with an adjacent menu and local HP
-editing. Failure cases are a permanent spell-rank form and an extra Change HP
-step. The distinction is the user's task, not whether the value is mutable.
+For example, “show facts before editing controls” can incorrectly prohibit the
+accepted inline HP editor. Check the shared principle: HP's quiet value button
+and spell rank's named action both preserve reading while visibly offering an
+edit. Boundary cases include hover-only edit cues and data-entry forms where
+inputs should remain visible. Do not merely list HP and spells as exceptions to
+an unexplained default. This illustrates scoping; keep actual UI policy in the
+[frontend guide](../../../web/atlas-ui/docs/frontend-guidelines.md#reading-and-editing-values).
 
 ## Check the guidance and report its limits
 
