@@ -12,6 +12,7 @@ mod query;
 mod relationships;
 mod resolver;
 mod search_selection;
+mod shield_content;
 #[cfg(test)]
 mod tests;
 mod text;

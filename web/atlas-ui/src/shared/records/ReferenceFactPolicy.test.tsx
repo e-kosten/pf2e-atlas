@@ -152,6 +152,10 @@ describe("reference fact reading policy", () => {
       body: {
         kind: "physical_reference",
         value: {
+          details: null,
+          quantity: numberFact(1),
+          material: unavailableFact("not_applicable"),
+          size: unavailableFact("not_applicable"),
           usage: knownFact(" "),
           bulk: numberFact(0),
           price: knownFact(price),
@@ -175,7 +179,7 @@ describe("reference fact reading policy", () => {
       cp: absent,
     });
     rerender(<RecordPresentation presentation={presentation} onReference={vi.fn()} />);
-    expect(screen.getByText("Price").parentElement).toHaveTextContent("Empty");
+    expect(screen.getByText("Price").parentElement).toHaveTextContent("Not listed");
     presentation.body.value.price = unavailableFact("invalid");
     rerender(<RecordPresentation presentation={presentation} onReference={vi.fn()} />);
     expect(screen.getByText("Price").parentElement).toHaveTextContent("[invalid]");

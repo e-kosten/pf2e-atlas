@@ -718,9 +718,9 @@ impl Projection<'_> {
         let (glyph, label) = match value.trim() {
             "F" | "free" | "0" => (Some("free_action"), "free action"),
             "R" | "reaction" => (Some("reaction"), "reaction"),
-            "1" => (Some("one_action"), "one action"),
-            "2" => (Some("two_actions"), "two actions"),
-            "3" => (Some("three_actions"), "three actions"),
+            "1" | "A" | "a" => (Some("one_action"), "one action"),
+            "2" | "D" | "d" => (Some("two_actions"), "two actions"),
+            "3" | "T" | "t" => (Some("three_actions"), "three actions"),
             "1/2" => (None, "one or two actions"),
             "1 - 3" | "1 – 3" => (None, "one to three actions"),
             "2/3" => (None, "two or three actions"),

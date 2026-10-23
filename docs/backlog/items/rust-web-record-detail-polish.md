@@ -3,7 +3,7 @@
 Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-19
+Last reviewed: 2026-10-23
 
 ## Problem
 
@@ -59,6 +59,25 @@ The pass should consider:
 - Keep browser-specific layout code separate from shared Rust presentation contracts.
 - Reuse family components and shared Ant primitives rather than duplicating
   layouts or creating visually inconsistent feature-local designs.
+
+## Separately scoped source-modeling findings
+
+The equipment DTO audit at PF2e source pin
+`28d9d156f252d084371d994dc359509b49eadf18` found weapon `bonusDamage` and `staff`,
+and kit `equippedBulk`, outside the generated typed members. Review their source
+meaning and typed admission before proposing a consumer projection. They are
+separate from presenting already typed weapon dice, armor facts or container
+capacity; do not read retained extras or interpret prose in the browser to fill
+these gaps. Preserve complete authored rules while this support is deferred.
+
+Separate reference-scan candidates already have typed source support: weapon
+attack bonus (especially alchemical bombs), item grade on two commercial weapons,
+ammunition's alternate crafting kinds and apex attribute. Review their source
+meaning and useful presentation individually; item grade is distinct from material
+grade, and base damage plus runes is not a complete calculated attack. Integrated
+shield attack/rune details likewise require a qualified presentation rather than
+an inferred effective attack. These are explicit remaining coverage decisions,
+not claims that every nested equipment DTO member is now displayed.
 
 ## Related
 

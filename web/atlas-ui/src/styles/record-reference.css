@@ -121,11 +121,11 @@
 .record-reference__metadata .badge-row {
   margin: 0;
 }
-.record-reference__metadata:has(.spell-rank-control) {
+.record-reference__metadata--rows {
   display: grid;
   gap: var(--space-control);
 }
-.record-reference__header--stacked .record-reference__source {
+.record-reference__source {
   margin: var(--space-control) 0 0;
   font-size: 0.9rem;
   color: var(--muted);
@@ -548,4 +548,22 @@
 .reference-reader--workspace .prepared-content,
 .record-reference--encounter .prepared-content {
   max-width: var(--document-measure);
+}
+
+.physical-reference {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-group);
+}
+.physical-reference__facts {
+  display: grid;
+  gap: var(--space-control);
+}
+
+.physical-reference__kit-items {
+  margin-block: var(--space-control) 0;
+  padding-inline-start: var(--space-section);
+}
+.physical-reference__kit-items > li {
+  margin-block: var(--space-control);
 }

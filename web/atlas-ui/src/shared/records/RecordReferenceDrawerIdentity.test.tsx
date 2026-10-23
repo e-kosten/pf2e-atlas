@@ -58,7 +58,9 @@ it("groups identity facts in the Drawer header without duplicating the title or 
   expect(screen.getByRole("dialog", { name: "Treat Wounds" })).toBeInTheDocument();
   expect(header.getByText("Rule")).toBeVisible();
   expect(header.getByText("Healing")).toBeVisible();
-  expect(header.getByText("Source: Pathfinder Player Core")).toBeVisible();
+  const source = header.getByText("Pathfinder Player Core").parentElement;
+  expect(source).toBeVisible();
+  expect(source).toHaveTextContent("Source: Pathfinder Player Core");
   expect(header.getByText("passive")).toBeVisible();
   expect(screen.getAllByText("passive")).toHaveLength(1);
   expect(header.queryByRole("heading", { name: "Description" })).toBeNull();

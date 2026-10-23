@@ -107,11 +107,26 @@ qualifiers. These policies do not rewrite checked DTOs or stored facts, inspect
 HTML for semantic emptiness, or introduce a visibility model.
 
 Physical price responses preserve outer and per-currency availability as typed
-number facts. Readers omit missing optional currency leaves but retain null,
-invalid and zero members; an empty currency object does not imply a free item.
+number facts. Readers omit missing optional currency leaves, retain null/invalid
+members and zero-only prices, and may omit redundant known-zero denominations
+beside a nonzero amount. They do not convert currencies; an empty currency object
+does not imply a free item.
 RollTable results carry collection availability and their sole authoritative
 owned-link list in the table body, rather than duplicating it in generic owned
 links. Both corrections are transient app-service projections over existing DTOs.
+
+Equipment subtype facts remain typed rather than becoming a generic field-layout
+interpreter. Base damage, rune labels, armor, container, ammunition and kit facts
+are projected from checked DTOs; UI layout does not calculate effective combat
+values. Authored tables remain source content. A narrow record-owned recognition
+policy marks a preserved two-row Hardness/HP/BT table as covering shield durability
+only when both hardness and maximum HP equal the typed source values. Mismatched
+or more complex tables do not suppress summaries, and BT is never synthesized.
+
+Content interpretation recognizes legacy PF2e font letters A/D/T alongside numeric
+action glyphs, with the same semantic markup and accessible labels. Its versioned
+preparation context requires ordinary reference republication; neither browser
+text replacement nor a legacy cached-HTML adapter is a supported update path.
 
 The shared browser identity row uses a compact service-owned classification
 caption derived from typed kind and level/rank facts. Known zero is meaningful;

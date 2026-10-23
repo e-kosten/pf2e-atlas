@@ -68,6 +68,20 @@ fn price_units_and_table_collections_preserve_unavailable_and_zero_facts() {
         adjustment: None,
     };
     let physical = PhysicalPresentationView {
+        details: None,
+        quantity: NumberFactView {
+            state: QueryFieldState::Value,
+            value: Some(1.into()),
+            adjustment: None,
+        },
+        material: FactView {
+            state: QueryFieldState::NotApplicable,
+            value: None,
+        },
+        size: FactView {
+            state: QueryFieldState::NotApplicable,
+            value: None,
+        },
         consumable: None,
         usage: known(" \t ".into()),
         bulk: numeric(0),

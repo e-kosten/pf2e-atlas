@@ -130,6 +130,15 @@ pub(super) fn render_record(
             {
                 optional_number(&mut out, "Price per", &body.price_per, false, "items");
             }
+            if body
+                .quantity
+                .value
+                .as_ref()
+                .is_some_and(|v| v.as_f64() != Some(1.0))
+                || body.quantity.state == QueryFieldState::Invalid
+            {
+                number(&mut out, "Quantity", &body.quantity, false, "");
+            }
             if let Some(consumable) = &body.consumable {
                 required_text(&mut out, "Category", &consumable.category);
                 if let Some(damage) = &consumable.damage.value {
@@ -163,15 +172,6 @@ pub(super) fn render_record(
                         )
                     };
                     line(&mut out, format!("Uses: {uses}"));
-                }
-                if consumable
-                    .source_quantity
-                    .value
-                    .as_ref()
-                    .is_some_and(|v| v.as_f64() != Some(1.0))
-                    || consumable.source_quantity.state == QueryFieldState::Invalid
-                {
-                    number(&mut out, "Quantity", &consumable.source_quantity, false, "");
                 }
                 if let Some(spell) = &consumable.spell.value {
                     line(

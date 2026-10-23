@@ -8,6 +8,7 @@ export function DocumentIdentityHeader({
   identityActions,
   classificationControl,
   stacked = false,
+  metadataLayout = "inline",
   headingRef,
   headingId,
   actions,
@@ -20,6 +21,7 @@ export function DocumentIdentityHeader({
   identityActions?: ReactNode;
   classificationControl?: ReactNode;
   stacked?: boolean;
+  metadataLayout?: "inline" | "rows";
   headingRef?: Ref<HTMLHeadingElement>;
   headingId?: string;
   actions?: ReactNode;
@@ -49,7 +51,9 @@ export function DocumentIdentityHeader({
         {actions && <div className="record-reference__actions">{actions}</div>}
       </div>
       {stacked ? (
-        <div className="record-reference__metadata">
+        <div
+          className={`record-reference__metadata record-reference__metadata--${metadataLayout}`}
+        >
           {kind}
           {children}
         </div>

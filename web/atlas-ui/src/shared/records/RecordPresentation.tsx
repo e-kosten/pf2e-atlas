@@ -14,7 +14,6 @@ import type {
   RecordSummaryView,
   ActionCostView,
   FactView,
-  PhysicalPriceView,
 } from "../../generated/atlas";
 import {
   ActorActivities,
@@ -27,11 +26,11 @@ import {
   FactRow,
   NumberFact,
   factText,
-  hasReadingFact,
   isEmptyFactValue,
 } from "./presentationFacts";
 import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent";
 import { SpellReference } from "./SpellReference";
+import { PhysicalReference } from "./PhysicalReference";
 import { ActionCost } from "./ActionCost";
 import type { EmbeddedReadingContext } from "./EmbeddedAbilityReading";
 import { activityAddress } from "./embeddedNavigation";
@@ -136,6 +135,7 @@ export function RecordIdentity({
   originalRecord,
   onReference,
   stacked = false,
+  metadataLayout,
   headingRef,
   headingId,
   actions,
@@ -143,6 +143,7 @@ export function RecordIdentity({
 }: {
   identity?: RecordSummaryView;
   stacked?: boolean;
+  metadataLayout?: "inline" | "rows";
   headingRef?: Ref<HTMLHeadingElement>;
   headingId?: string;
   actions?: ReactNode;
@@ -161,6 +162,8 @@ export function RecordIdentity({
     anchor: HTMLElement,
   ) => void;
 }) {
+  const traits = identity?.traits.filter((trait) => trait.kind !== "rarity") ?? [];
+  const hasRarity = Boolean(identity?.rarity?.trim() && identity.rarity !== "common");
   const textCost =
     stacked && actionCost?.state === "value" && !actionCost.value?.glyph ? (
       <ActionCost fact={actionCost} />
@@ -185,14 +188,14 @@ export function RecordIdentity({
         ) : undefined
       }
       stacked={stacked}
+      metadataLayout={metadataLayout}
       headingRef={headingRef}
       headingId={headingId}
       actions={actions}
       attribution={
         identity?.publication?.trim() && (
           <p className="muted record-reference__source">
-            {stacked && "Source: "}
-            {identity.publication}
+            Source: <span>{identity.publication}</span>
           </p>
         )
       }
@@ -253,14 +256,14 @@ export function RecordIdentity({
         )
       }
     >
-      <div className="badge-row">
-        <RecordRarity rarity={identity?.rarity ?? null} />
-        {identity?.traits
-          .filter((trait) => trait.kind !== "rarity")
-          .map((trait) => (
+      {(hasRarity || traits.length > 0) && (
+        <div className="badge-row">
+          <RecordRarity rarity={identity?.rarity ?? null} />
+          {traits.map((trait) => (
             <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
           ))}
-      </div>
+        </div>
+      )}
     </DocumentIdentityHeader>
   );
 }
@@ -304,6 +307,11 @@ export function RecordPresentationIdentity({
   return (
     <RecordIdentity
       stacked={documentIdentity}
+      metadataLayout={
+        body?.kind === "physical_reference" || body?.kind === "spell"
+          ? "rows"
+          : "inline"
+      }
       headingRef={headingRef}
       headingId={headingId}
       actions={actions}
@@ -448,6 +456,14 @@ export function RecordPresentation({
       )}
       {body.kind === "spell" ? (
         <SpellReference spell={body.value}>{!encounter && flavor}</SpellReference>
+      ) : body.kind === "physical_reference" ? (
+        <PhysicalReference
+          item={body.value}
+          identity={presentation.identity}
+          onReference={onReference}
+        >
+          {!encounter && flavor}
+        </PhysicalReference>
       ) : (
         !encounter && flavor
       )}
@@ -529,102 +545,6 @@ export function RecordPresentation({
             body.value.action_cost.state === "value"
           }
         />
-      )}
-      {body.kind === "physical_reference" && body.value.consumable && (
-        <div className="record-fact-list">
-          <FactLine label="Category" fact={body.value.consumable.category} />
-          {body.value.consumable.damage.value && (
-            <FactRow
-              label={
-                body.value.consumable.damage.value.kind.value === "healing"
-                  ? "Healing"
-                  : body.value.consumable.damage.value.kind.value === "damage"
-                    ? "Damage"
-                    : "Damage or healing"
-              }
-            >
-              {factText(body.value.consumable.damage.value.formula)}{" "}
-              {factText(body.value.consumable.damage.value.damage_type)}
-            </FactRow>
-          )}
-          {body.value.consumable.damage.state === "invalid" && (
-            <FactLine label="Damage or healing" fact={body.value.consumable.damage} />
-          )}
-          {body.value.consumable.spell.state === "invalid" && (
-            <FactLine label="Spell" fact={body.value.consumable.spell} />
-          )}
-          {((body.value.consumable.maximum_uses.value ?? 0) > 1 ||
-            body.value.consumable.maximum_uses.state === "invalid" ||
-            body.value.consumable.source_uses.state === "invalid" ||
-            (body.value.consumable.source_uses.value !== null &&
-              body.value.consumable.source_uses.value !==
-                body.value.consumable.maximum_uses.value)) && (
-            <FactRow label="Uses">
-              {body.value.consumable.source_uses.value !==
-                body.value.consumable.maximum_uses.value && (
-                <>{factText(body.value.consumable.source_uses)} / </>
-              )}
-              {factText(body.value.consumable.maximum_uses)}
-            </FactRow>
-          )}
-          {((body.value.consumable.source_quantity.value !== null &&
-            body.value.consumable.source_quantity.value !== 1) ||
-            body.value.consumable.source_quantity.state === "invalid") && (
-            <FactLine label="Quantity" fact={body.value.consumable.source_quantity} />
-          )}
-          {body.value.consumable.spell.value &&
-            !body.value.consumable.spell_presented_inline && (
-              <FactRow label="Spell">
-                <Button
-                  type="link"
-                  size="small"
-                  href={atlasRoutePath({
-                    kind: "record",
-                    recordKey: body.value.consumable.spell.value.navigation.record_key,
-                    selection: body.value.consumable.spell.value.navigation,
-                  })}
-                  onClick={(event) => {
-                    if (!shouldHandleAtlasRouteClick(event)) return;
-                    event.preventDefault();
-                    const spell = body.value.consumable!.spell.value!;
-                    onReference(
-                      spell.navigation.record_key,
-                      event.currentTarget,
-                      spell.navigation,
-                    );
-                  }}
-                >
-                  {body.value.consumable.spell.value.title}
-                </Button>
-                {body.value.consumable.spell.value.navigation.spell_rank && (
-                  <> · Rank {body.value.consumable.spell.value.navigation.spell_rank}</>
-                )}
-              </FactRow>
-            )}
-        </div>
-      )}
-      {body.kind === "physical_reference" && (
-        <div className="record-fact-list">
-          <FactLine label="Usage" fact={body.value.usage} />
-          <PhysicalPrice
-            fact={body.value.price}
-            label={
-              (body.value.price_per.value ?? 1) > 1
-                ? `Price per ${body.value.price_per.value}`
-                : "Price"
-            }
-          />
-          {body.value.price_per.state !== "missing" &&
-            (body.value.price_per.state !== "value" ||
-              (body.value.price_per.value ?? 1) < 1) && (
-              <FactLine label="Price per" fact={body.value.price_per} />
-            )}
-          <FactLine
-            label="Bulk"
-            fact={body.value.bulk}
-            format={(value) => (value === 0.1 ? "L" : String(value))}
-          />
-        </div>
       )}
       {body.kind === "roll_table" &&
         (selection && reading?.generation ? (
@@ -737,31 +657,5 @@ export function RecordPresentation({
           </section>
         )}
     </article>
-  );
-}
-function PhysicalPrice({
-  fact,
-  label = "Price",
-}: {
-  fact: FactView<PhysicalPriceView>;
-  label?: string;
-}) {
-  if (!hasReadingFact(fact, { required: true })) return null;
-  if (fact.state !== "value" || !fact.value)
-    return <FactLine label={label} fact={fact} required />;
-  const coins = Object.entries(fact.value).filter(
-    ([, value]) => !["missing", "not_applicable"].includes(value.state),
-  );
-  return (
-    <FactRow label={label}>
-      {coins.length
-        ? coins.map(([unit, value], index) => (
-            <span key={unit}>
-              {index ? ", " : ""}
-              <NumberFact fact={value} /> {unit}
-            </span>
-          ))
-        : "Empty"}
-    </FactRow>
   );
 }

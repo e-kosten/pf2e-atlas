@@ -3,7 +3,7 @@
 Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-19
+Last reviewed: 2026-10-23
 
 ## Problem
 
@@ -41,6 +41,13 @@ Further UX work should improve priority, labels, grouping and discoverability
 through those owners. [Option counts](../history/items/web-contextual-option-counts.md) landed in PR60. Unsupported count contexts retain usable vocabulary; additional
 query-text-aware counts remain deferred. New UX work should identify a current
 user problem rather than repeat the completed shared-query/counts pass.
+
+Equipment subtypes are already filterable through Advanced filters → Source
+Family (`source.type`), while the common Kind filter groups them as Equipment.
+The source choices `backpack` and `ammo` appear as Backpack and Ammo rather than
+Containers and Ammunition. Improve this existing capability's naming and
+discoverability in the filter UX pass; the equipment presentation redesign does
+not add a second subtype predicate or alter canonical kind values.
 
 ## Constraints
 
