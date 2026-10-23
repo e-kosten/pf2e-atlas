@@ -70,7 +70,9 @@ jobs:
           cache-dependency-path: web/atlas-ui/package-lock.json
       - run: npm --prefix web/atlas-ui ci
       - run: chmod +x "$ATLAS_BROWSER_ARTIFACT/browser_fixture"
-      - run: npm --prefix web/atlas-ui exec -- playwright install --with-deps chromium webkit
+      - name: Install device browsers
+        timeout-minutes: 3
+        run: npm --prefix web/atlas-ui exec -- playwright install --with-deps chromium webkit
       - name: Repeat the focused case
         working-directory: web/atlas-ui
         env:

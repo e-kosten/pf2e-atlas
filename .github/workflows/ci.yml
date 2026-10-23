@@ -179,6 +179,7 @@ jobs:
           path: scratch/browser-artifact
       - run: chmod +x "$ATLAS_BROWSER_ARTIFACT/browser_fixture"
       - name: Install device browsers
+        timeout-minutes: 3
         run: npm --prefix web/atlas-ui exec -- playwright install --with-deps chromium webkit
       - name: Responsive browser acceptance
         timeout-minutes: 10

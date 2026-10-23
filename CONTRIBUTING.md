@@ -635,7 +635,10 @@ Playwright worker. No mutable database or live Cargo target is shared between
 runners. The
 `validation complete` check requires both shards, the fixture build, the frontend
 checks/build, unit tests and every other selected gate. Main/nightly retain all
-surfaces. Frontend `verify` alone does not execute browsers.
+surfaces. Frontend `verify` alone does not execute browsers. Browser installation
+has a three-minute limit; an installer/network failure can rerun just its browser
+job with `gh run rerun RUN_ID --job JOB_ID`, reusing the retained compiled fixture.
+Use the `databaseId` from `gh run view RUN_ID --json jobs` as `JOB_ID`.
 
 The fixture artifact contains the executable, its expected frontend index and a
 manifest with source commit, platform, architecture and SHA-256 checksums. Set
