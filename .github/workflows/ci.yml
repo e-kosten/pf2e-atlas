@@ -97,6 +97,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: web-bundle
+          overwrite: true
           path: web/atlas-ui/dist/
           retention-days: 1
 
@@ -150,6 +151,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: browser-fixture
+          overwrite: true
           path: scratch/browser-artifact/
           retention-days: 3
 
@@ -189,7 +191,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: device-browsers-${{ matrix.shard }}
+          name: device-browsers-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
           path: scratch/responsive-validation/browser/
           retention-days: 3
 

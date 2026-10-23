@@ -644,7 +644,9 @@ The fixture artifact contains the executable, its expected frontend index and a
 manifest with source commit, platform, architecture and SHA-256 checksums. Set
 `ATLAS_BROWSER_ARTIFACT` to that directory to run it without Cargo. The runner
 rejects another commit/host or corrupted files; every test also checks served
-HTML against that artifact's index. CI artifacts expire after three days. Local
+HTML against that artifact's index. CI artifacts expire after three days. Rebuilding the same candidate replaces its
+intermediate bundle/fixture; report artifacts include the run attempt so failure
+evidence remains available. Local
 runs default to the checkout-local Cargo build. Never point a candidate test at a
 frozen preview binary just because it starts successfully.
 
@@ -671,9 +673,9 @@ manual run checks out the artifact's exact source commit and uses the same Ubunt
 24.04, Node 22 and lockfile-pinned Playwright installation as ordinary CI. It runs
 only the selected case, with traces/screenshots/report retained even on failure;
 it does not replace the full PR check or emit its `validation complete` result.
-The new `browser-debug.yml` workflow becomes directly dispatchable once it is
-registered on the default branch. Its replay/capture job was exercised before
-extraction; main/nightly verification keeps its own permissions and checks. For local diagnosis, pass the
+The `browser-debug.yml` workflow must be registered on the default branch before
+GitHub permits direct dispatch. It owns read-only Actions access for replay;
+main/nightly verification keeps its own permissions and checks. For local diagnosis, pass the
 same spec, `--project`, `--grep` and `--repeat-each` arguments to Playwright directly.
 
 ### Visual references
