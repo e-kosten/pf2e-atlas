@@ -447,6 +447,9 @@ test("encounter references retain their owner, scroll and native destination", a
         : ".record-preview-drawer__body",
     );
     await expect(host).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Open reference full page", exact: true }),
+    ).toBeFocused();
     if (widePreview) {
       const popup = page.locator(".record-preview-popover");
       await page.setViewportSize({ width: 844, height: 390 });
