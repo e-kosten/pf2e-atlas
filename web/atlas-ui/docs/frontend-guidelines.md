@@ -234,6 +234,14 @@ Selected network aborts may test recovery while retaining real durable writes.
 The existing corpus-backed `test:e2e` suite remains separate. See CONTRIBUTING
 for browser installation, CI execution, evidence and resource ownership.
 
+Condition refinement comparisons can set `ATLAS_CONDITION_VISUAL_DIR` to an
+absolute directory of local pixel baselines. Capture them on the preserved
+reference before editing, then compare with the same OS, browsers, viewport,
+theme and fixture state. Keep those baselines frozen during refinement; do not
+update them to accept candidate differences. The condition interaction and
+geometry assertions always run in the normal device suite, independently of
+this optional comparison directory.
+
 ## Source-backed records and filters
 
 Render generated app DTOs. Prepared content is sanitized HTML with field-local reference and interaction sidecars; use DOMPurify at the browser boundary and make supported markers keyboard accessible. Unknown commands and unavailable targets remain visible inert labels. Never execute Foundry commands, scripts, or rules. Selected owner and passage routes carry backend navigation, including its source fingerprint for snapshot-local addresses.
@@ -904,6 +912,9 @@ Attack assistance shows target-specific reminders and direct optional reference
 flat checks. Exclude the attacker from ordinary target choices. Do not require a
 detection/relationship questionnaire or a preparatory resolve step to roll these
 reference checks. Keep the original attack dice and expanded view geometry stable.
+Persistent damage and recovery render the backend's ordered sources and active
+source; source comparisons are edited only in Add/Edit precedence. Do not add
+another source-selection form to damage or recovery.
 Recovery uses an anchored DC reminder and Roll; render its outcome in that popover,
 including after successful condition removal. Table recovery uses ordinary clear.
 Creature dying settings belong at the bottom, revealing compact fields directly

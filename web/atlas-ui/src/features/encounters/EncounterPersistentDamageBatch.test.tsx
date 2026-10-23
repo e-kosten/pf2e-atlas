@@ -41,7 +41,7 @@ const participant: EncounterParticipantView = {
     {
       episode_id: "acid",
       damage_type: "acid",
-      selected_source_id: null,
+      selected_source_id: 9n,
       sources: [
         { condition_id: 8n, formula: "1d8", multiplier: "normal", recovery_dc: 15n },
         { condition_id: 9n, formula: "1d4", multiplier: "normal", recovery_dc: 15n },
@@ -102,8 +102,7 @@ it("submits all damage types together and retains table totals across an uncerta
     await screen.findByRole("spinbutton", { name: "Fire damage amount" }),
     { target: { value: "5" } },
   );
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Acid damage source" }));
-  fireEvent.click(await screen.findByText("1d4"));
+  expect(screen.queryByRole("combobox", { name: "Acid damage source" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Apply persistent damage" }));
   await screen.findByText("Connection lost");
   expect(screen.getByRole("spinbutton", { name: "Fire damage amount" })).toHaveValue(

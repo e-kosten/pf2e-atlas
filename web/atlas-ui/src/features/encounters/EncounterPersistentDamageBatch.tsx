@@ -4,7 +4,6 @@ import {
   Form,
   InputNumber,
   Segmented,
-  Select,
   Space,
   type FormInstance,
 } from "antd";
@@ -19,10 +18,7 @@ import type {
 import { RollResult } from "../../shared/dice/RollResult";
 import { integerRule } from "./EncounterConditionEditor";
 type Values = {
-  groups: Record<
-    string,
-    { source?: string; mode: "roll" | "table"; amount?: number | null }
-  >;
+  groups: Record<string, { mode: "roll" | "table"; amount?: number | null }>;
 };
 function DamageFields({
   group,
@@ -49,23 +45,6 @@ function DamageFields({
           {label}
           {selected ? ` · ${selected.formula}` : ""}
         </h4>
-      )}
-      {group.selected_source_id === null && (
-        <Form.Item
-          name={["groups", group.episode_id, "source"]}
-          label="Damage source"
-          rules={[
-            { required: true, message: "Choose the source with the greater damage." },
-          ]}
-        >
-          <Select
-            aria-label={`${label} damage source`}
-            options={group.sources.map((source) => ({
-              value: source.condition_id.toString(),
-              label: `${source.formula}${source.multiplier === "normal" ? "" : ` · ${source.multiplier}`}`,
-            }))}
-          />
-        </Form.Item>
       )}
       <Form.Item
         name={["groups", group.episode_id, "mode"]}
@@ -189,9 +168,7 @@ export function EncounterPersistentDamageBatch({
                 const draft = values.groups[group.episode_id];
                 return {
                   episode_id: group.episode_id,
-                  selected_source_id: draft.source
-                    ? BigInt(draft.source)
-                    : group.selected_source_id,
+                  selected_source_id: group.selected_source_id,
                   damage:
                     draft.mode === "table" ||
                     resolutions[group.episode_id]?.kind === "table"

@@ -985,7 +985,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
         .iter()
         .find(|g| g.damage_type == "fire")
         .unwrap();
-    assert_eq!(fire.selected_source_id, Some(d12));
+    assert_eq!(fire.selected_source_id, d12);
     let d6 = fire
         .sources
         .iter()
@@ -1041,7 +1041,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
             .find(|g| g.damage_type == "fire")
             .unwrap()
             .selected_source_id,
-        Some(d6)
+        d6
     );
     f.worker
         .remove_encounter_participant_condition(
@@ -1062,7 +1062,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
             .find(|g| g.damage_type == "fire")
             .unwrap()
             .selected_source_id,
-        Some(d12)
+        d12
     );
     // Rebuild the lower ambiguous pair with the GM's preferred 1d12 first.
     let mut lower = request("lower-pair", "2d6");
@@ -1132,7 +1132,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
                 .collect::<Vec<_>>(),
             expected
         );
-        assert_eq!(fire.selected_source_id, Some(fire.sources[0].condition_id));
+        assert_eq!(fire.selected_source_id, fire.sources[0].condition_id);
     };
     assert_order(&["2d12", "4d6", "1d12", "2d6"]);
     // A uniquely strongest source still exposes precedence for ambiguous fallbacks.
@@ -1200,4 +1200,38 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
         .add_encounter_participant_condition(&key, next)
         .unwrap();
     assert_order(&["2d8", "1d12", "2d6"]);
+}
+
+#[test]
+fn damage_and_recovery_reject_inactive_sources_before_changing_state() {
+    let (f, key, participant) = fixture();
+    let before = snapshot(&f, &key);
+    let inactive = before.participants[0]
+        .conditions
+        .iter()
+        .find(|condition| matches!(&condition.parameters, ConditionParameters::PersistentDamage { formula, .. } if formula == "2"))
+        .unwrap()
+        .condition_id;
+    let mut request = batch(&f, &key, &participant);
+    request.groups[0].selected_source_id = Some(inactive);
+    assert!(f.worker.apply_persistent_damage(&key, request).is_err());
+    assert!(
+        f.worker
+            .recover_persistent_damage(
+                &key,
+                RecoverPersistentDamageRequest {
+                    resolution: PersistentRecoveryResolution::Roll,
+                    boundary_key: None,
+                    mode: PersistentRecoveryMode::Explicit,
+                    request_id: "inactive-recovery".into(),
+                    expected_encounter_revision: before.encounter.revision,
+                    participant_key: participant,
+                    episode_id: "episode-fire".into(),
+                    selected_source_id: Some(inactive),
+                    dc_override: Some(1),
+                }
+            )
+            .is_err()
+    );
+    assert_eq!(snapshot(&f, &key), before);
 }

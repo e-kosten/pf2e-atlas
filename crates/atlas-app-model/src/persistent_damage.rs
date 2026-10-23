@@ -19,8 +19,8 @@ pub struct PersistentDamageGroupView {
     pub episode_id: String,
     pub damage_type: String,
     pub sources: Vec<PersistentDamageSourceView>,
-    /// None means the GM chooses which source deals the greater amount.
-    pub selected_source_id: Option<i64>,
+    /// The first source in the backend-resolved precedence order. Groups are nonempty.
+    pub selected_source_id: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -34,6 +34,7 @@ pub struct RecoverPersistentDamageRequest {
     pub expected_encounter_revision: i64,
     pub participant_key: String,
     pub episode_id: String,
+    /// Optional assertion of the displayed active source; cannot override precedence.
     pub selected_source_id: Option<i64>,
     /// Explicit GM adjudication, including assisted recovery.
     pub dc_override: Option<i64>,
@@ -95,6 +96,7 @@ pub enum PersistentDamageInput {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentDamageGroupInput {
     pub episode_id: String,
+    /// Optional assertion of the displayed active source; cannot override precedence.
     pub selected_source_id: Option<i64>,
     pub damage: PersistentDamageInput,
 }

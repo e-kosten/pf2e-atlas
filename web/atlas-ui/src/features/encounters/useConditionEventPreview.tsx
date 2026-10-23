@@ -96,20 +96,27 @@ export function useConditionEventPreview(
     displayed.consequences.every(
       (c) => c.kind === "direct_hp_loss" || c.kind === "drained_level_required",
     );
+  const applyDecisions = <T extends ConditionEventInput>(
+    request: T,
+    preview: ConditionEventPreviewView,
+  ): T => {
+    const retainChoices = consequencesOf(preview) === consequenceIdentity;
+    return {
+      ...request,
+      event_intent: retainChoices && correction ? "correction" : "apply",
+      decisions: {
+        ...request.decisions,
+        keep_upright: retainChoices && keepUpright,
+        persistent_precedence:
+          (retainChoices ? persistentOrder : undefined) ??
+          preview.persistent_precedence?.sources.map((entry) => entry.source),
+      },
+    };
+  };
   const apply = <T extends ConditionEventInput>(request: T): T => {
     if (!current || identityOf(request) !== identity || loading || error)
       throw new Error("Wait for the condition preview.");
-    return {
-      ...request,
-      event_intent: correction ? "correction" : "apply",
-      decisions: {
-        ...request.decisions,
-        keep_upright: keepUpright,
-        persistent_precedence:
-          persistentOrder ??
-          current.persistent_precedence?.sources.map((entry) => entry.source),
-      },
-    };
+    return applyDecisions(request, current);
   };
   return {
     setDraft: (request: ConditionEventInput) =>
@@ -136,19 +143,7 @@ export function useConditionEventPreview(
         consequencesOf(result) !== consequenceIdentity
       )
         return undefined;
-      const retainChoices = consequencesOf(result) === consequenceIdentity;
-      return {
-        ...request,
-        event_intent: retainChoices && correction ? "correction" : "apply",
-        decisions: {
-          ...request.decisions,
-          keep_upright: retainChoices && keepUpright,
-          persistent_precedence: retainChoices
-            ? (persistentOrder ??
-              result.persistent_precedence?.sources.map((entry) => entry.source))
-            : result.persistent_precedence?.sources.map((entry) => entry.source),
-        },
-      };
+      return applyDecisions(request, result);
     },
     persistentPrecedence: displayed?.persistent_precedence,
     persistentOrder:

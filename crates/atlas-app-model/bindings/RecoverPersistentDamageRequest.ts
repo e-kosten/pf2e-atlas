@@ -2,7 +2,11 @@
 import type { PersistentRecoveryMode } from "./PersistentRecoveryMode";
 import type { PersistentRecoveryResolution } from "./PersistentRecoveryResolution";
 
-export type RecoverPersistentDamageRequest = { resolution: PersistentRecoveryResolution, boundary_key: string | null, mode: PersistentRecoveryMode, request_id: string, expected_encounter_revision: bigint, participant_key: string, episode_id: string, selected_source_id: bigint | null,
+export type RecoverPersistentDamageRequest = { resolution: PersistentRecoveryResolution, boundary_key: string | null, mode: PersistentRecoveryMode, request_id: string, expected_encounter_revision: bigint, participant_key: string, episode_id: string,
+/**
+ * Optional assertion of the displayed active source; cannot override precedence.
+ */
+selected_source_id: bigint | null,
 /**
  * Explicit GM adjudication, including assisted recovery.
  */

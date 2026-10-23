@@ -1,5 +1,5 @@
 import { Dice5 } from "lucide-react";
-import { Alert, Button, Form, InputNumber, Popover, Select, Tooltip } from "antd";
+import { Alert, Button, Form, InputNumber, Popover, Tooltip } from "antd";
 import { useState } from "react";
 import type {
   PersistentDamageGroupView,
@@ -10,7 +10,7 @@ import { useDiceRoll } from "../../shared/dice/useDiceRoll";
 import { RollResult } from "../../shared/dice/RollResult";
 import { integerRule } from "./EncounterConditionEditor";
 
-type Values = { source?: string; dc?: number | null };
+type Values = { dc?: number | null };
 export function EncounterPersistentRecovery({
   group,
   participantKey,
@@ -58,18 +58,15 @@ export function EncounterPersistentRecovery({
   const dice = useDiceRoll<PersistentRecoveryResultView>();
   const result = dice.result ?? recordedResult;
   const [form] = Form.useForm<Values>();
-  const selectedId =
-    Form.useWatch("source", form) ?? group.selected_source_id?.toString();
   const source = group.sources.find(
-    (source) => source.condition_id.toString() === selectedId,
+    (source) => source.condition_id === group.selected_source_id,
   );
   const changed = revision !== encounterRevision;
   const resetFields = () => {
     form.resetFields();
-    const dc = group.sources.find(
-      (source) => source.condition_id === group.selected_source_id,
-    )?.recovery_dc;
-    form.setFieldsValue({ dc: dc == null ? null : Number(dc) });
+    form.setFieldsValue({
+      dc: source?.recovery_dc == null ? null : Number(source.recovery_dc),
+    });
   };
   const run = async () => {
     if (
@@ -82,17 +79,7 @@ export function EncounterPersistentRecovery({
     )
       return;
     try {
-      const values = await form.validateFields(["source", "dc"]);
-      const selected = values.source ?? group.selected_source_id?.toString();
-      if (!selected) return;
-      if (
-        group.sources.find((source) => source.condition_id.toString() === selected)
-          ?.recovery_dc === null &&
-        (values.dc === undefined || values.dc === null)
-      ) {
-        form.setFields([{ name: "dc", errors: ["Enter a whole number."] }]);
-        return;
-      }
+      const values = await form.validateFields(["dc"]);
       setError(undefined);
       await dice.run(async () => {
         const completed = await onRecover({
@@ -102,7 +89,7 @@ export function EncounterPersistentRecovery({
           expected_encounter_revision: result ? encounterRevision : revision,
           participant_key: participantKey,
           episode_id: group.episode_id,
-          selected_source_id: BigInt(selected),
+          selected_source_id: group.selected_source_id,
           dc_override:
             values.dc === undefined ||
             values.dc === null ||
@@ -161,34 +148,6 @@ export function EncounterPersistentRecovery({
               layout="inline"
               disabled={disabled || pending || result?.success || (changed && !result)}
             >
-              {group.selected_source_id === null && (
-                <Form.Item
-                  name="source"
-                  label="Damage source"
-                  layout="vertical"
-                  style={{ flexBasis: "100%", marginBottom: 12 }}
-                  rules={[
-                    {
-                      required: true,
-                      message: "Choose the source with the greater damage.",
-                    },
-                  ]}
-                >
-                  <Select
-                    aria-label="Recovery damage source"
-                    options={group.sources.map((source) => ({
-                      value: source.condition_id.toString(),
-                      label: `${source.formula}${source.multiplier === "normal" ? "" : ` · ${source.multiplier}`}`,
-                    }))}
-                    onChange={(id) => {
-                      const dc = group.sources.find(
-                        (source) => source.condition_id.toString() === id,
-                      )?.recovery_dc;
-                      form.setFieldsValue({ dc: dc == null ? null : Number(dc) });
-                    }}
-                  />
-                </Form.Item>
-              )}
               <div className="encounter-recovery-roll">
                 <Form.Item
                   name="dc"

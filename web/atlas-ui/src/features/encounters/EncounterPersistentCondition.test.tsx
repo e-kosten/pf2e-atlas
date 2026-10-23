@@ -237,7 +237,7 @@ it("shows linked persistent sources without disclosure and dims the backend-supe
       current={{
         ...current,
         persistent_damage_groups: [
-          { ...current.persistent_damage_groups[0], selected_source_id: null },
+          { ...current.persistent_damage_groups[0], selected_source_id: 2n },
         ],
       }}
     />,

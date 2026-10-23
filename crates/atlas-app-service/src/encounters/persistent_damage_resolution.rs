@@ -116,24 +116,15 @@ impl AtlasAppService {
                 .iter()
                 .find(|input| input.episode_id == group.episode_id)
                 .ok_or_else(|| AppServiceError::invalid_request("Choose every damage group"))?;
-            let selected = input
+            let source = group.selected_source;
+            if input
                 .selected_source_id
-                .or(group.selected_source_id)
-                .ok_or_else(|| {
-                    AppServiceError::invalid_request("Choose the greater damage source")
-                })?;
-            if group.selected_source_id.is_some_and(|id| id != selected) {
+                .is_some_and(|id| id != source.condition_id)
+            {
                 return Err(AppServiceError::invalid_request(
                     "Use the active damage source",
                 ));
             }
-            let source = group
-                .sources
-                .iter()
-                .find(|source| source.condition_id == selected)
-                .ok_or_else(|| {
-                    AppServiceError::invalid_request("Choose a source in this damage group")
-                })?;
             let ConditionParameters::PersistentDamage {
                 formula,
                 multiplier,
@@ -168,7 +159,14 @@ impl AtlasAppService {
                     (None, None)
                 }
             };
-            prepared.push((group, input, selected, *multiplier, roll, protection));
+            prepared.push((
+                group,
+                input,
+                source.condition_id,
+                *multiplier,
+                roll,
+                protection,
+            ));
         }
         let hardness = prepared
             .iter()

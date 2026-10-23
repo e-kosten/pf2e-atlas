@@ -544,9 +544,7 @@ export function EncounterConditionControls({
                           group,
                           condition: current.conditions.find(
                             (condition) =>
-                              condition.condition_id ===
-                              (group.selected_source_id ??
-                                group.sources[0]?.condition_id),
+                              condition.condition_id === group.selected_source_id,
                           ),
                         }
                       : null,
@@ -589,14 +587,10 @@ export function EncounterConditionControls({
                     label: `${condition.name} · ${source.formula}${source.multiplier === "normal" ? "" : source.multiplier === "double" ? " ×2" : " ×½"} ${damageType}`,
                     recovery:
                       source.condition_id ===
-                      (anchor?.condition_id ??
-                        group.selected_source_id ??
-                        sources[0]?.condition_id)
+                      (anchor?.condition_id ?? group.selected_source_id)
                         ? recovery
                         : undefined,
-                    superseded:
-                      group.selected_source_id !== null &&
-                      source.condition_id !== group.selected_source_id,
+                    superseded: source.condition_id !== group.selected_source_id,
                   }),
                 )}
               </div>
