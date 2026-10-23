@@ -49,7 +49,8 @@ export function EncounterHpValue({
   ) : (
     <Button
       size="small"
-      type={addLabel ? "default" : "text"}
+      color="default"
+      variant={addLabel ? "outlined" : "filled"}
       className={addLabel ? undefined : "encounter-hp-value"}
       aria-label={addLabel ?? `Edit ${label}`}
       disabled={disabled}
