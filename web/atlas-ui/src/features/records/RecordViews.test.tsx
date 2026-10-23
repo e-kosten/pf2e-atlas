@@ -258,6 +258,7 @@ async function addCurrentRecordToList(buttonIndex = 0) {
   fireEvent.click(buttons[buttonIndex]!);
 
   const selector = await screen.findByRole("combobox");
+  await waitFor(() => expect(selector).toBeEnabled());
   fireEvent.mouseDown(selector);
   fireEvent.click(await screen.findByText("Research"));
   fireEvent.click(screen.getByRole("button", { name: "Add" }));

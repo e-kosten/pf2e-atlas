@@ -1,5 +1,12 @@
 import { App, Button, ConfigProvider, theme } from "antd";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { DangerActionButton } from "./DangerActionButton";
 import { useConfirmDangerAction } from "./useConfirmDangerAction";
 
@@ -19,6 +26,80 @@ function CallbackConfirmation({
     </Button>
   );
 }
+
+it("cancels an idle destructive confirmation from its backdrop and returns to the actual trigger", async () => {
+  const confirm = vi.fn();
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <App>
+        <DangerActionButton
+          confirmTitle="Delete list?"
+          confirmOkText="Delete"
+          onConfirm={confirm}
+        >
+          Delete list
+        </DangerActionButton>
+      </App>
+    </ConfigProvider>,
+  );
+  const trigger = screen.getByRole("button", { name: "Delete list" });
+  fireEvent.click(trigger);
+  await screen.findByRole("dialog");
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus(),
+  );
+  fireEvent.mouseDown(document.querySelector(".ant-modal-wrap")!);
+  fireEvent.click(document.querySelector(".ant-modal-wrap")!);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(confirm).not.toHaveBeenCalled();
+  expect(trigger).toHaveFocus();
+});
+
+it("blocks destructive backdrop dismissal while pending and puts its retryable failure inside the dialog", async () => {
+  let reject!: (error: Error) => void;
+  const confirm = vi
+    .fn()
+    .mockReturnValueOnce(
+      new Promise((_yes, no) => {
+        reject = no;
+      }),
+    )
+    .mockResolvedValueOnce(undefined);
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <App>
+        <DangerActionButton
+          confirmTitle="Delete list?"
+          confirmContent="Its saved entries will also be removed."
+          confirmOkText="Delete"
+          onConfirm={confirm}
+        >
+          Delete list
+        </DangerActionButton>
+      </App>
+    </ConfigProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Delete list" }));
+  const dialog = await screen.findByRole("dialog");
+  await waitFor(() => expect(dialog).toBeVisible());
+  fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+  await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
+  fireEvent.mouseDown(document.querySelector(".ant-modal-wrap")!);
+  fireEvent.click(document.querySelector(".ant-modal-wrap")!);
+  expect(dialog).toBeVisible();
+  expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
+  await act(async () => reject(new Error("Service unavailable")));
+  expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+    "Service unavailable",
+  );
+  expect(
+    within(dialog).getByText("Its saved entries will also be removed."),
+  ).toBeVisible();
+  expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeEnabled();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(confirm).toHaveBeenCalledTimes(2);
+});
 
 describe("contextual danger confirmations", () => {
   it.each(["button", "callback"])(

@@ -9,6 +9,126 @@ import {
   sentinel,
 } from "./reading";
 
+test("theme dismissal returns focus without stealing the next modal's focus", async ({
+  page,
+}, info) => {
+  await page.goto("/lists");
+  const theme = page.getByRole("button", { name: "Theme", exact: true });
+  await activate(theme, info);
+  await activate(page.getByText("Dark", { exact: true }), info);
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("Dark", { exact: true })).toBeHidden();
+  await expect(theme).toBeFocused();
+  await activate(theme, info);
+  await activate(page.getByRole("button", { name: "New list", exact: true }), info);
+  const dialog = page.getByRole("dialog", { name: "New List", exact: true });
+  await expect(dialog).toBeVisible();
+  const name = dialog.getByRole("textbox", { name: /Name$/ });
+  await name.fill("Retained draft");
+  await expect(name).toBeFocused();
+  await expect(page.getByText("Dark", { exact: true })).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  const create = page.getByRole("button", { name: "New list", exact: true });
+  await expect(create).toBeFocused();
+  await activate(create, info);
+  await expect(name).toHaveValue("Retained draft");
+});
+
+test("a long saved-list choice stays bounded through a pending and failed Add", async ({
+  page,
+}, info) => {
+  const slug = `overlay-${info.project.name}-${Date.now()}`;
+  const name =
+    "Expedition medicine and emergency supplies for the northern mountain watch";
+  const response = await page.request.post("/api/lists", {
+    data: { slug, name, tags: [] },
+  });
+  expect(response.ok()).toBeTruthy();
+  const { list } = await response.json();
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let writes = 0;
+  try {
+    await page.route(`**/api/lists/${slug}/items`, async (route) => {
+      writes += 1;
+      await gate;
+      await route.fulfill({
+        status: 503,
+        json: { code: "unavailable", message: "Service unavailable. Try again." },
+      });
+    });
+    await page.goto(`/records/${sentinel}`);
+    const trigger = page.getByRole("button", {
+      name: "Add to saved list",
+      exact: true,
+    });
+    await activate(trigger, info);
+    const dialog = page.getByRole("dialog", { name: "Add to List", exact: true });
+    const selector = dialog.getByRole("combobox", { name: "Saved list", exact: true });
+    await expect(selector).toBeEnabled();
+    await activate(selector, info);
+    const option = page.getByText(name, { exact: true });
+    await expect
+      .poll(async () => {
+        const choice = await option.boundingBox();
+        const field = await dialog.locator(".list-picker").boundingBox();
+        return choice && field ? field.width - choice.width : Infinity;
+      })
+      .toBeLessThan(48);
+    await activate(option, info);
+    await expect(page.getByRole("listbox")).toBeHidden();
+    await expect(selector.locator("..")).toHaveText(name);
+    const assertBounds = async () => {
+      const bounds = (await dialog.boundingBox())!;
+      const control = (await selector.boundingBox())!;
+      const viewport = page.viewportSize()!;
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+      expect(control.x + control.width).toBeLessThanOrEqual(bounds.x + bounds.width);
+      await noPageOverflow(page);
+    };
+    await assertBounds();
+    await activate(dialog.getByRole("button", { name: "Add", exact: true }), info);
+    await expect.poll(() => writes).toBe(1);
+    await expect(
+      dialog.getByRole("button", { name: "Cancel", exact: true }),
+    ).toBeDisabled();
+    await expect(
+      dialog.getByRole("button", { name: "Close", exact: true }),
+    ).toBeDisabled();
+    await expect(selector).toBeDisabled();
+    await page.keyboard.press("Escape");
+    if (info.project.use.hasTouch) await page.touchscreen.tap(2, 2);
+    else await page.mouse.click(2, 2);
+    await expect(dialog).toBeVisible();
+    release();
+    await expect(dialog.getByRole("alert")).toContainText("Service unavailable");
+    await expect(
+      dialog.getByRole("button", { name: "Add", exact: true }),
+    ).toBeEnabled();
+    await expect(selector.locator("..")).toHaveText(name);
+    await expect(page.getByRole("listbox")).toBeHidden();
+    await assertBounds();
+    await page.screenshot({
+      path: info.outputPath("list-add-failure.png"),
+      animations: "disabled",
+    });
+    await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+    expect(writes).toBe(1);
+    expect(
+      (await (await page.request.get(`/api/lists/${list.list_key}`)).json()).items,
+    ).toHaveLength(0);
+  } finally {
+    release();
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});
+
 test("compact filter links reload and recover without losing the selected entry", async ({
   page,
 }) => {
@@ -1034,6 +1154,7 @@ test("list entry notes stay beneath the reader and removal confirms in place", a
     await expect(page.getByText("Remove from list?", { exact: true })).toBeVisible();
     await activate(page.getByRole("button", { name: "Cancel", exact: true }), info);
     await expect(page.getByText("Remove from list?", { exact: true })).toBeHidden();
+    await expect(remove).toBeFocused();
     await activate(remove, info);
     await activate(page.getByRole("button", { name: "Remove", exact: true }), info);
     await expect(remove).toBeHidden();
