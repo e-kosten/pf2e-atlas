@@ -223,13 +223,21 @@ function setupPersistentReview(damageApplied = false) {
     return damageResult;
   });
   apiMocks.recoverEncounterPersistentDamage.mockImplementation(async () => {
-    const result = {
+    const result: import("../../generated/atlas").PersistentRecoveryResultView = {
       encounter_key: "encounter_ambush",
       request_id: "saved-recovery",
       episode_id: "fire",
       damage_type: "fire",
       dc: 15n,
-      roll: null,
+      roll: {
+        formula: "1d20",
+        total: 17,
+        expression: {
+          kind: "dice",
+          total: 17,
+          dice: [{ sides: 20, value: 17, kept: true }],
+        },
+      },
       success: true,
     };
     state.recoveryResults.push(result);
@@ -1631,6 +1639,10 @@ describe("encounter views", () => {
       }),
     );
     await submitPersistentRecovery(review);
+    await screen.findByText("Recovered · DC 15");
+    expect(screen.getByRole("status", { name: "1d20: 17" })).toBeVisible();
+    expect(review).toBeVisible();
+    fireEvent.click(within(review).getByRole("button", { name: "Close", exact: true }));
     await waitFor(() =>
       expect(
         screen.queryByRole("dialog", { name: "Turn reminders" }),
