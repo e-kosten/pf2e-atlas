@@ -5,6 +5,7 @@ pub(crate) mod actor;
 mod facts;
 mod item_reference;
 mod physical_reference;
+mod reference_profiles;
 mod spell;
 pub(crate) mod spell_context;
 pub(crate) mod spell_rank;
@@ -110,7 +111,13 @@ fn selected_item_body(item: ItemSourceView<'_>) -> SelectedItemBody<'_> {
         ItemSourceView::SpellSource(source) => SelectedItemBody::Spell(source),
         _ if matches!(
             item.family(),
-            "melee" | "action" | "effect" | "feat" | "lore" | "spellcastingEntry"
+            "melee"
+                | "action"
+                | "effect"
+                | "feat"
+                | "campaignFeature"
+                | "lore"
+                | "spellcastingEntry"
         ) =>
         {
             SelectedItemBody::Activity {
@@ -136,7 +143,12 @@ pub(crate) fn record_presentation(
 ) -> crate::AppServiceResult<RecordPresentationView> {
     let identity = selected_identity(record, node, summary, owners, retrieval);
     let mut owned = owned_links(record, node, owners, retrieval.source_fingerprint());
-    let mut body = match node {
+    let profile = match node {
+        SourceNodeView::Actor(_) => reference_profiles::actor(record, node),
+        SourceNodeView::Item(item) => reference_profiles::item(item),
+        _ => None,
+    };
+    let mut body = profile.unwrap_or_else(|| match node {
         SourceNodeView::Actor(atlas_foundry_model::ActorSourcePF2e::HazardSource(source)) => {
             RecordBodyView::Hazard(Box::new(HazardPresentationView {
                 defense_block: hazard_defense_block(node),
@@ -285,7 +297,7 @@ pub(crate) fn record_presentation(
             }))
         }
         _ => RecordBodyView::Content,
-    };
+    });
     let label_traits = |activity: &mut ActorActivityView| {
         for badge in &mut activity.traits {
             badge.label = retrieval
@@ -358,6 +370,7 @@ pub(crate) fn record_presentation(
         _ => {}
     }
     activity_references::resolve(&mut body, record.key(), retrieval)?;
+    reference_profiles::resolve_links(&mut body, retrieval)?;
     Ok(RecordPresentationView {
         classification: classification(node, &identity),
         identity,
@@ -382,6 +395,9 @@ fn classification(node: SourceNodeView<'_>, identity: &RecordSummaryView) -> Str
     match level {
         SourceFieldView::Value(value) => format!("{} {value}", identity.kind_label),
         SourceFieldView::NotApplicable => identity.kind_label.clone(),
+        SourceFieldView::Missing if matches!(node, SourceNodeView::Item(ItemSourceView::CampaignFeatureSource(source)) if source.system.as_value().is_some()) => {
+            identity.kind_label.clone()
+        }
         _ => format!(
             "{} · {} unavailable",
             identity.kind_label,
@@ -462,6 +478,23 @@ fn selected_identity(
         title: node_title(node),
         kind: family.into(),
         kind_label: match family {
+            _ if matches!(node, SourceNodeView::Journal(_)) => "Journal".into(),
+            _ if matches!(node, SourceNodeView::JournalPage(_)) => "Journal page".into(),
+            "campaignFeature" => match node {
+                SourceNodeView::Item(ItemSourceView::CampaignFeatureSource(source)) => identifier(
+                    SourceFieldView::from(&source.system).and_then(|s| (&s.category).into()),
+                )
+                .value
+                .map(|v| {
+                    let text = v.replace('-', " ");
+                    let mut chars = text.chars();
+                    chars.next().map_or_else(String::new, |first| {
+                        first.to_uppercase().collect::<String>() + chars.as_str()
+                    })
+                })
+                .unwrap_or_else(|| "Campaign feature".into()),
+                _ => "Campaign feature".into(),
+            },
             "spellcastingEntry" => "Spellcasting".into(),
             "action" => "Ability".into(),
             "spell" if matches!(node, SourceNodeView::Item(i) if i.spell_ritual().value() == Some(true)) => {

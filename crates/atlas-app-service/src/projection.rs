@@ -22,12 +22,14 @@ pub fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
             .as_value()
             .cloned()
             .unwrap_or_else(|| "Unnamed record".into()),
-        kind_label: if kind == "spell" && record.spell_ritual.as_value() == Some(&true) {
+        kind_label: if record.document_kind == "JournalEntry" {
+            "Journal".into()
+        } else if kind == "spell" && record.spell_ritual.as_value() == Some(&true) {
             "Ritual".into()
         } else if kind == "equipment" {
             physical_kind_label(record.source_type.as_value().map(String::as_str))
         } else {
-            kind_label(&kind)
+            reference_kind_label(record.source_type.as_value().map(String::as_str), &kind)
         },
         kind,
         source_type: record.source_type.as_value().cloned(),
@@ -120,6 +122,16 @@ pub(crate) fn physical_kind_label(source_type: Option<&str>) -> String {
         _ => "Equipment",
     }
     .into()
+}
+
+pub(crate) fn reference_kind_label(source_type: Option<&str>, fallback: &str) -> String {
+    match source_type {
+        Some(
+            value @ ("ancestry" | "heritage" | "background" | "class" | "deity" | "condition"
+            | "effect"),
+        ) => kind_label(value),
+        _ => kind_label(fallback),
+    }
 }
 
 pub(crate) fn kind_label(value: &str) -> String {

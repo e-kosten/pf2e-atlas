@@ -437,7 +437,7 @@ fn setup_reprepares_known_old_content_policy_but_readers_remain_blocked_until_pu
     );
     assert_eq!(
         reader.context().content_interpretation_version,
-        "foundry-content/v8"
+        "foundry-content/v9"
     );
     assert!(!paths.embedding_cache_root.exists());
 }

@@ -11,6 +11,7 @@ use atlas_app_model::{
 use atlas_domain::QueryFieldState;
 
 mod actor;
+mod reference_profiles;
 mod spell;
 
 pub(super) fn render_record(
@@ -214,6 +215,12 @@ pub(super) fn render_record(
                 line(&mut out, notice);
             }
         }
+        RecordBodyView::Heritage(_)
+        | RecordBodyView::Ancestry(_)
+        | RecordBodyView::Class(_)
+        | RecordBodyView::Deity(_)
+        | RecordBodyView::Vehicle(_)
+        | RecordBodyView::Army(_) => reference_profiles::render(&mut out, &presentation.body),
         RecordBodyView::Content => {}
     }
     for field in presentation.content.iter().filter(|field| {

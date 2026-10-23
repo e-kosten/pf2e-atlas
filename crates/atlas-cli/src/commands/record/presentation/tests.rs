@@ -597,6 +597,7 @@ fn actor() -> ActorPresentationView {
         languages: known(vec!["common".into()]),
         language_details: missing(),
         activities: known(vec![ActorActivityView {
+            first_level_only: None,
             is_ranged: missing(),
             effect_duration: FactView {
                 state: QueryFieldState::NotApplicable,

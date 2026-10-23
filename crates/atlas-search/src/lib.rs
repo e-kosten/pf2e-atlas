@@ -4,6 +4,7 @@ mod error;
 mod graph;
 mod page;
 mod records;
+mod reference_resolution;
 mod service;
 mod similar;
 #[cfg(any(test, feature = "test-support"))]

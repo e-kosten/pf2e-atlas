@@ -78,6 +78,12 @@ pub use party::{
 };
 mod prepared_content;
 mod presentation;
+mod reference_profiles;
+pub use reference_profiles::{
+    AncestryReferenceView, ArmyReferenceView, AttributeChoiceView, ClassReferenceView,
+    DeityReferenceView, DeitySanctificationView, HeritageReferenceView,
+    ObjectDefensesReferenceView, ReferenceGrantView, VehicleReferenceView,
+};
 mod readiness;
 mod record;
 mod search;
