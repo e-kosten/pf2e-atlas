@@ -10,7 +10,7 @@ PF2e Atlas is a Rust workspace. Core application code lives under `crates/`.
 - `crates/atlas-runtime`: paths, setup/source-fetch policy, requested configuration, shared migration composition, and bounded typed workspace operations.
 - `crates/atlas-storage`: connection admission, bounded sessions, maintenance ownership, migration execution, and backups; no domain schema ownership.
 - `crates/atlas-search`: product-facing retrieval orchestration.
-- `crates/atlas-index`: reference schema, incremental publication, embedding checkpoints, validation, row readers, filter discovery, filter compilation, and vector SQL.
+- `crates/atlas-index`: reference schema, incremental publication, native-vector reuse, pending inference, validation, row readers, filter discovery, filter compilation, and vector SQL.
 - `crates/atlas-foundry-model`: generated authored DTOs, ordered source primitives, strict parsing/admission, pure document dispatch and typed snapshot codec.
 - `crates/atlas-ingest`: typed Foundry loading, content/reference preparation, attributed indexing inputs, embedding execution and artifact-build composition.
 - `crates/atlas-embedding`: the two pinned search-profile contracts, shared baseline segmentation, native budgets, retained query sessions and FastEmbed inference.
@@ -146,7 +146,7 @@ This codebase is Rust. Keep modules single-purpose and put helpers beside the co
 
 Prefer descriptive module names and explicit ownership:
 
-- reference schema, validation, checkpoints and query SQL belong in `atlas-index`
+- reference schema, validation, native-input reuse, pending inference and query SQL belong in `atlas-index`
 - saved-domain schema and atomic domain actions belong in `atlas-local-state`
 - runtime path/setup policy and the composed migration ledger belong in `atlas-runtime`
 - connection/session admission, migration execution and backups belong in `atlas-storage`
