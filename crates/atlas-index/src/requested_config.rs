@@ -118,6 +118,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let workspace = Workspace::at(directory.path().join("workspace.sqlite")).unwrap();
         workspace.migrate(&[Migration {
+            backfill: None,
             version: 1, name: "requested config test",
             sql: "CREATE TABLE requested_reference_config(id INTEGER PRIMARY KEY CHECK(id=1), config_json TEXT NOT NULL CHECK(json_valid(config_json)));",
         }], |_| Ok(())).unwrap();

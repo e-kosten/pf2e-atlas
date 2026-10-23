@@ -86,23 +86,7 @@ pub(crate) fn write_traits(
     }
     for unit in &input.trait_vectors {
         let profile = input.context.search_profile(&unit.profile_id)?;
-        if unit.vector.len() != profile.dimensions
-            || unit.vector.iter().any(|v| !v.is_finite())
-            || !crate::codec::checked_hash(&unit.input_hash)
-        {
-            return Err(IndexError::Invalid("invalid trait vector".into()));
-        }
-        c.execute(
-            "INSERT INTO trait_vectors VALUES(?1,?2,?3,?4,?5,?6)",
-            params![
-                unit.key.to_string(),
-                unit.profile_id.as_str(),
-                unit.input_hash,
-                serde_json::to_string(&unit.vector)?,
-                serde_json::to_string(&unit.chunks)?,
-                crate::codec::sha256(serde_json::to_string(&unit.vector)?.as_bytes())
-            ],
-        )?;
+        write_seed(c, unit, profile)?;
     }
     c.execute("DELETE FROM trait_memberships", [])?;
     for membership in project_memberships(&input.records, input.context.audience)? {
@@ -267,27 +251,107 @@ impl SqliteIndexReader {
         key: &TraitKey,
         profile: &SearchProfileId,
     ) -> Result<Option<Vec<f32>>, IndexError> {
-        let row: Option<(String,String)> = self
+        let row: Option<(Vec<u8>, Vec<u8>)> = self
             .native()?
             .query_row(
-                "SELECT vector_json,vector_hash FROM trait_vectors WHERE trait_key=?1 AND profile_id=?2",
+                "SELECT vector,vector_hash FROM trait_vectors WHERE trait_key=? AND profile_id=?",
                 params![key.to_string(), profile.as_str()],
-                |r| Ok((r.get(0)?,r.get(1)?)),
+                |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .optional()?;
-        row.map(|(json, hash)| {
-            if crate::codec::sha256(json.as_bytes()) != hash {
+        row.map(|(bytes, hash)| {
+            if crate::embedding_values::hash_bytes(&bytes) != hash {
                 return Err(IndexError::Invalid("trait vector checksum mismatch".into()));
             }
-            let vector: Vec<f32> = serde_json::from_str(&json)?;
-            let model = self.context().search_profile(profile)?;
-            if vector.len() != model.dimensions || vector.iter().any(|v| !v.is_finite()) {
-                return Err(IndexError::Invalid("trait vector identity mismatch".into()));
-            }
+            let vector = crate::read_units::decode_vector(&bytes)?;
+            crate::validation::check_vector(
+                &vector,
+                self.context().search_profile(profile)?.dimensions,
+            )?;
             Ok(vector)
         })
         .transpose()
     }
+}
+
+pub(crate) fn write_seed(
+    c: &Connection,
+    unit: &TraitVectorInput,
+    model: &crate::SourceSearchProfileIdentity,
+) -> Result<(), IndexError> {
+    crate::validation::check_vector(&unit.vector, model.dimensions)?;
+    if !crate::codec::checked_hash(&unit.input_hash) {
+        return Err(IndexError::Invalid("invalid trait input hash".into()));
+    }
+    let bytes = crate::read_units::vector_bytes(&unit.vector);
+    c.execute(
+        "INSERT INTO trait_vectors VALUES(?,?,?,?,?)",
+        params![
+            unit.key.to_string(),
+            unit.profile_id.as_str(),
+            unit.input_hash,
+            bytes,
+            crate::embedding_values::hash_bytes(&bytes)
+        ],
+    )?;
+    for (ordinal, chunk) in unit.chunks.iter().enumerate() {
+        let id = crate::embedding_values::publish_input(
+            c,
+            model,
+            &chunk.input_hash,
+            chunk.token_count,
+            &chunk.vector,
+        )?;
+        c.execute(
+            "INSERT INTO trait_seed_chunks VALUES(?,?,?,?,?,?)",
+            params![
+                unit.key.to_string(),
+                unit.profile_id.as_str(),
+                ordinal,
+                id,
+                chunk.input,
+                serde_json::to_string(&chunk.address)?
+            ],
+        )?;
+        // A document occurrence is canonical when present. Otherwise keep one
+        // native binary value, regardless of how many traits share this input.
+        let document: bool = c.query_row(
+            "SELECT EXISTS(SELECT 1 FROM semantic_units WHERE input_id=?)",
+            [id],
+            |r| r.get(0),
+        )?;
+        if !document {
+            let bytes = crate::read_units::vector_bytes(&chunk.vector);
+            c.execute("INSERT INTO trait_native_values VALUES(?,?) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector",params![id,bytes])?;
+        }
+    }
+    Ok(())
+}
+fn read_chunks(
+    c: &Connection,
+    key: &str,
+    model: &crate::SourceSearchProfileIdentity,
+) -> Result<Vec<TraitSeedChunk>, IndexError> {
+    let mut s=c.prepare("SELECT t.ordinal,t.input_id,t.input,t.address_json,lower(hex(i.input_hash)),i.token_count,m.identity_json FROM trait_seed_chunks t JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) WHERE trait_key=? AND profile_id=? ORDER BY ordinal")?;
+    let mut rows = s.query(params![key, model.profile_id.as_str()])?;
+    let mut chunks = Vec::new();
+    while let Some(row) = rows.next()? {
+        let ordinal: usize = row.get(0)?;
+        let stored: String = row.get(6)?;
+        if ordinal != chunks.len() || stored != serde_json::to_string(model)? {
+            return Err(IndexError::Invalid(
+                "trait chunk model or ordinal mismatch".into(),
+            ));
+        }
+        chunks.push(TraitSeedChunk {
+            input: row.get(2)?,
+            input_hash: row.get(4)?,
+            token_count: row.get(5)?,
+            address: serde_json::from_str(&row.get::<_, String>(3)?)?,
+            vector: crate::embedding_values::native_value(c, row.get(1)?, model)?,
+        });
+    }
+    Ok(chunks)
 }
 
 fn validate_definition(definition: &TraitDefinition) -> Result<(), IndexError> {
@@ -363,56 +427,22 @@ pub(crate) fn validate_traits(
         }
         validate_definition(&definition)?;
     }
-    let mut stmt=c.prepare("SELECT tv.profile_id,tv.input_hash,tv.vector_json,tv.chunks_json,d.definition_json,tv.vector_hash FROM trait_vectors tv JOIN trait_definitions d ON d.key=tv.trait_key")?;
-    for row in stmt.query_map([], |r| {
-        Ok((
-            r.get::<_, String>(0)?,
-            r.get::<_, String>(1)?,
-            r.get::<_, String>(2)?,
-            r.get::<_, String>(3)?,
-            r.get::<_, String>(4)?,
-            r.get::<_, String>(5)?,
-        ))
-    })? {
-        let (profile, hash, json, chunks, definition, vector_hash) = row?;
-        if vector_hash != crate::codec::sha256(json.as_bytes()) {
+    let mut stmt=c.prepare("SELECT tv.trait_key,tv.profile_id,tv.input_hash,tv.vector,tv.vector_hash,d.definition_json FROM trait_vectors tv JOIN trait_definitions d ON d.key=tv.trait_key")?;
+    let mut rows = stmt.query([])?;
+    while let Some(row) = rows.next()? {
+        let key: String = row.get(0)?;
+        let profile: String = row.get(1)?;
+        let hash: String = row.get(2)?;
+        let bytes: Vec<u8> = row.get(3)?;
+        let checksum: Vec<u8> = row.get(4)?;
+        if crate::embedding_values::hash_bytes(&bytes) != checksum {
             return Err(IndexError::Invalid("trait vector checksum mismatch".into()));
         }
         let model = context.search_profile(&SearchProfileId::new(profile))?;
-        let definition: TraitDefinition = serde_json::from_str(&definition)?;
-        let vector: Vec<f32> = serde_json::from_str(&json)?;
-        let chunks: Vec<TraitSeedChunk> = serde_json::from_str(&chunks)?;
+        let definition: TraitDefinition = serde_json::from_str(&row.get::<_, String>(5)?)?;
+        let vector = crate::read_units::decode_vector(&bytes)?;
+        let chunks = read_chunks(c, &key, model)?;
         validate_seed(&definition, model, &hash, &vector, &chunks)?;
-        let identity = serde_json::to_string(model)?;
-        for chunk in &chunks {
-            let spec = atlas_embedding::search_profile(&model.profile_id)
-                .map_err(|e| IndexError::Unsupported(e.to_string()))?
-                .model_spec();
-            let reuse_key = spec.document_reuse_key(&chunk.input);
-            let checkpoint: Option<(Vec<u8>, String)> = c
-                .query_row(
-                    TRAIT_CHECKPOINT_SELECT,
-                    params![
-                        reuse_key,
-                        identity,
-                        chunk.input_hash,
-                        chunk.token_count,
-                        model.dimensions
-                    ],
-                    |r| Ok((r.get(0)?, r.get(1)?)),
-                )
-                .optional()?;
-            let Some((bytes, checksum)) = checkpoint else {
-                return Err(IndexError::Invalid("trait chunk checkpoint missing".into()));
-            };
-            if crate::codec::sha256(&bytes) != checksum
-                || crate::read_units::decode_vector(&bytes)? != chunk.vector
-            {
-                return Err(IndexError::Invalid(
-                    "trait chunk checkpoint identity mismatch".into(),
-                ));
-            }
-        }
     }
     let records = crate::read_persisted_inputs(c, context)?;
     let definitions = c
@@ -589,7 +619,7 @@ mod tests {
         assert!(validate_seed(&definition, model, &hash, &vector, &[short]).is_err());
     }
     #[test]
-    fn trait_vector_publication_requires_exact_native_checkpoints() {
+    fn trait_vector_publication_shares_native_values_and_validates_corruption() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("workspace.sqlite");
         let mut input = crate::foundation_tests::fixture(true);
@@ -625,8 +655,7 @@ mod tests {
             vector: vector.clone(),
             chunks: vec![chunk],
         });
-        // Multiple traits may share exact native inputs. Pruning must decode the
-        // vocabulary once, even with many unrelated retained checkpoint rows.
+        // Multiple traits share one exact native value, without a duplicate cache.
         for ordinal in 0..128 {
             let key = TraitKey::new(format!("fixture-{ordinal}")).unwrap();
             let mut definition = input.traits[0].clone();
@@ -643,15 +672,14 @@ mod tests {
             let write = workspace
                 .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
                 .unwrap();
-            write.connection().execute_batch("WITH RECURSIVE obsolete(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM obsolete WHERE n<10000)
-                INSERT INTO embedding_checkpoints SELECT 'obsolete-'||n,model_identity,printf('%064x',n),token_count,dimensions,vector,vector_hash,touched_job FROM obsolete CROSS JOIN (SELECT * FROM embedding_checkpoints LIMIT 1);").unwrap();
             assert_eq!(
                 write
                     .connection()
-                    .query_row("SELECT count(*) FROM embedding_checkpoints", [], |r| r
-                        .get::<_, usize>(0))
+                    .query_row("SELECT count(*) FROM pending_embedding_values", [], |r| {
+                        r.get::<_, usize>(0)
+                    })
                     .unwrap(),
-                10001
+                0
             );
             let target = input.context.sha256().unwrap();
             let job = crate::start_reference_job(&write, &target).unwrap();
@@ -691,35 +719,17 @@ mod tests {
                 .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
                 .unwrap();
             assert!(validate_traits(write.connection(), &input.context).is_ok());
-            let plan = write
-                .connection()
-                .prepare(&format!("EXPLAIN QUERY PLAN {TRAIT_CHECKPOINT_SELECT}"))
-                .unwrap()
-                .query_map(params!["key", "model", "hash", 2, 768], |r| {
-                    r.get::<_, String>(3)
-                })
-                .unwrap()
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap();
-            assert!(
-                plan.iter()
-                    .any(|step| step
-                        .contains("sqlite_autoindex_embedding_checkpoints_1 (reuse_key=?)")),
-                "{plan:?}"
-            );
-
             assert_eq!(
                 write
                     .connection()
-                    .query_row("SELECT count(*) FROM embedding_checkpoints", [], |r| r
+                    .query_row("SELECT count(*) FROM trait_native_values", [], |r| r
                         .get::<_, usize>(0))
                     .unwrap(),
                 1
             );
-
             write
                 .connection()
-                .execute("DELETE FROM embedding_checkpoints", [])
+                .execute("DELETE FROM trait_native_values", [])
                 .unwrap();
             assert!(validate_traits(write.connection(), &input.context).is_err());
         }
@@ -729,7 +739,10 @@ mod tests {
                 .unwrap();
             write
                 .connection()
-                .execute("UPDATE embedding_checkpoints SET vector_hash='wrong'", [])
+                .execute(
+                    "UPDATE embedding_inputs SET published_hash=zeroblob(32)",
+                    [],
+                )
                 .unwrap();
             assert!(validate_traits(write.connection(), &input.context).is_err());
         }
@@ -739,7 +752,7 @@ mod tests {
                 .unwrap();
             write
                 .connection()
-                .execute("UPDATE embedding_checkpoints SET model_identity='{}'", [])
+                .execute("UPDATE embedding_models SET identity_json='{}'", [])
                 .unwrap();
             assert!(validate_traits(write.connection(), &input.context).is_err());
         }
@@ -749,12 +762,12 @@ mod tests {
                 .unwrap();
             vector[0] = 0.;
             vector[1] = 1.;
-            let json = serde_json::to_string(&vector).unwrap();
+            let bytes = crate::read_units::vector_bytes(&vector);
             write
                 .connection()
                 .execute(
-                    "UPDATE trait_vectors SET vector_json=?1,vector_hash=?2",
-                    params![json, crate::codec::sha256(json.as_bytes())],
+                    "UPDATE trait_vectors SET vector=?1,vector_hash=?2",
+                    params![bytes, crate::embedding_values::hash_bytes(&bytes)],
                 )
                 .unwrap();
             assert!(validate_traits(write.connection(), &input.context).is_err());
@@ -1161,9 +1174,7 @@ fn project_references(
     references
 }
 
-const TRAIT_CHECKPOINT_SELECT: &str = "SELECT vector,vector_hash FROM embedding_checkpoints WHERE reuse_key=?1 AND model_identity=?2 AND input_hash=?3 AND token_count=?4 AND dimensions=?5";
-
-fn validate_seed(
+pub(crate) fn validate_seed(
     definition: &TraitDefinition,
     model: &crate::SourceSearchProfileIdentity,
     hash: &str,

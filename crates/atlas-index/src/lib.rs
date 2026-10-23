@@ -3,8 +3,12 @@ mod artifact_instance;
 mod codec;
 mod component_upgrade;
 mod discovery;
-mod embedding_checkpoints;
+mod embedding_storage_migration;
+mod embedding_values;
 mod persisted_inputs;
+mod reference_jobs;
+mod semantic_locations;
+mod vector_allocation;
 pub use component_upgrade::{
     ReferenceUpgrade, classify_reference_upgrade, ensure_reference_projections,
     read_stored_reference_context,
@@ -41,10 +45,8 @@ pub use discovery::{
     QueryCountsRequest, QueryFacetContext, QueryValueCountsRequest, QueryValuesRequest,
     QueryVocabularyRequest, facet_base_query, validate_value_counts, validate_value_discovery,
 };
-pub use embedding_checkpoints::{
-    read_embedding_checkpoints, recover_reference_publication, save_embedding_checkpoints,
-    start_reference_job,
-};
+pub use embedding_storage_migration::{EMBEDDING_STORAGE_SCHEMA_SQL, backfill_embedding_storage};
+pub use embedding_values::{read_reusable_embeddings, stage_embedding_values};
 pub use error::IndexError;
 pub use input::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_FORMAT_VERSION, ASSET_POLICY_VERSION, EXPECTED_SOURCE_KIND,
@@ -71,6 +73,7 @@ pub use reader::{
     SourceArtifactStatistics, SourceProfileStatistics, SourceReadCapabilities, SourceSummaryBatch,
     SqliteIndexReader,
 };
+pub use reference_jobs::{recover_reference_publication, start_reference_job};
 pub use schema::{CONSUMABLE_FILTER_SCHEMA_SQL, REFERENCE_SCHEMA_SQL};
 #[cfg(any(test, feature = "test-support"))]
 pub use validation::validate_artifact;
@@ -92,3 +95,6 @@ pub use relationship_query::{RelationshipOccurrencePage, RelationshipOccurrenceP
 
 mod result_order;
 pub use result_order::SourceUnitPrice;
+
+#[cfg(test)]
+mod embedding_values_tests;

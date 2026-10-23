@@ -38,7 +38,10 @@ caller's outer transaction. Failure to restore a savepoint abandons that outer
 transaction.
 
 Migrations drain cooperating readers/writers, back up an existing workspace and
-apply schema, backfills, validation and ledger changes in one transaction. One
+apply schema, backfills, validation and ledger changes in one transaction. Domain
+backfills may provide a versioned executable callback; its immutable identifier
+participates in the migration checksum. Published SQL-only checksums are unchanged.
+The ordinary admission validator remains read-only and never runs backfills. One
 publisher owns source/configuration updates. Preparation can run while ordinary
 operations continue: publisher ownership does not hold the exclusive access lock
 or a long-lived SQLite write transaction. Final activation takes exclusive access.
@@ -119,3 +122,8 @@ during cleanup and fail-closed handling of inconsistent schemas. Rust, frontend
 and real-browser gates passed for the implementation; native-model inference and
 full-corpus performance were not rerun. These checks establish local implementation
 evidence, not release or hosted-CI acceptance.
+
+Physical free-page reclamation runs only during explicit maintenance, outside a
+SQL transaction under exclusive admission and a durable recovery marker. It keeps
+workspace identity and logical reference revision; interrupted reclamation uses
+the existing validated maintenance recovery. Startup never vacuums implicitly.

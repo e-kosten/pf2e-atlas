@@ -252,7 +252,7 @@ pub(crate) fn build_artifact(
         if options.reuse_embeddings {
             tracing::info!(profile = profile.id, "Reading saved embeddings");
             reusable =
-                atlas_index::read_embedding_checkpoints(&workspace.read(schema)?, model, inputs)
+                atlas_index::read_reusable_embeddings(&workspace.read(schema)?, model, inputs)
                     .map_err(|e| IngestError::DocumentEmbeddingFailed(e.to_string()))?;
         }
         let by_key = inputs
@@ -280,7 +280,7 @@ pub(crate) fn build_artifact(
                                 })
                         })
                         .collect::<Result<Vec<_>, _>>()?;
-                    atlas_index::save_embedding_checkpoints(&write, &job, model, &values)
+                    atlas_index::stage_embedding_values(&write, &job, model, &values)
                         .map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
                     write.commit()?;
                     Ok(())
@@ -383,6 +383,10 @@ pub(crate) fn build_artifact(
     SqliteIndexWriter::new(&maintenance)
         .write_job(&prepared.index, &job, &target_hash)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+    drop(maintenance);
+    // Publication has committed and validated; physical reclamation can be
+    // retried without inference and does not advance reference revision.
+    update_owner.reclaim_space(schema)?;
     let report = BuildArtifactReport {
         profiles,
         output_path: options.output_path,

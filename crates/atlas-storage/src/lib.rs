@@ -14,7 +14,7 @@ mod snapshot;
 mod workspace;
 
 pub use error::{StorageError, StorageResult};
-pub use migration::Migration;
+pub use migration::{DataBackfill, Migration};
 pub use session::{MaintenanceSession, ReadSession, UpdateOwner, WriteSession};
 pub use snapshot::WorkspaceInitialization;
 pub use workspace::Workspace;

@@ -3,6 +3,7 @@
 use atlas_storage::*;
 use std::process::Command;
 const FIRST: Migration = Migration {
+    backfill: None,
     version: 1,
     name: "user-state",
     sql: "CREATE TABLE saved(id INTEGER PRIMARY KEY,title TEXT NOT NULL) STRICT; INSERT INTO saved VALUES(1,'retained');",

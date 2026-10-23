@@ -7,56 +7,77 @@ use crate::{
 use atlas_storage::{Migration, Workspace};
 use std::path::Path;
 
-pub const TEST_WORKSPACE_SCHEMA_VERSION: u32 = 8;
+pub const TEST_WORKSPACE_SCHEMA_VERSION: u32 = TEST_MIGRATIONS.len() as u32;
+pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
+    Migration {
+        backfill: None,
+        version: 1,
+        name: "reference-baseline",
+        sql: crate::REFERENCE_SCHEMA_SQL,
+    },
+    Migration {
+        backfill: None,
+        version: 2,
+        name: "saved-state-baseline",
+        sql: atlas_local_state::LOCAL_STATE_SCHEMA_SQL,
+    },
+    Migration {
+        backfill: None,
+        version: 3,
+        name: "lexical-alias-rows",
+        sql: crate::LEXICAL_ALIAS_SCHEMA_SQL,
+    },
+    Migration {
+        backfill: None,
+        version: 4,
+        name: "consumable-filters",
+        sql: crate::CONSUMABLE_FILTER_SCHEMA_SQL,
+    },
+    Migration {
+        backfill: None,
+        version: 5,
+        name: "encounter-status",
+        sql: atlas_local_state::ENCOUNTER_STATUS_SCHEMA_SQL,
+    },
+    Migration {
+        backfill: None,
+        version: 6,
+        name: "hazard-participation",
+        sql: atlas_local_state::HAZARD_PARTICIPATION_SCHEMA_SQL,
+    },
+    Migration {
+        backfill: None,
+        version: 7,
+        name: "encounter-parties",
+        sql: atlas_local_state::PARTIES_SCHEMA_SQL,
+    },
+    Migration {
+        backfill: None,
+        version: 8,
+        name: "trait-vocabulary",
+        sql: crate::TRAIT_SCHEMA_SQL,
+    },
+    Migration {
+        version: 9,
+        name: "condition-system",
+        sql: atlas_local_state::CONDITION_SYSTEM_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 10,
+        name: "embedding-storage",
+        sql: crate::EMBEDDING_STORAGE_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            id: "native-embedding-storage/v1",
+            apply: crate::backfill_embedding_storage,
+        }),
+    },
+];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
         .map_err(|e| IndexError::Operation(e.to_string()))?;
     let workspace = Workspace::at(path)?;
-    workspace.migrate(
-        &[
-            Migration {
-                version: 1,
-                name: "reference-baseline",
-                sql: crate::REFERENCE_SCHEMA_SQL,
-            },
-            Migration {
-                version: 2,
-                name: "saved-state-baseline",
-                sql: atlas_local_state::LOCAL_STATE_SCHEMA_SQL,
-            },
-            Migration {
-                version: 3,
-                name: "lexical-alias-rows",
-                sql: crate::LEXICAL_ALIAS_SCHEMA_SQL,
-            },
-            Migration {
-                version: 4,
-                name: "consumable-filters",
-                sql: crate::CONSUMABLE_FILTER_SCHEMA_SQL,
-            },
-            Migration {
-                version: 5,
-                name: "encounter-status",
-                sql: atlas_local_state::ENCOUNTER_STATUS_SCHEMA_SQL,
-            },
-            Migration {
-                version: 6,
-                name: "hazard-participation",
-                sql: atlas_local_state::HAZARD_PARTICIPATION_SCHEMA_SQL,
-            },
-            Migration {
-                version: 7,
-                name: "encounter-parties",
-                sql: atlas_local_state::PARTIES_SCHEMA_SQL,
-            },
-            Migration {
-                version: 8,
-                name: "trait-vocabulary",
-                sql: crate::TRAIT_SCHEMA_SQL,
-            },
-        ],
-        |_| Ok(()),
-    )?;
+    workspace.migrate(TEST_MIGRATIONS, |_| Ok(()))?;
     Ok(workspace)
 }
 pub fn open_reader(path: impl AsRef<Path>) -> Result<SqliteIndexReader, IndexError> {
@@ -70,36 +91,6 @@ pub fn publish_input(
 ) -> Result<ArtifactValidationReport, IndexError> {
     let workspace = initialize_workspace(path)?;
     let owner = workspace.update_owner()?;
-    if !input.trait_vectors.is_empty() {
-        let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION)?;
-        for seed in &input.trait_vectors {
-            let model = input.context.search_profile(&seed.profile_id)?;
-            let spec = atlas_embedding::search_profile(&seed.profile_id)
-                .map_err(|e| IndexError::Invalid(e.to_string()))?
-                .model_spec();
-            let inputs = seed
-                .chunks
-                .iter()
-                .map(|chunk| atlas_embedding::PreparedEmbeddingInput {
-                    address: chunk.address.clone(),
-                    input: chunk.input.clone(),
-                    input_sha256: chunk.input_hash.clone(),
-                    reuse_key: spec.document_reuse_key(&chunk.input),
-                    token_count: chunk.token_count,
-                    body_token_count: chunk.token_count,
-                    overlap_token_count: 0,
-                    context_shortened: false,
-                })
-                .collect::<Vec<_>>();
-            let values = inputs
-                .iter()
-                .zip(&seed.chunks)
-                .map(|(input, chunk)| (input, chunk.vector.as_slice()))
-                .collect::<Vec<_>>();
-            crate::save_embedding_checkpoints(&write, "fixture", model, &values)?;
-        }
-        write.commit()?;
-    }
     let maintenance = owner.maintenance(TEST_WORKSPACE_SCHEMA_VERSION, "test publication")?;
     SqliteIndexWriter::new(&maintenance).write(input)
 }
@@ -118,7 +109,23 @@ pub fn publish_historical_record_fixture(
     }
     maintenance.publish(|connection| {
         connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-        crate::writer::write_record_rows(connection, input)
+        // Build with current production projection code, then retain only the
+        // historical physical shape under test. No legacy runtime writer.
+        connection.execute_batch(crate::TRAIT_SCHEMA_SQL)?;
+        connection.execute_batch(crate::EMBEDDING_STORAGE_SCHEMA_SQL)?;
+        crate::writer::write_record_rows(connection, input)?;
+        connection.execute_batch("INSERT INTO legacy_semantic_units SELECT u.unit_id,u.record_id,u.profile_id,l.owners_json,u.unit_kind,l.field_path,l.section_json,l.chunk_ordinal,i.token_count,lower(hex(i.input_hash)) FROM semantic_units u JOIN semantic_locations l USING(location_id) JOIN embedding_inputs i USING(input_id);
+DROP TABLE semantic_units;
+ALTER TABLE legacy_semantic_units RENAME TO semantic_units;
+CREATE INDEX semantic_units_root ON semantic_units(record_id,profile_id,unit_id);
+CREATE INDEX semantic_units_input_hash ON semantic_units(input_hash,unit_id);
+CREATE UNIQUE INDEX semantic_identity_root ON semantic_units(record_id,profile_id) WHERE unit_kind='identity';
+CREATE INDEX semantic_reuse_input ON semantic_units(profile_id,input_hash,input_token_count);
+DROP TABLE trait_seed_chunks; DROP TABLE trait_vectors; DROP TABLE legacy_trait_vectors;
+DROP TABLE trait_memberships; DROP TABLE trait_references; DROP TABLE trait_definitions;
+DROP TABLE pending_embedding_values; DROP TABLE trait_native_values;
+DROP TABLE embedding_inputs; DROP TABLE embedding_models; DROP TABLE semantic_locations;")?;
+        Ok(())
     })
 }
 
@@ -176,5 +183,18 @@ fn set_preparation_policy(
         )?;
     }
     write.commit()?;
+    Ok(())
+}
+
+/// Exact schema-2/9 checkpoint fixture; not a runtime compatibility path.
+pub fn stage_historical_embedding_fixture(
+    session: &atlas_storage::WriteSession,
+    job: &str,
+    model: &crate::SourceSearchProfileIdentity,
+    input: &atlas_embedding::PreparedEmbeddingInput,
+    vector: &[f32],
+) -> Result<(), IndexError> {
+    let bytes = crate::read_units::vector_bytes(vector);
+    session.connection().execute("INSERT INTO embedding_checkpoints VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(reuse_key) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,touched_job=excluded.touched_job",rusqlite::params![input.reuse_key,serde_json::to_string(model)?,input.input_sha256,input.token_count,model.dimensions,bytes,crate::codec::sha256(&bytes),job])?;
     Ok(())
 }
