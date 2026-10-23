@@ -160,8 +160,13 @@ export async function getEncounters(): Promise<EncounterIndexView> {
   return atlasFetchEncounter("/api/encounters");
 }
 
-export async function getEncounterConditionDefinitions(): Promise<EncounterConditionCatalogView> {
-  return atlasFetchEncounter("/api/encounters/condition-definitions");
+export async function getEncounterConditionDefinitions(
+  encounterRef: string,
+  participantKey: string,
+): Promise<EncounterConditionCatalogView> {
+  return atlasFetchEncounter(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/condition-definitions`,
+  );
 }
 
 export async function getEncounter(encounterRef: string): Promise<EncounterDetailView> {
@@ -356,14 +361,360 @@ export async function updateEncounterParticipantCondition(
   );
 }
 
+export async function previewEncounterCondition(
+  encounterRef: string,
+  participantKey: string,
+  request:
+    | AddEncounterParticipantConditionRequest
+    | UpdateEncounterParticipantConditionRequest,
+): Promise<import("../generated/atlas").ConditionEventPreviewView> {
+  const suffix = "condition_id" in request ? `/${request.condition_id.toString()}` : "";
+  return atlasFetchEncounter(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions${suffix}/preview`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
+
+function actionCheck(
+  value: import("../generated/atlas").EncounterActionCheckView,
+): import("../generated/atlas").EncounterActionCheckView {
+  return {
+    ...value,
+    dc: toBigInt(value.dc),
+    sources: value.sources.map((source) => ({
+      ...source,
+      condition_id: toBigInt(source.condition_id),
+    })),
+  };
+}
+
+export async function encounterCastingReminders(
+  encounterRef: string,
+  request: import("../generated/atlas").EncounterCastingRemindersRequest,
+): Promise<import("../generated/atlas").EncounterCastingRemindersView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/casting-reminders`,
+    {
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
+}
+
+export async function previewEncounterDrainedConsequence(
+  encounterRef: string,
+  request: import("../generated/atlas").ResolveDrainedConsequenceRequest,
+): Promise<import("../generated/atlas").ConditionHpChangeView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/condition-consequences/preview`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
+
+export async function getEncounterConditionConsequences(
+  encounterRef: string,
+): Promise<import("../generated/atlas").PendingConditionConsequenceView[]> {
+  const result = await atlasFetch<
+    import("../generated/atlas").PendingConditionConsequenceView[]
+  >(`/api/encounters/${encodeURIComponent(encounterRef)}/condition-consequences`);
+  return result.map((value) => ({
+    ...value,
+    magnitude_increase: toBigInt(value.magnitude_increase),
+  }));
+}
+
+export async function resolveEncounterDrainedConsequence(
+  encounterRef: string,
+  request: import("../generated/atlas").ResolveDrainedConsequenceRequest,
+): Promise<EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/condition-consequences/drained`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
+
+function persistentProtection(
+  value: import("../generated/atlas").PersistentDamageProtectionView,
+): import("../generated/atlas").PersistentDamageProtectionView {
+  return {
+    ...value,
+    weakness: toBigInt(value.weakness),
+    resistance: toBigInt(value.resistance),
+  };
+}
+function persistentDamageResult(
+  value: import("../generated/atlas").PersistentDamageResultView,
+): import("../generated/atlas").PersistentDamageResultView {
+  return {
+    ...value,
+    total: toBigInt(value.total),
+    hardness_absorbed: toBigInt(value.hardness_absorbed),
+    groups: value.groups.map((group) => ({
+      ...group,
+      source_condition_id: toBigInt(group.source_condition_id),
+      amount: toBigInt(group.amount),
+      ...(group.protection
+        ? { protection: persistentProtection(group.protection) }
+        : {}),
+    })),
+  };
+}
+function persistentRecoveryResult(
+  value: import("../generated/atlas").PersistentRecoveryResultView,
+): import("../generated/atlas").PersistentRecoveryResultView {
+  return {
+    ...value,
+    dc: value.dc === null ? null : toBigInt(value.dc),
+  };
+}
+export async function getEncounterPersistentReview(
+  encounterRef: string,
+  participantKey: string,
+  boundaryKey: string | null = null,
+): Promise<import("../generated/atlas").PersistentReviewView> {
+  const value = await atlasFetchEncounter<
+    import("../generated/atlas").PersistentReviewView
+  >(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/persistent-review?participant_key=${encodeURIComponent(participantKey)}${boundaryKey ? `&boundary_key=${encodeURIComponent(boundaryKey)}` : ""}`,
+  );
+  return {
+    ...value,
+    round_number: toBigInt(value.round_number),
+    episodes: value.episodes.map((episode) => ({
+      ...episode,
+      damage_resolution:
+        episode.damage_resolution?.kind === "known"
+          ? {
+              ...episode.damage_resolution,
+              protection: persistentProtection(episode.damage_resolution.protection),
+            }
+          : episode.damage_resolution,
+    })),
+    damage_result:
+      value.damage_result === null ? null : persistentDamageResult(value.damage_result),
+    recovery_results: value.recovery_results.map(persistentRecoveryResult),
+  };
+}
+export async function applyEncounterPersistentDamage(
+  encounterRef: string,
+  request: import("../generated/atlas").ApplyPersistentDamageRequest,
+): Promise<import("../generated/atlas").PersistentDamageResultView> {
+  return persistentDamageResult(
+    await atlasFetch(
+      `/api/encounters/${encodeURIComponent(encounterRef)}/persistent-damage`,
+      { method: "POST", body: jsonBody(request) },
+    ),
+  );
+}
+
+export async function recoverEncounterPersistentDamage(
+  encounterRef: string,
+  request: import("../generated/atlas").RecoverPersistentDamageRequest,
+): Promise<import("../generated/atlas").PersistentRecoveryResultView> {
+  const result = await atlasFetch<
+    import("../generated/atlas").PersistentRecoveryResultView
+  >(`/api/encounters/${encodeURIComponent(encounterRef)}/persistent-recovery`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
+  return persistentRecoveryResult(result);
+}
+
+function actionPreview(
+  value: import("../generated/atlas").EncounterStrikeActionContextView,
+): import("../generated/atlas").EncounterStrikeActionContextView {
+  return {
+    ...value,
+    issues: value.issues.map((issue) => ({
+      ...issue,
+      source_condition_id: toBigInt(issue.source_condition_id),
+    })),
+    disruption: value.disruption === null ? null : actionCheck(value.disruption),
+  };
+}
+
+export async function previewEncounterStrikeContext(
+  encounterRef: string,
+  request: import("../generated/atlas").EncounterStrikeContextRequest,
+): Promise<import("../generated/atlas").EncounterStrikeContextView> {
+  const value = await atlasFetch<
+    import("../generated/atlas").EncounterStrikeContextView
+  >(`/api/encounters/${encodeURIComponent(encounterRef)}/strike-context`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
+  return {
+    ...value,
+    options: {
+      ...value.options,
+      expected_revision: toBigInt(value.options.expected_revision),
+      expected_participant_revision: toBigInt(
+        value.options.expected_participant_revision,
+      ),
+    },
+    action: actionPreview(value.action),
+    targeting_check:
+      value.targeting_check === null ? null : actionCheck(value.targeting_check),
+  };
+}
+
+export async function getEncounterConditionLifecycleActions(
+  encounterRef: string,
+  participantKey: string,
+  boundaryKey: string | null = null,
+): Promise<import("../generated/atlas").ConditionLifecycleActionsView> {
+  const value = await atlasFetch<
+    import("../generated/atlas").ConditionLifecycleActionsView
+  >(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/condition-lifecycle-actions?participant_key=${encodeURIComponent(participantKey)}${boundaryKey ? `&boundary_key=${encodeURIComponent(boundaryKey)}` : ""}`,
+  );
+  return {
+    ...value,
+    encounter_revision: toBigInt(value.encounter_revision),
+    actions: value.actions.map((action) => {
+      const condition_ids = action.condition_ids.map(toBigInt);
+      const check =
+        "check" in action
+          ? {
+              dc: action.check.dc === null ? null : toBigInt(action.check.dc),
+              modifier:
+                action.check.modifier === null ? null : toBigInt(action.check.modifier),
+            }
+          : undefined;
+      switch (action.kind) {
+        case "dying_recovery":
+          return { ...action, condition_ids, check: check! };
+        case "retch":
+          return {
+            ...action,
+            condition_ids,
+            check: check!,
+            condition_id: toBigInt(action.condition_id),
+            issues: action.issues.map((issue) => ({
+              ...issue,
+              source_condition_id: toBigInt(issue.source_condition_id),
+            })),
+          };
+        case "reminder":
+          return {
+            ...action,
+            condition_ids,
+            condition_id: toBigInt(action.condition_id),
+          };
+        case "confused_damage_recovery":
+          return {
+            ...action,
+            condition_ids,
+            check: check!,
+            source_condition_ids: action.source_condition_ids.map(toBigInt),
+          };
+        case "stunned_actions_lost":
+          return {
+            ...action,
+            condition_ids,
+            condition_id: toBigInt(action.condition_id),
+            actions_lost:
+              action.actions_lost === null ? null : toBigInt(action.actions_lost),
+          };
+        default:
+          return { ...action, condition_ids };
+      }
+    }),
+  };
+}
+export async function applyEncounterConditionLifecycle(
+  encounterRef: string,
+  request: import("../generated/atlas").ApplyConditionLifecycleRequest,
+): Promise<import("../generated/atlas").ConditionLifecycleResultView> {
+  const value = await atlasFetch<
+    import("../generated/atlas").ConditionLifecycleResultView
+  >(`/api/encounters/${encodeURIComponent(encounterRef)}/condition-lifecycle`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
+  return {
+    ...value,
+    check:
+      value.check === null
+        ? null
+        : {
+            ...value.check,
+            dc: value.check.dc === null ? null : toBigInt(value.check.dc),
+            modifier:
+              value.check.modifier === null ? null : toBigInt(value.check.modifier),
+            table_result:
+              value.check.table_result === null
+                ? null
+                : toBigInt(value.check.table_result),
+          },
+  };
+}
+
+function hpLifecycle(
+  value: import("../generated/atlas").PendingHpLifecycleView,
+): import("../generated/atlas").PendingHpLifecycleView {
+  return {
+    ...value,
+    before_hp: toBigInt(value.before_hp),
+    after_hp: toBigInt(value.after_hp),
+    context: {
+      ...value.context,
+      base_death_threshold:
+        value.context.base_death_threshold === null
+          ? null
+          : toBigInt(value.context.base_death_threshold),
+    },
+  };
+}
+export async function getEncounterHpLifecycle(
+  encounterRef: string,
+): Promise<import("../generated/atlas").PendingHpLifecycleView[]> {
+  const values = await atlasFetch<
+    import("../generated/atlas").PendingHpLifecycleView[]
+  >(`/api/encounters/${encodeURIComponent(encounterRef)}/hp-lifecycle`);
+  return values.map(hpLifecycle);
+}
+export async function previewEncounterHpLifecycle(
+  encounterRef: string,
+  request: import("../generated/atlas").ResolveEncounterHpLifecycleRequest,
+): Promise<import("../generated/atlas").PendingHpLifecycleView> {
+  return hpLifecycle(
+    await atlasFetch(
+      `/api/encounters/${encodeURIComponent(encounterRef)}/hp-lifecycle/preview`,
+      { method: "POST", body: jsonBody(request) },
+    ),
+  );
+}
+export async function resolveEncounterHpLifecycle(
+  encounterRef: string,
+  request: import("../generated/atlas").ResolveEncounterHpLifecycleRequest,
+): Promise<EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/hp-lifecycle/resolve`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
+
+export async function setEncounterLifeSettings(
+  encounterRef: string,
+  participantKey: string,
+  request: import("../generated/atlas").SetEncounterLifeSettingsRequest,
+): Promise<EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/life-settings`,
+    { method: "PATCH", body: jsonBody(request) },
+  );
+}
+
 export async function removeEncounterParticipantCondition(
   encounterRef: string,
   participantKey: string,
   conditionId: bigint,
+  request: import("../generated/atlas").RemoveEncounterParticipantConditionRequest,
 ): Promise<EncounterMutationView> {
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${conditionId.toString()}`,
-    { method: "DELETE" },
+    { method: "DELETE", body: jsonBody(request) },
   );
 }
 
@@ -535,14 +886,57 @@ async function atlasFetchEncounter<T>(
     if (!isRecord(value)) throw new AtlasApiError(200, "Invalid condition duration");
     return { ...value, amount: toBigInt(value.amount) };
   };
+  const conditionParameters = (value: unknown) => {
+    if (!isRecord(value)) throw new AtlasApiError(200, "Invalid condition parameters");
+    if (value.kind === "sickened")
+      return { ...value, ...optionalIntegers(value, ["recovery_dc"]) };
+    if (value.kind === "persistent_damage") {
+      if (!isRecord(value.recovery))
+        throw new AtlasApiError(200, "Invalid persistent recovery");
+      return {
+        ...value,
+        recovery: { ...value.recovery, ...optionalIntegers(value.recovery, ["dc"]) },
+      };
+    }
+    return value;
+  };
+  const persistentGroup = (value: unknown) => {
+    if (!isRecord(value) || !Array.isArray(value.sources))
+      throw new AtlasApiError(200, "Invalid persistent damage group");
+    return {
+      ...value,
+      selected_source_id: toBigInt(value.selected_source_id),
+      sources: value.sources.map((source) => {
+        if (!isRecord(source))
+          throw new AtlasApiError(200, "Invalid persistent damage source");
+        return {
+          ...source,
+          condition_id: toBigInt(source.condition_id),
+          recovery_dc:
+            source.recovery_dc === null ? null : toBigInt(source.recovery_dc),
+        };
+      }),
+    };
+  };
   const condition = (value: unknown) => {
     if (!isRecord(value)) throw new AtlasApiError(200, "Invalid encounter condition");
     return {
       ...value,
       condition_id: toBigInt(value.condition_id),
+      ...(value.parameters === undefined
+        ? {}
+        : { parameters: conditionParameters(value.parameters) }),
       ...optionalIntegers(value, ["value"]),
       ...(value.duration === undefined ? {} : { duration: duration(value.duration) }),
     };
+  };
+  const reminder = (value: unknown) => {
+    if (isRecord(value) && value.kind === "condition_recovery") {
+      if (!Array.isArray(value.condition_ids))
+        throw new AtlasApiError(200, "Invalid condition recovery reminder");
+      return { ...value, condition_ids: value.condition_ids.map(toBigInt) };
+    }
+    return condition(value);
   };
   const participant = (value: unknown) => {
     if (!isRecord(value) || !Array.isArray(value.conditions))
@@ -559,8 +953,22 @@ async function atlasFetchEncounter<T>(
       position: toBigInt(value.position),
       initiative_order: toBigInt(value.initiative_order),
       temporary_hp: toBigInt(value.temporary_hp),
-      ...optionalIntegers(value, ["initiative", "max_hp", "current_hp"]),
+      ...optionalIntegers(value, [
+        "initiative",
+        "max_hp",
+        "current_hp",
+        "level_override",
+      ]),
+      ...(value.base_death_threshold === undefined
+        ? {}
+        : { base_death_threshold: toBigInt(value.base_death_threshold) }),
       conditions: value.conditions.map(condition),
+      ...(Array.isArray(value.persistent_damage_groups)
+        ? {
+            persistent_damage_groups:
+              value.persistent_damage_groups.map(persistentGroup),
+          }
+        : {}),
       ...(value.presentation === undefined
         ? {}
         : {
@@ -570,6 +978,40 @@ async function atlasFetchEncounter<T>(
           }),
     };
   };
+  if (isRecord(result.persistent_precedence)) {
+    const source = (value: unknown) => {
+      if (!isRecord(value))
+        throw new AtlasApiError(200, "Invalid persistent source choice");
+      return value.kind === "existing"
+        ? { ...value, condition_id: toBigInt(value.condition_id) }
+        : value;
+    };
+    const choice = result.persistent_precedence;
+    result.persistent_precedence = {
+      ...choice,
+      sources: Array.isArray(choice.sources)
+        ? choice.sources.map((option) => {
+            if (!isRecord(option))
+              throw new AtlasApiError(200, "Invalid persistent source option");
+            return { ...option, source: source(option.source) };
+          })
+        : [],
+    };
+  }
+  if (Array.isArray(result.damage_groups))
+    result.damage_groups = result.damage_groups.map(persistentGroup);
+  if (result.standard_persistent_recovery_dc !== undefined)
+    result.standard_persistent_recovery_dc = toBigInt(
+      result.standard_persistent_recovery_dc,
+    );
+  if (result.encounter_revision !== undefined)
+    result.encounter_revision = toBigInt(result.encounter_revision);
+  if (Array.isArray(result.consequences))
+    result.consequences = result.consequences.map((value) => {
+      if (!isRecord(value))
+        throw new AtlasApiError(200, "Invalid condition consequence");
+      return { ...value, ...optionalIntegers(value, ["amount", "magnitude_increase"]) };
+    });
   if (Array.isArray(result.encounters))
     result.encounters = result.encounters.map(summary);
   if (result.encounter !== undefined) result.encounter = summary(result.encounter);
@@ -579,7 +1021,24 @@ async function atlasFetchEncounter<T>(
   }
   if (Array.isArray(result.reminders)) {
     result.expected_revision = toBigInt(result.expected_revision);
-    result.reminders = result.reminders.map(condition);
+    result.reminders = result.reminders.map(reminder);
+  }
+  if (result.expected_revision !== undefined)
+    result.expected_revision = toBigInt(result.expected_revision);
+  if (result.outgoing != null) {
+    const turn = result.outgoing;
+    if (
+      !isRecord(turn) ||
+      !Array.isArray(turn.reminders) ||
+      !Array.isArray(turn.persistent_damage_groups)
+    )
+      throw new AtlasApiError(200, "Invalid outgoing turn");
+    result.outgoing = {
+      ...turn,
+      round_number: toBigInt(turn.round_number),
+      reminders: turn.reminders.map(reminder),
+      persistent_damage_groups: turn.persistent_damage_groups.map(persistentGroup),
+    };
   }
   if (Array.isArray(result.conditions))
     result.conditions = result.conditions.map((value) => {
@@ -811,6 +1270,14 @@ export async function rollEncounterStrike(
   });
 }
 
+export function rollFlatCheck(
+  request: import("../generated/atlas").RollFlatCheckRequest,
+): Promise<import("../generated/atlas").FlatCheckRollView> {
+  return atlasFetch("/api/rolls/flat-check", {
+    method: "POST",
+    body: jsonBody(request),
+  });
+}
 export async function getParties(): Promise<
   import("../generated/atlas").PartyIndexView
 > {

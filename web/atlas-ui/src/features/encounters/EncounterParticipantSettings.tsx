@@ -1,4 +1,15 @@
-import { Alert, Button, Form, Input, Modal, Select, Space } from "antd";
+import { EncounterModal } from "./EncounterModal";
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Segmented,
+  Space,
+} from "antd";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import type {
   EncounterParticipantView,
@@ -23,6 +34,7 @@ export function EncounterParticipantSettings({
   error,
   recovery,
   onUpdate,
+  onLifeSettings,
 }: {
   participant: EncounterParticipantView;
   disabled: boolean;
@@ -30,9 +42,17 @@ export function EncounterParticipantSettings({
   error?: string;
   recovery?: ReactNode;
   onUpdate: (request: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onLifeSettings?: (
+    settings: Omit<
+      import("../../generated/atlas").SetEncounterLifeSettingsRequest,
+      "request_id" | "expected_encounter_revision"
+    >,
+  ) => Promise<boolean>;
 }) {
+  const formId = useId();
   const [open, setOpen] = useState(false);
   const [committed, setCommitted] = useState(false);
+  const [savingLifeSettings, setSavingLifeSettings] = useState(false);
   return (
     <>
       <Button
@@ -47,30 +67,62 @@ export function EncounterParticipantSettings({
           setOpen(true);
         }}
       />
-      <Modal
+      <EncounterModal
         title="Participant settings"
         open={open && !(committed && !disabled)}
         destroyOnHidden
-        footer={null}
+        footer={
+          <Space>
+            <Button disabled={pending} onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              form={formId}
+              loading={pending && !savingLifeSettings}
+              disabled={disabled}
+            >
+              Save
+            </Button>
+          </Space>
+        }
         onCancel={() => setOpen(false)}
         closable={!pending}
         keyboard={!pending}
         mask={{ closable: !pending }}
       >
         <ParticipantSettingsForm
+          formId={formId}
           participant={participant}
-          disabled={disabled}
-          pending={pending}
+          disabled={disabled && !savingLifeSettings}
+          pending={pending && !savingLifeSettings}
           error={error}
           recovery={recovery}
-          onCancel={() => setOpen(false)}
+          lifeSettings={
+            participant.participant_kind !== "hazard" && onLifeSettings ? (
+              <LifeSettings
+                participant={participant}
+                disabled={disabled || pending}
+                onSave={async (settings) => {
+                  setSavingLifeSettings(true);
+                  try {
+                    return await onLifeSettings(settings);
+                  } finally {
+                    setSavingLifeSettings(false);
+                  }
+                }}
+              />
+            ) : undefined
+          }
           onSave={async (request) => {
+            if (disabled || pending) return;
             const refreshed = await onUpdate(request);
             if (refreshed) setOpen(false);
             else setCommitted(true);
           }}
         />
-      </Modal>
+      </EncounterModal>
     </>
   );
 }
@@ -81,7 +133,8 @@ function ParticipantSettingsForm({
   pending,
   error,
   recovery,
-  onCancel,
+  lifeSettings,
+  formId,
   onSave,
 }: {
   participant: EncounterParticipantView;
@@ -89,7 +142,8 @@ function ParticipantSettingsForm({
   pending: boolean;
   error?: string;
   recovery?: ReactNode;
-  onCancel: () => void;
+  lifeSettings?: ReactNode;
+  formId: string;
   onSave: (request: UpdateEncounterParticipantRequest) => Promise<void>;
 }) {
   const name = useId();
@@ -119,9 +173,10 @@ function ParticipantSettingsForm({
       )}
       <Form
         name={name}
+        id={formId}
         form={form}
         layout="vertical"
-        disabled={disabled}
+        disabled={disabled || pending}
         onFinish={async (values) => {
           if (disabled) return;
           const initiative = optionalBigIntInput(values.initiative ?? "");
@@ -193,23 +248,95 @@ function ParticipantSettingsForm({
             autoSize={{ minRows: 3, maxRows: 8 }}
           />
         </Form.Item>
+        {lifeSettings}
         {participant.record_key && (
           <EncounterOriginalRecord recordKey={participant.record_key} />
         )}
-        <Space wrap>
-          <Button
-            type="primary"
-            htmlType="submit"
-            loading={pending}
-            disabled={disabled}
-          >
-            Save
-          </Button>
-          <Button disabled={pending} onClick={onCancel}>
-            Cancel
-          </Button>
-        </Space>
       </Form>
     </>
+  );
+}
+
+function LifeSettings({
+  participant,
+  disabled,
+  onSave,
+}: {
+  participant: EncounterParticipantView;
+  disabled: boolean;
+  onSave: NonNullable<
+    Parameters<typeof EncounterParticipantSettings>[0]["onLifeSettings"]
+  >;
+}) {
+  const [threshold, setThreshold] = useState<number | null>(
+    Number(participant.base_death_threshold),
+  );
+  const [error, setError] = useState<string>();
+  const [pendingMortality, setPendingMortality] =
+    useState<EncounterParticipantView["mortality"]>();
+  const save = async (settings: Parameters<typeof onSave>[0]) => {
+    setError(undefined);
+    try {
+      await onSave(settings);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not save settings.");
+    }
+  };
+  return (
+    <section className="encounter-life-settings" aria-label="Dying settings">
+      {error && <Alert type="error" title={error} />}
+      <Checkbox
+        checked={participant.track_dying}
+        disabled={disabled}
+        onChange={(e) => void save({ track_dying: e.target.checked })}
+      >
+        Track dying
+      </Checkbox>
+      {participant.track_dying && (
+        <div className="encounter-life-settings__fields">
+          <Form.Item label="Death threshold" style={{ marginBottom: 0 }}>
+            <InputNumber
+              style={{ width: "100%" }}
+              aria-label="Death threshold"
+              disabled={disabled}
+              min={1}
+              precision={0}
+              value={threshold}
+              onChange={setThreshold}
+              onBlur={() => {
+                if (
+                  threshold != null &&
+                  threshold > 0 &&
+                  Number.isSafeInteger(threshold) &&
+                  threshold !== Number(participant.base_death_threshold)
+                )
+                  void save({
+                    track_dying: true,
+                    base_death_threshold: BigInt(threshold),
+                  });
+              }}
+            />
+          </Form.Item>
+        </div>
+      )}
+      <Segmented<EncounterParticipantView["mortality"]>
+        className="encounter-life-settings__status"
+        aria-label="Life status"
+        disabled={disabled}
+        value={pendingMortality ?? participant.mortality}
+        options={[
+          { value: "alive", label: "Alive" },
+          { value: "dead", label: "Dead" },
+        ]}
+        onChange={async (mortality) => {
+          setPendingMortality(mortality);
+          try {
+            await save({ track_dying: participant.track_dying, mortality });
+          } finally {
+            setPendingMortality(undefined);
+          }
+        }}
+      />
+    </section>
   );
 }

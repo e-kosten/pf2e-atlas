@@ -1,3 +1,4 @@
+import { generateConditionModule } from './condition-definitions.js';
 import { generateTraitDefinitionModule } from './trait-definitions.js';
 import type { GraphField, GraphNode } from '../contracts.js';
 import { validateInput, type GenerationInput } from './generation-input.js';
@@ -484,7 +485,13 @@ pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &S
 pub enum ${name} {
 ${tokens.map((token, index) => `    #[serde(rename = ${rustString(token)})]
     ${variants[index]},`).join('\n')}
-}
+}${name === 'ModularConfigDamageType' ? `
+impl ${name} {
+    pub const ALL: &'static [Self] = &[${variants.map(variant => `Self::${variant}`).join(',')}];
+    pub const fn as_str(self) -> &'static str {
+        match self { ${tokens.map((token, index) => `Self::${variants[index]} => ${rustString(token)},`).join('')} }
+    }
+}` : ''}
 pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<${name}> {
     match string(v, c, p)?.as_str() {
 ${tokens.map((token, index) => `        ${rustString(token)} => Ok(${name}::${variants[index]}),`).join('\n')}
@@ -676,6 +683,11 @@ ${openTraitArrays.size ? '// Explicit trait-array policies keep identifiers as s
     if (!input.referenceSource) throw new Error('Trait metadata requires pinned source provenance');
     files['trait_definitions.rs'] = generateTraitDefinitionModule(input.traitDefinitions, generatedHeader + '\n// Pinned source digest: ' + input.source.source_digest, input.referenceSource);
     files['mod.rs'] += '\nmod trait_definitions;\npub use trait_definitions::{FoundryTraitDefinition, FoundryTraitSourceLocation, trait_definitions, trait_definition};\n';
+  }
+  if (input.conditionCatalog) {
+    if (!input.referenceSource) throw new Error('Condition facts require pinned source provenance');
+    files['condition_definitions.rs'] = generateConditionModule(input.conditionCatalog, generatedHeader, input.referenceSource);
+    files['mod.rs'] += '\npub mod condition_definitions;\n';
   }
   return files;
 }

@@ -128,6 +128,8 @@ export function activityFixture(
 }
 export function spellFixture(): SpellPresentationView {
   return {
+    runtime_attack: null,
+    runtime_difficulty_class: null,
     ritual: unavailableFact("not_applicable"),
     counteraction: knownFact(false),
     base_rank: numberFact(1),

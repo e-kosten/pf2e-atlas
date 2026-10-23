@@ -1,4 +1,3 @@
-mod action_budget;
 mod conditions;
 mod hp;
 #[cfg(test)]
@@ -8,10 +7,12 @@ mod initiative;
 #[cfg(test)]
 mod initiative_tests;
 pub(crate) mod mechanics;
+mod outgoing_turns;
 mod projection;
 mod reference;
 #[cfg(test)]
 mod reference_tests;
+mod rules;
 mod stat_block;
 mod strike_roll;
 #[cfg(test)]
@@ -27,3 +28,24 @@ mod spell_catalog;
 #[cfg(test)]
 mod spell_tests;
 mod spells;
+
+mod persistent_damage;
+
+mod condition_events;
+mod event_execution;
+
+mod hp_events;
+
+mod persistent_damage_resolution;
+
+#[cfg(test)]
+mod persistent_damage_tests;
+
+mod action_projection;
+mod casting_reminders;
+mod retch;
+mod strike_context;
+
+mod condition_recovery;
+
+pub(crate) use rules::attack_progression;

@@ -1,6 +1,6 @@
+use crate::test_support::{open_reader, publish_input};
 use crate::*;
 use atlas_embedding::{EmbeddingRuntimeConfig, required_embedding_model_cache_files};
-use atlas_index::test_support::{open_reader, publish_input};
 
 use serde_json::json;
 use std::fs;
@@ -405,6 +405,7 @@ fn setup_reprepares_known_old_content_policy_but_readers_remain_blocked_until_pu
         .unwrap();
     atlas_index::test_support::set_content_interpretation_version(
         &paths.index_path,
+        crate::WORKSPACE_SCHEMA_VERSION,
         "foundry-content/v6",
     )
     .unwrap();
@@ -1089,6 +1090,7 @@ fn setup_reprepares_prerequisites_from_old_selection_policy() {
     assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
     atlas_index::test_support::set_content_selection_version(
         &paths.index_path,
+        crate::WORKSPACE_SCHEMA_VERSION,
         "structural-source-sections/v2",
     )
     .unwrap();

@@ -1,3 +1,4 @@
+import { EncounterModal } from "./EncounterModal";
 import { RollModeControl } from "../../shared/dice/RollModeControl";
 import { useDicePopoverFocus } from "../../shared/dice/useDicePopoverFocus";
 import {
@@ -5,7 +6,7 @@ import {
   waitForRollReveal,
 } from "../../shared/dice/rollLifecycle";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Checkbox, Modal, Popover, Select, Spin } from "antd";
+import { Alert, Button, Checkbox, Popover, Select, Spin } from "antd";
 import { Dice5 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AtlasApiError, getInitiativeOptions } from "../../api/atlasApi";
@@ -34,7 +35,7 @@ type RollProps = {
 
 export function InitiativeRollModal(props: RollProps) {
   return (
-    <Modal
+    <EncounterModal
       title="Roll initiative"
       open
       onCancel={props.onClose}
@@ -44,7 +45,7 @@ export function InitiativeRollModal(props: RollProps) {
       destroyOnHidden
     >
       <InitiativeEditor {...props} />
-    </Modal>
+    </EncounterModal>
   );
 }
 

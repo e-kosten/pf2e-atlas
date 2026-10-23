@@ -62,3 +62,16 @@ pub struct InitiativeRollView {
     pub encounter_key: String,
     pub rolls: Vec<ParticipantRollView>,
 }
+
+/// A reference flat check. It does not commit an encounter action or resource.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RollFlatCheckRequest {
+    pub dc: i64,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct FlatCheckRollView {
+    pub dc: i64,
+    pub outcome: atlas_dice::RollOutcome,
+    pub success: bool,
+}

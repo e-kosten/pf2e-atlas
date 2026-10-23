@@ -5,6 +5,7 @@ use diceng::{BinaryOp, Expression, ParseResult, RollResult};
 pub struct PreparedRoll {
     formula: String,
     expression: Expression,
+    bounds: (i64, i64),
 }
 
 pub fn prepare(formula: &str) -> Result<PreparedRoll, DiceError> {
@@ -23,10 +24,11 @@ pub fn prepare(formula: &str) -> Result<PreparedRoll, DiceError> {
             ));
         }
     };
-    crate::validation::validate(&expression, 0, &mut 0)?;
+    let bounds = crate::validation::validate(&expression, 0, &mut 0)?;
     Ok(PreparedRoll {
         formula: formula.into(),
         expression,
+        bounds,
     })
 }
 
@@ -35,6 +37,41 @@ pub fn roll(formula: &str) -> Result<RollOutcome, DiceError> {
 }
 
 impl PreparedRoll {
+    /// Conservative inclusive limits proved by validation, without rolling dice.
+    pub fn bounds(&self) -> (i64, i64) {
+        self.bounds
+    }
+
+    /// Expected value for ordinary additive dice pools; unavailable for other expressions.
+    pub fn additive_average(&self) -> Option<f64> {
+        let (dice, constant) = additive_pool(&self.expression)?;
+        Some(
+            constant as f64
+                + dice
+                    .iter()
+                    .map(|sides| (f64::from(*sides) + 1.0) / 2.0)
+                    .sum::<f64>(),
+        )
+    }
+
+    /// Compare additive dice pools without rolling or ranking by averages.
+    /// Returns no ordering when the pools trade dice count, size, or constants.
+    pub fn compare_magnitude(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        let (a, ac) = additive_pool(&self.expression)?;
+        let (b, bc) = additive_pool(&other.expression)?;
+        let dominates = |dice: &[u32], constant: i64, rhs: &[u32], rhs_constant: i64| {
+            constant >= rhs_constant
+                && dice.len() >= rhs.len()
+                && dice.iter().zip(rhs).all(|(left, right)| left >= right)
+        };
+        match (dominates(&a, ac, &b, bc), dominates(&b, bc, &a, ac)) {
+            (true, true) => Some(std::cmp::Ordering::Equal),
+            (true, false) => Some(std::cmp::Ordering::Greater),
+            (false, true) => Some(std::cmp::Ordering::Less),
+            _ => None,
+        }
+    }
+
     pub fn roll(&self) -> Result<RollOutcome, DiceError> {
         self.evaluate(diceng::RandomRng::new())
     }
@@ -47,6 +84,45 @@ impl PreparedRoll {
             expression: project(&result)?,
         })
     }
+}
+
+fn additive_pool(expression: &Expression) -> Option<(Vec<u32>, i64)> {
+    let (mut dice, constant) = match expression {
+        Expression::Literal(value) => (vec![], i64::from(*value)),
+        Expression::Dice(dice) if dice.filters.is_empty() => {
+            let (count, sides) = match dice.atom {
+                diceng::DiceAtom::Standard { count, sides } => (count, sides),
+                diceng::DiceAtom::Percent { count } => (count, 100),
+                _ => return None,
+            };
+            (vec![sides; count as usize], 0)
+        }
+        Expression::BinaryOp {
+            op: BinaryOp::Add,
+            left,
+            right,
+        } => {
+            let (mut a, ac) = additive_pool(left)?;
+            let (b, bc) = additive_pool(right)?;
+            a.extend(b);
+            (a, ac + bc)
+        }
+        Expression::BinaryOp {
+            op: BinaryOp::Sub,
+            left,
+            right,
+        } => {
+            let (a, ac) = additive_pool(left)?;
+            let (b, bc) = additive_pool(right)?;
+            if !b.is_empty() {
+                return None;
+            }
+            (a, ac - bc)
+        }
+        _ => return None,
+    };
+    dice.sort_unstable_by(|a, b| b.cmp(a));
+    Some((dice, constant))
 }
 
 fn project(result: &RollResult) -> Result<RollExpression, DiceError> {
@@ -243,5 +319,25 @@ mod tests {
         assert_eq!(fixed("1d20-5", vec![3]).total, -2);
         assert_eq!(fixed("-(1d6+1)/2", vec![4]).total, -2);
         assert_eq!(fixed("200d2", vec![1; 200]).total, 200);
+    }
+
+    #[test]
+    fn magnitude_comparison_handles_additive_pools_without_expected_value_ranking() {
+        use std::cmp::Ordering::*;
+        for (a, b, expected) in [
+            ("2d6", "1d6", Some(Greater)),
+            ("1d4", "1d6", Some(Less)),
+            ("1d6+2", "2+1d6", Some(Equal)),
+            ("1d12", "2d6", None),
+            ("1d6+2", "1d8", None),
+            ("2d20kh1", "1d20", None),
+        ] {
+            assert_eq!(
+                prepare(a).unwrap().compare_magnitude(&prepare(b).unwrap()),
+                expected,
+                "{a} versus {b}"
+            );
+        }
+        assert_eq!(prepare("2d6+3").unwrap().bounds(), (5, 15));
     }
 }

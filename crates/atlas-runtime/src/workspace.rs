@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 8;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 9;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         version: 1,
@@ -43,6 +43,11 @@ const MIGRATIONS: &[Migration] = &[
         version: 8,
         name: "trait-vocabulary",
         sql: atlas_index::TRAIT_SCHEMA_SQL,
+    },
+    Migration {
+        version: 9,
+        name: "condition-system",
+        sql: atlas_local_state::CONDITION_SYSTEM_SCHEMA_SQL,
     },
 ];
 
@@ -180,40 +185,6 @@ mod tests {
     }
 
     #[test]
-    fn parties_upgrade_preserves_saved_encounter_state_and_durable_rosters() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("party-upgrade.sqlite");
-        register_extensions().unwrap();
-        let workspace = Workspace::at(&path).unwrap();
-        workspace.migrate(&MIGRATIONS[..6], |_| Ok(())).unwrap();
-        let write = workspace.write(6).unwrap();
-        write.connection().execute_batch("INSERT INTO encounters(encounter_key,slug,name,status,created_at,updated_at) VALUES('kept','kept','Kept','running','before','before');").unwrap();
-        write.commit().unwrap();
-        let upgraded = initialize_workspace(&path).unwrap();
-        let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let party = LocalStateWrite::new(&write)
-            .parties()
-            .create(
-                "Party",
-                &[atlas_local_state::PartyMemberInput {
-                    member_key: None,
-                    name: "PC".into(),
-                }],
-            )
-            .unwrap();
-        write.commit().unwrap();
-        drop(upgraded);
-        let reopened = initialize_workspace(&path).unwrap();
-        let read = reopened.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let state = LocalStateRead::new(&read);
-        assert_eq!(state.parties().get(&party.party_key).unwrap(), party);
-        assert_eq!(
-            state.encounters().get("kept").unwrap().unwrap().status,
-            atlas_local_state::EncounterStatus::Running
-        );
-    }
-
-    #[test]
     fn startup_can_initialize_current_workspace_during_publisher_preparation() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("atlas.sqlite");
@@ -251,5 +222,105 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
+    }
+    #[test]
+    fn parties_upgrade_preserves_saved_encounter_state_and_durable_rosters() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("party-upgrade.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..6], |_| Ok(())).unwrap();
+        let write = workspace.write(6).unwrap();
+        write.connection().execute_batch("INSERT INTO encounters(encounter_key,slug,name,status,created_at,updated_at) VALUES('kept','kept','Kept','running','before','before');").unwrap();
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(&path).unwrap();
+        let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let party = LocalStateWrite::new(&write)
+            .parties()
+            .create(
+                "Party",
+                &[atlas_local_state::PartyMemberInput {
+                    member_key: None,
+                    name: "PC".into(),
+                }],
+            )
+            .unwrap();
+        write.commit().unwrap();
+        drop(upgraded);
+        let reopened = initialize_workspace(&path).unwrap();
+        let read = reopened.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let state = LocalStateRead::new(&read);
+        assert_eq!(state.parties().get(&party.party_key).unwrap(), party);
+        assert_eq!(
+            state.encounters().get("kept").unwrap().unwrap().status,
+            atlas_local_state::EncounterStatus::Running
+        );
+    }
+    #[test]
+    fn current_main_upgrade_preserves_parties_and_existing_conditions() {
+        let directory = tempfile::tempdir().unwrap();
+        register_extensions().unwrap();
+        let workspace = Workspace::at(directory.path().join("main-upgrade.sqlite")).unwrap();
+        let index = MIGRATIONS
+            .iter()
+            .position(|migration| migration.name == "condition-system")
+            .unwrap();
+        workspace.migrate(&MIGRATIONS[..index], |_| Ok(())).unwrap();
+        let write = workspace.write(MIGRATIONS[index - 1].version).unwrap();
+        let party = LocalStateWrite::new(&write)
+            .parties()
+            .create(
+                "Kept party",
+                &[atlas_local_state::PartyMemberInput {
+                    member_key: None,
+                    name: "Kept PC".into(),
+                }],
+            )
+            .unwrap();
+        write.connection().execute_batch("INSERT INTO encounters(id,encounter_key,slug,name,status,note,created_at,updated_at) VALUES(1,'kept','kept','Kept encounter','running','Keep encounter note','before','before');
+            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,created_at,updated_at) VALUES(1,1,'pc','pc',0,'Kept PC',0,20,13,'before','before');
+            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,created_at,updated_at) VALUES(2,1,'creature','creature',1,'Kept creature',1,'before','before');
+            INSERT INTO encounter_participant_conditions(participant_id,name,value,note,created_at,updated_at) VALUES(1,'Frightened',2,'Keep condition note','before','before');").unwrap();
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(workspace.path()).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let state = LocalStateRead::new(&read);
+        assert_eq!(state.parties().get(&party.party_key).unwrap(), party);
+        let detail = state
+            .encounters()
+            .get_with_participants("kept")
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            detail.encounter.note.as_deref(),
+            Some("Keep encounter note")
+        );
+        let participant = &detail.participants[0];
+        assert_eq!(participant.current_hp, Some(13));
+        let condition = &participant.conditions[0];
+        assert_eq!(condition.name, "Frightened");
+        assert_eq!(condition.value, Some(2));
+        assert_eq!(condition.note.as_deref(), Some("Keep condition note"));
+        assert!(participant.track_dying);
+        assert!(!detail.participants[1].track_dying);
+        assert_eq!(
+            participant.mortality,
+            atlas_local_state::MortalityState::Alive
+        );
+        assert_eq!(participant.base_death_threshold, 4);
+        assert_eq!(condition.scope, atlas_local_state::ConditionScope::Everyone);
+        assert_eq!(
+            condition.extra_action,
+            atlas_local_state::ConditionExtraAction::Unspecified
+        );
+        assert!(!condition.immunity_override);
+        assert_eq!(
+            condition.parameters,
+            atlas_local_state::ConditionParameters::None
+        );
+        let obsolete: i64 = read.connection().query_row("SELECT count(*) FROM sqlite_master WHERE name IN ('encounter_action_attempts','encounter_action_receipts','encounter_relationships')", [], |row| row.get(0)).unwrap();
+        assert_eq!(obsolete, 0);
+        let prototype_columns: i64 = read.connection().query_row("SELECT (SELECT count(*) FROM pragma_table_info('encounter_participant_conditions') WHERE name='gm_override_reason') + (SELECT count(*) FROM pragma_table_info('encounter_outgoing_turns') WHERE name LIKE 'handled_%')", [], |row| row.get(0)).unwrap();
+        assert_eq!(prototype_columns, 0);
     }
 }

@@ -624,6 +624,8 @@ async fn encounter_routes_use_real_router_wiring() {
         "/api/encounters/ambush/participants/participant_a/conditions",
         Some(json!({
             "participant_key": "ignored",
+            "request_id": "apply-frightened",
+            "expected_encounter_revision": 7,
             "name": "Frightened",
             "value": 1,
             "duration": {"amount":2,"unit":"rounds","timing":{"participant_key":"pc_1","event":"end"}}
@@ -638,6 +640,7 @@ async fn encounter_routes_use_real_router_wiring() {
         "/api/encounters/ambush/participants/participant_a/conditions/7",
         Some(json!({
             "condition_id": 999,
+            "request_id": "edit-frightened",
             "expected_encounter_revision":7,
             "name": "Frightened",
             "value": 2,
@@ -653,6 +656,7 @@ async fn encounter_routes_use_real_router_wiring() {
         "/api/encounters/ambush/participants/wrong_participant/conditions/7",
         Some(json!({
             "condition_id": 999,
+            "request_id": "edit-frightened",
             "expected_encounter_revision":7,
             "name": "Frightened",
             "value": 3
@@ -665,7 +669,7 @@ async fn encounter_routes_use_real_router_wiring() {
     let (status, body) = route_json(
         Method::DELETE,
         "/api/encounters/ambush/participants/wrong_participant/conditions/7",
-        None,
+        Some(json!({"request_id":"remove-frightened","expected_encounter_revision":7,"intent":"remove_effect"})),
     )
     .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
@@ -674,7 +678,7 @@ async fn encounter_routes_use_real_router_wiring() {
     let (status, body) = route_json(
         Method::DELETE,
         "/api/encounters/ambush/participants/participant_a/conditions/7",
-        None,
+        Some(json!({"request_id":"remove-frightened","expected_encounter_revision":7,"intent":"remove_effect"})),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
@@ -799,7 +803,7 @@ async fn turn_review_and_advance_use_explicit_revision_path_and_typed_failures()
     let (status, body) = route_json(
         Method::POST,
         "/api/encounters/ambush/advance",
-        Some(json!({"expected_revision":7})),
+        Some(json!({"request_id":"next","expected_revision":7})),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
@@ -807,7 +811,7 @@ async fn turn_review_and_advance_use_explicit_revision_path_and_typed_failures()
     let (status, body) = route_json(
         Method::POST,
         "/api/encounters/ambush/advance",
-        Some(json!({"expected_revision":6})),
+        Some(json!({"request_id":"next-stale","expected_revision":6})),
     )
     .await;
     assert_eq!(status, StatusCode::CONFLICT);
@@ -835,7 +839,7 @@ async fn turn_review_and_advance_use_explicit_revision_path_and_typed_failures()
 #[tokio::test]
 async fn hp_actions_require_explicit_contract_and_use_path_identity_and_receipt() {
     let path = "/api/encounters/ambush/participants/participant_a/hp";
-    let mut request = json!({"participant_key":"ignored_body_identity","action":{"kind":"damage","amount":"10+2"}});
+    let mut request = json!({"request_id":"hp-action","participant_key":"ignored_body_identity","action":{"kind":"damage","amount":"10+2"}});
     let (status, body) = route_json(Method::POST, path, Some(request.clone())).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["code"], "invalid_request");
@@ -855,6 +859,27 @@ async fn hp_actions_require_explicit_contract_and_use_path_identity_and_receipt(
 
 #[tokio::test]
 async fn dice_routes_forward_typed_requests_and_conflicts() {
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/rolls/flat-check",
+        Some(json!({"dc":11})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["dc"], 11);
+    assert_eq!(body["outcome"]["formula"], "1d20");
+    assert_eq!(
+        body["success"].as_bool().unwrap(),
+        body["outcome"]["total"].as_i64().unwrap() >= 11
+    );
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/rolls/flat-check",
+        Some(json!({"dc":"bad"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
     let selection = json!({"record_key":"tables:example","embedded_path":[],"fields":[],"passage":null,"source_fingerprint":null});
     let (status, body) = route_json(Method::GET, "/api/encounters/ambush/initiative", None).await;
     assert_eq!(status, StatusCode::OK);
@@ -1152,17 +1177,173 @@ impl AtlasWebService for MockService {
             variants: atlas_app_model::RelatedCategoryView::Empty,
         })
     }
+    fn preview_encounter_condition_add(
+        &self,
+        encounter_ref: &str,
+        _request: atlas_app_model::AddEncounterParticipantConditionRequest,
+    ) -> Result<atlas_app_model::ConditionEventPreviewView, AppServiceError> {
+        Ok(atlas_app_model::ConditionEventPreviewView {
+            persistent_precedence: None,
+            hp_change: None,
+            encounter_key: encounter_ref.into(),
+            encounter_revision: 0,
+            consequences: vec![],
+        })
+    }
+    fn preview_encounter_condition_update(
+        &self,
+        encounter_ref: &str,
+        _participant_key: &str,
+        _request: atlas_app_model::UpdateEncounterParticipantConditionRequest,
+    ) -> Result<atlas_app_model::ConditionEventPreviewView, AppServiceError> {
+        Ok(atlas_app_model::ConditionEventPreviewView {
+            persistent_precedence: None,
+            hp_change: None,
+            encounter_key: encounter_ref.into(),
+            encounter_revision: 0,
+            consequences: vec![],
+        })
+    }
+    fn pending_encounter_condition_consequences(
+        &self,
+        _encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingConditionConsequenceView>, AppServiceError> {
+        Ok(vec![])
+    }
+    fn preview_encounter_drained_consequence(
+        &self,
+        _encounter_ref: &str,
+        _request: atlas_app_model::ResolveDrainedConsequenceRequest,
+    ) -> Result<atlas_app_model::ConditionHpChangeView, AppServiceError> {
+        Ok(atlas_app_model::ConditionHpChangeView {
+            current_before: Some(20),
+            current_after: Some(15),
+            maximum_before: Some(20),
+            maximum_after: Some(15),
+        })
+    }
+    fn resolve_encounter_drained_consequence(
+        &self,
+        encounter_ref: &str,
+        _request: atlas_app_model::ResolveDrainedConsequenceRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
+        })
+    }
+    fn set_encounter_life_settings(
+        &self,
+        encounter_ref: &str,
+        _participant_key: &str,
+        _request: atlas_app_model::SetEncounterLifeSettingsRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
+        })
+    }
+    fn recover_persistent_damage(
+        &self,
+        _encounter_ref: &str,
+        _request: atlas_app_model::RecoverPersistentDamageRequest,
+    ) -> Result<atlas_app_model::PersistentRecoveryResultView, AppServiceError> {
+        Err(AppServiceError::invalid_request(
+            "recovery fixture is not configured",
+        ))
+    }
+    fn pending_encounter_hp_lifecycle(
+        &self,
+        _encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingHpLifecycleView>, AppServiceError> {
+        Ok(vec![])
+    }
+    fn resolve_encounter_hp_lifecycle(
+        &self,
+        encounter_ref: &str,
+        _request: atlas_app_model::ResolveEncounterHpLifecycleRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
+        })
+    }
+    fn apply_persistent_damage(
+        &self,
+        _encounter_ref: &str,
+        _request: atlas_app_model::ApplyPersistentDamageRequest,
+    ) -> Result<atlas_app_model::PersistentDamageResultView, AppServiceError> {
+        Err(AppServiceError::invalid_request(
+            "persistent damage fixture is not configured",
+        ))
+    }
+    fn apply_condition_lifecycle(
+        &self,
+        _encounter_ref: &str,
+        _request: atlas_app_model::ApplyConditionLifecycleRequest,
+    ) -> Result<atlas_app_model::ConditionLifecycleResultView, AppServiceError> {
+        Err(AppServiceError::invalid_request(
+            "lifecycle fixture is not configured",
+        ))
+    }
+    fn condition_lifecycle_actions(
+        &self,
+        _encounter_ref: &str,
+        _participant_key: &str,
+        _boundary_key: Option<&str>,
+    ) -> Result<atlas_app_model::ConditionLifecycleActionsView, AppServiceError> {
+        Err(AppServiceError::invalid_request(
+            "lifecycle fixture is not configured",
+        ))
+    }
+    fn pending_condition_recoveries(
+        &self,
+        _encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingConditionRecoveryView>, AppServiceError> {
+        Err(AppServiceError::invalid_request(
+            "lifecycle fixture is not configured",
+        ))
+    }
+    fn persistent_damage_review(
+        &self,
+        _encounter_ref: &str,
+        _participant_key: &str,
+        _boundary_key: Option<&str>,
+    ) -> Result<atlas_app_model::PersistentReviewView, AppServiceError> {
+        Err(AppServiceError::invalid_request(
+            "persistent review fixture is not configured",
+        ))
+    }
+    fn preview_encounter_hp_lifecycle(
+        &self,
+        _encounter_ref: &str,
+        _request: atlas_app_model::ResolveEncounterHpLifecycleRequest,
+    ) -> Result<atlas_app_model::PendingHpLifecycleView, AppServiceError> {
+        Err(AppServiceError::invalid_request(
+            "HP lifecycle preview fixture is not configured",
+        ))
+    }
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {
         Ok(EncounterIndexView {
             encounters: vec![encounter_summary("ambush", "Ambush")],
         })
     }
 
+    fn participant_encounter_condition_definitions(
+        &self,
+        _encounter_ref: &str,
+        _participant_key: &str,
+    ) -> Result<atlas_app_model::EncounterConditionCatalogView, AppServiceError> {
+        self.encounter_condition_definitions()
+    }
     fn encounter_condition_definitions(
         &self,
     ) -> Result<EncounterConditionCatalogView, AppServiceError> {
         Ok(EncounterConditionCatalogView {
+            standard_persistent_recovery_dc: 15,
+            damage_types: vec![],
             conditions: vec![EncounterConditionDefinitionView {
+                editor_kind: atlas_app_model::ConditionEditorKindView::Ordinary,
+                eligibility: atlas_app_model::EncounterConditionEligibilityView::Available,
+                scope_label: None,
+                supports_extra_action: false,
                 supports_duration_instead_of_value: false,
                 condition_ref: "conditionitems:TBSHQspnbcqxsmjL".to_string(),
                 name: "Frightened".to_string(),
@@ -1253,6 +1434,20 @@ impl AtlasWebService for MockService {
         })
     }
 
+    fn roll_flat_check(
+        &self,
+        request: atlas_app_model::RollFlatCheckRequest,
+    ) -> Result<atlas_app_model::FlatCheckRollView, AppServiceError> {
+        let outcome = serde_json::from_value(
+            json!({"formula":"1d20","total":12,"expression":{"kind":"number","value":12}}),
+        )
+        .unwrap();
+        Ok(atlas_app_model::FlatCheckRollView {
+            dc: request.dc,
+            success: 12 >= request.dc,
+            outcome,
+        })
+    }
     fn roll_table(
         &self,
         request: atlas_app_model::RollTableRequest,
@@ -1272,6 +1467,8 @@ impl AtlasWebService for MockService {
         request: atlas_app_model::EncounterStrikeOptionsRequest,
     ) -> Result<atlas_app_model::EncounterStrikeOptionsView, AppServiceError> {
         Ok(atlas_app_model::EncounterStrikeOptionsView {
+            applied: vec![],
+            conditional: vec![],
             expected_revision: 7,
             expected_participant_revision: 3,
             title: format!("{encounter_ref}:{}", request.participant_key),
@@ -1315,6 +1512,27 @@ impl AtlasWebService for MockService {
             request_id: request.request_id,
             rolls: vec![],
         })
+    }
+
+    fn preview_encounter_strike_context(
+        &self,
+        _encounter_ref: &str,
+        _request: atlas_app_model::EncounterStrikeContextRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeContextView, AppServiceError> {
+        Err(AppServiceError::new(
+            AppErrorCode::InvalidRequest,
+            "casting mock not configured",
+        ))
+    }
+    fn encounter_casting_reminders(
+        &self,
+        _encounter_ref: &str,
+        _request: atlas_app_model::EncounterCastingRemindersRequest,
+    ) -> Result<atlas_app_model::EncounterCastingRemindersView, AppServiceError> {
+        Err(AppServiceError::new(
+            AppErrorCode::InvalidRequest,
+            "casting mock not configured",
+        ))
     }
     fn apply_encounter_spell_action(
         &self,
@@ -1377,6 +1595,8 @@ impl AtlasWebService for MockService {
         encounter_ref: &str,
     ) -> Result<EncounterTurnReviewView, AppServiceError> {
         Ok(EncounterTurnReviewView {
+            next_turn_unavailable_reason: None,
+            outgoing: None,
             encounter_key: encounter_ref.into(),
             expected_revision: 7,
             current_participant_key: None,
@@ -1441,6 +1661,7 @@ impl AtlasWebService for MockService {
         encounter_ref: &str,
         participant_key: &str,
         _condition_id: i64,
+        _request: atlas_app_model::RemoveEncounterParticipantConditionRequest,
     ) -> Result<EncounterMutationView, AppServiceError> {
         if participant_key != "participant_a" {
             return Err(AppServiceError::new(
@@ -1651,6 +1872,18 @@ fn encounter_participant(
     include_condition: bool,
 ) -> EncounterParticipantView {
     EncounterParticipantView {
+        knockout_options: vec![],
+        knockout_unavailable_reason: None,
+        effective_max_hp: atlas_app_model::NumberFactView {
+            state: atlas_domain::QueryFieldState::Value,
+            value: Some(20.into()),
+            adjustment: None,
+        },
+        level_override: None,
+        base_death_threshold: 4,
+        persistent_damage_groups: vec![],
+        track_dying: false,
+        mortality: atlas_app_model::MortalityStateView::Alive,
         cast_unavailable_reason: None,
         spellcasting: None,
         revision: 7,
@@ -1676,6 +1909,11 @@ fn encounter_participant(
         note_hint: Some("wounded".to_string()),
         conditions: if include_condition {
             vec![EncounterParticipantConditionView {
+                scope: atlas_app_model::ConditionScopeView::Everyone,
+                extra_action: atlas_app_model::ConditionExtraActionView::Unspecified,
+                immunity_override: false,
+                parameters: Default::default(),
+                origin: None,
                 condition_id: 7,
                 condition_key: None,
                 name: "Frightened".to_string(),

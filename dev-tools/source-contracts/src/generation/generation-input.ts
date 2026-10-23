@@ -1,3 +1,4 @@
+import type { ConditionCatalog } from './condition-definitions.js';
 import type { TraitDefinition } from './trait-definitions.js';
 import type { GraphField, GraphNode, SourceIdentity, TypeGraph } from '../contracts.js';
 
@@ -8,6 +9,7 @@ export interface GenerationRoot {
 export interface GenerationInput {
   referenceSource?: { repository: string; commit: string; systemVersion: string };
   traitDefinitions?: TraitDefinition[];
+  conditionCatalog?: ConditionCatalog;
   source: SourceIdentity; selection: GenerationRoot[]; nodes: GraphNode[]; openTraitArrays?: string[];
   portfolio?: { typescript: string; schemaRoots: TypeGraph['roots']; families: NonNullable<TypeGraph['portfolio']>['families'] };
 }

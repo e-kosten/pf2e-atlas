@@ -1,3 +1,15 @@
+use crate::{
+    ConditionEditorKindView, ConditionEventIntentView, ConditionOriginView,
+    ConditionParametersView, EncounterDamageTypeView, MortalityStateView,
+};
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum EncounterConditionEligibilityView {
+    Available,
+    Immune { reason: String },
+    NeedsContext { reason: String },
+}
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -28,6 +40,8 @@ pub struct EncounterIndexView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterConditionCatalogView {
+    pub standard_persistent_recovery_dc: i64,
+    pub damage_types: Vec<EncounterDamageTypeView>,
     pub conditions: Vec<EncounterConditionDefinitionView>,
 }
 
@@ -65,6 +79,8 @@ pub struct ConditionDurationView {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EncounterTurnReviewView {
+    pub next_turn_unavailable_reason: Option<EncounterNextTurnUnavailableReason>,
+    pub outgoing: Option<EncounterOutgoingTurnView>,
     pub encounter_key: String,
     pub expected_revision: i64,
     pub current_participant_key: Option<String>,
@@ -75,6 +91,12 @@ pub struct EncounterTurnReviewView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EncounterTurnReminderView {
+    ConditionRecovery {
+        participant_key: String,
+        participant_name: String,
+        condition_ids: Vec<i64>,
+        condition_name: String,
+    },
     PersistentDamage {
         participant_key: String,
         participant_name: String,
@@ -114,12 +136,58 @@ pub enum EncounterTurnReminderView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct AdvanceEncounterTurnRequest {
+    pub request_id: String,
     pub expected_revision: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ConditionScopeView {
+    #[default]
+    Everyone,
+    SelectedParticipants {
+        participant_keys: Vec<String>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ConditionExtraActionView {
+    #[default]
+    Unspecified,
+    Unrestricted,
+    Restricted {
+        actions: Vec<ConditionActionView>,
+        guidance: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ConditionActionView {
+    Stride,
+    Strike,
+    Step,
+    Leap,
+    Stand,
+    Interact,
+    CastSpell,
+    Sustain,
+    Escape,
+    Crawl,
+    Fly,
+    Swim,
+    Climb,
+    Burrow,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterConditionDefinitionView {
+    pub editor_kind: ConditionEditorKindView,
+    pub scope_label: Option<String>,
+    pub supports_extra_action: bool,
+    pub eligibility: EncounterConditionEligibilityView,
     pub supports_duration_instead_of_value: bool,
     pub condition_ref: String,
     pub name: String,
@@ -213,6 +281,11 @@ pub enum StatModifierTypeView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct ActionBudgetView {
+    /// Status when the default allocation loses Quickened's extra action first.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub extra_action_unavailable_reason: Option<String>,
+    pub quickened_sources: Vec<ConditionExtraActionView>,
     pub actions: RuntimeCountView,
     pub reactions: RuntimeCountView,
     pub can_act: RuntimeCapabilityView,
@@ -369,6 +442,18 @@ pub struct EncounterMutationView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterParticipantView {
+    pub knockout_options: Vec<crate::KnockoutOptionView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub knockout_unavailable_reason: Option<String>,
+    pub effective_max_hp: crate::NumberFactView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub level_override: Option<i64>,
+    pub base_death_threshold: i64,
+    pub persistent_damage_groups: Vec<crate::PersistentDamageGroupView>,
+    pub track_dying: bool,
+    pub mortality: MortalityStateView,
     pub cast_unavailable_reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -427,6 +512,17 @@ pub struct EncounterParticipantConditionView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_participant_key: Option<String>,
+    #[serde(default)]
+    pub scope: ConditionScopeView,
+    #[serde(default)]
+    pub extra_action: ConditionExtraActionView,
+    #[serde(default)]
+    pub immunity_override: bool,
+    #[serde(default)]
+    pub parameters: ConditionParametersView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub origin: Option<ConditionOriginView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub duration: Option<ConditionDurationView>,
@@ -555,6 +651,10 @@ pub enum EncounterHpAction {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct ApplyEncounterHpActionRequest {
+    pub request_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub context: Option<crate::HpEventContextView>,
     pub participant_key: String,
     pub expected_revision: i64,
     pub action: EncounterHpAction,
@@ -572,6 +672,12 @@ pub struct ReorderEncounterParticipantRequest {
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub struct AddEncounterParticipantConditionRequest {
+    pub request_id: String,
+    pub expected_encounter_revision: i64,
+    #[serde(default)]
+    pub event_intent: ConditionEventIntentView,
+    #[serde(default)]
+    pub decisions: crate::ConditionApplicationDecisionsView,
     pub participant_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -585,6 +691,17 @@ pub struct AddEncounterParticipantConditionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_participant_key: Option<String>,
+    #[serde(default)]
+    pub scope: ConditionScopeView,
+    #[serde(default)]
+    pub extra_action: ConditionExtraActionView,
+    #[serde(default)]
+    pub immunity_override: bool,
+    #[serde(default)]
+    pub parameters: crate::ConditionParametersInputView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub origin: Option<ConditionOriginView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub duration: Option<ConditionDurationView>,
@@ -597,6 +714,11 @@ pub struct AddEncounterParticipantConditionRequest {
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub struct UpdateEncounterParticipantConditionRequest {
+    pub request_id: String,
+    #[serde(default)]
+    pub event_intent: ConditionEventIntentView,
+    #[serde(default)]
+    pub decisions: crate::ConditionApplicationDecisionsView,
     pub expected_encounter_revision: i64,
     pub condition_id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -609,6 +731,17 @@ pub struct UpdateEncounterParticipantConditionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_participant_key: Option<String>,
+    #[serde(default)]
+    pub scope: ConditionScopeView,
+    #[serde(default)]
+    pub extra_action: ConditionExtraActionView,
+    #[serde(default)]
+    pub immunity_override: bool,
+    #[serde(default)]
+    pub parameters: crate::ConditionParametersInputView,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub origin: Option<ConditionOriginView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub duration: Option<ConditionDurationView>,
@@ -639,7 +772,7 @@ mod tests {
 
     #[test]
     fn condition_duration_rejects_fractional_missing_and_retired_inputs() {
-        let request = json!({"participant_key":"p","name":"Custom","duration":{"amount":2,"unit":"rounds","timing":{"participant_key":"p","event":"end"}}});
+        let request = json!({"request_id":"duration","expected_encounter_revision":1,"participant_key":"p","name":"Custom","duration":{"amount":2,"unit":"rounds","timing":{"participant_key":"p","event":"end"}}});
         let parsed =
             serde_json::from_value::<AddEncounterParticipantConditionRequest>(request.clone())
                 .unwrap();
@@ -807,9 +940,6 @@ pub enum EncounterSpellAction {
     Cast {
         selection: crate::RecordNavigationView,
     },
-    RecordUse {
-        selection: crate::RecordNavigationView,
-    },
     Undo {
         resource_key: String,
     },
@@ -817,4 +947,23 @@ pub enum EncounterSpellAction {
         entry_id: String,
         remaining: std::collections::BTreeMap<String, i64>,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum EncounterNextTurnUnavailableReason {
+    NoInitiativeParticipants,
+    NoActiveParticipants,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct EncounterOutgoingTurnView {
+    pub participant_removed: bool,
+    pub damage_applied: bool,
+    pub recovered_episode_ids: Vec<String>,
+    pub boundary_key: String,
+    pub participant_key: String,
+    pub participant_name: String,
+    pub round_number: i64,
+    pub reminders: Vec<EncounterTurnReminderView>,
+    pub persistent_damage_groups: Vec<crate::PersistentDamageGroupView>,
 }

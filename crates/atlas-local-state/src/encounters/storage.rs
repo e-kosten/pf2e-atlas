@@ -165,9 +165,9 @@ pub(crate) fn add_participant(
                 encounter_id, participant_key, record_key, participant_kind, participant_variant, position,
                 display_name, record_title_snapshot, record_kind_snapshot, side,
                 initiative, initiative_order, max_hp, current_hp, temporary_hp,
-                defeated, hidden, note, created_at, updated_at, hp_origin, variant_origin
+                defeated, hidden, note, created_at, updated_at, hp_origin, variant_origin, track_dying
              )
-             VALUES (?1, ?2, ?3, ?4, ?19, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 0, 0, ?15, ?16, ?16, ?17, ?18)",
+             VALUES (?1, ?2, ?3, ?4, ?19, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 0, 0, ?15, ?16, ?16, ?17, ?18, ?20)",
             params![
                 encounter_id,
                 participant_key,
@@ -188,6 +188,7 @@ pub(crate) fn add_participant(
                 participant.hp_origin.as_str(),
                 participant.variant_origin.as_str(),
                 participant.participant_variant.as_str(),
+                participant.participant_kind == ParticipantKind::Pc,
             ],
         );
         match result {
@@ -373,13 +374,14 @@ pub(crate) fn add_condition(
             source_participant_key.clone(),
         ));
     }
+    validate_scope_members(connection, &condition.participant_key, &condition.scope)?;
     let now = now_rfc3339()?;
     connection.execute(
         "INSERT INTO encounter_participant_conditions (
             participant_id, condition_key, name, value, source_participant_key,
-            duration_amount, duration_unit, duration_anchor_key, duration_event, note, created_at, updated_at
+            duration_amount, duration_unit, duration_anchor_key, duration_event, note, scope_json, extra_action_json, immunity_override, created_at, updated_at, parameters_json, origin_json
          )
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14, ?15, ?16)",
         params![
             participant_id,
             condition.condition_key,
@@ -391,7 +393,12 @@ pub(crate) fn add_condition(
             condition.duration.as_ref().and_then(|d| d.timing.as_ref()).map(|t| t.participant_key.as_str()),
             condition.duration.as_ref().and_then(|d| d.timing.as_ref()).map(|t| t.event.as_str()),
             condition.note,
+            serde_json::to_string(&condition.scope)?,
+            serde_json::to_string(&condition.extra_action)?,
+            condition.immunity_override,
             now,
+            serde_json::to_string(&condition.parameters)?,
+            condition.origin.as_ref().map(serde_json::to_string).transpose()?,
         ],
     )?;
     let condition_id = connection.last_insert_rowid();
@@ -432,12 +439,13 @@ pub(crate) fn update_condition(
             source_participant_key.clone(),
         ));
     }
+    validate_scope_members(connection, &condition.participant_key, &condition.scope)?;
     let now = now_rfc3339()?;
     let updated = connection.execute(
         "UPDATE encounter_participant_conditions
          SET condition_key = ?1, name = ?2, value = ?3, source_participant_key = ?4,
-             duration_amount = ?5, duration_unit = ?6, duration_anchor_key = ?7, duration_event = ?8, note = ?9, updated_at = ?10
-         WHERE id = ?11 AND participant_id = ?12",
+             duration_amount = ?5, duration_unit = ?6, duration_anchor_key = ?7, duration_event = ?8, note = ?9, scope_json = ?10, extra_action_json = ?11, immunity_override = ?12, updated_at = ?13, parameters_json = ?16, origin_json = ?17
+         WHERE id = ?14 AND participant_id = ?15",
         params![
             condition.condition_key,
             condition.name,
@@ -448,9 +456,14 @@ pub(crate) fn update_condition(
             condition.duration.as_ref().and_then(|d| d.timing.as_ref()).map(|t| t.participant_key.as_str()),
             condition.duration.as_ref().and_then(|d| d.timing.as_ref()).map(|t| t.event.as_str()),
             condition.note,
+            serde_json::to_string(&condition.scope)?,
+            serde_json::to_string(&condition.extra_action)?,
+            condition.immunity_override,
             now,
             condition.condition_id,
             participant_id,
+            serde_json::to_string(&condition.parameters)?,
+            condition.origin.as_ref().map(serde_json::to_string).transpose()?,
         ],
     )?;
     if updated > 0 {
@@ -544,7 +557,7 @@ fn participants(
                 participant.record_title_snapshot, participant.record_kind_snapshot, participant.side, participant.initiative,
                 participant.initiative_order, participant.max_hp, participant.current_hp,
                 participant.temporary_hp, participant.defeated, participant.hidden,
-                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision, participant.hazard_disabled
+                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision, participant.hazard_disabled, participant.track_dying, participant.mortality, participant.level_override, participant.base_death_threshold
          FROM encounter_participants participant
          JOIN encounters encounter ON encounter.id = participant.encounter_id
          WHERE encounter.encounter_key = ?1
@@ -558,6 +571,8 @@ fn participants(
     let mut participants = rows.collect::<Result<Vec<_>, _>>()?;
     for participant in &mut participants {
         participant.conditions = participant_conditions(connection, &participant.participant_key)?;
+        participant.persistent_precedence =
+            super::persistent_precedence::read(connection, &participant.participant_key)?;
         participant.expended_spells =
             super::spell_resources::read_expended(connection, &participant.participant_key)?;
         participant.spell_resources =
@@ -588,6 +603,15 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
     let participant_variant: String = row.get(3)?;
     let side: String = row.get(8)?;
     Ok(EncounterParticipant {
+        persistent_precedence: Vec::new(),
+        track_dying: row.get(23)?,
+        level_override: row.get(25)?,
+        base_death_threshold: row.get(26)?,
+        mortality: match row.get::<_, String>(24)?.as_str() {
+            "alive" => super::MortalityState::Alive,
+            "dead" => super::MortalityState::Dead,
+            _ => return Err(rusqlite::Error::InvalidQuery),
+        },
         spell_resources: Vec::new(),
         expended_spells: Vec::new(),
         revision: row.get(21)?,
@@ -627,7 +651,7 @@ pub(crate) fn participant(
                 participant.record_title_snapshot, participant.record_kind_snapshot, participant.side, participant.initiative,
                 participant.initiative_order, participant.max_hp, participant.current_hp,
                 participant.temporary_hp, participant.defeated, participant.hidden,
-                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision, participant.hazard_disabled
+                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision, participant.hazard_disabled, participant.track_dying, participant.mortality, participant.level_override, participant.base_death_threshold
          FROM encounter_participants participant
          WHERE participant.participant_key = ?1",
     )?;
@@ -641,6 +665,8 @@ pub(crate) fn participant(
     participant.expended_spells =
         super::spell_resources::read_expended(connection, participant_key)?;
     participant.spell_resources = super::spell_resources::read(connection, participant_key)?;
+    participant.persistent_precedence =
+        super::persistent_precedence::read(connection, participant_key)?;
     Ok(Some(participant))
 }
 
@@ -651,7 +677,7 @@ fn participant_conditions(
     let mut statement = connection.prepare(
         "SELECT condition.id, condition.condition_key, condition.name, condition.value,
                 condition.source_participant_key, condition.duration_amount, condition.duration_unit, condition.duration_anchor_key, condition.duration_event, condition.note,
-                condition.created_at, condition.updated_at
+                condition.scope_json, condition.extra_action_json, condition.immunity_override, condition.created_at, condition.updated_at, condition.parameters_json, condition.origin_json
          FROM encounter_participant_conditions condition
          JOIN encounter_participants participant ON participant.id = condition.participant_id
          WHERE participant.participant_key = ?1
@@ -659,6 +685,20 @@ fn participant_conditions(
     )?;
     let rows = statement.query_map(params![participant_key], condition_from_row)?;
     rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+}
+
+fn decode_context<T: serde::de::DeserializeOwned>(
+    row: &rusqlite::Row<'_>,
+    index: usize,
+) -> rusqlite::Result<T> {
+    let text: String = row.get(index)?;
+    serde_json::from_str(&text).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(
+            index,
+            rusqlite::types::Type::Text,
+            Box::new(error),
+        )
+    })
 }
 
 fn condition_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterParticipantCondition> {
@@ -693,8 +733,24 @@ fn condition_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPart
             }),
         },
         note: row.get(9)?,
-        created_at: row.get(10)?,
-        updated_at: row.get(11)?,
+        scope: decode_context(row, 10)?,
+        extra_action: decode_context(row, 11)?,
+        immunity_override: row.get(12)?,
+        parameters: decode_context(row, 15)?,
+        origin: row
+            .get::<_, Option<String>>(16)?
+            .map(|text| {
+                serde_json::from_str(&text).map_err(|error| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        16,
+                        rusqlite::types::Type::Text,
+                        Box::new(error),
+                    )
+                })
+            })
+            .transpose()?,
+        created_at: row.get(13)?,
+        updated_at: row.get(14)?,
     })
 }
 
@@ -705,7 +761,7 @@ pub(crate) fn condition(
     connection
         .query_row(
             "SELECT id, condition_key, name, value, source_participant_key,
-                duration_amount, duration_unit, duration_anchor_key, duration_event, note, created_at, updated_at
+                duration_amount, duration_unit, duration_anchor_key, duration_event, note, scope_json, extra_action_json, immunity_override, created_at, updated_at, parameters_json, origin_json
          FROM encounter_participant_conditions WHERE id = ?1",
             [condition_id],
             condition_from_row,
@@ -949,5 +1005,21 @@ pub(crate) fn update_duration_amount(
         "UPDATE encounter_participant_conditions SET duration_amount=?1,updated_at=?2 WHERE id=?3",
         params![amount, now_rfc3339()?, condition_id],
     )?;
+    Ok(())
+}
+
+fn validate_scope_members(
+    connection: &Connection,
+    owner: &str,
+    scope: &super::ConditionScope,
+) -> LocalStateResult<()> {
+    if let super::ConditionScope::SelectedParticipants { participant_keys } = scope {
+        let encounter = participant_encounter_id(connection, owner)?;
+        for key in participant_keys {
+            if participant_encounter_id(connection, key)? != encounter {
+                return Err(LocalStateError::ParticipantNotFound(key.clone()));
+            }
+        }
+    }
     Ok(())
 }

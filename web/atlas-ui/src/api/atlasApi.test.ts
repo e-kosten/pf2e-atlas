@@ -19,6 +19,7 @@ import {
   getSavedLists,
   AtlasApiError,
   getEncounter,
+  getEncounterConditionLifecycleActions,
   getEncounterReference,
   updateEncounterParticipant,
   addEncounterManualParticipant,
@@ -54,9 +55,60 @@ function respond(value: unknown, status = 200) {
   );
 }
 describe("source-backed API transport", () => {
+  it("normalizes original boundary sources and grouped recovery identities without requiring one condition ID", async () => {
+    respond({
+      encounter_key: "ambush",
+      expected_revision: 13,
+      reminders: [],
+
+      next_turn_unavailable_reason: null,
+      outgoing: {
+        boundary_key: "original",
+        participant_key: "a",
+        participant_name: "Goblin",
+        round_number: 2,
+        participant_removed: false,
+        damage_applied: false,
+        recovered_episode_ids: [],
+        reminders: [
+          {
+            kind: "condition_recovery",
+            participant_key: "a",
+            participant_name: "Goblin",
+            condition_ids: [7, 8],
+            condition_name: "Frightened",
+          },
+        ],
+        persistent_damage_groups: [
+          {
+            episode_id: "fire",
+            damage_type: "fire",
+            selected_source_id: 9,
+            sources: [
+              {
+                condition_id: 9,
+                formula: "1d6",
+                multiplier: "normal",
+                recovery_dc: 15,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const review = await getEncounterTurnReview("ambush");
+    expect(review.outgoing!).toMatchObject({
+      round_number: 2n,
+      reminders: [{ condition_ids: [7n, 8n] }],
+      persistent_damage_groups: [
+        { selected_source_id: 9n, sources: [{ condition_id: 9n, recovery_dc: 15n }] },
+      ],
+    });
+  });
   it("reads turn reviews without mutation and sends the exact advance revision", async () => {
     respond({
       encounter_key: "ambush",
+      request_id: "advance",
       expected_revision: 12,
       current_participant_key: "a",
       next_participant_key: "b",
@@ -81,11 +133,13 @@ describe("source-backed API transport", () => {
     expect(fetchMock.mock.calls[0][1].method).toBeUndefined();
     respond({ encounter_key: "ambush" });
     await advanceEncounterTurn("ambush", {
+      request_id: "advance",
       expected_revision: review.expected_revision,
     });
     expect(fetchMock.mock.calls[1][0]).toBe("/api/encounters/ambush/advance");
     expect(fetchMock.mock.calls[1][1].method).toBe("POST");
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
+      request_id: "advance",
       expected_revision: 12,
     });
   });
@@ -205,6 +259,56 @@ describe("source-backed API transport", () => {
     status: "active",
     note_hint: null,
   };
+  it("normalizes persistent source identity and recovery DCs together", async () => {
+    respond({
+      revision: 4,
+      encounter: { round_number: 1 },
+      participants: [
+        {
+          ...participantJson,
+          conditions: [
+            {
+              ...participantJson.conditions[0],
+              parameters: {
+                kind: "persistent_damage",
+                formula: "1d6",
+                damage_type: "fire",
+                multiplier: "normal",
+                recovery: { kind: "specified", dc: 12 },
+                episode_id: "fire-episode",
+              },
+            },
+          ],
+          persistent_damage_groups: [
+            {
+              episode_id: "fire-episode",
+              damage_type: "fire",
+              selected_source_id: 9,
+              sources: [
+                {
+                  condition_id: 9,
+                  formula: "1d6",
+                  multiplier: "normal",
+                  recovery_dc: 12,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    const result = await getEncounter("ambush");
+    const participant = result.participants[0];
+    expect(participant.conditions[0].parameters).toMatchObject({
+      recovery: { kind: "specified", dc: 12n },
+    });
+    expect(participant.persistent_damage_groups[0]).toMatchObject({
+      selected_source_id: 9n,
+      sources: [
+        { condition_id: participant.conditions[0].condition_id, recovery_dc: 12n },
+      ],
+    });
+  });
   it.each(["creature", "hazard"] as const)(
     "preserves exact condition diagnostic identity through %s encounter and reference transport",
     async (kind) => {
@@ -416,7 +520,15 @@ describe("source-backed API transport", () => {
       call: () =>
         addEncounterParticipantCondition("test", {
           participant_key: "ghoul",
+          expected_encounter_revision: 8n,
           name: "Condition",
+          request_id: "condition-test",
+          parameters: { kind: "none" },
+          event_intent: "apply",
+          decisions: { keep_upright: false },
+          immunity_override: false,
+          scope: { kind: "everyone" },
+          extra_action: { kind: "unspecified" },
         }),
     },
     {
@@ -428,13 +540,25 @@ describe("source-backed API transport", () => {
           expected_encounter_revision: 8n,
           condition_id: 9n,
           name: "Condition",
+          request_id: "condition-test",
+          parameters: { kind: "none" },
+          event_intent: "apply",
+          decisions: { keep_upright: false },
+          immunity_override: false,
+          scope: { kind: "everyone" },
+          extra_action: { kind: "unspecified" },
         }),
     },
     {
       name: "condition removal",
       path: "/api/encounters/test/participants/ghoul/conditions/9",
       method: "DELETE",
-      call: () => removeEncounterParticipantCondition("test", "ghoul", 9n),
+      call: () =>
+        removeEncounterParticipantCondition("test", "ghoul", 9n, {
+          request_id: "condition-remove",
+          expected_encounter_revision: 8n,
+          intent: "remove_effect",
+        }),
     },
   ];
   it.each(encounterMutations)(
@@ -450,6 +574,7 @@ describe("source-backed API transport", () => {
     respond({ encounter_key: "encounter-test" });
     await expect(
       applyEncounterHpAction("test", {
+        request_id: "hp-action-test",
         participant_key: "ghoul",
         expected_revision: 7n,
         action: { kind: "damage", amount: " 10 - 3 " },
@@ -461,6 +586,7 @@ describe("source-backed API transport", () => {
       expect.objectContaining({ method: "POST" }),
     );
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      request_id: "hp-action-test",
       participant_key: "ghoul",
       expected_revision: 7,
       action: { kind: "damage", amount: " 10 - 3 " },
@@ -798,6 +924,178 @@ describe("source-backed API transport", () => {
   });
 });
 
+it("normalizes saved HP decisions and sends guarded resolution without another HP event", async () => {
+  const api = await import("./atlasApi");
+  const context = {
+    lethality: null,
+    critical: null,
+    enemy_source: null,
+    responsible_participant_key: null,
+    base_death_threshold: 5,
+    keep_current_initiative: false,
+    attack_or_spell_damage: null,
+    natural_rest_healing: false,
+    keep_upright: false,
+  };
+  respond([
+    {
+      consequence_key: "pending",
+      participant_key: "actor",
+      before_hp: 9,
+      after_hp: 0,
+      initiative_only: false,
+      required_facts: ["lethality"],
+      context,
+    },
+  ]);
+  const [row] = await api.getEncounterHpLifecycle("test");
+  expect(row.before_hp).toBe(9n);
+  expect(row.context.base_death_threshold).toBe(5n);
+  const request = {
+    request_id: "hp-resolution",
+    expected_encounter_revision: 7n,
+    consequence_key: "pending",
+    resolution: "apply" as const,
+    context: { ...row.context, keep_current_initiative: true },
+  };
+  respond({
+    ...row,
+    before_hp: 9,
+    after_hp: 0,
+    context: { ...context, keep_current_initiative: true },
+    required_facts: [],
+  });
+  expect(
+    (await api.previewEncounterHpLifecycle("test", request)).required_facts,
+  ).toEqual([]);
+  respond({ encounter_key: "test" });
+  await api.resolveEncounterHpLifecycle("test", request);
+  expect(fetchMock).toHaveBeenLastCalledWith(
+    "/api/encounters/test/hp-lifecycle/resolve",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({
+        ...request,
+        expected_encounter_revision: 7,
+        context: { ...context, keep_current_initiative: true },
+      }),
+    }),
+  );
+});
+it("reads persistent total and one shared Hardness deduction from the server", async () => {
+  const api = await import("./atlasApi");
+  respond({
+    round_number: 2,
+    damage_applied: true,
+    episodes: [],
+    damage_result: {
+      encounter_key: "test",
+      request_id: "batch",
+      total: 4,
+      hardness_absorbed: 5,
+      groups: [
+        {
+          episode_id: "fire",
+          damage_type: "fire",
+          source_condition_id: 1,
+          amount: 9,
+          roll: null,
+          table_resolved: false,
+        },
+      ],
+    },
+    recovery_results: [],
+  });
+  const review = await api.getEncounterPersistentReview("test", "actor");
+  expect(review.round_number).toBe(2n);
+  expect(review.damage_result).toEqual(
+    expect.objectContaining({
+      total: 4n,
+      hardness_absorbed: 5n,
+      groups: [expect.objectContaining({ amount: 9n, source_condition_id: 1n })],
+    }),
+  );
+});
+
+it("reads casting reminders without action cost or attempt contracts", async () => {
+  const api = await import("./atlasApi");
+  const selection = detailFixture("actors:a").selected;
+  const advisories = [
+    {
+      source: "condition:1",
+      label: "Stupefied",
+      reason: "DC 6 flat check or the spell is disrupted",
+    },
+  ];
+  respond({ advisories });
+  expect(
+    await api.encounterCastingReminders("ambush", {
+      participant_key: "caster",
+      selection,
+    }),
+  ).toEqual({ advisories });
+  expect(fetchMock).toHaveBeenLastCalledWith(
+    "/api/encounters/ambush/casting-reminders",
+    expect.objectContaining({ method: "POST" }),
+  );
+  expect(
+    JSON.parse(fetchMock.mock.calls[fetchMock.mock.calls.length - 1][1].body),
+  ).toEqual({
+    participant_key: "caster",
+    selection,
+  });
+});
+
+it("normalizes both reference checks while sending only the selected strike and target", async () => {
+  const api = await import("./atlasApi");
+  const strike = {
+    participant_key: "actor",
+    reference: {
+      artifact_generation: "current",
+      selection: {
+        record_key: "actors:a",
+        fields: [],
+        embedded_path: [],
+        passage: null,
+        source_fingerprint: null,
+      },
+    },
+  };
+  respond({
+    options: { expected_revision: 3, expected_participant_revision: 2 },
+    action: {
+      issues: [],
+      confused: false,
+      disruption: { dc: 5, sources: [{ condition_id: 7, name: "Grabbed" }] },
+      targeting: {
+        prevents_effect: false,
+        requires_guessed_location: true,
+        check_senses: false,
+      },
+    },
+    targeting_check: { dc: 11, sources: [{ condition_id: 8, name: "Undetected" }] },
+  });
+  const result = await api.previewEncounterStrikeContext("ambush", {
+    strike,
+    target_key: "target",
+  });
+  expect(result.action.disruption).toEqual({
+    dc: 5n,
+    sources: [{ condition_id: 7n, name: "Grabbed" }],
+  });
+  expect(result.targeting_check).toEqual({
+    dc: 11n,
+    sources: [{ condition_id: 8n, name: "Undetected" }],
+  });
+  expect(result.options.expected_revision).toBe(3n);
+  expect(
+    JSON.parse(fetchMock.mock.calls[fetchMock.mock.calls.length - 1][1].body),
+  ).toEqual({
+    strike,
+    target_key: "target",
+  });
+});
+
 it("rejects trait responses from another identity, artifact generation or Similar profile", async () => {
   respond({ trait_key: "trait:deadly-d12" });
   await expect(
@@ -876,3 +1174,182 @@ it("posts exact relationship evidence pages and normalizes occurrence totals", a
   );
   expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(request);
 });
+
+it("normalizes recovery source associations for both check and non-check offers", async () => {
+  respond({
+    encounter_key: "encounter",
+    encounter_revision: 4,
+    participant_key: "actor",
+    actions: [
+      {
+        kind: "reminder",
+        condition_id: 26,
+        text: "Recovery guidance",
+        condition_ids: [26],
+        label: "Treat Wounds",
+        available: true,
+        unavailable_reason: null,
+      },
+      {
+        kind: "dying_recovery",
+        condition_ids: [27],
+        label: "Wake",
+        available: true,
+        unavailable_reason: null,
+        check: { dc: 10, modifier: 3 },
+      },
+    ],
+  });
+  const result = await getEncounterConditionLifecycleActions("encounter", "actor");
+  expect(result.actions[0].condition_ids).toEqual([26n]);
+  expect(result.actions[1]).toMatchObject({
+    condition_ids: [27n],
+    check: { dc: 10n, modifier: 3n },
+  });
+});
+
+it("normalizes the executable persistent-damage groups returned by turn review", async () => {
+  const api = await import("./atlasApi");
+  respond({
+    round_number: 2,
+    encounter_revision: 2,
+    damage_applied: false,
+    episodes: [],
+    damage_result: null,
+    recovery_results: [],
+    damage_groups: [
+      {
+        episode_id: "fire",
+        damage_type: "fire",
+        selected_source_id: 9,
+        sources: [
+          { condition_id: 9, formula: "2d6", multiplier: "normal", recovery_dc: 15 },
+        ],
+      },
+    ],
+  });
+  const review = await api.getEncounterPersistentReview("encounter", "actor");
+  expect(review.encounter_revision).toBe(2n);
+  expect(review.damage_groups[0].selected_source_id).toBe(9n);
+  expect(review.damage_groups[0].sources[0].condition_id).toBe(9n);
+  expect(review.damage_groups[0].sources[0].recovery_dc).toBe(15n);
+});
+
+it("normalizes persistent Add/Edit choices without losing source identity", async () => {
+  const api = await import("./atlasApi");
+  respond({
+    encounter_key: "test",
+    encounter_revision: 2,
+    consequences: [],
+    persistent_precedence: {
+      damage_type: "fire",
+      sources: [
+        { source: { kind: "edited" }, formula: "2d6", multiplier: "normal" },
+        {
+          source: { kind: "existing", condition_id: 45 },
+          formula: "1d12",
+          multiplier: "normal",
+        },
+      ],
+    },
+  });
+  const result = await api.previewEncounterCondition("test", "actor", {
+    request_id: "preview",
+    expected_encounter_revision: 2n,
+    participant_key: "actor",
+    event_intent: "apply",
+    decisions: { keep_upright: false },
+    condition_ref: "conditionitems:lDVqvLKA6eF3Df60",
+    scope: { kind: "everyone" },
+    extra_action: { kind: "unspecified" },
+    immunity_override: false,
+    parameters: {
+      kind: "persistent_damage",
+      formula: "2d6",
+      damage_type: "fire",
+      multiplier: "normal",
+      recovery: { kind: "standard" },
+    },
+  });
+  expect(result.persistent_precedence?.sources[1].source).toEqual({
+    kind: "existing",
+    condition_id: 45n,
+  });
+});
+
+it("normalizes reviewed and recorded protection facts", async () => {
+  const api = await import("./atlasApi");
+  const protection = { immune: true, weakness: 2, resistance: 3 };
+  respond({
+    encounter_revision: 4,
+    round_number: 1,
+    damage_groups: [],
+    episodes: [
+      {
+        episode_id: "bleed",
+        damage_resolution: { kind: "known", protection },
+        end_turn_recovery_available: true,
+        end_turn_recovery_unavailable_reason: null,
+        end_turn_roll_available: true,
+        end_turn_roll_unavailable_reason: null,
+      },
+    ],
+    damage_applied: true,
+    damage_result: {
+      encounter_key: "encounter",
+      request_id: "r",
+      total: 0,
+      hardness_absorbed: 0,
+      groups: [
+        {
+          episode_id: "bleed",
+          damage_type: "bleed",
+          source_condition_id: 4,
+          amount: 0,
+          roll: null,
+          table_resolved: false,
+          protection,
+        },
+      ],
+    },
+    recovery_results: [],
+  });
+  const review = await api.getEncounterPersistentReview("encounter", "actor");
+  expect(review.episodes[0].damage_resolution).toEqual({
+    kind: "known",
+    protection: { immune: true, weakness: 2n, resistance: 3n },
+  });
+  expect(review.damage_result?.groups[0].protection).toEqual({
+    immune: true,
+    weakness: 2n,
+    resistance: 3n,
+  });
+});
+
+it.each([null, undefined])(
+  "rejects persistent groups without an active source (%s)",
+  async (selected_source_id) => {
+    const api = await import("./atlasApi");
+    respond({
+      round_number: 2,
+      encounter_revision: 2,
+      damage_applied: false,
+      episodes: [],
+      damage_result: null,
+      recovery_results: [],
+      damage_groups: [
+        {
+          episode_id: "fire",
+          damage_type: "fire",
+          selected_source_id,
+          sources: [
+            { condition_id: 9, formula: "2d6", multiplier: "normal", recovery_dc: 15 },
+          ],
+        },
+      ],
+    });
+    await expect(
+      api.getEncounterPersistentReview("encounter", "actor"),
+    ).rejects.toBeInstanceOf(AtlasApiError);
+  },
+);

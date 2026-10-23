@@ -1,4 +1,8 @@
-import { Button, Modal } from "antd";
+import { EncounterHpValue } from "./EncounterHpValue";
+import { NumberFact } from "../../shared/records/presentationFacts";
+import { EncounterModal } from "./EncounterModal";
+import { Button, Tooltip } from "antd";
+import { Pencil } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type {
   EncounterParticipantView,
@@ -28,9 +32,9 @@ export function EncounterHpControls({
   const [editorOpen, setEditorOpen] = useState(false);
   const [committed, setCommitted] = useState(false);
   const hpKnown = current.current_hp !== undefined;
-  const maxKnown = current.max_hp !== undefined;
+  const maxKnown = current.effective_max_hp.state === "value";
   const currentHp = asNumber(current.current_hp);
-  const maxHp = asNumber(current.max_hp);
+  const maxHp = current.effective_max_hp.value ?? 0;
   const temporaryHp = asNumber(current.temporary_hp);
   const missingHp = Math.max(0, maxHp - currentHp);
   const hpMeterTotal = Math.max(maxHp, currentHp + missingHp + temporaryHp);
@@ -56,20 +60,57 @@ export function EncounterHpControls({
       <div className="encounter-hp-panel__header">
         <div className="encounter-hp-panel__identity">
           <h3>HP</h3>
-          <span aria-label="HP summary">{hpSummary}</span>
+          <span className="encounter-hp-panel__values" aria-label="HP summary">
+            <EncounterHpValue
+              label="Current HP"
+              value={current.current_hp}
+              disabled={disabled}
+              onCommit={(input) =>
+                onAction({ kind: "set_current", input: input || null })
+              }
+            />
+            <span>/</span>
+            <span className="encounter-hp-maximum">
+              <NumberFact fact={current.effective_max_hp} label="Maximum HP" />
+            </span>
+            {current.temporary_hp > 0n && (
+              <>
+                <span>+</span>
+                <EncounterHpValue
+                  label="Temporary HP"
+                  value={current.temporary_hp}
+                  disabled={disabled}
+                  onCommit={(input) => onAction({ kind: "set_temporary", input })}
+                />
+                <span>temp</span>
+              </>
+            )}
+          </span>
+          {current.temporary_hp === 0n && (
+            <EncounterHpValue
+              label="Temporary HP"
+              value={0n}
+              addLabel="Add temp HP"
+              disabled={disabled}
+              onCommit={(input) => onAction({ kind: "set_temporary", input })}
+            />
+          )}
         </div>
         <div className="encounter-hp-panel__actions">
           {statusControl}
-          <Button
-            size="small"
-            disabled={disabled}
-            onClick={() => {
-              setCommitted(false);
-              setEditorOpen(true);
-            }}
-          >
-            Edit HP
-          </Button>
+          <Tooltip title="Edit HP" trigger={["hover", "focus"]}>
+            <Button
+              size="small"
+              type="text"
+              aria-label="Edit HP"
+              icon={<Pencil size={14} />}
+              disabled={disabled}
+              onClick={() => {
+                setCommitted(false);
+                setEditorOpen(true);
+              }}
+            />
+          </Tooltip>
         </div>
       </div>
       {hpKnown && maxKnown && (
@@ -98,6 +139,12 @@ export function EncounterHpControls({
         </div>
       )}
       <EncounterHpAmount
+        healUnavailableReason={
+          current.max_hp !== undefined && !maxKnown
+            ? (current.effective_max_hp.adjustment?.notes[0]?.reason ??
+              "Maximum HP is unavailable.")
+            : undefined
+        }
         key={current.participant_key}
         disabled={disabled || !hpKnown}
         pending={pending && hpKnown}
@@ -108,7 +155,7 @@ export function EncounterHpControls({
           return true;
         }}
       />
-      <Modal
+      <EncounterModal
         title="Edit HP"
         open={editorOpen && !(committed && !disabled)}
         destroyOnHidden
@@ -131,14 +178,14 @@ export function EncounterHpControls({
             else setCommitted(true);
           }}
         />
-      </Modal>
+      </EncounterModal>
     </div>
   );
 }
 
 function hpLabel(participant: EncounterParticipantView): string {
   const current = displayNumber(participant.current_hp);
-  const max = displayNumber(participant.max_hp);
+  const max = participant.effective_max_hp.value?.toString() ?? "—";
   const temporaryHp = asNumber(participant.temporary_hp);
   return `${current}/${max}${temporaryHp > 0 ? ` +${temporaryHp}` : ""}`;
 }

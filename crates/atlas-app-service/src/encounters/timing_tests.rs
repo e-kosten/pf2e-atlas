@@ -52,6 +52,11 @@ fn add(
         .with_write(|session| {
             Ok(session.local_state().encounters().add_condition(
                 AddEncounterParticipantCondition {
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    parameters: Default::default(),
+                    origin: None,
                     participant_key: owner.into(),
                     condition_key: key.map(Into::into),
                     name: "Same display name".into(),
@@ -100,6 +105,7 @@ fn next(f: &FixtureWorker, key: &str) {
         .advance_encounter_turn(
             key,
             AdvanceEncounterTurnRequest {
+                request_id: format!("next-{}", review.expected_revision),
                 expected_revision: review.expected_revision,
             },
         )
@@ -167,13 +173,23 @@ fn remove_now_is_durable_even_without_continue_and_invalidates_old_review() {
     set(&f, &key, &a);
     let review = f.worker.encounter_turn_review(&key).unwrap();
     f.worker
-        .remove_encounter_participant_condition(&key, &a, id)
+        .remove_encounter_participant_condition(
+            &key,
+            &a,
+            id,
+            atlas_app_model::RemoveEncounterParticipantConditionRequest {
+                request_id: "fixture-remove".into(),
+                expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
+                intent: atlas_app_model::ConditionRemovalIntentView::RemoveEffect,
+            },
+        )
         .unwrap();
     let error = f
         .worker
         .advance_encounter_turn(
             &key,
             AdvanceEncounterTurnRequest {
+                request_id: format!("next-{}", review.expected_revision),
                 expected_revision: review.expected_revision,
             },
         )
@@ -223,6 +239,11 @@ fn canonical_persistent_only_owner_end_and_nonround_reminders_never_apply_hp_or_
         .with_write(|session| {
             Ok(session.local_state().encounters().add_condition(
                 AddEncounterParticipantCondition {
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    parameters: Default::default(),
+                    origin: None,
                     participant_key: a.clone(),
                     condition_key: None,
                     name: "Persistent Damage".into(),
@@ -289,7 +310,7 @@ fn single_actor_has_one_end_one_start_and_no_eligible_actor_has_no_tick() {
         .unwrap()
         .participants
         .remove(0);
-    row.initiative = None;
+    row.defeated = true;
     f.worker
         .with_write(|session| {
             Ok(session.local_state().encounters().update_participant(
@@ -305,7 +326,7 @@ fn single_actor_has_one_end_one_start_and_no_eligible_actor_has_no_tick() {
                     max_hp: row.max_hp,
                     current_hp: row.current_hp,
                     temporary_hp: row.temporary_hp,
-                    defeated: row.defeated,
+                    defeated: true,
                     hazard_disabled: row.hazard_disabled,
                     hidden: row.hidden,
                     note: row.note,
@@ -410,6 +431,7 @@ fn manual_set_and_reorder_never_tick_and_any_mutation_invalidates_review() {
         .advance_encounter_turn(
             &key,
             AdvanceEncounterTurnRequest {
+                request_id: format!("next-{}", review.expected_revision),
                 expected_revision: review.expected_revision,
             },
         )
@@ -424,6 +446,8 @@ fn manual_set_and_reorder_never_tick_and_any_mutation_invalidates_review() {
         .apply_encounter_hp_action(
             &key,
             ApplyEncounterHpActionRequest {
+                request_id: crate::test_support::next_request_id(),
+                context: None,
                 participant_key: a.clone(),
                 expected_revision: snapshot(&f, &key)
                     .participants
@@ -440,6 +464,7 @@ fn manual_set_and_reorder_never_tick_and_any_mutation_invalidates_review() {
             .advance_encounter_turn(
                 &key,
                 AdvanceEncounterTurnRequest {
+                    request_id: format!("next-{}", review.expected_revision),
                     expected_revision: review.expected_revision
                 }
             )
@@ -456,6 +481,14 @@ fn condition_edit(
     revision: i64,
 ) -> UpdateEncounterParticipantConditionRequest {
     UpdateEncounterParticipantConditionRequest {
+        request_id: "fixture-timing_tests-470".into(),
+        event_intent: Default::default(),
+        decisions: Default::default(),
+        scope: Default::default(),
+        extra_action: Default::default(),
+        immunity_override: false,
+        parameters: Default::default(),
+        origin: None,
         expected_encounter_revision: revision,
         condition_id: condition.condition_id,
         condition_ref: condition.condition_key.clone(),
@@ -592,6 +625,18 @@ fn expired_rounds_do_not_disable_modeled_condition_effects() {
         .add_encounter_participant_condition(
             &key,
             AddEncounterParticipantConditionRequest {
+                request_id: format!(
+                    "fixture-timing_tests-609-{}",
+                    f.worker.encounter(&key).unwrap().revision
+                ),
+                event_intent: Default::default(),
+                decisions: Default::default(),
+                expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
+                scope: Default::default(),
+                extra_action: Default::default(),
+                immunity_override: false,
+                parameters: Default::default(),
+                origin: None,
                 participant_key: owner.clone(),
                 condition_ref: Some("conditionitems:TBSHQspnbcqxsmjL".into()),
                 name: None,
@@ -661,7 +706,7 @@ fn present_inactive_anchor_waits_until_its_actual_boundary() {
                     max_hp: row.max_hp,
                     current_hp: row.current_hp,
                     temporary_hp: row.temporary_hp,
-                    defeated: row.defeated,
+                    defeated: true,
                     hazard_disabled: row.hazard_disabled,
                     hidden: row.hidden,
                     note: row.note,
@@ -677,4 +722,133 @@ fn present_inactive_anchor_waits_until_its_actual_boundary() {
     assert_eq!(amounts(&f, &key), [3, 3]);
     next(&f, &key);
     assert_eq!(amounts(&f, &key), [3, 2]);
+}
+
+#[test]
+fn turn_order_skips_unrolled_participants_and_explains_missing_scores() {
+    let (f, key, a, b) = fixture();
+    f.worker
+        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
+            encounter_ref: key.clone(),
+            display_name: "C".into(),
+            max_hp: Some(10),
+            current_hp: Some(10),
+            initiative: None,
+        })
+        .unwrap();
+    let mut state = snapshot(&f, &key);
+    state.encounter.current_turn_participant_key = Some(a.clone());
+    assert_eq!(
+        super::turns::next_turn(&state).participant_key.as_deref(),
+        Some(b.as_str())
+    );
+    state.participants[1].initiative = None;
+    assert_eq!(
+        super::turns::next_turn(&state).participant_key.as_deref(),
+        Some(a.as_str())
+    );
+    for participant in &mut state.participants {
+        participant.initiative = None;
+    }
+    assert_eq!(super::turns::next_turn(&state).participant_key, None);
+    assert_eq!(
+        super::timing::turn_review(&state).next_turn_unavailable_reason,
+        Some(EncounterNextTurnUnavailableReason::NoInitiativeParticipants)
+    );
+    state.participants[0].initiative = Some(20);
+    state.participants[0].defeated = true;
+    state.participants[1].initiative = Some(10);
+    state.participants[1].hazard_disabled = true;
+    state.participants[2].initiative = Some(5);
+    state.participants[2].mortality = atlas_local_state::MortalityState::Dead;
+    assert_eq!(super::turns::next_turn(&state).participant_key, None);
+    assert_eq!(
+        super::timing::turn_review(&state).next_turn_unavailable_reason,
+        Some(EncounterNextTurnUnavailableReason::NoActiveParticipants)
+    );
+}
+
+#[test]
+fn latest_turn_replaces_old_reminders_and_retries_never_advance_twice() {
+    let (f, key, a, b) = fixture();
+    let frightened =
+        super::conditions::modeled_condition_by_rule(super::conditions::ConditionRule::Frightened)
+            .unwrap();
+    add(
+        &f,
+        &a,
+        Some(frightened.condition_ref),
+        rounds(3, Some(&a), LocalEvent::End),
+    );
+    set(&f, &key, &a);
+    let request = AdvanceEncounterTurnRequest {
+        request_id: "boundary-once".into(),
+        expected_revision: snapshot(&f, &key).encounter.revision,
+    };
+    f.worker
+        .advance_encounter_turn(&key, request.clone())
+        .unwrap();
+    assert_eq!(
+        snapshot(&f, &key)
+            .encounter
+            .current_turn_participant_key
+            .as_deref(),
+        Some(b.as_str())
+    );
+    assert_eq!(amounts(&f, &key), [2]);
+    let review = f.worker.encounter_turn_review(&key).unwrap();
+    let boundary = review.outgoing.clone().unwrap();
+    assert_eq!(boundary.participant_key, a);
+    let before = snapshot(&f, &key).encounter.revision;
+    assert_eq!(
+        f.worker.encounter_turn_review(&key).unwrap().outgoing,
+        review.outgoing,
+        "closing/reopening is a read"
+    );
+    assert_eq!(snapshot(&f, &key).encounter.revision, before);
+    next(&f, &key); // wrap to round 2; original outgoing work remains round 1.
+    let later = snapshot(&f, &key);
+    f.worker
+        .advance_encounter_turn(&key, request.clone())
+        .unwrap();
+    assert_eq!(
+        snapshot(&f, &key),
+        later,
+        "retry after later turns cannot advance/tick again"
+    );
+    assert!(
+        f.worker
+            .advance_encounter_turn(
+                &key,
+                AdvanceEncounterTurnRequest {
+                    request_id: "rapid-second".into(),
+                    ..request
+                }
+            )
+            .is_err()
+    );
+    let before_old_action = snapshot(&f, &key);
+    assert!(
+        f.worker
+            .apply_condition_lifecycle(
+                &key,
+                ApplyConditionLifecycleRequest {
+                    boundary_key: Some(boundary.boundary_key),
+                    request_id: "old-end".into(),
+                    expected_encounter_revision: before_old_action.encounter.revision,
+                    participant_key: a,
+                    action: ConditionLifecycleActionView::FrightenedEndTurn,
+                }
+            )
+            .is_err()
+    );
+    assert_eq!(snapshot(&f, &key), before_old_action);
+    assert!(
+        f.worker
+            .encounter_turn_review(&key)
+            .unwrap()
+            .outgoing
+            .is_none(),
+        "a quiet new turn does not expose an older reminder"
+    );
 }

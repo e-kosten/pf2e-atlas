@@ -1,4 +1,4 @@
-import { Button, Input } from "antd";
+import { Button, Input, Tooltip } from "antd";
 import { useId, useRef, useState } from "react";
 import type { EncounterHpAction } from "../../generated/atlas";
 
@@ -6,18 +6,26 @@ export function EncounterHpAmount({
   disabled,
   pending = false,
   onAction,
+  healUnavailableReason,
   actions = ["damage", "heal"],
 }: {
   disabled: boolean;
   pending?: boolean;
   onAction: (action: EncounterHpAction) => Promise<boolean>;
+  healUnavailableReason?: string;
   actions?: readonly ("damage" | "heal")[];
 }) {
   const id = useId();
   const inFlight = useRef(false);
   const [amount, setAmount] = useState("");
   const apply = async (kind: "damage" | "heal") => {
-    if (disabled || inFlight.current || !amount.trim()) return;
+    if (
+      disabled ||
+      inFlight.current ||
+      !amount.trim() ||
+      (kind === "heal" && healUnavailableReason)
+    )
+      return;
     inFlight.current = true;
     try {
       if (await onAction({ kind, amount })) setAmount("");
@@ -49,13 +57,24 @@ export function EncounterHpAmount({
         />
         <div className="encounter-hp-actions">
           {actions.map((kind) => (
-            <Button
+            <Tooltip
               key={kind}
-              disabled={disabled || !amount.trim()}
-              onClick={() => void apply(kind)}
+              title={kind === "heal" ? healUnavailableReason : undefined}
+              trigger={["hover", "focus"]}
             >
-              {kind === "damage" ? "Damage" : "Heal"}
-            </Button>
+              <span>
+                <Button
+                  disabled={
+                    disabled ||
+                    !amount.trim() ||
+                    (kind === "heal" && !!healUnavailableReason)
+                  }
+                  onClick={() => void apply(kind)}
+                >
+                  {kind === "damage" ? "Damage" : "Heal"}
+                </Button>
+              </span>
+            </Tooltip>
           ))}
         </div>
       </div>

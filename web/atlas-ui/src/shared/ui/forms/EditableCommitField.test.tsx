@@ -101,7 +101,15 @@ describe("EditableCommitField", () => {
     "does not commit an unchanged value on %s",
     (completion) => {
       const onCommit = vi.fn();
-      render(<EditableCommitField ariaLabel="HP" onCommit={onCommit} value="40" />);
+      const onCancel = vi.fn();
+      render(
+        <EditableCommitField
+          ariaLabel="HP"
+          onCommit={onCommit}
+          onCancel={onCancel}
+          value="40"
+        />,
+      );
       const input = screen.getByLabelText("HP");
       act(() => input.focus());
       if (completion === "blur") {
@@ -110,6 +118,7 @@ describe("EditableCommitField", () => {
         fireEvent.keyDown(input, { key: completion });
       }
       expect(onCommit).not.toHaveBeenCalled();
+      expect(onCancel).toHaveBeenCalledOnce();
     },
   );
 

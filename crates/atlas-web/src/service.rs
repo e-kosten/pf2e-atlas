@@ -57,6 +57,10 @@ impl AtlasWebState {
 }
 
 pub(crate) trait AtlasWebService: Send + Sync {
+    fn roll_flat_check(
+        &self,
+        request: atlas_app_model::RollFlatCheckRequest,
+    ) -> Result<atlas_app_model::FlatCheckRollView, AppServiceError>;
     fn trait_definition(
         &self,
         request: atlas_app_model::TraitDetailRequest,
@@ -158,7 +162,90 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: atlas_app_model::RelatedRecordsRequest,
     ) -> Result<atlas_app_model::RelatedRecordsView, AppServiceError>;
 
+    fn preview_encounter_condition_add(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::AddEncounterParticipantConditionRequest,
+    ) -> Result<atlas_app_model::ConditionEventPreviewView, AppServiceError>;
+    fn preview_encounter_condition_update(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::UpdateEncounterParticipantConditionRequest,
+    ) -> Result<atlas_app_model::ConditionEventPreviewView, AppServiceError>;
+    fn pending_encounter_condition_consequences(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingConditionConsequenceView>, AppServiceError>;
+    fn preview_encounter_drained_consequence(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveDrainedConsequenceRequest,
+    ) -> Result<atlas_app_model::ConditionHpChangeView, AppServiceError>;
+    fn resolve_encounter_drained_consequence(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveDrainedConsequenceRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+    fn set_encounter_life_settings(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::SetEncounterLifeSettingsRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+
+    fn recover_persistent_damage(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::RecoverPersistentDamageRequest,
+    ) -> Result<atlas_app_model::PersistentRecoveryResultView, AppServiceError>;
+    fn pending_encounter_hp_lifecycle(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingHpLifecycleView>, AppServiceError>;
+    fn resolve_encounter_hp_lifecycle(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveEncounterHpLifecycleRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+    fn apply_persistent_damage(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyPersistentDamageRequest,
+    ) -> Result<atlas_app_model::PersistentDamageResultView, AppServiceError>;
+    fn apply_condition_lifecycle(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyConditionLifecycleRequest,
+    ) -> Result<atlas_app_model::ConditionLifecycleResultView, AppServiceError>;
+    fn condition_lifecycle_actions(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        boundary_key: Option<&str>,
+    ) -> Result<atlas_app_model::ConditionLifecycleActionsView, AppServiceError>;
+    fn pending_condition_recoveries(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingConditionRecoveryView>, AppServiceError>;
+    fn persistent_damage_review(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        boundary_key: Option<&str>,
+    ) -> Result<atlas_app_model::PersistentReviewView, AppServiceError>;
+    fn preview_encounter_hp_lifecycle(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveEncounterHpLifecycleRequest,
+    ) -> Result<atlas_app_model::PendingHpLifecycleView, AppServiceError>;
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError>;
+
+    fn participant_encounter_condition_definitions(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+    ) -> Result<EncounterConditionCatalogView, AppServiceError>;
 
     fn encounter_condition_definitions(
         &self,
@@ -211,6 +298,16 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: RollInitiativeRequest,
     ) -> Result<InitiativeRollView, AppServiceError>;
 
+    fn preview_encounter_strike_context(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::EncounterStrikeContextRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeContextView, AppServiceError>;
+    fn encounter_casting_reminders(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::EncounterCastingRemindersRequest,
+    ) -> Result<atlas_app_model::EncounterCastingRemindersView, AppServiceError>;
     fn apply_encounter_spell_action(
         &self,
         encounter_ref: &str,
@@ -262,6 +359,7 @@ pub(crate) trait AtlasWebService: Send + Sync {
         encounter_ref: &str,
         participant_key: &str,
         condition_id: i64,
+        request: atlas_app_model::RemoveEncounterParticipantConditionRequest,
     ) -> Result<EncounterMutationView, AppServiceError>;
 
     fn saved_list_item_note(
@@ -372,6 +470,12 @@ impl AtlasWebService for AtlasAppService {
     ) -> Result<atlas_app_model::EncounterStrikeOptionsView, AppServiceError> {
         self.encounter_strike_options(encounter_ref, request)
     }
+    fn roll_flat_check(
+        &self,
+        request: atlas_app_model::RollFlatCheckRequest,
+    ) -> Result<atlas_app_model::FlatCheckRollView, AppServiceError> {
+        self.roll_flat_check(request)
+    }
     fn roll_table(
         &self,
         request: atlas_app_model::RollTableRequest,
@@ -457,8 +561,123 @@ impl AtlasWebService for AtlasAppService {
         self.record_detail(record_key)
     }
 
+    fn preview_encounter_condition_add(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::AddEncounterParticipantConditionRequest,
+    ) -> Result<atlas_app_model::ConditionEventPreviewView, AppServiceError> {
+        self.preview_encounter_condition_add(encounter_ref, request)
+    }
+    fn preview_encounter_condition_update(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::UpdateEncounterParticipantConditionRequest,
+    ) -> Result<atlas_app_model::ConditionEventPreviewView, AppServiceError> {
+        self.preview_encounter_condition_update(encounter_ref, participant_key, request)
+    }
+    fn pending_encounter_condition_consequences(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingConditionConsequenceView>, AppServiceError> {
+        self.pending_encounter_condition_consequences(encounter_ref)
+    }
+    fn preview_encounter_drained_consequence(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveDrainedConsequenceRequest,
+    ) -> Result<atlas_app_model::ConditionHpChangeView, AppServiceError> {
+        self.preview_encounter_drained_consequence(encounter_ref, request)
+    }
+    fn resolve_encounter_drained_consequence(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveDrainedConsequenceRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.resolve_encounter_drained_consequence(encounter_ref, request)
+    }
+    fn set_encounter_life_settings(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        request: atlas_app_model::SetEncounterLifeSettingsRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.set_encounter_life_settings(encounter_ref, participant_key, request)
+    }
+
+    fn recover_persistent_damage(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::RecoverPersistentDamageRequest,
+    ) -> Result<atlas_app_model::PersistentRecoveryResultView, AppServiceError> {
+        self.recover_persistent_damage(encounter_ref, request)
+    }
+    fn pending_encounter_hp_lifecycle(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingHpLifecycleView>, AppServiceError> {
+        self.pending_encounter_hp_lifecycle(encounter_ref)
+    }
+    fn resolve_encounter_hp_lifecycle(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveEncounterHpLifecycleRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.resolve_encounter_hp_lifecycle(encounter_ref, request)
+    }
+    fn apply_persistent_damage(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyPersistentDamageRequest,
+    ) -> Result<atlas_app_model::PersistentDamageResultView, AppServiceError> {
+        self.apply_persistent_damage(encounter_ref, request)
+    }
+    fn apply_condition_lifecycle(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyConditionLifecycleRequest,
+    ) -> Result<atlas_app_model::ConditionLifecycleResultView, AppServiceError> {
+        self.apply_condition_lifecycle(encounter_ref, request)
+    }
+    fn condition_lifecycle_actions(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        boundary_key: Option<&str>,
+    ) -> Result<atlas_app_model::ConditionLifecycleActionsView, AppServiceError> {
+        self.condition_lifecycle_actions(encounter_ref, participant_key, boundary_key)
+    }
+    fn pending_condition_recoveries(
+        &self,
+        encounter_ref: &str,
+    ) -> Result<Vec<atlas_app_model::PendingConditionRecoveryView>, AppServiceError> {
+        self.pending_condition_recoveries(encounter_ref)
+    }
+    fn persistent_damage_review(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        boundary_key: Option<&str>,
+    ) -> Result<atlas_app_model::PersistentReviewView, AppServiceError> {
+        self.persistent_damage_review(encounter_ref, participant_key, boundary_key)
+    }
+    fn preview_encounter_hp_lifecycle(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ResolveEncounterHpLifecycleRequest,
+    ) -> Result<atlas_app_model::PendingHpLifecycleView, AppServiceError> {
+        self.preview_encounter_hp_lifecycle(encounter_ref, request)
+    }
     fn encounters(&self) -> Result<EncounterIndexView, AppServiceError> {
         self.encounters()
+    }
+
+    fn participant_encounter_condition_definitions(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+    ) -> Result<EncounterConditionCatalogView, AppServiceError> {
+        self.participant_encounter_condition_definitions(encounter_ref, participant_key)
     }
 
     fn encounter_condition_definitions(
@@ -536,6 +755,20 @@ impl AtlasWebService for AtlasAppService {
         self.roll_encounter_initiative(encounter_ref, request)
     }
 
+    fn preview_encounter_strike_context(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::EncounterStrikeContextRequest,
+    ) -> Result<atlas_app_model::EncounterStrikeContextView, AppServiceError> {
+        self.preview_encounter_strike_context(encounter_ref, request)
+    }
+    fn encounter_casting_reminders(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::EncounterCastingRemindersRequest,
+    ) -> Result<atlas_app_model::EncounterCastingRemindersView, AppServiceError> {
+        self.encounter_casting_reminders(encounter_ref, request)
+    }
     fn apply_encounter_spell_action(
         &self,
         encounter_ref: &str,
@@ -603,8 +836,14 @@ impl AtlasWebService for AtlasAppService {
         encounter_ref: &str,
         participant_key: &str,
         condition_id: i64,
+        request: atlas_app_model::RemoveEncounterParticipantConditionRequest,
     ) -> Result<EncounterMutationView, AppServiceError> {
-        self.remove_encounter_participant_condition(encounter_ref, participant_key, condition_id)
+        self.remove_encounter_participant_condition(
+            encounter_ref,
+            participant_key,
+            condition_id,
+            request,
+        )
     }
 
     fn saved_list_item_note(

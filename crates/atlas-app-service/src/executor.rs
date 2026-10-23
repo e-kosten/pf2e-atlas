@@ -243,6 +243,8 @@ impl RetrievalExecutor {
     ) -> Self {
         let (retrieval, artifact) = open_fixture().expect("fixture artifact should be built once");
         drop(retrieval);
+        atlas_runtime::initialize_workspace(artifact.path())
+            .expect("fixture workspace should initialize through runtime migrations");
         let artifact = Arc::new(artifact);
         Self::start_with_factory(worker_count, queue_capacity, move |_| {
             let options = AtlasRuntimeOptions {

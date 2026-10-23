@@ -7,3 +7,6 @@ pub const LOCAL_STATE_SCHEMA_SQL: &str = include_str!("schema.sql");
 pub const ENCOUNTER_STATUS_SCHEMA_SQL: &str = include_str!("encounter_status.sql");
 
 pub const HAZARD_PARTICIPATION_SCHEMA_SQL: &str = include_str!("hazard_participation.sql");
+
+/// Conditions, their gameplay events, and current-turn reminders.
+pub const CONDITION_SYSTEM_SCHEMA_SQL: &str = include_str!("condition_system.sql");

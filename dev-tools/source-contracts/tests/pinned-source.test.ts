@@ -5,23 +5,25 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import ts from 'typescript';
+import { conditionSourceInputs } from '../src/generation/condition-definitions.js';
 import { sourceIdentity } from '../src/discovery/source-identity.js';
 import { assertSourcePin, preparePinnedSource, type SourcePin } from '../src/generation/pinned-source.js';
 
 async function fixture() {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'atlas pinned source '));
   const source = path.join(directory, 'input');
-  for (const relative of ['src', 'types', 'static/lang']) await mkdir(path.join(source, relative), { recursive: true });
+  for (const relative of ['src', 'types', 'static/lang', 'packs/pf2e/conditions']) await mkdir(path.join(source, relative), { recursive: true });
   for (const [relative, text] of Object.entries({
     'src/example.ts': 'export type Example = string;',
     'types/example.d.ts': 'declare type Example = string;',
     'package.json': '{"version":"fixture"}',
+    'packs/pf2e/conditions/fixture.json': '{}',
     'tsconfig.json': '{}', 'system.pf2e.json': '{}', 'static/lang/en.json': '{}',
   })) await writeFile(path.join(source, relative), text);
   const identity = await sourceIdentity(source);
   const pin: SourcePin = { repository: 'https://github.com/foundryvtt/pf2e.git', commit: 'a'.repeat(40),
     systemVersion: 'fixture', sourceDigest: identity.source_digest, inputFileCount: identity.input_file_count,
-    typescriptVersion: ts.version, ruleKeys: [] };
+    conditionSourceDigest: (await conditionSourceInputs(source)).digest, typescriptVersion: ts.version, ruleKeys: [] };
   return { directory, source, pin, identity };
 }
 
@@ -62,4 +64,12 @@ test('cold Git acquisition exports the exact pinned commit and reuses it without
   assert.equal((await sourceIdentity(exported)).source_digest, pin.sourceDigest);
   pin.repository = path.join(directory, 'absent remote');
   assert.equal(await preparePinnedSource(pin, cache), exported);
+});
+
+test('condition-pack changes invalidate generation independently of declaration bytes', async t => {
+  const { directory, source, pin, identity } = await fixture();
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await writeFile(path.join(source, 'packs/pf2e/conditions/fixture.json'), '{"changed":true}');
+  assert.equal((await sourceIdentity(source)).source_digest, identity.source_digest);
+  await assert.rejects(preparePinnedSource(pin, path.join(directory,'cache'), source), /Condition pack bytes/);
 });

@@ -1,0 +1,92 @@
+{
+  "source_commit": "28d9d156f252d084371d994dc359509b49eadf18",
+  "note": "Selected authored mechanical facts only; no descriptions or embedded items.",
+  "actors": [
+    {
+      "source_file": "packs/pf2e/pathfinder-monster-core/animated-broom.json",
+      "expected_condition": "unconscious",
+      "record": {
+        "_id": "ybkelAOtSIA06fnj",
+        "name": "Animated Broom",
+        "type": "npc",
+        "system": {
+          "traits": {
+            "rarity": "common",
+            "size": {
+              "value": "sm"
+            },
+            "value": [
+              "construct",
+              "mindless"
+            ]
+          },
+          "attributes": {
+            "hp": {
+              "details": "",
+              "max": 6,
+              "temp": 0,
+              "value": 6
+            },
+            "immunities": []
+          }
+        }
+      }
+    },
+    {
+      "source_file": "packs/pf2e/pathfinder-monster-core/rat-swarm.json",
+      "expected_condition": "prone",
+      "record": {
+        "_id": "6wPW2dvpt86Ou6bL",
+        "name": "Rat Swarm",
+        "type": "npc",
+        "system": {
+          "traits": {
+            "rarity": "common",
+            "size": {
+              "value": "lg"
+            },
+            "value": [
+              "animal",
+              "swarm"
+            ]
+          },
+          "attributes": {
+            "hp": {
+              "details": "",
+              "max": 14,
+              "temp": 0,
+              "value": 14
+            },
+            "immunities": [
+              {
+                "type": "precision"
+              },
+              {
+                "type": "swarm-mind"
+              }
+            ],
+            "resistances": [
+              {
+                "exceptions": [
+                  "bludgeoning"
+                ],
+                "type": "physical",
+                "value": 6
+              }
+            ],
+            "weaknesses": [
+              {
+                "type": "area-damage",
+                "value": 3
+              },
+              {
+                "type": "splash-damage",
+                "value": 3
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

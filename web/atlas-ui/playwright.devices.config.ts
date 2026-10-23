@@ -1,7 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 import { resolve } from "node:path";
 
-const baseURL = "http://127.0.0.1:8796";
+const port = Number(process.env.ATLAS_DEVICE_PORT ?? 8796);
+if (!Number.isInteger(port) || port < 1 || port > 65535)
+  throw new Error("ATLAS_DEVICE_PORT must be a port from 1 through 65535.");
+const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   testDir: "./e2e/devices",
@@ -10,6 +13,9 @@ export default defineConfig({
   retries: 0,
   timeout: 45_000,
   expect: { timeout: 10_000 },
+  snapshotPathTemplate: process.env.ATLAS_CONDITION_VISUAL_DIR
+    ? `${process.env.ATLAS_CONDITION_VISUAL_DIR}/{projectName}/{arg}{ext}`
+    : undefined,
   outputDir: "../../scratch/responsive-validation/browser/results",
   reporter: [
     ["list"],
@@ -33,23 +39,40 @@ export default defineConfig({
     },
     {
       name: "phone-chromium",
-      testMatch: "journeys.spec.ts",
+      testMatch: [
+        "journeys.spec.ts",
+        "conditions.spec.ts",
+        "condition-refinement.spec.ts",
+        "encounter-forms.spec.ts",
+        "turn-reminders.spec.ts",
+      ],
       use: { ...devices["Pixel 7"], colorScheme: "dark" },
     },
     {
       name: "phone-webkit",
-      testMatch: "journeys.spec.ts",
+      testMatch: [
+        "journeys.spec.ts",
+        "conditions.spec.ts",
+        "condition-refinement.spec.ts",
+        "encounter-forms.spec.ts",
+        "turn-reminders.spec.ts",
+      ],
       use: { ...devices["iPhone 13"], colorScheme: "light", reducedMotion: "reduce" },
     },
     {
       name: "tablet-webkit",
-      testMatch: "journeys.spec.ts",
+      testMatch: [
+        "journeys.spec.ts",
+        "conditions.spec.ts",
+        "condition-refinement.spec.ts",
+        "encounter-forms.spec.ts",
+        "turn-reminders.spec.ts",
+      ],
       use: { ...devices["iPad Mini"], colorScheme: "dark" },
     },
   ],
   webServer: {
-    command:
-      "cargo run --locked -p atlas-web --example browser_fixture -- 127.0.0.1:8796",
+    command: `cargo run --locked -p atlas-web --example browser_fixture -- 127.0.0.1:${port}`,
     cwd: resolve(import.meta.dirname, "../.."),
     url: `${baseURL}/api/readiness`,
     reuseExistingServer: false,

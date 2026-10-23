@@ -1,3 +1,6 @@
+import { EncounterLifeStatus } from "./EncounterLifeStatus";
+import { EncounterConditionRecovery } from "./EncounterConditionLifecycle";
+import { FactRow, factText } from "../../shared/records/presentationFacts";
 import { EncounterStrikeControl } from "./EncounterStrikeControl";
 import { Alert, Button } from "antd";
 import type { getRecordDetail } from "../../api/atlasApi";
@@ -25,6 +28,7 @@ import { atlasRoutePath } from "../../app/routes";
 export function EncounterInspectorPane({
   disabled,
   encounterRevision,
+  currentTurnKey,
   encounterKey,
   artifactGeneration,
   pending,
@@ -41,11 +45,22 @@ export function EncounterInspectorPane({
   onRemoveCondition,
   onUpdateCondition,
   onUpdate,
+  onLifeSettings,
+  onRecoverPersistent,
+  onResolveDrained,
+  onPreviewCondition,
   onHpAction,
   onSpellAction,
+  onConditionRecovery,
+  onResolveHpLifecycle,
+  onBeginStrike,
+  renderStrikeContext,
+  requestedConditionEdit,
   participant,
   participants,
   conditionDefinitions,
+  damageTypes,
+  standardRecoveryDc,
   previewDetail,
   previewLoading,
   previewError,
@@ -62,6 +77,7 @@ export function EncounterInspectorPane({
 }: {
   disabled: boolean;
   encounterRevision: bigint;
+  currentTurnKey?: string | null;
   encounterKey: string;
   artifactGeneration: string | null;
   pending: boolean;
@@ -75,14 +91,48 @@ export function EncounterInspectorPane({
   onOpenRecordFullPage: (recordKey: string) => void;
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onAddCondition: (
-    condition: AddEncounterParticipantConditionRequest,
+    condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
   ) => Promise<boolean>;
-  onRemoveCondition: (participantKey: string, conditionId: bigint) => Promise<boolean>;
+  onRemoveCondition: (
+    participantKey: string,
+    conditionId: bigint,
+    expectedRevision: bigint,
+  ) => Promise<boolean>;
   onUpdateCondition: (
     participantKey: string,
-    condition: UpdateEncounterParticipantConditionRequest,
+    condition: Omit<UpdateEncounterParticipantConditionRequest, "request_id">,
   ) => Promise<boolean>;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onLifeSettings: (
+    participantKey: string,
+    settings: Omit<
+      import("../../generated/atlas").SetEncounterLifeSettingsRequest,
+      "request_id" | "expected_encounter_revision"
+    >,
+  ) => Promise<boolean>;
+  onPreviewCondition: (
+    participantKey: string,
+    request: import("./useConditionEventPreview").ConditionEventInput,
+  ) => Promise<import("../../generated/atlas").ConditionEventPreviewView>;
+  onResolveDrained: (
+    request: Omit<
+      import("../../generated/atlas").ResolveDrainedConsequenceRequest,
+      "request_id"
+    >,
+  ) => Promise<boolean>;
+  onRecoverPersistent: (
+    request: Omit<
+      import("../../generated/atlas").RecoverPersistentDamageRequest,
+      "request_id"
+    >,
+  ) => Promise<import("../../generated/atlas").PersistentRecoveryResultView>;
+  onConditionRecovery: React.ComponentProps<
+    typeof EncounterConditionRecovery
+  >["onApply"];
+  onResolveHpLifecycle: React.ComponentProps<typeof EncounterLifeStatus>["onResolve"];
+  onBeginStrike: (request: import("./useEncounterStrike").StrikeLaunch) => void;
+  renderStrikeContext?: (requestId: string) => React.ReactNode;
+  requestedConditionEdit?: import("./conditionEditRequest").ConditionEditRequest;
   onSpellAction: (
     participant: EncounterParticipantView,
     action: import("../../generated/atlas").EncounterSpellAction,
@@ -95,6 +145,8 @@ export function EncounterInspectorPane({
   participant: EncounterParticipantView | undefined;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
+  damageTypes?: Array<{ value: string; label: string }>;
+  standardRecoveryDc?: bigint;
   onPreviewRankChange?: (rank: number | undefined) => void;
   previewSelection?: import("../../generated/atlas").RecordNavigationView;
   previewDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
@@ -120,11 +172,19 @@ export function EncounterInspectorPane({
       tabIndex={-1}
       aria-label="Participant"
     >
-      {
+      <EncounterConditionRecovery
+        key={participant.participant_key}
+        encounterRef={encounterKey}
+        revision={encounterRevision}
+        participant={participant}
+        disabled={disabled}
+        onApply={onConditionRecovery}
+      >
         <EncounterParticipantSurface
           key={`participant-${participant.participant_key}`}
           disabled={disabled}
           encounterRevision={encounterRevision}
+          currentTurnKey={currentTurnKey}
           encounterKey={encounterKey}
           artifactGeneration={artifactGeneration}
           pending={pending}
@@ -135,28 +195,40 @@ export function EncounterInspectorPane({
           error={error}
           spellError={spellError}
           conditionDefinitions={conditionDefinitions}
+          damageTypes={damageTypes}
+          standardRecoveryDc={standardRecoveryDc}
           onAddCondition={onAddCondition}
           onReference={onReference}
           onRemoveCondition={onRemoveCondition}
           onUpdate={onUpdate}
+          onLifeSettings={onLifeSettings}
+          onRecoverPersistent={onRecoverPersistent}
+          onResolveDrained={onResolveDrained}
+          onPreviewCondition={onPreviewCondition}
           onHpAction={onHpAction}
           onSpellAction={onSpellAction}
           onUpdateCondition={onUpdateCondition}
           participant={participant}
+          onResolveHpLifecycle={onResolveHpLifecycle}
+          onBeginStrike={onBeginStrike}
+          renderStrikeContext={renderStrikeContext}
+          requestedConditionEdit={requestedConditionEdit}
           participants={participants}
         />
-      }
+      </EncounterConditionRecovery>
       {previewRecordKey && (
         <RecordPreviewPopover
           actions={
-            previewDetail && (
+            previewDetail?.presentation.body.kind === "spell" && (
               <EncounterSpellControls
+                encounterRevision={encounterRevision}
                 participant={participant}
                 detail={previewDetail}
-                disabled={disabled || previewLoading}
+                disabled={disabled || previewLoading || !!previewError}
                 pending={pending}
                 error={spellError}
                 recovery={recovery}
+                encounterRef={encounterKey}
                 onAction={(action, expectedRevision) =>
                   onSpellAction(participant, action, expectedRevision)
                 }
@@ -194,6 +266,7 @@ export function EncounterInspectorPane({
 function EncounterParticipantSurface({
   disabled,
   encounterRevision,
+  currentTurnKey,
   encounterKey,
   artifactGeneration,
   pending,
@@ -204,18 +277,29 @@ function EncounterParticipantSurface({
   error,
   spellError,
   conditionDefinitions,
+  damageTypes,
+  standardRecoveryDc,
   onAddCondition,
   onReference,
   onRemoveCondition,
   onUpdate,
+  onLifeSettings,
+  onRecoverPersistent,
+  onResolveDrained,
+  onPreviewCondition,
   onHpAction,
   onSpellAction,
   onUpdateCondition,
   participant,
+  onResolveHpLifecycle,
+  onBeginStrike,
+  renderStrikeContext,
+  requestedConditionEdit,
   participants,
 }: {
   disabled: boolean;
   encounterRevision: bigint;
+  currentTurnKey?: string | null;
   encounterKey: string;
   artifactGeneration: string | null;
   pending: boolean;
@@ -226,12 +310,41 @@ function EncounterParticipantSurface({
   error?: string;
   spellError?: string;
   conditionDefinitions: EncounterConditionDefinitionView[];
+  damageTypes?: Array<{ value: string; label: string }>;
+  standardRecoveryDc?: bigint;
   onAddCondition: (
-    condition: AddEncounterParticipantConditionRequest,
+    condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
   ) => Promise<boolean>;
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
-  onRemoveCondition: (participantKey: string, conditionId: bigint) => Promise<boolean>;
+  onRemoveCondition: (
+    participantKey: string,
+    conditionId: bigint,
+    expectedRevision: bigint,
+  ) => Promise<boolean>;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onLifeSettings: (
+    participantKey: string,
+    settings: Omit<
+      import("../../generated/atlas").SetEncounterLifeSettingsRequest,
+      "request_id" | "expected_encounter_revision"
+    >,
+  ) => Promise<boolean>;
+  onPreviewCondition: (
+    participantKey: string,
+    request: import("./useConditionEventPreview").ConditionEventInput,
+  ) => Promise<import("../../generated/atlas").ConditionEventPreviewView>;
+  onResolveDrained: (
+    request: Omit<
+      import("../../generated/atlas").ResolveDrainedConsequenceRequest,
+      "request_id"
+    >,
+  ) => Promise<boolean>;
+  onRecoverPersistent: (
+    request: Omit<
+      import("../../generated/atlas").RecoverPersistentDamageRequest,
+      "request_id"
+    >,
+  ) => Promise<import("../../generated/atlas").PersistentRecoveryResultView>;
   onSpellAction: (
     participant: EncounterParticipantView,
     action: import("../../generated/atlas").EncounterSpellAction,
@@ -243,15 +356,25 @@ function EncounterParticipantSurface({
   ) => Promise<boolean>;
   onUpdateCondition: (
     participantKey: string,
-    condition: UpdateEncounterParticipantConditionRequest,
+    condition: Omit<UpdateEncounterParticipantConditionRequest, "request_id">,
   ) => Promise<boolean>;
   participant: EncounterParticipantView;
+  onResolveHpLifecycle: React.ComponentProps<typeof EncounterLifeStatus>["onResolve"];
+  onBeginStrike: (request: import("./useEncounterStrike").StrikeLaunch) => void;
+  renderStrikeContext?: (requestId: string) => React.ReactNode;
+  requestedConditionEdit?: import("./conditionEditRequest").ConditionEditRequest;
   participants: EncounterParticipantView[];
 }) {
   const updateParticipant = (changes: Partial<UpdateEncounterParticipantRequest>) =>
     onUpdate(participantUpdate(participant, changes));
   const presentation = participant.presentation;
   const body = presentation?.body;
+  const actor =
+    body?.kind === "creature"
+      ? body.value
+      : body?.kind === "hazard"
+        ? body.value.actor
+        : undefined;
   const hasHp = !(
     body?.kind === "hazard" &&
     body.value.defense_block.state === "value" &&
@@ -271,21 +394,37 @@ function EncounterParticipantSurface({
         {participant.hazard_disabled ? "Activate" : "Disable"}
       </Button>
     ) : (
-      <Button
-        size="small"
+      <EncounterLifeStatus
+        encounterRef={encounterKey}
+        revision={encounterRevision}
+        participant={participant}
+        participants={participants}
+        currentTurnKey={currentTurnKey}
         disabled={disabled}
-        onClick={() =>
-          void updateParticipant({ defeated: !participant.defeated }).catch(() => {})
-        }
-      >
-        {participant.defeated ? "Clear defeated" : "Mark defeated"}
-      </Button>
+        onSave={(settings) => onLifeSettings(participant.participant_key, settings)}
+        onDefeated={() => updateParticipant({ defeated: !participant.defeated })}
+        onResolve={onResolveHpLifecycle}
+      />
     );
+
   return (
     <section className="encounter-reference">
       <div className="encounter-reference__header">
         <div className="encounter-reference__identity">
-          <h2>{participant.display_name}</h2>
+          <div className="encounter-reference__name">
+            <h2>{participant.display_name}</h2>
+            <EncounterParticipantSettings
+              participant={participant}
+              disabled={disabled}
+              pending={pending}
+              error={error}
+              recovery={recovery}
+              onUpdate={onUpdate}
+              onLifeSettings={(settings) =>
+                onLifeSettings(participant.participant_key, settings)
+              }
+            />
+          </div>
           <p className="record-reference__kind">
             {presentation?.classification ?? participant.participant_kind}
             {participant.participant_variant !== "normal" && (
@@ -295,17 +434,7 @@ function EncounterParticipantSurface({
             )}
           </p>
         </div>
-        <div className="encounter-reference__actions">
-          {!hasHp && statusControl}
-          <EncounterParticipantSettings
-            participant={participant}
-            disabled={disabled}
-            pending={pending}
-            error={error}
-            recovery={recovery}
-            onUpdate={onUpdate}
-          />
-        </div>
+        {!hasHp && <div className="encounter-reference__actions">{statusControl}</div>}
       </div>
       {participant.status === "unresolved" && (
         <p>Original record unavailable. Saved participant settings remain editable.</p>
@@ -333,6 +462,8 @@ function EncounterParticipantSurface({
           />
         )}
         <EncounterConditionControls
+          requestedEdit={requestedConditionEdit}
+          encounterRef={encounterKey}
           encounterRevision={encounterRevision}
           pending={pending}
           recovery={recovery}
@@ -340,14 +471,31 @@ function EncounterParticipantSurface({
           addDisabled={conditionsDisabled}
           error={error}
           conditionDefinitions={conditionDefinitions}
+          damageTypes={damageTypes}
+          standardRecoveryDc={standardRecoveryDc}
           current={participant}
           onAddCondition={onAddCondition}
           onReference={onReference}
           onRemoveCondition={onRemoveCondition}
           onUpdateCondition={onUpdateCondition}
+          onPreviewCondition={onPreviewCondition}
+          onRecoverPersistent={onRecoverPersistent}
+          onResolveDrained={onResolveDrained}
           participants={participants}
         />
       </div>
+      {actor?.runtime && actor.runtime.contextual_armor_class.length > 0 && (
+        <div className="record-fact-list">
+          {actor.runtime.contextual_armor_class.map((defense) => (
+            <FactRow
+              key={defense.opponent_key}
+              label={`AC against ${participants.find((p) => p.participant_key === defense.opponent_key)?.display_name ?? defense.opponent_key}`}
+            >
+              {factText(defense.value)}
+            </FactRow>
+          ))}
+        </div>
+      )}
       {presentation && (
         <RecordPresentation
           activityRolls={(activity) =>
@@ -363,6 +511,8 @@ function EncounterParticipantSurface({
                 generation={artifactGeneration}
                 participant={participant}
                 activity={activity}
+                onBeginStrike={onBeginStrike}
+                renderStrikeContext={renderStrikeContext}
                 disabled={disabled}
               />
             ) : null

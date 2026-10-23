@@ -384,6 +384,11 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
         name: "Frightened".to_string(),
         value: Some(1),
         source_participant_key: None,
+        scope: ConditionScope::default(),
+        extra_action: ConditionExtraAction::default(),
+        immunity_override: false,
+        parameters: Default::default(),
+        origin: None,
         duration: Some(crate::ConditionDuration {
             amount: 2,
             unit: crate::ConditionDurationUnit::Rounds,
@@ -402,6 +407,11 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
             name: "Frightened".to_string(),
             value: Some(2),
             source_participant_key: None,
+            scope: ConditionScope::default(),
+            extra_action: ConditionExtraAction::default(),
+            immunity_override: false,
+            parameters: Default::default(),
+            origin: None,
             duration: Some(crate::ConditionDuration {
                 amount: 1,
                 unit: crate::ConditionDurationUnit::Rounds,
@@ -432,6 +442,11 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
         name: "Custom".to_string(),
         value: None,
         source_participant_key: None,
+        scope: ConditionScope::default(),
+        extra_action: ConditionExtraAction::default(),
+        immunity_override: false,
+        parameters: Default::default(),
+        origin: None,
         duration: None,
         note: None,
     })?;
@@ -625,6 +640,11 @@ fn failed_replacement_turn_rolls_back_removal_conditions_and_order()
             name: "Custom".into(),
             value: None,
             source_participant_key: None,
+            scope: ConditionScope::default(),
+            extra_action: ConditionExtraAction::default(),
+            immunity_override: false,
+            parameters: Default::default(),
+            origin: None,
             duration: None,
             note: None,
         })?;
@@ -682,6 +702,11 @@ fn deleted_condition_ids_are_not_reused_for_same_or_other_participants()
         name: "Custom".into(),
         value: Some(1),
         source_participant_key: None,
+        scope: ConditionScope::default(),
+        extra_action: ConditionExtraAction::default(),
+        immunity_override: false,
+        parameters: Default::default(),
+        origin: None,
         duration: None,
         note: None,
     };
@@ -705,6 +730,11 @@ fn deleted_condition_ids_are_not_reused_for_same_or_other_participants()
                     name: "Stale".into(),
                     value: Some(9),
                     source_participant_key: None,
+                    scope: ConditionScope::default(),
+                    extra_action: ConditionExtraAction::default(),
+                    immunity_override: false,
+                    parameters: Default::default(),
+                    origin: None,
                     duration: None,
                     note: None,
                 })?
@@ -742,6 +772,11 @@ fn condition_edits_bind_expected_participant_even_for_explicitly_reused_ids()
             name: "Original".into(),
             value: Some(1),
             source_participant_key: None,
+            scope: ConditionScope::default(),
+            extra_action: ConditionExtraAction::default(),
+            immunity_override: false,
+            parameters: Default::default(),
+            origin: None,
             duration: None,
             note: None,
         })?;
@@ -766,6 +801,11 @@ fn condition_edits_bind_expected_participant_even_for_explicitly_reused_ids()
                 name: "Stale".into(),
                 value: Some(9),
                 source_participant_key: None,
+                scope: ConditionScope::default(),
+                extra_action: ConditionExtraAction::default(),
+                immunity_override: false,
+                parameters: Default::default(),
+                origin: None,
                 duration: None,
                 note: None,
             })?
@@ -946,6 +986,11 @@ fn reviewed_turn_revision_prevents_replay_and_concurrent_double_ticks()
             name: "Timed".into(),
             value: Some(1),
             source_participant_key: None,
+            scope: ConditionScope::default(),
+            extra_action: ConditionExtraAction::default(),
+            immunity_override: false,
+            parameters: Default::default(),
+            origin: None,
             duration: Some(crate::ConditionDuration {
                 amount: 2,
                 unit: crate::ConditionDurationUnit::Rounds,
@@ -959,23 +1004,32 @@ fn reviewed_turn_revision_prevents_replay_and_concurrent_double_ticks()
     let revision = store.encounters().get("test")?.unwrap().revision;
     let barrier = std::sync::Arc::new(std::sync::Barrier::new(4));
     let handles = (0..4)
-        .map(|_| {
+        .map(|request_index| {
             let store = store.clone();
             let barrier = barrier.clone();
             let key = p.participant_key.clone();
             let id = condition.condition_id;
             std::thread::spawn(move || {
                 barrier.wait();
-                store
-                    .encounters()
-                    .advance_reviewed_turn("test", revision, |_| crate::EncounterTurnUpdate {
-                        turn: EncounterTurnState {
-                            participant_key: Some(key),
-                            round_number: 2,
-                            mark_running: true,
-                        },
-                        durations: vec![(id, 1)],
-                    })
+                store.encounters().advance_turn_once(
+                    "test",
+                    &format!("next-{request_index}"),
+                    &serde_json::json!({"next":true}),
+                    revision,
+                    |_| {
+                        (
+                            crate::EncounterTurnUpdate {
+                                turn: EncounterTurnState {
+                                    participant_key: Some(key),
+                                    round_number: 2,
+                                    mark_running: true,
+                                },
+                                durations: vec![(id, 1)],
+                            },
+                            true,
+                        )
+                    },
+                )
             })
         })
         .collect::<Vec<_>>();
@@ -1006,9 +1060,13 @@ fn reviewed_turn_revision_prevents_replay_and_concurrent_double_ticks()
     );
     assert_eq!(saved.encounter.revision, revision + 1);
     assert!(matches!(
-        store
-            .encounters()
-            .advance_reviewed_turn("test", revision, |_| panic!("stale callback must not run")),
+        store.encounters().advance_turn_once(
+            "test",
+            "stale-next",
+            &serde_json::json!({"next":true}),
+            revision,
+            |_| panic!("stale callback must not run")
+        ),
         Err(crate::LocalStateError::StaleEncounterRevision { .. })
     ));
     Ok(())
@@ -1028,6 +1086,11 @@ fn failed_turn_write_rolls_back_duration_and_revision() -> Result<(), Box<dyn st
             name: "Timed".into(),
             value: None,
             source_participant_key: None,
+            scope: ConditionScope::default(),
+            extra_action: ConditionExtraAction::default(),
+            immunity_override: false,
+            parameters: Default::default(),
+            origin: None,
             duration: Some(crate::ConditionDuration {
                 amount: 1,
                 unit: crate::ConditionDurationUnit::Rounds,
@@ -1040,16 +1103,25 @@ fn failed_turn_write_rolls_back_duration_and_revision() -> Result<(), Box<dyn st
     assert!(
         store
             .encounters()
-            .advance_reviewed_turn("test", before.encounter.revision, |_| {
-                crate::EncounterTurnUpdate {
-                    turn: EncounterTurnState {
-                        participant_key: Some(p.participant_key),
-                        round_number: 2,
-                        mark_running: true,
-                    },
-                    durations: vec![(condition.condition_id, 0)],
+            .advance_turn_once(
+                "test",
+                "rollback-next",
+                &serde_json::json!({"next":true}),
+                before.encounter.revision,
+                |_| {
+                    (
+                        crate::EncounterTurnUpdate {
+                            turn: EncounterTurnState {
+                                participant_key: Some(p.participant_key),
+                                round_number: 2,
+                                mark_running: true,
+                            },
+                            durations: vec![(condition.condition_id, 0)],
+                        },
+                        true,
+                    )
                 }
-            })
+            )
             .is_err()
     );
     assert_eq!(
@@ -1074,6 +1146,11 @@ fn condition_update_checks_encounter_revision_inside_write_transaction()
             name: "Timed".into(),
             value: None,
             source_participant_key: None,
+            scope: ConditionScope::default(),
+            extra_action: ConditionExtraAction::default(),
+            immunity_override: false,
+            parameters: Default::default(),
+            origin: None,
             duration: Some(crate::ConditionDuration {
                 amount: 3,
                 unit: crate::ConditionDurationUnit::Rounds,
@@ -1082,16 +1159,25 @@ fn condition_update_checks_encounter_revision_inside_write_transaction()
             note: None,
         })?;
     let revision = store.encounters().get("test")?.unwrap().revision;
-    store
-        .encounters()
-        .advance_reviewed_turn("test", revision, |_| crate::EncounterTurnUpdate {
-            turn: EncounterTurnState {
-                participant_key: Some(p.participant_key.clone()),
-                round_number: 1,
-                mark_running: true,
-            },
-            durations: vec![(c.condition_id, 2)],
-        })?;
+    store.encounters().advance_turn_once(
+        "test",
+        "review-next",
+        &serde_json::json!({"next":true}),
+        revision,
+        |_| {
+            (
+                crate::EncounterTurnUpdate {
+                    turn: EncounterTurnState {
+                        participant_key: Some(p.participant_key.clone()),
+                        round_number: 1,
+                        mark_running: true,
+                    },
+                    durations: vec![(c.condition_id, 2)],
+                },
+                true,
+            )
+        },
+    )?;
     let before = store.encounters().get_with_participants("test")?.unwrap();
     let result = store
         .encounters()
@@ -1103,6 +1189,11 @@ fn condition_update_checks_encounter_revision_inside_write_transaction()
             name: c.name,
             value: None,
             source_participant_key: None,
+            scope: ConditionScope::default(),
+            extra_action: ConditionExtraAction::default(),
+            immunity_override: false,
+            parameters: Default::default(),
+            origin: None,
             duration: c.duration,
             note: Some("old draft".into()),
         });
@@ -1252,6 +1343,7 @@ fn strike_roll_receipt_does_not_mutate_gameplay_and_recovers_before_guards()
             Ok(StoredStrikeRoll {
                 title: "Claw".into(),
                 outcome: StoredStrikeOutcome::Attack {
+                    modifier: Some(0),
                     outcome: atlas_dice::prepare("17")?.roll()?,
                 },
             })
@@ -1427,5 +1519,416 @@ fn caught_receipt_insert_error_cannot_commit_initiative_changes()
             )?
             .is_none()
     );
+    Ok(())
+}
+
+#[test]
+fn condition_scope_restrictions_and_override_survive_independent_sources()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("condition-context")?;
+    store
+        .encounters()
+        .add_participant("test", creature("One", None, 20))?;
+    store
+        .encounters()
+        .add_participant("test", creature("Two", None, 20))?;
+    let snapshot = store.encounters().get_with_participants("test")?.unwrap();
+    let owner = &snapshot.participants[0].participant_key;
+    let opponent = &snapshot.participants[1].participant_key;
+    let scope = ConditionScope::SelectedParticipants {
+        participant_keys: vec![opponent.clone()],
+    };
+    let extra_action = ConditionExtraAction::Restricted {
+        actions: vec![ConditionAction::Stride, ConditionAction::Strike],
+        guidance: Some("Granted by Haste".into()),
+    };
+    for source in [None, Some(opponent.clone())] {
+        store
+            .encounters()
+            .add_condition(AddEncounterParticipantCondition {
+                participant_key: owner.clone(),
+                condition_key: None,
+                name: "Independent condition".into(),
+                value: None,
+                source_participant_key: source,
+                scope: scope.clone(),
+                extra_action: extra_action.clone(),
+                immunity_override: true,
+                parameters: Default::default(),
+                origin: None,
+                duration: None,
+                note: None,
+            })?;
+    }
+    let snapshot = store.encounters().get_with_participants("test")?.unwrap();
+    let rows = &snapshot.participants[0].conditions;
+    assert_eq!(rows.len(), 2);
+    assert_ne!(rows[0].condition_id, rows[1].condition_id);
+    for row in rows {
+        assert_eq!(row.scope, scope);
+        assert_eq!(row.extra_action, extra_action);
+        assert!(row.immunity_override);
+        assert_eq!(row.duration, None);
+    }
+    Ok(())
+}
+
+#[test]
+fn stale_condition_context_edit_keeps_saved_restriction() -> Result<(), Box<dyn std::error::Error>>
+{
+    let store = fixture("stale-condition-context")?;
+    let participant = store
+        .encounters()
+        .add_participant("test", creature("One", None, 20))?;
+    let condition = store
+        .encounters()
+        .add_condition(AddEncounterParticipantCondition {
+            participant_key: participant.participant_key.clone(),
+            condition_key: None,
+            name: "Quickened".into(),
+            value: None,
+            source_participant_key: None,
+            scope: ConditionScope::Everyone,
+            extra_action: ConditionExtraAction::Unspecified,
+            immunity_override: false,
+            parameters: Default::default(),
+            origin: None,
+            duration: None,
+            note: None,
+        })?;
+    let snapshot = store.encounters().get_with_participants("test")?.unwrap();
+    let request = UpdateEncounterParticipantCondition {
+        expected_encounter_revision: snapshot.encounter.revision,
+        participant_key: participant.participant_key,
+        condition_id: condition.condition_id,
+        condition_key: None,
+        name: "Quickened".into(),
+        value: None,
+        source_participant_key: None,
+        scope: ConditionScope::Everyone,
+        extra_action: ConditionExtraAction::Unrestricted,
+        immunity_override: true,
+        parameters: Default::default(),
+        origin: None,
+        duration: None,
+        note: None,
+    };
+    store.encounters().update_condition(request.clone())?;
+    assert!(matches!(
+        store.encounters().update_condition(request),
+        Err(crate::LocalStateError::StaleEncounterRevision { .. })
+    ));
+    let snapshot = store.encounters().get_with_participants("test")?.unwrap();
+    assert_eq!(
+        snapshot.participants[0].conditions[0].extra_action,
+        ConditionExtraAction::Unrestricted
+    );
+    Ok(())
+}
+
+fn event_condition(participant: &str, application: &str) -> AddEncounterParticipantCondition {
+    AddEncounterParticipantCondition {
+        participant_key: participant.into(),
+        condition_key: None,
+        name: "Independent".into(),
+        value: None,
+        source_participant_key: None,
+        scope: Default::default(),
+        extra_action: Default::default(),
+        immunity_override: false,
+        parameters: Default::default(),
+        origin: Some(ConditionOrigin {
+            application_id: application.into(),
+            grant_slot: "condition".into(),
+            participant_key: None,
+            record_key: None,
+            activity_id: None,
+            artifact_generation: None,
+        }),
+        duration: None,
+        note: None,
+    }
+}
+#[test]
+fn condition_event_retries_recover_before_stale_guard_and_do_not_repeat_hp_loss()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("condition-event-retry")?;
+    let participant = store
+        .encounters()
+        .add_participant("test", creature("One", None, 20))?;
+    let snapshot = store.encounters().get_with_participants("test")?.unwrap();
+    let key = &snapshot.encounter.encounter_key;
+    let intent = serde_json::json!({"apply":"drained","value":1});
+    let mut hp = ParticipantEventChange::preserving(&participant);
+    hp.current_hp = Some(17);
+    let changes = PreparedConditionEvent {
+        condition_changes: vec![ConditionEventChange::Add(event_condition(
+            &participant.participant_key,
+            "application-one",
+        ))],
+        participant_changes: vec![hp],
+        ..Default::default()
+    };
+    let receipt = store.encounters().apply_condition_event(
+        key,
+        "request-one",
+        &intent,
+        snapshot.encounter.revision,
+        changes.clone(),
+    )?;
+    let repeated = store.encounters().apply_condition_event(
+        key,
+        "request-one",
+        &intent,
+        snapshot.encounter.revision,
+        changes,
+    )?;
+    assert_eq!(receipt, repeated);
+    let saved = store.encounters().get_with_participants(key)?.unwrap();
+    assert_eq!(saved.participants[0].current_hp, Some(17));
+    assert_eq!(saved.participants[0].conditions.len(), 1);
+    assert!(
+        store
+            .encounters()
+            .apply_condition_event(
+                key,
+                "request-one",
+                &serde_json::json!({"apply":"different"}),
+                saved.encounter.revision,
+                Default::default()
+            )
+            .is_err()
+    );
+    assert!(matches!(
+        store.encounters().apply_condition_event(
+            key,
+            "request-two",
+            &intent,
+            snapshot.encounter.revision,
+            Default::default()
+        ),
+        Err(crate::LocalStateError::StaleEncounterRevision { .. })
+    ));
+    Ok(())
+}
+#[test]
+fn invalid_later_condition_change_rolls_back_prior_change_and_receipt()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("condition-event-rollback")?;
+    let participant = store
+        .encounters()
+        .add_participant("test", creature("One", None, 20))?;
+    let snapshot = store.encounters().get_with_participants("test")?.unwrap();
+    let key = &snapshot.encounter.encounter_key;
+    let intent = serde_json::json!({"apply":"batch"});
+    let changes = PreparedConditionEvent {
+        condition_changes: vec![
+            ConditionEventChange::Add(event_condition(&participant.participant_key, "first")),
+            ConditionEventChange::Remove {
+                participant_key: participant.participant_key.clone(),
+                condition_id: i64::MAX,
+            },
+        ],
+        ..Default::default()
+    };
+    assert!(
+        store
+            .encounters()
+            .apply_condition_event(
+                key,
+                "bad-batch",
+                &intent,
+                snapshot.encounter.revision,
+                changes
+            )
+            .is_err()
+    );
+    assert_eq!(
+        store.encounters().get_with_participants(key)?.unwrap(),
+        snapshot
+    );
+    assert_eq!(
+        store
+            .encounters()
+            .condition_event_receipt(key, "bad-batch", &intent)?,
+        None
+    );
+    Ok(())
+}
+#[test]
+fn independent_applications_survive_and_removed_application_cannot_replay()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("condition-application-identity")?;
+    let participant = store
+        .encounters()
+        .add_participant("test", creature("One", None, 20))?;
+    let snapshot = store.encounters().get_with_participants("test")?.unwrap();
+    let key = snapshot.encounter.encounter_key;
+    for (id, application) in [
+        ("request-a", "application-a"),
+        ("request-b", "application-b"),
+    ] {
+        let revision = store.encounters().get(&key)?.unwrap().revision;
+        store.encounters().apply_condition_event(
+            &key,
+            id,
+            &serde_json::json!({"application":application}),
+            revision,
+            PreparedConditionEvent {
+                condition_changes: vec![ConditionEventChange::Add(event_condition(
+                    &participant.participant_key,
+                    application,
+                ))],
+                ..Default::default()
+            },
+        )?;
+    }
+    let snapshot = store.encounters().get_with_participants(&key)?.unwrap();
+    assert_eq!(snapshot.participants[0].conditions.len(), 2);
+    let removed = snapshot.participants[0].conditions[0].condition_id;
+    store.encounters().apply_condition_event(
+        &key,
+        "remove",
+        &serde_json::json!({"remove":removed}),
+        snapshot.encounter.revision,
+        PreparedConditionEvent {
+            condition_changes: vec![ConditionEventChange::Remove {
+                participant_key: participant.participant_key.clone(),
+                condition_id: removed,
+            }],
+            ..Default::default()
+        },
+    )?;
+    let revision = store.encounters().get(&key)?.unwrap().revision;
+    assert!(
+        store
+            .encounters()
+            .apply_condition_event(
+                &key,
+                "new-request-same-application",
+                &serde_json::json!({"application":"application-a"}),
+                revision,
+                PreparedConditionEvent {
+                    condition_changes: vec![ConditionEventChange::Add(event_condition(
+                        &participant.participant_key,
+                        "application-a"
+                    ))],
+                    ..Default::default()
+                }
+            )
+            .is_err()
+    );
+    assert_eq!(
+        store
+            .encounters()
+            .get_with_participants(&key)?
+            .unwrap()
+            .participants[0]
+            .conditions
+            .len(),
+        1
+    );
+    Ok(())
+}
+
+#[test]
+fn boundary_claim_rejects_new_request_before_evaluation_and_saved_outcome_is_readable()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("boundary-claim")?;
+    let participant = store
+        .encounters()
+        .add_participant("test", creature("One", None, 20))?;
+    let snapshot = store.encounters().get_with_participants("test")?.unwrap();
+    let key = &snapshot.encounter.encounter_key;
+    let claim = EncounterBoundaryClaim {
+        participant_key: participant.participant_key,
+        round_number: snapshot.encounter.round_number,
+        kind: EncounterBoundaryKind::PersistentDamage,
+        scope_key: String::new(),
+    };
+    let evaluations = std::cell::Cell::new(0);
+    let mut connection = store.connection()?;
+    let tx = connection.transaction()?;
+    let domain = EncountersWrite::from_connection(&tx);
+    let receipt = domain.apply_condition_event_with_claims(
+        key,
+        "boundary-first",
+        &serde_json::json!({"boundary":true}),
+        snapshot.encounter.revision,
+        crate::ConditionEventBoundary {
+            claims: std::slice::from_ref(&claim),
+            outgoing_boundary_key: None,
+        },
+        || {
+            evaluations.set(evaluations.get() + 1);
+            Ok(Default::default())
+        },
+    )?;
+    assert_eq!(domain.boundary_receipt(key, &claim)?, Some(receipt));
+    let revision = domain.get(key)?.unwrap().revision;
+    let error = domain
+        .apply_condition_event_with_claims(
+            key,
+            "boundary-second",
+            &serde_json::json!({"boundary":true}),
+            revision,
+            crate::ConditionEventBoundary {
+                claims: std::slice::from_ref(&claim),
+                outgoing_boundary_key: None,
+            },
+            || {
+                evaluations.set(evaluations.get() + 1);
+                Ok(Default::default())
+            },
+        )
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        crate::LocalStateError::EncounterBoundaryConflict
+    ));
+    assert_eq!(evaluations.get(), 1);
+    tx.commit()?;
+    Ok(())
+}
+#[test]
+fn failed_boundary_evaluation_does_not_consume_claim() -> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("boundary-rollback")?;
+    let participant = store
+        .encounters()
+        .add_participant("test", creature("One", None, 20))?;
+    let snapshot = store.encounters().get_with_participants("test")?.unwrap();
+    let key = &snapshot.encounter.encounter_key;
+    let claim = EncounterBoundaryClaim {
+        participant_key: participant.participant_key,
+        round_number: snapshot.encounter.round_number,
+        kind: EncounterBoundaryKind::TurnEnd,
+        scope_key: String::new(),
+    };
+    let mut connection = store.connection()?;
+    let tx = connection.transaction()?;
+    let domain = EncountersWrite::from_connection(&tx);
+    assert!(
+        domain
+            .apply_condition_event_with_claims(
+                key,
+                "failed-boundary",
+                &serde_json::json!({"boundary":true}),
+                snapshot.encounter.revision,
+                crate::ConditionEventBoundary {
+                    claims: std::slice::from_ref(&claim),
+                    outgoing_boundary_key: None
+                },
+                || Err(crate::LocalStateError::InvalidRollRequest(
+                    "evaluation failed"
+                ))
+            )
+            .is_err()
+    );
+    assert!(!domain.boundary_claimed(key, &claim)?);
+    assert_eq!(
+        domain.get(key)?.unwrap().revision,
+        snapshot.encounter.revision
+    );
+    tx.commit()?;
     Ok(())
 }

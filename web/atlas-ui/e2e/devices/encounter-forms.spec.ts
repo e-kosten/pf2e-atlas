@@ -1,0 +1,352 @@
+import { expect, test } from "./fixtures";
+import { activate, noPageOverflow } from "./reading";
+test("persistent form uses visible workarea, flat DC, accessible damage row and stable focused editing", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Forms checkpoint ${Date.now()}` },
+  });
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    expect(
+      (
+        await page.request.post(`${path}/participants/manual`, {
+          data: {
+            encounter_ref: encounter.encounter_key,
+            display_name: "Form Hero",
+            initiative: 20,
+            current_hp: 30,
+            max_hp: 30,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(page.getByRole("button", { name: "Form Hero", exact: true }), info);
+    await activate(
+      page.getByRole("button", { name: "Add Condition", exact: true }),
+      info,
+    );
+    const dialog = page.getByRole("dialog", { name: "Add condition", exact: true });
+    const choice = dialog.getByRole("combobox", { name: "Add condition" });
+    await choice.fill("Persistent Damage");
+    await page
+      .locator(".ant-select-dropdown:visible")
+      .getByText("Persistent Damage", { exact: true })
+      .click();
+    const formula = dialog.getByRole("textbox", { name: "Damage formula" });
+    await expect(formula).toHaveAttribute("placeholder", "Formula, e.g. 1d6");
+    await expect(dialog.getByRole("spinbutton", { name: "Flat check DC" })).toHaveValue(
+      "15",
+    );
+    await expect(
+      dialog.getByRole("combobox", { name: "Persistent recovery" }),
+    ).toHaveCount(0);
+    await formula.fill("1d6");
+    const type = dialog.getByRole("combobox", { name: "Damage type" });
+    await type.fill("Fire");
+    await page
+      .locator(".ant-select-dropdown:visible")
+      .getByText("Fire", { exact: true })
+      .click();
+    const formulaBounds = (await formula.boundingBox())!;
+    const typeBounds = (await type.boundingBox())!;
+    expect(
+      Math.abs(
+        formulaBounds.y +
+          formulaBounds.height / 2 -
+          typeBounds.y -
+          typeBounds.height / 2,
+      ),
+    ).toBeLessThan(3);
+    await expect(
+      dialog.getByRole("button", { name: "Add duration", exact: true }),
+    ).toBeVisible();
+    await noPageOverflow(page);
+    const bounds = (await dialog.boundingBox())!;
+    const viewport = page.viewportSize()!;
+    expect(bounds.y).toBeGreaterThanOrEqual(0);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height + 1);
+    const applyBounds = (await dialog
+      .getByRole("button", { name: "Apply", exact: true })
+      .boundingBox())!;
+    expect(applyBounds.y + applyBounds.height).toBeLessThanOrEqual(
+      bounds.y + bounds.height,
+    );
+    expect(
+      await dialog
+        .getByRole("button", { name: "Apply", exact: true })
+        .evaluate((button) => !!(button as HTMLButtonElement).form),
+    ).toBe(true);
+    const before = await dialog.boundingBox();
+    await formula.focus();
+    await formula.press("End");
+    await formula.pressSequentially("+1");
+    await expect(formula).toBeFocused();
+    expect(await dialog.boundingBox()).toEqual(before);
+    await page.screenshot({
+      path: info.outputPath("persistent-flat-form.png"),
+      fullPage: true,
+      animations: "disabled",
+    });
+    await activate(
+      dialog.getByRole("button", { name: "Add duration", exact: true }),
+      info,
+    );
+    await expect(dialog.getByRole("combobox", { name: "Whose turn" })).toBeVisible();
+    await page.screenshot({
+      path: info.outputPath("persistent-duration-form.png"),
+      fullPage: true,
+      animations: "disabled",
+    });
+    await activate(dialog.getByRole("button", { name: "Apply", exact: true }), info);
+    await expect(dialog).toHaveCount(0);
+    const latest = await (await page.request.get(path)).json();
+    expect(latest.participants[0].conditions[0].parameters).toMatchObject({
+      formula: "1d6+1",
+      damage_type: "fire",
+      recovery: { kind: "specified", dc: 15 },
+    });
+  } finally {
+    await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
+  }
+});
+
+test("incomplete persistent damage is a reminder without eager errors or automation", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Reminder ${Date.now()}` },
+  });
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    await page.request.post(`${path}/participants/manual`, {
+      data: {
+        encounter_ref: encounter.encounter_key,
+        display_name: "Reminder Hero",
+        initiative: 20,
+        current_hp: 30,
+        max_hp: 30,
+      },
+    });
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(
+      page.getByRole("button", { name: "Reminder Hero", exact: true }),
+      info,
+    );
+    for (const label of ["Strike history", "Relationships", "Action context"])
+      await expect(page.getByRole("button", { name: label, exact: true })).toHaveCount(
+        0,
+      );
+    await activate(
+      page.getByRole("button", { name: "Add Condition", exact: true }),
+      info,
+    );
+    const dialog = page.getByRole("dialog", { name: "Add condition", exact: true });
+    await dialog
+      .getByRole("combobox", { name: "Add condition" })
+      .fill("Persistent Damage");
+    await page
+      .locator(".ant-select-dropdown:visible")
+      .getByText("Persistent Damage", { exact: true })
+      .click();
+    await expect(
+      dialog.getByRole("button", { name: "Apply", exact: true }),
+    ).toBeEnabled();
+    await expect(dialog.locator(".ant-form-item-has-error")).toHaveCount(0);
+    await activate(
+      dialog.getByRole("button", { name: "Add details", exact: true }),
+      info,
+    );
+    await dialog
+      .getByRole("textbox", { name: "Condition note" })
+      .fill("Burning until the blessing ends");
+    await page.screenshot({
+      path: info.outputPath("persistent-reminder.png"),
+      animations: "disabled",
+    });
+    await activate(dialog.getByRole("button", { name: "Apply", exact: true }), info);
+    await expect(dialog).toBeHidden();
+    let detail = await (await page.request.get(path)).json();
+    expect(detail.participants[0].conditions[0].parameters.kind).toBe(
+      "persistent_damage_reminder",
+    );
+    expect(detail.participants[0].persistent_damage_groups).toEqual([]);
+    await page.reload();
+    await activate(
+      page.getByRole("button", { name: "Reminder Hero", exact: true }),
+      info,
+    );
+    await expect(
+      page.getByText("Burning until the blessing ends", { exact: true }),
+    ).toBeVisible();
+    await activate(
+      page.getByRole("button", { name: "Edit Persistent Damage", exact: true }),
+      info,
+    );
+    const edit = page.getByRole("dialog", {
+      name: "Edit Persistent Damage",
+      exact: true,
+    });
+    await edit.getByRole("textbox", { name: "Damage formula" }).fill("1d6");
+    await edit.getByRole("combobox", { name: "Damage type" }).fill("Fire");
+    await page
+      .locator(".ant-select-dropdown:visible")
+      .getByText("Fire", { exact: true })
+      .click();
+    await expect(
+      edit.getByRole("button", { name: "Apply", exact: true }),
+    ).toBeEnabled();
+    await activate(edit.getByRole("button", { name: "Apply", exact: true }), info);
+    await expect(edit).toBeHidden();
+    detail = await (await page.request.get(path)).json();
+    expect(detail.participants[0].persistent_damage_groups).toHaveLength(1);
+    expect(detail.participants[0].conditions[0].note).toBe(
+      "Burning until the blessing ends",
+    );
+    const previousEpisode = detail.participants[0].conditions[0].parameters.episode_id;
+    await activate(
+      page.getByRole("button", { name: "Edit Persistent Damage", exact: true }),
+      info,
+    );
+    await edit.getByRole("combobox", { name: "Damage type" }).fill("Cold");
+    await page
+      .locator(".ant-select-dropdown:visible")
+      .getByText("Cold", { exact: true })
+      .click();
+    await expect(
+      edit.getByRole("button", { name: "Apply", exact: true }),
+    ).toBeEnabled();
+    await activate(edit.getByRole("button", { name: "Apply", exact: true }), info);
+    await expect(edit).toBeHidden();
+    detail = await (await page.request.get(path)).json();
+    expect(detail.participants[0].conditions[0].parameters).toMatchObject({
+      formula: "1d6",
+      damage_type: "cold",
+    });
+    expect(detail.participants[0].conditions[0].parameters.episode_id).not.toBe(
+      previousEpisode,
+    );
+    expect(detail.participants[0].persistent_damage_groups).toHaveLength(1);
+    expect(detail.participants[0].conditions[0].note).toBe(
+      "Burning until the blessing ends",
+    );
+  } finally {
+    await page.request.delete(path);
+  }
+});
+
+test("life status stays compact and stable while saving, without replacing the settings draft", async ({
+  page,
+}, info) => {
+  const { encounter } = await (
+    await page.request.post("/api/encounters", {
+      data: { name: `Life settings ${Date.now()}` },
+    })
+  ).json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    expect(
+      (
+        await page.request.post(`${path}/participants/record`, {
+          data: {
+            encounter_ref: encounter.encounter_key,
+            record_ref: "browser-actors:sentinel00000001",
+            quantity: 1,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    const detail = await (await page.request.get(path)).json();
+    await activate(
+      page.locator(
+        `[data-participant-key="${detail.participants[0].participant_key}"]`,
+      ),
+      info,
+    );
+    await activate(
+      page.getByRole("button", { name: "Participant settings", exact: true }),
+      info,
+    );
+    const dialog = page.getByRole("dialog", {
+      name: "Participant settings",
+      exact: true,
+    });
+    const name = dialog.getByRole("textbox", { name: "Participant name", exact: true });
+    await name.fill("Unfinished draft");
+    await activate(
+      dialog.getByRole("checkbox", { name: "Track dying", exact: true }),
+      info,
+    );
+    const dead = dialog.getByRole("radio", { name: "Dead", exact: true });
+    await expect(dead).toBeEnabled();
+    const group = dialog.getByRole("radiogroup", { name: "Life status" });
+    const geometry = await group.evaluate((element) => {
+      const labels = [...element.querySelectorAll("label")].map((e) =>
+        e.getBoundingClientRect(),
+      );
+      const box = element.getBoundingClientRect();
+      return {
+        trailing: box.right - labels.at(-1)!.right,
+        width: box.width,
+        optionWidth: labels.reduce((n, r) => n + r.width, 0),
+      };
+    });
+    expect(geometry.trailing).toBeLessThan(8);
+    expect(geometry.width - geometry.optionWidth).toBeLessThan(12);
+    const original = dialog.getByRole("button", {
+      name: "Original record",
+      exact: true,
+    });
+    await original.scrollIntoViewIfNeeded();
+    expect((await original.boundingBox())!.y).toBeGreaterThan(
+      (await group.boundingBox())!.y,
+    );
+    await dead.scrollIntoViewIfNeeded();
+    const nameNode = await name.elementHandle();
+    const dialogNode = await dialog.elementHandle();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/life-settings", async (route) => {
+      await held;
+      await route.continue();
+    });
+    await activate(dead.locator(".."), info);
+    await expect(dead).toBeChecked();
+    await expect(name).toBeEnabled();
+    await expect(
+      dialog.getByRole("button", { name: "Save", exact: true }),
+    ).toBeDisabled();
+    await page.screenshot({
+      path: info.outputPath("life-status-pending.png"),
+      animations: "disabled",
+    });
+    release();
+    await expect(dead).toBeEnabled();
+    await expect(dead).toBeChecked();
+    expect(await nameNode!.evaluate((element) => element.isConnected)).toBe(true);
+    expect(await dialogNode!.evaluate((element) => element.isConnected)).toBe(true);
+    await expect(name).toHaveValue("Unfinished draft");
+    await activate(
+      dialog.getByRole("radio", { name: "Alive", exact: true }).locator(".."),
+      info,
+    );
+    await expect(
+      dialog.getByRole("radio", { name: "Alive", exact: true }),
+    ).toBeChecked();
+    await expect(
+      dialog.getByRole("radio", { name: "Alive", exact: true }),
+    ).toBeEnabled();
+    await page.screenshot({
+      path: info.outputPath("life-status-confirmed.png"),
+      animations: "disabled",
+    });
+  } finally {
+    await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
+  }
+});

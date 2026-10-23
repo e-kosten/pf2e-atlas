@@ -1,11 +1,11 @@
 use super::*;
+use crate::test_support::publish_input;
 use atlas_app_model::{CreateEncounterRequest, SearchPageRequest};
-use atlas_search::test_support::{
-    FixtureArtifact, input, open_input_fixture, publish_input, record,
-};
+use atlas_search::test_support::{FixtureArtifact, input, open_input_fixture, record};
 use serde_json::json;
 
 fn command(artifact: &FixtureArtifact, mode: AppServiceRetrievalMode) -> AtlasAppService {
+    atlas_runtime::initialize_workspace(artifact.path()).unwrap();
     AtlasAppService::start(AtlasAppServiceOptions {
         index_path: Some(artifact.path()),
         embedding_cache_root: Some(artifact.path().with_file_name("missing-model-assets")),

@@ -337,6 +337,8 @@ fn spell() -> SpellPresentationView {
         rank_note: None,
         base_rank: numeric(1),
         runtime_notes: None,
+        runtime_attack: None,
+        runtime_difficulty_class: None,
         rank: numeric(2),
         traditions: known(vec!["arcane".into(), "primal".into()]),
         cast: known(ActionCostView {

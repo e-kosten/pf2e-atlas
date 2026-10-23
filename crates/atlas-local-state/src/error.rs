@@ -2,6 +2,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum LocalStateError {
+    #[error("This encounter boundary has already been processed")]
+    EncounterBoundaryConflict,
     #[error("Party not found: {0}")]
     PartyNotFound(String),
     #[error("Party changed. Reopen it to review the current members.")]
@@ -16,6 +18,8 @@ pub enum LocalStateError {
     RollRequestConflict,
     #[error("Invalid roll request: {0}")]
     InvalidRollRequest(&'static str),
+    #[error("{0}")]
+    InvalidConditionEvent(String),
     #[error("Dice evaluation failed: {0}")]
     Dice(#[from] atlas_dice::DiceError),
     #[error("Roll receipt is not valid: {0}")]

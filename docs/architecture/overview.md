@@ -184,6 +184,14 @@ a general expression or dice engine. The HP editor saves its supplied correction
 in one guarded action, preserving omitted fields and explicit unknowns. Condition
 manual-effect notes carry their exact condition ID; unrelated diagnostics remain
 separate from condition cards.
+`atlas-app-service::encounters::rules` is the shared owner for condition numerical,
+capability, relationship and lifecycle policy. It consumes typed checked-source
+facts and independent saved causes, not outgoing presentation DTOs. Scope resolves
+before suppression. Reads derive maintained grants; explicit event plans perform
+one-time consequences. Strikes, casting, contextual action previews and display use
+this same owner. Directed detection and attitude knowledge retain provenance and
+unknown/conflicting states. See [ADR0055](./decisions/0055-encounter-condition-evaluation.md).
+
 Do not implement a Foundry world/rule/macro execution engine through presentation.
 
 Saved parties are ordered, name-only reusable PC definitions owned by local-state.
@@ -197,10 +205,12 @@ Foundry import and character sheets remain separate future capabilities.
 Local-state owns complete atomic user actions and coherent aggregate reads.
 Participant replacements require the revision the caller read; stale writes
 receive a conflict without changing state. App-service owns pure turn selection
-over the local-state transaction snapshot. Turn review returns a durable encounter
-revision; Continue checks it and decrements explicitly anchored round durations
-with the turn in one transaction. Zero duration retains the condition for explicit
-removal, and nonround durations remain table reminders. Existing-encounter mutations return
+over the local-state transaction snapshot. Next turn checks revision and request
+identity, decrements explicitly anchored round durations, and retains outgoing reminder
+context with the turn in one transaction. The browser shows reminders for the latest
+completed boundary after progression; closing them changes neither turn state nor
+gameplay. Zero duration retains the condition for explicit removal, and nonround
+durations remain table reminders. Existing-encounter mutations return
 a canonical identity receipt without postcommit reference hydration; explicit
 reads independently refresh presentation. See
 [ADR0048](./decisions/0048-atomic-mutable-workflows.md).

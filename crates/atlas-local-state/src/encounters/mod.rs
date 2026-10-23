@@ -1,3 +1,21 @@
+mod outgoing_turns;
+pub use outgoing_turns::SavedOutgoingTurn;
+mod persistent_precedence;
+pub use persistent_precedence::PersistentSourcePrecedence;
+mod event_model;
+mod events;
+pub use event_model::{
+    CheckDegree, ConditionEventBoundary, ConditionEventChange, ConditionEventOutcome,
+    ConditionEventSource, DamageLethality, EncounterBoundaryClaim, EncounterBoundaryKind,
+    EncounterEventReceipt, LifecycleCheckPurpose, ParticipantEventChange, PendingConsequence,
+    PersistentDamageOutcome, PersistentDamageProtection, PersistentPrecedenceChange,
+    PreparedConditionEvent, SavedHpEventContext, SavedPendingConsequence,
+};
+mod condition_parameters;
+pub use condition_parameters::{
+    ConditionOrigin, ConditionParameters, ConditionSubject, DamageMultiplier, FrightenedRecovery,
+    MortalityState, PersistentRecovery, WakingRule,
+};
 mod strike_receipt;
 pub use strike_receipt::{
     StoredStrikeDamage, StoredStrikeDamageTotal, StoredStrikeOutcome, StoredStrikeReceipt,
@@ -15,13 +33,13 @@ mod service;
 mod storage;
 
 pub use model::{
-    AddEncounterParticipant, AddEncounterParticipantCondition, ConditionDuration,
-    ConditionDurationUnit, ConditionTiming, ConditionTurnEvent, Encounter, EncounterParticipant,
-    EncounterParticipantCondition, EncounterStatus, EncounterTurnState, EncounterTurnUpdate,
-    EncounterWithParticipants, NewEncounter, ParticipantHpOrigin, ParticipantKind, ParticipantSide,
-    ParticipantVariant, ParticipantVariantOrigin, ReorderEncounterParticipant, ReorderPlacement,
-    SpellResource, UpdateEncounter, UpdateEncounterParticipant,
-    UpdateEncounterParticipantCondition,
+    AddEncounterParticipant, AddEncounterParticipantCondition, ConditionAction, ConditionDuration,
+    ConditionDurationUnit, ConditionExtraAction, ConditionScope, ConditionTiming,
+    ConditionTurnEvent, Encounter, EncounterParticipant, EncounterParticipantCondition,
+    EncounterStatus, EncounterTurnState, EncounterTurnUpdate, EncounterWithParticipants,
+    NewEncounter, ParticipantHpOrigin, ParticipantKind, ParticipantSide, ParticipantVariant,
+    ParticipantVariantOrigin, ReorderEncounterParticipant, ReorderPlacement, SpellResource,
+    UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
 };
 pub use service::{EncountersRead, EncountersWrite};
 
