@@ -329,6 +329,9 @@ jobs:
     needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill]
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.source-ref || github.sha }}
       - name: Require selected jobs to succeed
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
