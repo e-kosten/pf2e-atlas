@@ -2,6 +2,9 @@ import { test as base, expect } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { browserArtifact } from "../../../../scripts/browser-fixture.mjs";
+
+const artifact = browserArtifact();
 
 export const test = base.extend<{ verifiedCandidate: void }>({
   verifiedCandidate: [
@@ -12,7 +15,7 @@ export const test = base.extend<{ verifiedCandidate: void }>({
       );
       const served = await response.text();
       const local = readFileSync(
-        resolve(import.meta.dirname, "../../dist/index.html"),
+        artifact?.index ?? resolve(import.meta.dirname, "../../dist/index.html"),
         "utf8",
       );
       const digest = (value: string) =>

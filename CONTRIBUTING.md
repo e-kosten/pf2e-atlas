@@ -582,7 +582,17 @@ just verify
 Use `just verify --verbose` or `scripts/verify.sh --verbose` to stream detailed
 Cargo output for every successful gate.
 
-For web UI changes, run the frontend gate:
+During frontend iteration and before pushing, run the fast checks and focused
+behavioral tests. These catch invalid test APIs and type errors without waiting
+for the complete suite:
+
+```bash
+just web-ui-check
+npm --prefix web/atlas-ui run test -- src/features/encounters/encounterViews.test.tsx
+```
+
+Run focused tests for the actual changed owner; the encounter example is not a
+universal smoke test. At a coherent final candidate, run the full frontend gate:
 
 ```bash
 just web-ui-verify
@@ -618,13 +628,71 @@ phone/tablet/desktop matrix exercises real touch and keyboard flows. It is separ
 from `npm --prefix web/atlas-ui run test:e2e`, whose broader scenarios require a
 caller-supplied real corpus server.
 
-CI runs device acceptance after verification in the existing Rust job, reusing
-its compiler output and frontend installation. Failure traces, screenshots and
-the HTML report are retained as a short-lived workflow artifact. Local results
-are under `scratch/responsive-validation/browser`. The frontend `verify` command
-alone does not execute browsers. Follow the frontend guidelines for Astra visual
-review and actual-device checks; passing emulation does not certify a physical
-phone's software keyboard, browser chrome or text-enlargement behavior.
+CI builds the frontend once after fast checks. Full Rust verification and a
+browser-fixture build then run independently. Two browser shards reuse that
+compiled fixture; each runner starts its own disposable SQLite workspace and one
+Playwright worker. No mutable database or Cargo target crosses runners. The
+`validation complete` check requires both shards, the fixture build, the frontend
+checks/build, unit tests and every other selected gate. Main/nightly retain all
+surfaces. Frontend `verify` alone does not execute browsers.
+
+The fixture artifact contains the executable, its expected frontend index and a
+manifest with source commit, platform, architecture and SHA-256 checksums. Set
+`ATLAS_BROWSER_ARTIFACT` to that directory to run it without Cargo. The runner
+rejects another commit/host or corrupted files; every test also checks served
+HTML against that artifact's index. CI artifacts expire after three days. Local
+runs default to the checkout-local Cargo build. Never point a candidate test at a
+frozen preview binary just because it starts successfully.
+
+Rust verification writes a dependency-only cache shared with the fixture build;
+the fixture job only restores it. The action keys compiler identity, lockfiles,
+Cargo configuration and relevant environment. Workspace crates remain rebuilt,
+CI incremental compilation stays disabled, and no Cargo target is transferred as
+a test artifact. GitHub's branch scoping and eviction bound retained caches.
+Compare job/step timings on cold and warm runs before claiming a speedup.
+
+### Focused Linux browser diagnosis
+
+After a failed device run, repeat the failing spec/project against that run's
+compiled candidate instead of rerunning all gates:
+
+```bash
+gh workflow run ci.yml --ref feat/my-branch \
+  -f browser-run=RUN_ID -f file=turn-reminders.spec.ts \
+  -f project=phone-webkit -f grep='recovery' -f repeat=5
+```
+
+Use a run from this repository with an unexpired `browser-fixture` artifact. The
+manual run checks out the artifact's exact source commit and uses the same Ubuntu
+24.04, Node 22 and lockfile-pinned Playwright installation as ordinary CI. It runs
+only the selected case, with traces/screenshots/report retained even on failure;
+it does not replace the full PR check. The workflow must be registered on the
+default branch before GitHub permits dispatch. For local diagnosis, pass the
+same spec, `--project`, `--grep` and `--repeat-each` arguments to Playwright directly.
+
+### Visual references
+
+Device runs always compare the condition refinement checkpoints with tracked
+references under `web/atlas-ui/e2e/devices/visual/<platform>/<project>/`. Exact
+pixels, viewport, theme and fixture state are preserved; interaction tests also
+check focus, geometry, retained anchors and delayed transitions. References are
+platform-specific. Missing or changed references fail ordinary runs, and CI
+uploads actual/expected/diff images and traces for review. Local evidence lives
+under `scratch/responsive-validation/browser`.
+
+To propose Linux references deliberately, dispatch the focused runner with
+`-f file=condition-refinement.spec.ts -f project=PROJECT -f repeat=1 -f capture=true`.
+Use `-f project=all` to capture every project. This captures candidate files in the evidence
+artifact; it never commits them or changes the ordinary gate. Inspect the rendered
+states and differences against the accepted reference before copying reviewed
+PNGs into Git. For macOS use the same focused command locally with
+`--update-snapshots=all`. Do not refresh references to make a refactor pass.
+Record source/browser/OS provenance in the visual directory README. A deliberate
+CSS perturbation should fail the comparison when verifying this guard.
+
+Follow the frontend guidelines for visual review and actual-device checks;
+passing emulation does not certify a physical phone's software keyboard, browser
+chrome or text-enlargement behavior.
 
 For path-sensitive formatting or explicit full validation (the range below assumes a PR against `main`; substitute the actual PR base for integration or stacked work):
 
@@ -664,7 +732,8 @@ retain distinct lint policies; tests and normal builds remain separate until
 measurement establishes equivalent coverage at lower cost.
 
 `test:devices` builds the frontend for standalone local use. CI invokes Playwright
-directly after its existing bundle build, so that job does not rebuild the bundle.
+directly against the authenticated fixture artifact, without rebuilding Rust or
+the frontend in each shard.
 `just verify-all` validates installed Rust/frontend dependencies without rerunning
 `npm ci`; use `just web-ui-install` when the lockfile or installation changes.
 

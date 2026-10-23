@@ -171,6 +171,8 @@ Rust workspace tests are the primary validation surface. Add or update tests und
 
 Before each logical commit, inspect the scoped diff and run checks appropriate to the change. Before marking a PR ready for review, run the full applicable gates: the Rust gate for Rust changes and the frontend gate for web UI changes. Respect the tracked hooks; do not bypass them. Reuse successful validation for an unchanged candidate rather than manually repeating expensive checks without a reason.
 
+Before pushing frontend changes, run `just web-ui-check` and focused tests for the changed behavior. Diagnose browser failures with the focused Linux runner in CONTRIBUTING.md before repeating full gates. Reuse passing checks for unchanged inputs; keep visual references frozen unless a reviewed behavior change requires new expectations.
+
 Commit and merge hooks enforce formatting and staged whitespace only. Pre-push checks third-party notices offline when outgoing dependency or release-tooling inputs change; it does not rerun the substantive validation gates. Run substantive checks explicitly, report their candidate and results, and confirm CI passes on the published PR head before declaring it ready to merge.
 
 Use the compiler pinned in `rust-toolchain.toml` and verify `rustc --version`
