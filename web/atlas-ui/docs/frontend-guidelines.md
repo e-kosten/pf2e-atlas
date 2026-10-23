@@ -246,6 +246,16 @@ static text beside a muted Change rank menu; spell traits have their own row.
 Do not reserve an invisible reset slot or repeat base-rank copy outside the rank
 menu. Let the title and action group share a row when they fit, including on phone; wrap for
 actual content rather than forcing every narrow header into separate rows.
+Use the same muted `Source: <publication>` caption for every record kind and
+reading host; do not invent a separate equipment or Drawer attribution style.
+
+Equipment puts supplied price, bulk and usage before subtype facts and complete
+authored rules. Longsword shows base damage; Frost Brand keeps base damage and
+runes separate rather than implying a calculated attack. Preserve Steel Shield's
+authored durability table; omit duplicate numeric summaries only when the service
+confirms matching table values. Kit contents retain nesting, while their prose
+keeps qualifications such as rope length and ration duration. These compositions
+own internal gaps; the page, pane or Drawer still owns the outer inset.
 
 Spell reading order is identity, supplied casting facts and damage, authored prose,
 then structured heightening/forms. For example, Allfood's Cast and Target are

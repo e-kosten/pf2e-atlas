@@ -117,6 +117,16 @@ is separate from saved encounter timing: encounter/unlimited units ignore numeri
 sentinels and inapplicable turn-expiry metadata, matching the pinned system policy.
 These facts are projected once in app-service for CLI and shared browser readers.
 
+Physical reference bodies use a typed subtype union for weapons, armor, shields,
+containers, ammunition and kits. App-service projects existing checked source
+facts, including base weapon damage and separate rune labels; it does not compute
+wearer AC, effective rune damage or inventory expenditure. Kit contents retain
+source order, nesting, quantities and availability without creating saved items.
+Authored descriptions and tables remain intact. The record-owned shield content
+policy recognizes only an exact two-row Hardness/HP/BT table whose hardness and
+maximum HP match the typed facts; app-service can then omit duplicate durability
+summaries. It never computes BT or suppresses conflicting source values.
+
 App-service owns product filter grouping and editor hints shared by CLI discovery
 and the web builder, including compact collection controls and short choice lists.
 Product field discovery omits source UUID references and groups unit-specific

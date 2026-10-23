@@ -317,7 +317,6 @@ export type { QueryRelationship } from "../../../../crates/atlas-app-model/bindi
 export type { RelationshipClauseSummaryView } from "../../../../crates/atlas-app-model/bindings/RelationshipClauseSummaryView";
 export type { RelationshipClausePresentationView } from "../../../../crates/atlas-app-model/bindings/RelationshipClausePresentationView";
 
-
 export type { ConditionHpChangeView } from "../../../../crates/atlas-app-model/bindings/ConditionHpChangeView";
 export type { KnockoutOptionView } from "../../../../crates/atlas-app-model/bindings/KnockoutOptionView";
 
@@ -330,3 +329,17 @@ export type { PersistentDamagePrecedenceEntryView } from "../../../../crates/atl
 
 export type { PersistentDamageProtectionView } from "../../../../crates/atlas-app-model/bindings/PersistentDamageProtectionView";
 export type { PersistentDamageResolutionView } from "../../../../crates/atlas-app-model/bindings/PersistentDamageResolutionView";
+export type { PhysicalDetailsView } from "../../../../crates/atlas-app-model/bindings/PhysicalDetailsView";
+export type { WeaponReferenceView } from "../../../../crates/atlas-app-model/bindings/WeaponReferenceView";
+export type { WeaponDamageReferenceView } from "../../../../crates/atlas-app-model/bindings/WeaponDamageReferenceView";
+export type { WeaponPersistentReferenceView } from "../../../../crates/atlas-app-model/bindings/WeaponPersistentReferenceView";
+export type { WeaponAmmunitionReferenceView } from "../../../../crates/atlas-app-model/bindings/WeaponAmmunitionReferenceView";
+export type { WeaponRuneReferenceView } from "../../../../crates/atlas-app-model/bindings/WeaponRuneReferenceView";
+export type { WeaponMeleeReferenceView } from "../../../../crates/atlas-app-model/bindings/WeaponMeleeReferenceView";
+export type { ArmorReferenceView } from "../../../../crates/atlas-app-model/bindings/ArmorReferenceView";
+export type { ShieldReferenceView } from "../../../../crates/atlas-app-model/bindings/ShieldReferenceView";
+export type { ContainerReferenceView } from "../../../../crates/atlas-app-model/bindings/ContainerReferenceView";
+export type { AmmunitionReferenceView } from "../../../../crates/atlas-app-model/bindings/AmmunitionReferenceView";
+export type { KitReferenceView } from "../../../../crates/atlas-app-model/bindings/KitReferenceView";
+export type { KitEntryReferenceView } from "../../../../crates/atlas-app-model/bindings/KitEntryReferenceView";
+export type { PhysicalMaterialReferenceView } from "../../../../crates/atlas-app-model/bindings/PhysicalMaterialReferenceView";

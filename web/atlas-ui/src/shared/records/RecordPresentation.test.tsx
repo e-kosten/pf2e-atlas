@@ -541,6 +541,10 @@ describe("semantic family presentation", () => {
           body: {
             kind: "physical_reference",
             value: {
+              details: null,
+              quantity: numberFact(1),
+              material: unavailableFact("not_applicable"),
+              size: unavailableFact("not_applicable"),
               usage: knownFact("held in one hand"),
               bulk: numberFact(0.1),
               price: knownFact({
@@ -784,6 +788,10 @@ describe("optional authored reference facts", () => {
             body: {
               kind: "physical_reference",
               value: {
+                details: null,
+                quantity: numberFact(1),
+                material: unavailableFact("not_applicable"),
+                size: unavailableFact("not_applicable"),
                 usage: knownFact("held in one hand"),
                 price: knownFact({
                   pp: { ...unavailableFact<number>("missing"), adjustment: null },
@@ -991,16 +999,30 @@ it("presents consumable spell semantics, exact navigation, package prices and so
     spell_presented_inline: false,
     maximum_uses: numberFact(500),
     source_uses: numberFact(420),
-    source_quantity: numberFact(10),
   };
   const presentation: RecordPresentationView = {
     classification: "Item",
     identity: summaryFixture("equipment:wand", "Wand"),
-    content: [],
+    content: [
+      {
+        locator: {
+          record: "equipment:wand",
+          embedded_path: [],
+          field: "/system/description/value",
+        },
+        source_fingerprint: null,
+        role: "description",
+        body: { kind: "plain", text: "The exact wand activation and frequency." },
+      },
+    ],
     embedded: [],
     body: {
       kind: "physical_reference",
       value: {
+        details: null,
+        quantity: numberFact(10),
+        material: unavailableFact("not_applicable"),
+        size: unavailableFact("not_applicable"),
         consumable,
         usage: knownFact("Held in one hand"),
         bulk: numberFact(0.1),
@@ -1018,9 +1040,18 @@ it("presents consumable spell semantics, exact navigation, package prices and so
   const { rerender } = render(
     <RecordPresentation presentation={presentation} onReference={onReference} />,
   );
+  expect(
+    screen
+      .getByText("Price per 10")
+      .compareDocumentPosition(
+        screen.getByText("The exact wand activation and frequency."),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
   expect(screen.getByText("Uses").parentElement).toHaveTextContent("420 / 500");
   expect(screen.getByText("Quantity").parentElement).toHaveTextContent("10");
-  expect(screen.getByText("Price per 10").parentElement).toHaveTextContent("1 gp");
+  expect(screen.getByText("Price per 10").parentElement?.textContent).toBe(
+    "Price per 10 1 gp",
+  );
   expect(screen.getByText("Spell").parentElement).toHaveTextContent("Heal · Rank 2");
   fireEvent.click(screen.getByRole("link", { name: "Heal" }));
   expect(onReference).toHaveBeenCalledWith(
@@ -1029,14 +1060,21 @@ it("presents consumable spell semantics, exact navigation, package prices and so
     navigation,
   );
   expect(screen.queryByText("Contents")).toBeNull();
+  expect(screen.getByText("Category").parentElement).toHaveTextContent("wand");
+  presentation.identity.traits = [
+    { kind: "trait", value: "wand", label: "Wand", trait_key: "trait:wand" },
+  ];
   consumable.spell_presented_inline = true;
   consumable.source_uses = numberFact(1);
   consumable.maximum_uses = numberFact(1);
-  consumable.source_quantity = numberFact(1);
+  if (presentation.body.kind === "physical_reference")
+    presentation.body.value.quantity = numberFact(1);
   rerender(
     <RecordPresentation presentation={presentation} onReference={onReference} />,
   );
   expect(screen.queryByText("Spell")).toBeNull();
   expect(screen.queryByText("Uses")).toBeNull();
   expect(screen.queryByText("Quantity")).toBeNull();
+  expect(screen.queryByText("Category")).toBeNull();
+  expect(screen.getByRole("link", { name: "Wand" })).toBeVisible();
 });

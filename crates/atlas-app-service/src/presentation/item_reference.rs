@@ -92,6 +92,5 @@ pub(super) fn consumable(item: ItemSourceView<'_>) -> Option<ConsumablePresentat
         })),
         maximum_uses: number(uses.and_then(|u| (&u.max).into())),
         source_uses: number(uses.and_then(|u| (&u.value).into())),
-        source_quantity: number(system.and_then(|s| (&s.quantity).into())),
     })
 }

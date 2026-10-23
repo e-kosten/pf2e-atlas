@@ -53,6 +53,84 @@ fn optional_spell_structures_distinguish_missing_leaf_from_unavailable_system() 
 }
 
 #[test]
+fn equipment_reference_facts_preserve_source_dice_zero_and_table_meaning() {
+    let project = |kind: &str, system: serde_json::Value| {
+        let input = record(
+            "items",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":kind,"system":system}),
+        );
+        let SourceNodeView::Item(item) =
+            SourceQueryView::new(input.record.source(), "items", "").source
+        else {
+            panic!("item")
+        };
+        physical(item)
+    };
+    let weapon = project(
+        "weapon",
+        json!({"damage":{"dice":1,"die":"d8","damageType":"slashing"},"range":null,"runes":{"potency":0,"striking":0,"property":[]}}),
+    );
+    let Some(PhysicalDetailsView::Weapon(w)) = weapon.details else {
+        panic!("weapon")
+    };
+    let d = w.damage.value.unwrap();
+    assert_eq!(d.dice.value.unwrap().as_i64(), Some(1));
+    assert_eq!(d.die.value.as_deref(), Some("d8"));
+    assert_eq!(d.damage_type.value.as_deref(), Some("slashing"));
+    assert_eq!(d.modifier.state, QueryFieldState::Missing);
+    assert_eq!(w.range_increment.state, QueryFieldState::Null);
+    let armor = project(
+        "armor",
+        json!({"acBonus":6,"dexCap":0,"checkPenalty":-3,"speedPenalty":-10,"strength":null}),
+    );
+    let Some(PhysicalDetailsView::Armor(a)) = armor.details else {
+        panic!("armor")
+    };
+    assert_eq!(a.dex_cap.value.unwrap().as_i64(), Some(0));
+    assert_eq!(a.check_penalty.value.unwrap().as_i64(), Some(-3));
+    assert_eq!(a.strength.state, QueryFieldState::Null);
+    for (table_hardness, expected) in [(5, true), (9, false)] {
+        let html = format!(
+            "<p>Keep the complete rule.</p><table><tr><th>Hardness</th><th>HP</th><th>BT</th></tr><tr><td>{table_hardness}</td><td>20</td><td>13</td></tr></table>"
+        );
+        let shield = project(
+            "shield",
+            json!({"acBonus":2,"hardness":5,"hp":{"max":20,"value":14},"description":{"value":html}}),
+        );
+        let Some(PhysicalDetailsView::Shield(s)) = shield.details else {
+            panic!("shield")
+        };
+        assert_eq!(s.durability_in_table, expected);
+        assert_eq!(s.hit_points.value.unwrap().as_i64(), Some(20));
+        assert_eq!(s.ac_bonus.value.unwrap().as_i64(), Some(2));
+        // BT13 is authored, not replaced with half HP; no BT calculation exists here.
+    }
+    let kit = project(
+        "kit",
+        json!({"price":{"value":{"sp":15}},"items":{"first":{"name":"Rope","quantity":2,"items":null}}}),
+    );
+    assert_eq!(
+        kit.price.value.unwrap().sp.value.unwrap().as_i64(),
+        Some(15)
+    );
+    let Some(PhysicalDetailsView::Kit(k)) = kit.details else {
+        panic!("kit")
+    };
+    let entries = k.items.value.unwrap();
+    assert_eq!(
+        entries[0].quantity.value.as_ref().unwrap(),
+        &serde_json::Number::from(2)
+    );
+    assert_eq!(entries[0].items.state, QueryFieldState::Null);
+    let unavailable = project("weapon", json!(null));
+    let Some(PhysicalDetailsView::Weapon(w)) = unavailable.details else {
+        panic!("weapon")
+    };
+    assert_eq!(w.damage.state, QueryFieldState::Null);
+}
+
+#[test]
 fn physical_prices_preserve_parent_and_currency_availability_without_mutating_source() {
     for (price, expected) in [
         (None, QueryFieldState::Missing),

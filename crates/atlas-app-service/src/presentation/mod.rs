@@ -4,6 +4,7 @@ mod activity_references;
 pub(crate) mod actor;
 mod facts;
 mod item_reference;
+mod physical_reference;
 mod spell;
 pub(crate) mod spell_context;
 pub(crate) mod spell_rank;
@@ -116,7 +117,9 @@ fn selected_item_body(item: ItemSourceView<'_>) -> SelectedItemBody<'_> {
                 casting_context: item.family() == "spellcastingEntry",
             }
         }
-        _ if !matches!(item.physical_price(), SourceFieldView::NotApplicable) => {
+        _ if matches!(item, ItemSourceView::KitSource(_))
+            || !matches!(item.physical_price(), SourceFieldView::NotApplicable) =>
+        {
             SelectedItemBody::Physical
         }
         _ => SelectedItemBody::Content,
@@ -464,6 +467,8 @@ fn selected_identity(
             "spell" if matches!(node, SourceNodeView::Item(i) if i.spell_ritual().value() == Some(true)) => {
                 "Ritual".into()
             }
+            "weapon" | "armor" | "shield" | "consumable" | "ammo" | "backpack" | "treasure"
+            | "kit" => crate::projection::physical_kind_label(Some(family)),
             _ => crate::projection::kind_label(family),
         },
         source_type: Some(family.into()),
@@ -596,19 +601,14 @@ pub(super) fn item_usage(item: ItemSourceView<'_>) -> Option<String> {
 fn physical(item: ItemSourceView<'_>) -> PhysicalPresentationView {
     let price = item.physical_price();
     PhysicalPresentationView {
+        details: physical_reference::details(item),
+        quantity: physical_reference::quantity(item),
+        material: physical_reference::material(item),
+        size: identifier(item.physical_size()),
         consumable: item_reference::consumable(item),
         usage: fact(item.physical_usage().map(crate::physical_labels::usage)),
         bulk: number(item.physical_bulk()),
-        price: fact(
-            price
-                .and_then(|p| (&p.value).into())
-                .map(|c| PhysicalPriceView {
-                    pp: number((&c.pp).into()),
-                    gp: number((&c.gp).into()),
-                    sp: number((&c.sp).into()),
-                    cp: number((&c.cp).into()),
-                }),
-        ),
+        price: physical_reference::price(item),
         price_per: number(price.and_then(|p| (&p.per).into())),
     }
 }
