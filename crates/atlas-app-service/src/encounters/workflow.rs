@@ -1024,7 +1024,7 @@ pub(super) fn validate_condition_parameters(
     use super::conditions::ConditionRule;
     let rule = condition_key
         .and_then(modeled_condition_by_ref)
-        .and_then(|condition| condition.rule);
+        .map(|condition| condition.rule);
     if !matches!(scope, atlas_app_model::ConditionScopeView::Everyone)
         && condition_key
             .and_then(modeled_condition_by_ref)

@@ -1,3 +1,4 @@
+import { nonNegativeIntegerRule } from "../../shared/ui/forms/nonNegativeIntegerRule";
 import { conditionDraft, type ConditionFormValues } from "./conditionDraft";
 import {
   useConditionEventPreview,
@@ -33,17 +34,6 @@ const durationFields: Array<keyof ConditionFormValues> = [
   "durationEvent",
   "durationParticipant",
 ];
-export const integerRule = (required: boolean) => ({
-  validator: (_rule: unknown, value: number | null | undefined) => {
-    if (value === null || value === undefined)
-      return required
-        ? Promise.reject(new Error("Enter a whole number."))
-        : Promise.resolve();
-    return Number.isSafeInteger(value) && value >= 0
-      ? Promise.resolve()
-      : Promise.reject(new Error("Enter a whole number, zero or greater."));
-  },
-});
 
 export function EncounterConditionEditor({
   condition,
@@ -169,11 +159,6 @@ export function EncounterConditionEditor({
         condition.scope.kind === "selected_participants"
           ? condition.scope.participant_keys
           : ["everyone"],
-      extraActionMode: condition.extra_action.kind,
-      extraActions:
-        condition.extra_action.kind === "restricted"
-          ? condition.extra_action.actions
-          : [],
       extraActionGuidance:
         condition.extra_action.kind === "restricted"
           ? (condition.extra_action.guidance ?? undefined)
@@ -208,7 +193,7 @@ export function EncounterConditionEditor({
         condition.extra_action.kind === "restricted"
           ? [
               ...condition.extra_action.actions,
-              ...(condition.extra_action.guidance ? ["custom"] : []),
+              ...(condition.extra_action.guidance ? ["custom" as const] : []),
             ]
           : [condition.extra_action.kind],
     };
@@ -241,7 +226,6 @@ export function EncounterConditionEditor({
     },
   };
   const normalizeDraft = (values: ConditionFormValues): ConditionEventInput => {
-    const keys = values.extraActionKeys ?? ["unspecified"];
     return conditionDraft(
       {
         ...values,
@@ -249,17 +233,6 @@ export function EncounterConditionEditor({
         value: values.stunMode === "duration" ? undefined : values.value,
         immunityOverride:
           eligibility?.kind === "immune" || !!condition?.immunity_override,
-        extraActionMode: keys.includes("unspecified")
-          ? "unspecified"
-          : keys.includes("unrestricted")
-            ? "unrestricted"
-            : "restricted",
-        extraActionGuidance: keys.includes("custom")
-          ? values.extraActionGuidance
-          : undefined,
-        extraActions: keys.filter(
-          (key) => !["unspecified", "unrestricted", "custom"].includes(key),
-        ) as ConditionFormValues["extraActions"],
       },
       form.isFieldsTouched(durationFields) || form.isFieldTouched("stunMode"),
       revision,
@@ -362,11 +335,6 @@ export function EncounterConditionEditor({
             condition?.scope.kind === "selected_participants"
               ? condition.scope.participant_keys
               : ["everyone"],
-          extraActionMode: condition?.extra_action.kind ?? "unspecified",
-          extraActions:
-            condition?.extra_action.kind === "restricted"
-              ? condition.extra_action.actions
-              : [],
           extraActionGuidance:
             condition?.extra_action.kind === "restricted"
               ? (condition.extra_action.guidance ?? undefined)
@@ -404,7 +372,7 @@ export function EncounterConditionEditor({
             condition?.extra_action.kind === "restricted"
               ? [
                   ...condition.extra_action.actions,
-                  ...(condition.extra_action.guidance ? ["custom"] : []),
+                  ...(condition.extra_action.guidance ? ["custom" as const] : []),
                 ]
               : [condition?.extra_action.kind ?? "unspecified"],
         }}
@@ -474,8 +442,6 @@ export function EncounterConditionEditor({
                 const selected = definitions.find((d) => d.condition_ref === ref);
                 form.setFieldsValue({
                   againstKeys: ["everyone"],
-                  extraActionMode: "unspecified",
-                  extraActions: [],
                   extraActionGuidance: undefined,
                   immunityOverride: false,
                   extraActionKeys: ["unspecified"],
@@ -545,7 +511,11 @@ export function EncounterConditionEditor({
               <Form.Item
                 name="persistentRecoveryDc"
                 label="Flat check DC"
-                rules={[integerRule(persistent?.recovery.kind !== "source_dependent")]}
+                rules={[
+                  nonNegativeIntegerRule(
+                    persistent?.recovery.kind !== "source_dependent",
+                  ),
+                ]}
               >
                 <InputNumber aria-label="Flat check DC" step={1} />
               </Form.Item>
@@ -610,7 +580,7 @@ export function EncounterConditionEditor({
           <Form.Item
             name="sickenedRecoveryDc"
             label="Recovery DC"
-            rules={[integerRule(false)]}
+            rules={[nonNegativeIntegerRule(false)]}
           >
             <InputNumber aria-label="Sickened recovery DC" />
           </Form.Item>
@@ -659,7 +629,7 @@ export function EncounterConditionEditor({
               <Form.Item
                 name="frightenedMinimum"
                 label="Minimum"
-                rules={[integerRule(true)]}
+                rules={[nonNegativeIntegerRule(true)]}
               >
                 <InputNumber aria-label="Frightened minimum" min={0} />
               </Form.Item>
@@ -670,7 +640,7 @@ export function EncounterConditionEditor({
           <Form.Item
             name="brokenThreshold"
             label="Broken threshold"
-            rules={[integerRule(false)]}
+            rules={[nonNegativeIntegerRule(false)]}
           >
             <InputNumber aria-label="Broken threshold" min={0} />
           </Form.Item>
@@ -815,7 +785,7 @@ export function EncounterConditionEditor({
                 <Form.Item
                   name="durationAmount"
                   noStyle
-                  rules={[integerRule(durationUnit !== "none")]}
+                  rules={[nonNegativeIntegerRule(durationUnit !== "none")]}
                 >
                   <InputNumber
                     aria-label="Duration amount"

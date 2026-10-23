@@ -1,4 +1,5 @@
 import type {
+  ConditionActionView,
   ConditionParametersInputView,
   EncounterConditionDefinitionView,
   EncounterParticipantConditionView,
@@ -20,25 +21,10 @@ export type ConditionFormValues = {
   sourceParticipantKey?: string;
   note?: string;
   againstKeys?: string[];
-  extraActionMode?: "unspecified" | "unrestricted" | "restricted";
-  extraActions?: Array<
-    | "stride"
-    | "strike"
-    | "step"
-    | "leap"
-    | "stand"
-    | "interact"
-    | "cast_spell"
-    | "sustain"
-    | "escape"
-    | "crawl"
-    | "fly"
-    | "swim"
-    | "climb"
-    | "burrow"
-  >;
   extraActionGuidance?: string;
-  extraActionKeys?: string[];
+  extraActionKeys?: Array<
+    ConditionActionView | "unspecified" | "unrestricted" | "custom"
+  >;
   immunityOverride?: boolean;
   persistentFormula?: string;
   persistentDamageType?: string;
@@ -116,7 +102,6 @@ export function conditionUpdate(
   };
 }
 
-/** The sole adapter from Ant controls to a condition edit command. */
 export function conditionDraft(
   values: ConditionFormValues,
   durationEdited: boolean,
@@ -200,16 +185,20 @@ export function conditionDraft(
     default:
       parameters = previous ? editableConditionParameters(previous) : { kind: "none" };
   }
-  const extra_action: ConditionExtraActionView =
-    values.extraActionMode === "restricted"
-      ? {
-          kind: "restricted",
-          actions: values.extraActions ?? [],
-          guidance: values.extraActionGuidance?.trim() || null,
-        }
+  const keys = values.extraActionKeys ?? ["unspecified"];
+  const extra_action: ConditionExtraActionView = keys.includes("unspecified")
+    ? { kind: "unspecified" }
+    : keys.includes("unrestricted")
+      ? { kind: "unrestricted" }
       : {
-          kind:
-            values.extraActionMode === "unrestricted" ? "unrestricted" : "unspecified",
+          kind: "restricted",
+          actions: keys.filter(
+            (key): key is ConditionActionView =>
+              key !== "unspecified" && key !== "unrestricted" && key !== "custom",
+          ),
+          guidance: keys.includes("custom")
+            ? values.extraActionGuidance?.trim() || null
+            : null,
         };
   const common = {
     parameters,

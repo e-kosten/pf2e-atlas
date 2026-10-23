@@ -119,10 +119,9 @@ it("submits all damage types together and retains table totals across an uncerta
     groups: [
       {
         episode_id: "fire",
-        selected_source_id: 7n,
         damage: { kind: "table_result", amount: 5n },
       },
-      { episode_id: "acid", selected_source_id: 9n, damage: { kind: "roll" } },
+      { episode_id: "acid", damage: { kind: "roll" } },
     ],
     context: {
       lethality: null,
@@ -245,7 +244,6 @@ it("explains unresolved protections and starts with an editable table amount", a
         groups: [
           {
             episode_id: "fire",
-            selected_source_id: 7n,
             damage: { kind: "table_result", amount: 3n },
           },
         ],

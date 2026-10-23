@@ -1325,3 +1325,31 @@ it("normalizes reviewed and recorded protection facts", async () => {
     resistance: 3n,
   });
 });
+
+it.each([null, undefined])(
+  "rejects persistent groups without an active source (%s)",
+  async (selected_source_id) => {
+    const api = await import("./atlasApi");
+    respond({
+      round_number: 2,
+      encounter_revision: 2,
+      damage_applied: false,
+      episodes: [],
+      damage_result: null,
+      recovery_results: [],
+      damage_groups: [
+        {
+          episode_id: "fire",
+          damage_type: "fire",
+          selected_source_id,
+          sources: [
+            { condition_id: 9, formula: "2d6", multiplier: "normal", recovery_dc: 15 },
+          ],
+        },
+      ],
+    });
+    await expect(
+      api.getEncounterPersistentReview("encounter", "actor"),
+    ).rejects.toBeInstanceOf(AtlasApiError);
+  },
+);

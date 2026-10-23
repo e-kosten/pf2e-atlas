@@ -905,8 +905,7 @@ async function atlasFetchEncounter<T>(
       throw new AtlasApiError(200, "Invalid persistent damage group");
     return {
       ...value,
-      selected_source_id:
-        value.selected_source_id === null ? null : toBigInt(value.selected_source_id),
+      selected_source_id: toBigInt(value.selected_source_id),
       sources: value.sources.map((source) => {
         if (!isRecord(source))
           throw new AtlasApiError(200, "Invalid persistent damage source");

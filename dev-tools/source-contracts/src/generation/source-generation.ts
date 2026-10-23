@@ -485,7 +485,13 @@ pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &S
 pub enum ${name} {
 ${tokens.map((token, index) => `    #[serde(rename = ${rustString(token)})]
     ${variants[index]},`).join('\n')}
-}
+}${name === 'ModularConfigDamageType' ? `
+impl ${name} {
+    pub const ALL: &'static [Self] = &[${variants.map(variant => `Self::${variant}`).join(',')}];
+    pub const fn as_str(self) -> &'static str {
+        match self { ${tokens.map((token, index) => `Self::${variants[index]} => ${rustString(token)},`).join('')} }
+    }
+}` : ''}
 pub(in crate::source_model::generated) fn ${value.parser}(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<${name}> {
     match string(v, c, p)?.as_str() {
 ${tokens.map((token, index) => `        ${rustString(token)} => Ok(${name}::${variants[index]}),`).join('\n')}

@@ -11,20 +11,22 @@ pub(super) use atlas_foundry_model::generated::condition_definitions::ConditionI
 pub(super) struct ModeledCondition {
     pub condition_ref: &'static str,
     pub name: &'static str,
-    pub slug: &'static str,
     pub automation_level: EncounterConditionAutomationLevelView,
     pub applies_to: &'static [EncounterConditionApplicabilityView],
     pub categories: &'static [EncounterConditionCategoryView],
     pub has_value: bool,
     pub default_value: Option<i64>,
-    pub rule: Option<ConditionRule>,
+    pub rule: ConditionRule,
 }
 
 impl ModeledCondition {
     pub(super) fn scope_label(self) -> Option<&'static str> {
-        match self.slug {
-            "off-guard" => Some("Against"),
-            "concealed" | "hidden" | "undetected" | "unnoticed" => Some("From"),
+        match self.rule {
+            ConditionRule::OffGuard => Some("Against"),
+            ConditionRule::Concealed
+            | ConditionRule::Hidden
+            | ConditionRule::Undetected
+            | ConditionRule::Unnoticed => Some("From"),
             _ => None,
         }
     }
@@ -78,85 +80,61 @@ fn condition_policy(
 pub(super) fn condition_catalog() -> EncounterConditionCatalogView {
     EncounterConditionCatalogView {
         standard_persistent_recovery_dc: super::rules::persistent_damage::STANDARD_RECOVERY_DC,
-        damage_types: [
-            "acid",
-            "bleed",
-            "bludgeoning",
-            "cold",
-            "electricity",
-            "fire",
-            "force",
-            "mental",
-            "piercing",
-            "poison",
-            "slashing",
-            "sonic",
-            "spirit",
-            "untyped",
-            "vitality",
-            "void",
-        ]
-        .into_iter()
-        .map(|value| atlas_app_model::EncounterDamageTypeView {
-            value: value.into(),
-            label: value
-                .chars()
-                .enumerate()
-                .map(|(index, character)| {
-                    if index == 0 {
-                        character.to_ascii_uppercase()
-                    } else {
-                        character
-                    }
-                })
-                .collect(),
-        })
-        .collect(),
+        damage_types: atlas_foundry_model::generated::ModularConfigDamageType::ALL
+            .iter()
+            .map(|kind| kind.as_str())
+            .map(|value| atlas_app_model::EncounterDamageTypeView {
+                value: value.into(),
+                label: value
+                    .chars()
+                    .enumerate()
+                    .map(|(index, character)| {
+                        if index == 0 {
+                            character.to_ascii_uppercase()
+                        } else {
+                            character
+                        }
+                    })
+                    .collect(),
+            })
+            .collect(),
         conditions: CONDITION_DEFINITIONS
             .iter()
             .filter_map(|definition| modeled_condition_by_rule(definition.id))
             .map(|condition| EncounterConditionDefinitionView {
                 editor_kind: match condition.rule {
-                    Some(
-                        ConditionRule::Helpful
-                        | ConditionRule::Friendly
-                        | ConditionRule::Indifferent
-                        | ConditionRule::Unfriendly
-                        | ConditionRule::Hostile,
-                    ) => atlas_app_model::ConditionEditorKindView::Attitude,
-                    Some(ConditionRule::PersistentDamage) => {
+                    ConditionRule::Helpful
+                    | ConditionRule::Friendly
+                    | ConditionRule::Indifferent
+                    | ConditionRule::Unfriendly
+                    | ConditionRule::Hostile => atlas_app_model::ConditionEditorKindView::Attitude,
+                    ConditionRule::PersistentDamage => {
                         atlas_app_model::ConditionEditorKindView::PersistentDamage
                     }
-                    Some(ConditionRule::Stunned) => {
-                        atlas_app_model::ConditionEditorKindView::Stunned
-                    }
-                    Some(ConditionRule::Sickened) => {
-                        atlas_app_model::ConditionEditorKindView::Sickened
-                    }
-                    Some(ConditionRule::Unconscious) => {
+                    ConditionRule::Stunned => atlas_app_model::ConditionEditorKindView::Stunned,
+                    ConditionRule::Sickened => atlas_app_model::ConditionEditorKindView::Sickened,
+                    ConditionRule::Unconscious => {
                         atlas_app_model::ConditionEditorKindView::Unconscious
                     }
-                    Some(ConditionRule::Frightened) => {
+                    ConditionRule::Frightened => {
                         atlas_app_model::ConditionEditorKindView::Frightened
                     }
-                    Some(ConditionRule::Fleeing) => {
-                        atlas_app_model::ConditionEditorKindView::Fleeing
-                    }
-                    Some(ConditionRule::Fascinated) => {
+                    ConditionRule::Fleeing => atlas_app_model::ConditionEditorKindView::Fleeing,
+                    ConditionRule::Fascinated => {
                         atlas_app_model::ConditionEditorKindView::Fascinated
                     }
-                    Some(ConditionRule::Broken) => atlas_app_model::ConditionEditorKindView::Broken,
+                    ConditionRule::Broken => atlas_app_model::ConditionEditorKindView::Broken,
                     _ => atlas_app_model::ConditionEditorKindView::Ordinary,
                 },
                 scope_label: condition.scope_label().map(str::to_owned),
-                supports_extra_action: condition.rule == Some(ConditionRule::Quickened),
+                supports_extra_action: condition.rule == ConditionRule::Quickened,
                 eligibility: atlas_app_model::EncounterConditionEligibilityView::Available,
                 condition_ref: condition.condition_ref.to_string(),
                 name: condition.name.to_string(),
                 automation_level: condition.automation_level,
                 applies_to: condition.applies_to.to_vec(),
                 categories: condition.categories.to_vec(),
-                supports_duration_instead_of_value: condition.rule == Some(ConditionRule::Stunned),
+                supports_duration_instead_of_value: condition.rule == ConditionRule::Stunned,
                 has_value: condition.has_value,
                 default_value: condition.default_value,
             })
@@ -169,7 +147,7 @@ pub(super) fn modeled_condition_by_ref(condition_ref: &str) -> Option<ModeledCon
 }
 
 pub(super) fn condition_rule_for_key(condition_key: Option<&str>) -> Option<ConditionRule> {
-    modeled_condition_by_ref(condition_key?).and_then(|condition| condition.rule)
+    modeled_condition_by_ref(condition_key?).map(|condition| condition.rule)
 }
 
 pub(super) fn modeled_condition_by_rule(rule: ConditionRule) -> Option<ModeledCondition> {
@@ -178,12 +156,11 @@ pub(super) fn modeled_condition_by_rule(rule: ConditionRule) -> Option<ModeledCo
     Some(ModeledCondition {
         condition_ref: definition.record_key,
         name: definition.name,
-        slug: definition.slug,
         has_value: definition.has_value,
         default_value: definition.default_value,
         automation_level,
         applies_to,
         categories,
-        rule: Some(rule),
+        rule,
     })
 }

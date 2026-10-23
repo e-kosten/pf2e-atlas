@@ -120,7 +120,6 @@ it("shows every fire source directly and ends fire from a table outcome without 
       expected_encounter_revision: 1n,
       participant_key: "actor",
       episode_id: "fire",
-      selected_source_id: null,
       dc_override: null,
     }),
   );
@@ -146,7 +145,6 @@ it("shows every fire source directly and ends fire from a table outcome without 
         groups: [
           {
             episode_id: "bleed",
-            selected_source_id: 3n,
             damage: { kind: "table_result", amount: 3n },
           },
         ],
