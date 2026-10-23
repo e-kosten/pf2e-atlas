@@ -111,10 +111,12 @@ test("persistent sources stay visible after reload and Remove acts directly with
     await expect(remove).toHaveCount(2);
     await expect(remove.first()).toBeVisible();
     await expect(remove.first()).toBeEnabled();
-    // Mouse trial clicks can leave a hover tooltip over the adjacent touch
-    // target. Check reachability with the project's actual input method.
-    if (info.project.use.hasTouch) await remove.last().tap({ trial: true });
-    else await remove.last().click({ trial: true });
+    if (!info.project.use.hasTouch) {
+      await remove.last().hover();
+      await expect(
+        page.getByRole("tooltip", { name: "Remove", exact: true }),
+      ).toBeVisible();
+    }
     await page.screenshot({
       path: info.outputPath("condition-sources.png"),
       fullPage: true,

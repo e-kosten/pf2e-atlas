@@ -238,7 +238,11 @@ export function EncounterConditionControls({
             {missingPersistentSetup ? "Edit setup" : null}
           </Button>
         </Tooltip>
-        <Tooltip title="Remove" trigger={["hover", "focus"]}>
+        <Tooltip
+          title="Remove"
+          trigger={["hover", "focus"]}
+          styles={{ root: { pointerEvents: "none" } }}
+        >
           <Button
             className="encounter-condition-remove"
             type="text"
