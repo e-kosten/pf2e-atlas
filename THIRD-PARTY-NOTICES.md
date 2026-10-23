@@ -346,6 +346,7 @@ The exact font file is redistributed unchanged. The upstream static tree include
 - foldhash 0.1.5: Zlib (registry+https://github.com/rust-lang/crates.io-index)
 - foldhash 0.2.0: Zlib (registry+https://github.com/rust-lang/crates.io-index)
 - form_urlencoded 1.2.2: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
+- fs2 0.4.3: MIT/Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
 - futf 0.1.5: MIT / Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
 - futures-channel 0.3.32: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)
 - futures-core 0.3.32: MIT OR Apache-2.0 (registry+https://github.com/rust-lang/crates.io-index)

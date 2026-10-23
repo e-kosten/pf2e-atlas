@@ -48,9 +48,10 @@ impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
         self.maintenance.publish(|connection| {
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
             write_rows(connection, input)?;
+            crate::embedding_values::prune(connection)?;
             let report = crate::validation::validate_reference(connection)?;
             tracing::info!(target:"atlas_progress",phase="prune_checkpoints","Removing obsolete saved embeddings");
-            crate::embedding_checkpoints::finish_reference_job(connection, job, target_hash)?;
+            crate::reference_jobs::finish_reference_job(connection, job, target_hash)?;
             tracing::info!(target:"atlas_progress",phase="commit_reference","Finishing reference update");
             Ok(report)
         })
@@ -70,6 +71,7 @@ impl IndexArtifactWriter for SqliteIndexWriter<'_, '_> {
             // Validation and commit both require every final reference to exist.
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
             write_rows(connection, input)?;
+            crate::embedding_values::prune(connection)?;
             crate::validation::validate_reference(connection)
         })
     }
@@ -287,8 +289,9 @@ fn validate_input(input: &IndexBuildInput) -> Result<(), IndexError> {
     Ok(())
 }
 fn write_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError> {
-    crate::traits::write_traits(c, input)?;
-    write_record_rows(c, input)
+    c.execute("DELETE FROM trait_definitions", [])?;
+    write_record_rows(c, input)?;
+    crate::traits::write_traits(c, input)
 }
 
 /// Record-component composition is shared with deliberately historical fixtures;
