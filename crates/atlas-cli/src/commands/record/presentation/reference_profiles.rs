@@ -2,29 +2,36 @@
 use super::{fact, line, number, optional_text, text};
 use atlas_app_model::*;
 
-fn grants(out: &mut String, values: &FactView<Vec<ReferenceGrantView>>) {
+fn grants(out: &mut String, values: &FactView<Vec<ReferenceGrantView>>, level_label: Option<&str>) {
     if let Some(values) = &values.value {
         let mut values = values.iter().collect::<Vec<_>>();
-        values.sort_by_key(|grant| grant.level.value.as_ref().and_then(|value| value.as_u64()));
+        if level_label.is_some() {
+            values.sort_by_key(|grant| grant.level.value.as_ref().and_then(|value| value.as_u64()));
+        }
         for value in values {
-            line(
-                out,
-                format!(
-                    "{}: {}",
-                    value.level.value.as_ref().map_or_else(
-                        || "Level unavailable".into(),
-                        |level| format!("Level {level}")
+            let name = value
+                .name
+                .value
+                .as_deref()
+                .unwrap_or("Reference unavailable");
+            if let Some(label) = level_label {
+                line(
+                    out,
+                    format!(
+                        "{}: {name}",
+                        value.level.value.as_ref().map_or_else(
+                            || format!("{label} unavailable"),
+                            |level| format!("{label} {level}")
+                        )
                     ),
-                    value
-                        .name
-                        .value
-                        .as_deref()
-                        .unwrap_or("Reference unavailable")
-                ),
-            );
+                );
+            } else {
+                line(out, name);
+            }
         }
     }
 }
+
 fn names(out: &mut String, label: &str, value: &FactView<Vec<String>>) {
     fact(out, label, value, |values| values.join(", "));
 }
@@ -44,6 +51,9 @@ pub(super) fn render(out: &mut String, body: &RecordBodyView) {
                     slots
                         .iter()
                         .map(|slot| {
+                            if slot.free_choice {
+                                return "Free".into();
+                            }
                             slot.choices.value.as_ref().map_or_else(
                                 || "Unavailable".into(),
                                 |choices| choices.join(" or "),
@@ -66,7 +76,7 @@ pub(super) fn render(out: &mut String, body: &RecordBodyView) {
             );
             number(out, "Hands", &v.hands, false, "");
             number(out, "Reach", &v.reach, false, " feet");
-            grants(out, &v.grants);
+            grants(out, &v.grants, None);
         }
         RecordBodyView::Class(v) => {
             number(out, "Class HP", &v.hit_points, false, "");
@@ -101,7 +111,7 @@ pub(super) fn render(out: &mut String, body: &RecordBodyView) {
                 false,
                 "",
             );
-            grants(out, &v.grants);
+            grants(out, &v.grants, Some("Level"));
             for (label, levels) in [
                 ("Ancestry feats", &v.ancestry_feat_levels),
                 ("Class feats", &v.class_feat_levels),
@@ -129,7 +139,7 @@ pub(super) fn render(out: &mut String, body: &RecordBodyView) {
                 text(out, "Sanctification requirement", &value.requirement);
                 names(out, "Sanctification choices", &value.choices);
             }
-            grants(out, &v.spells);
+            grants(out, &v.spells, Some("Rank"));
         }
         RecordBodyView::Vehicle(v) => {
             text(out, "Crew", &v.crew);
@@ -178,5 +188,49 @@ pub(super) fn render(out: &mut String, body: &RecordBodyView) {
             super::actor::iwr(out, "Resistances", &v.resistances);
         }
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use atlas_domain::QueryFieldState;
+
+    #[test]
+    fn grant_labels_keep_ancestry_order_and_distinguish_spell_ranks() {
+        let mut values = FactView {
+            state: QueryFieldState::Value,
+            value: Some(
+                [("Later entry", 3), ("First entry", 0)]
+                    .into_iter()
+                    .map(|(name, level)| ReferenceGrantView {
+                        name: FactView {
+                            state: QueryFieldState::Value,
+                            value: Some(name.into()),
+                        },
+                        target: FactView {
+                            state: QueryFieldState::Missing,
+                            value: None,
+                        },
+                        level: NumberFactView {
+                            state: QueryFieldState::Value,
+                            value: Some(serde_json::Number::from(level)),
+                            adjustment: None,
+                        },
+                        navigation: None,
+                    })
+                    .collect(),
+            ),
+        };
+        let mut ancestry = String::new();
+        grants(&mut ancestry, &values, None);
+        assert_eq!(ancestry, "Later entry\nFirst entry\n");
+        values.value.as_mut().unwrap()[1].level.value = Some(1.into());
+        let mut spells = String::new();
+        grants(&mut spells, &values, Some("Rank"));
+        assert_eq!(spells, "Rank 1: First entry\nRank 3: Later entry\n");
+        let mut class = String::new();
+        grants(&mut class, &values, Some("Level"));
+        assert_eq!(class, "Level 1: First entry\nLevel 3: Later entry\n");
     }
 }
