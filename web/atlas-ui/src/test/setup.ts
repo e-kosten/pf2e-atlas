@@ -36,3 +36,5 @@ afterAll(async () => {
     await new Promise<void>((resolve) => setTimeout(resolve, 20));
   });
 });
+
+Element.prototype.getAnimations = () => [];
