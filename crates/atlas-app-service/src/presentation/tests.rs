@@ -1340,6 +1340,62 @@ fn reference_self_effect_navigation_survives_storage_and_selected_activity_readi
 }
 
 #[test]
+fn ritual_labels_match_root_and_embedded_records_at_selected_ranks() {
+    let ritual = json!({"_id":"ssssssssssssssss","name":"Resurrect","type":"spell","system":{
+        "level":{"value":5},"ritual":{"primary":{"check":"Religion (expert)"},"secondary":{"casters":2,"checks":"Medicine, Society"}}
+    }});
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        move || {
+            Ok(open_source_fixture(
+                vec![
+                    record("spells", "Item", ritual.clone()),
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Caster","items":[ritual]}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let parent = f.worker.record_detail("actors:aaaaaaaaaaaaaaaa").unwrap();
+    let local = &actor(&parent.presentation)
+        .activities
+        .value
+        .as_ref()
+        .unwrap()[0]
+        .navigation;
+    for (key, owners) in [
+        ("spells:ssssssssssssssss", vec![]),
+        ("actors:aaaaaaaaaaaaaaaa", local.owners.clone()),
+    ] {
+        for rank in [None, Some(6)] {
+            let detail = f
+                .worker
+                .record_detail_at(RecordDetailRequest {
+                    record_key: key.into(),
+                    spell_rank: rank,
+                    owners: owners.clone(),
+                    fields: vec![],
+                    passage: None,
+                    source_fingerprint: None,
+                })
+                .unwrap();
+            assert_eq!(detail.presentation.identity.kind, "spell");
+            assert_eq!(detail.presentation.identity.kind_label, "Ritual");
+            assert_eq!(
+                detail.presentation.classification,
+                format!("Ritual {}", rank.unwrap_or(5))
+            );
+            assert_eq!(detail.presentation.identity.record_key, key);
+        }
+    }
+}
+
+#[test]
 fn ritual_casting_preserves_compound_checks_zero_casters_and_unavailability() {
     for (ritual, expected) in [
         (

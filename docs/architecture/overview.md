@@ -106,6 +106,8 @@ from source remaining uses or saved encounter expenditure. CLI and web readers
 render these shared facts; known-empty optional notes remain quiet and malformed
 source values retain their unavailable state.
 
+Body-free summaries carry the indexed ritual discriminator for display labels;
+rituals retain the canonical spell kind and existing filter semantics.
 Ritual reference facts preserve authored primary/secondary checks and caster counts;
 counteraction is a source capability, not a calculated target DC. Feat prerequisites
 retain authored alternatives without eligibility evaluation. Each prerequisite is

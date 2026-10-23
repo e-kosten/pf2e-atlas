@@ -407,3 +407,52 @@ it("opens verified item context without changing the original citation", () => {
   );
   expect(edge.target).toEqual(original);
 });
+
+it("keeps authored table nodes, links and horizontal position across unchanged-content updates", () => {
+  const detail = detailFixture("spells:ritual", "Ritual", "rules:other");
+  const content = detail.presentation.content[0];
+  content.body = {
+    kind: "html",
+    html: '<p>Before</p><table><caption>Creature creation</caption><thead><tr><th>Level</th><th>Cost</th></tr></thead><tbody><tr><td>2</td><td><span data-atlas-reference="0">Nested Rule</span></td></tr></tbody></table><p>After</p>',
+    controls: [],
+  };
+  const onReference = vi.fn();
+  const { rerender } = render(
+    <PreparedContent
+      content={content}
+      relationships={detail.relationships}
+      onReference={onReference}
+    />,
+  );
+  const table = screen.getByRole("table", { name: "Creature creation" });
+  const region = table.parentElement!;
+  region.scrollLeft = 72;
+  const link = screen.getByRole("link", { name: "Nested Rule" });
+  link.focus();
+  rerender(
+    <PreparedContent
+      content={{ ...content, body: { ...content.body } }}
+      relationships={[...detail.relationships]}
+      onReference={onReference}
+    />,
+  );
+  expect(screen.getByRole("table", { name: "Creature creation" })).toBe(table);
+  expect(table.parentElement).toBe(region);
+  expect(region.scrollLeft).toBe(72);
+  expect(link).toHaveFocus();
+  fireEvent.click(link);
+  expect(onReference).toHaveBeenCalledOnce();
+  expect(screen.getByText("Before")).toBeVisible();
+  expect(screen.getByText("After")).toBeVisible();
+  rerender(
+    <PreparedContent
+      content={{
+        ...content,
+        body: { kind: "html", html: "<p>Replacement record</p>", controls: [] },
+      }}
+      onReference={onReference}
+    />,
+  );
+  expect(screen.queryByRole("table")).toBeNull();
+  expect(screen.getByText("Replacement record")).toBeVisible();
+});

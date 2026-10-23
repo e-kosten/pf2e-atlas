@@ -305,7 +305,7 @@ impl SqliteIndexReader {
         .transpose()
     }
 }
-const SUMMARY_SELECT: &str = "SELECT r.key,p.label AS pack_label,r.document_kind,r.source_path,r.content_hash,r.name_state,r.name,r.source_type_state,r.source_type,r.record_kind_state,r.record_kind,r.rarity_state,r.rarity,r.traits_state,(SELECT json_group_array(value) FROM (SELECT value FROM record_traits rt WHERE rt.record_id=r.record_id ORDER BY value)) AS traits_json,CASE WHEN r.source_type='spell' THEN sp.rank_state ELSE r.level_state END AS level_state,CASE WHEN r.source_type='spell' THEN sp.rank ELSE r.level END AS level,r.size_state,r.size,r.publication_title_state,r.publication_title,r.publication_remaster_state,r.publication_remaster FROM records r JOIN packs p ON p.pack_id=r.pack_id LEFT JOIN spell_projection sp ON sp.root_record_id=r.record_id";
+const SUMMARY_SELECT: &str = "SELECT r.key,p.label AS pack_label,r.document_kind,r.source_path,r.content_hash,r.name_state,r.name,r.source_type_state,r.source_type,r.record_kind_state,r.record_kind,r.rarity_state,r.rarity,r.traits_state,(SELECT json_group_array(value) FROM (SELECT value FROM record_traits rt WHERE rt.record_id=r.record_id ORDER BY value)) AS traits_json,CASE WHEN r.source_type='spell' THEN sp.rank_state ELSE r.level_state END AS level_state,CASE WHEN r.source_type='spell' THEN sp.rank ELSE r.level END AS level,CASE WHEN r.source_type='spell' THEN sp.ritual_state ELSE 'not_applicable' END AS ritual_state,sp.ritual,r.size_state,r.size,r.publication_title_state,r.publication_title,r.publication_remaster_state,r.publication_remaster FROM records r JOIN packs p ON p.pack_id=r.pack_id LEFT JOIN spell_projection sp ON sp.root_record_id=r.record_id";
 struct SummaryRow {
     key: String,
     pack_label: String,
@@ -324,6 +324,8 @@ struct SummaryRow {
     traits_json: String,
     level_state: String,
     level: Option<SourceNumber>,
+    ritual_state: String,
+    ritual: Option<i64>,
     size_state: String,
     size: Option<String>,
     publication_title_state: String,
@@ -373,6 +375,8 @@ impl SummaryRow {
             traits_json: row.get("traits_json")?,
             level_state: row.get("level_state")?,
             level: row.get("level")?,
+            ritual_state: row.get("ritual_state")?,
+            ritual: row.get("ritual")?,
             size_state: row.get("size_state")?,
             size: row.get("size")?,
             publication_title_state: row.get("publication_title_state")?,
@@ -414,6 +418,7 @@ impl SummaryRow {
             record_kind: fact(&self.record_kind_state, kind)?,
             level: fact(&self.level_state, self.level.map(|n| n.0))?,
             level_basis,
+            spell_ritual: fact(&self.ritual_state, self.ritual.map(|n| n != 0))?,
             rarity: fact(&self.rarity_state, self.rarity)?,
             traits: fact(&self.traits_state, traits)?,
             size: fact(&self.size_state, self.size)?,

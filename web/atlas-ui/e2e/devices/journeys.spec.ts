@@ -382,6 +382,30 @@ test("filters, exact late activity, preview dismissal and Results remain usable"
   }
 });
 
+test("standalone records scroll as pages from the gutter and keyboard", async ({
+  page,
+  browserName,
+}, info) => {
+  await page.goto(`/records/${sentinel}`);
+  await expect(
+    page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
+  ).toBeVisible();
+  // Playwright does not provide mouse-wheel input in mobile WebKit.
+  if (browserName !== "webkit" || !info.project.use.isMobile) {
+    await page.mouse.move(8, 320);
+    await page.mouse.wheel(0, 600);
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
+  }
+  await page.keyboard.press("Home");
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+  await page.keyboard.press("PageDown");
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
+  expect(
+    await page.locator(".record-view__pane").evaluate((node) => node.scrollTop),
+  ).toBe(0);
+  await noPageOverflow(page);
+});
+
 test("closing a reference with a feature-action tooltip preserves the owner viewport and position", async ({
   page,
 }, info) => {

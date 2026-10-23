@@ -70,7 +70,7 @@ pub(crate) fn apply_spell_rank(
         value: Some(rank.into()),
         adjustment: None,
     };
-    presentation.classification = format!("Spell {rank}");
+    presentation.classification = format!("{} {rank}", presentation.identity.kind_label);
     presentation.identity.level_label = Some(format!("Rank {rank}"));
     let query = SourceQueryView {
         source: SourceNodeView::Item(ItemSourceView::SpellSource(&effective)),
@@ -461,6 +461,9 @@ fn selected_identity(
         kind_label: match family {
             "spellcastingEntry" => "Spellcasting".into(),
             "action" => "Ability".into(),
+            "spell" if matches!(node, SourceNodeView::Item(i) if i.spell_ritual().value() == Some(true)) => {
+                "Ritual".into()
+            }
             _ => crate::projection::kind_label(family),
         },
         source_type: Some(family.into()),
