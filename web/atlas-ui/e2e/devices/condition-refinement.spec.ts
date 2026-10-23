@@ -2,15 +2,12 @@ import { expect, test } from "./fixtures";
 import type { Page, TestInfo } from "@playwright/test";
 import { activate, noPageOverflow } from "./reading";
 
-// Local, immutable comparisons use the same browser/OS as the captured reference.
-// Ordinary device runs always exercise the interactions and geometry below.
 async function checkpoint(page: Page, info: TestInfo, name: string) {
   await noPageOverflow(page);
-  if (process.env.ATLAS_CONDITION_VISUAL_DIR)
-    await expect(page).toHaveScreenshot(name, {
-      animations: "disabled",
-      maxDiffPixels: 0,
-    });
+  await expect(page).toHaveScreenshot(name, {
+    animations: "disabled",
+    maxDiffPixels: 0,
+  });
   await page.screenshot({
     path: info.outputPath(name),
     animations: "disabled",

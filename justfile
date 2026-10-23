@@ -61,6 +61,11 @@ web-ui-install:
 web-ui-build:
     npm --prefix web/atlas-ui run build
 
+[doc('Run the fast Atlas UI format, lint, style, and type checks')]
+[group('validation')]
+web-ui-check:
+    npm --prefix web/atlas-ui run check
+
 [doc('Run the Atlas web UI format, lint, typecheck, test, and build gate')]
 [group('validation')]
 web-ui-verify:

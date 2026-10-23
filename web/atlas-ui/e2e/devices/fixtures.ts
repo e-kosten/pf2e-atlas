@@ -1,7 +1,9 @@
 import { test as base, expect } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { browserFixture } from "../../../../scripts/browser-fixture.mjs";
+
+const fixture = browserFixture();
 
 export const test = base.extend<{ verifiedCandidate: void }>({
   verifiedCandidate: [
@@ -11,10 +13,7 @@ export const test = base.extend<{ verifiedCandidate: void }>({
         true,
       );
       const served = await response.text();
-      const local = readFileSync(
-        resolve(import.meta.dirname, "../../dist/index.html"),
-        "utf8",
-      );
+      const local = readFileSync(fixture.index, "utf8");
       const digest = (value: string) =>
         createHash("sha256").update(value).digest("hex");
       expect(
