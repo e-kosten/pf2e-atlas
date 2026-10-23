@@ -71,7 +71,8 @@ jobs:
       - run: npm --prefix web/atlas-ui ci
       - run: chmod +x "$ATLAS_BROWSER_ARTIFACT/browser_fixture"
       - name: Use Ubuntu HTTPS archive
-        run: sudo sed -i -E 's|https?://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+        run: |
+          printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\n' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
       - name: Install device browsers
         timeout-minutes: 3
         run: npm --prefix web/atlas-ui exec -- playwright install --with-deps chromium webkit
