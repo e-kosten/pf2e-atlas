@@ -21,8 +21,17 @@
 .common-filters {
   gap: 20px;
 }
-.filter-loading-placeholder {
-  min-height: 60px;
+.filter-controls__pending {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  max-width: 100%;
+}
+.filter-panel .filter-controls__pending {
+  flex-direction: column;
+}
+.filter-toolbar .filter-controls__pending {
+  display: contents;
 }
 .common-filter {
   gap: 8px;
