@@ -311,6 +311,24 @@ pub(crate) fn ensure_setup(
             SetupActionStatus::Skipped,
         ));
     }
+    if !options.check && !build_failed && build.is_none() {
+        let reclaimed = (|| -> Result<(), String> {
+            let workspace =
+                crate::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
+            let owner = workspace.update_owner().map_err(|e| e.to_string())?;
+            atlas_index::recover_reference_publication(&owner, crate::WORKSPACE_SCHEMA_VERSION)
+                .map_err(|e| e.to_string())?;
+            owner
+                .reclaim_space(crate::WORKSPACE_SCHEMA_VERSION)
+                .map_err(|e| {
+                    format!("Reference data is retained; database space was not reclaimed: {e}")
+                })?;
+            Ok(())
+        })();
+        if let Err(error) = reclaimed {
+            return configuration_failure(paths, &options, error);
+        }
+    }
     // Publication updates reference rows transactionally, preserving saved domains.
     let current = open_workspace_index(&paths.index_path);
     let records_ready = current.is_ok() && !build_failed && (!needs_build || build.is_some());

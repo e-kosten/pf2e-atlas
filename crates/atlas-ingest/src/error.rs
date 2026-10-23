@@ -22,6 +22,8 @@ pub enum IngestError {
     InvalidEmbeddingModel { model: String, message: String },
     #[error("artifact write failed: {0}")]
     ArtifactWriteFailed(String),
+    #[error("reference updated. Could not reclaim database space: {0}")]
+    SpaceReclamationFailed(String),
     #[error("document embedding generation failed: {0}")]
     DocumentEmbeddingFailed(String),
 }

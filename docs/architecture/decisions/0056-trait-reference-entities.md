@@ -71,7 +71,7 @@ Association categories preserve different evidence:
 Trait seed preparation has its own versioned recipe. The authored label and
 complete selected definition pass through the existing baseline passage splitter
 and each selected profile's native token checks. Every selected chunk participates
-in checkpoint reuse/inference. The seed is the deterministic L2-normalized
+in exact native-input reuse/inference. The seed is the deterministic L2-normalized
 arithmetic mean of the normalized chunk vectors. Persisted input/coverage evidence
 must bind the recipe and full selected text; clipping to a prefix or using one
 arbitrary passage is not permitted. A definition with no authored prose uses its
@@ -99,3 +99,10 @@ Source mappings and locale changes participate in publication identity. Checked
 content, membership, references and vector completeness need validation alongside
 the normal workspace contracts. Early functional review precedes full UI gates
 and independent presentation review.
+
+Native trait chunks reference the same model/input registry as document reuse.
+Their vectors are stored as binary f32 only when no published document occurrence
+supplies those exact native bytes. Centroids retain their own binary values and
+checksums, even for one-chunk seeds: normalization may change floating-point bits.
+Selected chunk text and source coverage remain available for model-free validation;
+pending rebuild values never replace the published evidence before activation.
