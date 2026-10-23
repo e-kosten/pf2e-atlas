@@ -121,7 +121,11 @@ one event. Reads ignore absent members while preserving every survivor's relativ
 order; membership changes do not erase lower preferences. New sources enter their
 default positions; formula/recovery edits reconsider only the changed source,
 while metadata-only edits retain the whole order. Damage and recovery consume
-precedence without replacing it. Storage resolves typed addition references after
+precedence without replacing it. The rules owner returns nonempty groups with
+one active source and the complete source order. Projection, damage and recovery
+consume that same selection; optional request source IDs assert the displayed
+active source rather than selecting another one. Source comparison and ordering
+belong in Add/Edit, with no second source picker in damage or recovery. Storage resolves typed addition references after
 allocating their IDs in the event transaction; there is no intermediate write. Apply active
 damage types simultaneously through one HP event, then resolve recovery separately.
 Successful recovery clears its episode; individual expiry/removal can reveal a

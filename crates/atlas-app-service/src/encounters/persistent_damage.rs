@@ -206,23 +206,9 @@ impl AtlasAppService {
             let dc = if clearing {
                 None
             } else {
-            let selected = request
-                .selected_source_id
-                .or(group.selected_source_id)
-                .ok_or_else(|| {
-                    AppServiceError::invalid_request("Choose the greater damage source")
-                })?;
-            let source = group
-                .sources
-                .iter()
-                .find(|source| source.condition_id == selected)
-                .ok_or_else(|| {
-                    AppServiceError::invalid_request("Choose a source in this damage group")
-                })?;
-            if group.selected_source_id.is_some_and(|id| id != selected) {
-                return Err(AppServiceError::invalid_request(
-                    "Use the active damage source",
-                ));
+            let source = group.selected_source;
+            if request.selected_source_id.is_some_and(|id| id != source.condition_id) {
+                return Err(AppServiceError::invalid_request("Use the active damage source"));
             }
             let dc = request.dc_override.or_else(|| super::rules::persistent_damage::recovery_dc(source));
             if dc.is_none() {return Err(AppServiceError::invalid_request("Enter the recovery DC"));}
@@ -368,7 +354,7 @@ pub(super) fn group_views(
             .then(|| format!("Immune to {}", group.damage_type)),
             episode_id: group.episode_id.into(),
             damage_type: group.damage_type.into(),
-            selected_source_id: group.selected_source_id,
+            selected_source_id: group.selected_source.condition_id,
             sources: group
                 .sources
                 .into_iter()

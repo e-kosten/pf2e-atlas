@@ -73,19 +73,13 @@ it("keeps recovery results inside the popover and offers no separate table-succe
   expect(screen.getByRole("spinbutton", { name: "Recovery DC" })).toHaveValue("15");
   expect(screen.getByRole("spinbutton", { name: "Recovery DC" })).toBeDisabled();
 });
-it("requests an unresolved source and its missing DC instead of choosing or calculating them", async () => {
+it("requests a missing DC for the precedence-selected source without another source picker", async () => {
   const { onRecover } = setup({
     ...group,
-    selected_source_id: null,
     sources: [{ ...group.sources[0], recovery_dc: null }],
   });
   fireEvent.click(await screen.findByRole("button", { name: "Roll" }));
-  await screen.findByText("Choose the source with the greater damage.");
-  expect(onRecover).not.toHaveBeenCalled();
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Recovery damage source" }));
-  fireEvent.click(await screen.findByText("1d6"));
-  await screen.findByRole("spinbutton", { name: "Recovery DC" });
-  fireEvent.click(screen.getByRole("button", { name: "Roll" }));
+  expect(screen.queryByRole("combobox", { name: "Recovery damage source" })).toBeNull();
   await screen.findByText("Enter a whole number.");
   expect(onRecover).not.toHaveBeenCalled();
   fireEvent.change(screen.getByRole("spinbutton", { name: "Recovery DC" }), {

@@ -109,61 +109,53 @@ export function EncounterPersistentTurnReview({
                     role="group"
                     aria-label={`${type} sources`}
                   >
-                    {[...group.sources]
-                      .sort(
-                        (a, b) =>
-                          Number(b.condition_id === group.selected_source_id) -
-                          Number(a.condition_id === group.selected_source_id),
-                      )
-                      .map((source) => {
-                        const condition = participant.conditions.find(
-                          (c) => c.condition_id === source.condition_id,
-                        );
-                        const from = participants.find(
-                          (p) =>
-                            p.participant_key === condition?.source_participant_key,
-                        )?.display_name;
-                        const superseded =
-                          group.selected_source_id !== null &&
-                          source.condition_id !== group.selected_source_id;
-                        return (
-                          <div
-                            key={source.condition_id.toString()}
-                            className={
-                              superseded
-                                ? "encounter-persistent-source--superseded"
-                                : undefined
-                            }
-                          >
-                            <span>
-                              {source.formula}
-                              {source.multiplier === "normal"
-                                ? ""
-                                : source.multiplier === "double"
-                                  ? " ×2"
-                                  : " ×½"}
-                              {superseded && (
-                                <span className="encounter-condition-meta">
-                                  {" "}
-                                  · Superseded
-                                </span>
-                              )}
-                            </span>
-                            {(from || condition?.duration || condition?.note) && (
-                              <div className="encounter-condition-meta">
-                                {[
-                                  from && `From ${from}`,
-                                  condition?.duration &&
-                                    conditionDurationLabel(condition.duration),
-                                  condition?.note,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" · ")}
-                              </div>
+                    {group.sources.map((source) => {
+                      const condition = participant.conditions.find(
+                        (c) => c.condition_id === source.condition_id,
+                      );
+                      const from = participants.find(
+                        (p) => p.participant_key === condition?.source_participant_key,
+                      )?.display_name;
+                      const superseded =
+                        source.condition_id !== group.selected_source_id;
+                      return (
+                        <div
+                          key={source.condition_id.toString()}
+                          className={
+                            superseded
+                              ? "encounter-persistent-source--superseded"
+                              : undefined
+                          }
+                        >
+                          <span>
+                            {source.formula}
+                            {source.multiplier === "normal"
+                              ? ""
+                              : source.multiplier === "double"
+                                ? " ×2"
+                                : " ×½"}
+                            {superseded && (
+                              <span className="encounter-condition-meta">
+                                {" "}
+                                · Superseded
+                              </span>
                             )}
-                          </div>
-                        );
-                      })}
+                          </span>
+                          {(from || condition?.duration || condition?.note) && (
+                            <div className="encounter-condition-meta">
+                              {[
+                                from && `From ${from}`,
+                                condition?.duration &&
+                                  conditionDurationLabel(condition.duration),
+                                condition?.note,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   {damage}
                   <div

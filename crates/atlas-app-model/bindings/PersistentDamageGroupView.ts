@@ -7,6 +7,6 @@ export type PersistentDamageGroupView = {
  */
 immunity_note?: string, episode_id: string, damage_type: string, sources: Array<PersistentDamageSourceView>,
 /**
- * None means the GM chooses which source deals the greater amount.
+ * The first source in the backend-resolved precedence order. Groups are nonempty.
  */
-selected_source_id: bigint | null, };
+selected_source_id: bigint, };

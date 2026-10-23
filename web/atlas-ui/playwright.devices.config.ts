@@ -13,6 +13,9 @@ export default defineConfig({
   retries: 0,
   timeout: 45_000,
   expect: { timeout: 10_000 },
+  snapshotPathTemplate: process.env.ATLAS_CONDITION_VISUAL_DIR
+    ? `${process.env.ATLAS_CONDITION_VISUAL_DIR}/{projectName}/{arg}{ext}`
+    : undefined,
   outputDir: "../../scratch/responsive-validation/browser/results",
   reporter: [
     ["list"],
@@ -39,6 +42,7 @@ export default defineConfig({
       testMatch: [
         "journeys.spec.ts",
         "conditions.spec.ts",
+        "condition-refinement.spec.ts",
         "encounter-forms.spec.ts",
         "turn-reminders.spec.ts",
       ],
@@ -49,6 +53,7 @@ export default defineConfig({
       testMatch: [
         "journeys.spec.ts",
         "conditions.spec.ts",
+        "condition-refinement.spec.ts",
         "encounter-forms.spec.ts",
         "turn-reminders.spec.ts",
       ],
@@ -59,6 +64,7 @@ export default defineConfig({
       testMatch: [
         "journeys.spec.ts",
         "conditions.spec.ts",
+        "condition-refinement.spec.ts",
         "encounter-forms.spec.ts",
         "turn-reminders.spec.ts",
       ],

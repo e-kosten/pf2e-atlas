@@ -9,34 +9,14 @@ pub(in crate::encounters) struct PersistentGroup<'a> {
     pub damage_type: &'a str,
     pub episode_id: &'a str,
     pub sources: Vec<&'a EncounterParticipantCondition>,
-    pub selected_source_id: Option<i64>,
+    pub selected_source: &'a EncounterParticipantCondition,
 }
 
 pub(in crate::encounters) fn participant_groups(
     participant: &atlas_local_state::EncounterParticipant,
 ) -> Vec<PersistentGroup<'_>> {
-    let mut result = groups(&participant.conditions);
-    for group in &mut result {
-        let saved = participant
-            .persistent_precedence
-            .iter()
-            .find(|saved| saved.episode_id == group.episode_id);
-        group.sources = ordered_sources(
-            &group.sources,
-            saved
-                .map(|saved| saved.source_order.as_slice())
-                .unwrap_or_default(),
-        );
-        group.selected_source_id = group.sources.first().map(|source| source.condition_id);
-    }
-    result
-}
-
-pub(in crate::encounters) fn groups(
-    conditions: &[EncounterParticipantCondition],
-) -> Vec<PersistentGroup<'_>> {
     let mut groups = BTreeMap::<(&str, &str), Vec<&EncounterParticipantCondition>>::new();
-    for condition in conditions {
+    for condition in &participant.conditions {
         if let ConditionParameters::PersistentDamage {
             damage_type,
             episode_id,
@@ -51,22 +31,25 @@ pub(in crate::encounters) fn groups(
     }
     groups
         .into_iter()
-        .map(|((damage_type, episode_id), mut sources)| {
+        .filter_map(|((damage_type, episode_id), mut sources)| {
             sources.sort_by_key(|source| source.condition_id);
-            let selected_source_id = sources
+            let saved = participant
+                .persistent_precedence
                 .iter()
-                .find(|candidate| {
-                    sources
-                        .iter()
-                        .all(|other| at_least_as_much(candidate, other))
-                })
-                .map(|source| source.condition_id);
-            PersistentGroup {
+                .find(|saved| saved.episode_id == episode_id);
+            let sources = ordered_sources(
+                &sources,
+                saved
+                    .map(|saved| saved.source_order.as_slice())
+                    .unwrap_or_default(),
+            );
+            let selected_source = sources.first().copied()?;
+            Some(PersistentGroup {
                 damage_type,
                 episode_id,
                 sources,
-                selected_source_id,
-            }
+                selected_source,
+            })
         })
         .collect()
 }
@@ -393,62 +376,95 @@ mod tests {
     }
 
     #[test]
-    fn retains_suppressed_sources_and_independent_types() {
-        let mut sources = vec![
+    fn retains_suppressed_sources_and_independent_types_without_mutating_the_participant() {
+        let mut participant = super::super::numerical_tests::participant();
+        participant.conditions = vec![
             source(1, "2", "fire"),
             source(2, "7", "fire"),
             source(3, "1d6", "acid"),
         ];
-        let before = sources.clone();
-        let result = groups(&sources);
+        let before = participant.clone();
+        let result = participant_groups(&participant);
         assert_eq!(result.len(), 2);
         let fire = result
             .iter()
             .find(|group| group.damage_type == "fire")
             .unwrap();
-        assert_eq!(fire.selected_source_id, Some(2));
+        assert_eq!(fire.selected_source.condition_id, 2);
         assert_eq!(fire.sources.len(), 2);
-        assert_eq!(sources, before);
-        sources.remove(1);
+        assert_eq!(participant, before);
+        participant.conditions.remove(1);
         assert_eq!(
-            groups(&sources)
+            participant_groups(&participant)
                 .iter()
                 .find(|group| group.damage_type == "fire")
                 .unwrap()
-                .selected_source_id,
-            Some(1)
+                .selected_source
+                .condition_id,
+            1
         );
     }
 
     #[test]
-    fn ambiguous_damage_requires_choice_instead_of_expected_value_sorting() {
-        let sources = vec![source(1, "1d12", "fire"), source(2, "2d6", "fire")];
-        assert_eq!(groups(&sources)[0].selected_source_id, None);
-    }
-
-    #[test]
-    fn larger_matching_pool_is_selected_but_equal_damage_with_distinct_recovery_is_not() {
+    fn ambiguous_sources_use_the_default_order_until_the_gm_saves_precedence() {
+        let mut participant = super::super::numerical_tests::participant();
+        participant.conditions = vec![source(1, "1d12", "fire"), source(2, "2d6", "fire")];
+        assert!(has_ambiguity(
+            &participant.conditions.iter().collect::<Vec<_>>()
+        ));
         assert_eq!(
-            groups(&[source(1, "1d6", "fire"), source(2, "2d6", "fire")])[0].selected_source_id,
-            Some(2)
+            participant_groups(&participant)[0]
+                .selected_source
+                .condition_id,
+            2
         );
+        participant
+            .persistent_precedence
+            .push(atlas_local_state::PersistentSourcePrecedence {
+                episode_id: "episode-fire".into(),
+                source_order: vec![1, 2],
+            });
+        let groups = participant_groups(&participant);
+        assert_eq!(groups[0].selected_source.condition_id, 1);
+        assert_eq!(
+            groups[0]
+                .sources
+                .iter()
+                .map(|source| source.condition_id)
+                .collect::<Vec<_>>(),
+            [1, 2]
+        );
+    }
+
+    #[test]
+    fn larger_matching_pool_is_comparable_but_equal_damage_with_distinct_recovery_is_not() {
+        assert!(at_least_as_much(
+            &source(2, "2d6", "fire"),
+            &source(1, "1d6", "fire")
+        ));
         let mut distinct = source(2, "1+1", "fire");
         if let ConditionParameters::PersistentDamage { recovery, .. } = &mut distinct.parameters {
             *recovery = PersistentRecovery::Specified { dc: 10 };
         }
-        assert_eq!(
-            groups(&[source(1, "2", "fire"), distinct])[0].selected_source_id,
-            None
-        );
+        let original = source(1, "2", "fire");
+        assert!(!at_least_as_much(&original, &distinct));
+        assert!(!at_least_as_much(&distinct, &original));
     }
 
     #[test]
     fn equal_sources_have_order_independent_identity_without_deleting_duplicates() {
-        let mut sources = vec![source(9, "1d6", "fire"), source(2, "1d6", "fire")];
-        assert_eq!(groups(&sources)[0].selected_source_id, Some(2));
-        sources.reverse();
-        assert_eq!(groups(&sources)[0].selected_source_id, Some(2));
-        assert_eq!(groups(&sources)[0].sources.len(), 2);
+        let mut participant = super::super::numerical_tests::participant();
+        participant.conditions = vec![source(9, "1d6", "fire"), source(2, "1d6", "fire")];
+        assert_eq!(
+            participant_groups(&participant)[0]
+                .selected_source
+                .condition_id,
+            2
+        );
+        participant.conditions.reverse();
+        let groups = participant_groups(&participant);
+        assert_eq!(groups[0].selected_source.condition_id, 2);
+        assert_eq!(groups[0].sources.len(), 2);
     }
 
     #[test]
@@ -465,10 +481,7 @@ mod tests {
         }
         a.note = Some("DC 3".into());
         assert_eq!(recovery_dc(&a), Some(10));
-        assert_eq!(
-            groups(&[a, source(2, "3", "fire")])[0].selected_source_id,
-            Some(1)
-        );
+        assert!(at_least_as_much(&a, &source(2, "3", "fire")));
         assert_eq!(scaled(5, DamageMultiplier::Half), 2);
     }
 }

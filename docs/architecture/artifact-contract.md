@@ -418,9 +418,10 @@ Migration 5 remains immutable because it has been applied to preview workspaces.
 
 ### Encounter condition system
 
-Workspace migration 8 applies the condition system directly after the published
-party migration (7). It adds scoped condition inputs, extra-action restrictions,
-immunity overrides, typed parameters and independent application origins, plus
+Workspace migration 9 applies the condition system directly after the published
+party (7) and trait vocabulary (8) migrations. It adds scoped condition inputs,
+extra-action restrictions, immunity overrides, typed parameters and independent
+application origins, plus
 participant dying-tracking, mortality, level overrides and death thresholds.
 Everyone and selected participants remain distinct scopes; unspecified,
 unrestricted and restricted extra actions remain distinct states. Notes are
@@ -443,7 +444,7 @@ Spell reminders and optional strike context are read-only projections. Spell
 resource writes and retained dice use their existing guarded mutation owners.
 
 This saved-domain migration preserves reference artifacts, parties, lists and
-existing encounters. Published migrations 1–7 remain unchanged.
+existing encounters. Published migrations 1–8 remain unchanged.
 
 ### PF2e 8.6.1 reference preparation
 

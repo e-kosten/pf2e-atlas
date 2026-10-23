@@ -15,8 +15,8 @@ const fire: PersistentDamageGroupView = {
   damage_type: "fire",
   selected_source_id: 2n,
   sources: [
-    { condition_id: 1n, formula: "1d6", multiplier: "normal", recovery_dc: 15n },
     { condition_id: 2n, formula: "2d6", multiplier: "normal", recovery_dc: 15n },
+    { condition_id: 1n, formula: "1d6", multiplier: "normal", recovery_dc: 15n },
   ],
 };
 const bleed: PersistentDamageGroupView = {
