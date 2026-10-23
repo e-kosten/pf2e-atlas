@@ -1,6 +1,8 @@
 import { sanitizePreparedHtml } from "./PreparedHtml";
 import DOMPurify from "dompurify";
-import { Alert, Modal } from "antd";
+import { Alert, Modal, Typography } from "antd";
+import { documentHeadings } from "./documentHeadings";
+import "../../styles/ui/journal-reading.css";
 import {
   useMemo,
   useLayoutEffect,
@@ -30,7 +32,11 @@ export function PreparedContent({
   content,
   relationships = NO_RELATIONSHIPS,
   onReference,
+  documentNavigation = false,
+  sectionLanding,
 }: {
+  documentNavigation?: boolean;
+  sectionLanding?: string;
   content: PreparedContentFieldView;
   relationships?: RecordRelationshipView[];
   onReference: RecordReferenceHandler;
@@ -38,6 +44,26 @@ export function PreparedContent({
   return (
     <PreparedContentBody
       body={content.body}
+      documentNavigation={
+        documentNavigation
+          ? {
+              identity: JSON.stringify(content.locator),
+              landing: sectionLanding,
+              href: atlasRoutePath({
+                kind: "record",
+                recordKey: content.locator.record,
+                selection: {
+                  record_key: content.locator.record,
+                  embedded_path: content.locator.embedded_path,
+                  spell_rank: undefined,
+                  field: null,
+                  passage: null,
+                  source_fingerprint: null,
+                },
+              }),
+            }
+          : undefined
+      }
       references={relationships.filter(
         (reference) =>
           JSON.stringify(reference.source) === JSON.stringify(content.locator),
@@ -51,7 +77,9 @@ export function PreparedContentBody({
   body,
   references,
   onReference,
+  documentNavigation,
 }: {
+  documentNavigation?: { identity: string; href: string; landing?: string };
   body: PreparedFieldBodyView;
   references: (PreparedReferenceView | RecordRelationshipView)[];
   onReference: RecordReferenceHandler;
@@ -67,10 +95,32 @@ export function PreparedContentBody({
     (...args) => referenceHandler.current(...args),
     [],
   );
-  const html = useMemo(
+  const sanitized = useMemo(
     () => (body.kind === "html" ? sanitizePreparedHtml(body.html) : ""),
     [body],
   );
+  const documentIdentity = documentNavigation?.identity;
+  const prepared = useMemo(
+    () =>
+      documentIdentity
+        ? documentHeadings(sanitized, documentIdentity)
+        : { html: sanitized, outline: [] },
+    [sanitized, documentIdentity],
+  );
+  const { html, outline } = prepared;
+  const sectionLanding = documentNavigation?.landing;
+  const landedSection = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (!sectionLanding || landedSection.current === sectionLanding) return;
+    const target = [
+      ...(container.current?.querySelectorAll<HTMLElement>(".document-heading") ?? []),
+    ].find((heading) => heading.id === sectionLanding);
+    if (target) {
+      landedSection.current = sectionLanding;
+      target.scrollIntoView({ block: "start" });
+      target.focus({ preventScroll: true });
+    }
+  }, [html, sectionLanding]);
   useLayoutEffect(() => {
     if (!container.current || !html) return;
     const tables = Array.from(container.current.querySelectorAll("table")).filter(
@@ -281,6 +331,33 @@ export function PreparedContentBody({
     <>
       {contextHolder}
       {effectLinks}
+      {outline.length > 0 && (
+        <nav className="document-outline" aria-label="On this page">
+          <strong>On this page</strong>
+          <ul>
+            {outline.map((section) => (
+              <li key={section.id}>
+                <Typography.Link
+                  href={`${documentNavigation!.href}#${encodeURIComponent(section.id)}`}
+                  onClick={(event) => {
+                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    event.preventDefault();
+                    const heading = [
+                      ...(container.current?.querySelectorAll<HTMLElement>(
+                        ".document-heading",
+                      ) ?? []),
+                    ].find((heading) => heading.id === section.id);
+                    heading?.scrollIntoView({ block: "start" });
+                    heading?.focus({ preventScroll: true });
+                  }}
+                >
+                  {section.label}
+                </Typography.Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
       <div
         ref={container}
         className="prepared-content"

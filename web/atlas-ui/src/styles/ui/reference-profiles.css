@@ -1,0 +1,47 @@
+.reference-profile {
+  display: grid;
+  gap: var(--space-section);
+  min-width: 0;
+}
+.reference-profile__section {
+  min-width: 0;
+}
+.reference-profile__section > h3 {
+  margin-block: 0 var(--space-control);
+}
+.reference-profile__facts {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-group);
+  row-gap: var(--space-control);
+  align-items: baseline;
+}
+.reference-profile__grants {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-control);
+}
+.reference-profile__grants > li {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: var(--space-control);
+  align-items: baseline;
+}
+.reference-profile__grant-level {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.reference-profile__groups {
+  display: grid;
+  gap: var(--space-group);
+}
+.reference-profile__grants > li:not(:has(.reference-profile__grant-level)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.record-reference > .actor-activity:empty {
+  display: none;
+}

@@ -68,21 +68,25 @@ export function DamageComponents({
   const components = damage.value;
   return (
     <div className="record-damage">
-      {components.map((component, index) => {
-        const kinds = qualifierText(component.kinds, patch);
+      {components.map((component) => {
+        const kinds =
+          !patch &&
+          component.kinds.state === "value" &&
+          component.kinds.value?.length === 1 &&
+          component.kinds.value[0] === "damage"
+            ? ""
+            : qualifierText(component.kinds, patch);
         const category =
           !patch && ["missing", "null"].includes(component.category.state)
             ? ""
             : qualifierText(component.category, patch);
-        const materials = qualifierText(component.materials, patch);
+        const materials =
+          !patch && ["missing", "null"].includes(component.materials.state)
+            ? ""
+            : qualifierText(component.materials, patch);
         return (
           <p key={component.id}>
-            {patch || components.length > 1 ? (
-              <strong>
-                {components.length === 1 ? "Damage" : `Damage component ${index + 1}`}
-                :{" "}
-              </strong>
-            ) : null}
+            {patch ? <strong>Damage : </strong> : null}
             <strong>
               {patch && component.formula.state === "missing"
                 ? ""
@@ -133,7 +137,13 @@ export function DamageComponents({
   );
 }
 
-function Iwr({ label, fact }: { label: string; fact: FactView<IwrEntryView[]> }) {
+export function Iwr({
+  label,
+  fact,
+}: {
+  label: string;
+  fact: FactView<IwrEntryView[]>;
+}) {
   if (
     fact.state === "not_applicable" ||
     (fact.state === "value" && !fact.value?.length)
@@ -712,6 +722,12 @@ export function ActorActivity({
           <strong>{activity.title}</strong>
         ))}
       {headingActions}
+      {activity.first_level_only?.value === true && (
+        <FactRow label="Selection">At 1st level only</FactRow>
+      )}
+      {activity.first_level_only?.state === "invalid" && (
+        <FactRow label="Selection">Unavailable</FactRow>
+      )}
       {activity.lore_modifier.state !== "not_applicable" && (
         <span className="actor-activity__modifier">
           {" "}
@@ -863,7 +879,9 @@ export function ActorActivities({
   reading,
   castingAnnotations,
   activityRolls,
+  essential = false,
 }: {
+  essential?: boolean;
   actor: ActorPresentationView;
   onReference: RecordReferenceHandler;
   encounter?: boolean;
@@ -937,6 +955,7 @@ export function ActorActivities({
               <EmbeddedAbilityReading
                 key={title}
                 abilities={activities}
+                essential={essential}
                 context={abilityReading}
                 onReference={onReference}
               />

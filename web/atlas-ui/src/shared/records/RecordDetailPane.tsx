@@ -32,7 +32,9 @@ export function RecordDetailPane({
   visibleOwnerRecordKey,
   identityInHost = false,
   showOwnerReturn = true,
+  sectionLanding,
 }: {
+  sectionLanding?: string;
   detail: RecordDetailView | undefined;
   visibleOwnerRecordKey?: string;
   identityInHost?: boolean;
@@ -125,6 +127,7 @@ export function RecordDetailPane({
       {detail ? (
         <>
           <RecordPresentation
+            sectionLanding={sectionLanding}
             identityInHost={identityInHost}
             showOwnerReturn={showOwnerReturn}
             visibleOwnerRecordKey={visibleOwnerRecordKey}

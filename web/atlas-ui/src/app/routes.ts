@@ -25,6 +25,7 @@ export type AtlasRoute =
   | { kind: "listEdit"; slug: string }
   | {
       kind: "record";
+      section?: string;
       recordKey: string;
       selection?: RecordNavigationView;
       landing?: RecordNavigationView;
@@ -32,9 +33,17 @@ export type AtlasRoute =
 
 export const ATLAS_ROUTE_CHANGE_EVENT = "atlas-route-change";
 
-export function parseAtlasRoute(pathname: string, search = ""): AtlasRoute {
+export function parseAtlasRoute(pathname: string, search = "", hash = ""): AtlasRoute {
   try {
-    return parseRoute(pathname, search);
+    const route = parseRoute(pathname, search);
+    if (route.kind === "record" && hash) {
+      try {
+        route.section = decodeURIComponent(hash.replace(/^#/, ""));
+      } catch {
+        route.section = hash.replace(/^#/, "");
+      }
+    }
+    return route;
   } catch (error) {
     return {
       kind: "invalid",
@@ -126,7 +135,11 @@ function parseRoute(pathname: string, search = ""): AtlasRoute {
 }
 
 export function currentAtlasRoute(): AtlasRoute {
-  return parseAtlasRoute(window.location.pathname, window.location.search);
+  return parseAtlasRoute(
+    window.location.pathname,
+    window.location.search,
+    window.location.hash,
+  );
 }
 
 export function atlasRoutePath(route: AtlasRoute): string {
@@ -159,12 +172,14 @@ export function atlasRoutePath(route: AtlasRoute): string {
     case "listEdit":
       return listEditPath(route.slug);
     case "record":
-      return withLanding(
-        recordPath(route.recordKey) +
-          (route.selection
-            ? "?selection=" + encodeURIComponent(JSON.stringify(route.selection))
-            : ""),
-        route.landing,
+      return (
+        withLanding(
+          recordPath(route.recordKey) +
+            (route.selection
+              ? "?selection=" + encodeURIComponent(JSON.stringify(route.selection))
+              : ""),
+          route.landing,
+        ) + (route.section ? "#" + encodeURIComponent(route.section) : "")
       );
   }
 }
@@ -248,10 +263,10 @@ export function navigateToAtlasPath(path: string) {
   const url = new URL(path, window.location.origin);
   if (
     url.origin !== window.location.origin ||
-    parseAtlasRoute(url.pathname, url.search).kind === "invalid"
+    parseAtlasRoute(url.pathname, url.search, url.hash).kind === "invalid"
   )
     return;
-  history.pushState(null, "", url.pathname + url.search);
+  history.pushState(null, "", url.pathname + url.search + url.hash);
   window.dispatchEvent(new Event(ATLAS_ROUTE_CHANGE_EVENT));
 }
 

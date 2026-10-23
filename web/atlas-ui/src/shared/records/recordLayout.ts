@@ -4,7 +4,5 @@ import type { RecordPresentationView } from "../../generated/atlas";
 export function recordLayout(
   presentation?: RecordPresentationView,
 ): "document" | "workspace" {
-  return presentation?.body.kind === "creature" || presentation?.body.kind === "hazard"
-    ? "workspace"
-    : "document";
+  return presentation?.body.kind === "creature" ? "workspace" : "document";
 }
