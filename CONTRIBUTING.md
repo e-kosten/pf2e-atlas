@@ -17,15 +17,15 @@ Recommended branch names:
 - `docs/<topic>`
 - `chore/<topic>`
 
-For agents, authorization to implement includes logical local commits, pushing the task branch, and opening or updating its PR. Separate permission is not needed for these routine steps. Planning alone does not authorize implementation, and explicit plan-only, no-commit, or local-only instructions take precedence. Do not merge, push directly to shared integration branches or `main`, publish releases, or discard user state without explicit authorization.
+For agents, authorization to implement includes logical local commits, pushing the task branch, and opening or updating its PR. Separate permission is not needed for these routine steps. Planning alone does not authorize implementation, and explicit plan-only, no-commit, or local-only instructions take precedence. Do not merge, push directly to shared integration branches or `main`, publish releases, or modify the user's real installed Atlas workspace without explicit authorization. Repository-local development data follows the standing cleanup authorization in [Development Data And Task Cleanup](#development-data-and-task-cleanup).
 
 Use a draft PR while implementation or required validation remains incomplete. Describe the resulting behavior, validation evidence, and limitations. Keep review fixes visible as additional logical commits; agree on any published-history rewrite before performing it.
 
-Keep the worktree available while its PR or local build is being reviewed. After merge or cancellation, remove it as part of task completion once needed work is preserved and no active process or another checkout depends on it. At the next task's start, finish outstanding cleanup. Retaining a branch does not require retaining its checkout or compiler cache.
+Keep the worktree available while its PR or local build is being reviewed. After merge or cancellation, stop its task-owned previews unless the user requested continued access, then remove the checkout as part of task completion. Preserve needed uncommitted source work and check for another active agent, build or dependency. At the next task's start, finish outstanding cleanup. Retaining a branch does not require retaining its checkout or compiler cache.
 
-Before removal, inspect Git status, untracked and ignored files, running previews/builds, and incoming symlinks. Preserve needed dirty files and saved state outside the retiring checkout; do not archive compiler output with them. A live `node_modules` symlink target must remain even if its original PR has merged. Remove worktrees with `git worktree remove`, one at a time, and verify the inventory. Use `--force` only after accounting for every needed file it would discard; do not broadly delete `.worktrees/`.
+Before removal, inspect Git status, untracked and ignored files, running previews/builds, and incoming symlinks. Preserve needed uncommitted source files and explicitly retained data; delete disposable development state instead of archiving it. A live `node_modules` symlink target must remain even if its original PR has merged. Remove worktrees with `git worktree remove`, one at a time, and verify the inventory. Use `--force` only after accounting for every needed file it would discard; do not broadly delete `.worktrees/`.
 
-For retained worktrees, record the path, purpose, owner, and removal condition. Stable previews retain their frozen binary, artifact, saved state, and small review evidence; they normally do not require a compiler cache. Temporary review checkouts last only as long as their review.
+For retained worktrees, record the path, purpose, owner, and removal condition. Keep only the resources needed by an active task or explicitly retained preview; a stable preview normally does not require a compiler cache. Temporary review checkouts last only as long as their review.
 
 ## Development Loop
 
@@ -305,16 +305,44 @@ Below 30 GiB free, reclaim obsolete task build output before starting another
 large build. A target above 15 GiB warrants inspecting `debug/deps`,
 `debug/incremental`, and `debug/build` for accumulated configurations. These
 thresholds prompt investigation, never automatic deletion of active files.
-Monitor growth during long builds. Source/model assets, user-authored SQLite
-state and artifacts still under review have separate preservation requirements.
+Monitor growth during long builds. Preserve shared source/model assets and
+artifacts while an active task or review needs them.
 
 Keep one checkout-local Cargo target per task; do not copy or symlink Cargo
-outputs across checkout paths. Before cleaning an inactive checkout, verify that
-no preview, build or retained binary depends on its output. Keep small reports
-and representative screenshots; retire obsolete generated corpora, duplicate
-artifacts and experiments after preserving a reproduction recipe. A cleanup
-handoff records what was removed, what remains, its owner/removal condition, and
-the measured space recovered.
+outputs across checkout paths. Stop completed tasks' previews before retirement,
+unless the user requested continued access. Check for other active builds,
+reviews and dependency links before deleting output. Report what was removed,
+what must remain and why, and measured space recovered in the final response.
+
+### Development Data And Task Cleanup
+
+All repository-local runtime and test state is disposable by default. This includes
+preview databases, lists and encounters edited during review, migration backups,
+fixture exports and copied reference corpora. Task completion supplies standing
+permission to delete these resources without asking again. Preserve uncommitted
+source work, another agent's active resources and any data the user explicitly
+asks to retain.
+
+The user's real installed Atlas workspace is protected. Resolve symlinks and
+configured paths before deleting data: a path under the repo can point to the real
+installation, and a command using global path mode can select a development
+workspace through an explicit override. Never reset, replace or delete the real
+installed workspace without explicit authorization. Normal Atlas setup continues
+to preserve saved state; the development cleanup policy does not change product
+behavior.
+
+Reuse one workspace per active task. Keep a separate frozen preview only when
+review requires it, and remove superseded copies promptly. Preserve the shared
+baseline while active checkouts reference it. A completed task's disposable
+database does not need to survive merely because it contains saved rows.
+
+Do not routinely archive databases, backup copies, executables, Git bundles or
+entire retired worktrees under `scratch/`. Do not create export scripts or recovery
+archives to preserve disposable fixtures. Commit/PR references and concise
+validation results normally suffice; keep larger artifacts only for an unresolved
+failure, active review or explicit user request, with a concrete removal milestone.
+Moving obsolete files into a cold archive is not cleanup. No archive README or
+persistent cleanup manifest is needed solely to record deletion.
 
 The Rust web server embeds the built frontend in both debug and release binaries.
 Build the frontend before compiling a preview binary, then keep that binary and
