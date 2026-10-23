@@ -339,7 +339,7 @@ pub(in crate::encounters) fn source_baseline(
                 if formula.trim().is_empty() {continue;}
                 let damage_type = SourceFieldView::from(&damage.damage_type).value().copied();
                 let category = if damage_type == Some(atlas_foundry_model::generated::ModularConfigDamageType::Bleed) {Some("persistent".into())} else {SourceFieldView::from(&damage.category).value().map(|category| match category {atlas_foundry_model::generated::RawModifierDamageCategory::Persistent => "persistent", atlas_foundry_model::generated::RawModifierDamageCategory::Precision => "precision", atlas_foundry_model::generated::RawModifierDamageCategory::Splash => "splash"}.into())};
-                activity.damage.push(DamageExpressionView {ability_known: source_ordinal != 0 || category.is_some() || (ranged.is_some() && activity.traits_known), ability: if source_ordinal == 0 && category.is_none() {damage_ability} else {None}, unavailable_reason: None, source_ordinal, damage_id: id.clone(), label: None, formula: formula.clone(), adjusted_formula: None, damage_type: damage_type.map(damage_type_key).map(str::to_owned), category, effect_kind: DamageEffectKindView::Damage, modifiers: vec![], suppressed_modifiers: vec![]});
+                activity.damage.push(DamageExpressionView {ability_known: source_ordinal != 0 || category.is_some() || (ranged.is_some() && activity.traits_known), ability: if source_ordinal == 0 && category.is_none() {damage_ability} else {None}, unavailable_reason: None, source_ordinal, damage_id: id.clone(), label: None, formula: formula.clone(), adjusted_formula: None, damage_type: damage_type.map(atlas_foundry_model::generated::ModularConfigDamageType::as_str).map(str::to_owned), category, effect_kind: DamageEffectKindView::Damage, modifiers: vec![], suppressed_modifiers: vec![]});
             }
         }
         if let Some(damage) = item.spell_damage().value() {
@@ -366,7 +366,7 @@ pub(in crate::encounters) fn source_baseline(
                     _ => None,
                 };
                 let ability_modifiers = ability_value.map(|value|super::modifiers::Modifier {source:"spellcasting-ability".into(),label:"Spellcasting ability".into(),modifier_type:super::modifiers::ModifierType::Adjustment,value}).into_iter().collect();
-                activity.damage.push(DamageExpressionView {ability_known: apply_ability == Some(false) || ability.is_some(), ability, unavailable_reason, source_ordinal, damage_id: id.clone(), label: None, formula: formula.clone(), adjusted_formula: None, damage_type: SourceFieldView::from(&damage.r#type).value().copied().map(damage_type_key).map(str::to_owned), category, effect_kind, modifiers: ability_modifiers, suppressed_modifiers: vec![]});
+                activity.damage.push(DamageExpressionView {ability_known: apply_ability == Some(false) || ability.is_some(), ability, unavailable_reason, source_ordinal, damage_id: id.clone(), label: None, formula: formula.clone(), adjusted_formula: None, damage_type: SourceFieldView::from(&damage.r#type).value().copied().map(atlas_foundry_model::generated::ModularConfigDamageType::as_str).map(str::to_owned), category, effect_kind, modifiers: ability_modifiers, suppressed_modifiers: vec![]});
             }
         }
         if let Some(reason) = &activity.calculation_unavailable {
@@ -480,27 +480,6 @@ fn spell_usage(
             Some(SpellUsage::Limited)
         }
         _ => None,
-    }
-}
-fn damage_type_key(kind: atlas_foundry_model::generated::ModularConfigDamageType) -> &'static str {
-    use atlas_foundry_model::generated::ModularConfigDamageType::*;
-    match kind {
-        Acid => "acid",
-        Bleed => "bleed",
-        Bludgeoning => "bludgeoning",
-        Cold => "cold",
-        Electricity => "electricity",
-        Fire => "fire",
-        Force => "force",
-        Mental => "mental",
-        Piercing => "piercing",
-        Poison => "poison",
-        Slashing => "slashing",
-        Sonic => "sonic",
-        Spirit => "spirit",
-        Untyped => "untyped",
-        Vitality => "vitality",
-        Void => "void",
     }
 }
 

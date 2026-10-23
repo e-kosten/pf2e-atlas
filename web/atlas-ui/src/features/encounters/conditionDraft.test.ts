@@ -88,3 +88,35 @@ it("sends incomplete and complete damage through the same edit input, without re
     recovery: { kind: "standard" },
   });
 });
+
+it.each([
+  {
+    keys: ["stride", "strike", "custom"] as const,
+    guidance: "  Granted weapon only  ",
+    expected: {
+      kind: "restricted",
+      actions: ["stride", "strike"],
+      guidance: "Granted weapon only",
+    },
+  },
+  {
+    keys: ["stride"] as const,
+    guidance: "Old hidden guidance",
+    expected: { kind: "restricted", actions: ["stride"], guidance: null },
+  },
+  {
+    keys: ["unrestricted"] as const,
+    guidance: "Old hidden guidance",
+    expected: { kind: "unrestricted" },
+  },
+  {
+    keys: ["unspecified"] as const,
+    guidance: "Old hidden guidance",
+    expected: { kind: "unspecified" },
+  },
+])("builds extra actions from selected keys $keys", ({ keys, guidance, expected }) => {
+  expect(
+    draft({ ...fields, extraActionKeys: [...keys], extraActionGuidance: guidance })
+      .extra_action,
+  ).toEqual(expected);
+});

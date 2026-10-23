@@ -358,7 +358,6 @@ it("keeps persistent dice results out of the generic modal footer", async () => 
         boundary_key: "outgoing",
         mode: "end_turn",
         episode_id: "fire",
-        selected_source_id: 1n,
         dc_override: null,
       },
     });
@@ -369,9 +368,7 @@ it("keeps persistent dice results out of the generic modal footer", async () => 
         expected_encounter_revision: 8n,
         boundary_key: "outgoing",
         artifact_generation: null,
-        groups: [
-          { episode_id: "cold", selected_source_id: 2n, damage: { kind: "roll" } },
-        ],
+        groups: [{ episode_id: "cold", damage: { kind: "roll" } }],
         context: {
           keep_current_initiative: null,
           keep_upright: null,

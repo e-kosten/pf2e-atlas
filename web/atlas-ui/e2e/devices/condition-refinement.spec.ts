@@ -333,3 +333,142 @@ test("delayed condition previews retain geometry, focus and the HP opt-out", asy
     await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
   }
 });
+
+test("Quickened keeps action restrictions through edits and clears hidden guidance", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: "Quickened regression" },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    expect(
+      (
+        await page.request.post(`${path}/participants/manual`, {
+          data: {
+            encounter_ref: encounter.encounter_key,
+            display_name: "Quickened hero",
+            max_hp: 40,
+            current_hp: 40,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    let detail = await (await page.request.get(path)).json();
+    const actor = detail.participants[0];
+    const catalog = await (
+      await page.request.get(
+        `${path}/participants/${actor.participant_key}/condition-definitions`,
+      )
+    ).json();
+    const definition = catalog.conditions.find(
+      (entry: { supports_extra_action: boolean }) => entry.supports_extra_action,
+    );
+    expect(
+      (
+        await page.request.post(
+          `${path}/participants/${actor.participant_key}/conditions`,
+          {
+            data: {
+              request_id: "quickened-source",
+              participant_key: actor.participant_key,
+              expected_encounter_revision: detail.revision,
+              condition_ref: definition.condition_ref,
+              event_intent: "apply",
+              decisions: { keep_upright: false },
+              scope: { kind: "everyone" },
+              extra_action: {
+                kind: "restricted",
+                actions: ["stride", "strike"],
+                guidance: "Only with the granted weapon",
+              },
+              immunity_override: false,
+              parameters: { kind: "none" },
+            },
+          },
+        )
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(
+      page.getByRole("button", { name: "Quickened hero", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("button", { name: "Edit Quickened", exact: true }),
+      info,
+    );
+    let dialog = page.getByRole("dialog", { name: "Edit Quickened", exact: true });
+    await expect(
+      dialog.getByRole("textbox", { name: "Custom restriction" }),
+    ).toHaveValue("Only with the granted weapon");
+    await expect(dialog.getByText("Stride", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("Strike", { exact: true })).toBeVisible();
+    await checkpoint(page, info, "quickened-restrictions.png");
+    await activate(dialog.getByRole("button", { name: "Apply", exact: true }), info);
+    await expect(dialog).toHaveCount(0);
+    detail = await (await page.request.get(path)).json();
+    expect(detail.participants[0].conditions[0].extra_action).toEqual({
+      kind: "restricted",
+      actions: ["stride", "strike"],
+      guidance: "Only with the granted weapon",
+    });
+    await activate(
+      page.getByRole("button", { name: "Edit Quickened", exact: true }),
+      info,
+    );
+    dialog = page.getByRole("dialog", { name: "Edit Quickened", exact: true });
+    await activate(
+      dialog.getByRole("combobox", { name: "Extra action", exact: true }),
+      info,
+    );
+    await activate(
+      page
+        .locator(".ant-select-dropdown:visible")
+        .getByText("Unrestricted", { exact: true }),
+      info,
+    );
+    await expect(
+      dialog.getByRole("textbox", { name: "Custom restriction" }),
+    ).toHaveCount(0);
+    await dialog
+      .getByRole("combobox", { name: "Extra action", exact: true })
+      .press("Escape");
+    await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
+    await activate(dialog.getByRole("button", { name: "Apply", exact: true }), info);
+    await expect(dialog).toHaveCount(0);
+    detail = await (await page.request.get(path)).json();
+    expect(detail.participants[0].conditions[0].extra_action).toEqual({
+      kind: "unrestricted",
+    });
+    await activate(
+      page.getByRole("button", { name: "Edit Quickened", exact: true }),
+      info,
+    );
+    dialog = page.getByRole("dialog", { name: "Edit Quickened", exact: true });
+    await activate(
+      dialog.getByRole("combobox", { name: "Extra action", exact: true }),
+      info,
+    );
+    await activate(
+      page.locator(".ant-select-dropdown:visible").getByText("Stride", { exact: true }),
+      info,
+    );
+    await dialog
+      .getByRole("combobox", { name: "Extra action", exact: true })
+      .press("Escape");
+    await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
+    await activate(dialog.getByRole("button", { name: "Apply", exact: true }), info);
+    await expect(dialog).toHaveCount(0);
+    detail = await (await page.request.get(path)).json();
+    expect(detail.participants[0].conditions[0].extra_action).toEqual({
+      kind: "restricted",
+      actions: ["stride"],
+      guidance: null,
+    });
+  } finally {
+    await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
+  }
+});

@@ -79,12 +79,10 @@ fn batch(f: &FixtureWorker, key: &str, participant: &str) -> ApplyPersistentDama
         groups: vec![
             PersistentDamageGroupInput {
                 episode_id: "episode-fire".into(),
-                selected_source_id: None,
                 damage: PersistentDamageInput::TableResult { amount: 4 },
             },
             PersistentDamageGroupInput {
                 episode_id: "episode-acid".into(),
-                selected_source_id: None,
                 damage: PersistentDamageInput::TableResult { amount: 3 },
             },
         ],
@@ -112,7 +110,20 @@ fn simultaneous_types_enter_dying_once_and_retry_does_not_repeat_damage() {
         result.groups.iter().map(|group| group.amount).sum::<i64>(),
         7
     );
+    let fire = result
+        .groups
+        .iter()
+        .find(|group| group.damage_type == "fire")
+        .unwrap();
     let after = snapshot(&f, &key);
+    let selected = after.participants[0]
+        .conditions
+        .iter()
+        .find(|condition| condition.condition_id == fire.source_condition_id)
+        .unwrap();
+    assert!(
+        matches!(&selected.parameters, ConditionParameters::PersistentDamage { formula, .. } if formula == "4")
+    );
     assert_eq!(after.participants[0].current_hp, Some(0));
     let dying: Vec<_> = after.participants[0]
         .conditions
@@ -179,7 +190,6 @@ fn end_turn_recovery_requires_damage_but_explicit_recovery_is_not_turn_limited()
         expected_encounter_revision: snapshot(&f, &key).encounter.revision,
         participant_key: participant.clone(),
         episode_id: "episode-fire".into(),
-        selected_source_id: None,
         dc_override: Some(100),
     };
     assert!(
@@ -367,7 +377,7 @@ fn petrified_hardness_reduces_the_simultaneous_event_once() {
             .into_iter()
             .map(|episode| PersistentDamageGroupInput {
                 episode_id: episode.into(),
-                selected_source_id: None,
+
                 damage: PersistentDamageInput::Roll,
             })
             .collect(),
@@ -407,7 +417,6 @@ fn recovery_clears_suppressed_sources_and_recovers_receipt_after_episode_is_gone
         expected_encounter_revision: snapshot(&f, &key).encounter.revision,
         participant_key: participant,
         episode_id: "episode-fire".into(),
-        selected_source_id: None,
         dc_override: Some(0),
     };
     let result = f
@@ -498,7 +507,6 @@ fn late_recovery_never_clears_a_new_same_type_episode() {
         expected_encounter_revision: snapshot(&f, &key).encounter.revision,
         participant_key: participant.clone(),
         episode_id: "episode-fire".into(),
-        selected_source_id: None,
         dc_override: Some(0),
     };
     let result = f
@@ -537,7 +545,6 @@ fn late_recovery_never_clears_a_new_same_type_episode() {
         expected_encounter_revision: state.encounter.revision,
         participant_key: participant.clone(),
         episode_id: "new-fire".into(),
-        selected_source_id: None,
         dc_override: Some(0),
     };
     let result = f
@@ -787,7 +794,6 @@ fn table_clear_needs_no_dc_source_choice_or_damage_and_cannot_repeat_damage() {
         expected_encounter_revision: snapshot(&f, &key).encounter.revision,
         participant_key: participant.clone(),
         episode_id: "episode-fire".into(),
-        selected_source_id: None,
         dc_override: None,
     };
     let receipt = f
@@ -841,7 +847,6 @@ fn outgoing_clear_preserves_later_fire_sources_and_excludes_ended_fire_from_dama
         expected_encounter_revision: snapshot(&f, &key).encounter.revision,
         participant_key: participant.clone(),
         episode_id: "episode-fire".into(),
-        selected_source_id: None,
         dc_override: None,
     };
     let receipt = f
@@ -1203,18 +1208,9 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
 }
 
 #[test]
-fn damage_and_recovery_reject_inactive_sources_before_changing_state() {
+fn stale_recovery_cannot_clear_an_episode() {
     let (f, key, participant) = fixture();
     let before = snapshot(&f, &key);
-    let inactive = before.participants[0]
-        .conditions
-        .iter()
-        .find(|condition| matches!(&condition.parameters, ConditionParameters::PersistentDamage { formula, .. } if formula == "2"))
-        .unwrap()
-        .condition_id;
-    let mut request = batch(&f, &key, &participant);
-    request.groups[0].selected_source_id = Some(inactive);
-    assert!(f.worker.apply_persistent_damage(&key, request).is_err());
     assert!(
         f.worker
             .recover_persistent_damage(
@@ -1223,11 +1219,10 @@ fn damage_and_recovery_reject_inactive_sources_before_changing_state() {
                     resolution: PersistentRecoveryResolution::Roll,
                     boundary_key: None,
                     mode: PersistentRecoveryMode::Explicit,
-                    request_id: "inactive-recovery".into(),
-                    expected_encounter_revision: before.encounter.revision,
+                    request_id: "stale-recovery".into(),
+                    expected_encounter_revision: before.encounter.revision - 1,
                     participant_key: participant,
                     episode_id: "episode-fire".into(),
-                    selected_source_id: Some(inactive),
                     dc_override: Some(1),
                 }
             )

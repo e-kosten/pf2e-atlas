@@ -16,7 +16,7 @@ import type {
   PersistentDamageResolutionView,
 } from "../../generated/atlas";
 import { RollResult } from "../../shared/dice/RollResult";
-import { integerRule } from "./EncounterConditionEditor";
+import { nonNegativeIntegerRule } from "../../shared/ui/forms/nonNegativeIntegerRule";
 type Values = {
   groups: Record<string, { mode: "roll" | "table"; amount?: number | null }>;
 };
@@ -63,7 +63,7 @@ function DamageFields({
           name={["groups", group.episode_id, "amount"]}
           label="Damage taken"
           tooltip="After IWR"
-          rules={[integerRule(true)]}
+          rules={[nonNegativeIntegerRule(true)]}
         >
           <InputNumber aria-label={`${label} damage amount`} step={1} />
         </Form.Item>
@@ -168,7 +168,7 @@ export function EncounterPersistentDamageBatch({
                 const draft = values.groups[group.episode_id];
                 return {
                   episode_id: group.episode_id,
-                  selected_source_id: group.selected_source_id,
+
                   damage:
                     draft.mode === "table" ||
                     resolutions[group.episode_id]?.kind === "table"

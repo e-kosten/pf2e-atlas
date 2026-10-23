@@ -32,6 +32,8 @@ One selector/value/predicate adapter serves statistics, strikes, spells, damage,
 initiative and effective HP. Generated declarations are immutable source facts,
 not executable JavaScript or a second general rule engine. The catalog has its own
 pack-byte/declaration/coverage identity, independent of the DTO snapshot contract.
+The generated damage-type vocabulary supplies both editor choices and source-fact
+keys. Consumer code does not maintain another list or enum-to-key mapping.
 Normal execution needs neither Node nor the source checkout.
 
 One checked effective-immunity adapter combines authored entries and generated
@@ -123,8 +125,8 @@ default positions; formula/recovery edits reconsider only the changed source,
 while metadata-only edits retain the whole order. Damage and recovery consume
 precedence without replacing it. The rules owner returns nonempty groups with
 one active source and the complete source order. Projection, damage and recovery
-consume that same selection; optional request source IDs assert the displayed
-active source rather than selecting another one. Source comparison and ordering
+consume that same selection. Damage and recovery requests identify episodes;
+the guarded backend snapshot supplies their active source. Source comparison and ordering
 belong in Add/Edit, with no second source picker in damage or recovery. Storage resolves typed addition references after
 allocating their IDs in the event transaction; there is no intermediate write. Apply active
 damage types simultaneously through one HP event, then resolve recovery separately.

@@ -43,6 +43,7 @@ pub(in crate::encounters) fn condition_applicability(
     participant: &EncounterParticipant,
     facts: &ConditionApplicabilityFacts,
 ) -> Option<EncounterConditionEligibilityView> {
+    let slug = condition.rule.definition().slug;
     let kind = match participant.participant_kind {
         ParticipantKind::Hazard => EncounterConditionApplicabilityView::Hazard,
         ParticipantKind::Creature | ParticipantKind::Pc => {
@@ -52,7 +53,7 @@ pub(in crate::encounters) fn condition_applicability(
     if !condition.applies_to.contains(&kind) {
         return None;
     }
-    if condition.slug == "broken"
+    if slug == "broken"
         && (facts.broken_threshold_known_absent
             || participant.conditions.iter().any(|condition| {
                 super::super::conditions::condition_rule_for_key(condition.condition_key.as_deref())
@@ -63,13 +64,13 @@ pub(in crate::encounters) fn condition_applicability(
             reason: "No Broken Threshold; this object cannot become broken.".into(),
         });
     }
-    if condition.slug == "broken" && facts.broken_threshold.is_none() {
+    if slug == "broken" && facts.broken_threshold.is_none() {
         return Some(EncounterConditionEligibilityView::NeedsContext {
             reason: "Broken Threshold is unavailable.".into(),
         });
     }
     if facts.immunities.entries.iter().any(|immunity| {
-        immunity.slug == condition.slug && immunity.coverage == ImmunityCoverage::Unconditional
+        immunity.slug == slug && immunity.coverage == ImmunityCoverage::Unconditional
     }) {
         return Some(EncounterConditionEligibilityView::Immune {
             reason: format!("Immune to {}.", condition.name.to_ascii_lowercase()),
@@ -79,15 +80,13 @@ pub(in crate::encounters) fn condition_applicability(
         .immunities
         .entries
         .iter()
-        .any(|immunity| immunity.slug == condition.slug)
+        .any(|immunity| immunity.slug == slug)
     {
         return Some(EncounterConditionEligibilityView::NeedsContext {
             reason: "Confirm whether the condition immunity's exceptions apply.".into(),
         });
     }
-    if !facts.immunities.authored_complete
-        || facts.immunities.uncertain_types.contains(&condition.slug)
-    {
+    if !facts.immunities.authored_complete || facts.immunities.uncertain_types.contains(&slug) {
         return Some(EncounterConditionEligibilityView::NeedsContext {
             reason: "Condition immunities are unavailable.".into(),
         });

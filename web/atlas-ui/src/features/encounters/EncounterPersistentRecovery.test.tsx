@@ -55,7 +55,6 @@ it("rolls recovery without requiring a table result and preserves the episode id
       expected_encounter_revision: 11n,
       participant_key: "actor",
       episode_id: "fire-episode",
-      selected_source_id: 7n,
       dc_override: null,
     }),
   );
@@ -88,7 +87,7 @@ it("requests a missing DC for the precedence-selected source without another sou
   fireEvent.click(screen.getByRole("button", { name: "Roll" }));
   await waitFor(() =>
     expect(onRecover).toHaveBeenCalledWith(
-      expect.objectContaining({ selected_source_id: 7n, dc_override: 10n }),
+      expect.objectContaining({ dc_override: 10n }),
     ),
   );
 });

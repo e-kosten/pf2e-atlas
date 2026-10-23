@@ -1625,7 +1625,6 @@ describe("encounter views", () => {
         groups: [
           {
             episode_id: "fire",
-            selected_source_id: 7n,
             damage: { kind: "table_result", amount: 4n },
           },
         ],

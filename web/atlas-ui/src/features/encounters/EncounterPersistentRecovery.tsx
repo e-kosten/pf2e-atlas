@@ -8,7 +8,7 @@ import type {
 } from "../../generated/atlas";
 import { useDiceRoll } from "../../shared/dice/useDiceRoll";
 import { RollResult } from "../../shared/dice/RollResult";
-import { integerRule } from "./EncounterConditionEditor";
+import { nonNegativeIntegerRule } from "../../shared/ui/forms/nonNegativeIntegerRule";
 
 type Values = { dc?: number | null };
 export function EncounterPersistentRecovery({
@@ -89,7 +89,7 @@ export function EncounterPersistentRecovery({
           expected_encounter_revision: result ? encounterRevision : revision,
           participant_key: participantKey,
           episode_id: group.episode_id,
-          selected_source_id: group.selected_source_id,
+
           dc_override:
             values.dc === undefined ||
             values.dc === null ||
@@ -153,7 +153,7 @@ export function EncounterPersistentRecovery({
                   name="dc"
                   label="Flat check DC"
                   style={{ marginBottom: 0, marginInlineEnd: 0 }}
-                  rules={[integerRule(true)]}
+                  rules={[nonNegativeIntegerRule(true)]}
                 >
                   <InputNumber
                     aria-label="Recovery DC"

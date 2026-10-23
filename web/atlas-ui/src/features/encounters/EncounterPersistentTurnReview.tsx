@@ -218,7 +218,7 @@ export function EncounterPersistentTurnReview({
                                 participant_key: participant.participant_key,
                                 episode_id: group.episode_id,
                                 expected_encounter_revision: review.encounter_revision,
-                                selected_source_id: null,
+
                                 dc_override: null,
                               });
                               void query.refetch();

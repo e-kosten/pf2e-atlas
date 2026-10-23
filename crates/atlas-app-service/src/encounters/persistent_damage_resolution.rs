@@ -117,14 +117,6 @@ impl AtlasAppService {
                 .find(|input| input.episode_id == group.episode_id)
                 .ok_or_else(|| AppServiceError::invalid_request("Choose every damage group"))?;
             let source = group.selected_source;
-            if input
-                .selected_source_id
-                .is_some_and(|id| id != source.condition_id)
-            {
-                return Err(AppServiceError::invalid_request(
-                    "Use the active damage source",
-                ));
-            }
             let ConditionParameters::PersistentDamage {
                 formula,
                 multiplier,

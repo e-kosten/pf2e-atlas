@@ -337,6 +337,46 @@ pub enum ModularConfigDamageType {
     #[serde(rename = "void")]
     Void,
 }
+impl ModularConfigDamageType {
+    pub const ALL: &'static [Self] = &[
+        Self::Acid,
+        Self::Bleed,
+        Self::Bludgeoning,
+        Self::Cold,
+        Self::Electricity,
+        Self::Fire,
+        Self::Force,
+        Self::Mental,
+        Self::Piercing,
+        Self::Poison,
+        Self::Slashing,
+        Self::Sonic,
+        Self::Spirit,
+        Self::Untyped,
+        Self::Vitality,
+        Self::Void,
+    ];
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Acid => "acid",
+            Self::Bleed => "bleed",
+            Self::Bludgeoning => "bludgeoning",
+            Self::Cold => "cold",
+            Self::Electricity => "electricity",
+            Self::Fire => "fire",
+            Self::Force => "force",
+            Self::Mental => "mental",
+            Self::Piercing => "piercing",
+            Self::Poison => "poison",
+            Self::Slashing => "slashing",
+            Self::Sonic => "sonic",
+            Self::Spirit => "spirit",
+            Self::Untyped => "untyped",
+            Self::Vitality => "vitality",
+            Self::Void => "void",
+        }
+    }
+}
 pub(in crate::source_model::generated) fn read_modular_config_damage_type(
     v: &SourceValue,
     c: &SourceContext,

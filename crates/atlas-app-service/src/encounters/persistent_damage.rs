@@ -207,9 +207,6 @@ impl AtlasAppService {
                 None
             } else {
             let source = group.selected_source;
-            if request.selected_source_id.is_some_and(|id| id != source.condition_id) {
-                return Err(AppServiceError::invalid_request("Use the active damage source"));
-            }
             let dc = request.dc_override.or_else(|| super::rules::persistent_damage::recovery_dc(source));
             if dc.is_none() {return Err(AppServiceError::invalid_request("Enter the recovery DC"));}
             if dc.is_some_and(|dc| !(0..=100).contains(&dc)) {return Err(AppServiceError::invalid_request("Recovery DC must be between 0 and 100"));}
