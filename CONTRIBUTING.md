@@ -924,3 +924,26 @@ unique-passage counts and bounded stage updates. ETA is approximate, omitted unt
 there is a useful sample, and rounded to minutes for long-running stages. Include an unchanged
 reuse-heavy tiny build and `--progress never`; JSON stdout must stay parseable.
 Rendering/control-plane corrections do not justify a full-corpus reembedding.
+
+### Embedding storage regression probe
+
+Normal setup/build reclaims substantial free SQLite pages after publication. An
+ordinary startup may migrate the schema but does not vacuum; run `atlas setup`
+explicitly to reclaim space after a storage upgrade. A failed reclamation retains
+complete reference data and can be retried without repeating inference.
+
+For the schema-9 to schema-10 storage change, an optional corpus probe captures
+one consistent disposable snapshot, verifies every vector and source attribution,
+compares saved-state hashes and filtered distances, checks exact-input reuse and
+runs deep validation. It never migrates its source. Use a repository development
+corpus, with enough temporary space for the snapshot, normal migration backup and
+SQLite staging; all copies are removed on completion:
+
+```bash
+ATLAS_STORAGE_PROBE_SOURCE=/absolute/path/to/development/workspace.sqlite \
+  cargo test -p atlas-dev --test embedding_storage -- --ignored --nocapture
+```
+
+These local debug timings are diagnostic, not release performance guarantees.
+Exact-distance KNN ties may return different witnesses after packing; comparison
+checks the distance sequence rather than arbitrary tied IDs.

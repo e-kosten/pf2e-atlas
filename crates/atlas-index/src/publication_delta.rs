@@ -261,22 +261,58 @@ pub(crate) fn search_units(
         crate::validation::check_vector(&unit.vector, model.dimensions)?;
         let id = crate::writer::product_id(ids, &unit.record)?;
         let table = crate::schema::vector_table(model)?;
-        let candidates = if old_profiles.get(unit.profile_id.as_str())
+        let location = crate::semantic_locations::location_id(
+            c,
+            id,
+            &serde_json::to_string(&unit.owners)?,
+            unit.field.as_deref(),
+            &serde_json::to_string(&unit.address)?,
+            unit.chunk_ordinal,
+        )?;
+        let native = crate::embedding_values::publish_input(
+            c,
+            model,
+            &unit.input_hash,
+            unit.input_token_count,
+            &unit.vector,
+        )?;
+        let previous: Option<(i64, Vec<u8>)> = if old_profiles.get(unit.profile_id.as_str())
             == current_profiles.get(unit.profile_id.as_str())
         {
-            c.prepare_cached(&format!("SELECT u.unit_id,v.embedding FROM semantic_units u JOIN {table} v USING(unit_id) WHERE u.profile_id=? AND u.input_hash=? AND u.input_token_count=? AND u.record_id=? AND u.owners_json=? AND u.field_path IS ? AND u.section_json=? AND u.chunk_ordinal=? ORDER BY u.unit_id"))?.query_map(rusqlite::params![unit.profile_id.as_str(),unit.input_hash,unit.input_token_count as i64,id,serde_json::to_string(&unit.owners)?,unit.field,serde_json::to_string(&unit.address)?,unit.chunk_ordinal as i64],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,Vec<u8>>(1)?)))?.collect::<Result<Vec<_>,_>>()?
+            let section = match &unit.address {
+                atlas_domain::SourcePassageAddress::Identity {} => None,
+                atlas_domain::SourcePassageAddress::HtmlSection {
+                    section_ordinal, ..
+                }
+                | atlas_domain::SourcePassageAddress::PlainSection {
+                    section_ordinal, ..
+                } => Some(*section_ordinal as i64),
+            };
+            let mut statement=c.prepare_cached(&format!("SELECT u.unit_id,v.embedding FROM semantic_locations l JOIN semantic_units u USING(location_id) JOIN {table} v USING(unit_id) WHERE l.record_id=? AND u.profile_id=? AND l.owners_json=? AND l.field_path IS ? AND l.chunk_ordinal=? AND json_extract(l.section_json,'$.section_ordinal') IS ? ORDER BY (l.location_id=?) DESC,u.unit_id"))?;
+            let mut rows = statement.query(rusqlite::params![
+                id,
+                unit.profile_id.as_str(),
+                serde_json::to_string(&unit.owners)?,
+                unit.field,
+                unit.chunk_ordinal,
+                section,
+                location
+            ])?;
+            let mut available = None;
+            while let Some(row) = rows.next()? {
+                let candidate: i64 = row.get(0)?;
+                if !kept.contains(&candidate) {
+                    available = Some((candidate, row.get(1)?));
+                    break;
+                }
+            }
+            available
         } else {
-            Vec::new()
-        };
-        let reused = if candidates.is_empty() {
             None
-        } else {
-            let bytes = crate::read_units::vector_bytes(&unit.vector);
-            candidates
-                .into_iter()
-                .find(|(id, vector)| !kept.contains(id) && *vector == bytes)
-                .map(|(id, _)| id)
         };
+        let reused = previous.as_ref().map(|(id, _)| *id);
+        let bytes = crate::read_units::vector_bytes(&unit.vector);
+        let changed = previous.as_ref().is_none_or(|(_, old)| *old != bytes);
         let unit_id = if let Some(id) = reused {
             id
         } else {
@@ -290,9 +326,8 @@ pub(crate) fn search_units(
         row.id("unit_id", unit_id);
         row.id("record_id", id);
         row.text("profile_id", unit.profile_id.as_str());
-        row.text("owners_json", serde_json::to_string(&unit.owners)?);
-        row.push("field_path", nullable(unit.field.clone()));
-        row.text("section_json", serde_json::to_string(&unit.address)?);
+        row.id("location_id", location);
+        row.id("input_id", native);
         row.text(
             "unit_kind",
             if matches!(
@@ -304,15 +339,12 @@ pub(crate) fn search_units(
                 "passage"
             },
         );
-        row.id("chunk_ordinal", unit.chunk_ordinal as i64);
-        row.id("input_token_count", unit.input_token_count as i64);
-        row.text("input_hash", &unit.input_hash);
         // Keep the input vector borrowed while obsolete rows are removed.
         // Materialize only the current insert's blob, not a full second corpus.
         pending.push((
             row,
             table,
-            reused.is_none().then_some(unit.vector.as_slice()),
+            changed.then_some((unit.vector.as_slice(), reused.is_some())),
         ));
     }
     let old_ids = c
@@ -331,10 +363,14 @@ pub(crate) fn search_units(
     for (row, table, vector) in pending {
         let unit_id = row.values[0].clone();
         upsert(c, &row, "unit_id")?;
-        if let Some(vector) = vector {
+        if let Some((vector, update)) = vector {
             execute(
                 c,
-                &format!("INSERT INTO {table}(unit_id,embedding) VALUES(?,?)"),
+                &if update {
+                    format!("UPDATE {table} SET embedding=?2 WHERE unit_id=?1")
+                } else {
+                    format!("INSERT INTO {table}(unit_id,embedding) VALUES(?1,?2)")
+                },
                 &[
                     unit_id,
                     Value::Blob(crate::read_units::vector_bytes(vector)),
@@ -351,6 +387,9 @@ pub(crate) fn search_units(
         if !current_tables.contains(table) {
             c.execute_batch(&format!("DROP TABLE {table}"))?;
         }
+    }
+    for model in &input.context.search_profiles {
+        crate::vector_allocation::compact(c, model)?;
     }
     Ok(())
 }

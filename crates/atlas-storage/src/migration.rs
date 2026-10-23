@@ -8,16 +8,32 @@ use rusqlite::{Connection, Transaction, TransactionBehavior};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 
-/// Ordered executable-owned SQL. Never load migration SQL from a workspace.
+/// Typed domain backfill, executed within the migration transaction.
+/// Change the immutable identifier whenever the executable backfill changes.
+#[derive(Clone, Copy)]
+pub struct DataBackfill {
+    pub id: &'static str,
+    pub apply: fn(&Connection) -> StorageResult<()>,
+}
+
+/// Ordered executable-owned SQL and optional typed backfill. Never load code or
+/// migration SQL from a workspace.
 #[derive(Clone, Copy)]
 pub struct Migration {
     pub version: u32,
     pub name: &'static str,
     pub sql: &'static str,
+    pub backfill: Option<DataBackfill>,
 }
 impl Migration {
     fn checksum(&self) -> String {
-        format!("{:x}", Sha256::digest(self.sql.as_bytes()))
+        let mut hash = Sha256::new();
+        hash.update(self.sql.as_bytes());
+        if let Some(backfill) = self.backfill {
+            hash.update(b"\0atlas-data-backfill/v1\0");
+            hash.update(backfill.id.as_bytes());
+        }
+        format!("{hash:x}", hash = hash.finalize())
     }
 }
 
@@ -106,6 +122,9 @@ impl Workspace {
         }
         for migration in migrations.iter().skip(current as usize) {
             transaction.execute_batch(migration.sql)?;
+            if let Some(backfill) = migration.backfill {
+                (backfill.apply)(&transaction)?;
+            }
             transaction.execute(
                 "INSERT INTO schema_migrations(version,name,checksum) VALUES(?,?,?)",
                 rusqlite::params![migration.version, migration.name, migration.checksum()],

@@ -470,12 +470,17 @@ fn actual_model_build_reuses_exact_inputs_with_fresh_source_attribution() {
     let path = fixture.0.join("packs/items/useful.json");
     let value = fs::read_to_string(&path).unwrap();
     fs::write(path, value.replace("Full prose", "Changed full prose")).unwrap();
-    let changed = build_artifact(options).unwrap();
+    let changed = build_artifact(options.clone()).unwrap();
     assert_ne!(first.source_fingerprint, changed.source_fingerprint);
-    assert!(changed.inferred_inputs > 0);
+    assert_eq!(changed.inferred_inputs, 1);
     assert!(changed.reused_inputs > 0);
     assert_eq!(changed.semantic_unit_count, first.semantic_unit_count);
     atlas_index::validate_artifact(&changed.output_path).unwrap();
+    options.reuse_embeddings = false;
+    let forced = build_artifact(options).unwrap();
+    assert_eq!(forced.reused_inputs, 0);
+    assert_eq!(forced.inferred_inputs, first.inferred_inputs);
+    atlas_index::validate_artifact(&forced.output_path).unwrap();
 }
 
 #[test]
@@ -644,7 +649,7 @@ fn actual_gemma_only_fresh_build_needs_baseline_tokenizer_but_no_base_weights() 
 }
 #[test]
 #[ignore = "requires verified local BGE assets; run explicitly"]
-fn actual_model_reuse_rejects_corrupted_exact_checkpoints() {
+fn actual_model_reuse_rejects_corrupted_published_input_metadata() {
     let fixture = Fixture::new();
     let cache = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
@@ -671,16 +676,13 @@ fn actual_model_reuse_rejects_corrupted_exact_checkpoints() {
     let before = atlas_index::validate_artifact(&options.output_path).unwrap();
     let db = rusqlite::Connection::open(&options.output_path).unwrap();
     let changed = db
-        .execute(
-            "UPDATE embedding_checkpoints SET token_count=token_count+1",
-            [],
-        )
+        .execute("UPDATE embedding_inputs SET token_count=token_count+1", [])
         .unwrap();
     assert!(changed > 0);
     drop(db);
     let error = build_artifact(options.clone()).unwrap_err().to_string();
     assert!(
-        error.contains("checkpoint identity or checksum mismatch"),
+        error.contains("reusable embedding identity or checksum mismatch"),
         "{error}"
     );
     assert_eq!(

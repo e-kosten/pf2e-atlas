@@ -525,6 +525,7 @@ fn validate_vectors(
     product_count: usize,
 ) -> Result<(), IndexError> {
     validate_profile_storage(c, context)?;
+    crate::semantic_locations::validate(c)?;
     if context.search_profiles.is_empty() {
         return Ok(());
     }
@@ -547,16 +548,18 @@ fn validate_vectors(
         // The profile/input-hash index produces scattered vec0 chunk reads.
         // This is a complete scan, so walk unit IDs in storage order instead.
         // Preserve the LEFT JOIN: a missing vector must still fail validation.
-        let mut statement = c.prepare(&format!("SELECT u.input_token_count,u.input_hash,v.embedding FROM semantic_units u NOT INDEXED LEFT JOIN {table} v USING(unit_id) WHERE u.profile_id=? ORDER BY u.unit_id"))?;
+        let mut statement = c.prepare(&format!("SELECT i.token_count,i.input_hash,v.embedding,i.published_hash FROM semantic_units u NOT INDEXED JOIN embedding_inputs i USING(input_id) LEFT JOIN {table} v USING(unit_id) WHERE u.profile_id=? ORDER BY u.unit_id"))?;
         let mut rows = statement.query([model.profile_id.as_str()])?;
         let mut checked = 0usize;
         while let Some(row) = rows.next()? {
             let tokens: usize = row.get(0)?;
-            if tokens == 0 || tokens > model.token_limit || !checked_hash(&row.get::<_, String>(1)?)
-            {
+            if tokens == 0 || tokens > model.token_limit || row.get::<_, Vec<u8>>(1)?.len() != 32 {
                 return Err(bad("invalid semantic input metadata"));
             }
             let bytes: Vec<u8> = row.get(2)?;
+            if crate::embedding_values::hash_bytes(&bytes) != row.get::<_, Vec<u8>>(3)? {
+                return Err(bad("published embedding checksum mismatch"));
+            }
             check_vector(&crate::read_units::decode_vector(&bytes)?, model.dimensions)?;
             checked += 1;
             if checked.is_multiple_of(1000) || checked == total {

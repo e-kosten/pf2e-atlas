@@ -1,6 +1,7 @@
 use super::*;
 
 const FIRST: Migration = Migration {
+    backfill: None,
     version: 1,
     name: "user-state",
     sql: "CREATE TABLE saved(id INTEGER PRIMARY KEY,title TEXT NOT NULL) STRICT; INSERT INTO saved VALUES(1,'retained');",
@@ -71,6 +72,7 @@ fn pending_schema_upgrade_retains_interrupted_maintenance_until_recovery() {
     drop(owner.maintenance(1, "interrupted publication").unwrap());
     drop(owner);
     let second = Migration {
+        backfill: None,
         version: 2,
         name: "additional field",
         sql: "ALTER TABLE saved ADD COLUMN note TEXT;",
@@ -96,6 +98,7 @@ fn pending_schema_upgrade_retains_interrupted_maintenance_until_recovery() {
 fn failed_upgrade_rolls_back_schema_data_and_ledger_and_keeps_backup() {
     let (_dir, workspace) = fixture();
     let second = Migration {
+        backfill: None,
         version: 2,
         name: "backfill",
         sql: "ALTER TABLE saved ADD COLUMN extra INTEGER; UPDATE saved SET extra=7,title='bad';",
@@ -151,6 +154,7 @@ fn failed_upgrade_rolls_back_schema_data_and_ledger_and_keeps_backup() {
 fn successful_upgrade_rejects_old_process_and_changed_migration_history() {
     let (_dir, workspace) = fixture();
     let second = Migration {
+        backfill: None,
         version: 2,
         name: "backfill",
         sql: "ALTER TABLE saved ADD COLUMN extra INTEGER; UPDATE saved SET extra=7;",
@@ -170,6 +174,7 @@ fn successful_upgrade_rejects_old_process_and_changed_migration_history() {
         7
     );
     let changed = Migration {
+        backfill: None,
         version: 1,
         name: "user-state",
         sql: "SELECT 1",
@@ -179,6 +184,7 @@ fn successful_upgrade_rejects_old_process_and_changed_migration_history() {
         Err(StorageError::Schema { .. })
     ));
     let second = Migration {
+        backfill: None,
         version: 2,
         name: "backfill",
         sql: "ALTER TABLE saved ADD COLUMN extra INTEGER; UPDATE saved SET extra=7;",
@@ -300,6 +306,7 @@ fn flushed_vec_and_fts_participate_in_the_same_rollback_as_user_state() {
     let dir = tempfile::tempdir().unwrap();
     let workspace = Workspace::at(dir.path().join("atlas.sqlite")).unwrap();
     let vector = Migration {
+        backfill: None,
         version: 2,
         name: "search",
         sql: "CREATE VIRTUAL TABLE vectors USING vec0(id INTEGER PRIMARY KEY,embedding float[4]); CREATE VIRTUAL TABLE text_search USING fts5(name);",
@@ -395,12 +402,14 @@ fn composed_action_rolls_back_on_error_and_unwind() {
 fn successive_upgrades_replace_backup_with_latest_pre_upgrade_state() {
     let (_dir, workspace) = fixture();
     let second = Migration {
+        backfill: None,
         version: 2,
         name: "second",
         sql: "UPDATE saved SET title='second';",
     };
     workspace.migrate(&[FIRST, second], |_| Ok(())).unwrap();
     let third = Migration {
+        backfill: None,
         version: 3,
         name: "third",
         sql: "UPDATE saved SET title='third';",
@@ -459,6 +468,7 @@ fn startup_fast_path_authenticates_history_and_rejects_newer_schema() {
     let (_dir, workspace) = fixture();
     let _publisher = workspace.update_owner().unwrap();
     let changed = Migration {
+        backfill: None,
         sql: "SELECT 1",
         ..FIRST
     };
@@ -486,6 +496,7 @@ fn pending_migration_still_requires_publisher_ownership() {
     let (_dir, workspace) = fixture();
     let publisher = workspace.update_owner().unwrap();
     let second = Migration {
+        backfill: None,
         version: 2,
         name: "extra",
         sql: "ALTER TABLE saved ADD COLUMN extra INTEGER;",
@@ -588,4 +599,74 @@ fn snapshot_and_seed_admission_preserve_existing_state() {
     drop(admission);
     std::fs::write(locking::sidecar(target.path(), "-wal"), b"orphan").unwrap();
     assert!(target.begin_initialization().is_err());
+}
+
+#[test]
+fn typed_backfill_runs_atomically_and_its_identity_is_authenticated() {
+    let (_dir, workspace) = fixture();
+    let second = Migration {
+        version: 2,
+        name: "typed-backfill",
+        sql: "ALTER TABLE saved ADD COLUMN digest BLOB;",
+        backfill: Some(DataBackfill {
+            id: "saved-digest/v1",
+            apply: |c| {
+                c.execute("UPDATE saved SET digest=?", [&[1u8, 2, 3][..]])?;
+                Err(StorageError::Migration("injected backfill failure".into()))
+            },
+        }),
+    };
+    assert!(workspace.migrate(&[FIRST, second], |_| Ok(())).is_err());
+    let read = workspace.read(1).unwrap();
+    assert!(
+        read.connection()
+            .prepare("SELECT digest FROM saved")
+            .is_err()
+    );
+    drop(read);
+    let second = Migration {
+        backfill: Some(DataBackfill {
+            id: "saved-digest/v1",
+            apply: |c| {
+                c.execute("UPDATE saved SET digest=?", [&[1u8, 2, 3][..]])?;
+                Ok(())
+            },
+        }),
+        ..second
+    };
+    workspace.migrate(&[FIRST, second], |_| Ok(())).unwrap();
+    let changed = Migration {
+        backfill: Some(DataBackfill {
+            id: "saved-digest/v2",
+            ..second.backfill.unwrap()
+        }),
+        ..second
+    };
+    assert!(matches!(
+        workspace.migrate(&[FIRST, changed], |_| Ok(())),
+        Err(StorageError::Migration(_))
+    ));
+    // Current-schema startup must not execute a backfill again.
+    workspace.migrate(&[FIRST, second], |_| Ok(())).unwrap();
+}
+
+#[test]
+fn physical_reclamation_preserves_saved_data_and_logical_revision() {
+    let (_dir, workspace) = fixture();
+    let owner = workspace.update_owner().unwrap();
+    let session = owner.maintenance(1, "physical maintenance").unwrap();
+    session.connection().execute_batch("CREATE TABLE obsolete(value BLOB); INSERT INTO obsolete VALUES(zeroblob(1048576)); DROP TABLE obsolete;").unwrap();
+    let before = std::fs::metadata(workspace.path()).unwrap().len();
+    session.reclaim_space().unwrap();
+    drop(session);
+    drop(owner);
+    let read = workspace.read(1).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), 0);
+    assert_eq!(
+        read.connection()
+            .query_row("SELECT title FROM saved", [], |r| r.get::<_, String>(0))
+            .unwrap(),
+        "retained"
+    );
+    assert!(std::fs::metadata(workspace.path()).unwrap().len() <= before + 1048576);
 }

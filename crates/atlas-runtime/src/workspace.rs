@@ -2,52 +2,70 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 9;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 10;
 const MIGRATIONS: &[Migration] = &[
     Migration {
+        backfill: None,
         version: 1,
         name: "reference-baseline",
         sql: atlas_index::REFERENCE_SCHEMA_SQL,
     },
     Migration {
+        backfill: None,
         version: 2,
         name: "saved-state-baseline",
         sql: atlas_local_state::LOCAL_STATE_SCHEMA_SQL,
     },
     Migration {
+        backfill: None,
         version: 3,
         name: "lexical-alias-rows",
         sql: atlas_index::LEXICAL_ALIAS_SCHEMA_SQL,
     },
     Migration {
+        backfill: None,
         version: 4,
         name: "consumable-filters",
         sql: atlas_index::CONSUMABLE_FILTER_SCHEMA_SQL,
     },
     Migration {
+        backfill: None,
         version: 5,
         name: "encounter-status",
         sql: atlas_local_state::ENCOUNTER_STATUS_SCHEMA_SQL,
     },
     Migration {
+        backfill: None,
         version: 6,
         name: "hazard-participation",
         sql: atlas_local_state::HAZARD_PARTICIPATION_SCHEMA_SQL,
     },
     Migration {
+        backfill: None,
         version: 7,
         name: "encounter-parties",
         sql: atlas_local_state::PARTIES_SCHEMA_SQL,
     },
     Migration {
+        backfill: None,
         version: 8,
         name: "trait-vocabulary",
         sql: atlas_index::TRAIT_SCHEMA_SQL,
     },
     Migration {
+        backfill: None,
         version: 9,
         name: "condition-system",
         sql: atlas_local_state::CONDITION_SYSTEM_SCHEMA_SQL,
+    },
+    Migration {
+        version: 10,
+        name: "embedding-storage",
+        sql: atlas_index::EMBEDDING_STORAGE_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            id: "native-embedding-storage/v1",
+            apply: atlas_index::backfill_embedding_storage,
+        }),
     },
 ];
 
@@ -207,6 +225,7 @@ mod tests {
         let workspace = Workspace::at(directory.path().join("atlas.sqlite")).unwrap();
         let mut migrations = MIGRATIONS.to_vec();
         migrations.push(Migration {
+            backfill: None,
             version: WORKSPACE_SCHEMA_VERSION + 1,
             name: "invalid",
             sql: "INSERT INTO missing_table VALUES(1);",
