@@ -1037,6 +1037,7 @@ describe("list views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
 
     const selector = await screen.findByRole("combobox");
+    await waitFor(() => expect(selector).toBeEnabled());
     fireEvent.mouseDown(selector);
     fireEvent.click(await screen.findByText("Research"));
     fireEvent.click(screen.getByRole("button", { name: "Add" }));

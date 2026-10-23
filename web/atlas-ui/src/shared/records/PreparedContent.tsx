@@ -192,6 +192,12 @@ export function PreparedContentBody({
               : control.shape || "Template";
         modal.info({
           title,
+          closable: true,
+          mask: { closable: true },
+          afterClose: () => {
+            if (marker instanceof HTMLElement && marker.isConnected)
+              marker.focus({ preventScroll: true });
+          },
           content: (
             <dl>
               {Object.entries(control.options).map(([key, value]) => (

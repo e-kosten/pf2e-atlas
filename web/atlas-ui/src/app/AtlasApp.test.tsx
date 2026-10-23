@@ -643,6 +643,7 @@ describe("AtlasApp routing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
     const dialog = await screen.findByRole("dialog", { name: "Add to List" });
     const selector = within(dialog).getByRole("combobox");
+    await waitFor(() => expect(selector).toBeEnabled());
     fireEvent.mouseDown(selector);
     fireEvent.click(await screen.findByText("Research"));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));

@@ -607,6 +607,36 @@ focus to its opener. Preserve the underlying selection, scroll position and
 unfinished edits. Use native Ant positioning and lifecycle; keep one shared
 record renderer across hosts with navigation appropriate to the context.
 
+Idle read-only dialogs and confirmations close with Escape, the close/Cancel
+control, or the backdrop. Backdrop dismissal cancels a destructive confirmation;
+it never submits it. During a submitted write, disable dismissal, competing edits
+and repeat submission until the write and its required canonical refresh finish.
+Make the blocked state visible on Cancel/close as well as the submit button.
+Restore dismissal after a failure, retain the relevant draft/choice, and put the
+error beside the operation with its retry action. For example, Add to List retains
+the chosen list on failure; a destructive confirmation retains its original
+consequence alongside the local error instead of also showing a page banner.
+
+Draft retention is task-specific: New List preserves its unfinished name/tags
+when dismissed; Add to List clears its selection on explicit cancellation.
+Do not impose a shared draft-reset policy. A nested Select or source dialog owns
+the first Escape; the containing surface stays open. Closing an anchored popup
+returns lost focus to its trigger without overriding focus deliberately moved to
+another control. Pass the outgoing popup root to
+`restoreOverlayFocus(trigger, popupContent)` for that close-time behavior; dice
+surfaces retain `useDicePopoverFocus` for entering and leaving their result task.
+Test focus and scroll after animations, including touch activation.
+
+Unavailable choices are not an empty catalog. Add to List shows a local Retry
+when lists cannot load and keeps supplied choices on a failed refresh with a
+retained-content notice. Only a successful empty catalog shows No saved lists yet
+and a link to Lists. Optional tag-suggestion failure does not block New List.
+Bound selector tracks (`minmax(0, 1fr)`) so a long chosen name cannot stretch its
+modal; the Select menu must still make the complete option reachable. List
+forms use `transitionName=""` to avoid measuring a child popup during a scale
+animation. Check opening a Select immediately as well as after the dialog settles;
+a correctly sized field does not prove its menu fits.
+
 Reference previews follow the policy below, including local Back, one Drawer host and delayed loading feedback. Do not change hosts after loading based on
 record length. Extended reading remains available through normal page navigation;
 a pinned reader would be a separate product feature.

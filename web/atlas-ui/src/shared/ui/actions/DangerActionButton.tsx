@@ -1,7 +1,8 @@
 import { Alert, Button, Popconfirm } from "antd";
 import { useRef, useState } from "react";
-import type { ButtonProps } from "antd";
+import type { ButtonProps, GetRef } from "antd";
 import { useConfirmDangerAction } from "./useConfirmDangerAction";
+import { restoreOverlayFocus } from "../overlays/restoreOverlayFocus";
 
 type DangerActionButtonProps = Omit<ButtonProps, "danger" | "onClick"> & {
   confirmation?: "modal" | "popover";
@@ -36,6 +37,7 @@ function ModalDangerActionButton({
       danger
       onClick={(event) => {
         onBeforeConfirm?.(event);
+        event.currentTarget.focus({ preventScroll: true });
         confirmDangerAction({
           title: confirmTitle,
           content: confirmContent,
@@ -60,12 +62,18 @@ function PopoverDangerActionButton({
   const pendingRef = useRef(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const popup = useRef<GetRef<typeof Popconfirm>>(null);
   return (
     <Popconfirm
+      ref={popup}
       title={confirmTitle}
       description={error ? <Alert type="error" title={error} /> : confirmContent}
       icon={null}
       open={open}
+      afterOpenChange={(visible) => {
+        if (!visible) restoreOverlayFocus(trigger.current, popup.current?.popupElement);
+      }}
       onOpenChange={(next) => {
         if (!pendingRef.current) {
           setOpen(next);
@@ -99,7 +107,15 @@ function PopoverDangerActionButton({
         })();
       }}
     >
-      <Button {...buttonProps} danger onClick={onBeforeConfirm} />
+      <Button
+        {...buttonProps}
+        ref={trigger}
+        danger
+        onClick={(event) => {
+          event.currentTarget.focus({ preventScroll: true });
+          onBeforeConfirm?.(event);
+        }}
+      />
     </Popconfirm>
   );
 }

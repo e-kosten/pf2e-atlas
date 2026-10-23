@@ -1,8 +1,42 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { PreparedContent } from "./PreparedContent";
 import { atlasRoutePath } from "../../app/routes";
 import { detailFixture } from "../../test/fixtures";
 import { ConfigProvider, theme } from "antd";
+
+it.each(["Escape", "backdrop"])(
+  "dismisses source information with %s and restores its inline control",
+  async (interaction) => {
+    const content = detailFixture("actors:source", "Source", "rules:other").presentation
+      .content[0];
+    content.body = {
+      kind: "html",
+      html: '<span data-atlas-interaction="0">Fortitude check</span>',
+      controls: [
+        {
+          ordinal: 0,
+          control: { kind: "check", statistic: "Fortitude", options: { dc: "15" } },
+        },
+      ],
+    };
+    render(
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <PreparedContent content={content} onReference={vi.fn()} />
+      </ConfigProvider>,
+    );
+    const trigger = screen.getByRole("button", { name: "Fortitude check" });
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole("dialog");
+    if (interaction === "Escape") fireEvent.keyDown(dialog, { key: "Escape" });
+    else {
+      fireEvent.mouseDown(document.querySelector(".ant-modal-wrap")!);
+      fireEvent.click(document.querySelector(".ant-modal-wrap")!);
+    }
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(trigger).toHaveFocus();
+  },
+);
+
 describe("prepared source HTML", () => {
   it("renders compact effects with native destinations and refreshes without duplicate controls", () => {
     const detail = detailFixture("spells:source", "Source", "effects:target");
