@@ -1642,7 +1642,7 @@ describe("encounter views", () => {
     await screen.findByText("Recovered · DC 15");
     expect(screen.getByRole("status", { name: "1d20: 17" })).toBeVisible();
     expect(review).toBeVisible();
-    fireEvent.click(within(review).getByRole("button", { name: "Close", exact: true }));
+    fireEvent.click(within(review).getByRole("button", { name: "Close" }));
     await waitFor(() =>
       expect(
         screen.queryByRole("dialog", { name: "Turn reminders" }),
