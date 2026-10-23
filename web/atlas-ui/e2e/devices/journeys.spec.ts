@@ -419,6 +419,10 @@ test("encounter references retain their owner, scroll and native destination", a
     const originalSize = page.viewportSize()!;
     if (originalSize.width < 768)
       await page.setViewportSize({ width: originalSize.width, height: 560 });
+    if (originalSize.width >= 768)
+      await page.addStyleTag({
+        content: ".record-preview-popover { animation-duration: 800ms !important; }",
+      });
     await activate(page.getByRole("link", { name: "Signal Pulse", exact: true }), info);
     const content = page.getByLabel(
       (page.viewportSize()?.width ?? 1440) >= 768
@@ -443,9 +447,6 @@ test("encounter references retain their owner, scroll and native destination", a
         : ".record-preview-drawer__body",
     );
     await expect(host).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "Open reference full page", exact: true }),
-    ).toBeFocused();
     if (widePreview) {
       const popup = page.locator(".record-preview-popover");
       await page.setViewportSize({ width: 844, height: 390 });
@@ -463,6 +464,9 @@ test("encounter references retain their owner, scroll and native destination", a
         .toBe(true);
       await noPageOverflow(page);
     }
+    await expect(
+      page.getByRole("link", { name: "Open reference full page", exact: true }),
+    ).toBeFocused();
     const outer = await page.evaluate(() => scrollY);
     // Capture a real scroll position even when the nested reference is already visible.
     await host.evaluate((node) => {

@@ -175,10 +175,12 @@ export function RecordPreviewPopover({
       classNames={{ root: "record-preview-popover" }}
       ref={popover}
       afterOpenChange={(open) => {
-        if (open)
+        if (open) {
+          requestAnimationFrame(() => popover.current?.forceAlign());
           popover.current?.popupElement
             .querySelector<HTMLElement>("a[href],button")
             ?.focus({ preventScroll: true });
+        }
       }}
       open={Boolean(bounds && (detail || error))}
       placement="right"
