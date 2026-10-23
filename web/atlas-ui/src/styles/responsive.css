@@ -18,8 +18,7 @@
     min-height: 0;
   }
 
-  .record-view,
-  .record-view--with-aux {
+  .record-view {
     grid-template-columns: 1fr;
     height: auto;
     min-height: 0;
@@ -84,7 +83,7 @@
   }
 
   .record-view {
-    padding: 10px;
+    padding: var(--space-group);
   }
 
   .pane-resizer {

@@ -646,9 +646,22 @@ navigation. Native full-page links, modified clicks and middle clicks preserve
 browser behavior and exact destinations. Opening a reference does not alter an
 Add candidate, saved-list membership, selected participant or unfinished draft.
 
+Keep action tooltips within the Drawer's stationary viewport root. The shared
+Drawer supplies Ant's `getPopupContainer` to all its popup descendants, including
+feature-provided actions, through a scoped `ConfigProvider`. A body-level tooltip can
+follow a closing button offscreen and widen the mobile viewport, rewrapping the
+background document. Do not anchor it inside the scrolling header. Check actual
+touch dismissal as well as keyboard dismissal; the owner must keep its width,
+scroll and focus throughout the transition. Interactive descendants must receive
+pointer events: a rank menu that looks correct but cannot be clicked/tapped fails
+the shared overlay contract.
+
 Preserve the complete backend address: record key, embedded path, field/passage,
 fingerprint, selected spell rank and separate landing. Rank changes update the
-current document through their own callback. Original record follows verified
+current document through their own callback. The page/reading host passes its
+landing explicitly; reusable detail content must not reparse the current URL on
+local renders and restart landing when a linked Drawer opens or closes.
+Original record follows verified
 structured provenance for an embedded copy; an encounter participant's root
 Original record opens its indexed baseline. Neither replaces a customized copy
 nor guesses a destination by name. Unavailable references remain explicit inert

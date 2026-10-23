@@ -3,12 +3,11 @@ import type { RecordDetailView, RecordNavigationView } from "../../generated/atl
 import type { RecordPreviewContentProps } from "./recordPreviewTypes";
 import { landReadingTarget } from "./landReadingTarget";
 
-// Both native preview hosts restore the actual scroll container, after the
+// The reference Drawer restores its actual scroll container after the
 // addressed document arrives. Background refreshes do not restart reading.
 export function usePreviewReadingPosition(
   detail: RecordDetailView | undefined,
   history: RecordPreviewContentProps["readingHistory"],
-  host: "popover" | "drawer",
   enabled = true,
   landing?: RecordNavigationView,
 ) {
@@ -25,7 +24,7 @@ export function usePreviewReadingPosition(
   const restorePosition = useCallback(() => {
     if (!enabledRef.current || !address || !restore) return;
     const node = content.current;
-    const scroll = host === "drawer" ? node?.parentElement : node;
+    const scroll = node?.parentElement;
     if (!node || !scroll) return;
     scroll.scrollTop = restore.scroll;
     if (restore.focusHref)
@@ -33,7 +32,7 @@ export function usePreviewReadingPosition(
         .find((link) => link.getAttribute("href") === restore.focusHref)
         ?.focus({ preventScroll: true });
     restoredAddress.current = address;
-  }, [address, restore, host]);
+  }, [address, restore]);
   const onLandingReady = useCallback(
     (target?: HTMLElement) => {
       if (!enabledRef.current) return;
@@ -41,12 +40,12 @@ export function usePreviewReadingPosition(
       if (restoringHistory) restorePosition();
       else {
         const node = content.current;
-        const scroll = host === "drawer" ? node?.parentElement : node;
+        const scroll = node?.parentElement;
         if (target && scroll) landReadingTarget(target, scroll);
         if (address) restoredAddress.current = address;
       }
     },
-    [address, restoringHistory, restorePosition, host],
+    [address, restoringHistory, restorePosition],
   );
   useLayoutEffect(() => {
     // A parent landing may render an embedded ability asynchronously. Its renderer

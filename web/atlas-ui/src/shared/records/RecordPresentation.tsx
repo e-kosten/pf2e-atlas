@@ -4,7 +4,7 @@ import { RollTableReading } from "./RollTableReading";
 import { RecordRarity } from "./RecordRarity";
 import { SpellRankControl } from "./SpellRankControl";
 import { recordReadingIdentity } from "./useRetainedRecord";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { Button, Collapse } from "antd";
 import type {
   PreparedContentFieldView,
@@ -134,11 +134,18 @@ export function RecordIdentity({
   onOwnerReturn,
   visibleOwnerRecordKey,
   originalRecord,
-  hideTitle = false,
+  onReference,
+  stacked = false,
+  headingRef,
+  headingId,
+  actions,
   showOwnerReturn = true,
 }: {
-  identity: RecordSummaryView;
-  hideTitle?: boolean;
+  identity?: RecordSummaryView;
+  stacked?: boolean;
+  headingRef?: Ref<HTMLHeadingElement>;
+  headingId?: string;
+  actions?: ReactNode;
   showOwnerReturn?: boolean;
   classification: string;
   rankControl?: ReactNode;
@@ -146,6 +153,7 @@ export function RecordIdentity({
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
   originalRecord?: RecordNavigationView;
+  onReference: RecordReferenceHandler;
   visibleOwnerRecordKey?: string;
   onOwnerReturn?: (
     parent: string,
@@ -153,17 +161,41 @@ export function RecordIdentity({
     anchor: HTMLElement,
   ) => void;
 }) {
+  const textCost =
+    stacked && actionCost?.state === "value" && !actionCost.value?.glyph ? (
+      <ActionCost fact={actionCost} />
+    ) : null;
   return (
     <DocumentIdentityHeader
       title={
         <>
-          {identity.title}{" "}
-          {actionCost?.state === "value" && <ActionCost fact={actionCost} />}
+          {identity?.title ?? "Reference"}{" "}
+          {actionCost?.state === "value" && (!stacked || actionCost.value?.glyph) && (
+            <ActionCost fact={actionCost} />
+          )}
         </>
       }
       classification={classification}
-      classificationControl={rankControl}
-      hideTitle={hideTitle}
+      classificationControl={
+        rankControl || textCost ? (
+          <>
+            {rankControl}
+            {textCost}
+          </>
+        ) : undefined
+      }
+      stacked={stacked}
+      headingRef={headingRef}
+      headingId={headingId}
+      actions={actions}
+      attribution={
+        identity?.publication?.trim() && (
+          <p className="muted record-reference__source">
+            {stacked && "Source: "}
+            {identity.publication}
+          </p>
+        )
+      }
       navigation={
         showOwnerReturn &&
         root &&
@@ -209,7 +241,11 @@ export function RecordIdentity({
             onClick={(event) => {
               if (!shouldHandleAtlasRouteClick(event)) return;
               event.preventDefault();
-              navigateToAtlasPath(event.currentTarget.getAttribute("href")!);
+              onReference(
+                originalRecord.record_key,
+                event.currentTarget,
+                originalRecord,
+              );
             }}
           >
             View original
@@ -218,15 +254,89 @@ export function RecordIdentity({
       }
     >
       <div className="badge-row">
-        <RecordRarity rarity={identity.rarity} />
-        {identity.traits
+        <RecordRarity rarity={identity?.rarity ?? null} />
+        {identity?.traits
           .filter((trait) => trait.kind !== "rarity")
           .map((trait) => (
             <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
           ))}
       </div>
-      {identity.publication?.trim() && <p className="muted">{identity.publication}</p>}
     </DocumentIdentityHeader>
+  );
+}
+
+export function RecordPresentationIdentity({
+  presentation,
+  root,
+  selection,
+  relationships = [],
+  onReference,
+  onRankChange,
+  onOwnerReturn,
+  visibleOwnerRecordKey,
+  showOwnerReturn = true,
+  stacked = false,
+  headingRef,
+  headingId,
+  actions,
+}: {
+  presentation?: RecordPresentationView;
+  root?: RecordSummaryView;
+  selection?: RecordNavigationView;
+  relationships?: RecordRelationshipView[];
+  onReference: RecordReferenceHandler;
+  onRankChange?: (rank: number | undefined) => void;
+  onOwnerReturn?: (
+    parent: string,
+    landing: RecordNavigationView,
+    anchor: HTMLElement,
+  ) => void;
+  visibleOwnerRecordKey?: string;
+  showOwnerReturn?: boolean;
+  stacked?: boolean;
+  headingRef?: Ref<HTMLHeadingElement>;
+  headingId?: string;
+  actions?: ReactNode;
+}) {
+  const body = presentation?.body;
+  const documentIdentity =
+    stacked || (body?.kind !== "creature" && body?.kind !== "hazard");
+  return (
+    <RecordIdentity
+      stacked={documentIdentity}
+      headingRef={headingRef}
+      headingId={headingId}
+      actions={actions}
+      showOwnerReturn={showOwnerReturn}
+      identity={presentation?.identity}
+      classification={presentation?.classification ?? ""}
+      rankControl={
+        body?.kind === "spell" && onRankChange && body.value.base_rank.value != null ? (
+          <SpellRankControl
+            key={recordReadingIdentity(selection?.record_key ?? null, selection)}
+            spell={body.value}
+            embedded={Boolean(selection?.embedded_path.length)}
+            onChange={onRankChange}
+          />
+        ) : undefined
+      }
+      actionCost={body?.kind === "activity" ? body.value.action_cost : undefined}
+      visibleOwnerRecordKey={visibleOwnerRecordKey}
+      root={root}
+      selection={selection}
+      onOwnerReturn={onOwnerReturn}
+      onReference={onReference}
+      originalRecord={
+        selection?.embedded_path.length
+          ? (relationships.find(
+              (relationship) =>
+                relationship.origin === "structured" &&
+                relationship.kind === "CompendiumProvenance" &&
+                relationship.status === "resolved_record",
+            )?.target ?? undefined)
+          : undefined
+      }
+    />
   );
 }
 
@@ -242,7 +352,7 @@ export function RecordPresentation({
   castingAnnotations,
   activityRolls,
   hideIdentity = false,
-  hideTitle = false,
+  identityInHost = false,
   showOwnerReturn = true,
   reading,
   onOwnerReturn,
@@ -261,7 +371,7 @@ export function RecordPresentation({
     activity: import("../../generated/atlas").ActorActivityView,
   ) => ReactNode;
   hideIdentity?: boolean;
-  hideTitle?: boolean;
+  identityInHost?: boolean;
   showOwnerReturn?: boolean;
   reading?: EmbeddedReadingContext;
   visibleOwnerRecordKey?: string;
@@ -272,6 +382,9 @@ export function RecordPresentation({
   ) => void;
 }) {
   const body = presentation.body;
+  const descriptions = presentation.content.filter(
+    (field) => field.role === "description" && contentFieldVisible(field),
+  );
   const actor =
     body.kind === "creature"
       ? body.value
@@ -295,65 +408,48 @@ export function RecordPresentation({
   const embedded = (
     body.kind === "journal" ? (body.value.pages.value ?? []) : presentation.embedded
   ).filter((link) => !usedOwned.includes(JSON.stringify(link.navigation)));
+  const flavor = (
+    <div className="record-reference__flavor">
+      <ContentFields
+        fields={
+          body.kind === "hazard"
+            ? presentation.content.filter((field) => field.role === "description")
+            : presentation.content
+        }
+        relationships={relationships}
+        onReference={onReference}
+        hideDescriptionHeading={
+          (body.kind === "journal_page" &&
+            body.value.show_body_heading.value === false) ||
+          (body.kind !== "creature" &&
+            body.kind !== "hazard" &&
+            descriptions.length === 1 &&
+            descriptions[0].body.kind !== "unavailable")
+        }
+      />
+    </div>
+  );
   return (
     <article
       className={`record-reference${compact ? " record-reference--compact" : ""}${encounter ? " record-reference--encounter" : ""}`}
     >
-      {!hideIdentity && (
-        <RecordIdentity
-          hideTitle={hideTitle}
-          showOwnerReturn={showOwnerReturn}
-          identity={presentation.identity}
-          classification={
-            body.kind === "spell" && onRankChange
-              ? "Spell"
-              : presentation.classification
-          }
-          rankControl={
-            body.kind === "spell" &&
-            onRankChange &&
-            body.value.base_rank.value != null ? (
-              <SpellRankControl
-                key={recordReadingIdentity(selection?.record_key ?? null, selection)}
-                spell={body.value}
-                embedded={Boolean(selection?.embedded_path.length)}
-                onChange={onRankChange}
-              />
-            ) : undefined
-          }
-          actionCost={body.kind === "activity" ? body.value.action_cost : undefined}
-          visibleOwnerRecordKey={visibleOwnerRecordKey}
+      {!hideIdentity && !identityInHost && (
+        <RecordPresentationIdentity
+          presentation={presentation}
           root={root}
           selection={selection}
+          relationships={relationships}
+          onReference={onReference}
+          onRankChange={onRankChange}
           onOwnerReturn={onOwnerReturn}
-          originalRecord={
-            selection?.embedded_path.length
-              ? (relationships.find(
-                  (relationship) =>
-                    relationship.origin === "structured" &&
-                    relationship.kind === "CompendiumProvenance" &&
-                    relationship.status === "resolved_record",
-                )?.target ?? undefined)
-              : undefined
-          }
+          visibleOwnerRecordKey={visibleOwnerRecordKey}
+          showOwnerReturn={showOwnerReturn}
         />
       )}
-      {!encounter && (
-        <div className="record-reference__flavor">
-          <ContentFields
-            fields={
-              body.kind === "hazard"
-                ? presentation.content.filter((field) => field.role === "description")
-                : presentation.content
-            }
-            relationships={relationships}
-            onReference={onReference}
-            hideDescriptionHeading={
-              body.kind === "journal_page" &&
-              body.value.show_body_heading.value === false
-            }
-          />
-        </div>
+      {body.kind === "spell" ? (
+        <SpellReference spell={body.value}>{!encounter && flavor}</SpellReference>
+      ) : (
+        !encounter && flavor
       )}
       {body.kind === "creature" && encounter && (
         <ActorSecondaryFacts actor={body.value} />
@@ -423,13 +519,15 @@ export function RecordPresentation({
           )}
         </>
       )}
-      {body.kind === "spell" && <SpellReference spell={body.value} />}
       {body.kind === "activity" && (
         <ActorActivity
           activity={body.value}
           onReference={onReference}
           selected
-          hideCost={!hideIdentity && body.value.action_cost.state === "value"}
+          hideCost={
+            (!hideIdentity || identityInHost) &&
+            body.value.action_cost.state === "value"
+          }
         />
       )}
       {body.kind === "physical_reference" && body.value.consumable && (

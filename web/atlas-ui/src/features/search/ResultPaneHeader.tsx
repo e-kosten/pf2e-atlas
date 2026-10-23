@@ -55,7 +55,7 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
             <div className="pager__navigation" role="group" aria-label="Result pages">
               <Button
                 aria-label="Previous page"
-                className="pager__button"
+                size="small"
                 disabled={
                   workspace.pageNumber <= 1 ||
                   workspace.resultsRefreshing ||
@@ -82,7 +82,7 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
               />
               <Button
                 aria-label="Next page"
-                className="pager__button"
+                size="small"
                 disabled={
                   !page?.has_more ||
                   workspace.resultsRefreshing ||

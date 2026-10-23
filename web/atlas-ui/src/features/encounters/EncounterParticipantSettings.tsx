@@ -16,7 +16,6 @@ import type {
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
 import { Pencil } from "lucide-react";
-import { EncounterOriginalRecord } from "./EncounterOriginalRecord";
 import { optionalBigIntInput, participantUpdate } from "./participantEdits";
 
 type ParticipantValues = {
@@ -249,9 +248,6 @@ function ParticipantSettingsForm({
           />
         </Form.Item>
         {lifeSettings}
-        {participant.record_key && (
-          <EncounterOriginalRecord recordKey={participant.record_key} />
-        )}
       </Form>
     </>
   );

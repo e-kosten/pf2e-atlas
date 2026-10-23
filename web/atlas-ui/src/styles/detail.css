@@ -1,12 +1,14 @@
 .detail-panel {
-  --record-inset: 24px;
-  overflow: auto;
+  --record-inset: var(--space-section);
+  min-width: 0;
+  min-height: 0;
+  padding: var(--record-inset);
 }
 .detail-panel--compact {
-  --record-inset: 14px;
+  --record-inset: var(--space-group);
 }
 .detail-status {
-  padding: 12px var(--record-inset);
+  margin-block-end: var(--space-group);
 }
 .detail-status[role="status"],
 .related-records__status {
@@ -16,7 +18,7 @@
   color: var(--muted);
 }
 .related-records {
-  padding: 0 var(--record-inset) var(--record-inset);
+  margin-block-start: var(--space-section);
 }
 .related-records__body {
   min-width: 0;
@@ -43,7 +45,7 @@
 }
 @media (max-width: 600px) {
   .detail-panel:not(.detail-panel--compact) {
-    --record-inset: 16px;
+    --record-inset: var(--space-group);
   }
 }
 
@@ -54,33 +56,25 @@
   row-gap: var(--panel-gap);
   height: 100%;
   min-height: 0;
-  padding: var(--panel-gap);
+  padding: var(--space-section);
 }
 
 .record-view__pane {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  --record-page-inset: var(--space-section);
   min-width: 0;
   min-height: 0;
-}
-
-.record-view__pane > .detail-panel {
+  overflow: auto;
+  padding: var(--record-page-inset);
   border: 1px solid var(--line);
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  border-radius: var(--radius-lg);
   background: var(--panel);
+  line-height: 1.55;
 }
-
-.record-view__link {
-  color: var(--accent-text);
-  font-size: 12px;
-  font-weight: 650;
-  text-decoration: none;
+.record-view__pane > .record-reference__header {
+  margin-block-end: var(--space-section);
 }
-
-.record-view__link:hover,
-.record-view__link:focus-visible {
-  text-decoration: underline;
-  text-underline-offset: 2px;
+.record-view__pane > .detail-panel {
+  padding: 0;
 }
 
 .detail-empty {
@@ -119,4 +113,25 @@
 .prepared-content [role="button"]:focus-visible {
   outline: 2px solid var(--accent-text);
   outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .record-view {
+    padding: var(--space-group);
+  }
+  .record-view__pane {
+    --record-page-inset: var(--space-group);
+  }
+}
+
+/* The page frame and every part of its document share one reading column. */
+.record-view__pane--document {
+  width: 100%;
+  max-width: calc(var(--document-measure) + 2 * var(--space-section));
+  justify-self: center;
+}
+@media (max-width: 600px) {
+  .record-view__pane--document {
+    max-width: calc(var(--document-measure) + 2 * var(--space-group));
+  }
 }

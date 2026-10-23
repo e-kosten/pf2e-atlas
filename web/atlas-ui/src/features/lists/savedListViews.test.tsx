@@ -633,9 +633,7 @@ describe("list views", () => {
     expect(
       await screen.findByRole("heading", { name: "Nested Rule" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("dialog", { name: "Reference preview" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Nested Rule" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
       "aria-current",
       "true",

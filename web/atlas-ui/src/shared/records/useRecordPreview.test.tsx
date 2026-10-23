@@ -10,7 +10,7 @@ import { ConfigProvider, Grid } from "antd";
 import { useRecordPreview } from "./useRecordPreview";
 import { EffectReferenceLink } from "./EffectReferenceLink";
 import { detailFixture } from "../../test/fixtures";
-import { RecordPreviewPopover } from "./RecordPreviewPopover";
+import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 function queryWrapper({ children }: { children: import("react").ReactNode }) {
   return (
@@ -126,7 +126,7 @@ it("returns focus to the original trigger after dismissing a narrow reference dr
           Ghoul reference
         </button>
         {preview.recordKey && (
-          <RecordPreviewPopover
+          <RecordReferenceDrawer
             anchor={preview.anchor}
             detail={preview.detail}
             loading={preview.loading}
@@ -149,15 +149,15 @@ it("returns focus to the original trigger after dismissing a narrow reference dr
     act(() => original.focus());
     fireEvent.click(original);
     await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Open reference full page" }),
-      ).toHaveFocus(),
+      expect(screen.getByRole("heading", { name: "Reference" })).toHaveFocus(),
     );
-    const close = screen.getByRole("button", { name: "Close" });
-    act(() => close.focus());
-    fireEvent.keyDown(close, { key: "Escape", keyCode: 27 });
+    const heading = screen.getByRole("heading", { name: "Reference" });
+    act(() => heading.focus());
+    fireEvent.keyDown(heading, { key: "Escape", keyCode: 27 });
     await waitFor(() =>
-      expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument(),
+      expect(
+        screen.queryByRole("button", { name: "Close reference preview" }),
+      ).not.toBeInTheDocument(),
     );
     expect(original).toHaveFocus();
   } finally {
@@ -176,7 +176,7 @@ it("bounds preview history and restores exact selected copy, landing, source lin
     source_fingerprint: "copy-a",
   };
   const host = document.createElement("section");
-  host.className = "record-preview-popover__body";
+  host.className = "record-preview-drawer__body";
   const source = document.createElement("a");
   source.href = "/records/rules:next";
   host.append(source);

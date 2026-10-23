@@ -38,16 +38,23 @@ body:has(:is(.search-workspace, .list-workspace)) {
   min-height: 0;
   background: var(--panel);
 }
-.reference-results__header,
-.reference-reader__header {
+.browse-pane-header {
   flex-shrink: 0;
+  min-width: 0;
+  min-height: max(
+    calc(var(--control-height) + 2 * var(--space-control) + 1px),
+    var(--browse-header-height, 0px)
+  );
+  border-bottom: 1px solid var(--line);
+}
+.browse-pane-header__content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 10px 16px;
-  min-height: 52px;
-  border-bottom: 1px solid var(--line);
+  gap: var(--space-control);
+  min-width: 0;
+  min-height: calc(var(--control-height) + 2 * var(--space-control));
+  padding: var(--space-control) var(--browse-header-inset, var(--space-group));
 }
 .reference-results__header .result-pane-header {
   width: 100%;
@@ -62,9 +69,6 @@ body:has(:is(.search-workspace, .list-workspace)) {
   overscroll-behavior: contain;
 }
 .reference-reader__scroll > .detail-panel {
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
   overflow: visible;
 }
 .reference-result {
@@ -237,5 +241,23 @@ body:has(:is(.search-workspace, .list-workspace)) {
     flex-basis: 100%;
     width: 100%;
     min-width: 0;
+  }
+}
+
+/* Keep workspace chrome full width; center the complete document inside it. */
+.reference-reader--document .reference-reader__scroll > .detail-panel {
+  width: 100%;
+  max-width: calc(var(--document-measure) + 2 * var(--space-section));
+  margin-inline: auto;
+}
+.reference-reader > .reference-reader__header {
+  --browse-header-inset: var(--space-section);
+}
+@media (max-width: 600px) {
+  .reference-reader--document .reference-reader__scroll > .detail-panel {
+    max-width: calc(var(--document-measure) + 2 * var(--space-group));
+  }
+  .reference-reader > .reference-reader__header {
+    --browse-header-inset: var(--space-group);
   }
 }

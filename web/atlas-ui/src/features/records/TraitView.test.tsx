@@ -107,7 +107,7 @@ it("shares the normal document identity chrome without routine navigation or ref
   expect(heading.tagName).toBe("H2");
   expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Refresh" })).toBeNull();
-  expect(screen.getByText("Reference", { exact: true })).toBeVisible();
+  expect(screen.queryByText("Reference", { exact: true })).toBeNull();
   const traitHeader = heading.closest("header")!;
   expect(traitHeader.querySelector(".record-reference__kind")).toHaveTextContent(
     "Trait",
@@ -117,6 +117,7 @@ it("shares the normal document identity chrome without routine navigation or ref
     <RecordIdentity
       identity={summaryFixture("weapons:rapier", "Rapier")}
       classification="Weapon 0"
+      onReference={vi.fn()}
     />,
   );
   const recordHeader = screen

@@ -10,32 +10,36 @@ import {
 import { ConfigProvider, Grid } from "antd";
 import { StrictMode } from "react";
 import type { RecordDetailView } from "../../generated/atlas";
-import { RecordPreviewPopover } from "./RecordPreviewPopover";
+import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
 
-describe("RecordPreviewPopover", () => {
+describe("RecordReferenceDrawer", () => {
   afterEach(() => vi.restoreAllMocks());
   it.each(["Escape", "outside click"])(
     "dismisses a pending desktop read with %s",
-    (interaction) => {
+    async (interaction) => {
       vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
       const onClose = vi.fn();
       render(
-        <RecordPreviewPopover
-          anchor={document.createElement("button")}
-          detail={undefined}
-          loading
-          onClose={onClose}
-          onOpenFullPage={vi.fn()}
-          onReference={vi.fn()}
-        />,
+        <ConfigProvider theme={{ token: { motion: false } }}>
+          <RecordReferenceDrawer
+            anchor={document.createElement("button")}
+            detail={undefined}
+            loading
+            onClose={onClose}
+            onOpenFullPage={vi.fn()}
+            onReference={vi.fn()}
+          />
+        </ConfigProvider>,
       );
-      if (interaction === "Escape") fireEvent.keyDown(document, { key: "Escape" });
-      else fireEvent.pointerDown(document.body);
-      expect(onClose).toHaveBeenCalledOnce();
+      const heading = screen.getByRole("heading", { name: "Reference" });
+      await waitFor(() => expect(heading).toHaveFocus());
+      if (interaction === "Escape")
+        fireEvent.keyDown(heading, { key: "Escape", keyCode: 27 });
+      else fireEvent.click(document.querySelector(".ant-drawer-mask")!);
+      await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     },
   );
-  it("delays the trigger spinner and opens the content-sized popup when the record arrives", async () => {
-    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
+  it("opens the pending Drawer immediately, delays its spinner and retains its heading when content arrives", async () => {
     const anchor = document.createElement("button");
     document.body.append(anchor);
     const props = {
@@ -45,7 +49,7 @@ describe("RecordPreviewPopover", () => {
       onReference: vi.fn(),
     };
     const { rerender, unmount } = render(
-      <RecordPreviewPopover {...props} detail={undefined} loading />,
+      <RecordReferenceDrawer {...props} detail={undefined} loading />,
       {
         wrapper: ({ children }) => (
           <ConfigProvider theme={{ token: { motion: false } }}>
@@ -54,32 +58,36 @@ describe("RecordPreviewPopover", () => {
         ),
       },
     );
-    expect(screen.getByRole("status", { name: "Loading reference" })).toBeVisible();
-    const spinner = screen
-      .getByRole("status", { name: "Loading reference" })
-      .querySelector("[aria-busy]");
-    expect(spinner).toHaveAttribute("aria-busy", "false");
-    await waitFor(() => expect(spinner).toHaveAttribute("aria-busy", "true"));
-    expect(screen.queryByRole("dialog", { name: "Reference preview" })).toBeNull();
-    rerender(
-      <RecordPreviewPopover
-        {...props}
-        detail={detailFixture("spells:fear", "Fear")}
-        loading={false}
-      />,
-    );
-    await waitFor(() =>
-      expect(screen.getByRole("dialog", { name: "Reference preview" })).toBeVisible(),
-    );
-    expect(screen.queryByRole("status", { name: "Loading reference" })).toBeNull();
-    unmount();
-    anchor.remove();
+    try {
+      const dialog = screen.getByRole("dialog", { name: "Reference" });
+      const heading = screen.getByRole("heading", { name: "Reference" });
+      expect(dialog).toHaveAttribute("aria-modal", "true");
+      expect(screen.getByRole("status")).toHaveAccessibleName("Loading record…");
+      expect(dialog.querySelector('.ant-spin[aria-busy="true"]')).toBeNull();
+      await waitFor(() =>
+        expect(dialog.querySelector('.ant-spin[aria-busy="true"]')).not.toBeNull(),
+      );
+      rerender(
+        <RecordReferenceDrawer
+          {...props}
+          detail={detailFixture("spells:fear", "Fear")}
+          loading={false}
+        />,
+      );
+      expect(screen.getByRole("dialog", { name: "Fear" })).toBe(dialog);
+      expect(screen.getByRole("heading", { name: "Fear" })).toBe(heading);
+      expect(heading).toHaveFocus();
+      expect(screen.queryByRole("status")).toBeNull();
+    } finally {
+      unmount();
+      anchor.remove();
+    }
   });
 
   it("opens a failed initial read so Retry and Close remain available", async () => {
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
     render(
-      <RecordPreviewPopover
+      <RecordReferenceDrawer
         anchor={document.createElement("button")}
         detail={undefined}
         loading={false}
@@ -104,6 +112,33 @@ describe("RecordPreviewPopover", () => {
       screen.getByRole("button", { name: "Close reference preview" }),
     ).toBeVisible();
   });
+  it("dismisses an action tooltip before the containing Drawer on consecutive Escape presses", async () => {
+    const onClose = vi.fn();
+    render(
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <RecordReferenceDrawer
+          anchor={null}
+          detail={recordDetailFixture()}
+          loading={false}
+          onClose={onClose}
+          onOpenFullPage={vi.fn()}
+          onReference={vi.fn()}
+        />
+      </ConfigProvider>,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toHaveFocus(),
+    );
+    const close = screen.getByRole("button", { name: "Close reference preview" });
+    act(() => close.focus());
+    await screen.findByRole("tooltip", { name: "Close reference" });
+    fireEvent.keyDown(close, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull());
+    expect(onClose).not.toHaveBeenCalled();
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(close, { key: "Escape" });
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  });
   it.each(["desktop", "narrow"])(
     "%s encounter preview keeps one shared Close beside its actions",
     async (viewport) => {
@@ -111,7 +146,7 @@ describe("RecordPreviewPopover", () => {
       const onClose = vi.fn();
       render(
         <ConfigProvider theme={{ token: { motion: false } }}>
-          <RecordPreviewPopover
+          <RecordReferenceDrawer
             context="encounter"
             actions={<button>Cast</button>}
             anchor={document.createElement("button")}
@@ -131,7 +166,7 @@ describe("RecordPreviewPopover", () => {
       ).toContainElement(close);
       expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
       fireEvent.click(close);
-      expect(onClose).toHaveBeenCalledOnce();
+      await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     },
   );
   it.each(["desktop", "narrow"])(
@@ -149,7 +184,7 @@ describe("RecordPreviewPopover", () => {
       const onBack = vi.fn();
       render(
         <ConfigProvider theme={{ token: { motion: false } }}>
-          <RecordPreviewPopover
+          <RecordReferenceDrawer
             visibleOwnerRecordKey="actors:mage"
             anchor={document.createElement("button")}
             detail={detail}
@@ -198,16 +233,14 @@ describe("RecordPreviewPopover", () => {
           <StrictMode>
             <ConfigProvider theme={{ token: { motion: false } }}>
               <button>Outside preview</button>
-              <RecordPreviewPopover {...props} detail={detail} />
+              <RecordReferenceDrawer {...props} detail={detail} />
             </ConfigProvider>
           </StrictMode>
         );
       };
       const { rerender } = render(preview(true));
       await waitFor(() =>
-        expect(
-          screen.getByRole("link", { name: "Open reference full page" }),
-        ).toHaveFocus(),
+        expect(screen.getByRole("heading", { name: "Next reference" })).toHaveFocus(),
       );
       const trigger = screen.getByRole("link", {
         name: "Return to Follow reference 1",
@@ -217,10 +250,7 @@ describe("RecordPreviewPopover", () => {
       expect(trigger).toHaveFocus();
       rerender(preview(false));
       expect(trigger).not.toBeInTheDocument();
-      const content =
-        viewport === "desktop"
-          ? document.querySelector(".record-preview-popover__body")!
-          : screen.getByLabelText("Reference content");
+      const content = screen.getByRole("heading", { name: "Next reference" });
       expect(content).toHaveFocus();
       rerender(preview(true));
       act(() =>
@@ -251,7 +281,7 @@ describe("RecordPreviewPopover", () => {
   );
 
   it.each(["desktop", "narrow"])(
-    "%s preview focuses actions and lets a nested source modal own Escape",
+    "%s preview focuses the heading and lets a nested source modal own Escape",
     async (viewport) => {
       vi.spyOn(Grid, "useBreakpoint").mockReturnValue({
         xs: viewport === "narrow",
@@ -274,7 +304,7 @@ describe("RecordPreviewPopover", () => {
       render(
         <StrictMode>
           <ConfigProvider theme={{ token: { motion: false } }}>
-            <RecordPreviewPopover
+            <RecordReferenceDrawer
               anchor={document.createElement("button")}
               detail={detail}
               loading={false}
@@ -286,9 +316,7 @@ describe("RecordPreviewPopover", () => {
         </StrictMode>,
       );
       await waitFor(() =>
-        expect(
-          screen.getByRole("link", { name: "Open reference full page" }),
-        ).toHaveFocus(),
+        expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toHaveFocus(),
       );
       const marker = screen.getByRole("button", { name: "Fortitude check" });
       marker.focus();
@@ -303,21 +331,20 @@ describe("RecordPreviewPopover", () => {
       expect(close).not.toHaveBeenCalled();
       await waitFor(() => expect(modal).not.toBeInTheDocument());
       expect(marker).toHaveFocus();
-      const closeAction = screen.getByRole("button", {
-        name: viewport === "desktop" ? "Close reference preview" : "Close",
-      });
-      act(() => closeAction.focus());
-      fireEvent.keyDown(closeAction, {
+      const heading = screen.getByRole("heading", { name: "Dirge of Doom" });
+      act(() => heading.focus());
+      fireEvent.keyDown(heading, {
         key: "Escape",
+        keyCode: 27,
       });
       await waitFor(() => expect(close).toHaveBeenCalledTimes(1));
     },
   );
 
-  it("opens nested references without re-anchoring the active popover", () => {
+  it("opens nested references in the existing Drawer session", () => {
     const onReference = vi.fn();
     render(
-      <RecordPreviewPopover
+      <RecordReferenceDrawer
         anchor={document.createElement("button")}
         detail={recordDetailFixture()}
         loading={false}
@@ -336,7 +363,7 @@ describe("RecordPreviewPopover", () => {
     );
   });
 
-  it("preserves the selected reference and actions when moving between desktop and narrow layouts", async () => {
+  it("preserves the same document, actions and focus when moving between desktop and narrow layouts", async () => {
     const breakpoint = vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
     const props = {
       anchor: document.createElement("button"),
@@ -348,46 +375,30 @@ describe("RecordPreviewPopover", () => {
     };
     const preview = () => (
       <ConfigProvider theme={{ token: { motion: false } }}>
-        <RecordPreviewPopover {...props} />
+        <RecordReferenceDrawer {...props} />
       </ConfigProvider>
     );
     const { rerender } = render(preview());
-    expect(
-      await screen.findByRole("dialog", { name: "Reference preview" }),
-    ).toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog", { name: "Dirge of Doom" });
+    const heading = screen.getByRole("heading", { name: "Dirge of Doom" });
+    await waitFor(() => expect(heading).toHaveFocus());
+    const full = screen.getByRole("link", { name: "Open reference full page" });
+    act(() => full.focus());
     breakpoint.mockReturnValue({ md: false });
     rerender(preview());
-    expect(
-      await screen.findByRole("dialog", { name: "Dirge of Doom" }),
-    ).toHaveAttribute("aria-modal", "true");
-    expect(
-      within(screen.getByRole("dialog", { name: "Dirge of Doom" })).getByText(
-        "Dirge of Doom",
-      ),
-    ).toBeVisible();
-    await waitFor(() =>
-      expect(
-        screen.getByRole("link", { name: "Open reference full page" }),
-      ).toHaveFocus(),
-    );
-    fireEvent.click(screen.getByRole("link", { name: "Open reference full page" }));
+    expect(screen.getByRole("dialog", { name: "Dirge of Doom" })).toBe(dialog);
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toBe(heading);
+    expect(full).toHaveFocus();
+    fireEvent.click(full);
     expect(props.onOpenFullPage).toHaveBeenCalledTimes(1);
     breakpoint.mockReturnValue({ md: true });
     rerender(preview());
-    expect(
-      await screen.findByRole("dialog", { name: "Reference preview" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("dialog", { name: "Dirge of Doom" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toBeInTheDocument();
-    await waitFor(() =>
-      expect(
-        screen.getByRole("link", { name: "Open reference full page" }),
-      ).toHaveFocus(),
-    );
+    expect(screen.getByRole("dialog", { name: "Dirge of Doom" })).toBe(dialog);
+    expect(screen.getByRole("link", { name: "Open reference full page" })).toBe(full);
+    expect(full).toHaveFocus();
     fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
-    expect(props.onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));
   });
 });
 

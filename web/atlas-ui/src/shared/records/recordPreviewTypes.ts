@@ -16,11 +16,6 @@ export type RecordPreviewContentProps = {
   };
   fullPageHref?: string;
   landing?: import("../../generated/atlas").RecordNavigationView;
-  onOwnerReturn?: (
-    parent: string,
-    landing: import("../../generated/atlas").RecordNavigationView,
-    anchor: HTMLElement,
-  ) => void;
   detail: RecordDetailView | undefined;
   loading: boolean;
   error?: Error | null;
