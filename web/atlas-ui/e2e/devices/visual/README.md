@@ -17,6 +17,20 @@ from the retained implementation worktree's
 
 ## Linux
 
-Bootstrap references are pending capture and review from the same product source
-in Ubuntu 24.04 with Playwright 1.62.1. The PR remains draft until these are
-reviewed and ordinary comparisons pass. Capture does not establish acceptance.
+These 40 references were captured and inspected from
+[focused run 39901708040](https://github.com/e-kosten/pf2e-atlas/actions/runs/39901708040),
+using the authenticated fixture from CI run 39901045751, source merge commit
+f7ab2feaca62610b97c76114ec7d1adde8943b93 (PR head e223e9bd).
+Ubuntu 24.04 x64, Playwright 1.62.1, the four projects in
+`playwright.devices.config.ts`. The fixture's SHA-256 is
+`2029e655226a5d50d84b85222c98dffbf4ce9609d5b11f2cb650035a8ce2eb40`;
+its frontend index hash is
+`b7f08c3f149f65cc5d7c0d09f1e1de284f5e14c7ec58a242d4560a0884dd76b4`.
+
+Product Rust/frontend source and dependencies match merged PR91 (8ddba463).
+System-font metrics and wrapping differ between Linux and macOS; Linux references
+preserve the existing Linux rendering and do not replace the macOS references.
+Review covered source precedence, removal fallback, retained recovery anchors,
+pending/settled previews, Quickened restrictions and turn-reminder states. All 12
+capture scenarios passed their interaction/geometry assertions. Capture alone
+is not comparison evidence; normal CI must subsequently compare these files.

@@ -631,7 +631,8 @@ caller-supplied real corpus server.
 CI builds the frontend once after fast checks. Full Rust verification and a
 browser-fixture build then run independently. Two browser shards reuse that
 compiled fixture; each runner starts its own disposable SQLite workspace and one
-Playwright worker. No mutable database or Cargo target crosses runners. The
+Playwright worker. No mutable database or live Cargo target is shared between
+runners. The
 `validation complete` check requires both shards, the fixture build, the frontend
 checks/build, unit tests and every other selected gate. Main/nightly retain all
 surfaces. Frontend `verify` alone does not execute browsers.
@@ -712,7 +713,7 @@ a gate.
 | Changed surface | Local full validation / PR CI coverage |
 | --- | --- |
 | Rust | Workspace gate; CI also checks Windows storage and standalone atlas-dev |
-| Frontend | Frontend gate; CI also runs the Rust/real-app browser job |
+| Frontend | Frontend gate; CI also runs Rust verification and real-app browsers |
 | App-model contracts | Both Rust and frontend |
 | Foundry model | Rust and source-contract generation |
 | Source-contract tooling | Fixture tests and pinned generation |
