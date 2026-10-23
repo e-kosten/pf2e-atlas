@@ -239,3 +239,34 @@ it("preserves saved-list and trait sort URLs in native navigation", () => {
   expect(parseAtlasRoute("/traits/trait:agile", trait.query)).toEqual(trait);
   expect(atlasRoutePath(trait)).toBe("/traits/trait:agile" + trait.query);
 });
+
+it("keeps a native document section separate from the checked record selection", () => {
+  const route = parseAtlasRoute(
+    "/records/journals:classes",
+    "",
+    "#atlas-section-123-4",
+  );
+  expect(route).toMatchObject({
+    kind: "record",
+    recordKey: "journals:classes",
+    section: "atlas-section-123-4",
+  });
+  expect(atlasRoutePath(route)).toBe("/records/journals:classes#atlas-section-123-4");
+  expect(parseAtlasRoute("/records/journals:classes", "", "#%")).toMatchObject({
+    kind: "record",
+    recordKey: "journals:classes",
+    section: "%",
+  });
+});
+
+it("preserves document fragments when navigating an exact Atlas path", () => {
+  navigateToAtlasPath(
+    "/records/journals:classes?selection=%7B%22record_key%22%3A%22journals%3Aclasses%22%2C%22embedded_path%22%3A%5B%5D%7D#atlas-section-test",
+  );
+  expect(location.hash).toBe("#atlas-section-test");
+  expect(currentAtlasRoute()).toMatchObject({
+    kind: "record",
+    recordKey: "journals:classes",
+    section: "atlas-section-test",
+  });
+});

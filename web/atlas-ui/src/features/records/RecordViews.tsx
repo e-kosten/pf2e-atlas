@@ -42,6 +42,7 @@ export function RecordView({ route }: RecordViewProps) {
           }
         >
           <RecordDetailPane
+            sectionLanding={route.section}
             identityInHost
             landing={
               route.landing?.record_key === route.recordKey ? route.landing : undefined

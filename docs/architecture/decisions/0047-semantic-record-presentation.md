@@ -20,8 +20,9 @@ App-service projects selected records into explicit semantic family responses
 exported by app-model. Each presentation contains selected identity, prepared
 content, useful immediate owned-document navigation, and a tagged family body.
 The detail envelope retains the root summary and complete selected address.
-Creature, hazard, spell, activity, physical-reference, and table responses carry
-only facts needed by current consumers. Other families intentionally use content
+Creature, hazard, spell, activity, physical-reference, ancestry, heritage, class,
+deity, vehicle, army, and table responses carry only facts needed by current
+consumers. Other families intentionally use content
 and owner links until a useful family presentation is designed.
 
 Reference and encounter composition share authored actor extraction. Encounters
