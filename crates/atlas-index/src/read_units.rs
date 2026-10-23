@@ -298,7 +298,7 @@ impl SqliteIndexReader {
         let limit_param = all.len() + 1;
         all.push(Value::Integer(limit as i64));
         let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT su.unit_id,r.key,su.owners_json,su.field_path,su.section_json,knn.distance FROM (SELECT unit_id,distance FROM {table} WHERE embedding MATCH ?{vector_param} AND k=?{limit_param} AND unit_id IN (SELECT su.unit_id FROM semantic_units su WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible))) knn JOIN semantic_units su ON su.unit_id=knn.unit_id JOIN records r ON r.record_id=su.record_id ORDER BY knn.distance,su.unit_id"
+            "WITH eligible AS ({eligible}) SELECT su.unit_id,r.key,sl.owners_json,sl.field_path,sl.section_json,knn.distance FROM (SELECT unit_id,distance FROM {table} WHERE embedding MATCH ?{vector_param} AND k=?{limit_param} AND unit_id IN (SELECT su.unit_id FROM semantic_units su WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible))) knn JOIN semantic_units su ON su.unit_id=knn.unit_id JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id ORDER BY knn.distance,su.unit_id"
         );
         let c = self.native()?;
         self.count_statement();

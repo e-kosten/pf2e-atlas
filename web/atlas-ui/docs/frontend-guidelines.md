@@ -391,13 +391,12 @@ Selected network aborts may test recovery while retaining real durable writes.
 The existing corpus-backed `test:e2e` suite remains separate. See CONTRIBUTING
 for browser installation, CI execution, evidence and resource ownership.
 
-Condition refinement comparisons can set `ATLAS_CONDITION_VISUAL_DIR` to an
-absolute directory of local pixel baselines. Capture them on the preserved
-reference before editing, then compare with the same OS, browsers, viewport,
-theme and fixture state. Keep those baselines frozen during refinement; do not
-update them to accept candidate differences. The condition interaction and
-geometry assertions always run in the normal device suite, independently of
-this optional comparison directory.
+Condition refinement checkpoints always compare tracked platform/project pixel
+references in the normal device suite. Keep references frozen during refactors;
+inspect actual/expected/diff evidence before changing them for an approved visual
+change. Use the focused Linux runner in CONTRIBUTING.md to reproduce WebKit
+failures against the same candidate without repeating full gates. Pixel checks
+supplement the interaction, focus, anchor and transition assertions.
 
 ## Source-backed records and filters
 

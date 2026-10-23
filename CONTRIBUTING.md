@@ -17,15 +17,15 @@ Recommended branch names:
 - `docs/<topic>`
 - `chore/<topic>`
 
-For agents, authorization to implement includes logical local commits, pushing the task branch, and opening or updating its PR. Separate permission is not needed for these routine steps. Planning alone does not authorize implementation, and explicit plan-only, no-commit, or local-only instructions take precedence. Do not merge, push directly to shared integration branches or `main`, publish releases, or discard user state without explicit authorization.
+For agents, authorization to implement includes logical local commits, pushing the task branch, and opening or updating its PR. Separate permission is not needed for these routine steps. Planning alone does not authorize implementation, and explicit plan-only, no-commit, or local-only instructions take precedence. Do not merge, push directly to shared integration branches or `main`, publish releases, or modify the user's real installed Atlas workspace without explicit authorization. Repository-local development data follows the standing cleanup authorization in [Development Data And Task Cleanup](#development-data-and-task-cleanup).
 
 Use a draft PR while implementation or required validation remains incomplete. Describe the resulting behavior, validation evidence, and limitations. Keep review fixes visible as additional logical commits; agree on any published-history rewrite before performing it.
 
-Keep the worktree available while its PR or local build is being reviewed. After merge or cancellation, remove it as part of task completion once needed work is preserved and no active process or another checkout depends on it. At the next task's start, finish outstanding cleanup. Retaining a branch does not require retaining its checkout or compiler cache.
+Keep the worktree available while its PR or local build is being reviewed. After merge or cancellation, stop its task-owned previews unless the user requested continued access, then remove the checkout as part of task completion. Preserve needed uncommitted source work and check for another active agent, build or dependency. At the next task's start, finish outstanding cleanup. Retaining a branch does not require retaining its checkout or compiler cache.
 
-Before removal, inspect Git status, untracked and ignored files, running previews/builds, and incoming symlinks. Preserve needed dirty files and saved state outside the retiring checkout; do not archive compiler output with them. A live `node_modules` symlink target must remain even if its original PR has merged. Remove worktrees with `git worktree remove`, one at a time, and verify the inventory. Use `--force` only after accounting for every needed file it would discard; do not broadly delete `.worktrees/`.
+Before removal, inspect Git status, untracked and ignored files, running previews/builds, and incoming symlinks. Preserve needed uncommitted source files and explicitly retained data; delete disposable development state instead of archiving it. A live `node_modules` symlink target must remain even if its original PR has merged. Remove worktrees with `git worktree remove`, one at a time, and verify the inventory. Use `--force` only after accounting for every needed file it would discard; do not broadly delete `.worktrees/`.
 
-For retained worktrees, record the path, purpose, owner, and removal condition. Stable previews retain their frozen binary, artifact, saved state, and small review evidence; they normally do not require a compiler cache. Temporary review checkouts last only as long as their review.
+For retained worktrees, record the path, purpose, owner, and removal condition. Keep only the resources needed by an active task or explicitly retained preview; a stable preview normally does not require a compiler cache. Temporary review checkouts last only as long as their review.
 
 ## Development Loop
 
@@ -305,16 +305,44 @@ Below 30 GiB free, reclaim obsolete task build output before starting another
 large build. A target above 15 GiB warrants inspecting `debug/deps`,
 `debug/incremental`, and `debug/build` for accumulated configurations. These
 thresholds prompt investigation, never automatic deletion of active files.
-Monitor growth during long builds. Source/model assets, user-authored SQLite
-state and artifacts still under review have separate preservation requirements.
+Monitor growth during long builds. Preserve shared source/model assets and
+artifacts while an active task or review needs them.
 
 Keep one checkout-local Cargo target per task; do not copy or symlink Cargo
-outputs across checkout paths. Before cleaning an inactive checkout, verify that
-no preview, build or retained binary depends on its output. Keep small reports
-and representative screenshots; retire obsolete generated corpora, duplicate
-artifacts and experiments after preserving a reproduction recipe. A cleanup
-handoff records what was removed, what remains, its owner/removal condition, and
-the measured space recovered.
+outputs across checkout paths. Stop completed tasks' previews before retirement,
+unless the user requested continued access. Check for other active builds,
+reviews and dependency links before deleting output. Report what was removed,
+what must remain and why, and measured space recovered in the final response.
+
+### Development Data And Task Cleanup
+
+All repository-local runtime and test state is disposable by default. This includes
+preview databases, lists and encounters edited during review, migration backups,
+fixture exports and copied reference corpora. Task completion supplies standing
+permission to delete these resources without asking again. Preserve uncommitted
+source work, another agent's active resources and any data the user explicitly
+asks to retain.
+
+The user's real installed Atlas workspace is protected. Resolve symlinks and
+configured paths before deleting data: a path under the repo can point to the real
+installation, and a command using global path mode can select a development
+workspace through an explicit override. Never reset, replace or delete the real
+installed workspace without explicit authorization. Normal Atlas setup continues
+to preserve saved state; the development cleanup policy does not change product
+behavior.
+
+Reuse one workspace per active task. Keep a separate frozen preview only when
+review requires it, and remove superseded copies promptly. Preserve the shared
+baseline while active checkouts reference it. A completed task's disposable
+database does not need to survive merely because it contains saved rows.
+
+Do not routinely archive databases, backup copies, executables, Git bundles or
+entire retired worktrees under `scratch/`. Do not create export scripts or recovery
+archives to preserve disposable fixtures. Commit/PR references and concise
+validation results normally suffice; keep larger artifacts only for an unresolved
+failure, active review or explicit user request, with a concrete removal milestone.
+Moving obsolete files into a cold archive is not cleanup. No archive README or
+persistent cleanup manifest is needed solely to record deletion.
 
 The Rust web server embeds the built frontend in both debug and release binaries.
 Build the frontend before compiling a preview binary, then keep that binary and
@@ -582,7 +610,17 @@ just verify
 Use `just verify --verbose` or `scripts/verify.sh --verbose` to stream detailed
 Cargo output for every successful gate.
 
-For web UI changes, run the frontend gate:
+During frontend iteration and before pushing, run the fast checks and focused
+behavioral tests. These catch invalid test APIs and type errors without waiting
+for the complete suite:
+
+```bash
+just web-ui-check
+npm --prefix web/atlas-ui run test -- src/features/encounters/encounterViews.test.tsx
+```
+
+Run focused tests for the actual changed owner; the encounter example is not a
+universal smoke test. At a coherent final candidate, run the full frontend gate:
 
 ```bash
 just web-ui-verify
@@ -618,13 +656,79 @@ phone/tablet/desktop matrix exercises real touch and keyboard flows. It is separ
 from `npm --prefix web/atlas-ui run test:e2e`, whose broader scenarios require a
 caller-supplied real corpus server.
 
-CI runs device acceptance after verification in the existing Rust job, reusing
-its compiler output and frontend installation. Failure traces, screenshots and
-the HTML report are retained as a short-lived workflow artifact. Local results
-are under `scratch/responsive-validation/browser`. The frontend `verify` command
-alone does not execute browsers. Follow the frontend guidelines for Astra visual
-review and actual-device checks; passing emulation does not certify a physical
-phone's software keyboard, browser chrome or text-enlargement behavior.
+CI builds the frontend once after fast checks. Full Rust verification and a
+browser-fixture build then run independently. Two browser shards reuse that
+compiled fixture; each runner starts its own disposable SQLite workspace and one
+Playwright worker. No mutable database or live Cargo target is shared between
+runners. The
+`validation complete` check requires both shards, the fixture build, the frontend
+checks/build, unit tests and every other selected gate. Main/nightly retain all
+surfaces. Frontend `verify` alone does not execute browsers. Browser dependencies
+use the Ubuntu HTTPS archive, with a three-minute installation limit; an installer/network failure can rerun just its browser
+job with `gh run rerun RUN_ID --job JOB_ID`, reusing the retained compiled fixture.
+Use the `databaseId` from `gh run view RUN_ID --json jobs` as `JOB_ID`.
+
+The fixture artifact contains the executable, its expected frontend index and a
+manifest with source commit, platform, architecture and SHA-256 checksums. Set
+`ATLAS_BROWSER_ARTIFACT` to that directory to run it without Cargo. The runner
+rejects another commit/host or corrupted files; every test also checks served
+HTML against that artifact's index. CI artifacts expire after three days. Rebuilding the same candidate replaces its
+intermediate bundle/fixture; report artifacts include the run attempt so failure
+evidence remains available. Local
+runs default to the checkout-local Cargo build. Never point a candidate test at a
+frozen preview binary just because it starts successfully.
+
+Rust verification writes a dependency-only cache shared with the fixture build;
+the fixture job only restores it. The action keys compiler identity, lockfiles,
+Cargo configuration and relevant environment. Workspace crates remain rebuilt,
+CI incremental compilation stays disabled, and no Cargo target is transferred as
+a test artifact. GitHub's branch scoping and eviction bound retained caches.
+Compare job/step timings on cold and warm runs before claiming a speedup.
+
+### Focused Linux browser diagnosis
+
+After a failed device run, repeat the failing spec/project against that run's
+compiled candidate instead of rerunning all gates:
+
+```bash
+gh workflow run browser-debug.yml --ref feat/my-branch \
+  -f browser-run=RUN_ID -f file=turn-reminders.spec.ts \
+  -f project=phone-webkit -f grep='recovery' -f repeat=5
+```
+
+Use a run from this repository with an unexpired `browser-fixture` artifact. The
+manual run checks out the artifact's exact source commit and uses the same Ubuntu
+24.04, Node 22 and lockfile-pinned Playwright installation as ordinary CI. It runs
+only the selected case, with traces/screenshots/report retained even on failure;
+it does not replace the full PR check or emit its `validation complete` result.
+The `browser-debug.yml` workflow must be registered on the default branch before
+GitHub permits direct dispatch. It owns read-only Actions access for replay;
+main/nightly verification keeps its own permissions and checks. For local diagnosis, pass the
+same spec, `--project`, `--grep` and `--repeat-each` arguments to Playwright directly.
+
+### Visual references
+
+Device runs always compare the condition refinement checkpoints with tracked
+references under `web/atlas-ui/e2e/devices/visual/<platform>/<project>/`. Exact
+pixels, viewport, theme and fixture state are preserved; interaction tests also
+check focus, geometry, retained anchors and delayed transitions. References are
+platform-specific. Missing or changed references fail ordinary runs, and CI
+uploads actual/expected/diff images and traces for review. Local evidence lives
+under `scratch/responsive-validation/browser`.
+
+To propose Linux references deliberately, dispatch the focused runner with
+`-f file=condition-refinement.spec.ts -f project=PROJECT -f repeat=1 -f capture=true`.
+Use `-f project=all` to capture every project. This captures candidate files in the evidence
+artifact; it never commits them or changes the ordinary gate. Inspect the rendered
+states and differences against the accepted reference before copying reviewed
+PNGs into Git. For macOS use the same focused command locally with
+`--update-snapshots=all`. Do not refresh references to make a refactor pass.
+Record source/browser/OS provenance in the visual directory README. A deliberate
+CSS perturbation should fail the comparison when verifying this guard.
+
+Follow the frontend guidelines for visual review and actual-device checks;
+passing emulation does not certify a physical phone's software keyboard, browser
+chrome or text-enlargement behavior.
 
 For path-sensitive formatting or explicit full validation (the range below assumes a PR against `main`; substitute the actual PR base for integration or stacked work):
 
@@ -644,7 +748,7 @@ a gate.
 | Changed surface | Local full validation / PR CI coverage |
 | --- | --- |
 | Rust | Workspace gate; CI also checks Windows storage and standalone atlas-dev |
-| Frontend | Frontend gate; CI also runs the Rust/real-app browser job |
+| Frontend | Frontend gate; CI also runs Rust verification and real-app browsers |
 | App-model contracts | Both Rust and frontend |
 | Foundry model | Rust and source-contract generation |
 | Source-contract tooling | Fixture tests and pinned generation |
@@ -664,7 +768,8 @@ retain distinct lint policies; tests and normal builds remain separate until
 measurement establishes equivalent coverage at lower cost.
 
 `test:devices` builds the frontend for standalone local use. CI invokes Playwright
-directly after its existing bundle build, so that job does not rebuild the bundle.
+directly against the authenticated fixture artifact, without rebuilding Rust or
+the frontend in each shard.
 `just verify-all` validates installed Rust/frontend dependencies without rerunning
 `npm ci`; use `just web-ui-install` when the lockfile or installation changes.
 
@@ -819,3 +924,26 @@ unique-passage counts and bounded stage updates. ETA is approximate, omitted unt
 there is a useful sample, and rounded to minutes for long-running stages. Include an unchanged
 reuse-heavy tiny build and `--progress never`; JSON stdout must stay parseable.
 Rendering/control-plane corrections do not justify a full-corpus reembedding.
+
+### Embedding storage regression probe
+
+Normal setup/build reclaims substantial free SQLite pages after publication. An
+ordinary startup may migrate the schema but does not vacuum; run `atlas setup`
+explicitly to reclaim space after a storage upgrade. A failed reclamation retains
+complete reference data and can be retried without repeating inference.
+
+For the schema-9 to schema-10 storage change, an optional corpus probe captures
+one consistent disposable snapshot, verifies every vector and source attribution,
+compares saved-state hashes and filtered distances, checks exact-input reuse and
+runs deep validation. It never migrates its source. Use a repository development
+corpus, with enough temporary space for the snapshot, normal migration backup and
+SQLite staging; all copies are removed on completion:
+
+```bash
+ATLAS_STORAGE_PROBE_SOURCE=/absolute/path/to/development/workspace.sqlite \
+  cargo test -p atlas-dev --test embedding_storage -- --ignored --nocapture
+```
+
+These local debug timings are diagnostic, not release performance guarantees.
+Exact-distance KNN ties may return different witnesses after packing; comparison
+checks the distance sequence rather than arbitrary tied IDs.

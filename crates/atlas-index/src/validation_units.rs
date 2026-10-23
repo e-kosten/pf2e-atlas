@@ -97,7 +97,7 @@ pub(crate) fn validate_selection(
         return Err(invalid("lexical evidence coverage is incomplete"));
     }
     for profile in &context.search_profiles {
-        let mut identity=c.prepare("SELECT owners_json,field_path,section_json,chunk_ordinal FROM semantic_units WHERE record_id=? AND profile_id=? AND unit_kind='identity'")?;
+        let mut identity=c.prepare("SELECT owners_json,field_path,section_json,chunk_ordinal FROM semantic_units u JOIN semantic_locations l USING(location_id) WHERE u.record_id=? AND profile_id=? AND unit_kind='identity'")?;
         for row in identity.query_map(rusqlite::params![id, profile.profile_id.as_str()], |r| {
             Ok((
                 r.get::<_, String>(0)?,
@@ -118,7 +118,7 @@ pub(crate) fn validate_selection(
             }
         }
         let mut covered = BTreeMap::<SectionKey, Vec<(usize, SourceByteRange)>>::new();
-        let mut s=c.prepare("SELECT owners_json,field_path,section_json,chunk_ordinal FROM semantic_units WHERE record_id=? AND profile_id=? AND unit_kind='passage'")?;
+        let mut s=c.prepare("SELECT owners_json,field_path,section_json,chunk_ordinal FROM semantic_units u JOIN semantic_locations l USING(location_id) WHERE u.record_id=? AND profile_id=? AND unit_kind='passage'")?;
         let mut rows = s.query(rusqlite::params![id, profile.profile_id.as_str()])?;
         while let Some(row) = rows.next()? {
             let mut address: SourcePassageAddress =

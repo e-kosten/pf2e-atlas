@@ -105,19 +105,45 @@ policies; it excludes profile model assets and passage recipes. Each profile's
 execution/reuse identity binds its complete selected model/native-tokenizer assets,
 the full shared BGE segmentation-tokenizer digest and its passage recipe. The full
 artifact generation binds shared preparation plus the complete profile manifest.
-Embedding checkpoints persist exact model/input identities, input hashes, token
-counts, vector checksums and dimensions independently of the active reference.
-Ingest prepares current inputs with the pinned tokenizers and accepts only exact
-checkpoint matches. Profile-native preparation produces an immutable checked
-batch in `atlas-embedding`; checkpoint lookup and generation consume the same
-counts and execution identities without repeating full-batch token validation.
-Uncached inputs retain the inference tokenizer checks. An inference session is
-loaded only when that batch contains uncached inputs. Verified checkpoint vectors
-are borrowed during generation rather than copied into another full-profile map.
-Each inferred batch commits separately after computation;
-no SQLite write transaction remains open during inference. Final publication
-activates complete profile coverage and prunes checkpoints not used by active
-profiles. A failed preparation retains reusable batches for a retry.
+Index stores each exact model execution contract once in a native-input registry.
+Native input metadata binds raw input hash, token count and a published vector
+checksum; dimensions derive from the model. Published document vectors remain in
+the profile's vec0 index and also supply incremental rebuild reuse. Trait chunks
+reference the same registry and retain a binary native value only when no document
+occurrence supplies it. Derived trait centroids remain separate binary values.
+
+Ingest prepares current literal inputs with the pinned tokenizers. Lookup first
+resolves compatible unfinished computations, then published native values, in
+batched SQL scans. Profile-native preparation produces one immutable checked batch
+in `atlas-embedding`; reuse and generation consume its exact counts and execution
+identities without repeating full-batch token validation. An inference session
+loads only for actual misses; disabling reuse still forces fresh computation.
+
+Each inferred batch commits a pending value and its own checksum after computation,
+with no SQL writer held during inference. A forced recomputation may differ from
+the current published value for the same input; pending writes never change the
+published checksum. Final atomic publication activates complete coverage, validates
+all physical occurrences and trait centroids, then clears pending values and
+unreferenced metadata. A failed attempt preserves both the old publication and
+completed computations for retry. Successful builds retain no second native corpus.
+
+Passage addresses are shared across profiles without merging occurrence identity
+or model-specific native token counts. Publication updates compatible vector slots
+in place and packs substantially sparse vec0 indexes through supported public DDL
+and inserts, within the existing maintenance transaction. Exact-distance boundary
+ties may select different occurrences after packing; strict-distance ordering,
+pre-KNN eligibility, candidate windows and fusion policy are unchanged.
+
+Schema migration performs typed backfills inside the checksum-verified migration
+transaction, preserving native values and unfinished forced work without requiring
+source/model assets. Explicit setup/build reclaims at least 32 MiB of free SQLite
+pages through storage-owned maintenance after a successful update. Before closing
+admission, storage checks workspace and SQLite temporary-volume capacity against
+a conservative budget of twice the database size. Insufficient or unknown capacity skips
+optional reclamation with a diagnostic and leaves the update usable. This preflight
+does not reserve space. Startup never vacuums. A failed physical reclamation retains
+complete reference data and uses validated maintenance recovery, without requiring
+inference again.
 
 Unchanged admitted sources reuse checked DTOs and prepared content when the source
 and preparation identities agree. References are resolved again against the current

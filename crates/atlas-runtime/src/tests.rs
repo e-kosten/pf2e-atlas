@@ -58,11 +58,13 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
             .migrate(
                 &[
                     atlas_storage::Migration {
+                        backfill: None,
                         version: 1,
                         name: "reference-baseline",
                         sql: atlas_index::REFERENCE_SCHEMA_SQL,
                     },
                     atlas_storage::Migration {
+                        backfill: None,
                         version: 2,
                         name: "saved-state-baseline",
                         sql: atlas_local_state::LOCAL_STATE_SCHEMA_SQL,
@@ -176,8 +178,19 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
         context_shortened: false,
     };
     let job = atlas_index::start_reference_job(&write, "next-preparation").unwrap();
-    atlas_index::save_embedding_checkpoints(&write, &job, model, &[(&checkpoint, &unit.vector)])
+    if initial_schema == 2 {
+        atlas_index::test_support::stage_historical_embedding_fixture(
+            &write,
+            &job,
+            model,
+            &checkpoint,
+            &unit.vector,
+        )
         .unwrap();
+    } else {
+        atlas_index::stage_embedding_values(&write, &job, model, &[(&checkpoint, &unit.vector)])
+            .unwrap();
+    }
     // Inspect stored vector bytes, not a retrieval score that could hide replacement.
     let vector_table: String = write.connection().query_row(
         "SELECT name FROM sqlite_schema WHERE type='table' AND sql LIKE 'CREATE VIRTUAL TABLE%USING vec0%'", [], |r| r.get(0),
@@ -341,12 +354,9 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
                 assert_eq!(aliases, 1);
             }
         }
-        let checkpoints = atlas_index::read_embedding_checkpoints(
-            &read,
-            model,
-            std::slice::from_ref(&checkpoint),
-        )
-        .unwrap();
+        let checkpoints =
+            atlas_index::read_reusable_embeddings(&read, model, std::slice::from_ref(&checkpoint))
+                .unwrap();
         assert_eq!(checkpoints[&checkpoint.reuse_key], unit.vector);
     }
     assert!(!paths.source_root.exists());
