@@ -419,10 +419,6 @@ test("encounter references retain their owner, scroll and native destination", a
     const originalSize = page.viewportSize()!;
     if (originalSize.width < 768)
       await page.setViewportSize({ width: originalSize.width, height: 560 });
-    if (originalSize.width >= 768)
-      await page.addStyleTag({
-        content: ".record-preview-popover { animation-duration: 800ms !important; }",
-      });
     await activate(page.getByRole("link", { name: "Signal Pulse", exact: true }), info);
     const content = page.getByLabel(
       (page.viewportSize()?.width ?? 1440) >= 768
@@ -452,19 +448,30 @@ test("encounter references retain their owner, scroll and native destination", a
     ).toBeFocused();
     if (widePreview) {
       const popup = page.locator(".record-preview-popover");
+      await popup.evaluate((node) => {
+        node.animate([{ transform: "scale(0.8)" }, { transform: "scale(1)" }], {
+          duration: 800,
+          easing: "ease-out",
+        });
+      });
       await page.setViewportSize({ width: 844, height: 390 });
+      await popup.evaluate((node) =>
+        Promise.allSettled(node.getAnimations().map((motion) => motion.finished)),
+      );
       await expect
         .poll(async () => {
           const box = await popup.boundingBox();
-          return (
-            !!box &&
-            box.x >= -1 &&
-            box.y >= -1 &&
-            box.x + box.width <= 845 &&
-            box.y + box.height <= 391
-          );
+          return {
+            box,
+            withinViewport:
+              !!box &&
+              box.x >= -1 &&
+              box.y >= -1 &&
+              box.x + box.width <= 845 &&
+              box.y + box.height <= 391,
+          };
         })
-        .toBe(true);
+        .toMatchObject({ withinViewport: true });
       await noPageOverflow(page);
     }
     await expect(
