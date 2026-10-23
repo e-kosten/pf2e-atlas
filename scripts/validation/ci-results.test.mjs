@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { requireSelectedJobs } from "./ci-results.mjs";
 
 const names = [
@@ -76,4 +78,22 @@ test("docs-only selection permits only skipped gates and rejects malformed flags
   jobs.rust.result = "skipped";
   delete jobs.changes.outputs.web;
   assert.throws(() => requireSelectedJobs(jobs), /web/);
+});
+
+test("the production CLI enforces the selected gate results", () => {
+  const jobs = selected();
+  const run = () =>
+    spawnSync(
+      process.execPath,
+      [fileURLToPath(new URL("./ci-results.mjs", import.meta.url))],
+      {
+        env: { ...process.env, NEEDS_JSON: JSON.stringify(jobs) },
+        encoding: "utf8",
+      },
+    );
+  assert.equal(run().status, 0);
+  jobs.browsers.result = "skipped";
+  const failed = run();
+  assert.equal(failed.status, 1);
+  assert.match(failed.stderr, /browsers/);
 });
