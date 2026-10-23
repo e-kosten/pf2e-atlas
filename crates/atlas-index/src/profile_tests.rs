@@ -229,6 +229,15 @@ fn move_fixture_vectors(
     old: &SourceSearchProfileIdentity,
     new: &SourceSearchProfileIdentity,
 ) {
+    connection
+        .execute(
+            "UPDATE embedding_models SET identity_json=? WHERE identity_json=?",
+            rusqlite::params![
+                serde_json::to_string(new).unwrap(),
+                serde_json::to_string(old).unwrap()
+            ],
+        )
+        .unwrap();
     let old_table = crate::schema::vector_table(old).unwrap();
     let new_table = crate::schema::vector_table(new).unwrap();
     connection

@@ -202,7 +202,9 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
                 address: SourcePassageAddress::Identity {},
                 chunk_ordinal: 0,
                 input_token_count: 8,
-                input_hash: hash(selection.identity_required.as_bytes()),
+                input_hash: hash(
+                    format!("{}\n{}", r.record.key(), selection.identity_required).as_bytes(),
+                ),
                 vector: vector.clone(),
             });
         }
@@ -239,7 +241,11 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
                         address,
                         chunk_ordinal: 0,
                         input_token_count: 8,
-                        input_hash: hash(section.text.as_bytes()),
+                        // Synthetic vectors vary by root; their native input identity must
+                        // include that context even when the body prose is identical.
+                        input_hash: hash(
+                            format!("{}\n{}", r.record.key(), section.text).as_bytes(),
+                        ),
                         vector: vector.clone(),
                     });
                 }

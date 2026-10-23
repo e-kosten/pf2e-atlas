@@ -10,7 +10,7 @@ PF2e Atlas is a Rust workspace. Core application code lives under `crates/`.
 - `crates/atlas-runtime`: paths, setup/source-fetch policy, requested configuration, shared migration composition, and bounded typed workspace operations.
 - `crates/atlas-storage`: connection admission, bounded sessions, maintenance ownership, migration execution, and backups; no domain schema ownership.
 - `crates/atlas-search`: product-facing retrieval orchestration.
-- `crates/atlas-index`: reference schema, incremental publication, embedding checkpoints, validation, row readers, filter discovery, filter compilation, and vector SQL.
+- `crates/atlas-index`: reference schema, incremental publication, native-vector reuse, pending inference, validation, row readers, filter discovery, filter compilation, and vector SQL.
 - `crates/atlas-foundry-model`: generated authored DTOs, ordered source primitives, strict parsing/admission, pure document dispatch and typed snapshot codec.
 - `crates/atlas-ingest`: typed Foundry loading, content/reference preparation, attributed indexing inputs, embedding execution and artifact-build composition.
 - `crates/atlas-embedding`: the two pinned search-profile contracts, shared baseline segmentation, native budgets, retained query sessions and FastEmbed inference.
@@ -152,7 +152,7 @@ This codebase is Rust. Keep modules single-purpose and put helpers beside the co
 
 Prefer descriptive module names and explicit ownership:
 
-- reference schema, validation, checkpoints and query SQL belong in `atlas-index`
+- reference schema, validation, native-input reuse, pending inference and query SQL belong in `atlas-index`
 - saved-domain schema and atomic domain actions belong in `atlas-local-state`
 - runtime path/setup policy and the composed migration ledger belong in `atlas-runtime`
 - connection/session admission, migration execution and backups belong in `atlas-storage`
@@ -176,6 +176,8 @@ Keep crate entry points focused on composition:
 Rust workspace tests are the primary validation surface. Add or update tests under the owning crate for behavior changes, especially around ingest, indexing, lookup, search, filter discovery, graph context, and artifact validation.
 
 Before each logical commit, inspect the scoped diff and run checks appropriate to the change. Before marking a PR ready for review, run the full applicable gates: the Rust gate for Rust changes and the frontend gate for web UI changes. Respect the tracked hooks; do not bypass them. Reuse successful validation for an unchanged candidate rather than manually repeating expensive checks without a reason.
+
+Before pushing frontend changes, run `just web-ui-check` and focused tests. Diagnose the failing CI phase before repeating full gates; use the focused Linux replay in CONTRIBUTING.md for browser failures. Keep visual references frozen during refactors.
 
 Commit and merge hooks enforce formatting and staged whitespace only. Pre-push checks third-party notices offline when outgoing dependency or release-tooling inputs change; it does not rerun the substantive validation gates. Run substantive checks explicitly, report their candidate and results, and confirm CI passes on the published PR head before declaring it ready to merge.
 
@@ -230,11 +232,11 @@ Implement each task in a dedicated linked worktree on a feature branch, normally
 
 Choose the base branch from the task context. For the source-modeling workstream, use `integration/source-modeling`; dependent PRs may target their preceding feature branch. Use `main` for independent work intended for the current mainline. Verify the base before editing, and do not mix unrelated workstreams.
 
-Keep the task worktree available while its PR or local build is under review. After merge or cancellation, remove it as part of task completion once needed uncommitted work is preserved and no active preview, agent, build, or symlink depends on it. At the start of the next task, inspect existing worktrees and finish outstanding cleanup. Retaining Git history does not require retaining a checkout or its build output.
+Keep the task worktree available while its PR or local build is under review. After merge or cancellation, stop its task-owned previews and remove it as part of task completion, preserving needed uncommitted source changes and checking for another active agent, build or dependency. A task-owned preview is not itself a reason to retain a completed task's checkout; keep it only when the user has requested continued access. At the start of the next task, inspect existing worktrees and finish outstanding cleanup. Retaining Git history does not require retaining a checkout or its build output.
 
 Post-merge cleanup includes synchronizing local `main`. After a task PR is confirmed merged into `main`, fetch `origin` and update the local `main` checkout with `git merge --ff-only origin/main` as part of the same cleanup that retires the task worktree. Verify that the checkout is on `main` and has no uncommitted changes before updating it, then confirm its HEAD matches the fetched `origin/main`. Do not report cleanup complete while this update remains outstanding. If local changes, divergence, or active work prevent a safe update, preserve them and report the blocked cleanup step; never reset, stash, or discard work to force synchronization. This post-merge update does not authorize merging a PR or pushing to `main`.
 
-If a worktree must remain, record its path, purpose, owner, and removal condition in the task handoff. Preserve only the frozen binary, artifact, saved state, and small review evidence needed for a stable preview; a preview normally does not need its compiler cache. Check Git status and ignored files before removal. Never force-remove needed dirty work, user state, or another checkout's symlink target. Remove worktrees serially with `git worktree remove` and verify the resulting inventory.
+If a worktree must remain, record its path, purpose, owner, and removal condition in the task handoff. Keep only the resources needed for that active task or explicitly retained preview; a preview normally does not need its compiler cache. Check Git status and ignored files before removal. Never force-remove needed uncommitted source work or another active checkout's dependency. Apply the development-data policy below to databases and fixtures. Remove worktrees serially with `git worktree remove` and verify the resulting inventory.
 
 These workflow rules take precedence over older skill defaults requiring separate commit permission, direct local landing, or immediate worktree cleanup.
 
@@ -246,7 +248,11 @@ Before creating a worktree or starting an expensive gate, check free space and t
 
 Use checkout-local Cargo output; never share or symlink targets across worktrees because tests can embed checkout-specific paths. Reuse one target per task rather than creating outputs for each agent or validation retry. Ordinary dev/test builds use limited debug information and enable incremental compilation except for the large generated atlas-foundry-model crate. Clean CI jobs disable incremental compilation globally. Keep hooks and manual checks on these defaults rather than introducing per-agent overrides. Use the documented full-debug profile when variable/type inspection is needed; retain active output and remove obsolete configurations when no longer needed. Do not routinely clean active targets to meet a size preference: rebuilding adds latency and disk writes.
 
-Compiler caches are disposable when their task ends; saved state, source/model assets, and builds still under review require explicit preservation. Preserve live dependency targets such as `node_modules` when another checkout links to them. Use focused checks during iteration and full gates at the required milestones; reuse successful evidence for an unchanged candidate. See CONTRIBUTING.md for debugging and retention details.
+Repository-local runtime and test data is disposable development state by default, including databases, lists, encounters, review edits, fixtures, migration backups and copied reference corpora. This is standing authorization to delete that data when its task ends; do not ask again merely because a preview contains saved state. Protect the user's real installed Atlas workspace and any explicitly retained data. Resolve symlinks and configured paths before cleanup: a repo-local link to the real installation does not make its target disposable. This policy does not authorize discarding uncommitted source changes or disrupting another agent's active work or review.
+
+Do not create full-database backups, state exports, frozen executables, Git bundles or `scratch/*-merged-pr*` archives as a routine task-closeout step. Moving obsolete output into an archive is not cleanup. Keep commit/PR references and concise validation results; retain additional artifacts only for an unresolved failure, active review or explicit user request. Do not write preservation scripts for disposable fixtures. Reuse one task workspace; create a separate frozen review copy only when needed, and remove superseded copies as review progresses. Summarize deletions and recovered space in the final response; cleanup alone needs no persistent manifest or archive README.
+
+Compiler caches are disposable when their task ends. Preserve active builds, shared source/model assets and live dependency targets such as `node_modules` while another checkout uses them. Use focused checks during iteration and full gates at the required milestones; reuse successful evidence for an unchanged candidate. See CONTRIBUTING.md for debugging and retention details.
 
 For full-corpus development, use `just dev-workspace-init` to seed only a missing
 checkout workspace from the shared validated baseline. Bootstrap or explicitly
@@ -275,8 +281,8 @@ For implementation work, pushing the task branch and opening or updating a PR ar
 
 Provide a stable local build when the change is useful to inspect. Identify its branch, commit, URL or command, and any sample-data limitations; disclose uncommitted differences if present. Keep the reviewed build stable while developing further changes, using a separate checkout or built artifact when necessary. Explicitly identify when an updated build replaces it. UI work requires interaction and visual review alongside automated checks; use Astra sub-agents for presentation review, including actual browser inspection.
 
-Do not merge PRs, push directly to shared integration branches or `main`, publish releases, or discard user state without explicit authorization. Do not use `scripts/land-worktree.sh` or `just land-worktree` as the normal landing path. Passing local checks, passing CI, and human acceptance are separate outcomes; report their status independently.
+Do not merge PRs, push directly to shared integration branches or `main`, publish releases, or modify the user's real installed Atlas workspace without explicit authorization. Repository-local development data follows the standing cleanup authorization above. Do not use `scripts/land-worktree.sh` or `just land-worktree` as the normal landing path. Passing local checks, passing CI, and human acceptance are separate outcomes; report their status independently.
 
 ## Configuration & Data Notes
 
-Default repo-local paths are `.cache/pf2e/<supported-commit>`, `.cache/hf-models`, and `.atlas/workspace.sqlite` with `--path-mode repo`. Global mode stores the workspace under platform application data and source/model caches under platform cache storage, both beneath `pf2e-atlas`. Normal setup updates the existing workspace and preserves saved state. Never replace or delete that database as cache cleanup. Use bounded sessions: shared reference/state reads use one snapshot, inference runs before the consuming session, and the caller owns final commit. See ADR0051 for update ownership, maintenance and recovery.
+Default repo-local paths are `.cache/pf2e/<supported-commit>`, `.cache/hf-models`, and `.atlas/workspace.sqlite` with `--path-mode repo`. Global mode stores the workspace under platform application data and source/model caches under platform cache storage, both beneath `pf2e-atlas`. Normal setup updates the existing workspace and preserves saved state; this runtime contract is separate from retiring disposable development data. Never replace or delete the real installed workspace as cache cleanup. Inspect resolved paths and overrides rather than assuming `--path-mode global` always selects the real installation. Use bounded sessions: shared reference/state reads use one snapshot, inference runs before the consuming session, and the caller owns final commit. See ADR0051 for update ownership, maintenance and recovery.

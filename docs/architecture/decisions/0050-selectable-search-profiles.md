@@ -41,7 +41,7 @@ preventing unchanged BGE vector reuse, model-free reads or internally coherent
 stored-vector Similar. This does not admit a previous-format reader or arbitrary
 profile/dimension extensions.
 
-Both profiles emit 768-dimensional normalized vectors, held in one vec0 table
+Both profiles emit 768-dimensional normalized vectors, held in a model-owned vec0 table
 with globally unique unit IDs. Semantic units identify their profile explicitly.
 Every KNN scan restricts unit IDs by selected profile and canonical eligible roots
 inside the vector scan. Similar identity seeds, witnesses and vector reuse use the
@@ -118,3 +118,10 @@ nonTTY output stays bounded on stderr, and JSON stdout/disabled progress stay cl
 This supersedes ADR0018's default/catalog and ADR0046's initial single-model
 restriction. ADR0049's artifact lifetime, generation and abandonment guarantees
 remain, with query sessions shared independently of SQL readers.
+
+Native reuse normalizes complete model contracts and raw input metadata. Published
+vec0 entries provide document reuse; no second full numerical checkpoint corpus is
+retained. Unfinished computations have separate pending bytes/checksums and survive
+failed builds. Trait-only native values share input identity; derived centroids
+remain independent. Exact-distance cutoff selection is arbitrary; compaction may
+change tied witnesses without changing eligibility or ranking policy.

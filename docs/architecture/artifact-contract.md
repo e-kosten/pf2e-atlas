@@ -29,7 +29,7 @@ detail rejects missing or stale generation context for those explicit addresses.
 The reference format, checked snapshot codec, preparation policies and query
 catalog have separate version identities. `artifact_context` contains the typed,
 hashed active build context. SQLite `user_version` instead tracks the shared
-physical migration ledger composed by runtime (two baseline migrations followed by lexical-alias and consumable-filter migrations).
+physical migration ledger composed by runtime.
 The source artifact format is not the workspace schema version.
 
 Pre-release separate-file formats have no compatibility reader or conversion
@@ -49,8 +49,10 @@ never supplies executable SQL.
 
 The shared header contains `workspace` and `schema_migrations`. Durable intent
 lives in `requested_reference_config`; resumable inference uses
-`reference_update_jobs` and `embedding_checkpoints`. These are independent of the
-active reference context. Saved-domain tables include a seeded local principal
+`reference_update_jobs` and `pending_embedding_values`, joined to exact
+`embedding_models`/`embedding_inputs` metadata. Pending vector checksums are
+independent of published checksums, so forced-rebuild progress cannot invalidate
+current readers. Successful publication removes pending numerical values. Saved-domain tables include a seeded local principal
 and non-null ownership, with owner-scoped slug uniqueness.
 
 | Family | Tables and purpose |
@@ -230,8 +232,19 @@ coverage and vector integrity without requiring model assets.
 Each stored profile has complete semantic coverage. An empty profile manifest is
 lexical-only. Each exact profile identity owns a dimensioned vec0 table; KNN
 eligibility remains constrained to eligible roots within the selected profile.
-Final publication reconciles active units and prunes inactive checkpoints in the
-same transaction, never before a successful replacement is available.
+`semantic_locations` holds complete source addresses once across profiles;
+`semantic_units` retains each attributable occurrence and references its location
+and native-input metadata. Compact digests index full checked addresses; validation
+recomputes them and key conflicts compare the complete metadata. Each document
+vector is stored only in its model-owned vec0 table. Rebuild reuse verifies those
+bytes against the native input's published checksum. `trait_seed_chunks` retains
+selected input/coverage evidence and references native inputs; `trait_native_values`
+holds only values not supplied by document occurrences. Trait centroids use binary
+f32 bytes with separate checksums. No permanent checkpoint vector corpus remains.
+Final publication reconciles and validates active units and clears pending values
+and unused metadata in the same transaction, never before a complete replacement
+is available. Pending values have priority for resuming unfinished builds while
+published readers retain the old generation.
 Lexical/reference reads and stored-vector Similar do not require query weights.
 
 Lexical rows keep each root name and verified alias separate with root vocabulary;
@@ -248,7 +261,10 @@ one rank per root per lane with RRF60 as a dogfooding alternative. The default
 a constant nonempty lane receives its full lane weight. Neither strategy adds
 weight for sibling matches. The request-level choice is independent of embedding
 profile and requires no persisted projection changes. See ADR0053.
-Semantic candidate windows are bounded and reported as such. Similar uses the
+Semantic candidate windows are bounded and reported as such. Selection among
+exact equal-distance hits at a KNN cutoff is arbitrary and may change with physical
+layout. Existing outer ordering sorts the selected hits, not excluded ties. Do not
+enumerate boundary ties or expand windows to enforce reproducibility. Similar uses the
 stored root identity seed and semantic candidates, excluding the seed. No invented
 trait/graph reranking weights apply. App search pages expose the same bounded
 Similar request and body-free seed summary; they do not extend the stored schema.
@@ -458,3 +474,19 @@ selection uses `structural-source-sections/v4` and relationships use
 schema migration. The exact preceding 6.12.4 model can be replaced from compatible
 source while preserving saved state; its snapshots are never decoded by the new
 model (ADR0052).
+
+### Native embedding storage
+
+Workspace migration 10 replaces the permanent numerical checkpoint cache, wide
+per-profile passage keys and JSON trait-vector arrays in one transactional typed
+conversion. It retains exact f32 bytes, model contracts, per-profile token counts,
+source addresses, unit IDs, saved-domain rows and pending inference from preparing
+jobs. Published and pending values may legitimately differ for a forced rebuild.
+The conversion validates retained numerical evidence without decoding source DTOs
+that might require a separate source upgrade. Existing migrations remain immutable.
+
+Vector maintenance reuses compatible slots and packs indexes only when at least
+two blocks and 10% of allocation can be reclaimed. It uses supported vec0 public
+DDL/inserts and file-backed temporary staging, not extension shadow-table writes.
+Free SQLite pages are reclaimed separately through explicit setup/build maintenance;
+this changes neither logical reference revision nor workspace identity.
