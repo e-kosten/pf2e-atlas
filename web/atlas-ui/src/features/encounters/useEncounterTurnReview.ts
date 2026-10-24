@@ -1,4 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { persistentReviewQuery } from "./usePersistentReview";
+import { conditionLifecycleQuery } from "./conditionLifecycleQuery";
 import type { RollOutcome } from "../../generated/atlas";
 import { useEffect, useRef, useState } from "react";
 import { getEncounterTurnReview } from "../../api/atlasApi";
@@ -23,6 +25,7 @@ export function useEncounterTurnReview({
 }) {
   const client = useQueryClient();
   const key = ["encounter-turn-review", encounterRef, expectedRevision.toString()];
+  const [preparing, setPreparing] = useState(false);
   const [open, setOpen] = useState(false);
   const [boundaryKey, setBoundaryKey] = useState<string>();
   const [contextKey, setContextKey] = useState(0);
@@ -64,6 +67,7 @@ export function useEncounterTurnReview({
   const begin = async () => {
     if (mutations.pending || advancing.current) return;
     advancing.current = true;
+    setPreparing(true);
     setOpen(false);
     setBoundaryKey(undefined);
     setReceipt("");
@@ -82,6 +86,38 @@ export function useEncounterTurnReview({
         outgoing.boundary_key !== before.outgoing?.boundary_key &&
         (outgoing.reminders.length > 0 || outgoing.persistent_damage_groups.length > 0)
       ) {
+        // Load dependent read models before the first visible dialog frame.
+        // Rejections remain in their query cache for each section's Retry UI.
+        const reads: Promise<unknown>[] = [];
+        if (!outgoing.participant_removed && outgoing.persistent_damage_groups.length)
+          reads.push(
+            client.fetchQuery(
+              persistentReviewQuery(
+                encounterRef,
+                outgoing.participant_key,
+                after.expected_revision,
+                outgoing.boundary_key,
+              ),
+            ),
+          );
+        for (const participantKey of new Set(
+          outgoing.reminders
+            .filter((r) => r.kind === "condition_recovery")
+            .map((r) => r.participant_key),
+        )) {
+          reads.push(
+            client.fetchQuery(
+              conditionLifecycleQuery(
+                encounterRef,
+                participantKey,
+                after.expected_revision,
+                outgoing.boundary_key,
+              ),
+            ),
+          );
+        }
+        await Promise.allSettled(reads);
+        if (!active.current) return;
         setBoundaryKey(outgoing.boundary_key);
         setOpen(true);
       } else {
@@ -89,6 +125,7 @@ export function useEncounterTurnReview({
       }
     } finally {
       advancing.current = false;
+      if (active.current) setPreparing(false);
     }
   };
   const execute = async (
@@ -125,6 +162,7 @@ export function useEncounterTurnReview({
   };
   return {
     open,
+    preparing,
     contextKey,
     boundaryKey,
     begin,

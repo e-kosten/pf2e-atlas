@@ -80,7 +80,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     participants: encounter.data?.participants ?? [],
     mutations,
   });
-  const disabled =
+  const mutationDisabled =
     mutations.pending ||
     !!mutations.refreshError ||
     !!encounter.error ||
@@ -169,6 +169,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
       followTurn(client.getQueryData<typeof encounter.data>(["encounter", route.slug])),
     expectedRevision: encounter.data?.revision ?? 0n,
   });
+  const disabled = mutationDisabled || turnReview.preparing;
   const encounterSummary = encounter.data?.encounter ?? null;
 
   const recovery = mutations.refreshError ? (
@@ -282,6 +283,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             </Button>
             <Button
               disabled={disabled || !!turnReview.data?.next_turn_unavailable_reason}
+              loading={turnReview.preparing ? { delay: 200 } : false}
               onClick={() => void turnReview.begin()}
             >
               Next turn
@@ -319,6 +321,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 return result.active && result.refreshed;
               }}
               advanceDisabled={!!turnReview.data?.next_turn_unavailable_reason}
+              advanceLoading={turnReview.preparing}
               onAdvanceTurn={() => void turnReview.begin()}
               onRemove={(participant) =>
                 confirmDangerAction({

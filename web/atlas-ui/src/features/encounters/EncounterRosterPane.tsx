@@ -41,6 +41,7 @@ export function EncounterRosterPane({
   recovery,
   onAdvanceTurn,
   advanceDisabled = false,
+  advanceLoading = false,
   onRollInitiative,
   onRemove,
   onReorder,
@@ -64,6 +65,7 @@ export function EncounterRosterPane({
   recovery?: React.ReactNode;
   onAdvanceTurn: () => void;
   advanceDisabled?: boolean;
+  advanceLoading?: boolean;
   onRollInitiative?: (participantKey?: string) => void;
   onRemove: (participant: EncounterParticipantView) => void;
   onReorder: (
@@ -267,6 +269,7 @@ export function EncounterRosterPane({
             disabled={
               disabled || advanceDisabled || loading || participants.length === 0
             }
+            loading={advanceLoading ? { delay: 200 } : false}
             icon={<Play size={14} aria-hidden="true" />}
             type="primary"
             onClick={onAdvanceTurn}
