@@ -257,7 +257,6 @@ impl Composer<'_> {
         let mut out = format!(
             "<section class=\"prepared-inclusion\" data-atlas-inclusion=\"{source_namespace}\">"
         );
-        let source_shortcut = (!(is_feat && options.header)).then(|| format!("<span class=\"prepared-inclusion__source\" data-atlas-reference=\"0\" data-atlas-inclusion=\"{source_namespace}\" aria-label=\"Source record: {}\" title=\"{}\">Source record</span>", escape(title), escape(title)));
         if is_feat && options.header {
             let level = if let SourceNodeView::Item(item) = node {
                 item.item_level().value().map(ToString::to_string)
@@ -271,8 +270,6 @@ impl Composer<'_> {
                     .map(|n| format!(" <small>Level {}</small>", escape(&n)))
                     .unwrap_or_default()
             ));
-        } else if let Some(shortcut) = &source_shortcut {
-            out.push_str(shortcut);
         }
         if is_feat
             && options.traits
@@ -393,9 +390,8 @@ impl Composer<'_> {
         }
         Ok(Ok(PreparedHtmlInclusion {
             html: out,
-            source_link: source_shortcut.map(|shortcut| PreparedInclusionSourceLink {
+            source_link: (!(is_feat && options.header)).then_some(PreparedInclusionSourceLink {
                 namespace: source_namespace,
-                shortcut,
                 matching_references,
                 action: matches!(node, SourceNodeView::Item(ItemSourceView::AbilitySource(_))),
             }),
