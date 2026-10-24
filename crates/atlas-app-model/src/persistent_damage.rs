@@ -6,6 +6,10 @@ use ts_rs::TS;
 pub struct PersistentDamageSourceView {
     pub condition_id: i64,
     pub formula: String,
+    /// Validated expression for unrolled dice; never random outcomes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub roll_preview: Option<atlas_dice::RollPreviewExpression>,
     pub multiplier: DamageMultiplierView,
     pub recovery_dc: Option<i64>,
 }

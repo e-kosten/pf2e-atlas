@@ -1,4 +1,6 @@
-use crate::{DiceError, DieOutcome, RollExpression, RollOperator, RollOutcome};
+use crate::{
+    DiceError, DieOutcome, RollExpression, RollOperator, RollOutcome, RollPreviewExpression,
+};
 use diceng::{BinaryOp, Expression, ParseResult, RollResult};
 
 /// Parsed and bounded before any random outcomes are generated.
@@ -40,6 +42,40 @@ impl PreparedRoll {
     /// Conservative inclusive limits proved by validation, without rolling dice.
     pub fn bounds(&self) -> (i64, i64) {
         self.bounds
+    }
+
+    /// Validated display shape, without evaluating or consuming randomness.
+    pub fn preview_expression(&self) -> RollPreviewExpression {
+        fn project(expression: &Expression) -> RollPreviewExpression {
+            match expression {
+                Expression::Dice(dice) => {
+                    let (count, size) = match dice.atom {
+                        diceng::DiceAtom::Standard { count, sides } => (count, sides),
+                        diceng::DiceAtom::Percent { count } => (count, 100),
+                        _ => unreachable!("prepare validates dice atoms"),
+                    };
+                    RollPreviewExpression::Dice {
+                        sides: vec![size; count as usize],
+                    }
+                }
+                Expression::BinaryOp { op, left, right } => RollPreviewExpression::Binary {
+                    operator: match op {
+                        BinaryOp::Add => RollOperator::Add,
+                        BinaryOp::Sub => RollOperator::Subtract,
+                        BinaryOp::Mul => RollOperator::Multiply,
+                        BinaryOp::Div => RollOperator::Divide,
+                    },
+                    left: Box::new(project(left)),
+                    right: Box::new(project(right)),
+                },
+                Expression::UnaryMinus(inner) => RollPreviewExpression::Negate {
+                    inner: Box::new(project(inner)),
+                },
+                Expression::Literal(value) => RollPreviewExpression::Number { value: *value },
+                _ => unreachable!("prepare validates expression shapes"),
+            }
+        }
+        project(&self.expression)
     }
 
     /// Expected value for ordinary additive dice pools; unavailable for other expressions.
@@ -339,5 +375,42 @@ mod tests {
             );
         }
         assert_eq!(prepare("2d6+3").unwrap().bounds(), (5, 15));
+    }
+}
+
+#[cfg(test)]
+mod preview_tests {
+    use super::*;
+    #[test]
+    fn preview_preserves_arithmetic_without_inventing_outcomes() {
+        assert_eq!(
+            prepare("2d6+3").unwrap().preview_expression(),
+            RollPreviewExpression::Binary {
+                operator: RollOperator::Add,
+                left: Box::new(RollPreviewExpression::Dice { sides: vec![6, 6] }),
+                right: Box::new(RollPreviewExpression::Number { value: 3 }),
+            }
+        );
+        assert_eq!(
+            prepare("2d20kh1").unwrap().preview_expression(),
+            RollPreviewExpression::Dice {
+                sides: vec![20, 20]
+            }
+        );
+        assert!(matches!(
+            prepare("-(1d8+2)*1d4").unwrap().preview_expression(),
+            RollPreviewExpression::Binary {
+                operator: RollOperator::Multiply,
+                ..
+            }
+        ));
+        assert_eq!(
+            prepare("1d%").unwrap().preview_expression(),
+            RollPreviewExpression::Dice { sides: vec![100] }
+        );
+        assert_eq!(
+            prepare("5").unwrap().preview_expression(),
+            RollPreviewExpression::Number { value: 5 }
+        );
     }
 }

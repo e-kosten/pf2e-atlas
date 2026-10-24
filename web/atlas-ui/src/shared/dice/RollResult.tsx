@@ -1,4 +1,9 @@
-import type { RollOutcome, RollExpression } from "../../generated/atlas";
+import type { ReactNode } from "react";
+import type {
+  RollOutcome,
+  RollExpression,
+  RollPreviewExpression,
+} from "../../generated/atlas";
 import { DieFace, type DiceDrawing } from "./DieFace";
 import type { DiceMotion } from "./motion";
 import { diceAppearance } from "./appearance";
@@ -32,6 +37,29 @@ export function RollResult({
     </span>
   );
 }
+/** Same expression geometry as a result, with blank dice and an explicit Roll action. */
+export function UnrolledRoll({
+  expression,
+  formula,
+  children,
+}: {
+  expression: RollPreviewExpression;
+  formula: string;
+  children: ReactNode;
+}) {
+  return (
+    <span className="atlas-roll" role="group" aria-label={`Unrolled ${formula}`}>
+      <Expression
+        value={expression}
+        pending={false}
+        drawing={diceAppearance.drawing}
+        motion={diceAppearance.motion}
+      />
+      <span aria-hidden="true">=</span>
+      <span className="atlas-roll__total">{children}</span>
+    </span>
+  );
+}
 function Expression({
   value,
   pending,
@@ -39,7 +67,7 @@ function Expression({
   motion,
   minimumPrecedence = 0,
 }: {
-  value: RollExpression;
+  value: RollExpression | RollPreviewExpression;
   pending: boolean;
   drawing: DiceDrawing;
   motion: DiceMotion;
@@ -48,10 +76,14 @@ function Expression({
   switch (value.kind) {
     case "number":
       return <span>{value.value}</span>;
-    case "dice":
+    case "dice": {
+      const dice =
+        "dice" in value
+          ? value.dice
+          : value.sides.map((sides) => ({ sides, value: undefined, kept: true }));
       return (
         <>
-          {value.dice.map((d, i) => (
+          {dice.map((d, i) => (
             <DieFace
               key={i}
               {...d}
@@ -63,6 +95,7 @@ function Expression({
           ))}
         </>
       );
+    }
     case "negate":
       return (
         <>

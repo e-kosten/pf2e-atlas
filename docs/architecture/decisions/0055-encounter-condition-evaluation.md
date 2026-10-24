@@ -131,6 +131,10 @@ belong in Add/Edit, with no second source picker in damage or recovery. Storage 
 allocating their IDs in the event transaction; there is no intermediate write. Apply active
 damage types simultaneously through one HP event before condition removal. The
 turn reminder can prepare each damage roll and optional recovery check first.
+Unrolled expression shapes are projected from the existing validated Rust dice AST;
+they consume no randomness and contain no result or kept/discarded claim. Arithmetic structure is preserved; the
+original formula retains keep-filter context. The browser renders
+these shapes without parsing formulas or constructing fictional roll outcomes.
 Receipt-only preparation preserves HP, conditions and encounter revision, with
 separate per-type preparation claims. Manual amounts and Clear choices remain
 frontend drafts. The final guarded damage command consumes prepared receipt IDs,

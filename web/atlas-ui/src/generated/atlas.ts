@@ -361,3 +361,5 @@ export type { PersistentRecoveryInput } from "../../../../crates/atlas-app-model
 export type { PersistentDamageGroupInput } from "../../../../crates/atlas-app-model/bindings/PersistentDamageGroupInput";
 export type { PersistentDamageOutcomeView } from "../../../../crates/atlas-app-model/bindings/PersistentDamageOutcomeView";
 export type { PersistentEpisodeReviewView } from "../../../../crates/atlas-app-model/bindings/PersistentEpisodeReviewView";
+
+export type { RollPreviewExpression } from "../../../../crates/atlas-app-model/bindings/RollPreviewExpression";

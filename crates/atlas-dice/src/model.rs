@@ -58,3 +58,23 @@ pub struct RollOutcome {
     pub total: i32,
     pub expression: RollExpression,
 }
+
+/// A validated formula before rolling; carries no outcomes or kept/discarded claims.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum RollPreviewExpression {
+    Number {
+        value: i32,
+    },
+    Dice {
+        sides: Vec<u32>,
+    },
+    Binary {
+        operator: RollOperator,
+        left: Box<RollPreviewExpression>,
+        right: Box<RollPreviewExpression>,
+    },
+    Negate {
+        inner: Box<RollPreviewExpression>,
+    },
+}
