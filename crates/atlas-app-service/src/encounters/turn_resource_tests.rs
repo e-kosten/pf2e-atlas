@@ -350,4 +350,8 @@ fn new_mid_turn_stun_can_resolve_after_start_turn_stun_without_replaying_either_
     f.worker.apply_condition_lifecycle(&key, request).unwrap();
     assert_eq!(resources(&f, &key, &a).regular_remaining, Some(1));
     assert_eq!(resources(&f, &key, &a).start_results.len(), 2);
+    assert_eq!(
+        resources(&f, &key, &a).start_results[0],
+        "Stunned 1 cleared · 1 action lost this turn"
+    );
 }

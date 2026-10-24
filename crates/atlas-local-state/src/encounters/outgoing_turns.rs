@@ -90,7 +90,7 @@ impl EncountersWrite<'_> {
                     .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_ref.into()))?;
                 self.apply_claimed_condition_event(
                     &current.encounter_key,
-                    &format!("start:{request_id}"),
+                    &format!("start:{}", saved.boundary_key),
                     intent,
                     current.revision,
                     super::ConditionEventBoundary {

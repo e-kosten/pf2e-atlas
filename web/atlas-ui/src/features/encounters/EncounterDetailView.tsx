@@ -367,6 +367,18 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           results={
             <EncounterInspectorPane
               currentTurnKey={encounter.data?.current_turn_participant_key}
+              onTurnResources={async (participant, action) => {
+                if (!encounter.data) return;
+                await mutations.run({
+                  kind: "turn-resources",
+                  request: {
+                    participant_key: participant.participant_key,
+                    expected_encounter_revision: encounter.data.revision,
+                    turn_key: participant.turn_resources?.turn_key ?? null,
+                    action,
+                  },
+                });
+              }}
               onBeginStrike={strikes.launch}
               renderStrikeContext={strikes.renderContext}
               onConditionRecovery={async (request) => {

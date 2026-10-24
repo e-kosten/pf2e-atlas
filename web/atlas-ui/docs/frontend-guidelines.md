@@ -1009,6 +1009,23 @@ three actions or extract counts from prose in React. For example, Spinning Blade
 Pillar's (3 actions) stays in Routine rather than becoming a generic forecast.
 Conditions and live HP remain available independently of that budget.
 
+Manual Turn controls belong under participant identity and before HP. Use the
+backend's recorded allowance and remaining resources; a live condition forecast
+belongs in Next turn and must not replace them. Keep deterministic regain results
+there for the actual turn (Stunned 2 cleared), without an acknowledgment or
+ordinary-turn notification. Condition-specific recovery remains beside its condition.
+Do not move the condition lane, HP controls or reading position when a count changes.
+
+Use explicit, compact action spending and correction controls; attacks and spell-use
+buttons never spend actions implicitly. Reaction stock and permission are independent:
+Spent stays Spent under Stunned, and an unspent blocked reaction does not appear usable.
+Off-turn reactions remain editable. Missing past allocation is unknown, not a successful
+3-action/1-reaction regain. Hazards keep their complete authored routines instead.
+Keep pending controls mounted and preserve focus through canonical refresh; failure
+stays beside Turn and a committed write with failed refresh must not invite spending
+again. Verify spend/restore, off-turn reaction, Stunned clear, mid-turn Quickened,
+keyboard correction and phone layout with actual transitions.
+
 For inline record inclusions, prioritize reading over occasional source navigation.
 Reuse a meaningful existing rule heading or authored prose reference as the link;
 keep description-only inclusions in the document flow. For example, Censer
@@ -1067,9 +1084,9 @@ without baseline-detail fallback. Keep the native full reference link,
 ready-lifecycle initial focus, nested source-modal Escape and original trigger
 focus recovery. Later encounter facts use visible Languages and compact Ability
 modifiers before Skills, with the shared family availability/empty-value policy.
-Keep these useful reference facts after combat actions without an opaque
-catch-all disclosure. Selected casting entries show their checked parent and
-associated customized spells; base and authored cast ranks do not imply executed
+Place these useful reference facts in the early statistics sequence above,
+without an opaque catch-all disclosure. Selected casting entries show their checked
+parent and associated customized spells; base and authored cast ranks do not imply executed
 rank or form changes. A hazard's backend defense-block fact controls its primary
 AC/HP/hardness display; keep independent zero saves and unavailable facts intact.
 

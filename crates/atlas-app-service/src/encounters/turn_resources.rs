@@ -168,18 +168,28 @@ pub(super) fn view(
                     .map(|e| {
                         if e.after == Some(0) {
                             format!(
-                                "{} {} cleared · {} actions lost this turn",
+                                "{} {} cleared · {} {} lost this turn",
                                 e.name,
                                 e.before.unwrap_or(0),
-                                e.actions_lost
+                                e.actions_lost,
+                                if e.actions_lost == 1 {
+                                    "action"
+                                } else {
+                                    "actions"
+                                }
                             )
                         } else {
                             format!(
-                                "{} {} → {} · {} actions lost this turn",
+                                "{} {} → {} · {} {} lost this turn",
                                 e.name,
                                 e.before.unwrap_or(0),
                                 e.after.unwrap_or(0),
-                                e.actions_lost
+                                e.actions_lost,
+                                if e.actions_lost == 1 {
+                                    "action"
+                                } else {
+                                    "actions"
+                                }
                             )
                         }
                     })

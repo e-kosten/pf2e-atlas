@@ -1250,7 +1250,7 @@ export function ActorActivities({
   );
 }
 
-function RuntimeCount({
+export function RuntimeCount({
   count,
   label = count.label,
   unit = "",

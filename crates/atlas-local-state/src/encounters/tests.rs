@@ -1101,10 +1101,11 @@ fn failed_start_resource_write_rolls_back_turn_condition_changes_and_receipts()
     store.connection()?.execute_batch("CREATE TRIGGER reject_resources BEFORE UPDATE OF turn_resources_json ON encounter_participants BEGIN SELECT RAISE(ABORT,'resource failure'); END;")?;
     let key = p.participant_key.clone();
     let request = serde_json::json!({"next":true});
+    let request_id = "x".repeat(128);
     let advance = || {
         store.encounters().advance_turn_once(
             "test",
-            "start-rollback",
+            &request_id,
             &request,
             before.encounter.revision,
             |_| {
