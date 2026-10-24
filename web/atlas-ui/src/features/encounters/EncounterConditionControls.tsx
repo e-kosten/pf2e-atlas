@@ -209,7 +209,12 @@ export function EncounterConditionControls({
           ? hpAction
           : (recoveryAction ??
             recoveryControls.conditionActions(condition.condition_id))}{" "}
-        <Tooltip title="Edit" trigger={["hover", "focus"]}>
+        <Tooltip
+          title="Edit"
+          trigger={["hover", "focus"]}
+          open={open ? false : undefined}
+          styles={{ root: { pointerEvents: "none" } }}
+        >
           <Button
             className="encounter-condition-edit"
             type="text"

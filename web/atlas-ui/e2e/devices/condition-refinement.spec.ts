@@ -158,12 +158,16 @@ test("precedence survives source removal and recovery retains its anchor after c
       info,
     );
     const reminders = page.getByRole("dialog", { name: "Turn reminders", exact: true });
+    await activate(reminders.getByText("Table results", { exact: true }), info);
     await expect(
       reminders.getByRole("spinbutton", { name: "Fire damage amount", exact: true }),
     ).toBeVisible();
     await reminders
       .getByRole("spinbutton", { name: "Fire damage amount", exact: true })
       .fill("2");
+    await expect(
+      reminders.getByRole("button", { name: "Apply 2 damage", exact: true }),
+    ).toBeEnabled();
     await checkpoint(page, info, "turn-damage.png");
     await activate(reminders.getByRole("button", { name: /^Apply \d+ damage$/ }), info);
     await expect(
