@@ -534,10 +534,10 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           generation={encounter.data?.artifact_generation ?? null}
           damageTypes={conditionDefinitions.data?.damage_types ?? []}
           onLifecycle={async (request) => {
-            const receipt = await turnReview.execute(
-              { kind: "condition-lifecycle", request },
-              "Condition updated.",
-            );
+            const receipt = await turnReview.execute({
+              kind: "condition-lifecycle",
+              request,
+            });
             if (!receipt || !("check" in receipt))
               throw new Error("Condition result unavailable.");
             return receipt;

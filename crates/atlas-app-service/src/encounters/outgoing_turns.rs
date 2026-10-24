@@ -117,56 +117,27 @@ pub(super) fn latest_review(
             }
         }
     }
+    let groups = super::persistent_damage::group_views(&frozen, None);
+    let recovery_recorded = claims.iter().any(|claim| {
+        claim.kind == atlas_local_state::EncounterBoundaryKind::TurnEnd
+            && claim.scope_key == "frightened"
+    });
+    let mut resolved_ids = std::collections::BTreeSet::new();
     let reminders = super::timing::turn_review(&saved.snapshot)
         .reminders
         .into_iter()
-        .filter(|reminder| {
-            use atlas_app_model::EncounterTurnReminderView as R;
-            match reminder {
-                R::PersistentDamage { condition_id, .. } => {
-                    !damage_applied
-                        || live.is_some_and(|p| {
-                            p.conditions.iter().any(|c| c.condition_id == *condition_id)
-                        })
-                }
-                R::ConditionRecovery { condition_ids, .. } => {
-                    !claims.iter().any(|claim| {
-                        claim.kind == atlas_local_state::EncounterBoundaryKind::TurnEnd
-                            && claim.scope_key == "frightened"
-                    }) && live.is_some_and(|p| {
-                        p.conditions
-                            .iter()
-                            .any(|c| condition_ids.contains(&c.condition_id))
-                    })
-                }
-                R::DurationEnding {
-                    condition_id,
-                    participant_key,
-                    ..
-                }
-                | R::DurationEnded {
-                    condition_id,
-                    participant_key,
-                    ..
-                }
-                | R::DurationReminder {
-                    condition_id,
-                    participant_key,
-                    ..
-                }
-                | R::TimingUnavailable {
-                    condition_id,
-                    participant_key,
-                    ..
-                } => current
-                    .participants
-                    .iter()
-                    .find(|p| p.participant_key == *participant_key)
-                    .is_some_and(|p| p.conditions.iter().any(|c| c.condition_id == *condition_id)),
-            }
+        .filter_map(|reminder| {
+            retain_reminder(reminder, &current.participants, &groups, recovery_recorded)
+        })
+        .filter(|reminder| match reminder {
+            atlas_app_model::EncounterTurnReminderView::Resolved {
+                participant_key,
+                condition_id,
+                ..
+            } => resolved_ids.insert((participant_key.clone(), *condition_id)),
+            _ => true,
         })
         .collect::<Vec<_>>();
-    let groups = super::persistent_damage::group_views(&frozen, None);
     if reminders.is_empty() && groups.is_empty() {
         return Ok(None);
     }
@@ -181,4 +152,119 @@ pub(super) fn latest_review(
         reminders,
         persistent_damage_groups: groups,
     }))
+}
+
+/// Preserve completed rows from this boundary, without recreating an action or
+/// inferring success from a client submission. Pending rows keep their exact source IDs.
+fn retain_reminder(
+    reminder: atlas_app_model::EncounterTurnReminderView,
+    current: &[EncounterParticipant],
+    groups: &[atlas_app_model::PersistentDamageGroupView],
+    recovery_recorded: bool,
+) -> Option<atlas_app_model::EncounterTurnReminderView> {
+    use atlas_app_model::EncounterTurnReminderView as R;
+    let (participant_key, participant_name, condition_id, condition_name) = match &reminder {
+        R::ConditionRecovery {
+            participant_key,
+            participant_name,
+            condition_ids,
+            condition_name,
+        } => {
+            let id = *condition_ids.first()?;
+            if recovery_recorded {
+                return Some(R::Resolved {
+                    participant_key: participant_key.clone(),
+                    participant_name: participant_name.clone(),
+                    condition_id: id,
+                    condition_name: condition_name.clone(),
+                    result: "End-of-turn recovery recorded".into(),
+                });
+            }
+            if current
+                .iter()
+                .find(|p| p.participant_key == *participant_key)
+                .is_some_and(|p| {
+                    p.conditions
+                        .iter()
+                        .any(|c| condition_ids.contains(&c.condition_id))
+                })
+            {
+                return Some(reminder);
+            }
+            (participant_key, participant_name, id, condition_name)
+        }
+        R::PersistentDamage {
+            participant_key,
+            participant_name,
+            condition_id,
+            condition_name,
+            ..
+        } => {
+            // The retained type card already owns both its action and result.
+            if groups
+                .iter()
+                .any(|g| g.sources.iter().any(|s| s.condition_id == *condition_id))
+            {
+                return None;
+            }
+            (
+                participant_key,
+                participant_name,
+                *condition_id,
+                condition_name,
+            )
+        }
+        R::DurationEnding {
+            participant_key,
+            participant_name,
+            condition_id,
+            condition_name,
+            ..
+        }
+        | R::DurationEnded {
+            participant_key,
+            participant_name,
+            condition_id,
+            condition_name,
+            ..
+        }
+        | R::DurationReminder {
+            participant_key,
+            participant_name,
+            condition_id,
+            condition_name,
+            ..
+        }
+        | R::TimingUnavailable {
+            participant_key,
+            participant_name,
+            condition_id,
+            condition_name,
+            ..
+        } => (
+            participant_key,
+            participant_name,
+            *condition_id,
+            condition_name,
+        ),
+        R::Resolved { .. } => return Some(reminder),
+    };
+    let participant = current
+        .iter()
+        .find(|p| p.participant_key == *participant_key);
+    if participant.is_some_and(|p| p.conditions.iter().any(|c| c.condition_id == condition_id)) {
+        return Some(reminder);
+    }
+    Some(R::Resolved {
+        participant_key: participant_key.clone(),
+        participant_name: participant_name.clone(),
+        condition_id,
+        condition_name: condition_name.clone(),
+        result: if participant.is_some() {
+            "Removed"
+        } else {
+            "Participant removed"
+        }
+        .into(),
+    })
 }

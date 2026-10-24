@@ -432,7 +432,6 @@ function TurnFrightenedReduction({
     <>
       <Tooltip title={option.unavailable_reason}>
         <Button
-          size="small"
           disabled={disabled || pending || !option.available}
           loading={pending}
           onClick={async () => {

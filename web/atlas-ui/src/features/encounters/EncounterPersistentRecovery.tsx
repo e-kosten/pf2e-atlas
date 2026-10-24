@@ -65,6 +65,7 @@ export function EncounterPersistentRecovery({
   );
   const changed = revision !== encounterRevision;
   const resetFields = () => {
+    if (result && mode === "end_turn") return;
     form.resetFields();
     form.setFieldsValue({
       dc: source?.recovery_dc == null ? null : Number(source.recovery_dc),
@@ -145,47 +146,53 @@ export function EncounterPersistentRecovery({
                 }
               />
             )}
-            <Form
-              form={form}
-              layout="inline"
-              disabled={disabled || pending || result?.success || (changed && !result)}
-            >
-              <div className="encounter-recovery-roll">
-                <Form.Item
-                  name="dc"
-                  label="Flat check DC"
-                  style={{ marginBottom: 0, marginInlineEnd: 0 }}
-                  rules={[nonNegativeIntegerRule(true)]}
-                >
-                  <InputNumber
-                    aria-label="Recovery DC"
-                    min={0}
-                    max={100}
-                    precision={0}
-                    style={{ width: 72 }}
-                  />
-                </Form.Item>
-                <Button
-                  type="primary"
-                  className="encounter-recovery-roll__submit"
-                  disabled={
-                    disabled ||
-                    pending ||
-                    result?.success ||
-                    (changed && !result) ||
-                    !rollAvailable ||
-                    dice.busy
-                  }
-                  loading={pending || dice.busy}
-                  onClick={() => void run()}
-                >
-                  {result && !result.success && mode === "explicit" ? "Reroll" : "Roll"}
-                </Button>
-              </div>
-              {!rollAvailable && rollUnavailableReason && (
-                <p>{rollUnavailableReason}</p>
-              )}
-            </Form>
+            {!(result && mode === "end_turn") && (
+              <Form
+                form={form}
+                layout="inline"
+                disabled={
+                  disabled || pending || result?.success || (changed && !result)
+                }
+              >
+                <div className="encounter-recovery-roll">
+                  <Form.Item
+                    name="dc"
+                    label="Flat check DC"
+                    style={{ marginBottom: 0, marginInlineEnd: 0 }}
+                    rules={[nonNegativeIntegerRule(true)]}
+                  >
+                    <InputNumber
+                      aria-label="Recovery DC"
+                      min={0}
+                      max={100}
+                      precision={0}
+                      style={{ width: 72 }}
+                    />
+                  </Form.Item>
+                  <Button
+                    type="primary"
+                    className="encounter-recovery-roll__submit"
+                    disabled={
+                      disabled ||
+                      pending ||
+                      result?.success ||
+                      (changed && !result) ||
+                      !rollAvailable ||
+                      dice.busy
+                    }
+                    loading={pending || dice.busy}
+                    onClick={() => void run()}
+                  >
+                    {result && !result.success && mode === "explicit"
+                      ? "Reroll"
+                      : "Roll"}
+                  </Button>
+                </div>
+                {!rollAvailable && rollUnavailableReason && (
+                  <p>{rollUnavailableReason}</p>
+                )}
+              </Form>
+            )}
             {result && (
               <>
                 {result.roll && (
@@ -197,7 +204,9 @@ export function EncounterPersistentRecovery({
                       ? resultPending
                         ? "Clears after Apply"
                         : "Recovered"
-                      : "Still active"}
+                      : mode === "end_turn"
+                        ? "Recovery failed"
+                        : "Still active"}
                     {result.dc == null ? "" : ` · DC ${result.dc}`}
                   </p>
                 )}
@@ -218,11 +227,15 @@ export function EncounterPersistentRecovery({
               appearance === "icon" ? <Dice5 size={14} aria-hidden="true" /> : undefined
             }
             size={size}
-            aria-label={`Roll ${damageType} recovery`}
+            aria-label={`${result && mode === "end_turn" ? "View" : "Roll"} ${damageType} recovery`}
             disabled={disabled || (!available && !result)}
             onClick={(event) => event.stopPropagation()}
           >
-            {appearance === "icon" ? null : "Roll recovery"}
+            {appearance === "icon"
+              ? null
+              : result && mode === "end_turn"
+                ? "Recovery result"
+                : "Roll recovery"}
           </Button>
         </Tooltip>
       </Popover>

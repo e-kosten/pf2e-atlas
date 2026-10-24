@@ -78,7 +78,7 @@ export function useEncounterTurnReview({
         before &&
         outgoing &&
         outgoing.boundary_key !== before.outgoing?.boundary_key &&
-        outgoing.reminders.length > 0
+        (outgoing.reminders.length > 0 || outgoing.persistent_damage_groups.length > 0)
       ) {
         setBoundaryKey(outgoing.boundary_key);
         setOpen(true);

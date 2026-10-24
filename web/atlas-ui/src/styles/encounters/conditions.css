@@ -216,8 +216,10 @@
   flex-wrap: wrap;
 }
 .encounter-persistent-applied {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-control);
 }
 .encounter-persistent-total {
   margin-block: 12px;
@@ -249,7 +251,7 @@
   gap: var(--space-control);
 }
 .encounter-persistent-damage-control__label {
-  flex: 0 0 100px;
+  flex: 0 0 64px;
   line-height: 22px;
 }
 .encounter-persistent-damage-control__value {
@@ -281,21 +283,14 @@
   gap: var(--space-control);
 }
 
-/* The source and its damage control share a row when both fit naturally. */
+/* Each type keeps a clear identity, damage and recovery row. */
 .encounter-persistent-entry {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
+  display: grid;
   gap: var(--space-control);
-}
-.encounter-persistent-entry__source {
-  flex: 1 1 8rem;
-  min-width: 0;
 }
 .encounter-persistent-entry__damage {
   display: grid;
   gap: var(--space-control);
-  flex: 2 1 17rem;
   min-width: 0;
 }
 @media (min-width: 640px) {
@@ -303,7 +298,11 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
   }
-  .encounter-turn-reminder--condition > button {
+  .encounter-turn-reminder--condition > p {
+    grid-column: 1;
+  }
+  .encounter-turn-reminder--condition > button,
+  .encounter-turn-reminder__actions {
     grid-column: 2;
     grid-row: 1 / span 2;
   }

@@ -90,9 +90,6 @@ export function EncounterPersistentTurnReview({
               const type =
                 damageTypes.find((type) => type.value === group.damage_type)?.label ??
                 group.damage_type;
-              const ended = !review.damage_groups.some(
-                (active) => active.episode_id === group.episode_id,
-              );
               const selected = group.sources.find(
                 (source) => source.condition_id === group.selected_source_id,
               );
@@ -119,7 +116,6 @@ export function EncounterPersistentTurnReview({
                                 : ""}
                           </strong>
                         )}
-                        {ended && <span className="muted">Ended</span>}
                       </div>
                       <div className="encounter-persistent-sources">
                         {group.sources.map((source) => {

@@ -109,3 +109,14 @@ it("shows arithmetic beside blank dice without reporting a roll outcome", () => 
   expect(screen.getAllByLabelText("Unrolled d6")).toHaveLength(2);
   expect(screen.queryByRole("status")).toBeNull();
 });
+
+it("animates the supplied blank expression before a roll result exists", () => {
+  render(
+    <UnrolledRoll pending formula="1d6" expression={{ kind: "dice", sides: [6] }}>
+      <button type="button">Roll</button>
+    </UnrolledRoll>,
+  );
+  expect(screen.getByRole("status", { name: "Rolling 1d6" })).toBeVisible();
+  expect(screen.getByLabelText("Rolling d6")).toBeVisible();
+  expect(screen.queryByLabelText("Unrolled d6")).toBeNull();
+});

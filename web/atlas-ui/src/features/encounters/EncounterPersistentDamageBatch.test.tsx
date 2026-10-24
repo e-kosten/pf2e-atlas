@@ -7,7 +7,18 @@ import type {
 import { EncounterPersistentDamageBatch } from "./EncounterPersistentDamageBatch";
 const api = vi.hoisted(() => ({ prepareEncounterPersistentDamage: vi.fn() }));
 vi.mock("../../api/atlasApi", () => api);
+afterEach(() => vi.restoreAllMocks());
 beforeEach(() => {
+  vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+    media: query,
+    matches: query.includes("prefers-reduced-motion"),
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
   api.prepareEncounterPersistentDamage.mockImplementation(async (_ref, request) => ({
     complete: request.groups.length === 2,
     recovery: null,
@@ -212,8 +223,8 @@ it("submits all damage types together and retains table totals across an uncerta
       keep_upright: null,
     },
   });
-  expect(await screen.findByText("Fire: 5")).toBeVisible();
-  expect(screen.getByText("Acid: 3")).toBeVisible();
+  expect(await screen.findByText("Damage: 5 applied")).toBeVisible();
+  expect(screen.getByText("Damage: 3 applied")).toBeVisible();
   expect(screen.queryByRole("button", { name: /^Apply (?:\d+ )?damage$/ })).toBeNull();
 });
 
@@ -281,7 +292,7 @@ it("shows the server total after shared Hardness without claiming per-type total
   );
   expect(screen.getByText(/Total: 3 damage applied/)).toBeVisible();
   expect(screen.getByText(/Hardness absorbed 5/)).toBeVisible();
-  expect(screen.getByText("Fire: 5")).toBeVisible();
+  expect(screen.getByText("Damage: 5 applied")).toBeVisible();
   expect(screen.queryByText("Fire: 5 damage applied")).not.toBeInTheDocument();
 });
 
@@ -447,10 +458,21 @@ it("prepares recovery after one type while another amount is unresolved, then ap
       />
     </ConfigProvider>,
   );
+  expect(await screen.findByText(/Fire, Acid not rolled$/)).toBeVisible();
   fireEvent.click(screen.getByText("Table results"));
+  expect(await screen.findByText(/Fire, Acid not entered$/)).toBeVisible();
   fireEvent.change(
     await screen.findByRole("spinbutton", { name: "Fire damage amount" }),
     { target: { value: "5" } },
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        (_text, node) =>
+          node?.tagName === "SPAN" &&
+          node.textContent === "Total: 5 damage · Acid not entered",
+      ),
+    ).toBeVisible(),
   );
   fireEvent.click(await screen.findByRole("button", { name: "Roll Fire recovery" }));
   fireEvent.click(await screen.findByRole("button", { name: /^Roll$/ }));
@@ -524,4 +546,63 @@ it("shows the backend's refreshed protections and amount while retaining prepare
   expect(await screen.findByText("Immune to fire")).toBeVisible();
   expect(screen.getByRole("button", { name: "Apply 0 damage" })).toBeEnabled();
   expect(screen.queryByText("5 damage")).toBeNull();
+});
+
+it("keeps post-Apply recovery and Clear usable with the refreshed revision", async () => {
+  const onRecover = vi.fn().mockResolvedValue({
+    encounter_key: "encounter",
+    request_id: "clear",
+    episode_id: "fire",
+    damage_type: "fire",
+    dc: null,
+    roll: null,
+    success: true,
+  });
+  const props = {
+    encounterRef: "encounter",
+    participant,
+    encounterRevision: 6n,
+    generation: "generation",
+    damageApplied: false,
+    damageTypes: [
+      { value: "fire", label: "Fire" },
+      { value: "acid", label: "Acid" },
+    ],
+    disabled: false,
+    pending: false,
+    onApply: vi.fn(),
+    onRecover,
+  };
+  const { rerender } = render(<EncounterPersistentDamageBatch {...props} />);
+  rerender(
+    <EncounterPersistentDamageBatch
+      {...props}
+      encounterRevision={8n}
+      damageApplied
+      savedResult={result}
+      episodes={[
+        {
+          episode_id: "fire",
+          damage_resolution: { kind: "table", reason: "At table" },
+          end_turn_recovery_available: true,
+          end_turn_recovery_unavailable_reason: null,
+          end_turn_roll_available: true,
+          end_turn_roll_unavailable_reason: null,
+        },
+      ]}
+    />,
+  );
+  expect(screen.getByRole("button", { name: "Roll Fire recovery" })).toBeEnabled();
+  const clear = screen.getByRole("button", { name: "Clear fire effect" });
+  expect(clear).toBeEnabled();
+  fireEvent.click(clear);
+  await waitFor(() =>
+    expect(onRecover).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resolution: "clear",
+        episode_id: "fire",
+        expected_encounter_revision: 8n,
+      }),
+    ),
+  );
 });

@@ -180,7 +180,12 @@ interaction without changing HP, conditions or initiative. Reads and refreshes d
 not reopen it. There is no acknowledgment, past-turn queue, selector or pagination.
 Durable advance receipts retain the original participant and frozen source context
 for retry safety while the current notification is open. Only the latest completed
-boundary is actionable; advancing again supersedes it. Receipts remain storage
+boundary is actionable; advancing again supersedes it. Completed condition reminders
+remain as typed Resolved results derived from current source membership or recorded
+boundary claims. Removed participants are distinguished from removed effects.
+Persistent type cards own their existing damage/recovery results; ordinary duration,
+timing and end-turn recovery rows follow the same retained-result policy. Reads
+neither recreate actions nor infer successful writes from frontend drafts. Receipts remain storage
 history, not a reminder inbox. Start-turn Dying and Stunned recovery remain
 explicit inspector actions, not silently replayed outgoing events. Waking from
 noise is guidance alongside the existing Perception roller, not a DC-entry form.
