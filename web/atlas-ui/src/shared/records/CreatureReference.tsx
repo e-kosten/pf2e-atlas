@@ -191,7 +191,7 @@ export function CreatureReference({
             runtime={
               encounter && (actor.runtime?.action_budget || encounterContent) ? (
                 <>
-                  <ActorCombatBudget actor={actor} />
+                  {!encounterContent && <ActorCombatBudget actor={actor} />}
                   {!hasStatistics && <ActorSecondaryFacts actor={actor} />}
                   {encounterContent && (
                     <section id={id("conditions")} tabIndex={-1}>

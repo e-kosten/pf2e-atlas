@@ -298,6 +298,8 @@ current activity finishes, and atomically reduces both that pool and condition
 sources. It never reruns a three-action regain. Missing Stunned value with a duration
 is duration Stunned; missing both is unresolved. Pending-expiry review and explicit
 removal govern duration Stunned. Reads never consume conditions or resources.
+The timing and permission distinction follows [Start Your Turn](https://2e.aonprd.com/Rules.aspx?ID=2428)
+and [Gaining and Losing Actions](https://2e.aonprd.com/Rules.aspx?ID=2455).
 
 Evaluated casting uses the backend action judgments and relevant exception facts.
 The ordinary spell popover records table-resolved use with source, resource and revision

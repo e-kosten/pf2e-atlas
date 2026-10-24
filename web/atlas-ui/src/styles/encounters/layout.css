@@ -124,3 +124,26 @@
 .encounter-actor-reading__status {
   margin-block-end: var(--space-section);
 }
+
+.encounter-turn-resources {
+  display: grid;
+  gap: var(--space-control);
+}
+.encounter-turn-resources__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-group) var(--space-section);
+  align-items: center;
+}
+.encounter-turn-resources__group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+  align-items: center;
+}
+.encounter-turn-resources p {
+  margin: 0;
+}
+.encounter-turn-resources__result {
+  color: var(--muted);
+}

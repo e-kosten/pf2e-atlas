@@ -1,3 +1,7 @@
+import {
+  EncounterTurnResources,
+  type TurnResourceHandler,
+} from "./EncounterTurnResources";
 import { EncounterOriginalRecord } from "./EncounterOriginalRecord";
 import { EncounterLifeStatus } from "./EncounterLifeStatus";
 import { EncounterConditionRecovery } from "./EncounterConditionLifecycle";
@@ -56,6 +60,7 @@ export function EncounterInspectorPane({
   onRecoverPersistent,
   onResolveDrained,
   onPreviewCondition,
+  onTurnResources,
   onHpAction,
   onSpellAction,
   onConditionRecovery,
@@ -145,6 +150,10 @@ export function EncounterInspectorPane({
     action: import("../../generated/atlas").EncounterSpellAction,
     expectedRevision?: bigint,
   ) => Promise<boolean>;
+  onTurnResources?: (
+    participant: EncounterParticipantView,
+    action: Parameters<TurnResourceHandler>[0],
+  ) => Promise<void>;
   onHpAction: (
     participant: EncounterParticipantView,
     action: EncounterHpAction,
@@ -212,6 +221,7 @@ export function EncounterInspectorPane({
           onRecoverPersistent={onRecoverPersistent}
           onResolveDrained={onResolveDrained}
           onPreviewCondition={onPreviewCondition}
+          onTurnResources={onTurnResources}
           onHpAction={onHpAction}
           onSpellAction={onSpellAction}
           onUpdateCondition={onUpdateCondition}
@@ -294,6 +304,7 @@ function EncounterParticipantSurface({
   onRecoverPersistent,
   onResolveDrained,
   onPreviewCondition,
+  onTurnResources,
   onHpAction,
   onSpellAction,
   onUpdateCondition,
@@ -357,6 +368,10 @@ function EncounterParticipantSurface({
     action: import("../../generated/atlas").EncounterSpellAction,
     expectedRevision?: bigint,
   ) => Promise<boolean>;
+  onTurnResources?: (
+    participant: EncounterParticipantView,
+    action: Parameters<TurnResourceHandler>[0],
+  ) => Promise<void>;
   onHpAction: (
     participant: EncounterParticipantView,
     action: EncounterHpAction,
@@ -535,6 +550,14 @@ function EncounterParticipantSurface({
           {!hasHp && statusControl}
         </div>
       </div>
+      <EncounterTurnResources
+        value={participant.turn_resources}
+        disabled={disabled}
+        isCurrent={currentTurnKey === participant.participant_key}
+        onChange={
+          onTurnResources ? (action) => onTurnResources(participant, action) : undefined
+        }
+      />
       {participant.status === "unresolved" && (
         <p>Reference unavailable. Saved participant settings remain editable.</p>
       )}

@@ -1408,3 +1408,13 @@ export async function getTraitRecords(
     );
   return result;
 }
+
+export async function updateTurnResources(
+  encounterRef: string,
+  request: import("../generated/atlas").UpdateTurnResourcesRequest,
+): Promise<import("../generated/atlas").EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/turn-resources`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}
