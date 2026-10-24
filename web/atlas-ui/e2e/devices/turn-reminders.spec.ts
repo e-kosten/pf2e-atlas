@@ -226,6 +226,7 @@ for (const outcome of [
         expect(after).not.toBeNull();
         expect(Math.abs(after!.x - before!.x)).toBeLessThanOrEqual(1);
         expect(Math.abs(after!.y - before!.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(after!.width - before!.width)).toBeLessThanOrEqual(1);
         await page.screenshot({
           path: info.outputPath("persistent-shared-dice.png"),
           fullPage: true,
