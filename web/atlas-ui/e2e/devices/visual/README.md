@@ -5,6 +5,29 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Accepted creature and encounter layout
+
+The macOS set captures the human-accepted r19 direction with the independently
+reviewed shared Trait header repair and condition Edit-tooltip touch fix. Source
+candidate: `7e7b1b5a945de0f104a1a42c2807ce1cc3601a51`, Playwright 1.62.1 on macOS
+arm64, using the four maintained projects and isolated browser fixture. All 12
+capture scenarios passed their interaction and geometry assertions. The damage
+checkpoint waits for the authoritative Total and enabled Apply action, rather
+than accepting an incidental updating state.
+
+All 40 before/candidate pairs were viewed before adoption: parent reviewed the
+20 desktop/tablet pairs; independent Astra reviewed the 20 phone pairs. Changes
+preserve condition precedence, damage facts and source-removal fallback while
+showing the accepted runtime lane, manual resource chips and contextual damage/
+recovery rows. Editors no longer leave the initiating Edit tooltip above their
+controls. Retained results and settled totals remain visible. Prior references
+were preserved under `scratch/review/creature-final-visuals/before`; review details
+and candidate hashes are under `scratch/review/creature-final-astra` and
+`scratch/review/creature-final-visuals`. Capture does not establish a normal
+comparison pass; the full four-project suite must compare these references with
+snapshot updates disabled. Linux references are reconciled separately from the
+authenticated hosted fixture; macOS PNGs must not be copied to Linux.
+
 ## Accepted Ant foundations
 
 The current sets include the accepted shared pane spacing (16px rather than
