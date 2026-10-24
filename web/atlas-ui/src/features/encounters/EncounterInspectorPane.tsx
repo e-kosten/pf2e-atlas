@@ -447,6 +447,7 @@ function EncounterParticipantSurface({
   const turnControls = (
     <EncounterTurnResources
       value={participant.turn_resources}
+      onReference={onReference}
       disabled={disabled}
       isCurrent={currentTurnKey === participant.participant_key}
       onChange={

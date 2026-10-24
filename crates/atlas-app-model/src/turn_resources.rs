@@ -13,12 +13,18 @@ pub struct TurnResourcesView {
     pub extra_uses: Vec<crate::ConditionExtraActionView>,
     pub reactions_total: Option<i64>,
     pub reactions_remaining: Option<i64>,
-    pub start_results: Vec<String>,
+    pub start_results: Vec<TurnResourceResultView>,
     pub pending_reason: Option<String>,
     pub forecast: crate::RuntimeCountView,
     pub can_edit_actions: bool,
     pub can_spend_actions: crate::RuntimeCapabilityView,
     pub can_spend_reactions: crate::RuntimeCapabilityView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct TurnResourceResultView {
+    pub condition_name: String,
+    pub condition_ref: String,
+    pub outcome: String,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]

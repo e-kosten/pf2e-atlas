@@ -13,7 +13,13 @@ function value(): TurnResourcesView {
     extra_uses: [],
     reactions_total: 1n,
     reactions_remaining: 1n,
-    start_results: ["Stunned 2 cleared · 2 actions lost this turn"],
+    start_results: [
+      {
+        condition_name: "Stunned",
+        condition_ref: "conditionitems:dfCMdR4wnpbYNTix",
+        outcome: "2 cleared · 2 actions lost this turn",
+      },
+    ],
     pending_reason: null,
     forecast: {
       label: "Actions",
@@ -57,7 +63,7 @@ it("spends only on explicit input and retains the recorded allowance and start r
     "false",
   );
   expect(screen.queryByText("0 / 1")).toBeNull();
-  expect(screen.getByText(initial.start_results[0])).toBeVisible();
+  expect(screen.getByText(initial.start_results[0].outcome)).toBeVisible();
   expect(onChange).toHaveBeenCalledTimes(1);
 });
 it("keeps an off-turn reaction usable and distinguishes spent stock from a condition restriction", async () => {
@@ -316,4 +322,25 @@ it("keeps explanations when modifiers cancel to the base allowance", async () =>
     expect(within(calculation).getByRole("row", { name: "Slowed -1" })).toBeVisible(),
   );
   expect(within(calculation).getByRole("row", { name: "Quickened +1" })).toBeVisible();
+});
+
+it("opens the retained Stunned rules without restoring a cleared condition or spending resources", () => {
+  const onChange = vi.fn(),
+    onReference = vi.fn();
+  render(
+    <EncounterTurnResources
+      value={value()}
+      disabled={false}
+      isCurrent
+      onChange={onChange}
+      onReference={onReference}
+    />,
+  );
+  const link = screen.getByRole("link", { name: "Stunned" });
+  expect(link).toHaveAttribute("href", "/records/conditionitems:dfCMdR4wnpbYNTix");
+  fireEvent.click(link);
+  expect(onReference).toHaveBeenCalledWith("conditionitems:dfCMdR4wnpbYNTix", link);
+  expect(onChange).not.toHaveBeenCalled();
+  fireEvent.click(link, { ctrlKey: true });
+  expect(onReference).toHaveBeenCalledTimes(1);
 });

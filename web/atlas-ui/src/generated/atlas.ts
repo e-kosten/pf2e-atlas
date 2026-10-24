@@ -1,3 +1,4 @@
+export type { TurnResourceResultView } from "../../../../crates/atlas-app-model/bindings/TurnResourceResultView";
 export type { TurnResourceAction } from "../../../../crates/atlas-app-model/bindings/TurnResourceAction";
 export type { TurnResourceKind } from "../../../../crates/atlas-app-model/bindings/TurnResourceKind";
 export type { TurnResourcesView } from "../../../../crates/atlas-app-model/bindings/TurnResourcesView";

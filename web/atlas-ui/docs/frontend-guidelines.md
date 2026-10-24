@@ -1022,6 +1022,10 @@ backend's recorded allowance and remaining resources; a live condition forecast
 belongs in Next turn and must not replace them. Keep deterministic regain results
 there for the actual turn (Stunned 2 cleared), without an acknowledgment or
 ordinary-turn notification. Condition-specific recovery remains beside its condition.
+After Stunned is consumed, retain its rules link in the existing action-loss
+summary for that turn. Keep cleared effects out of the active Conditions list;
+do not preserve an editable inactive row just to make its rules reachable. The
+server supplies the rule identity separately from the outcome text.
 Do not move the condition lane, HP controls or reading position when a count changes.
 
 Use explicit, compact action spending and correction controls; attacks and spell-use
