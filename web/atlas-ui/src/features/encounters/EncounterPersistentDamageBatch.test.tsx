@@ -479,7 +479,7 @@ it("prepares recovery after one type while another amount is unresolved, then ap
   await waitFor(() =>
     expect(screen.getAllByText("Clears after Apply").length).toBeGreaterThan(0),
   );
-  expect(screen.getByText("Also clears Fire")).toBeVisible();
+  expect(screen.getByText("Clear Fire")).toBeVisible();
   expect(onApply).not.toHaveBeenCalled();
   expect(onRecover).not.toHaveBeenCalled();
   expect(screen.getByRole("button", { name: "Apply damage" })).toBeDisabled();
