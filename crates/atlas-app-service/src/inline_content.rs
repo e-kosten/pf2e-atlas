@@ -2,7 +2,8 @@
 use crate::{AppServiceResult, prepared_content::prepared_fields, projection::relationship_views};
 use atlas_app_model::*;
 use atlas_record::source_content::{
-    ContentReferenceKind, ContentReferenceResolution, ContentReferenceTarget, SourceContentLocator,
+    ContentReferenceKind, ContentReferenceResolution, ContentReferenceTarget,
+    PreparedHtmlInclusion, PreparedInclusionSourceLink, SourceContentLocator,
     compose_prepared_inclusions, escape_content_text as escape, terminal_prepared_reference,
 };
 use atlas_record::source_record::{
@@ -102,28 +103,35 @@ impl Composer<'_> {
                 self.insert(
                     reference,
                     options.unwrap(),
-                    references.iter().any(|other| {
-                        other.resolution == reference.resolution
-                            && matches!(
-                                other.details.reference_kind,
-                                Some(
-                                    ContentReferenceKind::Uuid
-                                        | ContentReferenceKind::Compendium
-                                        | ContentReferenceKind::HtmlLink
+                    references
+                        .iter()
+                        .filter(|other| {
+                            other.resolution == reference.resolution
+                                && matches!(
+                                    other.details.reference_kind,
+                                    Some(
+                                        ContentReferenceKind::Uuid
+                                            | ContentReferenceKind::Compendium
+                                            | ContentReferenceKind::HtmlLink
+                                    )
                                 )
-                            )
-                    }),
+                        })
+                        .map(|other| other.ordinal)
+                        .collect(),
                     active,
                     bindings,
                 )?
             };
             let html = match insertion {
                 Ok(html) => html,
-                Err(reason) => format!(
-                    "<section class=\"prepared-inclusion-unavailable\"><p>{} <span data-atlas-reference=\"{}\">Open reference</span></p></section>",
-                    escape(reason),
-                    reference.ordinal
-                ),
+                Err(reason) => PreparedHtmlInclusion {
+                    source_link: None,
+                    html: format!(
+                        "<section class=\"prepared-inclusion-unavailable\"><p>{} <span data-atlas-reference=\"{}\">Open reference</span></p></section>",
+                        escape(reason),
+                        reference.ordinal
+                    ),
+                },
             };
             insertions.insert(reference.ordinal, html);
         }
@@ -137,10 +145,10 @@ impl Composer<'_> {
         &mut self,
         reference: &SourceStoredRelationship,
         options: InlineEmbedOptions,
-        has_source_link: bool,
+        matching_references: Vec<usize>,
         active: &mut Vec<(String, Vec<atlas_domain::OwnedContentLocator>)>,
         bindings: &mut Vec<PreparedInclusionView>,
-    ) -> AppServiceResult<Result<String, &'static str>> {
+    ) -> AppServiceResult<Result<PreparedHtmlInclusion, &'static str>> {
         let (key, owners) = match &reference.resolution {
             ContentReferenceResolution::Resolved(ContentReferenceTarget::Record { key }) => {
                 (key, vec![])
@@ -249,6 +257,7 @@ impl Composer<'_> {
         let mut out = format!(
             "<section class=\"prepared-inclusion\" data-atlas-inclusion=\"{source_namespace}\">"
         );
+        let source_shortcut = (!(is_feat && options.header)).then(|| format!("<span class=\"prepared-inclusion__source\" data-atlas-reference=\"0\" data-atlas-inclusion=\"{source_namespace}\" aria-label=\"Source record: {}\" title=\"{}\">Source record</span>", escape(title), escape(title)));
         if is_feat && options.header {
             let level = if let SourceNodeView::Item(item) = node {
                 item.item_level().value().map(ToString::to_string)
@@ -262,8 +271,8 @@ impl Composer<'_> {
                     .map(|n| format!(" <small>Level {}</small>", escape(&n)))
                     .unwrap_or_default()
             ));
-        } else if !has_source_link {
-            out.push_str(&format!("<span class=\"prepared-inclusion__source\" data-atlas-reference=\"0\" aria-label=\"Open {}\" title=\"Open {}\">↗</span>",escape(title),escape(title)));
+        } else if let Some(shortcut) = &source_shortcut {
+            out.push_str(shortcut);
         }
         if is_feat
             && options.traits
@@ -382,6 +391,14 @@ impl Composer<'_> {
         if self.bytes > HTML_LIMIT {
             return Ok(Err("More content is available in the source record."));
         }
-        Ok(Ok(out))
+        Ok(Ok(PreparedHtmlInclusion {
+            html: out,
+            source_link: source_shortcut.map(|shortcut| PreparedInclusionSourceLink {
+                namespace: source_namespace,
+                shortcut,
+                matching_references,
+                action: matches!(node, SourceNodeView::Item(ItemSourceView::AbilitySource(_))),
+            }),
+        }))
     }
 }

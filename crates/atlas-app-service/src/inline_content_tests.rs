@@ -125,3 +125,35 @@ fn inline_content_budget_is_shared_across_sibling_occurrences() {
     assert_eq!(html.matches("More content is available").count(), 6);
     assert_eq!(f.worker.last_read_metrics().source_body_decodes, 2);
 }
+
+#[test]
+fn inline_content_links_a_benefit_heading_to_its_source_and_keeps_an_untitled_source_link() {
+    for (host, titled) in [
+        (
+            "<h3>Paragon Benefit</h3><p>@Embed[Compendium.pf2e.features.Item.featTarget100000 inline]</p>",
+            true,
+        ),
+        (
+            "<p>@Embed[Compendium.pf2e.features.Item.featTarget100000 inline]</p>",
+            false,
+        ),
+    ] {
+        let f = fixture(host, "<p>Benefit rules.</p>");
+        let detail = f.worker.record_detail("spells:hostSpell1000000").unwrap();
+        let (html, bindings) = body(&detail);
+        assert_eq!(html.contains("Source record</span>"), !titled, "{html}");
+        if titled {
+            assert!(html.contains("Paragon Benefit</span></h3>"));
+        }
+        let source = &bindings
+            .iter()
+            .find(|b| b.namespace == 1)
+            .unwrap()
+            .references[0];
+        assert_eq!(
+            source.target.as_ref().unwrap().record_key,
+            "features:featTarget100000"
+        );
+        assert!(html.contains("Benefit rules."));
+    }
+}
