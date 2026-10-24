@@ -7,6 +7,8 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
+        // Preserve React and Ant module initialization across vendor chunks.
+        strictExecutionOrder: true,
         codeSplitting: {
           groups: [{ name: "vendor", test: /node_modules/, maxSize: 350_000 }],
         },
