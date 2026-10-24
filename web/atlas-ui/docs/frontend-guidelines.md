@@ -976,6 +976,21 @@ Pitfall reaction must not require opening an Abilities accordion. Secondary
 provenance may be disclosed; that does not make all owned records or a long spell
 catalog essential inline content. Keep bounded continuation for substantial
 content instead of clipping it or requiring an unrelated disclosure.
+
+For inline record inclusions, prioritize reading over occasional source navigation.
+Reuse a meaningful existing rule heading or authored prose reference as the link;
+keep description-only inclusions in the document flow. For example, Censer
+Implement's introductory Censer text needs no invented heading or standalone
+“Source record” row; its underlying record remains available in Related records.
+Paragon Benefit and Spiritual Scar can link from their existing named rule titles,
+while an in-sentence reference stays in its sentence. Do not add a floating icon,
+toolbar or repeated card solely to expose an inclusion's provenance. Explicitly
+authored inclusion headers remain meaningful content; unavailable or bounded
+content still needs local status and a useful recovery/destination link. This rule
+does not suppress essential actions or change existing owned-ability permalinks.
+Verify the body-only, named-heading, prose-link and unavailable cases when changing
+shared inclusion presentation.
+
 Immediate Ability-class activities use the shared bounded embedded-reading
 workflow; the optional whole-section Collapse in creature reading is not the
 hazard default. Creature composition receives its own review. The existing

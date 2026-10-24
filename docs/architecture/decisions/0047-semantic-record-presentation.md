@@ -45,8 +45,9 @@ Prepared reading composition can link an immediately preceding heading for one
 inclusion, or promote an authored standalone action-title/glyph line. It uses
 checked same-target reference ordinals and structural adjacency, never name-based
 matching. Existing heading IDs and local reading landings retain their meaning;
-source navigation uses the inclusion's exact reference namespace. Untitled
-insertions retain a compact Source record link without adding a heading.
+source navigation uses the inclusion's exact reference namespace. Description-only
+insertions add neither a heading nor a source shortcut. Existing Related records
+provides secondary access to the underlying record.
 
 Borrowed record views remain storage and presentation neutral. They preserve
 availability and typed values; app-service owns labels and semantic composition.

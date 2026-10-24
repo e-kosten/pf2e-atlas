@@ -20,8 +20,6 @@ pub struct PreparedHtmlInclusion {
 #[derive(Debug, Clone)]
 pub struct PreparedInclusionSourceLink {
     pub namespace: usize,
-    /// Exact generated shortcut, so moving it cannot consume authored prose.
-    pub shortcut: String,
     pub matching_references: Vec<usize>,
     pub action: bool,
 }
@@ -35,7 +33,6 @@ pub fn compose_prepared_inclusions(
 ) -> String {
     let fragment = Html::parse_fragment(html);
     let root = fragment.root_element();
-    let mut insertions = insertions.clone();
     let mut headings = HashMap::new();
     let paragraphs = scraper::Selector::parse("p").expect("static paragraph selector");
     for paragraph in fragment.select(&paragraphs) {
@@ -45,17 +42,15 @@ pub fn compose_prepared_inclusions(
         let next_is_inclusion = adjacent_element(*paragraph, false)
             .and_then(|next| isolated_marker(*next))
             .is_some_and(|n| insertions.contains_key(&n));
-        let Some(insertion) = insertions.get_mut(&ordinal) else {
+        let Some(insertion) = insertions.get(&ordinal) else {
             continue;
         };
         let Some(source) = &insertion.source_link else {
             continue;
         };
-        let mut linked_heading = false;
         if let Some(previous) = adjacent_element(*paragraph, true) {
             if is_heading(previous.value().name()) && !next_is_inclusion {
-                let refs = reference_ordinals(previous);
-                if refs.is_empty() && !has_links_or_controls(previous) {
+                if !has_links_or_controls(previous) {
                     headings.insert(
                         previous.id(),
                         element_with_body(
@@ -65,20 +60,13 @@ pub fn compose_prepared_inclusions(
                             false,
                         ),
                     );
-                    linked_heading = true;
-                } else if refs.len() == 1 && source.matching_references.contains(&refs[0]) {
-                    linked_heading = true;
                 }
             } else if previous.value().name() == "p"
                 && source.action
                 && let Some(title) = action_heading(previous, source)
             {
                 headings.insert(previous.id(), title);
-                linked_heading = true;
             }
-        }
-        if linked_heading || !source.matching_references.is_empty() {
-            insertion.html = insertion.html.replacen(&source.shortcut, "", 1);
         }
     }
     let last = root
@@ -90,7 +78,7 @@ pub fn compose_prepared_inclusions(
         .map(|node| {
             render(
                 node,
-                &insertions,
+                insertions,
                 &headings,
                 omit_terminal_uuid && Some(node.id()) == last,
             )
@@ -326,16 +314,12 @@ mod tests {
         action: bool,
         matching_references: Vec<usize>,
     ) -> BTreeMap<usize, PreparedHtmlInclusion> {
-        let shortcut = "<span class=\"prepared-inclusion__source\" data-atlas-reference=\"0\" data-atlas-inclusion=\"9\">Source record</span>".to_string();
         BTreeMap::from([(
             2,
             PreparedHtmlInclusion {
-                html: format!(
-                    "<section data-atlas-inclusion=\"9\">{shortcut}<p>Included rules.</p></section>"
-                ),
+                html: "<section data-atlas-inclusion=\"9\"><p>Included rules.</p></section>".into(),
                 source_link: Some(PreparedInclusionSourceLink {
                     namespace: 9,
-                    shortcut,
                     matching_references,
                     action,
                 }),
@@ -377,7 +361,7 @@ mod tests {
         }
     }
     #[test]
-    fn prose_mentions_stay_inline_and_unheaded_insertions_keep_a_text_shortcut() {
+    fn prose_mentions_stay_inline_and_unheaded_insertions_remain_body_only() {
         let html = compose_prepared_inclusions(
             "<p>You gain <span data-atlas-reference=\"1\">Reaction title</span> <span data-atlas-action-glyph=\"reaction\">reaction</span>.</p><p><span data-atlas-reference=\"2\">Embed</span></p>",
             &insertion(true, vec![1]),
@@ -392,7 +376,10 @@ mod tests {
             &insertion(false, vec![]),
             false,
         );
-        assert!(untitled.contains("Source record") && !untitled.contains("<h"));
+        assert_eq!(
+            untitled,
+            "<section data-atlas-inclusion=\"9\"><p>Included rules.</p></section>"
+        );
     }
     #[test]
     fn a_heading_before_multiple_consecutive_inclusions_is_not_assigned_to_one_target() {
@@ -410,6 +397,6 @@ mod tests {
             false,
         );
         assert!(html.starts_with("<h3>Combined benefits</h3>"), "{html}");
-        assert!(html.contains("Source record") && html.contains("Other rules."));
+        assert!(html.contains("Included rules.") && html.contains("Other rules."));
     }
 }

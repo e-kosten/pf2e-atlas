@@ -92,13 +92,6 @@
   display: flow-root;
   margin-block: var(--space-group);
 }
-.prepared-inclusion__source {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  margin-block-end: var(--space-control);
-  font-size: 0.8125rem;
-}
 .prepared-inclusion__traits {
   display: flex;
   flex-wrap: wrap;
