@@ -85,3 +85,44 @@
 .record-reference .prepared-content :is(h5, h6).document-heading {
   font-size: 1rem;
 }
+
+/* Inserted source prose shares the document flow, without nested record cards. */
+.prepared-inclusion {
+  position: relative;
+  display: flow-root;
+  margin-block: var(--space-group);
+}
+.prepared-inclusion__source {
+  float: inline-end;
+  margin-inline-start: var(--space-control);
+  color: var(--muted);
+}
+.prepared-inclusion__source:is(a) {
+  display: inline-flex;
+  min-width: 24px;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+}
+.prepared-inclusion__traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+  list-style: none;
+  padding: 0;
+}
+.prepared-inclusion__traits li {
+  border: 1px solid var(--line);
+  padding-inline: var(--space-control);
+  border-radius: var(--radius-sm);
+}
+.prepared-inclusion__prerequisite {
+  margin-block: var(--space-control);
+}
+.prepared-inclusion__prerequisite > div,
+.prepared-inclusion__prerequisite > div > p {
+  display: inline;
+}
+.prepared-inclusion-unavailable {
+  color: var(--muted);
+}

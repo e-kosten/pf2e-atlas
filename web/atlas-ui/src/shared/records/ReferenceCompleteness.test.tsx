@@ -84,6 +84,7 @@ it("shows prerequisites and effect duration from the shared projection", () => {
             source_fingerprint: null,
             body: {
               kind: "html",
+              inclusions: [],
               html: "trained in Medicine; Battle Medicine or Medic Dedication",
               controls: [],
             },
@@ -146,7 +147,12 @@ it("distinguishes empty journals from unavailable collections and keeps selected
             },
             role: "description",
             source_fingerprint: null,
-            body: { kind: "html", html: "<p>Page body</p>", controls: [] },
+            body: {
+              kind: "html",
+              inclusions: [],
+              html: "<p>Page body</p>",
+              controls: [],
+            },
           },
         ],
         body: {

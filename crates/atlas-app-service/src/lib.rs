@@ -12,6 +12,9 @@ mod executor;
 mod filter;
 mod filters;
 mod flat_check;
+mod inline_content;
+#[cfg(test)]
+mod inline_content_tests;
 mod lists;
 mod parties;
 #[cfg(test)]

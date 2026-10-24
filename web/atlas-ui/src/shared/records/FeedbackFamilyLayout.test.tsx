@@ -202,7 +202,7 @@ it("omits known-empty optional headings while preserving unavailable and control
           locator: { record: "items:one", embedded_path: [], field: "empty" },
           role: "description",
           source_fingerprint: null,
-          body: { kind: "html", html: " ", controls: [] },
+          body: { kind: "html", inclusions: [], html: " ", controls: [] },
         },
         {
           locator: { record: "items:one", embedded_path: [], field: "unknown" },
@@ -216,6 +216,7 @@ it("omits known-empty optional headings while preserving unavailable and control
           source_fingerprint: null,
           body: {
             kind: "html",
+            inclusions: [],
             html: "",
             controls: [
               {

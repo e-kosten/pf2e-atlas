@@ -169,12 +169,23 @@ export function PreparedContentBody({
     const effects: ReactPortal[] = [];
     markers?.forEach((originalMarker) => {
       let marker = originalMarker;
+      const namespace = marker
+        .closest("[data-atlas-inclusion]")
+        ?.getAttribute("data-atlas-inclusion");
+      const inclusion =
+        namespace == null
+          ? undefined
+          : body.inclusions.find((entry) => entry.namespace === Number(namespace));
+      const markerReferences =
+        namespace == null ? references : (inclusion?.references ?? []);
+      const markerControls =
+        namespace == null ? body.controls : (inclusion?.controls ?? []);
       const ref = marker.getAttribute("data-atlas-reference");
       const fact =
-        ref === null ? null : references.find((r) => r.ordinal === Number(ref));
+        ref === null ? null : markerReferences.find((r) => r.ordinal === Number(ref));
       const control =
         ref === null
-          ? body.controls.find(
+          ? markerControls.find(
               (c) =>
                 c.ordinal === Number(marker.getAttribute("data-atlas-interaction")),
             )?.control
@@ -191,7 +202,7 @@ export function PreparedContentBody({
               onReference={openReference}
             />,
             host,
-            String(ref),
+            `${namespace ?? "host"}:${ref}`,
           ),
         );
         listeners.push(() => host.replaceWith(originalMarker));
@@ -263,14 +274,14 @@ export function PreparedContentBody({
         const reference = marker.getAttribute("data-atlas-reference");
         if (reference !== null) {
           const ordinal = Number(reference);
-          const fact = references.find((r) => r.ordinal === ordinal);
+          const fact = markerReferences.find((r) => r.ordinal === ordinal);
           if (!fact?.target) return;
           const target = fact.contextual_target ?? fact.target;
           openReference(target.record_key, marker as HTMLElement, target);
           return;
         }
         const ordinal = Number(marker.getAttribute("data-atlas-interaction"));
-        const control = body.controls.find((c) => c.ordinal === ordinal)?.control;
+        const control = markerControls.find((c) => c.ordinal === ordinal)?.control;
         if (!control || control.kind === "command") return;
         const title =
           control.kind === "check"

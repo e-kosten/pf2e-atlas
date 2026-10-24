@@ -243,6 +243,7 @@ export function detailFixture(
               source_fingerprint: null,
               body: {
                 kind: "html",
+                inclusions: [],
                 html: '<p><a data-atlas-reference="0" href="#">Nested Rule</a></p>',
                 controls: [],
               },

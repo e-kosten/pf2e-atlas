@@ -22,6 +22,7 @@ const definition: TraitDetailView = {
   content: {
     body: {
       kind: "html",
+      inclusions: [],
       html: "<p>Multiple attack penalty is reduced.</p>",
       controls: [],
     },

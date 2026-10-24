@@ -32,6 +32,16 @@ the actual adjusted facts. There is no public duplicate stat-block transport.
 The private encounter arithmetic workspace supports existing bounded rules; it
 is not another response or an authored reference projection owner.
 
+Authored inline Item inclusions are composed at selected-read time in app-service,
+using record-owned field/option policy and the checked prepared caches. Flat,
+occurrence-local binding namespaces retain each included field's source locator,
+controls and exact relationships; they are not another public document tree.
+The composed HTML is shared by browser and terminal readers. Request-wide limits
+bound inclusions, depth, fields, references and HTML size. Cycles or unsupported
+insertions retain a local unavailable explanation and exact navigation where
+resolved; artifact/generation failures keep canonical recovery. Ordinary links
+are not expanded. Stored HTML, search text and graph occurrences stay unchanged.
+
 Borrowed record views remain storage and presentation neutral. They preserve
 availability and typed values; app-service owns labels and semantic composition.
 Renderers format those values independently, including signs and units. Neither

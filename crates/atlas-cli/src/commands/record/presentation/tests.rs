@@ -777,6 +777,7 @@ fn cosmetic_blanks_and_inapplicable_rows_are_omitted_without_hiding_known_zero()
     })));
     for body in [
         PreparedFieldBodyView::Html {
+            inclusions: vec![],
             html: "<p> </p>".into(),
             controls: vec![],
         },
@@ -972,6 +973,7 @@ fn prerequisites_render_prepared_content_once_before_description() {
         role: "prerequisite".into(),
         source_fingerprint: None,
         body: PreparedFieldBodyView::Html {
+            inclusions: vec![],
             html: "<strong>expert</strong> in Medicine".into(),
             controls: vec![],
         },

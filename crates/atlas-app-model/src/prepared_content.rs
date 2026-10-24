@@ -14,6 +14,7 @@ pub enum PreparedFieldBodyView {
     Html {
         html: String,
         controls: Vec<ContentControlView>,
+        inclusions: Vec<PreparedInclusionView>,
     },
     Plain {
         text: String,
@@ -65,4 +66,14 @@ pub struct PreparedReferenceView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub contextual_target: Option<crate::RecordNavigationView>,
+}
+
+/// Flat binding namespaces for inserted prepared fields in the composed HTML.
+/// Each occurrence keeps its exact source, including repeated sibling targets.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct PreparedInclusionView {
+    pub namespace: usize,
+    pub source: crate::ContentLocationView,
+    pub controls: Vec<ContentControlView>,
+    pub references: Vec<crate::RecordRelationshipView>,
 }

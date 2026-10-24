@@ -64,6 +64,7 @@ function response(request: EncounterReferenceRequest): RecordDetailView {
                 source_fingerprint: "snapshot",
                 body: {
                   kind: "html",
+                  inclusions: [],
                   html: '<p>Exact local Jaws prose <span data-atlas-interaction="0">Reflex check</span></p>',
                   controls: [
                     {

@@ -184,7 +184,7 @@ pub(crate) fn read_record_detail(
         })
         .collect();
     let content = r.read_attributed_content(&locators)?;
-    let fields = crate::prepared_content::prepared_fields(
+    let mut fields = crate::prepared_content::prepared_fields(
         &key,
         &request.owners,
         &selected,
@@ -230,6 +230,7 @@ pub(crate) fn read_record_detail(
             })?;
         }
     }
+    crate::inline_content::compose_inline_content(r, fields.iter_mut(), &content.relationships)?;
     let summary = crate::projection::localized_summary_view(&detail.summary, r);
     let mut presentation = crate::presentation::record_presentation(
         &detail.source,

@@ -188,7 +188,7 @@ describe("optional reference content", () => {
   );
   it.each<PreparedFieldBodyView>([
     { kind: "plain", text: " \n" },
-    { kind: "html", html: "", controls: [] },
+    { kind: "html", inclusions: [], html: "", controls: [] },
   ])("omits only known-empty Notes content ($kind)", (body) => {
     render(
       <ContentFields
