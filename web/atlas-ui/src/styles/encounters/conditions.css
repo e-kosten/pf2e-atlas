@@ -215,6 +215,19 @@
   gap: 12px;
   flex-wrap: wrap;
 }
+.encounter-persistent-recovery-row--resolved {
+  display: grid;
+  grid-template-columns: 7.5em minmax(0, 1fr);
+}
+.encounter-persistent-recovery-status {
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 480px) {
+  .encounter-persistent-recovery-row--resolved {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .encounter-persistent-applied {
   display: flex;
   align-items: center;

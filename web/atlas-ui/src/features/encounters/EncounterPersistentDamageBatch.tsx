@@ -488,15 +488,17 @@ export function EncounterPersistentDamageBatch({
             const hasDamage = groups.some((g) => g.episode_id === group.episode_id);
             const recovery = (
               <div
-                className="encounter-persistent-recovery-row"
+                className={`encounter-persistent-recovery-row${applied ? " encounter-persistent-recovery-row--resolved" : ""}`}
                 role="group"
                 aria-label={`${label} recovery`}
               >
                 {active && applied && (
-                  <span className="encounter-condition-meta">Still active</span>
+                  <span className="encounter-persistent-recovery-status">
+                    Still active
+                  </span>
                 )}
                 {!active && (
-                  <span role="status">
+                  <span role="status" className="encounter-persistent-recovery-status">
                     {recoveryResults.some(
                       (r) => r.episode_id === group.episode_id && r.success,
                     )
@@ -507,7 +509,7 @@ export function EncounterPersistentDamageBatch({
                 <Space size="small" align="center" wrap>
                   {(active ||
                     recoveryResults.some(
-                      (r) => r.episode_id === group.episode_id && r.roll,
+                      (r) => r.episode_id === group.episode_id && r.dc != null,
                     )) && (
                     <EncounterPersistentRecovery
                       group={group}

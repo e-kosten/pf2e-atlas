@@ -151,6 +151,10 @@ test("precedence survives source removal and recovery retains its anchor after c
         .filter({ visible: true }),
       info,
     );
+    if (info.project.name.startsWith("phone")) await expect(back).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Next turn", exact: true }),
+    ).toBeEnabled();
     await activate(
       page
         .getByRole("button", { name: "Next turn", exact: true })
