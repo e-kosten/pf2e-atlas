@@ -13,11 +13,13 @@ export function useEncounterTurnReview({
   mutations,
   onAdvance,
   expectedRevision,
+  onFinish,
 }: {
   encounterRef: string;
   expectedRevision: bigint;
   mutations: ReturnType<typeof useEncounterMutations>;
   onAdvance: (expectedRevision: bigint) => Promise<boolean>;
+  onFinish?: () => void;
 }) {
   const client = useQueryClient();
   const key = ["encounter-turn-review", encounterRef, expectedRevision.toString()];
@@ -82,6 +84,8 @@ export function useEncounterTurnReview({
       ) {
         setBoundaryKey(outgoing.boundary_key);
         setOpen(true);
+      } else {
+        onFinish?.();
       }
     } finally {
       advancing.current = false;
@@ -132,6 +136,8 @@ export function useEncounterTurnReview({
     error: readError ?? review.error,
     loading: review.isFetching,
     close: () => {
+      if (!open) return;
+      onFinish?.();
       setOpen(false);
       setBoundaryKey(undefined);
     },

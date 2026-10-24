@@ -969,6 +969,13 @@ fn recorded_frightened_recovery_remains_a_result_without_claiming_the_effect_end
         .unwrap()
         .outgoing
         .unwrap();
+    assert!(matches!(
+        &outgoing.reminders[..],
+        [EncounterTurnReminderView::ConditionRecovery {
+            condition_value: Some(2),
+            ..
+        }]
+    ));
     f.worker
         .apply_condition_lifecycle(
             &key,
@@ -995,4 +1002,34 @@ fn recorded_frightened_recovery_remains_a_result_without_claiming_the_effect_end
     assert!(
         matches!(&result.reminders[..], [EncounterTurnReminderView::Resolved { result, .. }] if result == "End-of-turn recovery recorded")
     );
+}
+
+#[test]
+fn frightened_reminder_value_uses_known_effective_sources_without_guessing_unknown_values() {
+    let (f, key, a, _) = fixture();
+    let frightened =
+        super::conditions::modeled_condition_by_rule(super::conditions::ConditionRule::Frightened)
+            .unwrap();
+    add(&f, &a, Some(frightened.condition_ref), None);
+    add(&f, &a, Some(frightened.condition_ref), None);
+    set(&f, &key, &a);
+    let mut state = snapshot(&f, &key);
+    state.participants[0].conditions[1].value = Some(4);
+    let value = |state: &atlas_local_state::EncounterWithParticipants| {
+        let review = super::timing::turn_review(state);
+        match review
+            .reminders
+            .into_iter()
+            .find(|r| matches!(r, EncounterTurnReminderView::ConditionRecovery { .. }))
+            .unwrap()
+        {
+            EncounterTurnReminderView::ConditionRecovery {
+                condition_value, ..
+            } => condition_value,
+            _ => unreachable!(),
+        }
+    };
+    assert_eq!(value(&state), Some(4));
+    state.participants[0].conditions[0].value = None;
+    assert_eq!(value(&state), None);
 }

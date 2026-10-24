@@ -43,6 +43,7 @@ const apiMocks = vi.hoisted(() => ({
   applyEncounterSpellAction: vi.fn(),
   applyEncounterHpAction: vi.fn(),
   getEncounterPersistentReview: vi.fn(),
+  prepareEncounterPersistentDamage: vi.fn(),
   applyEncounterPersistentDamage: vi.fn(),
   recoverEncounterPersistentDamage: vi.fn(),
   getEncounterConditionLifecycleActions: vi.fn(),
@@ -80,6 +81,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   applyEncounterSpellAction: apiMocks.applyEncounterSpellAction,
   applyEncounterHpAction: apiMocks.applyEncounterHpAction,
   getEncounterPersistentReview: apiMocks.getEncounterPersistentReview,
+  prepareEncounterPersistentDamage: apiMocks.prepareEncounterPersistentDamage,
   applyEncounterPersistentDamage: apiMocks.applyEncounterPersistentDamage,
   recoverEncounterPersistentDamage: apiMocks.recoverEncounterPersistentDamage,
   getEncounterConditionLifecycleActions: apiMocks.getEncounterConditionLifecycleActions,
@@ -159,6 +161,24 @@ function setupPersistentReview(damageApplied = false) {
       },
     ],
   };
+  apiMocks.prepareEncounterPersistentDamage.mockImplementation(
+    async (_ref, request) => ({
+      complete: request.groups.length === 1,
+      recovery: null,
+      damage: {
+        ...damageResult,
+        total: request.groups[0]?.damage.amount ?? 0n,
+        groups: request.groups.length
+          ? [
+              {
+                ...damageResult.groups[0],
+                amount: request.groups[0].damage.amount ?? 0n,
+              },
+            ]
+          : [],
+      },
+    }),
+  );
   const state: {
     damageApplied: boolean;
     recoveryResults: import("../../generated/atlas").PersistentRecoveryResultView[];
@@ -1658,6 +1678,42 @@ describe("encounter views", () => {
     expect(apiMocks.applyEncounterPersistentDamage.mock.calls[0][1].boundary_key).toBe(
       "original-turn",
     );
+  });
+
+  it("keeps the outgoing creature visible through reminder updates and follows the current turn on dismissal", async () => {
+    setupPersistentReview();
+    apiMocks.advanceEncounterTurn.mockImplementation(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        current_turn_participant_key: "participant_b",
+      };
+      return { encounter_key: "encounter_ambush" };
+    });
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    await screen.findByRole("button", { name: "Next turn" });
+    // A different manually inspected participant must not become the reminder context.
+    fireEvent.click(document.querySelector('[data-participant-key="participant_b"]')!);
+    fireEvent.click(screen.getAllByRole("button", { name: "Next turn" })[0]);
+    const review = await screen.findByRole("dialog", { name: "Turn reminders" });
+    const selected = () =>
+      document
+        .querySelector('[data-participant-key="participant_a"]')
+        ?.closest(".encounter-roster__row");
+    expect(serverEncounter.current_turn_participant_key).toBe("participant_b");
+    expect(selected()).toHaveClass("encounter-roster__row--selected");
+    await submitPersistentDamage(review, "4");
+    expect(selected()).toHaveClass("encounter-roster__row--selected");
+    fireEvent.click(within(review).getByRole("button", { name: "Close" }));
+    await waitFor(() =>
+      expect(
+        document
+          .querySelector('[data-participant-key="participant_b"]')
+          ?.closest(".encounter-roster__row"),
+      ).toHaveClass("encounter-roster__row--selected"),
+    );
+    expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledOnce();
   });
 
   it("closing persistent reminders keeps saved damage and never advances twice", async () => {

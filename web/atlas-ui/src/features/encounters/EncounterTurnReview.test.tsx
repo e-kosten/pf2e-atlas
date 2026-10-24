@@ -180,3 +180,35 @@ it("offers direct removal beside an expired condition and retains its notice aft
     screen.queryByRole("button", { name: "Remove Blinded from Latest" }),
   ).toBeNull();
 });
+
+it("shows the supplied current Frightened value without guessing an unavailable value", () => {
+  const { props, view } = setup();
+  const renderValue = (condition_value: bigint | null) => (
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnReview
+        {...props}
+        data={{
+          ...props.data,
+          outgoing: {
+            ...props.data.outgoing!,
+            reminders: [
+              {
+                kind: "condition_recovery",
+                participant_key: "latest",
+                participant_name: "Latest",
+                condition_ids: [1n],
+                condition_name: "Frightened",
+                condition_value,
+              },
+            ],
+          },
+        }}
+      />
+    </ConfigProvider>
+  );
+  view.rerender(renderValue(2n));
+  expect(screen.getByRole("heading", { name: "Frightened 2" })).toBeVisible();
+  view.rerender(renderValue(null));
+  expect(screen.getByRole("heading", { name: "Frightened" })).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "Frightened 0" })).toBeNull();
+});

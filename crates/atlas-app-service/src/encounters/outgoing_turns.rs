@@ -169,6 +169,7 @@ fn retain_reminder(
             participant_name,
             condition_ids,
             condition_name,
+            ..
         } => {
             let id = *condition_ids.first()?;
             if recovery_recorded {
@@ -180,16 +181,27 @@ fn retain_reminder(
                     result: "End-of-turn recovery recorded".into(),
                 });
             }
-            if current
+            if let Some(live) = current
                 .iter()
                 .find(|p| p.participant_key == *participant_key)
-                .is_some_and(|p| {
+                .filter(|p| {
                     p.conditions
                         .iter()
                         .any(|c| condition_ids.contains(&c.condition_id))
                 })
             {
-                return Some(reminder);
+                let condition_value = super::rules::lifecycle::known_effective(
+                    live,
+                    super::conditions::ConditionRule::Frightened,
+                )
+                .ok();
+                return Some(R::ConditionRecovery {
+                    participant_key: participant_key.clone(),
+                    participant_name: participant_name.clone(),
+                    condition_ids: condition_ids.clone(),
+                    condition_name: condition_name.clone(),
+                    condition_value,
+                });
             }
             (participant_key, participant_name, id, condition_name)
         }

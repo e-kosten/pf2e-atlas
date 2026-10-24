@@ -175,7 +175,7 @@ it("submits all damage types together and retains table totals across an uncerta
   const submit = await screen.findByRole("button", { name: "Apply 8 damage" });
   fireEvent.focus(submit);
   expect(await screen.findByRole("tooltip")).toHaveTextContent(
-    "Effects triggered by taking damage, such as increasing Dying, happen once.",
+    "Damage applies together; effects triggered by damage happen once.",
   );
   fireEvent.blur(submit);
   fireEvent.click(screen.getByText("Roll in Atlas"));
@@ -479,6 +479,7 @@ it("prepares recovery after one type while another amount is unresolved, then ap
   await waitFor(() =>
     expect(screen.getAllByText("Clears after Apply").length).toBeGreaterThan(0),
   );
+  expect(screen.getByText("Also clears Fire")).toBeVisible();
   expect(onApply).not.toHaveBeenCalled();
   expect(onRecover).not.toHaveBeenCalled();
   expect(screen.getByRole("button", { name: "Apply damage" })).toBeDisabled();

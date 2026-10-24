@@ -1277,7 +1277,11 @@ conflict, explicit Reload condition replaces the draft with canonical remaining
 duration and a fresh revision. Do not silently refresh a retained draft's guard.
 
 Next turn commits eligible progression once, then presents one non-blocking
-notification for the just-completed turn. Closing, Escape and backdrop clicks finish
+notification for the just-completed turn. Keep that outgoing participant visible
+behind the notification through canonical HP/condition refreshes; follow the saved
+current participant after dismissal. Quiet boundaries follow immediately. Do not
+delay the saved progression or freeze stale participant facts to preserve context.
+Closing, Escape and backdrop clicks finish
 that interaction without changing HP, conditions or initiative. There is no reminder
 queue, acknowledgment, selector or reopen action. The browser never ticks durations,
 chooses timing anchors or invents outcomes. A failed advance shows its actual failure;
@@ -1341,7 +1345,10 @@ turn's total. Recovery is optional, and can also follow damage application. Show
 the running Rust preview total as Total: N damage, adding named missing types:
 Fire, Acid not rolled in Atlas mode, or not entered in table mode. Omit the missing
 context once complete. Apply N damage uses that same authoritative total. Its hover/focus tooltip explains the
-single simultaneous damage event. The final command applies HP consequences once,
+single simultaneous damage event. Keep the button concise; when recovery or Clear
+will remove effects, show Also clears plus their damage-type names beside the total.
+Do not include failed recoveries or independent expired-condition actions in that
+summary. The final command applies HP consequences once,
 then queued recoveries, atomically. Do not simulate prepared rolls as table totals
 or write HP per row. Rust owns IWR, shared Hardness, Dying, source/generation guards
 and durable roll receipts. Retain a prepared raw roll when only protections change;
@@ -1432,5 +1439,8 @@ Damage review shows why a defense changes the amount, including known immunity
 before applying damage and recorded defense facts alongside the result. When an
 unresolved protection requires table damage, explain it before submission and
 select the table-result input. Deterministic turn actions such as reducing
-Frightened are direct labelled buttons; a dice icon must initiate a dice/check
+Frightened are direct labelled buttons. Within its named reminder, show the supplied
+current value (Frightened 2) and Reduce by 1; retain the condition name on actions
+without that visible context. Do not infer a missing effective value in the browser.
+A dice icon must initiate a dice/check
 interaction rather than hide a plain counter action.
