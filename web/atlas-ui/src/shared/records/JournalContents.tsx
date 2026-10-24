@@ -21,7 +21,7 @@ export function JournalContents({
   return (
     <section className="journal-contents" aria-label="Journal contents">
       <h3>Contents</h3>
-      {pages.value.length > 20 && (
+      {(pages.value.length > 20 || query) && (
         <Input
           aria-label="Find a page"
           placeholder="Find a page…"

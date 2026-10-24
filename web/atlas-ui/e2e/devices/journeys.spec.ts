@@ -9,6 +9,104 @@ import {
   sentinel,
 } from "./reading";
 
+test("variant comparison bounds complete documents on wide screens and stays reachable on touch layouts", async ({
+  page,
+}, info) => {
+  const targetKey = "browser-rules:rule000000000001";
+  const [sourceResponse, targetResponse] = await Promise.all([
+    page.request.get(`/api/records/${sentinel}`),
+    page.request.get(`/api/records/${targetKey}`),
+  ]);
+  expect(sourceResponse.ok()).toBeTruthy();
+  expect(targetResponse.ok()).toBeTruthy();
+  const source = await sourceResponse.json();
+  const target = await targetResponse.json();
+  // Supply comparison eligibility; both displayed documents still come from
+  // the real fixture APIs and use the production shared renderer.
+  await page.route("**/api/related", async (route) => {
+    const response = await route.fetch();
+    const related = await response.json();
+    await route.fulfill({
+      response,
+      json: {
+        ...related,
+        variants: {
+          kind: "content",
+          content: {
+            seed: source.record,
+            base_name: source.record.title,
+            variants: [source.record, target.record],
+            evidence: [],
+            ambiguous: false,
+            truncated: false,
+          },
+        },
+      },
+    });
+  });
+  if (info.project.name === "desktop-chromium")
+    await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto(`/records/${sentinel}`);
+  await activate(
+    page.getByRole("button", { name: "Related records", exact: true }),
+    info,
+  );
+  await activate(page.getByRole("tab", { name: "Variants", exact: true }), info);
+  await activate(
+    page.getByRole("combobox", { name: "Compare variant", exact: true }),
+    info,
+  );
+  await activate(
+    page
+      .locator(".ant-select-dropdown")
+      .getByText(target.record.title, { exact: true }),
+    info,
+  );
+  const dialog = page.getByRole("dialog", { name: "Variant comparison", exact: true });
+  await expect(dialog.getByRole("heading", { name: /^Signal Protocol/ })).toBeVisible();
+  const assertLayout = async () => {
+    await noPageOverflow(page);
+    const panes = dialog.locator(".record-comparison > .detail-panel");
+    await expect(panes).toHaveCount(2);
+    for (const pane of await panes.all()) {
+      const geometry = await pane.evaluate((node) => {
+        const ruler = document.createElement("div");
+        ruler.style.width = "var(--document-measure)";
+        ruler.style.position = "absolute";
+        node.append(ruler);
+        const measure = ruler.getBoundingClientRect().width;
+        ruler.remove();
+        const style = getComputedStyle(node);
+        return {
+          width: node.getBoundingClientRect().width,
+          measure,
+          inset: parseFloat(style.paddingLeft) + parseFloat(style.paddingRight),
+          overflow: node.scrollWidth - node.clientWidth,
+        };
+      });
+      expect(geometry.width).toBeLessThanOrEqual(geometry.measure + geometry.inset + 1);
+      expect(geometry.overflow).toBeLessThanOrEqual(1);
+    }
+  };
+  await assertLayout();
+  if (info.project.name === "desktop-chromium") {
+    await page.setViewportSize({ width: 2560, height: 1080 });
+    await assertLayout();
+  }
+  await expect
+    .poll(() => dialog.evaluate((node) => node.contains(document.activeElement)))
+    .toBe(true);
+  await dialog.evaluate(async (node) => {
+    await Promise.all(
+      node
+        .getAnimations({ subtree: true })
+        .map((animation) => animation.finished.catch(() => {})),
+    );
+  });
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+});
+
 test("theme dismissal returns focus without stealing the next modal's focus", async ({
   page,
 }, info) => {

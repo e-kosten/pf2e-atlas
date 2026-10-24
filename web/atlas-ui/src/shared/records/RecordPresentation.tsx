@@ -664,7 +664,11 @@ export function RecordPresentation({
         <FactLine label="Results" fact={body.value.results} />
       )}
       {body.kind === "journal" && (
-        <JournalContents pages={body.value.pages} onReference={onReference} />
+        <JournalContents
+          key={recordReadingIdentity(presentation.identity.record_key, selection)}
+          pages={body.value.pages}
+          onReference={onReference}
+        />
       )}
       {body.kind !== "journal" &&
         !(body.kind === "roll_table" && selection && reading?.generation) &&

@@ -240,6 +240,9 @@ floating sheet. Use the same shared reader policy for search and saved lists.
 Most record kinds retain a simple reading flow; wider panes do not justify filler
 or a permanent supporting column. Complex kinds such as creatures and roll tables
 may use their width for meaningful structures after individual review.
+Variant comparison bounds the whole two-document modal, including both document
+insets and their gap. Do not leave that host unbounded when moving reading-width
+ownership out of prose; titles, facts and prose must keep the same alignment.
 Long journal pages can use a narrow sticky outline to the right when the host can
 fit it beside the existing prose measure. The outline supplies a real navigation
 task; it does not justify stretching prose. Keep the outline above the content in
@@ -1138,6 +1141,15 @@ selection must not borrow that result. This reading-retention pattern does not
 replace an encounter mutation's request/revision/retry contract.
 
 ### Grouping reference facts
+
+Numeric facts include their calculation context. Reuse `NumberFact` for supplied
+adjustments, including applied and overridden modifiers and contextual notes;
+formatting a number must not discard that metadata. For example, grouped hazard
+AC and saves keep the same explanation access as creature values. A bare effective
+number is insufficient when the fact supplies an adjustment. Check original and
+effective values, signed/unit formatting, suppression and qualifications when
+changing a shared fact renderer or moving facts between reference and encounter
+views. The browser renders these facts; it does not recalculate them.
 
 Use one compact inline group for facts read together. Break at a change of
 meaning, not wherever a flex row happens to wrap. Keep each label with its value

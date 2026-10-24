@@ -10,7 +10,7 @@ import type {
 } from "../../generated/atlas";
 import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import type { RecordReferenceHandler } from "./PreparedContent";
-import { FactRow } from "./presentationFacts";
+import { FactRow, NumberFact } from "./presentationFacts";
 import { Iwr } from "./ActorReference";
 import "../../styles/ui/reference-profiles.css";
 
@@ -43,7 +43,16 @@ export function ReferenceFact<T>({
   return (
     <FactRow label={label}>
       {fact.state === "value" && value !== null ? (
-        `${format(value as T)}${unit}`
+        "adjustment" in fact ? (
+          <NumberFact
+            fact={fact}
+            label={label}
+            format={(number) => format(number as T)}
+            unit={unit}
+          />
+        ) : (
+          `${format(value as T)}${unit}`
+        )
       ) : (
         <span className="muted">Unavailable</span>
       )}
