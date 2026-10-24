@@ -11,6 +11,7 @@ description = "Local developer diagnostics for Atlas source and artifacts"
 dist = false
 
 [dependencies]
+tracing.workspace = true
 atlas-cli-support.workspace = true
 atlas-ingest.workspace = true
 atlas-index.workspace = true

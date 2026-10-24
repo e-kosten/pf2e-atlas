@@ -119,11 +119,13 @@ pub(crate) fn prepare_build(
     }
     progress("trait_labels", "Resolving trait names");
     context.used_trait_labels = crate::source::localization::used_trait_labels(&source, &catalog)?;
-    progress("prepare_search", "Preparing search content");
     let tokenizer = options
         .search_profiles
         .first()
-        .map(|config| TextEmbeddingTokenizer::load_baseline(&config.cache_root))
+        .map(|config| {
+            progress("load_tokenizer", "Loading search tokenizer");
+            TextEmbeddingTokenizer::load_baseline(&config.cache_root)
+        })
         .transpose()
         .map_err(embedding_error)?;
     let mut prepared = index_build_input(source, context, tokenizer.as_ref(), &capture)?;
@@ -192,7 +194,10 @@ pub(crate) fn build_artifact(
                 if context.snapshot_version == atlas_foundry_model::SNAPSHOT_VERSION
                     && context.source_contract == atlas_foundry_model::SOURCE_CONTRACT_ID =>
             {
-                progress("read_previous", "Reading saved records");
+                progress(
+                    "read_previous",
+                    "Reading indexed reference records for reuse",
+                );
                 atlas_index::read_persisted_inputs(read.connection(), &context)
                     .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
             }
@@ -413,7 +418,7 @@ pub(crate) fn build_artifact(
         build_duration_ms: started.elapsed().as_millis(),
         source_report,
     };
-    tracing::info!(target:"atlas_progress",complete=true,"artifact build complete");
+    tracing::info!("Artifact build complete");
     Ok(report)
 }
 fn embedding_error(error: atlas_embedding::EmbeddingError) -> IngestError {

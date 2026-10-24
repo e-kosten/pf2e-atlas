@@ -11,6 +11,7 @@ use atlas_index::{
 use atlas_record::source_record::{
     SOURCE_CONTENT_SELECTION_VERSION, SourceSearchSelection, select_record_search,
 };
+use std::time::{Duration, Instant};
 
 #[derive(Clone)]
 pub(crate) struct PendingSemanticUnit {
@@ -29,7 +30,7 @@ pub(crate) fn index_build_input(
     tokenizer: Option<&TextEmbeddingTokenizer>,
     capture: &crate::source_fingerprint::SourceCapture,
 ) -> Result<PreparedBuildInput, IngestError> {
-    tracing::info!("Selecting search content");
+    tracing::info!(target:"atlas_progress",phase="select_search","Selecting searchable text");
     let source_root = source.metadata.source_root.clone();
     let mut selections = Vec::new();
     let context_hash = context
@@ -99,8 +100,9 @@ pub(crate) fn index_build_input(
             });
         }
     }
-    tracing::info!("Reading alternate record names");
+    tracing::info!(target:"atlas_progress",phase="read_aliases","Reading alternate record names");
     crate::source_aliases::extract_source_aliases(&mut output.index, &source_root, capture)?;
+    tracing::info!(target:"atlas_progress",phase="prepare_keyword_search","Preparing keyword search entries");
     for selection in &selections {
         let aliases = output
             .index
@@ -116,6 +118,8 @@ pub(crate) fn index_build_input(
     }
     if let Some(tokenizer) = tokenizer {
         let total = selections.len();
+        let mut last_progress = Instant::now();
+        tracing::info!(target:"atlas_progress",phase="prepare_passages",current=0_u64,total=total as u64,unit="records","Splitting text into search passages");
         for (ordinal, mut selection) in selections.into_iter().enumerate() {
             selection.identity_optional.extend(
                 output
@@ -131,8 +135,9 @@ pub(crate) fn index_build_input(
                 &mut output.pending,
                 &mut output.context_shortened,
             )?;
-            if (ordinal + 1) % 1000 == 0 || ordinal + 1 == total {
-                tracing::info!(target:"atlas_progress",phase="prepare_search",current=(ordinal+1) as u64,total=total as u64,unit="records",semantic_units=output.pending.len(),record=%selection.root,"Preparing search content");
+            if last_progress.elapsed() >= Duration::from_secs(1) || ordinal + 1 == total {
+                tracing::info!(target:"atlas_progress",phase="prepare_passages",current=(ordinal+1) as u64,total=total as u64,unit="records",semantic_units=output.pending.len(),record=%selection.root,"Splitting text into search passages");
+                last_progress = Instant::now();
             }
         }
     }
