@@ -19,10 +19,10 @@ export function ActorEncounterLayout({
 }) {
   if (!runtime)
     return (
-      <>
+      <div className="actor-reference-flow">
         {durability}
         {children}
-      </>
+      </div>
     );
   return (
     <div className="actor-encounter-host">

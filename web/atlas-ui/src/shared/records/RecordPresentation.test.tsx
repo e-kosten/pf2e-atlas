@@ -300,7 +300,7 @@ describe("semantic family presentation", () => {
       render(
         <RecordPresentation
           presentation={{
-            classification: "Reference",
+            classification: "Hazard 0",
             identity: summaryFixture("hazards:pit", "Hidden Spiked Pit"),
             content: fields,
             embedded: [],
@@ -320,7 +320,7 @@ describe("semantic family presentation", () => {
           compact={compact}
         />,
       );
-      expect(screen.getByText("Simple")).toBeVisible();
+      expect(screen.getByText("Simple Hazard 0")).toBeVisible();
       expect(
         within(screen.getByText("Stealth").parentElement!).getByText("+0"),
       ).toBeVisible();
@@ -341,12 +341,12 @@ describe("semantic family presentation", () => {
       const hardness = screen.getByText("Hardness");
       const routine = screen.getByText("routine instructions");
       expect(
-        disable.compareDocumentPosition(hardness) & Node.DOCUMENT_POSITION_FOLLOWING,
+        hardness.compareDocumentPosition(disable) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
       expect(
-        screen
-          .getByRole("heading", { name: "Strikes" })
-          .compareDocumentPosition(routine) & Node.DOCUMENT_POSITION_FOLLOWING,
+        routine.compareDocumentPosition(
+          screen.getByRole("heading", { name: "Strikes" }),
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Reset" })).toBeVisible();
     },

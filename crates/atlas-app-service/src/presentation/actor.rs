@@ -173,6 +173,7 @@ pub(crate) fn authored_activities(
             passage: None,
         };
         let mut activity = authored_activity(i, navigation);
+        activity.ability_group = ability_group_in_actor(node, i);
         if activity.preparation.value.as_deref() == Some("focus") {
             activity.focus_capacity = number(
                 SourceQueryView {
@@ -329,6 +330,28 @@ fn qualifiers<T>(
 }
 fn item_is_passive(item: ItemSourceView<'_>) -> bool {
     item.action_type().value() == Some(&atlas_foundry_model::generated::AbilitySystemSourceActionTypeSourceFromSchemaValue::Passive)
+}
+
+pub(super) fn ability_group_in_actor(
+    node: SourceNodeView<'_>,
+    item: ItemSourceView<'_>,
+) -> Option<ActorAbilityGroupView> {
+    use atlas_foundry_model::generated::AbilitySystemSourceActionTypeSourceFromSchemaValue as Activation;
+    let group = ability_group(item);
+    if group.is_some()
+        && matches!(
+            node,
+            SourceNodeView::Actor(atlas_foundry_model::generated::ActorSourcePF2e::HazardSource(_))
+        )
+        && matches!(
+            item.action_type().value(),
+            Some(Activation::Reaction | Activation::Free)
+        )
+    {
+        Some(ActorAbilityGroupView::Activation)
+    } else {
+        group
+    }
 }
 
 fn ability_group(item: ItemSourceView<'_>) -> Option<ActorAbilityGroupView> {

@@ -40,8 +40,24 @@
 .creature-reference__prose {
   margin-block-end: var(--space-section);
 }
+.creature-reference__source-defenses {
+  display: grid;
+  gap: var(--space-control);
+}
+.creature-reference__essentials {
+  display: grid;
+  gap: var(--space-section);
+}
 .creature-reference__facts {
-  margin-block-end: var(--space-section);
+  display: grid;
+  gap: var(--space-group);
+}
+.creature-reference__facts h3 {
+  margin: 0;
+}
+.creature-reference__facts .actor-reference__skills > section {
+  display: grid;
+  gap: var(--space-control);
 }
 .creature-reference__facts > .record-fact {
   margin-block-end: var(--space-control);
@@ -51,16 +67,16 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
   gap: var(--space-group) var(--space-section);
 }
-.creature-reference__facts .actor-reference__defenses {
+.creature-reference__source-defenses .actor-reference__defenses {
   border: 0;
   padding: 0;
-  margin-block-end: var(--space-group);
+  margin-block-end: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 4px var(--space-group);
   align-items: baseline;
 }
-.creature-reference__facts .actor-reference__defenses > h3 {
+.creature-reference__source-defenses .actor-reference__defenses > h3 {
   flex-basis: 100%;
   margin: 0;
 }
@@ -236,7 +252,6 @@
   }
 }
 
-.actor-reference__turn-context {
-  display: grid;
-  gap: var(--space-group);
+.actor-reference__restriction {
+  margin: 0;
 }

@@ -86,9 +86,9 @@ calculated character/familiar support. NPC movement qualifications, supplied
 character languages and owned strike range facts can use existing typed source
 support. Further bounded projection/content work remains:
 
-- NPC `details.blurb` is retained by `NPCDetailsSource` (1,620 nonempty records),
-  but lacks an attributed prepared-content selection. Review its role and overlap
-  with permitted notes, then add source-owned selection/preparation if useful.
+- NPC `details.blurb` already has a plain attributed Notes selection alongside
+  permitted public/private notes (1,620 nonempty records). Review its labeling
+  and overlap before adding a second summary; no new source selection is needed.
   Do not inject raw HTML or remove repeated prose by string matching.
 - `NPCSpecialSkillSource.predicate` is retained but not represented in conditional
   skill facts. Preserve supplied label/modifier and unavailable/blank qualifiers;

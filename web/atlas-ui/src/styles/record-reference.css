@@ -210,6 +210,9 @@
   padding-block: 6px;
   border-bottom: 1px solid var(--line);
 }
+.actor-activity--selected {
+  display: contents;
+}
 .actor-activity p,
 .record-damage p {
   margin: 4px 0;

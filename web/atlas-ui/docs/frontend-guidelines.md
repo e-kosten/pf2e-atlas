@@ -972,11 +972,27 @@ the search row, toolbar height and results origin should remain stable.
 
 Reference composition prioritizes the current reading task and groups related
 facts/mechanics without separating essential qualifiers. Spell casting facts and
-current damage precede prose as described above; creature reference order needs
-its own review. Encounter composition puts current HP, conditions and actions first;
-participant edits and maximum-HP configuration live in secondary disclosures.
-Hazard detection, disable instructions, defenses, triggers/effects, routine and
-reset are essential reference material and stay inline when supplied. Hidden Pit's
+current damage precede prose as described above. Creature references put complete
+permitted descriptive prose early; encounters retain it after equipment. Both use
+the same mechanical sequence: defenses; Perception/senses; ability modifiers;
+skills/Lore with qualifications; movement; languages/communication; strikes;
+active/free special abilities then offensive passives; spellcasting; reactions;
+supporting passives; unclassified abilities; equipment. For example, Rat Swarm's
+statistics stay above Swarming Bites, and Swarming Bites precedes Putrid Plague.
+Do not move the statistics block below actions to make those actions easier to find.
+On wide encounter panes, turn context/conditions occupy an adjacent lane; in a
+single column they follow early statistics and precede action choices. Conditions
+must not stretch nearby HP/stat rows during value edits. Participant edits and
+maximum-HP configuration remain secondary tasks.
+
+Hazards keep description early in both contexts because it can contain operating
+rules. Follow detection → defenses → disable → initial activation → routine →
+strikes/additional active abilities → other abilities → reset → equipment. Only
+applicable sections appear; unavailable facts retain their honest state. Shared
+app-service metadata groups authored hazard reactions/free actions as activation
+before bounded pagination. Do not sort prose or only currently loaded pages to
+recover this order. Hazard detection, disable instructions, defenses,
+triggers/effects, routine and reset are essential material and stay inline when supplied. Hidden Pit's
 Pitfall reaction must not require opening an Abilities accordion. Secondary
 provenance may be disclosed; that does not make all owned records or a long spell
 catalog essential inline content. Keep bounded continuation for substantial
@@ -995,6 +1011,21 @@ content still needs local status and a useful recovery/destination link. This ru
 does not suppress essential actions or change existing owned-ability permalinks.
 Verify the body-only, named-heading, prose-link and unavailable cases when changing
 shared inclusion presentation.
+
+A selected ability's metadata and prepared prose form one document. The metadata
+renderer contributes no separate boundary before its own prose; when the identity
+already supplies every metadata fact, it contributes no empty padded row or rule.
+Putrid Plague starts with its first source paragraph in a Drawer. Its authored rule
+between the saving throw and disease stages remains intact. Preserve real frequency,
+duration and other metadata rather than suppressing the whole renderer.
+
+Encounter root actor text uses the actor-content selection in the shared bounded
+reading workflow. Add only its prepared fields and exact relationships to the
+live presentation; never replace effective encounter facts with reference values.
+Cache by full source address and artifact generation, retain same-source text on
+transient failures, and discard it on retirement or generation mismatch. Keep
+loading feedback out of flow and failure/Retry local; HP, rolls and conditions
+remain mounted and usable. A missing read is not an empty description or routine.
 
 Immediate Ability-class activities use the shared bounded embedded-reading
 workflow; the optional whole-section Collapse in creature reading is not the

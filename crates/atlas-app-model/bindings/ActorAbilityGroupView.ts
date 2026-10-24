@@ -3,4 +3,4 @@
 /**
  * Reading groups derived from authored activation/category, never prose.
  */
-export type ActorAbilityGroupView = "primary" | "reaction" | "supporting" | "unclassified";
+export type ActorAbilityGroupView = "activation" | "primary" | "reaction" | "supporting" | "unclassified";
