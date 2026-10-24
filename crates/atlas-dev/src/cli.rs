@@ -79,6 +79,7 @@ pub(crate) fn main() -> ExitCode {
     match result {
         Ok(code) => code,
         Err(error) => {
+            tracing::info!(target:"atlas_progress",complete=true,"Command failed");
             if json {
                 let _ = write_json_error("command_failed", error);
             } else {

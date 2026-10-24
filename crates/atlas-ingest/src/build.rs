@@ -416,7 +416,7 @@ pub(crate) fn build_artifact(
         build_duration_ms: started.elapsed().as_millis(),
         source_report,
     };
-    tracing::info!(target:"atlas_progress",complete=true,"artifact build complete");
+    tracing::info!("Artifact build complete");
     Ok(report)
 }
 fn embedding_error(error: atlas_embedding::EmbeddingError) -> IngestError {
