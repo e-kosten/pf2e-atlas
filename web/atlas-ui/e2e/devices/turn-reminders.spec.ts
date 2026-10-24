@@ -182,6 +182,7 @@ for (const outcome of [
           name: "Roll Fire recovery",
           exact: true,
         });
+        const retainedAnchor = await anchor.elementHandle();
         const before = await anchor.boundingBox();
         const completed = page.waitForResponse(
           (response) =>
@@ -201,12 +202,16 @@ for (const outcome of [
         }
         await expect(
           page.getByText(
-            `${receipt.success ? "Recovered" : "Still active"} · DC ${receipt.dc}`,
+            `${receipt.success ? "Recovered" : "Recovery failed"} · DC ${receipt.dc}`,
             { exact: true },
           ),
         ).toBeVisible();
         await expect(reminders).toBeVisible();
-        const after = await anchor.boundingBox();
+        expect(await retainedAnchor!.evaluate((node) => node.isConnected)).toBe(true);
+        await expect(
+          reminders.getByRole("button", { name: "View Fire recovery", exact: true }),
+        ).toBeVisible();
+        const after = await retainedAnchor!.boundingBox();
         expect(before).not.toBeNull();
         expect(after).not.toBeNull();
         expect(Math.abs(after!.x - before!.x)).toBeLessThanOrEqual(1);

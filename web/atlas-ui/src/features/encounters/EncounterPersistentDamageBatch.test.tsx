@@ -228,6 +228,45 @@ it("submits all damage types together and retains table totals across an uncerta
   expect(screen.queryByRole("button", { name: /^Apply (?:\d+ )?damage$/ })).toBeNull();
 });
 
+it("retains an automatic recovery result after its effect clears without inventing dice", async () => {
+  const onRecover = vi.fn();
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterPersistentDamageBatch
+        encounterRef="encounter"
+        participant={{ ...participant, persistent_damage_groups: [] }}
+        displayGroups={[participant.persistent_damage_groups[0]]}
+        encounterRevision={7n}
+        generation="generation"
+        damageApplied={true}
+        savedResult={result}
+        recoveryResults={[
+          {
+            encounter_key: "encounter",
+            request_id: "automatic-recovery",
+            episode_id: "fire",
+            damage_type: "fire",
+            dc: 0n,
+            success: true,
+            roll: null,
+          },
+        ]}
+        damageTypes={[{ value: "fire", label: "Fire" }]}
+        disabled={false}
+        pending={false}
+        onApply={vi.fn()}
+        onRecover={onRecover}
+      />
+    </ConfigProvider>,
+  );
+  expect(screen.getByText("Effect cleared")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "View Fire recovery" }));
+  await waitFor(() => expect(screen.getByText("Recovered · DC 0")).toBeVisible());
+  expect(screen.queryByRole("button", { name: "Roll" })).toBeNull();
+  expect(screen.queryByLabelText(/(?:Unrolled|Rolling) d/)).toBeNull();
+  expect(onRecover).not.toHaveBeenCalled();
+});
+
 it("uses table results for the whole form when one protection requires a table ruling", async () => {
   const onApply = vi.fn().mockResolvedValue(result);
   render(
