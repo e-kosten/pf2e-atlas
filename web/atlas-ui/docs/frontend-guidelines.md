@@ -58,6 +58,7 @@ positive example. Linked sections define detailed behavior and shared owners.
 | Component ownership      | Use Ant for generic UI, shared Atlas compositions for repeated behavior, and product-specific layouts for game facts.                                                          | Reuse `RecordReferenceDrawer` for linked records. See [Shared UI Layer](#shared-ui-layer).                                                                                                                                        | A feature-local record overlay or a custom button that recreates Ant behavior.                                                                                                                  |
 | Padding and spacing      | Give each boundary one inset owner; children own internal gaps. Align header, body and footer insets.                                                                          | Drawer body padding around flush record content; 8px control, 16px group and 24px section gaps; normal gutters 24px desktop/16px phone. See [Padding and control-group ownership](#padding-and-control-group-ownership).          | A padded Card inside a padded Drawer, missing body inset, or negative margins to repair nesting.                                                                                                |
 | Control groups           | Adjacent inputs and buttons share size and aligned height; importance uses variant.                                                                                            | Default-sized toolbar controls; a separate dense row may be uniformly small.                                                                                                                                                      | A small secondary icon button beside a default-sized text action, or local pixel-height repairs.                                                                                                |
+| Fact groups and tables   | Group facts by what the user reads together; use tables for a repeated comparison axis.                                                                                        | Hidden Pit separates durability, saves and IWR; Fighter uses Level → Advancement rows. See [Grouping reference facts](#grouping-reference-facts).                                                                                 | One wrapping run of unrelated facts, a card for every number, or a table for a short price/bulk/usage group.                                                                                    |
 | Reading width            | Bound the complete single-column document; keep workspace chrome attached to its pane.                                                                                         | Allfood title, traits, facts and prose share a readable column within the full search pane. See [Styling](#styling).                                                                                                              | Capping prose alone under a wider identity block, stretching prose across the screen, or adding filler to occupy space.                                                                         |
 | Entity hierarchy         | Lead a single-entity page with its identity; group related metadata below it.                                                                                                  | Allfood's name, classification/rank, aligned traits and attribution.                                                                                                                                                              | A generic Reference bar above the name or detached trait pills floating beside unrelated controls.                                                                                              |
 | Reading and editing      | In reading/scanning views, keep values readable with a persistent cue for editing; reveal the editor on activation. Keep fields visible when entry is the primary task.        | Current/temp HP use subtle neutral filled buttons; spell rank has a visible Change rank action. See [Reading and editing values](#reading-and-editing-values).                                                                    | Permanent number fields throughout a read-oriented panel, or editable values indistinguishable from static text until hover.                                                                    |
@@ -243,15 +244,23 @@ Long journal pages can use a narrow sticky outline to the right when the host ca
 fit it beside the existing prose measure. The outline supplies a real navigation
 task; it does not justify stretching prose. Keep the outline above the content in
 narrow hosts, including Drawers, and preserve exact native section links and local
-focus/scroll behavior. Do not reserve an empty outline column on short pages.
+focus/scroll behavior. Decide fit from the actual host: a wide desktop viewport
+can still contain a narrow search reader or Drawer. Check the outline after
+scrolling, not only at the top; its links must remain keyboard reachable, and a
+tall outline must remain usable within the viewport. Keep focus on the target
+heading after a jump and preserve the exact section destination for native links.
+Do not reserve an empty outline column on short pages.
 This follows the [USWDS in-page navigation pattern](https://designsystem.digital.gov/components/in-page-navigation/);
 Atlas chooses the responsive fit and keeps its established reading hosts.
 In a reference Drawer the document fills its body.
 Simple records use one identity flow: title/action glyph and document actions,
 then classification/rank on one row, traits on their own row, then source
 attribution. Use this identity structure across non-creature kinds and reading
-hosts, rather than maintaining spell/equipment exceptions. Spell identity is
-static text beside a muted Change rank menu.
+hosts, rather than maintaining spell/equipment exceptions. Put this default in
+DocumentIdentityHeader, not a family-name allowlist or a remembered opt-in flag.
+Treat this as an identity composition, not a requirement to force result summaries
+or encounter roster rows into the same vertical stack. Spell identity is static
+text beside a muted Change rank menu.
 Do not reserve an invisible reset slot or repeat base-rank copy outside the rank
 menu. Let the title and action group share a row when they fit, including on phone; wrap for
 actual content rather than forcing every narrow header into separate rows.
@@ -275,9 +284,10 @@ one principal description field. Battle Medicine then reads Prerequisites,
 authored Requirements and prose without a competing generic heading. Keep all
 authored headings and other content-field labels, and label multiple description
 fields separately. Retain the field label for unavailable prose so the affected
-content remains clear. Creature/hazard reading order is reviewed independently.
-Creature/hazard workspaces may use broader mechanics layouts after their own
-review; their prose may have a readable measure. Wide authored tables retain deliberate
+content remains clear. Hazards keep the constrained document flow with essential
+rules inline. Creature grouping and width require their own review; a shared
+actor data family does not justify reusing a wide creature layout for hazards.
+Wide authored tables retain deliberate
 local overflow rather than widening the page. Compact density changes spacing,
 not the available record information.
 
@@ -773,7 +783,7 @@ member does not guarantee a supplied value after admission.
 Give relevant field groups an explicit disposition: already presented (including
 authored prose or tables), useful but omitted, intentionally excluded from the
 current reading task, or requiring new modeling/source support. For example,
-Longsword's supplied damage dice/type are useful omitted reference facts; source
+Longsword's supplied damage dice/type belong in its reference presentation; source
 migration metadata and a character's equipped state do not automatically belong
 on its reference page. Preserve missing/null/invalid separately from known zero,
 false and empty values. Preserve documented source-default policies; do not invent
@@ -816,8 +826,11 @@ raw baseline spell casting-entry identifier as a web fact; checked casting conte
 supplies parent membership, while JSON and CLI retain the source fact. In the existing family readers,
 omit missing price-per and IWR exception/double qualifiers and baseline missing/null
 damage categories. Preserve required magnitudes, null/invalid IWR qualifiers and
-patch clears. Damage captions describe their presentation order rather than raw
-source IDs; keep those IDs for correlation and keys.
+patch clears. Baseline damage lists show formulas, types and meaningful qualifiers
+directly: use “1d6 spirit” instead of “Damage component 1: 1d6 spirit (damage)”.
+Do not discard healing, persistent damage, material distinctions or patch clears
+with that cleanup. Keep original component IDs for correlation and React keys;
+a simpler caption does not authorize merging components or changing calculations.
 Omit headings for known-empty optional content and heightening damage-increment text;
 unavailable content/formulas and explicit patch clears remain visible. Spell
 forms use their authored names or an ordered “Spell form” caption, retaining
@@ -957,8 +970,15 @@ facts/mechanics without separating essential qualifiers. Spell casting facts and
 current damage precede prose as described above; creature reference order needs
 its own review. Encounter composition puts current HP, conditions and actions first;
 participant edits and maximum-HP configuration live in secondary disclosures.
-Immediate Ability-class activities read inline by default through bounded
-embedded-reading batches, with an optional whole-section Collapse. The existing
+Hazard detection, disable instructions, defenses, triggers/effects, routine and
+reset are essential reference material and stay inline when supplied. Hidden Pit's
+Pitfall reaction must not require opening an Abilities accordion. Secondary
+provenance may be disclosed; that does not make all owned records or a long spell
+catalog essential inline content. Keep bounded continuation for substantial
+content instead of clipping it or requiring an unrelated disclosure.
+Immediate Ability-class activities use the shared bounded embedded-reading
+workflow; the optional whole-section Collapse in creature reading is not the
+hazard default. Creature composition receives its own review. The existing
 activity facts supply the title and action cost once; shared prepared content
 supplies authored controls and exact relationships. Keep partial content in its
 own full-generation/parent/target cache, never in selected-detail cache. Scroll
@@ -1084,6 +1104,23 @@ button and callback flows use `useConfirmDangerAction`; prepared source dialogs
 use contextual `Modal.useModal`. Do not use static Ant feedback methods. Style
 Ant internals through documented `classNames`, `styles` and component tokens;
 Atlas-owned classes describe product layout rather than internal Ant DOM.
+
+### Reference table states
+
+Keep a reference table's formula/roll controls, column headings and valid existing
+rows in place while reading results. Initial loading is not an empty table:
+“Loading results…” belongs in the results region; “No results” requires a
+successful empty response. A failed read shows a local unavailable state and
+Retry. Preserve meaningful zero ranges and unavailable values separately.
+
+If a reference-table reroll fails, retain the previous confirmed result for the
+same table/selection/generation and explicitly identify it as the previous result.
+Wellspring Surges is the example: the failure sits beside Reroll and says “Previous
+result shown.” The error does not become a new outcome or a successful reroll.
+Keep recovery with the existing action; do not add a second competing submission
+or automatically roll again. A different table, invalidated generation or changed
+selection must not borrow that result. This reading-retention pattern does not
+replace an encounter mutation's request/revision/retry contract.
 
 ### Grouping reference facts
 
