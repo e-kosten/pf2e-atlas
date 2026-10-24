@@ -444,8 +444,19 @@ function EncounterParticipantSurface({
       )}
     </>
   );
+  const turnControls = (
+    <EncounterTurnResources
+      value={participant.turn_resources}
+      disabled={disabled}
+      isCurrent={currentTurnKey === participant.participant_key}
+      onChange={
+        onTurnResources ? (action) => onTurnResources(participant, action) : undefined
+      }
+    />
+  );
   const conditionControls = (
-    <>
+    <div className="encounter-runtime-stack">
+      {turnControls}
       {conditionError && (
         <Alert
           type="warning"
@@ -475,7 +486,7 @@ function EncounterParticipantSurface({
         onResolveDrained={onResolveDrained}
         participants={participants}
       />
-    </>
+    </div>
   );
   const contextualDefenses = (
     <>
@@ -550,14 +561,6 @@ function EncounterParticipantSurface({
           {!hasHp && statusControl}
         </div>
       </div>
-      <EncounterTurnResources
-        value={participant.turn_resources}
-        disabled={disabled}
-        isCurrent={currentTurnKey === participant.participant_key}
-        onChange={
-          onTurnResources ? (action) => onTurnResources(participant, action) : undefined
-        }
-      />
       {participant.status === "unresolved" && (
         <p>Reference unavailable. Saved participant settings remain editable.</p>
       )}

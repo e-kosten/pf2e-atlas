@@ -1,5 +1,5 @@
 import { Button, InputNumber, Popover, Space, Tooltip } from "antd";
-import { Minus, Plus } from "lucide-react";
+import { Undo2 } from "lucide-react";
 import { useRef, useState } from "react";
 import type {
   TurnResourceAction,
@@ -232,24 +232,45 @@ function ResourceCounter({
   return (
     <div className="encounter-turn-resources__group">
       <strong>{label}</strong>
-      <Space.Compact>
-        <Tooltip title={!canSpend ? reason : undefined} trigger={["hover", "focus"]}>
-          <Button
-            aria-label={`Spend ${kind === "action" ? "action" : "extra action"}`}
-            disabled={disabled || !canSpend || remaining === 0}
-            aria-disabled={pending || !canSpend || remaining === 0}
-            icon={<Minus size={14} />}
-            onClick={(event) => {
-              const focused = event.currentTarget === document.activeElement;
-              void onAction({ kind: "spend", resource: kind })
-                .then(() => {
-                  if (focused && remaining === 1)
-                    button.current?.focus({ preventScroll: true });
-                })
-                .catch(() => {});
-            }}
-          />
-        </Tooltip>
+      <Space size={4} wrap>
+        {Array.from({ length: total }, (_, index) => (
+          <Tooltip
+            key={index}
+            title={
+              !canSpend
+                ? reason
+                : index < remaining
+                  ? "Spend action"
+                  : "Use Restore action to correct the count"
+            }
+            trigger={["hover", "focus"]}
+          >
+            <Button
+              aria-label={`Spend ${kind === "action" ? "action" : "extra action"} ${index + 1}`}
+              disabled={disabled || !canSpend || index >= remaining}
+              aria-disabled={pending || !canSpend || index >= remaining}
+              color={index < remaining ? "primary" : "default"}
+              variant={index < remaining ? "filled" : "outlined"}
+              icon={
+                <span
+                  className="action-cost__glyph"
+                  data-atlas-action-glyph="one_action"
+                  aria-hidden="true"
+                />
+              }
+              onClick={(event) => {
+                const trigger = event.currentTarget;
+                const focused = trigger === document.activeElement;
+                void onAction({ kind: "spend", resource: kind })
+                  .then(() => {
+                    if (focused && index >= remaining - 1)
+                      restoreOverlayFocus(button.current, trigger);
+                  })
+                  .catch(() => {});
+              }}
+            />
+          </Tooltip>
+        ))}
         <Popover
           trigger="click"
           open={open}
@@ -283,8 +304,8 @@ function ResourceCounter({
                         remaining: BigInt(draft),
                       })
                         .then(() => {
+                          restoreOverlayFocus(button.current, popup.current);
                           setOpen(false);
-                          button.current?.focus({ preventScroll: true });
                         })
                         .catch(() => {});
                   }}
@@ -305,21 +326,27 @@ function ResourceCounter({
             {remaining} / {total}
           </Button>
         </Popover>
-        <Button
-          aria-label={`Restore ${kind === "action" ? "action" : "extra action"}`}
-          disabled={disabled || !canEdit || remaining >= total}
-          icon={<Plus size={14} />}
-          onClick={(event) => {
-            const focused = event.currentTarget === document.activeElement;
-            void onAction({ kind: "restore", resource: kind })
-              .then(() => {
-                if (focused && remaining + 1 === total)
-                  button.current?.focus({ preventScroll: true });
-              })
-              .catch(() => {});
-          }}
-        />
-      </Space.Compact>
+        <Tooltip
+          title={`Restore ${kind === "action" ? "action" : "extra action"}`}
+          trigger={["hover", "focus"]}
+        >
+          <Button
+            aria-label={`Restore ${kind === "action" ? "action" : "extra action"}`}
+            disabled={disabled || !canEdit || remaining >= total}
+            icon={<Undo2 size={14} />}
+            onClick={(event) => {
+              const trigger = event.currentTarget;
+              const focused = trigger === document.activeElement;
+              void onAction({ kind: "restore", resource: kind })
+                .then(() => {
+                  if (focused && remaining + 1 === total)
+                    restoreOverlayFocus(button.current, trigger);
+                })
+                .catch(() => {});
+            }}
+          />
+        </Tooltip>
+      </Space>
     </div>
   );
 }

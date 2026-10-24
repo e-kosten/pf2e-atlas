@@ -37,7 +37,7 @@ it("prioritizes complete prose in exploration and retains it after encounter tas
       .compareDocumentPosition(screen.getByText("Complete source introduction.")) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
-  fireEvent.click(screen.getByRole("link", { name: "Conditions" }));
+  fireEvent.click(screen.getByRole("link", { name: "Actions & conditions" }));
   expect(
     screen.getByRole("button", { name: "Add condition" }).closest("section"),
   ).toHaveFocus();

@@ -985,7 +985,8 @@ notes headings and unavailable/bounded-field labels. This does not remove the
 Description outline destination or move encounter lore before mechanics.
 Do not move the statistics block below actions to make those actions easier to find.
 On wide encounter panes, turn context/conditions occupy an adjacent lane; in a
-single column they follow early statistics and precede action choices. Conditions
+single column they follow HP/defenses and precede statistics and combat choices.
+Conditions
 must not stretch nearby HP/stat rows during value edits. Participant edits and
 maximum-HP configuration remain secondary tasks.
 
@@ -1009,7 +1010,8 @@ three actions or extract counts from prose in React. For example, Spinning Blade
 Pillar's (3 actions) stays in Routine rather than becoming a generic forecast.
 Conditions and live HP remain available independently of that budget.
 
-Manual Turn controls belong under participant identity and before HP. Use the
+Manual Turn controls share the existing runtime lane with Conditions beside HP
+and defenses; in one column they follow defenses and precede statistics. Use the
 backend's recorded allowance and remaining resources; a live condition forecast
 belongs in Next turn and must not replace them. Keep deterministic regain results
 there for the actual turn (Stunned 2 cleared), without an acknowledgment or
@@ -1025,6 +1027,17 @@ Keep pending controls mounted and preserve focus through canonical refresh; fail
 stays beside Turn and a committed write with failed refresh must not invite spending
 again. Verify spend/restore, off-turn reaction, Stunned clear, mid-turn Quickened,
 keyboard correction and phone layout with actual transitions.
+
+A workspace has one owner for pane widths at each topology. Within the desktop
+encounter topology, shrinking the viewport must not widen its participant pane
+and make the runtime lane return to the side. Keep the splitter's roster width
+through desktop breakpoints; collapse its own controls inside that width. Do not
+apply the search workspace's fixed-width roster override to encounters. For
+example, changing the roster from 360px to 290px at 1180px makes the conditions lane
+stack, reappear and stack again. Phone roster/participant navigation is a deliberate
+topology change. Verify a continuous width sweep as well as fixed viewport samples,
+with manually resized and collapsed rosters; a screenshot at each endpoint cannot
+establish that intermediate layouts behave predictably.
 
 For inline record inclusions, prioritize reading over occasional source navigation.
 Reuse a meaningful existing rule heading or authored prose reference as the link;

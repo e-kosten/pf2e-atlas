@@ -88,8 +88,8 @@ export function CreatureReference({
   const sections = [
     ...(!encounter && prose ? [["description", "Description"]] : []),
     ["defenses", "Defenses"],
+    ...(encounterContent ? [["conditions", "Actions & conditions"]] : []),
     ...(hasStatistics ? [["facts", "Statistics"]] : []),
-    ...(encounterContent ? [["conditions", "Conditions"]] : []),
     ...(activities.some((a) => a.kind === "strike") ? [["strike", "Strikes"]] : []),
     ...(activities.some((a) => a.ability_group === "primary")
       ? [["ability", "Special abilities"]]
@@ -172,19 +172,6 @@ export function CreatureReference({
                     <ActorDefenses actor={actor} hideHitPoints={encounter} />
                   )}
                 </section>
-                {hasStatistics && (
-                  <section
-                    className="creature-reference__facts"
-                    id={id("facts")}
-                    tabIndex={-1}
-                  >
-                    <h3>Statistics</h3>
-                    <ActorAwareness actor={actor} encounter={encounter} />
-                    <ActorSkills actor={actor} />
-                    <ActorMovement actor={actor} />
-                    <ActorLanguages actor={actor} />
-                  </section>
-                )}
                 <ActorSecondaryFacts actor={actor} runtimeOnly />
               </div>
             }
@@ -204,6 +191,19 @@ export function CreatureReference({
           >
             {(!encounter || hasRules || prose) && (
               <div className="creature-reference__rules">
+                {hasStatistics && (
+                  <section
+                    className="creature-reference__facts"
+                    id={id("facts")}
+                    tabIndex={-1}
+                  >
+                    <h3>Statistics</h3>
+                    <ActorAwareness actor={actor} encounter={encounter} />
+                    <ActorSkills actor={actor} />
+                    <ActorMovement actor={actor} />
+                    <ActorLanguages actor={actor} />
+                  </section>
+                )}
                 <ActorActivities
                   actor={actor}
                   encounter={encounter}

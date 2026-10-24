@@ -147,3 +147,11 @@
 .encounter-turn-resources__result {
   color: var(--muted);
 }
+
+.encounter-runtime-stack {
+  display: grid;
+  gap: var(--space-section);
+}
+.encounter-turn-resources .action-cost__glyph::before {
+  color: inherit;
+}
