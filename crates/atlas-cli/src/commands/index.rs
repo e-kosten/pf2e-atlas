@@ -66,9 +66,12 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
         )?;
     } else {
         println!(
-            "ok: wrote {} records ({} products) from {} packs to {}",
+            "ok: wrote {} records ({} available in Atlas, {} developer-only macros) from {} packs to {}",
             report.record_count,
             report.product_record_count,
+            report
+                .record_count
+                .saturating_sub(report.product_record_count),
             report.pack_count,
             report.output_path.display()
         );
@@ -109,8 +112,12 @@ pub(crate) fn run_index_check(options: CheckIndexOptions) -> Result<ExitCode, St
         write_json_data(&report)?;
     } else {
         println!(
-            "ok: {} records, {} products, {} lexical units, {} semantic units",
-            report.records, report.product_records, report.lexical_units, report.semantic_units
+            "ok: {} records ({} available in Atlas, {} developer-only macros), {} lexical units, {} semantic units",
+            report.records,
+            report.product_records,
+            report.records.saturating_sub(report.product_records),
+            report.lexical_units,
+            report.semantic_units
         );
     }
     Ok(ExitCode::SUCCESS)

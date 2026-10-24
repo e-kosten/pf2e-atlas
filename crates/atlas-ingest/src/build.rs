@@ -119,7 +119,7 @@ pub(crate) fn prepare_build(
     }
     progress("trait_labels", "Resolving trait names");
     context.used_trait_labels = crate::source::localization::used_trait_labels(&source, &catalog)?;
-    progress("prepare_search", "Preparing search content");
+    progress("load_tokenizer", "Loading search tokenizer");
     let tokenizer = options
         .search_profiles
         .first()
@@ -192,7 +192,10 @@ pub(crate) fn build_artifact(
                 if context.snapshot_version == atlas_foundry_model::SNAPSHOT_VERSION
                     && context.source_contract == atlas_foundry_model::SOURCE_CONTRACT_ID =>
             {
-                progress("read_previous", "Reading saved records");
+                progress(
+                    "read_previous",
+                    "Reading indexed reference records for reuse",
+                );
                 atlas_index::read_persisted_inputs(read.connection(), &context)
                     .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
             }
