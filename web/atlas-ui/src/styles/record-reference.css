@@ -537,9 +537,7 @@
   grid-column: 1 / -1;
 }
 
-/* Actor workspace composition is reviewed separately from single-column records. */
-.record-view__pane--workspace .prepared-content,
-.reference-reader--workspace .prepared-content,
+/* Non-creature encounter reference prose retains its ordinary document width. */
 .record-reference--encounter .prepared-content {
   max-width: var(--document-measure);
 }

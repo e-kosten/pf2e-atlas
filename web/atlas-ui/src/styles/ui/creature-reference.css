@@ -1,0 +1,259 @@
+/* The host supplies the inset. Sections own gaps; entries own their boundaries. */
+.record-view__pane--creature,
+.reference-reader--creature .reference-reader__scroll > .detail-panel {
+  width: 100%;
+  max-width: calc(80rem + 2 * var(--space-section));
+  margin-inline: auto;
+}
+.record-view__pane--creature {
+  justify-self: center;
+}
+.record-view__pane--creature:has(.creature-reference:not(.creature-reference--caster)),
+.reference-reader--creature
+  .detail-panel:has(.creature-reference:not(.creature-reference--caster)) {
+  max-width: 70rem;
+}
+.record-view__pane--creature > .record-reference__header {
+  margin-block-end: var(--space-group);
+  border: 0;
+  padding-block-end: 0;
+}
+.record-reference:has(> .creature-reference) {
+  gap: var(--space-group);
+}
+.record-reference:has(> .creature-reference) > .record-reference__header {
+  border: 0;
+  padding-block-end: 0;
+}
+.creature-reference {
+  container: creature-sheet / inline-size;
+  min-width: 0;
+}
+.creature-reference__body {
+  container: creature-body / inline-size;
+  min-width: 0;
+}
+.creature-reference__outline a {
+  display: inline-block;
+  padding-block: 3px;
+}
+.creature-reference__prose {
+  margin-block-end: var(--space-section);
+}
+.creature-reference__facts {
+  margin-block-end: var(--space-section);
+}
+.creature-reference__facts > .record-fact {
+  margin-block-end: var(--space-control);
+}
+.creature-reference__facts .actor-reference__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--space-group) var(--space-section);
+}
+.creature-reference__facts .actor-reference__defenses {
+  border: 0;
+  padding: 0;
+  margin-block-end: var(--space-group);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--space-group);
+  align-items: baseline;
+}
+.creature-reference__facts .actor-reference__defenses > h3 {
+  flex-basis: 100%;
+  margin: 0;
+}
+.creature-reference .actor-reference__awareness-movement {
+  display: grid;
+  gap: var(--space-group);
+  align-content: start;
+  min-width: 0;
+}
+.creature-reference .actor-reference__skills {
+  display: grid;
+  gap: var(--space-group);
+}
+.creature-reference .record-fact-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--space-group);
+}
+.creature-reference .actor-reference__defenses .record-fact-list {
+  gap: 4px 12px;
+}
+.creature-reference .actor-reference__mechanics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-section);
+}
+.creature-reference .actor-reference__activities {
+  display: grid;
+  gap: var(--space-control);
+  min-width: 0;
+}
+.creature-reference .actor-reference__activities > h3 {
+  margin: 0;
+}
+.creature-reference .actor-reference__actions {
+  display: grid;
+  gap: var(--space-section);
+  min-width: 0;
+  align-content: start;
+}
+.creature-reference .actor-reference__rule-grid {
+  display: grid;
+  gap: var(--space-section);
+  min-width: 0;
+}
+.creature-reference .actor-activity {
+  padding-block: 0;
+  border: 0;
+}
+.creature-reference .actor-activity + .actor-activity {
+  margin-block-start: var(--space-control);
+}
+.creature-reference .actor-activity > .badge-row {
+  margin-block: var(--space-control);
+}
+.creature-reference .badge-row:empty {
+  display: none;
+}
+.creature-reference .actor-activity__heading-link {
+  font: inherit;
+}
+.creature-reference .actor-activity__title {
+  margin: 0 0 var(--space-control);
+}
+.creature-reference .prepared-content {
+  max-width: 100%;
+}
+.creature-reference .embedded-ability-reading__entry {
+  display: grid;
+  gap: var(--space-control);
+  padding-block: var(--space-group);
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.creature-reference .embedded-ability-reading__entry:first-of-type {
+  padding-block-start: 0;
+}
+.creature-reference .embedded-ability-reading__entry:last-child {
+  border: 0;
+  padding-block-end: 0;
+}
+.creature-reference .actor-casting {
+  padding: 0;
+  border: 0;
+}
+.creature-reference .actor-casting__row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-control);
+}
+.creature-reference .actor-casting__spells {
+  padding-inline-start: 0;
+}
+.creature-reference [tabindex="-1"] {
+  scroll-margin-block-start: var(--space-section);
+}
+.creature-reference [tabindex="-1"]:focus-visible {
+  outline: 2px solid var(--active-border);
+  outline-offset: var(--space-control);
+}
+.creature-reference__rules {
+  min-width: 0;
+}
+.creature-reference__runtime {
+  display: grid;
+  gap: var(--space-section);
+  align-content: start;
+  min-width: 0;
+  margin-block-end: var(--space-section);
+}
+.creature-reference__runtime .actor-reference__combat-budget {
+  padding: 0;
+  border: 0;
+}
+.creature-reference--encounter .creature-reference__outline {
+  margin-block-end: var(--space-group);
+  padding-block-end: var(--space-group);
+}
+.creature-reference--encounter .creature-reference__outline ul {
+  margin: 0;
+}
+.creature-reference--encounter .creature-reference__prose {
+  margin-block: var(--space-section) 0;
+}
+
+@container creature-sheet (min-width: 62rem) {
+  .creature-reference:not(.creature-reference--encounter)
+    > .creature-reference__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 10rem;
+    gap: var(--space-section);
+    align-items: start;
+  }
+  .creature-reference:not(.creature-reference--encounter)
+    > .creature-reference__layout
+    > .creature-reference__body {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .creature-reference:not(.creature-reference--encounter)
+    > .creature-reference__layout
+    > .creature-reference__outline {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: var(--space-section);
+    border: 0;
+    border-inline-start: 1px solid var(--line);
+    padding: 0 0 0 var(--space-group);
+    margin: 0;
+  }
+  .creature-reference:not(.creature-reference--encounter)
+    > .creature-reference__layout
+    > .creature-reference__outline
+    ul {
+    display: grid;
+  }
+}
+@container creature-body (min-width: 58rem) {
+  .creature-reference:not(.creature-reference--encounter)
+    .actor-reference__rule-grid--caster {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    gap: var(--space-section);
+    align-items: start;
+  }
+  .creature-reference:not(.creature-reference--encounter)
+    .actor-reference__rule-grid--caster
+    > .actor-reference__casting {
+    grid-column: 2;
+    grid-row: 1;
+    border-inline-start: 1px solid var(--line);
+    padding-inline-start: var(--space-group);
+  }
+  .creature-reference:not(.creature-reference--encounter)
+    .actor-reference__rule-grid--caster
+    > .actor-reference__actions {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .creature-reference--encounter .creature-reference__tasks {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 19rem;
+    gap: var(--space-section);
+    align-items: start;
+  }
+  .creature-reference--encounter .creature-reference__runtime {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    border-inline-start: 1px solid var(--line);
+    padding-inline-start: var(--space-group);
+  }
+  .creature-reference--encounter .creature-reference__rules {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}

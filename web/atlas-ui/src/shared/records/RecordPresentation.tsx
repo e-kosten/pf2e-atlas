@@ -7,7 +7,9 @@ import { RecordRarity } from "./RecordRarity";
 import { SpellRankControl } from "./SpellRankControl";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import type { ReactNode, Ref } from "react";
-import { Button, Collapse } from "antd";
+import { Button, Collapse, Tooltip } from "antd";
+import { ExternalLink } from "lucide-react";
+import { PaneIconLink } from "../ui/actions/PaneAction";
 import type {
   PreparedContentFieldView,
   RecordNavigationView,
@@ -20,7 +22,6 @@ import type {
 import {
   ActorActivities,
   ActorActivity,
-  ActorFacts,
   ActorCombatBudget,
   ActorSecondaryFacts,
   Iwr,
@@ -35,6 +36,7 @@ import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent"
 import { SpellReference } from "./SpellReference";
 import { PhysicalReference } from "./PhysicalReference";
 import { ActionCost } from "./ActionCost";
+import { CreatureReference, type CreatureEncounterContent } from "./CreatureReference";
 import type { EmbeddedReadingContext } from "./EmbeddedAbilityReading";
 import { activityAddress } from "./embeddedNavigation";
 import {
@@ -145,7 +147,7 @@ export function RecordIdentity({
   visibleOwnerRecordKey,
   originalRecord,
   onReference,
-  stacked = false,
+  stacked = true,
   headingRef,
   headingId,
   actions,
@@ -240,27 +242,28 @@ export function RecordIdentity({
       }
       identityActions={
         originalRecord && (
-          <Button
-            className="record-reference__original"
-            type="link"
-            size="small"
-            href={atlasRoutePath({
-              kind: "record",
-              recordKey: originalRecord.record_key,
-              selection: originalRecord,
-            })}
-            onClick={(event) => {
-              if (!shouldHandleAtlasRouteClick(event)) return;
-              event.preventDefault();
-              onReference(
-                originalRecord.record_key,
-                event.currentTarget,
-                originalRecord,
-              );
-            }}
-          >
-            View original
-          </Button>
+          <Tooltip title="Open source record" trigger={["hover", "focus"]}>
+            <PaneIconLink
+              title=""
+              className="record-reference__original"
+              label="Open source record"
+              icon={<ExternalLink size={16} aria-hidden="true" />}
+              href={atlasRoutePath({
+                kind: "record",
+                recordKey: originalRecord.record_key,
+                selection: originalRecord,
+              })}
+              onClick={(event) => {
+                if (!shouldHandleAtlasRouteClick(event)) return;
+                event.preventDefault();
+                onReference(
+                  originalRecord.record_key,
+                  event.currentTarget,
+                  originalRecord,
+                );
+              }}
+            />
+          </Tooltip>
         )
       }
     >
@@ -286,7 +289,7 @@ export function RecordPresentationIdentity({
   onOwnerReturn,
   visibleOwnerRecordKey,
   showOwnerReturn = true,
-  stacked = false,
+  stacked = true,
   headingRef,
   headingId,
   actions,
@@ -310,7 +313,7 @@ export function RecordPresentationIdentity({
   actions?: ReactNode;
 }) {
   const body = presentation?.body;
-  const documentIdentity = stacked || body?.kind !== "creature";
+  const documentIdentity = stacked;
   return (
     <RecordIdentity
       stacked={documentIdentity}
@@ -368,7 +371,9 @@ export function RecordPresentation({
   onOwnerReturn,
   visibleOwnerRecordKey,
   sectionLanding,
+  creatureEncounter,
 }: {
+  creatureEncounter?: CreatureEncounterContent;
   sectionLanding?: string;
   presentation: RecordPresentationView;
   root?: RecordSummaryView;
@@ -472,20 +477,25 @@ export function RecordPresentation({
           {!encounter && flavor}
         </PhysicalReference>
       ) : (
-        body.kind !== "activity" && (
+        body.kind !== "activity" &&
+        body.kind !== "creature" && (
           <ReferenceProfiles body={body} onReference={onReference}>
             {!encounter && flavor}
           </ReferenceProfiles>
         )
       )}
-      {body.kind === "creature" && encounter && (
-        <ActorSecondaryFacts actor={body.value} />
-      )}
       {body.kind === "creature" && (
-        <ActorFacts
+        <CreatureReference
           actor={body.value}
-          hideHitPoints={encounter}
+          recordKey={presentation.identity.record_key}
+          prose={flavor}
           encounter={encounter}
+          encounterContent={creatureEncounter}
+          reading={reading}
+          onReference={onReference}
+          activityRolls={activityRolls}
+          castingAnnotations={castingAnnotations}
+          sectionLanding={sectionLanding}
         />
       )}
       {body.kind === "hazard" && (
@@ -633,7 +643,7 @@ export function RecordPresentation({
       {body.kind === "hazard" && encounter && (
         <ActorSecondaryFacts actor={body.value.actor} hazard />
       )}
-      {actor && (
+      {body.kind === "hazard" && actor && (
         <ActorActivities
           castingAnnotations={castingAnnotations}
           essential={body.kind === "hazard"}
@@ -653,13 +663,15 @@ export function RecordPresentation({
           onReference={onReference}
         />
       )}
-      {encounter && presentation.content.some(contentFieldVisible) && (
-        <Collapse
-          size="small"
-          ghost
-          items={[{ key: "content", label: "Source description", children: content }]}
-        />
-      )}
+      {encounter &&
+        body.kind !== "creature" &&
+        presentation.content.some(contentFieldVisible) && (
+          <Collapse
+            size="small"
+            ghost
+            items={[{ key: "content", label: "Source description", children: content }]}
+          />
+        )}
       {body.kind === "roll_table" && body.value.results.state !== "value" && (
         <FactLine label="Results" fact={body.value.results} />
       )}

@@ -7,7 +7,7 @@ export function DocumentPagePane({
 }: {
   identity?: ReactNode;
   children: ReactNode;
-  layout?: "document" | "workspace";
+  layout?: "document" | "creature";
 }) {
   return (
     <section className={`record-view__pane record-view__pane--${layout}`}>
