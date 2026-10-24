@@ -36,6 +36,12 @@ persistent-damage/recovery preparation. It copies every existing claim into the
 replacement constrained table. Reference rows, saved conditions, HP and prior
 receipts remain unchanged; preparation outcomes use the existing versioned receipt
 envelope.
+Workspace migration 12 adds nullable versioned participant turn-resource state.
+Existing allocations remain unknown; it does not synthesize past actions or reaction
+expenditure. Saved HP, conditions, parties, reference rows and prior receipts remain
+unchanged. Old outgoing snapshots omit this field and decode as an unknown allocation.
+App-service owns allocation/spending policy; local-state persists it with the same
+atomic revision, receipt and boundary protections as other encounter events.
 
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,

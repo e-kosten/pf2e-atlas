@@ -1,5 +1,9 @@
 #![deny(unsafe_code)]
+mod turn_resources;
 pub use dice::{FlatCheckRollView, RollFlatCheckRequest};
+pub use turn_resources::{
+    TurnResourceAction, TurnResourceKind, TurnResourcesView, UpdateTurnResourcesRequest,
+};
 mod encounter_action;
 pub use encounter_action::{EncounterStrikeActionContextView, EncounterTargetingRequirementsView};
 pub use encounter_action::{EncounterStrikeContextRequest, EncounterStrikeContextView};
@@ -220,6 +224,8 @@ mod tests {
     }
 
     fn export_bindings_to(path: &Path) {
+        UpdateTurnResourcesRequest::export_all_to(path).expect("turn resource request");
+        TurnResourcesView::export_all_to(path).expect("turn resources");
         EncounterStrikeContextRequest::export_all_to(path).expect("strike attempt preview request");
         FlatCheckRollView::export_all_to(path).expect("flat check result");
         RollFlatCheckRequest::export_all_to(path).expect("flat check request");

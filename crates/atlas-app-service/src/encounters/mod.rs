@@ -20,6 +20,7 @@ mod tests;
 mod timing;
 #[cfg(test)]
 mod timing_tests;
+mod turn_resources;
 mod turns;
 mod workflow;
 
@@ -50,3 +51,6 @@ mod strike_context;
 mod condition_recovery;
 
 pub(crate) use rules::attack_progression;
+
+#[cfg(test)]
+mod turn_resource_tests;

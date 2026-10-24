@@ -3,6 +3,7 @@ use axum::Router;
 use axum::routing::{get, post};
 
 use crate::assets::{root, static_asset};
+use crate::handlers::update_turn_resources;
 use crate::handlers::{
     add_encounter_manual_participant, add_encounter_participant_condition,
     add_encounter_record_participant, add_saved_list_item, advance_encounter_turn,
@@ -98,6 +99,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         )
         .route("/api/encounters/{encounter_ref}/turn-review", get(encounter_turn_review))
         .route("/api/encounters/{encounter_ref}/advance", post(advance_encounter_turn))
+        .route("/api/encounters/{encounter_ref}/participants/{participant_key}/turn-resources", post(update_turn_resources))
         .route(
             "/api/encounters/{encounter_ref}/turn",
             post(set_encounter_turn),

@@ -132,7 +132,12 @@ pub(super) fn turn_update(snapshot: &EncounterWithParticipants) -> EncounterTurn
             .then(|| (condition.condition_id, duration.amount - 1))
         })
         .collect();
-    EncounterTurnUpdate { turn, durations }
+    EncounterTurnUpdate {
+        turn,
+        durations,
+        start_event: None,
+        start_claims: vec![],
+    }
 }
 
 pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurnReviewView {

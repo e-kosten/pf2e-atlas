@@ -368,6 +368,9 @@ impl EncountersWrite<'_> {
                     }
                 }
             }
+            for resources in &changes.turn_resources {
+                self.save_turn_resources(encounter_key, resources)?;
+            }
             for change in changes.participant_changes {
                 self.connection.execute("UPDATE encounter_participants SET current_hp=?2,temporary_hp=?3,track_dying=?4,mortality=?5,defeated=?6,hazard_disabled=?7,level_override=?8,base_death_threshold=?9,hp_origin=CASE WHEN current_hp IS NOT ?2 AND hp_origin='derived_pristine' THEN 'derived_edited' ELSE hp_origin END,revision=revision+1 WHERE participant_key=?1",params![change.participant_key,change.current_hp,change.temporary_hp,change.track_dying,match change.mortality {super::MortalityState::Alive=>"alive",super::MortalityState::Dead=>"dead"},change.defeated,change.hazard_disabled,change.level_override,change.base_death_threshold])?;
             }

@@ -190,8 +190,13 @@ boundary claims. Removed participants are distinguished from removed effects.
 Persistent type cards own their existing damage/recovery results; ordinary duration,
 timing and end-turn recovery rows follow the same retained-result policy. Reads
 neither recreate actions nor infer successful writes from frontend drafts. Receipts remain storage
-history, not a reminder inbox. Start-turn Dying and Stunned recovery remain
-explicit inspector actions, not silently replayed outgoing events. Waking from
+history, not a reminder inbox. Incoming deterministic regain changes are retained
+as concise results beneath Turn controls, before HP; ordinary starts remain quiet.
+Dying recovery remains an explicit inspector action and defers regain. Supported
+numeric Stunned is consumed at actual regain in the atomic advance; a new numeric
+Stunned during an open current turn uses the explicit lifecycle action against
+recorded remaining actions. Neither path is replayed by reading an outgoing event.
+Waking from
 noise is guidance alongside the existing Perception roller, not a DC-entry form.
 
 Observer-relative effects derive directly from active condition sources and their
@@ -213,7 +218,9 @@ Recovery offers are action-specific data, not a nullable field bag plus a parall
 required-input schema. Rust associates offers with saved condition source IDs;
 one browser recovery owner presents hints and meaningful actions in condition
 rows. Pending HP decisions stay beside HP controls.
-There is no generic action/disclosure slot between participant identity and HP.
+The compact manual Turn controls and their retained regain results sit between
+participant identity and HP. Condition-specific recovery stays in its condition
+row rather than becoming an unrelated action/disclosure collection there.
 Recovery hints/results remain anchored to the requested action, including while
 successful resolution removes the associated condition. Listing and check
 submission share the offered source facts. Known checks use the shared dice

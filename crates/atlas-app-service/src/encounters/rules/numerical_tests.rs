@@ -6,6 +6,7 @@ use serde_json::json;
 
 pub(super) fn participant() -> EncounterParticipant {
     EncounterParticipant {
+        turn_resources: None,
         level_override: None,
         base_death_threshold: 4,
         persistent_precedence: vec![],

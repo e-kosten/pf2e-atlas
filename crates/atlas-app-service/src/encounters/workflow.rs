@@ -678,10 +678,47 @@ impl AtlasAppService {
                     &intent,
                     request.expected_revision,
                     |snapshot| {
-                        (
-                            turn_update(snapshot),
-                            !turn_review(snapshot).reminders.is_empty(),
-                        )
+                        let mut update = turn_update(snapshot);
+                        if let Some(participant) = snapshot.participants.iter().find(|p| {
+                            Some(&p.participant_key) == update.turn.participant_key.as_ref()
+                        }) {
+                            let (start, claims) = super::turn_resources::prepare_start(
+                                participant,
+                                update.turn.round_number,
+                                &request.request_id,
+                                false,
+                            )
+                            .map_err(|error| {
+                                atlas_local_state::LocalStateError::InvalidConditionEvent(
+                                    error.into_app_error().message,
+                                )
+                            })?;
+                            update.start_event = start;
+                            update.start_claims = claims;
+                        }
+                        if snapshot.encounter.current_turn_participant_key
+                            != update.turn.participant_key
+                        {
+                            if let Some(mut closed) = snapshot
+                                .participants
+                                .iter()
+                                .find(|p| {
+                                    Some(&p.participant_key)
+                                        == snapshot.encounter.current_turn_participant_key.as_ref()
+                                })
+                                .and_then(|p| p.turn_resources.clone())
+                            {
+                                closed.actions_open = false;
+                                closed.regular_remaining = 0;
+                                closed.extra_remaining = 0;
+                                update
+                                    .start_event
+                                    .get_or_insert_with(Default::default)
+                                    .turn_resources
+                                    .push(closed);
+                            }
+                        }
+                        Ok((update, !turn_review(snapshot).reminders.is_empty()))
                     },
                 )?
                 .ok_or_else(|| encounter_not_found(encounter_ref))?;
