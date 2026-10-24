@@ -78,6 +78,7 @@ fn run_setup_install(
         locale: options.locale,
     };
     let report = runtime.ensure_setup(setup_options);
+    tracing::info!(target:"atlas_progress",complete=true,"Setup finished");
     let exit_class = report.exit_code_class();
 
     if json {
@@ -315,8 +316,12 @@ fn print_setup_report(report: &atlas_runtime::RuntimeSetupReport) {
             format_duration_ms(build.build_duration_ms)
         );
         println!(
-            "  records: {} ({} products)",
-            build.record_count, build.product_record_count
+            "  records: {} ({} available in Atlas, {} developer-only macros)",
+            build.record_count,
+            build.product_record_count,
+            build
+                .record_count
+                .saturating_sub(build.product_record_count)
         );
         println!(
             "  semantic units={} reused inputs={} inferred inputs={} shortened contexts={}",

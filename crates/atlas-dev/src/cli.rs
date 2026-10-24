@@ -61,7 +61,8 @@ pub(crate) fn main() -> ExitCode {
     init_tracing(ProgressOptions {
         mode: cli.progress.into(),
         json,
-        setup_timing: false,
+        setup_timing: matches!(&cli.command, Command::Baseline(args)
+            if matches!(args.command, commands::baseline::args::BaselineCommand::Publish(_))),
     });
     let result = match cli.command {
         Command::Baseline(args) => commands::baseline::run(args),
@@ -78,6 +79,7 @@ pub(crate) fn main() -> ExitCode {
     match result {
         Ok(code) => code,
         Err(error) => {
+            tracing::info!(target:"atlas_progress",complete=true,"Command failed");
             if json {
                 let _ = write_json_error("command_failed", error);
             } else {

@@ -13,6 +13,7 @@ dist = false
 [dependencies]
 atlas-runtime.workspace = true
 clap.workspace = true
+console.workspace = true
 indicatif.workspace = true
 serde.workspace = true
 serde_json.workspace = true

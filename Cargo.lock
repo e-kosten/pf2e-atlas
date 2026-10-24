@@ -200,6 +200,7 @@ version = "0.1.0"
 dependencies = [
  "atlas-runtime",
  "clap",
+ "console",
  "indicatif",
  "serde",
  "serde_json",
@@ -227,6 +228,7 @@ dependencies = [
  "sha2",
  "tempfile",
  "time",
+ "tracing",
 ]
 
 [[package]]

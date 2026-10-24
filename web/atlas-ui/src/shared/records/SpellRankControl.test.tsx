@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SpellRankControl } from "./SpellRankControl";
 import { numberFact, spellFixture } from "../../test/fixtures";
 
@@ -40,9 +40,26 @@ it("opens from ArrowDown without its default scrolling behavior and selects an e
   const trigger = screen.getByRole("button", { name: "Change rank" });
   trigger.focus();
   expect(fireEvent.keyDown(trigger, { key: "ArrowDown" })).toBe(false);
+  await waitFor(() =>
+    expect(screen.getByRole("menuitem", { name: "Rank 1 (base)" })).toHaveFocus(),
+  );
   fireEvent.click(await screen.findByRole("menuitem", { name: "Rank 5" }));
   expect(onChange).toHaveBeenCalledExactlyOnceWith(5);
   expect(trigger).toHaveFocus();
+});
+
+it("closes on Tab and lets the browser continue from the trigger", async () => {
+  const onChange = vi.fn();
+  render(
+    <SpellRankControl spell={spellFixture()} embedded={false} onChange={onChange} />,
+  );
+  const trigger = screen.getByRole("button", { name: "Change rank" });
+  fireEvent.click(trigger);
+  const item = await screen.findByRole("menuitem", { name: "Rank 1 (base)" });
+  expect(fireEvent.keyDown(item, { key: "Tab" })).toBe(true);
+  expect(trigger).toHaveAttribute("aria-expanded", "false");
+  expect(trigger).toHaveFocus();
+  expect(onChange).not.toHaveBeenCalled();
 });
 
 it("closes its menu on Escape and restores the initiating control without selecting a rank", async () => {
@@ -58,4 +75,53 @@ it("closes its menu on Escape and restores the initiating control without select
   expect(trigger).toHaveAttribute("aria-expanded", "false");
   expect(trigger).toHaveFocus();
   expect(onChange).not.toHaveBeenCalled();
+});
+
+it("keeps focus on the trigger after a quick selection and the opening animation frames", async () => {
+  vi.useFakeTimers();
+  try {
+    render(
+      <SpellRankControl spell={spellFixture()} embedded={false} onChange={vi.fn()} />,
+    );
+    const trigger = screen.getByRole("button", { name: "Change rank" });
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rank 5" }));
+    await act(() => vi.advanceTimersByTimeAsync(250));
+    expect(trigger).toHaveFocus();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("respects focus deliberately moved before the menu's opening frame", async () => {
+  vi.useFakeTimers();
+  try {
+    render(
+      <>
+        <SpellRankControl spell={spellFixture()} embedded={false} onChange={vi.fn()} />
+        <button>Another action</button>
+      </>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Change rank" }));
+    const destination = screen.getByRole("button", { name: "Another action" });
+    destination.focus();
+    await act(() => vi.advanceTimersByTimeAsync(250));
+    expect(destination).toHaveFocus();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("consumes Enter activation when selection returns focus to the button", async () => {
+  const onChange = vi.fn();
+  render(
+    <SpellRankControl spell={spellFixture()} embedded={false} onChange={onChange} />,
+  );
+  const trigger = screen.getByRole("button", { name: "Change rank" });
+  fireEvent.click(trigger);
+  const item = await screen.findByRole("menuitem", { name: "Rank 5" });
+  expect(fireEvent.keyDown(item, { key: "Enter", keyCode: 13 })).toBe(false);
+  expect(onChange).toHaveBeenCalledExactlyOnceWith(5);
+  expect(trigger).toHaveAttribute("aria-expanded", "false");
+  expect(trigger).toHaveFocus();
 });
