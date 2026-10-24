@@ -164,10 +164,9 @@ pub(super) fn view(
                 r.effects
                     .iter()
                     .map(|e| {
-                        if e.after == Some(0) {
+                        let outcome = if e.after == Some(0) {
                             format!(
-                                "{} {} cleared · {} {} lost this turn",
-                                e.name,
+                                "{} cleared · {} {} lost this turn",
                                 e.before.unwrap_or(0),
                                 e.actions_lost,
                                 if e.actions_lost == 1 {
@@ -178,8 +177,7 @@ pub(super) fn view(
                             )
                         } else {
                             format!(
-                                "{} {} → {} · {} {} lost this turn",
-                                e.name,
+                                "{} → {} · {} {} lost this turn",
                                 e.before.unwrap_or(0),
                                 e.after.unwrap_or(0),
                                 e.actions_lost,
@@ -189,6 +187,14 @@ pub(super) fn view(
                                     "actions"
                                 }
                             )
+                        };
+                        // Both effect producers are Stunned reducers. Preserve
+                        // that rule identity after the saved condition is gone;
+                        // never recover identity by parsing its display name.
+                        TurnResourceResultView {
+                            condition_name: e.name.clone(),
+                            condition_ref: ConditionRule::Stunned.definition().record_key.into(),
+                            outcome,
                         }
                     })
                     .collect()

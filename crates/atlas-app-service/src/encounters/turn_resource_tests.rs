@@ -352,7 +352,14 @@ fn new_mid_turn_stun_can_resolve_after_start_turn_stun_without_replaying_either_
     assert_eq!(resources(&f, &key, &a).start_results.len(), 2);
     assert_eq!(
         resources(&f, &key, &a).start_results[0],
-        "Stunned 1 cleared · 1 action lost this turn"
+        TurnResourceResultView {
+            condition_name: "Stunned".into(),
+            condition_ref: super::conditions::ConditionRule::Stunned
+                .definition()
+                .record_key
+                .into(),
+            outcome: "1 cleared · 1 action lost this turn".into(),
+        }
     );
 }
 
@@ -431,7 +438,14 @@ fn applying_stunned_mid_turn_previews_and_commits_the_same_remaining_loss_once()
     assert_eq!(r.reactions_remaining, Some(1));
     assert_eq!(
         r.start_results,
-        ["Stunned 2 cleared · 2 actions lost this turn"]
+        [TurnResourceResultView {
+            condition_name: "Stunned".into(),
+            condition_ref: super::conditions::ConditionRule::Stunned
+                .definition()
+                .record_key
+                .into(),
+            outcome: "2 cleared · 2 actions lost this turn".into(),
+        }]
     );
 }
 #[test]

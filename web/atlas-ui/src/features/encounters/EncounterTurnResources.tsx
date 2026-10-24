@@ -9,6 +9,8 @@ import type {
 import { RuntimeCount } from "../../shared/records/ActorReference";
 import { RuntimeCountCalculation } from "../../shared/records/RuntimeCountCalculation";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
+import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
+import type { RecordReferenceHandler } from "../../shared/records/PreparedContent";
 
 export type TurnResourceHandler = (action: TurnResourceAction) => Promise<void>;
 export function EncounterTurnResources({
@@ -16,11 +18,13 @@ export function EncounterTurnResources({
   disabled,
   isCurrent,
   onChange,
+  onReference,
 }: {
   value?: TurnResourcesView;
   disabled: boolean;
   isCurrent: boolean;
   onChange?: TurnResourceHandler;
+  onReference?: RecordReferenceHandler;
 }) {
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
@@ -205,7 +209,19 @@ export function EncounterTurnResources({
       )}
       {value.start_results.map((result, index) => (
         <p className="encounter-turn-resources__result" key={index}>
-          {result}
+          <Button
+            type="link"
+            styles={{ root: { padding: 0, height: "auto", fontSize: "inherit" } }}
+            href={atlasRoutePath({ kind: "record", recordKey: result.condition_ref })}
+            onClick={(event) => {
+              if (!onReference || !shouldHandleAtlasRouteClick(event)) return;
+              event.preventDefault();
+              onReference(result.condition_ref, event.currentTarget);
+            }}
+          >
+            {result.condition_name}
+          </Button>{" "}
+          {result.outcome}
         </p>
       ))}
       {value.regular_total !== null &&
