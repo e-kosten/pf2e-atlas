@@ -9,7 +9,8 @@ pub use event_model::{
     ConditionEventSource, DamageLethality, EncounterBoundaryClaim, EncounterBoundaryKind,
     EncounterEventReceipt, LifecycleCheckPurpose, ParticipantEventChange, PendingConsequence,
     PersistentDamageOutcome, PersistentDamageProtection, PersistentPrecedenceChange,
-    PreparedConditionEvent, SavedHpEventContext, SavedPendingConsequence,
+    PersistentPreparationContext, PreparedConditionEvent, PreparedPersistentRecovery,
+    SavedHpEventContext, SavedPendingConsequence,
 };
 mod condition_parameters;
 pub use condition_parameters::{

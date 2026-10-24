@@ -13,7 +13,9 @@ mod persistent_damage;
 pub use persistent_damage::{
     ApplyPersistentDamageRequest, PersistentDamageGroupInput, PersistentDamageInput,
     PersistentDamageOutcomeView, PersistentDamageProtectionView, PersistentDamageResolutionView,
-    PersistentDamageResultView,
+    PersistentDamageResultView, PersistentRecoveryInput, PreparePersistentDamageRequest,
+    PreparedPersistentDamageGroupView, PreparedPersistentDamageView,
+    PreparedPersistentRecoveryInput,
 };
 pub use persistent_damage::{
     PersistentDamageGroupView, PersistentDamageSourceView, PersistentEpisodeReviewView,
@@ -254,6 +256,9 @@ mod tests {
         RollEncounterStrikeRequest::export_all_to(path).expect("strike request");
         EncounterStrikeRollView::export_all_to(path).expect("strike result");
         fs::create_dir_all(path).expect("binding export directory should be creatable");
+        PreparePersistentDamageRequest::export_all_to(path)
+            .expect("persistent preparation request");
+        PreparedPersistentDamageView::export_all_to(path).expect("persistent preparation result");
         ApplyPersistentDamageRequest::export_all_to(path).expect("persistent damage request");
         PersistentDamageResultView::export_all_to(path).expect("persistent damage result");
         RecoverPersistentDamageRequest::export_all_to(path).expect("persistent recovery request");

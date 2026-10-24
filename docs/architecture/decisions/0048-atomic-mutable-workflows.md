@@ -118,6 +118,14 @@ evaluates and saves each initiative using existing tie-order policy, then stores
 the receipt. Any failure rolls back the whole batch. Source/artifact I/O remains
 outside that transaction. Current turn, HP and spell resources are unchanged.
 
+Persistent damage/recovery preparation uses the same guarded receipt storage with
+an explicit receipt-only write. Its callback can return outcomes only, so it
+cannot change HP, conditions, pending consequences or the encounter revision.
+Independent preparation claims deduplicate per-type rolls, while the ordinary
+damage/recovery claims remain unconsumed until final application. Read-only draft
+previews do not write receipts or roll dice. ADR0055 owns source binding and the
+single final HP/recovery event.
+
 Receipts are retained for the encounter lifetime and cascade on encounter deletion;
 there is no automatic time-based pruning and no recovery guarantee after deletion.
 Consumers refresh independently after a successful receipt. Retrying a lost

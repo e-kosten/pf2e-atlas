@@ -241,3 +241,21 @@
 .encounter-persistent-precedence-label {
   flex: 1;
 }
+
+.encounter-persistent-damage-control {
+  display: grid;
+  gap: var(--space-control);
+}
+.encounter-persistent-damage-control__label {
+  line-height: 22px;
+}
+.encounter-persistent-damage-control__value {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--control-height);
+}
+.encounter-persistent-footer {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-group);
+}

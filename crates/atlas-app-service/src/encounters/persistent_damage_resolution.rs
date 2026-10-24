@@ -81,10 +81,12 @@ impl AtlasAppService {
                 "Persistent damage sources changed; review the groups",
             ));
         }
-        let needs_source = request
-            .groups
-            .iter()
-            .any(|group| matches!(group.damage, PersistentDamageInput::Roll));
+        let needs_source = request.groups.iter().any(|group| {
+            matches!(
+                group.damage,
+                PersistentDamageInput::Roll | PersistentDamageInput::Prepared { .. }
+            )
+        });
         let (record, reference_revision) = if needs_source {
             let record_key = participant.record_key.clone().ok_or_else(|| {
                 AppServiceError::invalid_request(
@@ -109,6 +111,13 @@ impl AtlasAppService {
         } else {
             (None, None)
         };
+        let preparation_context = atlas_local_state::PersistentPreparationContext {
+            participant_key: participant.participant_key.clone(),
+            record_key: participant.record_key.clone(),
+            boundary_key: request.boundary_key.clone(),
+            artifact_generation: request.artifact_generation.clone(),
+        };
+        let mut recorded = std::collections::BTreeMap::new();
         let mut prepared = vec![];
         for group in &groups {
             let input = request
@@ -142,6 +151,46 @@ impl AtlasAppService {
                         .map_err(AppServiceError::invalid_request)?,
                     ),
                 ),
+                PersistentDamageInput::Prepared { request_id } => {
+                    let receipt = super::persistent_preparation::receipt_for(
+                        self,
+                        &snapshot.encounter.encounter_key,
+                        &preparation_context,
+                        round,
+                        group.episode_id,
+                        request_id,
+                        atlas_local_state::EncounterBoundaryKind::PreparedPersistentDamage,
+                    )?;
+                    let (saved, _, _) =
+                        super::persistent_preparation::prepared(receipt, &preparation_context)?;
+                    let outcome = saved
+                        .into_iter()
+                        .find(|saved| {
+                            saved.episode_id == group.episode_id
+                                && saved.source_condition_id == source.condition_id
+                                && !saved.table_resolved
+                        })
+                        .ok_or_else(|| {
+                            AppServiceError::invalid_request("Prepared damage source changed")
+                        })?;
+                    let (outcome, hardness) = super::persistent_preparation::revalue(
+                        outcome,
+                        group,
+                        record.as_ref(),
+                        participant,
+                    )?;
+                    let protection = outcome.protection.as_ref().ok_or_else(|| {
+                        AppServiceError::invalid_request("Prepared damage protections unavailable")
+                    })?;
+                    let protection = super::rules::damage::DamageProtection {
+                        immune: protection.immune,
+                        weakness: protection.weakness,
+                        resistance: protection.resistance,
+                        hardness,
+                    };
+                    recorded.insert(group.episode_id.to_owned(), outcome);
+                    (None, Some(protection))
+                }
                 PersistentDamageInput::TableResult { amount } => {
                     if !(0..=1_000_000_000).contains(amount) {
                         return Err(AppServiceError::invalid_request(
@@ -182,6 +231,9 @@ impl AtlasAppService {
             .iter()
             .try_fold(0_i64, |total, group| match group.damage {
                 PersistentDamageInput::TableResult { amount } => total.checked_add(amount),
+                PersistentDamageInput::Prepared { .. } => recorded
+                    .get(&group.episode_id)
+                    .and_then(|saved| total.checked_add(saved.amount)),
                 PersistentDamageInput::Roll => None,
             })
             .unwrap_or(i64::MAX);
@@ -206,12 +258,87 @@ impl AtlasAppService {
                 "Set current HP before recording this event",
             ));
         }
+        let mut recovery_outcomes = Vec::new();
+        let mut recovery_ids = std::collections::BTreeSet::new();
+        for input in &request.recoveries {
+            let (episode_id, request_id) = match input {
+                atlas_app_model::PersistentRecoveryInput::Clear { episode_id } => {
+                    (episode_id, None)
+                }
+                atlas_app_model::PersistentRecoveryInput::Prepared {
+                    episode_id,
+                    request_id,
+                } => (episode_id, Some(request_id)),
+            };
+            if !recovery_ids.insert(episode_id.as_str()) {
+                return Err(AppServiceError::invalid_request(
+                    "Choose one recovery outcome per damage type",
+                ));
+            }
+            let group = groups
+                .iter()
+                .find(|g| g.episode_id == episode_id)
+                .ok_or_else(|| AppServiceError::invalid_request("Recovery source changed"))?;
+            let result = if let Some(id) = request_id {
+                let receipt = super::persistent_preparation::receipt_for(
+                    self,
+                    &snapshot.encounter.encounter_key,
+                    &preparation_context,
+                    round,
+                    episode_id,
+                    id,
+                    atlas_local_state::EncounterBoundaryKind::PreparedPersistentRecovery,
+                )?;
+                let (_, _, recovery) =
+                    super::persistent_preparation::prepared(receipt, &preparation_context)?;
+                let recovery = recovery
+                    .filter(|r| r.episode_id == *episode_id)
+                    .ok_or_else(|| {
+                        AppServiceError::invalid_request("Recovery result is unavailable")
+                    })?;
+                (Some(recovery.dc), recovery.roll, recovery.success)
+            } else {
+                (None, None, true)
+            };
+            recovery_outcomes.push((group, result));
+        }
+        for group in &groups {
+            if !recovery_ids.contains(group.episode_id)
+                && self.with_state(|session| {
+                    Ok(session.local_state().encounters().boundary_claimed(
+                        &snapshot.encounter.encounter_key,
+                        &super::persistent_damage::boundary_claim(
+                            participant,
+                            round,
+                            atlas_local_state::EncounterBoundaryKind::PreparedPersistentRecovery,
+                            &super::persistent_preparation::scope(
+                                request.boundary_key.as_deref(),
+                                group.episode_id,
+                            ),
+                        ),
+                    )?)
+                })?
+            {
+                return Err(AppServiceError::invalid_request(
+                    "Review the prepared recovery before applying damage",
+                ));
+            }
+        }
         let claim = super::persistent_damage::boundary_claim(
             participant,
             round,
             atlas_local_state::EncounterBoundaryKind::PersistentDamage,
             "",
         );
+        let mut claims = vec![claim];
+        claims.extend(recovery_outcomes.iter().map(|(group, _)| {
+            super::persistent_damage::boundary_claim(
+                participant,
+                round,
+                atlas_local_state::EncounterBoundaryKind::PersistentRecovery,
+                group.episode_id,
+            )
+        }));
         let receipt = EncounterEvent {
             encounter_key: &snapshot.encounter.encounter_key,
             request_id: &request.request_id,
@@ -223,18 +350,32 @@ impl AtlasAppService {
         .evaluate(
             self,
             atlas_local_state::ConditionEventBoundary {
-                claims: &[claim],
+                claims: &claims,
                 outgoing_boundary_key: request.boundary_key.as_deref(),
             },
             || {
                 let mut outcomes = vec![];
                 let mut total = 0i64;
                 for (group, input, selected, multiplier, roll, protection) in prepared {
+                    if let Some(saved) = recorded.remove(group.episode_id) {
+                        total = total.checked_add(saved.amount).ok_or_else(|| {
+                            atlas_local_state::LocalStateError::InvalidRollRequest(
+                                "Damage total is too large",
+                            )
+                        })?;
+                        outcomes.push(saved);
+                        continue;
+                    }
                     let rolled = roll
                         .map(|roll| roll.roll())
                         .transpose()
                         .map_err(atlas_local_state::LocalStateError::from)?;
                     let amount = match &input.damage {
+                        PersistentDamageInput::Prepared { .. } => {
+                            return Err(atlas_local_state::LocalStateError::InvalidRollRequest(
+                                "Prepared damage is unavailable",
+                            ));
+                        }
                         PersistentDamageInput::TableResult { amount } => *amount,
                         PersistentDamageInput::Roll => {
                             let roll = rolled.as_ref().ok_or_else(|| {
@@ -291,6 +432,27 @@ impl AtlasAppService {
                         "Persistent damage could not be applied",
                     )
                 })?;
+                for (group, (dc, roll, success)) in recovery_outcomes {
+                    if success {
+                        changes
+                            .condition_changes
+                            .extend(group.sources.iter().map(|source| {
+                                atlas_local_state::ConditionEventChange::Remove {
+                                    participant_key: participant.participant_key.clone(),
+                                    condition_id: source.condition_id,
+                                }
+                            }));
+                    }
+                    changes
+                        .outcomes
+                        .push(ConditionEventOutcome::PersistentRecovery {
+                            episode_id: group.episode_id.into(),
+                            damage_type: group.damage_type.into(),
+                            dc,
+                            roll,
+                            success,
+                        });
+                }
                 changes
                     .outcomes
                     .push(ConditionEventOutcome::PersistentDamage {
@@ -319,24 +481,7 @@ pub(super) fn damage_view(
                 hardness_absorbed,
                 ..
             } => Some((
-                groups
-                    .into_iter()
-                    .map(|group| PersistentDamageOutcomeView {
-                        episode_id: group.episode_id,
-                        damage_type: group.damage_type,
-                        source_condition_id: group.source_condition_id,
-                        roll: group.roll,
-                        amount: group.amount,
-                        table_resolved: group.table_resolved,
-                        protection: group.protection.map(|p| {
-                            atlas_app_model::PersistentDamageProtectionView {
-                                immune: p.immune,
-                                weakness: p.weakness,
-                                resistance: p.resistance,
-                            }
-                        }),
-                    })
-                    .collect(),
+                groups.into_iter().map(outcome_view).collect(),
                 total,
                 hardness_absorbed,
             )),
@@ -350,4 +495,24 @@ pub(super) fn damage_view(
         total,
         hardness_absorbed,
     })
+}
+
+pub(super) fn outcome_view(
+    group: atlas_local_state::PersistentDamageOutcome,
+) -> PersistentDamageOutcomeView {
+    PersistentDamageOutcomeView {
+        episode_id: group.episode_id,
+        damage_type: group.damage_type,
+        source_condition_id: group.source_condition_id,
+        roll: group.roll,
+        amount: group.amount,
+        table_resolved: group.table_resolved,
+        protection: group
+            .protection
+            .map(|p| atlas_app_model::PersistentDamageProtectionView {
+                immune: p.immune,
+                weakness: p.weakness,
+                resistance: p.resistance,
+            }),
+    }
 }

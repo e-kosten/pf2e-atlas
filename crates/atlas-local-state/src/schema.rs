@@ -10,3 +10,6 @@ pub const HAZARD_PARTICIPATION_SCHEMA_SQL: &str = include_str!("hazard_participa
 
 /// Conditions, their gameplay events, and current-turn reminders.
 pub const CONDITION_SYSTEM_SCHEMA_SQL: &str = include_str!("condition_system.sql");
+
+/// Receipt-only persistent damage/recovery preparation claims.
+pub const PERSISTENT_PREPARATION_SCHEMA_SQL: &str = include_str!("persistent_preparation.sql");

@@ -30,6 +30,7 @@ export function EncounterPersistentRecovery({
   onResult,
   onOpenChange,
   recordedResult,
+  resultPending = false,
 }: {
   group: PersistentDamageGroupView;
   mode: "end_turn" | "explicit";
@@ -49,6 +50,7 @@ export function EncounterPersistentRecovery({
     request: Omit<RecoverPersistentDamageRequest, "request_id">,
   ) => Promise<PersistentRecoveryResultView>;
   recordedResult?: PersistentRecoveryResultView;
+  resultPending?: boolean;
   onResult?: (result: PersistentRecoveryResultView) => void;
   onOpenChange?: (open: boolean) => void;
 }) {
@@ -177,7 +179,7 @@ export function EncounterPersistentRecovery({
                   loading={pending || dice.busy}
                   onClick={() => void run()}
                 >
-                  {result && !result.success ? "Reroll" : "Roll"}
+                  {result && !result.success && mode === "explicit" ? "Reroll" : "Roll"}
                 </Button>
               </div>
               {!rollAvailable && rollUnavailableReason && (
@@ -191,7 +193,11 @@ export function EncounterPersistentRecovery({
                 )}
                 {!dice.animating && (
                   <p>
-                    {result.success ? "Recovered" : "Still active"}
+                    {result.success
+                      ? resultPending
+                        ? "Clears after Apply"
+                        : "Recovered"
+                      : "Still active"}
                     {result.dc == null ? "" : ` · DC ${result.dc}`}
                   </p>
                 )}

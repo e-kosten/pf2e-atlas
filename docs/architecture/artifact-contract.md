@@ -31,6 +31,11 @@ catalog have separate version identities. `artifact_context` contains the typed,
 hashed active build context. SQLite `user_version` instead tracks the shared
 physical migration ledger composed by runtime.
 The source artifact format is not the workspace schema version.
+Workspace migration 11 expands encounter boundary claims to admit receipt-only
+persistent-damage/recovery preparation. It copies every existing claim into the
+replacement constrained table. Reference rows, saved conditions, HP and prior
+receipts remain unchanged; preparation outcomes use the existing versioned receipt
+envelope.
 
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,

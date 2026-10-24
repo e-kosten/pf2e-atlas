@@ -208,6 +208,11 @@ pub(crate) trait AtlasWebService: Send + Sync {
         encounter_ref: &str,
         request: atlas_app_model::ResolveEncounterHpLifecycleRequest,
     ) -> Result<EncounterMutationView, AppServiceError>;
+    fn prepare_persistent_damage(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreparePersistentDamageRequest,
+    ) -> Result<atlas_app_model::PreparedPersistentDamageView, AppServiceError>;
     fn apply_persistent_damage(
         &self,
         encounter_ref: &str,
@@ -624,6 +629,13 @@ impl AtlasWebService for AtlasAppService {
         request: atlas_app_model::ResolveEncounterHpLifecycleRequest,
     ) -> Result<EncounterMutationView, AppServiceError> {
         self.resolve_encounter_hp_lifecycle(encounter_ref, request)
+    }
+    fn prepare_persistent_damage(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreparePersistentDamageRequest,
+    ) -> Result<atlas_app_model::PreparedPersistentDamageView, AppServiceError> {
+        self.prepare_persistent_damage(encounter_ref, request)
     }
     fn apply_persistent_damage(
         &self,

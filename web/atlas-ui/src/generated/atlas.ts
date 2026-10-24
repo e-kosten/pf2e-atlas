@@ -353,3 +353,11 @@ export type { ObjectDefensesReferenceView } from "../../../../crates/atlas-app-m
 export type { ReferenceGrantView } from "../../../../crates/atlas-app-model/bindings/ReferenceGrantView";
 export type { VehicleReferenceView } from "../../../../crates/atlas-app-model/bindings/VehicleReferenceView";
 export type { HeritageReferenceView } from "../../../../crates/atlas-app-model/bindings/HeritageReferenceView";
+export type { PreparePersistentDamageRequest } from "../../../../crates/atlas-app-model/bindings/PreparePersistentDamageRequest";
+export type { PreparedPersistentDamageView } from "../../../../crates/atlas-app-model/bindings/PreparedPersistentDamageView";
+export type { PreparedPersistentRecoveryInput } from "../../../../crates/atlas-app-model/bindings/PreparedPersistentRecoveryInput";
+export type { PreparedPersistentDamageGroupView } from "../../../../crates/atlas-app-model/bindings/PreparedPersistentDamageGroupView";
+export type { PersistentRecoveryInput } from "../../../../crates/atlas-app-model/bindings/PersistentRecoveryInput";
+export type { PersistentDamageGroupInput } from "../../../../crates/atlas-app-model/bindings/PersistentDamageGroupInput";
+export type { PersistentDamageOutcomeView } from "../../../../crates/atlas-app-model/bindings/PersistentDamageOutcomeView";
+export type { PersistentEpisodeReviewView } from "../../../../crates/atlas-app-model/bindings/PersistentEpisodeReviewView";

@@ -1324,15 +1324,24 @@ Persistent damage and recovery render the backend's ordered sources and active
 source; source comparisons are edited only in Add/Edit precedence. Do not add
 another source-selection form to damage or recovery.
 Persistent damage uses one roll/table-results selector above its damage types and
-one submission below them. Manual mode shows an amount for each type; the action
-reads Apply damage until valid amounts are present, then includes their entered
-total. Roll mode uses Roll & apply damage. The action's hover/focus tooltip explains
-that all types resolve together and damage-triggered effects occur once. Keep
-canonical Hardness, dying and receipt handling in the existing Rust command;
-do not implement per-type HP writes to make the rows look independent. Recovery
-and Clear effect remain per-type actions because they end individual effects.
-If a supplied protection requires table resolution, the shared selector uses
-table results and the affected type retains its specific server-provided reason.
+one Apply submission below them. Each type owns one labeled damage-control row:
+inline Roll/result or manual amount. Both methods use the same normal control
+height and label spacing so switching does not insert or remove a form section.
+Manual drafts and prepared dice survive method switches.
+
+Resolve each type's damage before optionally preparing its recovery. Successful
+recovery and Clear effect show Clears after Apply; their damage remains in this
+turn's total. Recovery is optional, and can also follow damage application. Show
+an explicitly partial subtotal until all damage types are ready; the complete
+Apply N damage uses the Rust preview total. Its hover/focus tooltip explains the
+single simultaneous damage event. The final command applies HP consequences once,
+then queued recoveries, atomically. Do not simulate prepared rolls as table totals
+or write HP per row. Rust owns IWR, shared Hardness, Dying, source/generation guards
+and durable roll receipts. Retain a prepared raw roll when only protections change;
+recalculate protections in Rust rather than rerolling. Changed formulas or active
+sources need review and an explicit table result, not reuse of unrelated dice.
+If a supplied protection requires table resolution, the shared selector uses table
+results and the affected type retains its specific server-provided reason.
 Recovery uses an anchored DC reminder and Roll; render its outcome in that popover,
 including after successful condition removal. Table recovery uses Clear effect.
 Support built-in rollers and physical dice equally: adjacent Roll recovery and
