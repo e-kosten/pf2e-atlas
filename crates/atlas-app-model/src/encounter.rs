@@ -91,6 +91,14 @@ pub struct EncounterTurnReviewView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EncounterTurnReminderView {
+    /// Confirmed current-state or boundary-receipt result for a retained reminder.
+    Resolved {
+        participant_key: String,
+        participant_name: String,
+        condition_id: i64,
+        condition_name: String,
+        result: String,
+    },
     ConditionRecovery {
         participant_key: String,
         participant_name: String,

@@ -152,7 +152,12 @@ it("offers direct removal beside an expired condition and retains its notice aft
         ]}
         data={{
           ...props.data,
-          outgoing: { ...props.data.outgoing!, reminders: [reminder] },
+          outgoing: {
+            ...props.data.outgoing!,
+            reminders: present
+              ? [reminder]
+              : [{ ...reminder, kind: "resolved", result: "Removed" }],
+          },
         }}
       />
     </ConfigProvider>
@@ -161,12 +166,17 @@ it("offers direct removal beside an expired condition and retains its notice aft
   const remove = screen.getByRole("button", { name: "Remove Blinded from Latest" });
   expect(remove).toHaveTextContent("Remove condition");
   expect(screen.getByText("Duration ended")).toBeVisible();
+  remove.focus();
   fireEvent.click(remove);
   expect(onRemove).toHaveBeenCalledExactlyOnceWith(reminder, "latest");
   view.rerender(renderNotice(true, true));
   expect(remove).toBeDisabled();
   view.rerender(renderNotice(false));
-  expect(screen.getByText("Duration ended")).toBeVisible();
-  expect(remove).toHaveTextContent("Removed");
-  expect(remove).toBeDisabled();
+  expect(screen.queryByText("Duration ended")).toBeNull();
+  expect(screen.getByRole("status")).toHaveTextContent("Removed");
+  expect(screen.getByRole("status")).toHaveFocus();
+  expect(screen.getByText("Blinded")).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Remove Blinded from Latest" }),
+  ).toBeNull();
 });

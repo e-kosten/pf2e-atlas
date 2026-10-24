@@ -41,17 +41,23 @@ export function RollResult({
 export function UnrolledRoll({
   expression,
   formula,
+  pending = false,
   children,
 }: {
   expression: RollPreviewExpression;
   formula: string;
+  pending?: boolean;
   children: ReactNode;
 }) {
   return (
-    <span className="atlas-roll" role="group" aria-label={`Unrolled ${formula}`}>
+    <span
+      className="atlas-roll"
+      role={pending ? "status" : "group"}
+      aria-label={`${pending ? "Rolling" : "Unrolled"} ${formula}`}
+    >
       <Expression
         value={expression}
-        pending={false}
+        pending={pending}
         drawing={diceAppearance.drawing}
         motion={diceAppearance.motion}
       />

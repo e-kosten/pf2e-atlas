@@ -1330,15 +1330,17 @@ validated expression supplied by Rust before rolling, with blank dice and visibl
 arithmetic; never parse the formula in the browser or fabricate a RollOutcome.
 Keep a common footprint for the formula, action/loading state and result. Table
 inputs retain that formula's natural footprint, not an arbitrary large empty area.
-Use one card inset and control-sized internal gaps; put type/formula beside its
-damage row when they fit, stacking naturally on phones. Keep normal action sizes.
+Use one card inset and control-sized internal gaps. Each type has three rows:
+identity/formula, Damage, then recovery. Keep related controls together when they
+wrap and retain normal action sizes.
 Manual drafts and prepared dice survive method switches.
 
 Resolve each type's damage before optionally preparing its recovery. Successful
 recovery and Clear effect show Clears after Apply; their damage remains in this
 turn's total. Recovery is optional, and can also follow damage application. Show
-an explicitly partial subtotal until all damage types are ready; the complete
-Apply N damage uses the Rust preview total. Its hover/focus tooltip explains the
+the running Rust preview total as Total: N damage, adding named missing types:
+Fire, Acid not rolled in Atlas mode, or not entered in table mode. Omit the missing
+context once complete. Apply N damage uses that same authoritative total. Its hover/focus tooltip explains the
 single simultaneous damage event. The final command applies HP consequences once,
 then queued recoveries, atomically. Do not simulate prepared rolls as table totals
 or write HP per row. Rust owns IWR, shared Hardness, Dying, source/generation guards
@@ -1347,8 +1349,17 @@ recalculate protections in Rust rather than rerolling. Changed formulas or activ
 sources need review and an explicit table result, not reuse of unrelated dice.
 If a supplied protection requires table resolution, the shared selector uses table
 results and the affected type retains its specific server-provided reason.
-Recovery uses an anchored DC reminder and Roll; render its outcome in that popover,
-including after successful condition removal. Table recovery uses Clear effect.
+Completed reminders retain their identity and confirmed result, replacing obsolete
+instructions and actions. Removed conditions show Removed from the canonical
+boundary projection, not from a click or an optimistic assumption. Retain results
+through refreshes within that boundary; advancing again supersedes them. Return
+keyboard focus to the result when its initiating action disappears, without moving
+focus from another task. Failed actions retain their available retry path.
+Damage applied and effect ended are separate facts: an active persistent effect
+keeps its permitted recovery/Clear actions after Apply, using the fresh revision.
+Recovery uses an anchored DC reminder and Roll; a recorded end-turn check becomes
+Recovery result with its actual outcome in the popover, including after successful
+condition removal. A completed check does not retain a disabled entry form. Table recovery uses Clear effect.
 Support built-in rollers and physical dice equally: adjacent Roll recovery and
 Clear effect actions use normal-size buttons with the same outlined emphasis. A table outcome
 does not require a DC, a raw die result, or invented roll history. Do not demote

@@ -110,3 +110,28 @@ it("uses the edited DC and keeps the previous result's DC when preparing another
   });
   expect(screen.getByText("Still active · DC 10")).toBeVisible();
 });
+
+it("presents a recorded end-turn check as a result without asserting the effect is still active", async () => {
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterPersistentRecovery
+        group={group}
+        mode="end_turn"
+        available={false}
+        recordedResult={{ ...receipt, success: false }}
+        participantKey="actor"
+        encounterRevision={12n}
+        disabled={false}
+        pending={false}
+        damageType="Fire"
+        onRecover={vi.fn()}
+      />
+    </ConfigProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "View Fire recovery" }));
+  await waitFor(() =>
+    expect(screen.getByText("Recovery failed · DC 15")).toBeVisible(),
+  );
+  expect(screen.queryByRole("spinbutton", { name: "Recovery DC" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Roll" })).toBeNull();
+});
