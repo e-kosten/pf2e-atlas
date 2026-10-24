@@ -7,25 +7,45 @@ and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
 ## Final creature/encounter validation references
 
-Candidate `385ea64455bec02f8fce82eac76be598fd13e2d1` adds the reviewed
-recovery-result focus repair after integrating main/PR106. The final macOS capture
-uses Playwright 1.62.1 on arm64 and the same four projects. It deliberately dismisses
-passive hints before the source/fallback checkpoints; exact pixel comparison stays
-enabled. Source facts, returned focus and all existing interaction/geometry checks
-remain visible and asserted.
+The current references use the human-accepted creature/encounter direction plus
+reviewed recovery focus and plain Actions-label refinements. An unmodified
+three-action allowance has no explanation control; modified/uncertain allowances
+keep their calculation without duplicate spending fields or current-turn captions.
+Passive hints are deliberately dismissed before the source/fallback checkpoints.
+Exact pixel comparison remains enabled.
 
+macOS arm64, Playwright 1.62.1: captured on source
+`ae5d763f1ca4ba9396e54612e1c7a26b478b3faa` using the four maintained projects.
 All 12 capture scenarios and the subsequent ordinary 12-scenario/40-frame comparison
-pass. Eleven macOS frames change from the initial creature set below: the parent
-directly reviewed six desktop/tablet pairs, independent Astra reviewed five phone
-pairs, and 29 frames remain byte-identical. Differences remove transient tooltips,
-retain returned focus outlines and adopt the shared recovery status track. Review
-hashes and paired images are retained under
-`scratch/review/creature-final-visuals/r23` and
-`scratch/review/creature-final-astra/r23-mac-phone-hashes.json`.
-The separate 16-case recovery matrix checks keyboard Enter, result focus, innermost
-Escape, canonical HP/receipts and unchanged 1px anchor tolerances on all four projects.
-Independent actual Chromium/WebKit follow-up also verifies deliberately moved focus
-is not stolen. These are browser/device emulation, not physical-device certification.
+pass. Thirteen frames change from the preceding `0af3421d` set: parent directly
+reviewed nine desktop/tablet pairs, independent Astra reviewed four phone pairs;
+27 frames remain byte-identical to their previous reviewed references. Review
+hashes and pair evidence are under `scratch/review/creature-final-visuals/r24`
+and `scratch/review/creature-final-astra/r24-final-mac-phone-hashes.json`.
+
+Linux x64, Ubuntu 24.04, Playwright 1.62.1: [capture 40142986865](https://github.com/e-kosten/pf2e-atlas/actions/runs/40142986865)
+passed all 12 scenarios using the authenticated fixture from CI 40142708941,
+merge commit `3137c52698ea14989b10dd955ec81c10f02afdd7` (tree identical to the
+source head above). Binary SHA-256:
+`9d70295cbf9983bad2a6d0be3b0ead2fa59aa4410f6f828857a9b7fc77817c5d`;
+frontend index SHA-256:
+`77a45203124dffbb6637e5f49a0ef219ca0d339a8cbd5a94f13142502801f942`.
+Parent reviewed ten changed desktop/tablet pairs; ten other desktop/tablet frames
+are byte-identical to the independently retained 751366ab capture review.
+Independent Astra reviewed twelve phone pairs, including all four previously
+excluded source/fallback frames; eight other phone frames reuse verified hashes
+from the prior 751366ab approval. All 40 final Linux references are reviewed.
+Candidate hashes
+and evidence are under `scratch/review/creature-final-visuals/r24/linux` and
+`scratch/review/creature-final-astra`.
+
+The later Stunned rules link does not appear in these 40 checkpoint states. It has
+separate actual Chromium/WebKit navigation, native-link and focus-return review;
+final CI must compare its candidate against these references without updates.
+The 16-case recovery matrix also checks keyboard Enter, result focus, innermost
+Escape, canonical HP/receipts, base-action visibility and unchanged 1px anchor
+tolerances on all four projects. These are browser/device emulation, not physical
+device certification. Capture/review and ordinary comparison are separate evidence.
 
 ## Initial creature/encounter reference provenance
 
