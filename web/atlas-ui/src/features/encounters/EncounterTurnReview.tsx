@@ -195,33 +195,45 @@ export function EncounterTurnReview({
               ),
           )
           .map((reminder) => {
+            const removable =
+              reminder.kind === "duration_ending" ||
+              reminder.kind === "duration_ended" ||
+              reminder.kind === "persistent_damage";
+            const present = participants.some(
+              (participant) =>
+                participant.participant_key === reminder.participant_key &&
+                participant.conditions.some(
+                  (condition) => condition.condition_id === reminder.condition_id,
+                ),
+            );
             return (
               <section
                 key={`${reminder.kind}:${reminder.participant_key}:${reminder.condition_id}`}
-                className="encounter-turn-reminder"
+                className="encounter-turn-reminder encounter-turn-reminder--condition"
               >
                 <div className="encounter-turn-reminder__heading">
                   <h3>
-                    {reminder.participant_name}: {reminder.condition_name}
+                    {reminder.participant_key !== outgoing?.participant_key &&
+                      `${reminder.participant_name}: `}
+                    {reminder.condition_name}
                   </h3>
-                  {(reminder.kind === "duration_ending" ||
-                    reminder.kind === "duration_ended" ||
-                    reminder.kind === "persistent_damage") && (
-                    <Button
-                      disabled={disabled || loading || !!error}
-                      size="small"
-                      type="text"
-                      icon={<DeleteOutlined />}
-                      aria-label={`Remove ${reminder.condition_name} from ${reminder.participant_name}`}
-                      onClick={() => {
-                        void onRemove(reminder, outgoing!.boundary_key).catch(() => {
-                          // The mutation owner shows the failure and retains retry state.
-                        });
-                      }}
-                    />
-                  )}
                 </div>
                 <p>{reminderText(reminder, participants)}</p>
+                {removable && (
+                  <Button
+                    style={{ justifySelf: "start" }}
+                    disabled={disabled || pending || loading || !!error || !present}
+                    icon={<DeleteOutlined />}
+                    aria-label={`Remove ${reminder.condition_name} from ${reminder.participant_name}`}
+                    onClick={() => {
+                      void onRemove(reminder, outgoing!.boundary_key).catch(() => {
+                        // The mutation owner shows the failure and retains retry state.
+                      });
+                    }}
+                  >
+                    {present ? "Remove condition" : "Removed"}
+                  </Button>
+                )}
               </section>
             );
           })}

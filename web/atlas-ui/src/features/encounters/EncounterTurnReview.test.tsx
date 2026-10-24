@@ -2,6 +2,7 @@ import { ConfigProvider } from "antd";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { EncounterTurnReview } from "./EncounterTurnReview";
 import type { EncounterTurnReviewView } from "../../generated/atlas";
+import { encounterParticipant } from "./encounterTestFixtures";
 function outgoing(boundary_key: string, participant_name: string) {
   return {
     participant_removed: false,
@@ -113,4 +114,59 @@ it("keeps removed participants' original identity and sources accessible without
   ).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   expect(onHandled).not.toHaveBeenCalled();
+});
+
+it("offers direct removal beside an expired condition and retains its notice after removal", () => {
+  const { props, view } = setup();
+  const reminder = {
+    kind: "duration_ended" as const,
+    participant_key: "latest",
+    participant_name: "Latest",
+    condition_id: 5n,
+    condition_name: "Blinded",
+  };
+  const onRemove = vi.fn().mockResolvedValue(undefined);
+  const participant = encounterParticipant({
+    participant_key: "latest",
+    conditions: [
+      {
+        condition_id: 5n,
+        name: "Blinded",
+        scope: { kind: "everyone" },
+        extra_action: { kind: "unspecified" },
+        immunity_override: false,
+        parameters: { kind: "none" },
+        created_at: "",
+        updated_at: "",
+      },
+    ],
+  });
+  const renderNotice = (present: boolean, pending = false) => (
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnReview
+        {...props}
+        onRemove={onRemove}
+        pending={pending}
+        participants={[
+          { ...participant, conditions: present ? participant.conditions : [] },
+        ]}
+        data={{
+          ...props.data,
+          outgoing: { ...props.data.outgoing!, reminders: [reminder] },
+        }}
+      />
+    </ConfigProvider>
+  );
+  view.rerender(renderNotice(true));
+  const remove = screen.getByRole("button", { name: "Remove Blinded from Latest" });
+  expect(remove).toHaveTextContent("Remove condition");
+  expect(screen.getByText("Duration ended")).toBeVisible();
+  fireEvent.click(remove);
+  expect(onRemove).toHaveBeenCalledExactlyOnceWith(reminder, "latest");
+  view.rerender(renderNotice(true, true));
+  expect(remove).toBeDisabled();
+  view.rerender(renderNotice(false));
+  expect(screen.getByText("Duration ended")).toBeVisible();
+  expect(remove).toHaveTextContent("Removed");
+  expect(remove).toBeDisabled();
 });

@@ -469,7 +469,7 @@ fn condition_effect_hint(
         ConditionRule::Fatigued => Some("Can't use exploration activities while traveling."),
         ConditionRule::Fascinated => return Some(fascination_hint(None)),
         ConditionRule::Fleeing => Some("Spend your actions escaping the source. Can't Delay or Ready."),
-        ConditionRule::Confused => Some("Strikes or offensive cantrips; GM chooses random targets. The GM can permit other actions to enable an attack."),
+        ConditionRule::Confused => Some("Randomly attacks with Strikes or offensive cantrips."),
         ConditionRule::Immobilized if !applied => {
             Some("Cannot use move actions.")
         }

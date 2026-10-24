@@ -661,8 +661,10 @@ fn confusion_guidance_stays_with_its_condition_without_hiding_casting_checks() {
         .find(|note| note.condition_id == Some(confused))
         .unwrap();
     assert_eq!(note.label, "Confused");
-    assert!(note.reason.contains("Strikes or offensive cantrips"));
-    assert!(note.reason.contains("GM chooses random targets"));
+    assert_eq!(
+        note.reason,
+        "Randomly attacks with Strikes or offensive cantrips."
+    );
 }
 
 #[test]
