@@ -21,10 +21,16 @@ import {
   ActorActivities,
   ActorActivity,
   ActorFacts,
+  ActorCombatBudget,
   ActorSecondaryFacts,
   Iwr,
 } from "./ActorReference";
-import { FactLine, factText, isEmptyFactValue } from "./presentationFacts";
+import {
+  FactLine,
+  factText,
+  hasReadingFact,
+  isEmptyFactValue,
+} from "./presentationFacts";
 import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent";
 import { SpellReference } from "./SpellReference";
 import { PhysicalReference } from "./PhysicalReference";
@@ -517,15 +523,29 @@ export function RecordPresentation({
               onReference={onReference}
             />
           )}
-          {body.value.defense_block.value !== false && (
+          {(body.value.defense_block.value !== false ||
+            body.value.show_saves ||
+            [
+              body.value.actor.immunities,
+              body.value.actor.weaknesses,
+              body.value.actor.resistances,
+              ...Object.values(body.value.actor.defense_notes),
+            ].some(
+              (fact) => fact.state !== "missing" && hasReadingFact<unknown>(fact),
+            )) && (
             <section className="reference-profile__section">
               <h3>Defenses</h3>
               <div className="reference-profile__groups">
-                <div className="reference-profile__facts">
-                  <ReferenceFact label="AC" fact={body.value.actor.armor_class} />
-                  <ReferenceFact label="HP" fact={body.value.actor.maximum_hp} />
-                  <ReferenceFact label="Hardness" fact={body.value.hardness} />
-                </div>
+                {body.value.defense_block.state !== "value" && (
+                  <FactLine label="Defense block" fact={body.value.defense_block} />
+                )}
+                {body.value.defense_block.value !== false && (
+                  <div className="reference-profile__facts">
+                    <ReferenceFact label="AC" fact={body.value.actor.armor_class} />
+                    <ReferenceFact label="HP" fact={body.value.actor.maximum_hp} />
+                    <ReferenceFact label="Hardness" fact={body.value.hardness} />
+                  </div>
+                )}
                 {body.value.show_saves && (
                   <div className="reference-profile__facts">
                     {(["fortitude", "reflex", "will"] as const).map((save) => (
@@ -567,6 +587,7 @@ export function RecordPresentation({
               </div>
             </section>
           )}
+          {encounter && <ActorCombatBudget actor={body.value.actor} />}
         </>
       )}
       {body.kind === "activity" && (

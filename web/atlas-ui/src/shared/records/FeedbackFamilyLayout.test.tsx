@@ -147,6 +147,15 @@ it("omits the service-selected empty hazard defense block without hiding IWR", (
     <RecordPresentation presentation={detail.presentation} onReference={vi.fn()} />,
   );
   expect(screen.getByText("mental")).toBeVisible();
+  actor.immunities = knownFact([]);
+  actor.defense_notes.hit_points = knownFact(
+    "Cannot be damaged while the ward is active.",
+  );
+  rerender(
+    <RecordPresentation presentation={detail.presentation} onReference={vi.fn()} />,
+  );
+  expect(screen.getByText("Cannot be damaged while the ward is active.")).toBeVisible();
+  expect(screen.queryByText("AC")).toBeNull();
 });
 
 it("renders selected casting membership with parent context, ranks and exact customized navigation", () => {
