@@ -183,18 +183,42 @@ fn casting_advisories(
                 .unwrap_or_else(|| "the named subject".into()),
             ConditionSubjectView::Other { description } => description.clone(),
         });
-        let reason=match rule {
-            Some(R::Grabbed) if check.is_none()=>Some("Manipulate actions require a DC 5 flat check.".into()),
-            Some(R::Deafened) if check.is_none()=>Some("Auditory actions require a DC 5 flat check.".into()),
-            Some(R::Restrained)=>Some("Cannot use attack or manipulate actions while Restrained.".into()),
-            Some(R::Paralyzed)=>Some("Only purely mental actions are possible while Paralyzed.".into()),
-            Some(R::Confused)=>Some("Use an offensive cantrip or an action the GM permits to facilitate an attack. The GM selects the target.".into()),
-            Some(R::Controlled)=>Some(issue.instructions.clone().unwrap_or_else(||"The controller chooses your actions.".into())),
-            Some(R::Fascinated)=>Some(format!("Concentrate actions must relate to {}.",subject.as_deref().unwrap_or("the subject of fascination"))),
-            Some(R::Fleeing)=>Some(format!("Actions must help escape {}.",subject.as_deref().unwrap_or("the source of flight"))),
-            Some(R::Stupefied) if unknown_stupefied=>Some("The Stupefied value is missing; the casting flat-check DC is unknown.".into()),
-            _ if issue.kind==EncounterActionIssueKindView::Prohibited=>Some(issue.reason.clone()),
-            _=>None,
+        let reason = match rule {
+            Some(R::Grabbed) if check.is_none() => {
+                Some("Manipulate actions require a DC 5 flat check.".into())
+            }
+            Some(R::Deafened) if check.is_none() => {
+                Some("Auditory actions require a DC 5 flat check.".into())
+            }
+            Some(R::Restrained) => {
+                Some("Cannot use attack or manipulate actions while Restrained.".into())
+            }
+            Some(R::Paralyzed) => {
+                Some("Only purely mental actions are possible while Paralyzed.".into())
+            }
+            // The condition owns this general restriction; it is not spell-specific advice.
+            Some(R::Confused) => None,
+            Some(R::Controlled) => Some(
+                issue
+                    .instructions
+                    .clone()
+                    .unwrap_or_else(|| "The controller chooses your actions.".into()),
+            ),
+            Some(R::Fascinated) => Some(format!(
+                "Concentrate actions must relate to {}.",
+                subject.as_deref().unwrap_or("the subject of fascination")
+            )),
+            Some(R::Fleeing) => Some(format!(
+                "Actions must help escape {}.",
+                subject.as_deref().unwrap_or("the source of flight")
+            )),
+            Some(R::Stupefied) if unknown_stupefied => {
+                Some("The Stupefied value is missing; the casting flat-check DC is unknown.".into())
+            }
+            _ if issue.kind == EncounterActionIssueKindView::Prohibited => {
+                Some(issue.reason.clone())
+            }
+            _ => None,
         };
         if let Some(reason) = reason
             && !notes.iter().any(|note| note.reason == reason)

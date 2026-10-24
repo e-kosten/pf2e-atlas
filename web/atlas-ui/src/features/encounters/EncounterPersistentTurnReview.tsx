@@ -184,7 +184,7 @@ export function EncounterPersistentTurnReview({
                     role="group"
                     aria-label={`${type} recovery`}
                   >
-                    <Space size="small" align="center">
+                    <Space size="small" align="center" wrap>
                       <EncounterPersistentRecovery
                         group={group}
                         recordedResult={review.recovery_results.find(
@@ -220,8 +220,7 @@ export function EncounterPersistentTurnReview({
 
                       <Button
                         size="small"
-                        type="text"
-                        aria-label={`End ${type.toLowerCase()} damage`}
+                        aria-label={`Clear ${type.toLowerCase()} effect`}
                         icon={<X size={14} />}
                         disabled={blocked || pending || ended}
                         onClick={async () => {
@@ -242,12 +241,12 @@ export function EncounterPersistentTurnReview({
                             setClearError(
                               cause instanceof Error
                                 ? cause.message
-                                : "Could not end persistent damage.",
+                                : "Could not clear the effect.",
                             );
                           }
                         }}
                       >
-                        End damage
+                        Clear effect
                       </Button>
                     </Space>
                   </div>

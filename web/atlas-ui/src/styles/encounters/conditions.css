@@ -10,13 +10,14 @@
 }
 
 .encounter-condition-list {
+  container: condition-list / inline-size;
   display: grid;
   gap: 4px;
 }
 
 .encounter-condition-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 4px 8px;
   min-width: 0;
@@ -26,6 +27,7 @@
 
 .encounter-condition-row__name {
   grid-column: 1;
+  grid-row: 1;
   font-weight: 600;
   min-width: 0;
   overflow-wrap: anywhere;
@@ -33,11 +35,41 @@
 }
 
 .encounter-condition-actions {
-  grid-column: 3;
+  grid-column: 2;
   grid-row: 1;
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.encounter-condition-row__value {
+  grid-column: 1;
+  grid-row: 2;
+  width: fit-content;
+}
+
+.encounter-condition-row--valued .encounter-condition-row__name {
+  grid-column: 1 / -1;
+}
+.encounter-condition-row--valued .encounter-condition-actions {
+  grid-row: 2;
+}
+
+@container condition-list (min-width: 20rem) {
+  .encounter-condition-row--valued {
+    grid-template-columns: minmax(8rem, 1fr) auto auto;
+  }
+  .encounter-condition-row--valued .encounter-condition-row__name {
+    grid-column: 1;
+  }
+  .encounter-condition-row__value {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .encounter-condition-row--valued .encounter-condition-actions {
+    grid-column: 3;
+    grid-row: 1;
+  }
 }
 
 .encounter-condition-meta {

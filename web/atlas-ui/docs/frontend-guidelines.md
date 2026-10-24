@@ -1324,7 +1324,18 @@ Persistent damage and recovery render the backend's ordered sources and active
 source; source comparisons are edited only in Add/Edit precedence. Do not add
 another source-selection form to damage or recovery.
 Recovery uses an anchored DC reminder and Roll; render its outcome in that popover,
-including after successful condition removal. Table recovery uses ordinary clear.
+including after successful condition removal. Table recovery uses Clear effect.
+Support built-in rollers and physical dice equally: adjacent Roll recovery and
+Clear effect actions use the same size and outlined emphasis. A table outcome
+does not require a DC, a raw die result, or invented roll history. Do not demote
+the table path to a faint icon or place it behind the built-in roller. This does
+not give every action equal emphasis: Apply damage still submits the displayed
+damage entries, and existing timing and one-attempt guards remain in force.
+Place general guidance at its broadest useful scope; repeat it beside a selected
+action only when it adds a consequence for that task. Confused's attack and
+random-target guidance belongs beside Confused, while Stupefied's casting
+flat-check DC belongs with the selected spell. Do not repeat the Confused
+paragraph on every spell or classify offensive spells in the browser.
 Creature dying settings belong at the bottom, revealing compact fields directly
 when enabled; avoid nested disclosures and additional save forms.
 
@@ -1365,14 +1376,14 @@ the mounted consequence preview while values are recalculated; stale previews
 may remain visible during loading, but must not authorize Apply.
 
 Persistent turn reminders show all sources directly, with the active source first
-and superseded entries muted. Recovery and per-type clear icons share one aligned
+and superseded entries muted. Recovery and per-type Clear effect buttons share one aligned
 action row. Clear records the table outcome without a DC form or dice roll; it
 ends that turn's applicable sources and leaves later sources intact. Table damage
 is labeled Damage taken with an After IWR tooltip. Incomplete persistent entries
 show only supplied details, without an internal Reminder prefix or empty metadata.
 
 Keep persistent turn review organized by damage type: sources, damage entry or
-result, then a labelled Recovery row with adjacent roll/clear icons. Do not
+result, then a labelled Recovery row with equally prominent roll/clear buttons. Do not
 repeat the types in separate damage and recovery lists. Keep receipts and dice
 outcomes with their section/popover rather than adding duplicate modal banners
 or footer rolls. Add/Edit presents a compact Damage precedence list using the shared sortable

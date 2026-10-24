@@ -631,6 +631,41 @@ fn ordinary_cast_advisories_are_grouped_consequences_not_context_questions() {
 }
 
 #[test]
+fn confusion_guidance_stays_with_its_condition_without_hiding_casting_checks() {
+    use super::conditions::ConditionRule;
+    let (fixture, encounter) = casting_reminder_fixture();
+    let confused = add_casting_condition(&fixture, &encounter, ConditionRule::Confused, None);
+    add_casting_condition(&fixture, &encounter, ConditionRule::Stupefied, Some(2));
+    let preview = fixture
+        .worker
+        .encounter_casting_reminders(&encounter, casting_reminder_request(&fixture, &encounter))
+        .unwrap();
+    assert_eq!(preview.advisories.len(), 1);
+    assert_eq!(
+        preview.advisories[0].reason,
+        "DC 7 flat check or the spell is disrupted"
+    );
+
+    let snapshot = fixture.worker.encounter(&encounter).unwrap();
+    let RecordBodyView::Creature(actor) =
+        &snapshot.participants[0].presentation.as_ref().unwrap().body
+    else {
+        panic!("expected creature presentation");
+    };
+    let note = actor
+        .runtime
+        .as_ref()
+        .unwrap()
+        .unapplied_effects
+        .iter()
+        .find(|note| note.condition_id == Some(confused))
+        .unwrap();
+    assert_eq!(note.label, "Confused");
+    assert!(note.reason.contains("Strikes or offensive cantrips"));
+    assert!(note.reason.contains("GM chooses random targets"));
+}
+
+#[test]
 fn casting_advisory_read_survives_last_use_without_weakening_mutation_guards() {
     use super::conditions::ConditionRule;
     let (fixture, encounter) = casting_reminder_fixture();

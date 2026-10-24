@@ -367,7 +367,14 @@ export function EncounterConditionControls({
       (definition?.has_value && !definition.supports_duration_instead_of_value);
     return (
       <div
-        className={`encounter-condition-row${presentation?.superseded || cleared ? " encounter-condition-row--superseded" : ""}`}
+        className={[
+          "encounter-condition-row",
+          hasValue && "encounter-condition-row--valued",
+          (presentation?.superseded || cleared) &&
+            "encounter-condition-row--superseded",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         key={condition.condition_id.toString()}
       >
         {condition.condition_key ? (
@@ -437,7 +444,7 @@ export function EncounterConditionControls({
               </div>
             }
           >
-            <span>
+            <span className="encounter-condition-row__value">
               <EncounterConditionValue
                 key={valueResetEpoch}
                 name={condition.name}

@@ -160,7 +160,7 @@ describe("semantic family presentation", () => {
     expect(onReference).not.toHaveBeenCalled();
   });
 
-  it("offers reference navigation separately from the customized item", () => {
+  it("keeps general-entry lookup secondary to the customized item with native navigation", async () => {
     const onReference = vi.fn();
     const detail = detailFixture(
       "actors:caster",
@@ -173,6 +173,7 @@ describe("semantic family presentation", () => {
       origin: "structured",
       kind: "CompendiumProvenance",
       status: "resolved_record",
+      target_title: "Staff",
     };
     const view = (available = true) => (
       <RecordPresentation
@@ -189,7 +190,10 @@ describe("semantic family presentation", () => {
     );
     const { rerender } = render(view());
     expect(screen.getByRole("heading", { name: "Customized staff" })).toBeVisible();
-    const original = screen.getByRole("link", { name: "View reference entry" });
+    expect(screen.queryByRole("link", { name: "General entry: Staff" })).toBeNull();
+    const info = screen.getByRole("button", { name: "Record information" });
+    fireEvent.click(info);
+    const original = await screen.findByRole("link", { name: "General entry: Staff" });
     const destination = new URL(original.getAttribute("href")!, window.location.origin);
     expect(destination.pathname).toBe("/records/equipment:catalog-staff");
     expect(JSON.parse(destination.searchParams.get("selection")!)).toEqual(
@@ -198,14 +202,24 @@ describe("semantic family presentation", () => {
     fireEvent.click(original);
     expect(onReference).toHaveBeenCalledWith(
       "equipment:catalog-staff",
-      original,
+      info,
       relationship.target,
     );
     onReference.mockClear();
+    fireEvent.click(info);
+    await screen.findByRole("link", { name: "General entry: Staff" });
     fireEvent.click(original, { ctrlKey: true });
     expect(onReference).not.toHaveBeenCalled();
+    fireEvent.click(info);
+    const item = await screen.findByRole("menuitem", { name: "General entry: Staff" });
+    fireEvent.keyDown(item, { key: "Enter", keyCode: 13, which: 13 });
+    expect(onReference).toHaveBeenCalledExactlyOnceWith(
+      "equipment:catalog-staff",
+      info,
+      relationship.target,
+    );
     rerender(view(false));
-    expect(screen.queryByRole("link", { name: "View reference entry" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Record information" })).toBeNull();
   });
 
   it("shows selected activity traits once in its identity and retains traits on embedded activities", () => {

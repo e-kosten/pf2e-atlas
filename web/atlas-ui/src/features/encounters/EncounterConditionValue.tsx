@@ -47,6 +47,7 @@ export function EncounterConditionValue({
       help={error}
     >
       <ConditionValueInput
+        size="small"
         name={`${name} value`}
         removeLabel={`Remove ${name}`}
         value={shown}
