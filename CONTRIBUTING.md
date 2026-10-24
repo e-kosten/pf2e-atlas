@@ -183,6 +183,10 @@ pointer. It is development data, not disposable compiler output.
 Publish an existing build whose provenance you know, after its normal code checks.
 Publishing performs a consistent SQLite backup, checks Atlas readiness, runs deep
 artifact validation and executes a vector query with every configured profile.
+Progress names the executable copy, database snapshot and checksum, reference
+validation, and each profile's model loading and test search. These checks can
+take several minutes on a full corpus. Use `--progress always` for progress in
+redirected logs; `--json` keeps the final report on stdout.
 It does not compile, fetch models, migrate, or ingest. The source workspace must
 already be ready. **All saved state is copied**: use a dedicated development seed
 with controlled examples, not your personal installed workspace.

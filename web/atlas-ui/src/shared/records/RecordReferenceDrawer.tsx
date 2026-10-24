@@ -86,8 +86,12 @@ export function RecordReferenceDrawer({
     <Drawer
       aria-labelledby={headingId}
       afterOpenChange={(open) => {
-        if (open) heading.current?.focus({ preventScroll: true });
-        else {
+        if (open) {
+          const target = heading.current;
+          const active = target?.ownerDocument.activeElement;
+          if (target && (active === anchor || active?.contains(target)))
+            target.focus({ preventScroll: true });
+        } else {
           onClose();
           if (anchor?.isConnected) anchor.focus({ preventScroll: true });
         }

@@ -56,6 +56,7 @@ impl UpdateOwner {
         // Capacity checks do not reserve space. Keep the existing exclusive
         // admission and durable recovery marker across fallible VACUUM work.
         let session = self.maintenance(schema, "reclaiming database space")?;
+        tracing::info!(target:"atlas_progress",phase="reclaim_space","Reclaiming unused database space");
         session.connection().execute_batch(
             "PRAGMA wal_checkpoint(TRUNCATE); VACUUM; PRAGMA wal_checkpoint(TRUNCATE);",
         )?;
