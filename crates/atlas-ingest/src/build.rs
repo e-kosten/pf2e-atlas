@@ -119,11 +119,13 @@ pub(crate) fn prepare_build(
     }
     progress("trait_labels", "Resolving trait names");
     context.used_trait_labels = crate::source::localization::used_trait_labels(&source, &catalog)?;
-    progress("load_tokenizer", "Loading search tokenizer");
     let tokenizer = options
         .search_profiles
         .first()
-        .map(|config| TextEmbeddingTokenizer::load_baseline(&config.cache_root))
+        .map(|config| {
+            progress("load_tokenizer", "Loading search tokenizer");
+            TextEmbeddingTokenizer::load_baseline(&config.cache_root)
+        })
         .transpose()
         .map_err(embedding_error)?;
     let mut prepared = index_build_input(source, context, tokenizer.as_ref(), &capture)?;

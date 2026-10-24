@@ -79,6 +79,7 @@ fn backfill(c: &Connection) -> Result<(), IndexError> {
         }
         drop(rows);
         drop(s);
+        tracing::info!(target:"atlas_progress",phase="compact_embeddings",profile=%model.profile_id,"Compacting embedding indexes");
         crate::vector_allocation::compact(c, &model)?;
     }
     let mut s=c.prepare("SELECT trait_key,profile_id,input_hash,vector_json,chunks_json,vector_hash FROM legacy_trait_vectors")?;

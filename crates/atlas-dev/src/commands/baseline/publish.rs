@@ -71,7 +71,7 @@ pub(super) fn publish(options: &PublishArgs, checkout: &Path, store: &Path) -> R
             index_path: Some(index.clone()),
         },
     })?;
-    tracing::info!(target:"atlas_progress",phase="hash_workspace","Reading snapshot provenance and computing checksum");
+    tracing::info!(target:"atlas_progress",phase="hash_workspace","Computing database snapshot checksum");
     let database = {
         let reader = runtime.open_index()?;
         json!({"schema_version":WORKSPACE_SCHEMA_VERSION,"workspace_key":reader.workspace_session().workspace_key()?,"reference_revision":reader.workspace_session().reference_revision()?,"context":reader.context(),"sha256":files::hash(&index)?})
