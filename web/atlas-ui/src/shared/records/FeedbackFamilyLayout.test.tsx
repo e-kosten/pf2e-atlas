@@ -253,7 +253,9 @@ it.each([false, true])(
   "keeps independently applicable hazard zero saves visible (knownAbsent=%s)",
   (knownAbsent) => {
     const actor = actorFixture();
-    actor.armor_class = numberFact(0);
+    actor.armor_class = knownAbsent
+      ? numberFact(0)
+      : { state: "invalid", value: null, adjustment: null };
     actor.maximum_hp = numberFact(0);
     actor.saves = {
       fortitude: numberFact(0),
@@ -284,9 +286,8 @@ it.each([false, true])(
       expect(screen.queryByText("Hardness")).toBeNull();
       expect(screen.queryByRole("button", { name: "Defense details" })).toBeNull();
     } else {
-      expect(screen.getByText("Defense block").parentElement).toHaveTextContent(
-        "invalid",
-      );
+      expect(screen.getByText("AC").parentElement).toHaveTextContent("Unavailable");
+      expect(screen.queryByText("Defense block")).toBeNull();
     }
   },
 );
