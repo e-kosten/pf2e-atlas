@@ -698,8 +698,7 @@ impl AtlasAppService {
                         }
                         if snapshot.encounter.current_turn_participant_key
                             != update.turn.participant_key
-                        {
-                            if let Some(mut closed) = snapshot
+                            && let Some(mut closed) = snapshot
                                 .participants
                                 .iter()
                                 .find(|p| {
@@ -707,16 +706,15 @@ impl AtlasAppService {
                                         == snapshot.encounter.current_turn_participant_key.as_ref()
                                 })
                                 .and_then(|p| p.turn_resources.clone())
-                            {
-                                closed.actions_open = false;
-                                closed.regular_remaining = 0;
-                                closed.extra_remaining = 0;
-                                update
-                                    .start_event
-                                    .get_or_insert_with(Default::default)
-                                    .turn_resources
-                                    .push(closed);
-                            }
+                        {
+                            closed.actions_open = false;
+                            closed.regular_remaining = 0;
+                            closed.extra_remaining = 0;
+                            update
+                                .start_event
+                                .get_or_insert_with(Default::default)
+                                .turn_resources
+                                .push(closed);
                         }
                         Ok((update, !turn_review(snapshot).reminders.is_empty()))
                     },

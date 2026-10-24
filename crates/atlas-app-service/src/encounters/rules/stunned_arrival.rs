@@ -42,8 +42,7 @@ pub(in crate::encounters) fn apply(
         }
         ConditionEventChange::Remove { .. } => return Ok(()),
     };
-    if condition_rule_for_key(key) != Some(ConditionRule::Stunned) || !value.is_some_and(|v| v > 0)
-    {
+    if condition_rule_for_key(key) != Some(ConditionRule::Stunned) || value.is_none_or(|v| v <= 0) {
         return Ok(());
     }
     let after = subject_after_change(participant, change)?;
