@@ -101,82 +101,88 @@ export function EncounterPersistentTurnReview({
                   className="encounter-persistent-type"
                   aria-label={`${type} persistent damage`}
                 >
-                  <div role="group" aria-label={`${type} sources`}>
-                    <div className="encounter-persistent-heading">
-                      <h4>{type}</h4>
-                      {selected && (
-                        <strong>
-                          {selected.formula}
-                          {selected.multiplier === "double"
-                            ? " ×2"
-                            : selected.multiplier === "half"
-                              ? " ×½"
-                              : ""}
-                        </strong>
-                      )}
-                      {ended && <span className="muted">Ended</span>}
+                  <div className="encounter-persistent-entry">
+                    <div
+                      className="encounter-persistent-entry__source"
+                      role="group"
+                      aria-label={`${type} sources`}
+                    >
+                      <div className="encounter-persistent-heading">
+                        <h4>{type}</h4>
+                        {selected && (
+                          <strong>
+                            {selected.formula}
+                            {selected.multiplier === "double"
+                              ? " ×2"
+                              : selected.multiplier === "half"
+                                ? " ×½"
+                                : ""}
+                          </strong>
+                        )}
+                        {ended && <span className="muted">Ended</span>}
+                      </div>
+                      <div className="encounter-persistent-sources">
+                        {group.sources.map((source) => {
+                          const condition = participant.conditions.find(
+                            (c) => c.condition_id === source.condition_id,
+                          );
+                          const from = participants.find(
+                            (p) =>
+                              p.participant_key === condition?.source_participant_key,
+                          )?.display_name;
+                          const superseded =
+                            source.condition_id !== group.selected_source_id;
+                          if (
+                            !superseded &&
+                            !from &&
+                            !condition?.duration &&
+                            !condition?.note
+                          )
+                            return null;
+                          return (
+                            <div
+                              key={source.condition_id.toString()}
+                              className={
+                                superseded
+                                  ? "encounter-persistent-source--superseded"
+                                  : undefined
+                              }
+                            >
+                              {superseded && (
+                                <span>
+                                  {source.formula}
+                                  {source.multiplier === "normal"
+                                    ? ""
+                                    : source.multiplier === "double"
+                                      ? " ×2"
+                                      : " ×½"}
+                                  {superseded && (
+                                    <span className="encounter-condition-meta">
+                                      {" "}
+                                      · Superseded
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                              {(from || condition?.duration || condition?.note) && (
+                                <div className="encounter-condition-meta">
+                                  {[
+                                    from && `From ${from}`,
+                                    condition?.duration &&
+                                      conditionDurationLabel(condition.duration),
+                                    condition?.note,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="encounter-persistent-sources">
-                      {group.sources.map((source) => {
-                        const condition = participant.conditions.find(
-                          (c) => c.condition_id === source.condition_id,
-                        );
-                        const from = participants.find(
-                          (p) =>
-                            p.participant_key === condition?.source_participant_key,
-                        )?.display_name;
-                        const superseded =
-                          source.condition_id !== group.selected_source_id;
-                        if (
-                          !superseded &&
-                          !from &&
-                          !condition?.duration &&
-                          !condition?.note
-                        )
-                          return null;
-                        return (
-                          <div
-                            key={source.condition_id.toString()}
-                            className={
-                              superseded
-                                ? "encounter-persistent-source--superseded"
-                                : undefined
-                            }
-                          >
-                            {superseded && (
-                              <span>
-                                {source.formula}
-                                {source.multiplier === "normal"
-                                  ? ""
-                                  : source.multiplier === "double"
-                                    ? " ×2"
-                                    : " ×½"}
-                                {superseded && (
-                                  <span className="encounter-condition-meta">
-                                    {" "}
-                                    · Superseded
-                                  </span>
-                                )}
-                              </span>
-                            )}
-                            {(from || condition?.duration || condition?.note) && (
-                              <div className="encounter-condition-meta">
-                                {[
-                                  from && `From ${from}`,
-                                  condition?.duration &&
-                                    conditionDurationLabel(condition.duration),
-                                  condition?.note,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" · ")}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <div className="encounter-persistent-entry__damage">{damage}</div>
                   </div>
-                  {damage}
                   {recovery}
                 </section>
               );

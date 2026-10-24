@@ -17,7 +17,7 @@ import type {
   RecoverPersistentDamageRequest,
 } from "../../generated/atlas";
 import { prepareEncounterPersistentDamage } from "../../api/atlasApi";
-import { RollResult } from "../../shared/dice/RollResult";
+import { RollResult, UnrolledRoll } from "../../shared/dice/RollResult";
 import { nonNegativeIntegerRule } from "../../shared/ui/forms/nonNegativeIntegerRule";
 import { EncounterPersistentRecovery } from "./EncounterPersistentRecovery";
 
@@ -305,8 +305,7 @@ export function EncounterPersistentDamageBatch({
         {!applied && (
           <Form.Item
             name="mode"
-            label="Damage"
-            style={{ marginBottom: "var(--space-group)" }}
+            style={{ marginBottom: "var(--space-control)" }}
             getValueProps={(value) => ({ value: requiresTable ? "table" : value })}
           >
             <Segmented
@@ -335,6 +334,9 @@ export function EncounterPersistentDamageBatch({
             const rolled =
               (mode === "roll" ? currentOutcome : undefined) ??
               rolls[group.episode_id]?.group;
+            const selectedSource = group.sources.find(
+              (source) => source.condition_id === group.selected_source_id,
+            );
             const resolution = resolutions[group.episode_id];
             const protection =
               saved?.protection ??
@@ -370,66 +372,87 @@ export function EncounterPersistentDamageBatch({
                       Damage taken
                     </span>
                     <div className="encounter-persistent-damage-control__value">
-                      {mode === "table" ? (
-                        <Form.Item
-                          name={["groups", group.episode_id, "amount"]}
-                          style={{ marginBottom: 0 }}
-                          rules={[nonNegativeIntegerRule(true)]}
+                      {mode === "table" && selectedSource?.roll_preview && (
+                        <span
+                          className="encounter-persistent-damage-control__sizer"
+                          aria-hidden="true"
+                          inert
                         >
-                          <InputNumber
-                            aria-label={`${label} damage amount`}
-                            min={0}
-                            max={1_000_000_000}
-                            step={1}
-                          />
-                        </Form.Item>
-                      ) : rolled ? (
-                        <Space>
-                          {rolled.roll && <RollResult outcome={rolled.roll} />}
-                          {(!rolled.roll ||
-                            BigInt(rolled.roll.total) !== rolled.amount) && (
-                            <strong>{rolled.amount.toString()} damage</strong>
-                          )}
-                        </Space>
-                      ) : (
-                        <Button
-                          loading={busy === `damage:${group.episode_id}`}
-                          aria-label={`Roll ${label} damage`}
-                          onClick={async () => {
-                            try {
-                              const completed = await prepare(
-                                `damage:${group.episode_id}`,
-                                [
-                                  ...groups,
-                                  {
-                                    episode_id: group.episode_id,
-                                    damage: { kind: "roll" },
-                                  },
-                                ],
-                              );
-                              const outcome = completed.damage.groups.find(
-                                (g) => g.episode_id === group.episode_id,
-                              );
-                              if (outcome)
-                                setRolls((previous) => ({
-                                  ...previous,
-                                  [group.episode_id]: {
-                                    request_id: completed.damage.request_id,
-                                    group: outcome,
-                                  },
-                                }));
-                            } catch (cause) {
-                              setError(
-                                cause instanceof Error
-                                  ? cause.message
-                                  : "Could not roll damage.",
-                              );
-                            }
-                          }}
-                        >
-                          Roll
-                        </Button>
+                          <UnrolledRoll
+                            expression={selectedSource.roll_preview}
+                            formula={selectedSource.formula}
+                          >
+                            <span />
+                          </UnrolledRoll>
+                        </span>
                       )}
+                      <div className="encounter-persistent-damage-control__content">
+                        {mode === "table" ? (
+                          <Form.Item
+                            name={["groups", group.episode_id, "amount"]}
+                            style={{ marginBottom: 0 }}
+                            rules={[nonNegativeIntegerRule(true)]}
+                          >
+                            <InputNumber
+                              aria-label={`${label} damage amount`}
+                              min={0}
+                              max={1_000_000_000}
+                              step={1}
+                            />
+                          </Form.Item>
+                        ) : rolled ? (
+                          <>
+                            {rolled.roll && <RollResult outcome={rolled.roll} />}
+                            {(!rolled.roll ||
+                              BigInt(rolled.roll.total) !== rolled.amount) && (
+                              <strong>{rolled.amount.toString()} damage</strong>
+                            )}
+                          </>
+                        ) : (
+                          <UnrolledDamage
+                            expression={selectedSource?.roll_preview}
+                            formula={selectedSource?.formula ?? label}
+                          >
+                            <Button
+                              loading={busy === `damage:${group.episode_id}`}
+                              aria-label={`Roll ${label} damage`}
+                              onClick={async () => {
+                                try {
+                                  const completed = await prepare(
+                                    `damage:${group.episode_id}`,
+                                    [
+                                      ...groups,
+                                      {
+                                        episode_id: group.episode_id,
+                                        damage: { kind: "roll" },
+                                      },
+                                    ],
+                                  );
+                                  const outcome = completed.damage.groups.find(
+                                    (g) => g.episode_id === group.episode_id,
+                                  );
+                                  if (outcome)
+                                    setRolls((previous) => ({
+                                      ...previous,
+                                      [group.episode_id]: {
+                                        request_id: completed.damage.request_id,
+                                        group: outcome,
+                                      },
+                                    }));
+                                } catch (cause) {
+                                  setError(
+                                    cause instanceof Error
+                                      ? cause.message
+                                      : "Could not roll damage.",
+                                  );
+                                }
+                              }}
+                            >
+                              Roll
+                            </Button>
+                          </UnrolledDamage>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ) : null}
@@ -632,5 +655,23 @@ export function EncounterPersistentDamageBatch({
         )}
       </Form>
     </>
+  );
+}
+
+function UnrolledDamage({
+  expression,
+  formula,
+  children,
+}: {
+  expression?: import("../../generated/atlas").RollPreviewExpression;
+  formula: string;
+  children: ReactNode;
+}) {
+  return expression ? (
+    <UnrolledRoll expression={expression} formula={formula}>
+      {children}
+    </UnrolledRoll>
+  ) : (
+    children
   );
 }

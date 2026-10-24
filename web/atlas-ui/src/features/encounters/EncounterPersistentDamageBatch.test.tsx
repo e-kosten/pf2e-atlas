@@ -63,7 +63,13 @@ const participant: EncounterParticipantView = {
       damage_type: "fire",
       selected_source_id: 7n,
       sources: [
-        { condition_id: 7n, formula: "1d6", multiplier: "normal", recovery_dc: 15n },
+        {
+          condition_id: 7n,
+          formula: "1d6",
+          roll_preview: { kind: "dice", sides: [6] },
+          multiplier: "normal",
+          recovery_dc: 15n,
+        },
       ],
     },
     {
@@ -71,8 +77,20 @@ const participant: EncounterParticipantView = {
       damage_type: "acid",
       selected_source_id: 9n,
       sources: [
-        { condition_id: 8n, formula: "1d8", multiplier: "normal", recovery_dc: 15n },
-        { condition_id: 9n, formula: "1d4", multiplier: "normal", recovery_dc: 15n },
+        {
+          condition_id: 8n,
+          formula: "1d8",
+          roll_preview: { kind: "dice", sides: [8] },
+          multiplier: "normal",
+          recovery_dc: 15n,
+        },
+        {
+          condition_id: 9n,
+          formula: "1d4",
+          roll_preview: { kind: "dice", sides: [4] },
+          multiplier: "normal",
+          recovery_dc: 15n,
+        },
       ],
     },
   ],
@@ -125,6 +143,11 @@ it("submits all damage types together and retains table totals across an uncerta
       />
     </ConfigProvider>,
   );
+  expect(screen.getByLabelText("Unrolled d6")).toBeVisible();
+  expect(screen.getByLabelText("Unrolled d4")).toBeVisible();
+  expect(screen.queryByLabelText("Unrolled d8")).toBeNull();
+  expect(screen.queryByLabelText("Rolling d6")).toBeNull();
+  expect(onApply).not.toHaveBeenCalled();
   fireEvent.click(
     within(screen.getByLabelText("Persistent damage resolution")).getByText(
       "Table results",

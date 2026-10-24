@@ -436,6 +436,9 @@ pub(super) fn group_views(
                     Some(PersistentDamageSourceView {
                         condition_id: condition.condition_id,
                         formula: formula.clone(),
+                        roll_preview: atlas_dice::prepare(formula)
+                            .ok()
+                            .map(|dice| dice.preview_expression()),
                         multiplier: match multiplier {
                             DamageMultiplier::Normal => DamageMultiplierView::Normal,
                             DamageMultiplier::Double => DamageMultiplierView::Double,

@@ -1325,8 +1325,13 @@ source; source comparisons are edited only in Add/Edit precedence. Do not add
 another source-selection form to damage or recovery.
 Persistent damage uses one roll/table-results selector above its damage types and
 one Apply submission below them. Each type owns one labeled damage-control row:
-inline Roll/result or manual amount. Both methods use the same normal control
-height and label spacing so switching does not insert or remove a form section.
+unrolled dice with Roll, the recorded result, or a manual amount. Render the
+validated expression supplied by Rust before rolling, with blank dice and visible
+arithmetic; never parse the formula in the browser or fabricate a RollOutcome.
+Keep a common footprint for the formula, action/loading state and result. Table
+inputs retain that formula's natural footprint, not an arbitrary large empty area.
+Use one card inset and control-sized internal gaps; put type/formula beside its
+damage row when they fit, stacking naturally on phones. Keep normal action sizes.
 Manual drafts and prepared dice survive method switches.
 
 Resolve each type's damage before optionally preparing its recovery. Successful

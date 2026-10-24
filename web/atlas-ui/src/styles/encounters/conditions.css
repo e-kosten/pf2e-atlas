@@ -87,8 +87,8 @@
 
 .encounter-turn-review {
   display: grid;
-  gap: 16px;
-  margin-block: 16px;
+  gap: var(--space-control);
+  margin-block: var(--space-control);
 }
 
 .encounter-turn-reminder {
@@ -191,8 +191,8 @@
 
 .encounter-persistent-groups {
   display: grid;
-  gap: var(--space-group);
-  margin-block-end: 16px;
+  gap: var(--space-control);
+  margin-block-end: var(--space-control);
 }
 .encounter-persistent-damage-fields {
   display: grid;
@@ -200,7 +200,7 @@
 }
 .encounter-persistent-type {
   display: grid;
-  gap: var(--space-group);
+  gap: var(--space-control);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: var(--space-group);
@@ -243,19 +243,80 @@
 }
 
 .encounter-persistent-damage-control {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-control);
 }
 .encounter-persistent-damage-control__label {
+  flex: 0 0 100px;
   line-height: 22px;
 }
 .encounter-persistent-damage-control__value {
+  display: grid;
+  flex: 1 1 max-content;
+  min-width: 0;
+  align-items: center;
+  min-block-size: 40px;
+}
+.encounter-persistent-damage-control__content,
+.encounter-persistent-damage-control__sizer {
+  grid-area: 1 / 1;
   display: flex;
   align-items: center;
-  min-block-size: var(--control-height);
+  flex-wrap: wrap;
+  gap: var(--space-control);
+  min-width: 0;
+}
+/* Reserve only this formula's natural footprint when table inputs replace it. */
+.encounter-persistent-damage-control__sizer {
+  visibility: hidden;
+  pointer-events: none;
 }
 .encounter-persistent-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+}
+
+/* The source and its damage control share a row when both fit naturally. */
+.encounter-persistent-entry {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+}
+.encounter-persistent-entry__source {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+.encounter-persistent-entry__damage {
   display: grid;
-  justify-items: start;
-  gap: var(--space-group);
+  gap: var(--space-control);
+  flex: 2 1 17rem;
+  min-width: 0;
+}
+@media (min-width: 640px) {
+  .encounter-turn-reminder--condition {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .encounter-turn-reminder--condition > button {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
+.encounter-persistent-damage-control__value .atlas-roll__total {
+  display: inline-flex;
+  align-items: center;
+  inline-size: 88px;
+  min-inline-size: 88px;
+  min-block-size: var(--control-height);
+}
+
+.encounter-persistent-damage-control__value .atlas-roll__total > button {
+  width: 100%;
 }
