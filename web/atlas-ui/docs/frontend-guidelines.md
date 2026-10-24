@@ -1019,8 +1019,12 @@ ordinary-turn notification. Condition-specific recovery remains beside its condi
 Do not move the condition lane, HP controls or reading position when a count changes.
 
 Use explicit, compact action spending and correction controls; attacks and spell-use
-buttons never spend actions implicitly. Reaction stock and permission are independent:
-Spent stays Spent under Stunned, and an unspent blocked reaction does not appear usable.
+buttons never spend actions implicitly. In Turn, available action/reaction chips spend
+on activation and spent chips restore; retain the clicked chip's position and focus.
+The Actions label opens remaining-value correction and the backend's Next turn
+calculation; do not present that forecast as this turn's recorded allowance.
+Reaction stock and permission are independent: a spent reaction remains spent under
+Stunned, and an unspent blocked reaction does not appear usable.
 Off-turn reactions remain editable. Missing past allocation is unknown, not a successful
 3-action/1-reaction regain. Hazards keep their complete authored routines instead.
 Keep pending controls mounted and preserve focus through canonical refresh; failure

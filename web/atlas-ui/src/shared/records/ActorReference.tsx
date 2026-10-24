@@ -1,4 +1,4 @@
-import { CalculationTable, type CalculationRow } from "../ui/tables/CalculationTable";
+import { RuntimeCountCalculation } from "./RuntimeCountCalculation";
 import { statusReasonLabel } from "./statusReasonLabel";
 import { TraitBadge } from "./TraitBadge";
 import { Alert, Button, Collapse, Popover, Typography } from "antd";
@@ -1265,49 +1265,13 @@ export function RuntimeCount({
     count.suppressed_adjustments.length ||
     count.base_value !== count.adjusted_value ||
     count.segments.some((segment) => segment.restricted);
-  const rows: CalculationRow[] = [
-    { key: "base", label: "Base", value: String(count.base_value) },
-    ...count.adjustments.map((modifier) => ({
-      key: modifier.source,
-      label: modifier.label,
-      value: `${modifier.value > 0n ? "+" : ""}${modifier.value}`,
-      note: modifier.reason,
-    })),
-    ...count.suppressed_adjustments.map((modifier) => ({
-      key: `suppressed-${modifier.source}`,
-      label: modifier.label,
-      value: "—",
-      note: modifier.reason,
-      muted: true,
-    })),
-    ...count.segments.map((segment, index) => ({
-      key: `segment-${index}`,
-      label: segment.label,
-      value: String(segment.value),
-      note: segment.reason ?? (segment.restricted ? "Restricted" : undefined),
-    })),
-    {
-      key: "total",
-      label: "Total",
-      total: true,
-      value:
-        count.adjusted_value === null ? "Needs review" : String(count.adjusted_value),
-    },
-  ];
   return (
     <FactRow label={label}>
       {explanation ? (
         <Popover
           title={count.label}
           trigger="click"
-          content={
-            <CalculationTable
-              label={`${count.label} calculation`}
-              valueLabel={count.label}
-              rows={rows}
-              explanation={count.explanation}
-            />
-          }
+          content={<RuntimeCountCalculation count={count} />}
         >
           <Button
             className="record-number"

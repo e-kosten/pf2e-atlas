@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { ConfigProvider } from "antd";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { EncounterTurnResources } from "./EncounterTurnResources";
 import type { TurnResourcesView } from "../../generated/atlas";
 function value(): TurnResourcesView {
@@ -51,9 +52,11 @@ it("spends only on explicit input and retains the recorded allowance and start r
       onChange={onChange}
     />,
   );
-  expect(
-    screen.getByRole("button", { name: /^Edit remaining actions:/ }),
-  ).toHaveTextContent("0 / 1");
+  expect(screen.getByRole("button", { name: "Restore action 1" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  expect(screen.queryByText("0 / 1")).toBeNull();
   expect(screen.getByText(initial.start_results[0])).toBeVisible();
   expect(onChange).toHaveBeenCalledTimes(1);
 });
@@ -84,9 +87,10 @@ it("keeps an off-turn reaction usable and distinguishes spent stock from a condi
       onChange={onChange}
     />,
   );
-  expect(screen.getByRole("button", { name: "Restore reaction" })).toHaveTextContent(
-    "Spent",
-  );
+  const reaction = screen.getByRole("button", { name: "Restore reaction" });
+  expect(reaction).toHaveAttribute("aria-pressed", "false");
+  expect(reaction.querySelector('[data-atlas-action-glyph="reaction"]')).not.toBeNull();
+  expect(reaction).toBeEnabled();
   expect(screen.getByText("Cannot react · Stunned")).toBeVisible();
 });
 it("shows mid-turn Quickened as a forecast rather than another current action", () => {
@@ -102,9 +106,111 @@ it("shows mid-turn Quickened as a forecast rather than another current action", 
       onChange={vi.fn()}
     />,
   );
-  expect(
-    screen.getByRole("button", { name: /^Edit remaining actions:/ }),
-  ).toHaveTextContent("2 / 3");
+  expect(screen.getByRole("button", { name: "Spend action 1" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  expect(screen.getByRole("button", { name: "Spend action 2" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  expect(screen.getByRole("button", { name: "Restore action 3" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
   expect(screen.getByText("Next turn")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Spend extra action 1" })).toBeNull();
+});
+
+it("toggles the clicked slot only after canonical refresh and keeps its identity and focus", async () => {
+  const initial = { ...value(), regular_total: 3n, regular_remaining: 3n };
+  const onChange = vi.fn().mockResolvedValue(undefined);
+  const view = (v: TurnResourcesView) => (
+    <EncounterTurnResources value={v} disabled={false} isCurrent onChange={onChange} />
+  );
+  const { rerender } = render(view(initial));
+  const middle = screen.getByRole("button", { name: "Spend action 2" });
+  middle.focus();
+  fireEvent.click(middle);
+  expect(middle).toHaveAttribute("aria-pressed", "true");
+  await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+  rerender(view({ ...initial, regular_remaining: 2n }));
+  expect(screen.getByRole("button", { name: "Restore action 2" })).toBe(middle);
+  expect(middle).toHaveAttribute("aria-pressed", "false");
+  expect(middle).toHaveFocus();
+  expect(screen.getByRole("button", { name: "Spend action 3" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  fireEvent.click(middle);
+  await waitFor(() =>
+    expect(onChange).toHaveBeenLastCalledWith({ kind: "restore", resource: "action" }),
+  );
+  rerender(view(initial));
+  expect(screen.getByRole("button", { name: "Spend action 2" })).toBe(middle);
+  expect(middle).toHaveFocus();
+});
+it("keeps unavailable actions honest and does not show a successful spend after failure", async () => {
+  const initial = value();
+  const onChange = vi.fn().mockRejectedValue(new Error("Connection lost. Retry."));
+  const { rerender } = render(
+    <EncounterTurnResources
+      value={initial}
+      disabled={false}
+      isCurrent
+      onChange={onChange}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Spend action 1" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Connection lost. Retry.");
+  expect(screen.getByRole("button", { name: "Spend action 1" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  rerender(
+    <EncounterTurnResources
+      value={{
+        ...initial,
+        can_spend_actions: { available: false, reason: "Stunned." },
+      }}
+      disabled={false}
+      isCurrent
+      onChange={onChange}
+    />,
+  );
+  expect(screen.getByRole("button", { name: "Spend action 1" })).toBeDisabled();
+});
+it("opens calculation and correction from Actions without presenting the next-turn forecast as this turn", async () => {
+  const initial = value(),
+    onChange = vi.fn().mockResolvedValue(undefined);
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnResources
+        value={initial}
+        disabled={false}
+        isCurrent
+        onChange={onChange}
+      />
+    </ConfigProvider>,
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Actions: details and remaining actions" }),
+  );
+  await waitFor(() => expect(screen.getByText("This turn: 1 action")).toBeVisible());
+  expect(
+    screen.getAllByText("Next turn").some((node) => node.tagName === "STRONG"),
+  ).toBe(true);
+  const calculation = screen.getByRole("region", { name: "Actions calculation" });
+  expect(within(calculation).getByRole("row", { name: "Total 3" })).toBeVisible();
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Remaining actions" }), {
+    target: { value: "0" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  await waitFor(() =>
+    expect(onChange).toHaveBeenCalledWith({
+      kind: "correct",
+      resource: "action",
+      remaining: 0n,
+    }),
+  );
 });

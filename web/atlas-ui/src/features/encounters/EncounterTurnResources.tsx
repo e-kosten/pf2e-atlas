@@ -1,5 +1,5 @@
 import { Button, InputNumber, Popover, Space, Tooltip } from "antd";
-import { Undo2 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useRef, useState } from "react";
 import type {
   TurnResourceAction,
@@ -7,6 +7,7 @@ import type {
   TurnResourcesView,
 } from "../../generated/atlas";
 import { RuntimeCount } from "../../shared/records/ActorReference";
+import { RuntimeCountCalculation } from "../../shared/records/RuntimeCountCalculation";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 
 export type TurnResourceHandler = (action: TurnResourceAction) => Promise<void>;
@@ -61,6 +62,8 @@ export function EncounterTurnResources({
             <ResourceCounter
               label="Actions"
               kind="action"
+              turnKey={value.turn_key}
+              forecast={value.forecast}
               total={Number(value.regular_total)}
               remaining={Number(value.regular_remaining)}
               disabled={unavailable}
@@ -74,6 +77,7 @@ export function EncounterTurnResources({
               <ResourceCounter
                 label="Extra action"
                 kind="extra_action"
+                turnKey={value.turn_key}
                 total={Number(value.extra_total)}
                 remaining={Number(value.extra_remaining)}
                 disabled={unavailable}
@@ -107,39 +111,49 @@ export function EncounterTurnResources({
         {stock !== null && (
           <div className="encounter-turn-resources__group">
             <strong>Reaction</strong>
-            <Tooltip
-              title={
-                !value.can_spend_reactions.available
-                  ? value.can_spend_reactions.reason
-                  : undefined
-              }
-              trigger={["hover", "focus"]}
-            >
-              <Button
-                disabled={
-                  unavailable ||
-                  Number(value.reactions_total) === 0 ||
-                  (Number(stock) > 0 && !value.can_spend_reactions.available)
+            {Number(value.reactions_total) === 0 ? (
+              <span>None this turn</span>
+            ) : (
+              <Tooltip
+                title={
+                  Number(stock) > 0
+                    ? value.can_spend_reactions.available
+                      ? "Spend reaction"
+                      : value.can_spend_reactions.reason
+                    : "Restore reaction"
                 }
-                aria-label={Number(stock) > 0 ? "Spend reaction" : "Restore reaction"}
-                color="default"
-                variant="filled"
-                onClick={() => {
-                  void act({
-                    kind: Number(stock) > 0 ? "spend" : "restore",
-                    resource: "reaction",
-                  }).catch(() => {});
-                }}
+                trigger={["hover", "focus"]}
               >
-                {Number(value.reactions_total) === 0
-                  ? "None this turn"
-                  : Number(stock) === 0
-                    ? "Spent"
-                    : value.can_spend_reactions.available
-                      ? "Available"
-                      : "Unspent"}
-              </Button>
-            </Tooltip>
+                <Button
+                  disabled={
+                    unavailable ||
+                    (Number(stock) > 0 && !value.can_spend_reactions.available)
+                  }
+                  aria-disabled={
+                    busy ||
+                    unavailable ||
+                    (Number(stock) > 0 && !value.can_spend_reactions.available)
+                  }
+                  aria-label={Number(stock) > 0 ? "Spend reaction" : "Restore reaction"}
+                  aria-pressed={Number(stock) > 0}
+                  color={Number(stock) > 0 ? "primary" : "default"}
+                  variant={Number(stock) > 0 ? "filled" : "outlined"}
+                  icon={
+                    <span
+                      className="action-cost__glyph"
+                      data-atlas-action-glyph="reaction"
+                      aria-hidden="true"
+                    />
+                  }
+                  onClick={() => {
+                    void act({
+                      kind: Number(stock) > 0 ? "spend" : "restore",
+                      resource: "reaction",
+                    }).catch(() => {});
+                  }}
+                />
+              </Tooltip>
+            )}
           </div>
         )}
       </div>
@@ -205,6 +219,8 @@ export function EncounterTurnResources({
 function ResourceCounter({
   label,
   kind,
+  turnKey,
+  forecast,
   total,
   remaining,
   disabled,
@@ -216,6 +232,8 @@ function ResourceCounter({
 }: {
   label: string;
   kind: TurnResourceKind;
+  turnKey: string | null;
+  forecast?: TurnResourcesView["forecast"];
   total: number;
   remaining: number;
   disabled: boolean;
@@ -229,59 +247,62 @@ function ResourceCounter({
   const [draft, setDraft] = useState<number | null>(remaining);
   const button = useRef<HTMLButtonElement>(null);
   const popup = useRef<HTMLDivElement>(null);
+  // Slot positions are presentation only; the canonical count always owns stock.
+  const [slots, setSlots] = useState(() => ({
+    turnKey,
+    total,
+    remaining,
+    available: Array.from({ length: total }, (_, index) => index < remaining),
+    target: undefined as { index: number; remaining: number } | undefined,
+  }));
+  if (
+    slots.turnKey !== turnKey ||
+    slots.total !== total ||
+    slots.remaining !== remaining
+  ) {
+    const available =
+      slots.turnKey !== turnKey || slots.total !== total
+        ? Array.from({ length: total }, (_, index) => index < remaining)
+        : [...slots.available];
+    if (
+      slots.turnKey === turnKey &&
+      slots.total === total &&
+      slots.target?.remaining === remaining
+    )
+      available[slots.target.index] = remaining > slots.remaining;
+    let difference = remaining - available.filter(Boolean).length;
+    for (let index = 0; index < total && difference > 0; index++) {
+      if (!available[index]) {
+        available[index] = true;
+        difference--;
+      }
+    }
+    for (let index = total - 1; index >= 0 && difference < 0; index--) {
+      if (available[index]) {
+        available[index] = false;
+        difference++;
+      }
+    }
+    setSlots({ turnKey, total, remaining, available, target: undefined });
+  }
   return (
     <div className="encounter-turn-resources__group">
-      <strong>{label}</strong>
-      <Space size={4} wrap>
-        {Array.from({ length: total }, (_, index) => (
-          <Tooltip
-            key={index}
-            title={
-              !canSpend
-                ? reason
-                : index < remaining
-                  ? "Spend action"
-                  : "Use Restore action to correct the count"
-            }
-            trigger={["hover", "focus"]}
-          >
-            <Button
-              aria-label={`Spend ${kind === "action" ? "action" : "extra action"} ${index + 1}`}
-              disabled={disabled || !canSpend || index >= remaining}
-              aria-disabled={pending || !canSpend || index >= remaining}
-              color={index < remaining ? "primary" : "default"}
-              variant={index < remaining ? "filled" : "outlined"}
-              icon={
-                <span
-                  className="action-cost__glyph"
-                  data-atlas-action-glyph="one_action"
-                  aria-hidden="true"
-                />
-              }
-              onClick={(event) => {
-                const trigger = event.currentTarget;
-                const focused = trigger === document.activeElement;
-                void onAction({ kind: "spend", resource: kind })
-                  .then(() => {
-                    if (focused && index >= remaining - 1)
-                      restoreOverlayFocus(button.current, trigger);
-                  })
-                  .catch(() => {});
-              }}
-            />
-          </Tooltip>
-        ))}
-        <Popover
-          trigger="click"
-          open={open}
-          onOpenChange={(next) => {
-            if (!next) restoreOverlayFocus(button.current, popup.current);
-            setOpen(next);
-            if (next) setDraft(remaining);
-          }}
-          title={`Remaining ${label.toLowerCase()}`}
-          content={
-            <div ref={popup}>
+      <Popover
+        trigger="click"
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) restoreOverlayFocus(button.current, popup.current);
+          setOpen(next);
+          if (next) setDraft(remaining);
+        }}
+        title={label}
+        content={
+          <div ref={popup} className="encounter-turn-resource-details">
+            <p>
+              This turn: {total} {total === 1 ? "action" : "actions"}
+            </p>
+            <div className="encounter-turn-resource-details__correction">
+              <span>Remaining</span>
               <Space>
                 <InputNumber
                   aria-label={`Remaining ${label.toLowerCase()}`}
@@ -289,7 +310,7 @@ function ResourceCounter({
                   max={total}
                   precision={0}
                   value={draft}
-                  readOnly={pending || disabled}
+                  readOnly={pending || disabled || !canEdit}
                   onChange={setDraft}
                 />
                 <Button
@@ -314,38 +335,65 @@ function ResourceCounter({
                 </Button>
               </Space>
             </div>
-          }
+            {forecast && (
+              <div>
+                <strong>Next turn</strong>
+                <RuntimeCountCalculation count={forecast} />
+              </div>
+            )}
+          </div>
+        }
+      >
+        <Button
+          ref={button}
+          type="text"
+          icon={<ChevronDown size={14} />}
+          iconPlacement="end"
+          aria-expanded={open}
+          aria-label={`${label}: details and remaining actions`}
         >
-          <Button
-            ref={button}
-            color="default"
-            variant="filled"
-            disabled={disabled || !canEdit}
-            aria-label={`Edit remaining ${label.toLowerCase()}: ${remaining} of ${total}`}
+          <strong>{label}</strong>
+        </Button>
+      </Popover>
+      <Space size={4} wrap>
+        {slots.available.map((available, index) => (
+          <Tooltip
+            key={index}
+            title={available ? (!canSpend ? reason : "Spend action") : "Restore action"}
+            trigger={["hover", "focus"]}
           >
-            {remaining} / {total}
-          </Button>
-        </Popover>
-        <Tooltip
-          title={`Restore ${kind === "action" ? "action" : "extra action"}`}
-          trigger={["hover", "focus"]}
-        >
-          <Button
-            aria-label={`Restore ${kind === "action" ? "action" : "extra action"}`}
-            disabled={disabled || !canEdit || remaining >= total}
-            icon={<Undo2 size={14} />}
-            onClick={(event) => {
-              const trigger = event.currentTarget;
-              const focused = trigger === document.activeElement;
-              void onAction({ kind: "restore", resource: kind })
-                .then(() => {
-                  if (focused && remaining + 1 === total)
-                    restoreOverlayFocus(button.current, trigger);
-                })
-                .catch(() => {});
-            }}
-          />
-        </Tooltip>
+            <Button
+              aria-label={`${available ? "Spend" : "Restore"} ${kind === "action" ? "action" : "extra action"} ${index + 1}`}
+              aria-pressed={available}
+              disabled={disabled || !canEdit || (available && !canSpend)}
+              aria-disabled={
+                pending || disabled || !canEdit || (available && !canSpend)
+              }
+              color={available ? "primary" : "default"}
+              variant={available ? "filled" : "outlined"}
+              icon={
+                <span
+                  className="action-cost__glyph"
+                  data-atlas-action-glyph="one_action"
+                  aria-hidden="true"
+                />
+              }
+              onClick={() => {
+                if (pending) return;
+                setSlots((current) => ({
+                  ...current,
+                  target: { index, remaining: remaining + (available ? -1 : 1) },
+                }));
+                void onAction({
+                  kind: available ? "spend" : "restore",
+                  resource: kind,
+                }).catch(() =>
+                  setSlots((current) => ({ ...current, target: undefined })),
+                );
+              }}
+            />
+          </Tooltip>
+        ))}
       </Space>
     </div>
   );
