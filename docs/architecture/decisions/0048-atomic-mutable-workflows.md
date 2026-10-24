@@ -292,10 +292,15 @@ migration must not invent a past regain or expenditure.
 
 Quickened adds at most one restricted extra action before losses. The existing
 extra-first default for Stunned/Slowed is retained; restriction facts remain attached
-to that action. Mid-turn Quickened/Slowed change the next-regain forecast. Explicit
-own-turn numeric Stunned resolution uses recorded remaining actions, after the
-current activity finishes, and atomically reduces both that pool and condition
-sources. It never reruns a three-action regain. Missing Stunned value with a duration
+to that action. Mid-turn Quickened/Slowed change the next-regain forecast. Applying numeric
+Stunned during an open current turn uses recorded remaining
+actions and atomically reduces both that pool and condition sources in the same
+condition event. The GM finishes the current activity before submitting its
+condition application. Preview shows both the action loss and remaining Stunned;
+matching retries never repeat either change. Correction and off-turn application
+do not consume actions. Explicit Stunned recovery remains available for deliberate
+resolution of recorded sources. It never reruns a three-action regain. Missing
+Stunned value with a duration
 is duration Stunned; missing both is unresolved. Pending-expiry review and explicit
 removal govern duration Stunned. Reads never consume conditions or resources.
 The timing and permission distinction follows [Start Your Turn](https://2e.aonprd.com/Rules.aspx?ID=2428)

@@ -96,21 +96,24 @@ pub(in crate::encounters) fn stunned_resolution_loss(p: &EncounterParticipant) -
     if p.defeated || p.hazard_disabled || p.mortality == atlas_local_state::MortalityState::Dead {
         return Some(0);
     }
-    let forecast = regain_forecast(p);
-    if forecast.unknown {
-        return None;
-    }
     if let Some(resources) = p
         .turn_resources
         .as_ref()
         .filter(|r| r.pending_reason.is_none() && r.actions_open)
     {
         let remaining = resources.regular_remaining + resources.extra_remaining;
-        return Some(if forecast.duration_stun {
-            remaining
-        } else {
-            forecast.stunned.min(remaining)
-        });
+        let mut stunned = 0;
+        for cause in super::causes::condition_causes(p, None)
+            .into_iter()
+            .filter(|c| c.rule == ConditionRule::Stunned)
+        {
+            match cause.value {
+                Some(v) if v >= 0 => stunned = stunned.max(v),
+                None if cause.source.duration.is_some() => return Some(remaining),
+                _ => return None,
+            }
+        }
+        return Some(stunned.min(remaining));
     }
     numeric_stunned_actions_lost(p)
 }

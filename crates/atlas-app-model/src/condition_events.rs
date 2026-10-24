@@ -175,6 +175,12 @@ pub struct ConditionEventPreviewView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConditionEventConsequenceView {
+    StunnedActionsLost {
+        participant_key: String,
+        before: i64,
+        after: i64,
+        stunned_after: i64,
+    },
     PronePrevented {
         participant_key: String,
         reason: String,
