@@ -180,7 +180,7 @@ it("keeps unavailable actions honest and does not show a successful spend after 
   );
   expect(screen.getByRole("button", { name: "Spend action 1" })).toBeDisabled();
 });
-it("opens calculation and correction from Actions without presenting the next-turn forecast as this turn", async () => {
+it("explains a modified allowance without duplicating chip controls or confusing the next turn", async () => {
   const initial = value(),
     onChange = vi.fn().mockResolvedValue(undefined);
   render(
@@ -193,26 +193,16 @@ it("opens calculation and correction from Actions without presenting the next-tu
       />
     </ConfigProvider>,
   );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Actions: details and remaining actions" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
   await waitFor(() => expect(screen.getByText("This turn: 1 action")).toBeVisible());
   expect(
     screen.getAllByText("Next turn").some((node) => node.tagName === "STRONG"),
   ).toBe(true);
   const calculation = screen.getByRole("region", { name: "Actions calculation" });
   expect(within(calculation).getByRole("row", { name: "Total 3" })).toBeVisible();
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Remaining actions" }), {
-    target: { value: "0" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  await waitFor(() =>
-    expect(onChange).toHaveBeenCalledWith({
-      kind: "correct",
-      resource: "action",
-      remaining: 0n,
-    }),
-  );
+  expect(screen.queryByRole("spinbutton")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Apply" })).toBeNull();
+  expect(onChange).not.toHaveBeenCalled();
 });
 
 it("keeps extra action directly toggleable with its visible restriction and no separate menu", async () => {
@@ -255,13 +245,61 @@ it("keeps extra action directly toggleable with its visible restriction and no s
       resource: "extra_action",
     }),
   );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Actions: details and remaining actions" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
   await waitFor(() =>
     expect(screen.getByText("This turn: 1 action + 1 extra")).toBeVisible(),
   );
-  expect(
-    screen.getByRole("spinbutton", { name: "Remaining ordinary actions" }),
-  ).toBeVisible();
+  expect(screen.queryByRole("spinbutton")).toBeNull();
+  expect(screen.queryByText("Ordinary remaining")).toBeNull();
+});
+
+it("keeps an unmodified three-action allowance plain while chips spend and restore", () => {
+  const initial = {
+    ...value(),
+    regular_total: 3n,
+    regular_remaining: 2n,
+    start_results: [],
+  };
+  render(
+    <EncounterTurnResources
+      value={initial}
+      disabled={false}
+      isCurrent
+      onChange={vi.fn()}
+    />,
+  );
+  expect(screen.getByText("Actions", { exact: true }).tagName).toBe("STRONG");
+  expect(screen.queryByRole("button", { name: /Actions:/ })).toBeNull();
+  expect(screen.getByRole("button", { name: "Spend action 1" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Restore action 3" })).toBeEnabled();
+});
+it("keeps explanations when modifiers cancel to the base allowance", async () => {
+  const initial = {
+    ...value(),
+    regular_total: 3n,
+    regular_remaining: 3n,
+    start_results: [],
+  };
+  initial.forecast.adjustments = [
+    { source: "slowed", label: "Slowed", value: -1n },
+    { source: "quickened", label: "Quickened", value: 1n },
+  ];
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnResources
+        value={initial}
+        disabled={false}
+        isCurrent
+        onChange={vi.fn()}
+      />
+    </ConfigProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
+  const calculation = await screen.findByRole("region", {
+    name: "Actions calculation",
+  });
+  await waitFor(() =>
+    expect(within(calculation).getByRole("row", { name: "Slowed -1" })).toBeVisible(),
+  );
+  expect(within(calculation).getByRole("row", { name: "Quickened +1" })).toBeVisible();
 });

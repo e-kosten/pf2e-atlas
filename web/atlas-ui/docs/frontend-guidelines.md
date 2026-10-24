@@ -1029,10 +1029,13 @@ buttons never spend actions implicitly. In Turn, available action/reaction chips
 on activation and spent chips restore; retain the clicked chip's position and focus.
 Keep a restricted extra action in that row across a small gap, with its permitted
 uses visible below; it must still spend/restore the extra resource. It does not
-need a second label menu. The Actions label opens remaining-value correction and
-the backend's Next turn calculation. Keep that label aligned with adjacent text,
-and distinguish ordinary/extra stock in its menu; do not present the forecast as
-this turn's recorded allowance.
+need a second label menu. Keep Actions as plain text for an unmodified three-action
+allowance. When the recorded allowance or forecast differs, or supplied modifiers,
+restrictions or uncertainty need explaining, the label opens the backend's Next
+turn calculation. Modifiers that cancel to three still need that explanation.
+Keep the label aligned with adjacent text and distinguish this turn's ordinary/
+extra allowance from the forecast. Spending and restoration belong to the chips;
+do not duplicate them with a remaining-actions input in the calculation popover.
 Reaction stock and permission are independent: a spent reaction remains spent under
 Stunned, and an unspent blocked reaction does not appear usable.
 Off-turn reactions remain editable. Missing past allocation is unknown, not a successful
