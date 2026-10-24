@@ -135,6 +135,7 @@
   gap: var(--space-group) var(--space-section);
   align-items: center;
 }
+.encounter-turn-resources__actions,
 .encounter-turn-resources__group {
   display: flex;
   flex-wrap: wrap;
@@ -168,6 +169,7 @@
 }
 .encounter-turn-resource-details__correction {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-control);
 }

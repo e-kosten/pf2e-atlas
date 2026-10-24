@@ -1021,8 +1021,12 @@ Do not move the condition lane, HP controls or reading position when a count cha
 Use explicit, compact action spending and correction controls; attacks and spell-use
 buttons never spend actions implicitly. In Turn, available action/reaction chips spend
 on activation and spent chips restore; retain the clicked chip's position and focus.
-The Actions label opens remaining-value correction and the backend's Next turn
-calculation; do not present that forecast as this turn's recorded allowance.
+Keep a restricted extra action in that row across a small gap, with its permitted
+uses visible below; it must still spend/restore the extra resource. It does not
+need a second label menu. The Actions label opens remaining-value correction and
+the backend's Next turn calculation. Keep that label aligned with adjacent text,
+and distinguish ordinary/extra stock in its menu; do not present the forecast as
+this turn's recorded allowance.
 Reaction stock and permission are independent: a spent reaction remains spent under
 Stunned, and an unspent blocked reaction does not appear usable.
 Off-turn reactions remain editable. Missing past allocation is unknown, not a successful
