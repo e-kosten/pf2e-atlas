@@ -65,6 +65,10 @@ test("variant comparison bounds complete documents on wide screens and stays rea
   );
   const dialog = page.getByRole("dialog", { name: "Variant comparison", exact: true });
   await expect(dialog.getByRole("heading", { name: /^Signal Protocol/ })).toBeVisible();
+  // Ant's prepare phase has no running animations yet, but the dialog is still
+  // transparent. Measure and dismiss the fully presented, unscaled document.
+  await expect(dialog).toHaveCSS("opacity", "1");
+  await expect(dialog).toHaveCSS("transform", "none");
   const assertLayout = async () => {
     await noPageOverflow(page);
     const panes = dialog.locator(".record-comparison > .detail-panel");
@@ -97,11 +101,6 @@ test("variant comparison bounds complete documents on wide screens and stays rea
   await expect
     .poll(() => dialog.evaluate((node) => node.contains(document.activeElement)))
     .toBe(true);
-  await dialog.evaluate(async (node) => {
-    await Promise.all(
-      node.getAnimations().map((animation) => animation.finished.catch(() => {})),
-    );
-  });
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 });
