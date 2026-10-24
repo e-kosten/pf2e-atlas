@@ -155,3 +155,19 @@
 .encounter-turn-resources .action-cost__glyph::before {
   color: inherit;
 }
+
+.encounter-turn-resource-details {
+  display: grid;
+  gap: var(--space-group);
+  /* Leave room for the title and trigger on either side of the anchor. */
+  max-block-size: min(24rem, calc(50dvh - 6rem));
+  overflow-y: auto;
+}
+.encounter-turn-resource-details p {
+  margin: 0;
+}
+.encounter-turn-resource-details__correction {
+  display: flex;
+  align-items: center;
+  gap: var(--space-control);
+}
