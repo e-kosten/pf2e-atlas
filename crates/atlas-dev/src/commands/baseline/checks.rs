@@ -48,7 +48,7 @@ pub(super) fn readiness(binary: &Path, index: &Path, assets: &Assets, cwd: &Path
     )
 }
 pub(super) fn validate(binary: &Path, index: &Path, assets: &Assets, cwd: &Path) -> Result<Value> {
-    tracing::info!(target:"atlas_progress",phase="check_baseline_readiness","Checking baseline source, models and database readiness");
+    tracing::info!(target:"atlas_progress",phase="check_baseline_readiness","Checking baseline readiness");
     let ready = data(&readiness(binary, index, assets, cwd)?)?;
     let profiles = ready["search_profiles"]
         .as_array()
@@ -57,7 +57,7 @@ pub(super) fn validate(binary: &Path, index: &Path, assets: &Assets, cwd: &Path)
     {
         return Err("Every configured profile must be ready before publishing".into());
     }
-    tracing::info!(target:"atlas_progress",phase="validate_baseline","Validating all reference records and stored vectors");
+    tracing::info!(target:"atlas_progress",phase="validate_baseline","Validating reference records and vectors");
     let deep = data(&invoke(
         binary,
         &paths(&["index", "validate", "--json"], index, &Assets::default()),
@@ -90,7 +90,7 @@ pub(super) fn validate(binary: &Path, index: &Path, assets: &Assets, cwd: &Path)
             },
         );
         let phase = format!("check_baseline_search_{id}");
-        tracing::info!(target:"atlas_progress",phase=phase.as_str(),profile=id,"Loading {id} and testing vector search");
+        tracing::info!(target:"atlas_progress",phase=phase.as_str(),profile=id,"Loading and testing {id} search");
         let report = data(&invoke(binary, &arguments, cwd)?)?;
         let results = report["results"]
             .as_array()
