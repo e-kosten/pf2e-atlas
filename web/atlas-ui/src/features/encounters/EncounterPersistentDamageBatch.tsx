@@ -191,6 +191,15 @@ export function EncounterPersistentDamageBatch({
     previewAttempt,
   ]);
   const current = preview?.inputs === groups ? preview : undefined;
+  const clearingTypes = participant.persistent_damage_groups
+    .filter(
+      (group) => clears[group.episode_id] || recoveries[group.episode_id]?.success,
+    )
+    .map(
+      (group) =>
+        damageTypes.find((type) => type.value === group.damage_type)?.label ??
+        group.damage_type,
+    );
   const ready =
     !applied && !changed && !disabled && !pending && !busy && !damageRoll.busy;
   const prepare = async (
@@ -682,9 +691,12 @@ export function EncounterPersistentDamageBatch({
               ) : (
                 <span className="muted">Updating total…</span>
               )}
+              {clearingTypes.length > 0 && (
+                <div>Also clears {clearingTypes.join(", ")}</div>
+              )}
             </div>
             <Tooltip
-              title="All persistent damage types resolve together. Effects triggered by taking damage, such as increasing Dying, happen once."
+              title="Damage applies together; effects triggered by damage happen once."
               trigger={["hover", "focus"]}
             >
               <Button

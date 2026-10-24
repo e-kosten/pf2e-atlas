@@ -104,6 +104,8 @@ pub enum EncounterTurnReminderView {
         participant_name: String,
         condition_ids: Vec<i64>,
         condition_name: String,
+        /// Current effective value; unavailable if any contributing source is unknown.
+        condition_value: Option<i64>,
     },
     PersistentDamage {
         participant_key: String,

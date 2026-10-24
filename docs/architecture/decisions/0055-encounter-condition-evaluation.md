@@ -176,7 +176,11 @@ remain unchanged; resource-only refreshes preserve the anchored spell view.
 
 Next turn advances atomically before the browser presents one notification for the
 turn just completed. Closing by Escape, backdrop or the close icon finishes the
-interaction without changing HP, conditions or initiative. Reads and refreshes do
+interaction without changing HP, conditions or initiative. The browser pins the outgoing
+participant inspector while reminders are open, retaining live canonical updates
+for that participant. Dismissal follows the saved current turn; a quiet boundary
+follows immediately. This display choice does not defer the atomic turn advance.
+Reads and refreshes do
 not reopen it. There is no acknowledgment, past-turn queue, selector or pagination.
 Durable advance receipts retain the original participant and frozen source context
 for retry safety while the current notification is open. Only the latest completed

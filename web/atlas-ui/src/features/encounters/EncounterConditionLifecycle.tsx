@@ -34,6 +34,7 @@ const optionKey = (option: ConditionLifecycleOptionView) =>
 export function EncounterConditionRecovery({
   encounterRef,
   boundaryKey = null,
+  contextualTurnActions = false,
   revision,
   participant,
   disabled,
@@ -42,6 +43,7 @@ export function EncounterConditionRecovery({
 }: {
   encounterRef: string;
   boundaryKey?: string | null;
+  contextualTurnActions?: boolean;
   revision: bigint;
   participant: EncounterParticipantView;
   disabled: boolean;
@@ -225,6 +227,7 @@ export function EncounterConditionRecovery({
             <TurnFrightenedReduction
               key={optionKey(option)}
               option={option}
+              label={contextualTurnActions ? "Reduce by 1" : option.label}
               disabled={disabled || query.isFetching}
               onApply={async () => {
                 await onApply({
@@ -419,10 +422,12 @@ function RecoveryContent({
 
 function TurnFrightenedReduction({
   option,
+  label,
   disabled,
   onApply,
 }: {
   option: ConditionLifecycleOptionView;
+  label: string;
   disabled: boolean;
   onApply: () => Promise<void>;
 }) {
@@ -448,7 +453,7 @@ function TurnFrightenedReduction({
             }
           }}
         >
-          {option.label}
+          {label}
         </Button>
       </Tooltip>
       {error && <Alert type="error" title={error} />}

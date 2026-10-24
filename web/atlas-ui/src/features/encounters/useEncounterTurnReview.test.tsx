@@ -37,7 +37,7 @@ const review: import("../../generated/atlas").EncounterTurnReviewView = {
 
   next_turn_unavailable_reason: null,
 };
-function setup(onAdvance: (revision: bigint) => Promise<boolean>) {
+function setup(onAdvance: (revision: bigint) => Promise<boolean>, onFinish = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const run = vi.fn().mockResolvedValue({
     active: true,
@@ -51,6 +51,7 @@ function setup(onAdvance: (revision: bigint) => Promise<boolean>) {
   } as unknown as ReturnType<typeof useEncounterMutations>;
   return {
     run,
+    onFinish,
     ...renderHook(
       () =>
         useEncounterTurnReview({
@@ -58,6 +59,7 @@ function setup(onAdvance: (revision: bigint) => Promise<boolean>) {
           expectedRevision: 7n,
           mutations,
           onAdvance,
+          onFinish,
         }),
       {
         wrapper: ({ children }: PropsWithChildren) => (
@@ -78,7 +80,7 @@ it("advances once before opening context; dismissing never advances again", asyn
         complete = resolve;
       }),
   );
-  const { result } = setup(advance);
+  const { result, onFinish } = setup(advance);
   await waitFor(() => expect(result.current.loading).toBe(false));
   let pending!: Promise<void>;
   act(() => {
@@ -96,20 +98,23 @@ it("advances once before opening context; dismissing never advances again", asyn
     await pending;
   });
   expect(result.current.open).toBe(true);
+  expect(onFinish).not.toHaveBeenCalled();
   act(() => result.current.close());
+  expect(onFinish).toHaveBeenCalledOnce();
   expect(result.current.open).toBe(false);
   expect(advance).toHaveBeenCalledTimes(1);
 });
 it("keeps a failed advance separate from reminder loading", async () => {
-  const { result } = setup(vi.fn().mockResolvedValue(false));
+  const { result, onFinish } = setup(vi.fn().mockResolvedValue(false));
   await act(async () => {
     await result.current.begin();
   });
   expect(result.current.open).toBe(false);
+  expect(onFinish).not.toHaveBeenCalled();
 });
 it("a reminder read failure after a saved advance does not undo progression", async () => {
   const advance = vi.fn().mockResolvedValue(true);
-  const { result } = setup(advance);
+  const { result, onFinish } = setup(advance);
   await waitFor(() => expect(result.current.loading).toBe(false));
   vi.mocked(getEncounterTurnReview).mockRejectedValue(
     new Error("Reminder read failed"),
@@ -118,6 +123,7 @@ it("a reminder read failure after a saved advance does not undo progression", as
     await result.current.begin();
   });
   expect(result.current.open).toBe(false);
+  expect(onFinish).toHaveBeenCalledOnce();
   expect(result.current.error?.message).toBe("Reminder read failed");
   expect(advance).toHaveBeenCalledTimes(1);
 });
@@ -128,12 +134,13 @@ it("advances without opening an empty reminder surface", async () => {
     outgoing: null,
   });
   const advance = vi.fn().mockResolvedValue(true);
-  const { result } = setup(advance);
+  const { result, onFinish } = setup(advance);
   await act(async () => {
     await result.current.begin();
   });
   expect(advance).toHaveBeenCalledTimes(1);
   expect(result.current.open).toBe(false);
+  expect(onFinish).toHaveBeenCalledOnce();
 });
 
 it("closing finishes the interaction without a mutation or reopening on refresh", async () => {

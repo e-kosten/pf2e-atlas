@@ -297,6 +297,7 @@ it("offers Frightened reduction directly in turn reminders without opening a dic
         <EncounterConditionRecovery
           encounterRef="encounter"
           boundaryKey="outgoing"
+          contextualTurnActions
           revision={4n}
           participant={encounterParticipant({ conditions: [condition] })}
           disabled={false}
@@ -308,7 +309,7 @@ it("offers Frightened reduction directly in turn reminders without opening a dic
     </QueryClientProvider>,
   );
   const button = await screen.findByRole("button", {
-    name: "Reduce Frightened by 1",
+    name: "Reduce by 1",
   });
   expect(screen.queryByRole("dialog")).toBeNull();
   fireEvent.click(button);
@@ -321,6 +322,6 @@ it("offers Frightened reduction directly in turn reminders without opening a dic
     }),
   );
   await waitFor(() =>
-    expect(screen.queryByRole("button", { name: "Reduce Frightened by 1" })).toBeNull(),
+    expect(screen.queryByRole("button", { name: "Reduce by 1" })).toBeNull(),
   );
 });

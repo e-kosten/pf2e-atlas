@@ -1,6 +1,6 @@
 import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Grid } from "antd";
 import { Edit2 } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -33,6 +33,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
   return <EncounterDetail key={route.slug} route={route} />;
 }
 function EncounterDetail({ route }: EncounterDetailViewProps) {
+  const client = useQueryClient();
   const confirmDangerAction = useConfirmDangerAction();
   const screens = Grid.useBreakpoint();
   const narrow = screens.md === false;
@@ -144,11 +145,14 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     }
   };
   const advanceTurn = async (expectedRevision: bigint) => {
+    // Pin the outgoing inspector before the canonical current turn changes.
+    if (encounter.data?.current_turn_participant_key)
+      setSelectedParticipantKey(encounter.data.current_turn_participant_key);
     followAfterRefresh.current = true;
     try {
       const result = await mutations.run({ kind: "advance", expectedRevision });
       if (result.active && result.refreshed) {
-        followTurn(result.view);
+        followAfterRefresh.current = false;
         return true;
       }
     } catch {
@@ -161,6 +165,8 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     encounterRef: encounter.data?.encounter.encounter_key ?? route.slug,
     mutations,
     onAdvance: advanceTurn,
+    onFinish: () =>
+      followTurn(client.getQueryData<typeof encounter.data>(["encounter", route.slug])),
     expectedRevision: encounter.data?.revision ?? 0n,
   });
   const encounterSummary = encounter.data?.encounter ?? null;

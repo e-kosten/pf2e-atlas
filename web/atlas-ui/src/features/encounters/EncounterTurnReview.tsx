@@ -213,6 +213,9 @@ export function EncounterTurnReview({
                       {reminder.participant_key !== outgoing?.participant_key &&
                         `${reminder.participant_name}: `}
                       {reminder.condition_name}
+                      {reminder.condition_value != null
+                        ? ` ${reminder.condition_value}`
+                        : ""}
                     </h3>
                   </div>
                   {participant ? (
@@ -224,6 +227,7 @@ export function EncounterTurnReview({
                         revision={data!.expected_revision}
                         participant={participant}
                         disabled={disabled || pending || loading || !!error}
+                        contextualTurnActions
                         onApply={async (request) => {
                           const row = Array.from(
                             reminderRows.current?.querySelectorAll<HTMLElement>(

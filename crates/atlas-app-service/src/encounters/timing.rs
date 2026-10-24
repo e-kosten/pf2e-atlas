@@ -162,6 +162,11 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
                     participant_name: participant.display_name.clone(),
                     condition_ids,
                     condition_name: "Frightened".into(),
+                    condition_value: super::rules::lifecycle::known_effective(
+                        participant,
+                        super::conditions::ConditionRule::Frightened,
+                    )
+                    .ok(),
                 });
             }
         }
