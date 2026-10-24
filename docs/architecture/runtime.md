@@ -155,6 +155,11 @@ using the shared HTML parser and sanitizer.
 The selected cache is stored once per field; authored markup remains in the DTO.
 CLI formatting is derived with html2text at read time. UI controls use field-local
 ordinals and intentional app contracts, never arbitrary Foundry JavaScript.
+Selected detail and owned-reading batches compose authored inline Item inclusions
+within the same read snapshot. Record-owned selection respects the pinned options;
+app-service bounds the whole response and preserves field-local reference/control
+bindings in transient occurrence namespaces. Each distinct included root decodes
+once per composed request. Stored caches and retrieval text remain unexpanded.
 Initial indexing includes GM/owner text/DCs and excludes None; English is the
 overridable build default. Search/display initially use artifact locale.
 

@@ -44,7 +44,12 @@ it("reads a batch of complete table text and opens its checked reference in plac
             },
             role: "table_result",
             source_fingerprint: null,
-            body: { kind: "html", html: "<p>Staff of Fire</p>", controls: [] },
+            body: {
+              kind: "html",
+              inclusions: [],
+              html: "<p>Staff of Fire</p>",
+              controls: [],
+            },
           },
         ],
         relationships: [{ kind: "TableResult", target }],

@@ -144,7 +144,7 @@ pub use list::{
 };
 pub use prepared_content::{
     ContentControlKindView, ContentControlView, PreparedContentFieldView, PreparedFieldBodyView,
-    PreparedReferenceView,
+    PreparedInclusionView, PreparedReferenceView,
 };
 pub use presentation::{
     ActionCostView, ActionGlyphView, ActivityEffectReferenceView, ActivityFrequencyView,

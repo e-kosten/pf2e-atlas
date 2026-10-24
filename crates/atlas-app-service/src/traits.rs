@@ -29,6 +29,7 @@ impl AtlasAppService {
                     content: definition.prepared.map(|prepared| {
                         atlas_app_model::TraitContentView {
                             body: atlas_app_model::PreparedFieldBodyView::Html {
+                                inclusions: vec![],
                                 html: prepared.html,
                                 controls: crate::prepared_content::content_controls(
                                     &prepared.interactions,

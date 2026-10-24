@@ -248,6 +248,13 @@ impl AtlasAppService {
                     ),
                 });
             }
+            crate::inline_content::compose_inline_content(
+                r,
+                entries
+                    .iter_mut()
+                    .flat_map(|entry| entry.content.iter_mut()),
+                &content.relationships,
+            )?;
             let end = start + entries.len();
             let cursor = |offset| EmbeddedReadingCursor {
                 artifact_generation: generation.clone(),

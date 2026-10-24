@@ -11,6 +11,7 @@ it.each(["Escape", "backdrop"])(
       .content[0];
     content.body = {
       kind: "html",
+      inclusions: [],
       html: '<span data-atlas-interaction="0">Fortitude check</span>',
       controls: [
         {
@@ -43,6 +44,7 @@ describe("prepared source HTML", () => {
     const field = detail.presentation.content[0];
     field.body = {
       kind: "html",
+      inclusions: [],
       html: '<p>Success <span data-atlas-reference="0">Spell Effect: Success</span></p>',
       controls: [],
     };
@@ -92,6 +94,7 @@ describe("prepared source HTML", () => {
       .content[0];
     content.body = {
       kind: "html",
+      inclusions: [],
       html: '<p>Spend <span data-atlas-action-glyph="two_actions">two actions</span> or a <span data-atlas-action-glyph="reaction">reaction</span>.</p>',
       controls: [],
     };
@@ -117,6 +120,7 @@ describe("prepared source HTML", () => {
     const content = detail.presentation.content[0];
     content.body = {
       kind: "html",
+      inclusions: [],
       html: '<span data-atlas-reference="0">Outer <span data-atlas-reference="1">Inner</span></span>',
       controls: [],
     };
@@ -145,6 +149,7 @@ describe("prepared source HTML", () => {
     const content = detail.presentation.content[0];
     content.body = {
       kind: "html",
+      inclusions: [],
       html: '<span data-atlas-reference="0">Outer <span data-atlas-interaction="0">Reflex</span><a data-atlas-reference="1" href="https://example.com">External</a><a href="https://example.net">Native</a></span>',
       controls: [
         {
@@ -201,6 +206,7 @@ describe("prepared source HTML", () => {
       .content[0];
     content.body = {
       kind: "html",
+      inclusions: [],
       html: '<span data-atlas-interaction="0">Fortitude check</span>',
       controls: [
         {
@@ -259,6 +265,7 @@ describe("prepared source HTML", () => {
       .content[0];
     content.body = {
       kind: "html",
+      inclusions: [],
       html: '<h2>Heading</h2><script>alert(1)</script><a href="javascript:alert(1)">Unsafe</a><span data-atlas-interaction="0">Unknown command</span>',
       controls: [
         {
@@ -281,6 +288,7 @@ describe("prepared source HTML", () => {
     const content = detail.presentation.content[0];
     content.body = {
       kind: "html",
+      inclusions: [],
       html: '<p><a data-atlas-reference="0" href="https://example.com">External source</a><a data-atlas-reference="1" href="https://example.com/blocked">Blocked</a></p>',
       controls: [],
     };
@@ -367,6 +375,7 @@ it("opens verified item context without changing the original citation", () => {
   const field = detail.presentation.content[0];
   field.body = {
     kind: "html",
+    inclusions: [],
     html: '<p>Cast <span data-atlas-reference="0">Heal</span>.</p>',
     controls: [],
   };
@@ -413,6 +422,7 @@ it("keeps authored table nodes, links and horizontal position across unchanged-c
   const content = detail.presentation.content[0];
   content.body = {
     kind: "html",
+    inclusions: [],
     html: '<p>Before</p><table><caption>Creature creation</caption><thead><tr><th>Level</th><th>Cost</th></tr></thead><tbody><tr><td>2</td><td><span data-atlas-reference="0">Nested Rule</span></td></tr></tbody></table><p>After</p>',
     controls: [],
   };
@@ -448,11 +458,72 @@ it("keeps authored table nodes, links and horizontal position across unchanged-c
     <PreparedContent
       content={{
         ...content,
-        body: { kind: "html", html: "<p>Replacement record</p>", controls: [] },
+        body: {
+          kind: "html",
+          inclusions: [],
+          html: "<p>Replacement record</p>",
+          controls: [],
+        },
       }}
       onReference={onReference}
     />,
   );
   expect(screen.queryByRole("table")).toBeNull();
   expect(screen.getByText("Replacement record")).toBeVisible();
+});
+
+it("binds repeated inclusion ordinals to their own exact links and controls", async () => {
+  const detail = detailFixture("spells:host", "Host", "actions:host-link");
+  const field = detail.presentation.content[0];
+  const nested = {
+    ...detail.relationships[0],
+    target: { ...detail.relationships[0].target!, record_key: "actions:nested" },
+  };
+  field.body = {
+    kind: "html",
+    html: '<p><span data-atlas-reference="0">Host link</span></p><section data-atlas-inclusion="1"><p><span data-atlas-reference="0">Nested link</span> <span data-atlas-interaction="0">Nested check</span></p></section>',
+    controls: [
+      {
+        ordinal: 0,
+        control: { kind: "check", statistic: "Host check", options: { dc: "10" } },
+      },
+    ],
+    inclusions: [
+      {
+        namespace: 1,
+        source: { ...field.locator, record: "actions:nested" },
+        references: [nested],
+        controls: [
+          {
+            ordinal: 0,
+            control: {
+              kind: "check",
+              statistic: "Nested check",
+              options: { dc: "22" },
+            },
+          },
+        ],
+      },
+    ],
+  };
+  const onReference = vi.fn();
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <PreparedContent
+        content={field}
+        relationships={detail.relationships}
+        onReference={onReference}
+      />
+    </ConfigProvider>,
+  );
+  const link = screen.getByRole("link", { name: "Nested link" });
+  expect(link.getAttribute("href")).toContain("actions:nested");
+  fireEvent.click(link, { ctrlKey: true });
+  expect(onReference).not.toHaveBeenCalled();
+  fireEvent.click(link);
+  expect(onReference.mock.calls[0][0]).toBe("actions:nested");
+  fireEvent.click(screen.getByRole("button", { name: "Nested check" }));
+  const dialog = await screen.findByRole("dialog");
+  expect(dialog).toHaveTextContent("22");
+  expect(dialog).not.toHaveTextContent("10");
 });

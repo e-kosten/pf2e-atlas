@@ -58,10 +58,12 @@ pub(crate) fn prepared_fields(
                 })?;
                 match &cached.html {
                     Some(html) => PreparedFieldBodyView::Html {
+                        inclusions: vec![],
                         html: html.clone(),
                         controls: content_controls(&cached.interactions),
                     },
                     None if cached.outcome == "empty" => PreparedFieldBodyView::Html {
+                        inclusions: vec![],
                         html: String::new(),
                         controls: vec![],
                     },

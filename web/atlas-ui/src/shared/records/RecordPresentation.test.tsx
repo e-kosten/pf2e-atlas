@@ -635,6 +635,7 @@ it("puts spell operating facts before prose without losing authored headings or 
       source_fingerprint: null,
       body: {
         kind: "html",
+        inclusions: [],
         html: "<p>You transform one object.</p><h4>Heightened (4th)</h4><p>The food has a longer duration.</p>",
         controls: [],
       },

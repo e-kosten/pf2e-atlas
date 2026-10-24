@@ -293,6 +293,7 @@ describe("RecordReferenceDrawer", () => {
       const detail = recordDetailFixture();
       detail.presentation.content[0].body = {
         kind: "html",
+        inclusions: [],
         html: '<span data-atlas-interaction="0">Fortitude check</span>',
         controls: [
           {

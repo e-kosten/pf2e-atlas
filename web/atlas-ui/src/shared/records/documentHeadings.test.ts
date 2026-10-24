@@ -28,3 +28,18 @@ describe("journal document headings", () => {
     );
   });
 });
+
+it("preserves host section destinations and outline when inserted headings are added", () => {
+  const host = "<h1>Overview</h1><h1>Training</h1><h1>Features</h1>";
+  const composed =
+    '<h1>Overview</h1><section data-atlas-inclusion="1"><h1>Training</h1></section><h1>Training</h1><h1>Features</h1>';
+  const before = documentHeadings(host, "page");
+  const after = documentHeadings(composed, "page");
+  expect(after.outline).toEqual(before.outline);
+  const parsed = new DOMParser().parseFromString(after.html, "text/html");
+  expect(parsed.querySelector("[data-atlas-inclusion] h4")?.textContent).toBe(
+    "Training",
+  );
+  const ids = [...parsed.querySelectorAll("[id]")].map((node) => node.id);
+  expect(new Set(ids).size).toBe(ids.length);
+});
