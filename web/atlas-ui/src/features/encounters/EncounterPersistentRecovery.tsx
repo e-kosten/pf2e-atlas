@@ -275,11 +275,14 @@ export function EncounterPersistentRecovery({
             disabled={disabled || (!available && !result)}
             onClick={(event) => event.stopPropagation()}
           >
-            {appearance === "icon"
-              ? null
-              : result && mode === "end_turn"
-                ? "Recovery result"
-                : "Roll recovery"}
+            {appearance === "icon" ? null : mode === "end_turn" ? (
+              <span className="encounter-recovery-trigger-label">
+                <span aria-hidden={!!result}>Roll recovery</span>
+                <span aria-hidden={!result}>View result</span>
+              </span>
+            ) : (
+              "Roll recovery"
+            )}
           </Button>
         </Tooltip>
       </Popover>

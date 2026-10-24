@@ -1434,6 +1434,9 @@ inputs retain that formula's natural footprint, not an arbitrary large empty are
 Use one card inset and control-sized internal gaps. Each type has three rows:
 identity/formula, Damage, then recovery. Keep related controls together when they
 wrap and retain normal action sizes.
+State labels on the same action share an intrinsic footprint: Roll recovery and
+View result reserve the wider label's width. Do not let a result label wrap its
+neighboring Clear effect action and recenter the entire modal.
 Manual drafts and prepared dice survive method switches.
 
 Resolve each type's damage before optionally preparing its recovery. Successful

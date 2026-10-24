@@ -223,6 +223,15 @@
   color: var(--muted);
   font-size: 12px;
 }
+.encounter-recovery-trigger-label {
+  display: inline-grid;
+}
+.encounter-recovery-trigger-label > span {
+  grid-area: 1 / 1;
+}
+.encounter-recovery-trigger-label > [aria-hidden="true"] {
+  visibility: hidden;
+}
 @media (max-width: 480px) {
   .encounter-persistent-recovery-row--resolved {
     grid-template-columns: minmax(0, 1fr);
