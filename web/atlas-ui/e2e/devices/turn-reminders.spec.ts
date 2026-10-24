@@ -189,7 +189,9 @@ for (const outcome of [
             response.url().endsWith("/persistent-recovery") &&
             response.request().method() === "POST",
         );
-        await page.getByRole("button", { name: "Roll", exact: true }).click();
+        const roll = page.getByRole("button", { name: "Roll", exact: true });
+        await roll.focus();
+        await roll.press("Enter");
         const response = await completed;
         expect(response.ok()).toBeTruthy();
         const receipt = await response.json();
@@ -210,7 +212,7 @@ for (const outcome of [
         expect(await retainedAnchor!.evaluate((node) => node.isConnected)).toBe(true);
         await expect(
           reminders.getByRole("button", { name: "View Fire recovery", exact: true }),
-        ).toBeVisible();
+        ).toBeFocused();
         const after = await retainedAnchor!.boundingBox();
         expect(before).not.toBeNull();
         expect(after).not.toBeNull();
@@ -227,6 +229,12 @@ for (const outcome of [
           )
         ).json();
         expect(result.recovery_results[0]).toEqual(receipt);
+        await page.keyboard.press("Escape");
+        await expect(page.locator(".ant-popover:visible")).toHaveCount(0);
+        await expect(
+          reminders.getByRole("button", { name: "View Fire recovery", exact: true }),
+        ).toBeFocused();
+        await expect(reminders).toBeVisible();
         expect(receipt.dc).toBe(
           outcome === "roll" ? 15 : outcome === "automatic success" ? 0 : 100,
         );
