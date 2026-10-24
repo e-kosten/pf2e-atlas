@@ -239,10 +239,19 @@ floating sheet. Use the same shared reader policy for search and saved lists.
 Most record kinds retain a simple reading flow; wider panes do not justify filler
 or a permanent supporting column. Complex kinds such as creatures and roll tables
 may use their width for meaningful structures after individual review.
+Long journal pages can use a narrow sticky outline to the right when the host can
+fit it beside the existing prose measure. The outline supplies a real navigation
+task; it does not justify stretching prose. Keep the outline above the content in
+narrow hosts, including Drawers, and preserve exact native section links and local
+focus/scroll behavior. Do not reserve an empty outline column on short pages.
+This follows the [USWDS in-page navigation pattern](https://designsystem.digital.gov/components/in-page-navigation/);
+Atlas chooses the responsive fit and keeps its established reading hosts.
 In a reference Drawer the document fills its body.
 Simple records use one identity flow: title/action glyph and document actions,
-then classification/rank and traits, then source attribution. Spell identity is
-static text beside a muted Change rank menu; spell traits have their own row.
+then classification/rank on one row, traits on their own row, then source
+attribution. Use this identity structure across non-creature kinds and reading
+hosts, rather than maintaining spell/equipment exceptions. Spell identity is
+static text beside a muted Change rank menu.
 Do not reserve an invisible reset slot or repeat base-rank copy outside the rank
 menu. Let the title and action group share a row when they fit, including on phone; wrap for
 actual content rather than forcing every narrow header into separate rows.
@@ -1075,6 +1084,25 @@ button and callback flows use `useConfirmDangerAction`; prepared source dialogs
 use contextual `Modal.useModal`. Do not use static Ant feedback methods. Style
 Ant internals through documented `classNames`, `styles` and component tokens;
 Atlas-owned classes describe product layout rather than internal Ant DOM.
+
+### Grouping reference facts
+
+Use one compact inline group for facts read together. Break at a change of
+meaning, not wherever a flex row happens to wrap. Keep each label with its value
+and essential qualifiers; let a long value wrap inside its group. For example,
+Hidden Pit uses a durability row (AC, HP, Hardness), a separate saves row, and
+individual Immunities/Weaknesses/Resistances rows when supplied. Do not put all
+seven facts into one flowing sentence, and do not create a card for each number.
+Apply the same distinction in vehicle defenses and future creature/encounter work;
+the exact groups depend on the task, not a universal number of facts per row.
+
+Use an Ant Table when users compare a repeated dimension across rows, rather than
+forcing tabular information into label/value runs. Class feat and skill advancement
+uses Level → Advancement rows so the user can find everything supplied for one
+level. Preserve the supplied schedule and unavailable categories; do not infer a
+complete class progression from these arrays. A short price/bulk/usage group does
+not need a table. Compact table rows suit short progression values; prose-heavy
+roll tables need more cell spacing. Keep source-authored tables as tables.
 
 ## Mutable workflows
 

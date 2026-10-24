@@ -1,7 +1,8 @@
-import { Typography } from "antd";
+import { Table, Typography } from "antd";
 import type { ReactNode } from "react";
 import type {
   RecordBodyView,
+  ClassReferenceView,
   FactView,
   NumberFactView,
   ReferenceGrantView,
@@ -61,11 +62,23 @@ const choices = (slots: AttributeChoiceView[]) =>
           : alternatives(slot.choices.value),
     )
     .join(", ");
-function Group({ title, children }: { title?: string; children: ReactNode }) {
+function Group({
+  title,
+  children,
+  stacked = false,
+}: {
+  title?: string;
+  children: ReactNode;
+  stacked?: boolean;
+}) {
   return (
     <section className="reference-profile__section">
       {title && <h3>{title}</h3>}
-      <div className="reference-profile__facts">{children}</div>
+      <div
+        className={stacked ? "reference-profile__groups" : "reference-profile__facts"}
+      >
+        {children}
+      </div>
     </section>
   );
 }
@@ -133,6 +146,67 @@ function Grants({
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+function ClassAdvancement({ value }: { value: ClassReferenceView }) {
+  const groups = [
+    ["Ancestry feat", value.ancestry_feat_levels],
+    ["Class feat", value.class_feat_levels],
+    ["General feat", value.general_feat_levels],
+    ["Skill feat", value.skill_feat_levels],
+    ["Skill increase", value.skill_increase_levels],
+  ] as const;
+  const levels = [
+    ...new Set(
+      groups.flatMap(([, fact]) => (fact.state === "value" ? (fact.value ?? []) : [])),
+    ),
+  ].sort((a, b) => a - b);
+  if (
+    !levels.length &&
+    groups.every(
+      ([, fact]) => fact.state === "value" || fact.state === "not_applicable",
+    )
+  )
+    return null;
+  return (
+    <section className="reference-profile__section">
+      <h3>Feat and skill advancement</h3>
+      {levels.length > 0 && (
+        <Table
+          aria-label="Feat and skill advancement"
+          pagination={false}
+          size="small"
+          rowKey="level"
+          dataSource={levels.map((level) => ({
+            level,
+            advances: groups
+              .filter(
+                ([, fact]) => fact.state === "value" && fact.value?.includes(level),
+              )
+              .map(([label]) => label),
+          }))}
+          columns={[
+            {
+              title: "Level",
+              dataIndex: "level",
+              width: 72,
+              rowScope: "row",
+              onCell: () => ({ style: { verticalAlign: "top" } }),
+            },
+            {
+              title: "Advancement",
+              dataIndex: "advances",
+              render: (advances: string[]) => advances.join(", "),
+            },
+          ]}
+        />
+      )}
+      {groups
+        .filter(([, fact]) => fact.state !== "value")
+        .map(([label, fact]) => (
+          <ReferenceFact key={label} label={label} fact={fact} />
+        ))}
     </section>
   );
 }
@@ -262,24 +336,7 @@ export function ReferenceProfiles({
           </div>
         </section>
         <Grants fact={v.grants} onReference={onReference} />
-        <Group title="Feat and skill advancement">
-          {(
-            [
-              ["Ancestry feats", v.ancestry_feat_levels],
-              ["Class feats", v.class_feat_levels],
-              ["General feats", v.general_feat_levels],
-              ["Skill feats", v.skill_feat_levels],
-              ["Skill increases", v.skill_increase_levels],
-            ] as const
-          ).map(([label, fact]) => (
-            <ReferenceFact
-              key={label}
-              label={label}
-              fact={fact}
-              format={(levels) => levels.join(", ")}
-            />
-          ))}
-        </Group>
+        <ClassAdvancement value={v} />
       </div>
     );
   }
@@ -336,15 +393,18 @@ export function ReferenceProfiles({
           <ReferenceFact label="Piloting" fact={v.piloting} />
         </Group>
         {children}
-        <Group title="Defenses">
-          <ReferenceFact label="AC" fact={v.defenses.armor_class} />
+        <Group title="Defenses" stacked>
+          <div className="reference-profile__facts">
+            <ReferenceFact label="AC" fact={v.defenses.armor_class} />
+
+            <ReferenceFact label="HP" fact={v.defenses.hit_points} />
+            <ReferenceFact label="Hardness" fact={v.defenses.hardness} />
+          </div>
           <ReferenceFact
             label="Fortitude"
             fact={v.fortitude}
             format={(n) => `${Number(n) >= 0 ? "+" : ""}${n}`}
           />
-          <ReferenceFact label="HP" fact={v.defenses.hit_points} />
-          <ReferenceFact label="Hardness" fact={v.defenses.hardness} />
           <Iwr label="Immunities" fact={v.defenses.immunities} />
           <Iwr label="Weaknesses" fact={v.defenses.weaknesses} />
           <Iwr label="Resistances" fact={v.defenses.resistances} />

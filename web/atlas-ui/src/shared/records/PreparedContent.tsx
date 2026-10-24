@@ -327,10 +327,8 @@ export function PreparedContentBody({
       <Alert type="info" title="Content reading limit" description={body.reason} />
     );
   if (body.kind === "plain") return <p className="prose">{body.text}</p>;
-  return (
+  const reading = (
     <>
-      {contextHolder}
-      {effectLinks}
       {outline.length > 0 && (
         <nav className="document-outline" aria-label="On this page">
           <strong>On this page</strong>
@@ -363,6 +361,21 @@ export function PreparedContentBody({
         className="prepared-content"
         dangerouslySetInnerHTML={{ __html: html }}
       />
+    </>
+  );
+  return (
+    <>
+      {contextHolder}
+      {effectLinks}
+      {documentNavigation ? (
+        <div
+          className={`document-reading${outline.length ? " document-reading--outlined" : ""}`}
+        >
+          {reading}
+        </div>
+      ) : (
+        reading
+      )}
     </>
   );
 }

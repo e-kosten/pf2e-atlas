@@ -34,6 +34,40 @@
 .document-heading {
   scroll-margin-block-start: var(--space-section);
 }
+
+/* The side outline earns extra page width; the prose keeps its accepted measure. */
+@media (min-width: 1120px) {
+  .record-view__pane--document:has(.document-reading--outlined) {
+    max-width: calc(var(--document-measure) + 13rem + 3 * var(--space-section));
+  }
+}
+@container record-pane (min-width: 62rem) {
+  .document-reading--outlined {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 13rem;
+    gap: var(--space-section);
+    align-items: start;
+  }
+  .document-reading--outlined > .prepared-content {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .document-reading--outlined > .document-outline {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: var(--space-section);
+    max-height: calc(100dvh - 2 * var(--space-section));
+    overflow: auto;
+    border-block-end: 0;
+    border-inline-start: 1px solid var(--line);
+    padding: 0 0 0 var(--space-group);
+    margin: 0;
+  }
+  .document-reading--outlined > .document-outline ul {
+    display: grid;
+  }
+}
 .document-heading:focus-visible {
   outline: 2px solid var(--accent-text);
   outline-offset: var(--space-control);

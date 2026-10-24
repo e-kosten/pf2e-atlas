@@ -140,7 +140,6 @@ export function RecordIdentity({
   originalRecord,
   onReference,
   stacked = false,
-  metadataLayout,
   headingRef,
   headingId,
   actions,
@@ -148,7 +147,6 @@ export function RecordIdentity({
 }: {
   identity?: RecordSummaryView;
   stacked?: boolean;
-  metadataLayout?: "inline" | "rows";
   headingRef?: Ref<HTMLHeadingElement>;
   headingId?: string;
   actions?: ReactNode;
@@ -193,7 +191,6 @@ export function RecordIdentity({
         ) : undefined
       }
       stacked={stacked}
-      metadataLayout={metadataLayout}
       headingRef={headingRef}
       headingId={headingId}
       actions={actions}
@@ -311,11 +308,6 @@ export function RecordPresentationIdentity({
   return (
     <RecordIdentity
       stacked={documentIdentity}
-      metadataLayout={
-        body?.kind === "physical_reference" || body?.kind === "spell"
-          ? "rows"
-          : "inline"
-      }
       headingRef={headingRef}
       headingId={headingId}
       actions={actions}
@@ -528,19 +520,24 @@ export function RecordPresentation({
           {body.value.defense_block.value !== false && (
             <section className="reference-profile__section">
               <h3>Defenses</h3>
-              <div className="reference-profile__facts">
-                <ReferenceFact label="AC" fact={body.value.actor.armor_class} />
-                <ReferenceFact label="HP" fact={body.value.actor.maximum_hp} />
-                <ReferenceFact label="Hardness" fact={body.value.hardness} />
-                {body.value.show_saves &&
-                  (["fortitude", "reflex", "will"] as const).map((save) => (
-                    <ReferenceFact
-                      key={save}
-                      label={save[0].toUpperCase() + save.slice(1)}
-                      fact={body.value.actor.saves[save]}
-                      format={(value) => `${Number(value) >= 0 ? "+" : ""}${value}`}
-                    />
-                  ))}
+              <div className="reference-profile__groups">
+                <div className="reference-profile__facts">
+                  <ReferenceFact label="AC" fact={body.value.actor.armor_class} />
+                  <ReferenceFact label="HP" fact={body.value.actor.maximum_hp} />
+                  <ReferenceFact label="Hardness" fact={body.value.hardness} />
+                </div>
+                {body.value.show_saves && (
+                  <div className="reference-profile__facts">
+                    {(["fortitude", "reflex", "will"] as const).map((save) => (
+                      <ReferenceFact
+                        key={save}
+                        label={save[0].toUpperCase() + save.slice(1)}
+                        fact={body.value.actor.saves[save]}
+                        format={(value) => `${Number(value) >= 0 ? "+" : ""}${value}`}
+                      />
+                    ))}
+                  </div>
+                )}
                 <Iwr label="Immunities" fact={body.value.actor.immunities} />
                 <Iwr label="Weaknesses" fact={body.value.actor.weaknesses} />
                 <Iwr label="Resistances" fact={body.value.actor.resistances} />

@@ -3,7 +3,7 @@
 Status: proposed
 Priority: before extending supported inline mechanics
 Owner: unassigned
-Last reviewed: 2026-10-19
+Last reviewed: 2026-10-23
 
 Extend the upstream-backed comparison of Foundry rich-text syntax when changing
 the source pin or supporting additional content. ADR 0044 already established
@@ -25,6 +25,22 @@ not a replacement content model or a claim that the existing comparison is absen
 - Use representative corpus examples and adversarial fixtures for accepted
   corrections. Record the exact source revision; older 6.12.4 findings are
   historical evidence, not proof of parity with the current pin.
+
+## Concrete embed gap
+
+At pin `28d9d156f252d084371d994dc359509b49eadf18`, the Fighter page
+`journals:kzxu2dI7tFxv6Ix6` / page `HZbrRRVzW7w17L2W` authors a Reactive
+Strike heading, an inline `@Embed` of class feature `hmShTfPOcTaKgbf4`, an
+`@UUID` action link with reaction glyph, and an inline `@Embed` of action
+`KAVf7AmRnbCAHrkT`. Atlas preserves both resolved embed destinations as links
+and emits `EmbedNotExpanded`; the resulting four adjacent names do not provide
+the intended embedded feature/action prose. This is distinct from inline
+expression evaluation. Do not deduplicate by visible name: the class feature
+and action are different records, and an embed and a reference have different
+roles. Any future expansion must define bounded depth/work, cycle handling,
+source attribution, generation ownership and the relationship between an inline
+body and its exact native full-record destination. The Ant presentation work
+records this gap without introducing recursive expansion or changing preparation.
 
 ## Completion and boundaries
 
