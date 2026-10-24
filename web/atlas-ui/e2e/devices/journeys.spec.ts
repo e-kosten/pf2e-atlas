@@ -751,7 +751,21 @@ test("encounter references retain their owner, scroll and native destination", a
     const originalSize = page.viewportSize()!;
     if (originalSize.width < 768)
       await page.setViewportSize({ width: originalSize.width, height: 560 });
-    await activate(page.getByRole("link", { name: "Signal Pulse", exact: true }), info);
+    const pulse = page.getByRole("link", { name: "Signal Pulse", exact: true });
+    // Encounter abilities now read inline with bounded continuation. Exercise
+    // that continuation before opening this deliberately late owned ability.
+    await expect(
+      page.getByRole("link", { name: "Lantern Technique 00", exact: true }),
+    ).toBeVisible();
+    for (const name of ["Lantern Technique 32", "Signal Pulse"]) {
+      await page.evaluate(() => {
+        document
+          .querySelector('[aria-label="Continue reading abilities"]')
+          ?.scrollIntoView({ block: "end" });
+      });
+      await expect(page.getByRole("link", { name, exact: true })).toBeAttached();
+    }
+    await activate(pulse, info);
     const content = page.getByLabel("Reference content", { exact: true });
     const drawer = page.getByRole("dialog", { name: /^Signal Pulse\b/ });
     await expect(drawer).toBeVisible();
@@ -1181,11 +1195,7 @@ test("named parties add everyone directly and archive views stay separate", asyn
     ).toBe(true);
     await noPageOverflow(page);
     await activate(
-      page.getByRole("button", { name: "Actions for Dain", exact: true }),
-      info,
-    );
-    await activate(
-      page.getByRole("menuitem", { name: "Remove Dain", exact: true }),
+      page.getByRole("button", { name: "Remove Dain", exact: true }),
       info,
     );
     const removal = page.getByRole("dialog", { name: "Remove Dain?", exact: true });
