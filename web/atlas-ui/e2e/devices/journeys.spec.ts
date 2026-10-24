@@ -594,6 +594,38 @@ test("reference rank menus accept pointer selection and retain their trigger", a
   await noPageOverflow(page);
 });
 
+test("reference rank keyboard selection and Tab exit retain the reading context", async ({
+  page,
+}, info) => {
+  await page.goto("/records/browser-rules:rule000000000001");
+  await activate(page.getByRole("link", { name: "Lantern Ward", exact: true }), info);
+  const drawer = page.getByRole("dialog", { name: "Lantern Ward", exact: true });
+  const trigger = drawer.getByRole("button", { name: "Change rank", exact: true });
+  const menu = page.getByRole("menu", { name: "Spell rank", exact: true });
+  await trigger.press("ArrowDown");
+  await expect(page.getByRole("menuitem", { name: "Rank 2 (base)" })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(
+    page.getByRole("menuitem", { name: "Rank 3", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(drawer.getByText("Spell 3", { exact: true })).toBeVisible();
+  await expect(menu).toBeHidden();
+  await expect(trigger).toBeFocused();
+  for (const key of ["Tab", "Shift+Tab"]) {
+    await trigger.press("ArrowDown");
+    await expect(page.getByRole("menuitem", { name: "Rank 2 (base)" })).toBeFocused();
+    await page.keyboard.press(key);
+    await expect(menu).toBeHidden();
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(trigger).not.toBeFocused();
+    expect(await drawer.evaluate((node) => node.contains(document.activeElement))).toBe(
+      true,
+    );
+  }
+  await noPageOverflow(page);
+});
+
 test("list tags, editing and explicit Add survive constrained space", async ({
   page,
 }, info) => {
