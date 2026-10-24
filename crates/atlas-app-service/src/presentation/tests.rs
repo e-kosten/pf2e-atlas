@@ -1781,7 +1781,7 @@ fn empty_scroll_has_no_invented_spell_link() {
 }
 
 #[test]
-fn selected_kind_labels_are_title_case_without_changing_source_identifiers() {
+fn selected_kind_labels_describe_documents_without_changing_source_identifiers() {
     let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
         1,
         16,
@@ -1826,7 +1826,7 @@ fn selected_kind_labels_are_title_case_without_changing_source_identifiers() {
             "Creature",
         ),
         ("tables:ffffffffffffffff", "roll_table", None, "Roll Table"),
-        ("journals:hhhhhhhhhhhhhhhh", "lore", None, "Lore"),
+        ("journals:hhhhhhhhhhhhhhhh", "lore", None, "Journal"),
         (
             "features:jjjjjjjjjjjjjjjj",
             "campaign_feature",
@@ -1874,8 +1874,8 @@ fn selected_kind_labels_are_title_case_without_changing_source_identifiers() {
             "/items",
             "eeeeeeeeeeeeeeee",
             "campaignFeature",
-            "Campaign Feature",
-            "Campaign Feature · level unavailable",
+            "Campaign feature",
+            "Campaign feature · level unavailable",
         ),
         (
             "tables:ffffffffffffffff",
@@ -1890,8 +1890,8 @@ fn selected_kind_labels_are_title_case_without_changing_source_identifiers() {
             "/pages",
             "iiiiiiiiiiiiiiii",
             "pdf",
-            "PDF",
-            "PDF",
+            "Journal page",
+            "Journal page",
         ),
     ] {
         let detail = fixture

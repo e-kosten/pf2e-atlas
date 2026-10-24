@@ -536,9 +536,6 @@ export function RecordPresentation({
             <section className="reference-profile__section">
               <h3>Defenses</h3>
               <div className="reference-profile__groups">
-                {body.value.defense_block.state !== "value" && (
-                  <FactLine label="Defense block" fact={body.value.defense_block} />
-                )}
                 {body.value.defense_block.value !== false && (
                   <div className="reference-profile__facts">
                     <ReferenceFact label="AC" fact={body.value.actor.armor_class} />
