@@ -6,6 +6,7 @@ export function ConditionValueInput({
   onRemove,
   removeLabel,
   disabled,
+  readOnly = false,
   name,
   onBlur,
   onKeyDown,
@@ -16,6 +17,7 @@ export function ConditionValueInput({
   onRemove?: () => void;
   removeLabel?: string;
   disabled?: boolean;
+  readOnly?: boolean;
   name: string;
   onStep?: (value: number) => void;
   onBlur?: () => void;
@@ -24,7 +26,7 @@ export function ConditionValueInput({
   return (
     <Space.Compact>
       <Button
-        disabled={disabled || (value === 1 && !onRemove) || value == null}
+        disabled={disabled || readOnly || (value === 1 && !onRemove) || value == null}
         icon={value === 1 && onRemove ? <X size={14} /> : <Minus size={14} />}
         aria-label={
           value === 1 && onRemove
@@ -44,7 +46,8 @@ export function ConditionValueInput({
         min={1}
         controls={false}
         value={value}
-        disabled={disabled}
+        disabled={disabled && !readOnly}
+        readOnly={readOnly}
         onChange={onChange}
         onBlur={onBlur}
         onKeyDown={onKeyDown}
@@ -52,7 +55,7 @@ export function ConditionValueInput({
         styles={{ input: { textAlign: "center" } }}
       />
       <Button
-        disabled={disabled}
+        disabled={disabled || readOnly}
         icon={<Plus size={14} />}
         aria-label={`Increase ${name}`}
         onClick={() => {
