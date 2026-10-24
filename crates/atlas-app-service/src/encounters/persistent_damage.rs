@@ -438,7 +438,7 @@ pub(super) fn group_views(
                         formula: formula.clone(),
                         roll_preview: atlas_dice::prepare(formula)
                             .ok()
-                            .map(|dice| dice.preview_expression()),
+                            .and_then(|dice| dice.preview_expression().ok()),
                         multiplier: match multiplier {
                             DamageMultiplier::Normal => DamageMultiplierView::Normal,
                             DamageMultiplier::Double => DamageMultiplierView::Double,

@@ -45,14 +45,14 @@ impl PreparedRoll {
     }
 
     /// Validated display shape, without evaluating or consuming randomness.
-    pub fn preview_expression(&self) -> RollPreviewExpression {
-        fn project(expression: &Expression) -> RollPreviewExpression {
-            match expression {
+    pub fn preview_expression(&self) -> Result<RollPreviewExpression, DiceError> {
+        fn project(expression: &Expression) -> Result<RollPreviewExpression, DiceError> {
+            Ok(match expression {
                 Expression::Dice(dice) => {
                     let (count, size) = match dice.atom {
                         diceng::DiceAtom::Standard { count, sides } => (count, sides),
                         diceng::DiceAtom::Percent { count } => (count, 100),
-                        _ => unreachable!("prepare validates dice atoms"),
+                        _ => return Err(DiceError::Unsupported),
                     };
                     RollPreviewExpression::Dice {
                         sides: vec![size; count as usize],
@@ -65,15 +65,15 @@ impl PreparedRoll {
                         BinaryOp::Mul => RollOperator::Multiply,
                         BinaryOp::Div => RollOperator::Divide,
                     },
-                    left: Box::new(project(left)),
-                    right: Box::new(project(right)),
+                    left: Box::new(project(left)?),
+                    right: Box::new(project(right)?),
                 },
                 Expression::UnaryMinus(inner) => RollPreviewExpression::Negate {
-                    inner: Box::new(project(inner)),
+                    inner: Box::new(project(inner)?),
                 },
                 Expression::Literal(value) => RollPreviewExpression::Number { value: *value },
-                _ => unreachable!("prepare validates expression shapes"),
-            }
+                _ => return Err(DiceError::Unsupported),
+            })
         }
         project(&self.expression)
     }
@@ -384,7 +384,7 @@ mod preview_tests {
     #[test]
     fn preview_preserves_arithmetic_without_inventing_outcomes() {
         assert_eq!(
-            prepare("2d6+3").unwrap().preview_expression(),
+            prepare("2d6+3").unwrap().preview_expression().unwrap(),
             RollPreviewExpression::Binary {
                 operator: RollOperator::Add,
                 left: Box::new(RollPreviewExpression::Dice { sides: vec![6, 6] }),
@@ -392,24 +392,27 @@ mod preview_tests {
             }
         );
         assert_eq!(
-            prepare("2d20kh1").unwrap().preview_expression(),
+            prepare("2d20kh1").unwrap().preview_expression().unwrap(),
             RollPreviewExpression::Dice {
                 sides: vec![20, 20]
             }
         );
         assert!(matches!(
-            prepare("-(1d8+2)*1d4").unwrap().preview_expression(),
+            prepare("-(1d8+2)*1d4")
+                .unwrap()
+                .preview_expression()
+                .unwrap(),
             RollPreviewExpression::Binary {
                 operator: RollOperator::Multiply,
                 ..
             }
         ));
         assert_eq!(
-            prepare("1d%").unwrap().preview_expression(),
+            prepare("1d%").unwrap().preview_expression().unwrap(),
             RollPreviewExpression::Dice { sides: vec![100] }
         );
         assert_eq!(
-            prepare("5").unwrap().preview_expression(),
+            prepare("5").unwrap().preview_expression().unwrap(),
             RollPreviewExpression::Number { value: 5 }
         );
     }

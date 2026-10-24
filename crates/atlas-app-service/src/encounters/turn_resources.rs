@@ -41,37 +41,35 @@ pub(super) fn prepare_start(
         if let Some(stunned) = participant.conditions.iter().find(|c| {
             condition_rule_for_key(c.condition_key.as_deref()) == Some(ConditionRule::Stunned)
                 && c.value.is_some_and(|v| v > 0)
-        }) {
-            if lost > 0 {
-                let action = ConditionLifecycleActionView::StunnedActionsLost {
-                    condition_id: stunned.condition_id,
-                    actions_lost: lost,
-                };
-                let mut at_regain = participant.clone();
-                at_regain.turn_resources = None;
-                changes = rules::lifecycle::prepare_lifecycle(&at_regain, &action, None, id)?
-                    .resolve(None)?;
-                for condition in participant.conditions.iter().filter(|c| {
-                    condition_rule_for_key(c.condition_key.as_deref())
-                        == Some(ConditionRule::Stunned)
-                }) {
-                    if let Some(before) = condition.value {
-                        effects.push(TurnResourceEffect {
-                            condition_id: Some(condition.condition_id),
-                            name: condition.name.clone(),
-                            before: Some(before),
-                            after: Some((before - lost).max(0)),
-                            actions_lost: lost.min(before),
-                        });
-                    }
+        }) && lost > 0
+        {
+            let action = ConditionLifecycleActionView::StunnedActionsLost {
+                condition_id: stunned.condition_id,
+                actions_lost: lost,
+            };
+            let mut at_regain = participant.clone();
+            at_regain.turn_resources = None;
+            changes = rules::lifecycle::prepare_lifecycle(&at_regain, &action, None, id)?
+                .resolve(None)?;
+            for condition in participant.conditions.iter().filter(|c| {
+                condition_rule_for_key(c.condition_key.as_deref()) == Some(ConditionRule::Stunned)
+            }) {
+                if let Some(before) = condition.value {
+                    effects.push(TurnResourceEffect {
+                        condition_id: Some(condition.condition_id),
+                        name: condition.name.clone(),
+                        before: Some(before),
+                        after: Some((before - lost).max(0)),
+                        actions_lost: lost.min(before),
+                    });
                 }
-                claims.push(EncounterBoundaryClaim {
-                    participant_key: participant.participant_key.clone(),
-                    round_number: round,
-                    kind: EncounterBoundaryKind::TurnStart,
-                    scope_key: "stunned-actions".into(),
-                });
             }
+            claims.push(EncounterBoundaryClaim {
+                participant_key: participant.participant_key.clone(),
+                round_number: round,
+                kind: EncounterBoundaryKind::TurnStart,
+                scope_key: "stunned-actions".into(),
+            });
         }
     }
     let total = if pending_reason.is_some() {

@@ -110,18 +110,17 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
                 for condition in &participant.conditions {
                     if condition_rule_for_key(condition.condition_key.as_deref())
                         == Some(ConditionRule::Stunned)
+                        && let Some(before) = condition.value
                     {
-                        if let Some(before) = condition.value {
-                            resources
-                                .effects
-                                .push(atlas_local_state::TurnResourceEffect {
-                                    condition_id: Some(condition.condition_id),
-                                    name: condition.name.clone(),
-                                    before: Some(before),
-                                    after: Some((before - *actions_lost).max(0)),
-                                    actions_lost: before.min(*actions_lost),
-                                });
-                        }
+                        resources
+                            .effects
+                            .push(atlas_local_state::TurnResourceEffect {
+                                condition_id: Some(condition.condition_id),
+                                name: condition.name.clone(),
+                                before: Some(before),
+                                after: Some((before - *actions_lost).max(0)),
+                                actions_lost: before.min(*actions_lost),
+                            });
                     }
                 }
                 changes.turn_resources.push(resources);
