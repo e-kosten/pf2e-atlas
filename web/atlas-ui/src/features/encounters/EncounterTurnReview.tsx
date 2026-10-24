@@ -92,6 +92,7 @@ export function EncounterTurnReview({
   return (
     <EncounterModal
       title="Turn reminders"
+      width={640}
       open={open && meaningful}
       footer={null}
       onCancel={onCancel}
@@ -120,9 +121,10 @@ export function EncounterTurnReview({
         />
       )}
       {outgoing && (
-        <p>
-          {outgoing.participant_name} · Round {outgoing.round_number.toString()}
-        </p>
+        <header className="encounter-turn-review__identity">
+          <h3>{outgoing.participant_name}</h3>
+          <span className="muted">Round {outgoing.round_number.toString()}</span>
+        </header>
       )}
       {outgoing?.participant_removed && (
         <>

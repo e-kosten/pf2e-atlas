@@ -7,7 +7,8 @@ import { RecordRarity } from "./RecordRarity";
 import { SpellRankControl } from "./SpellRankControl";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import type { ReactNode, Ref } from "react";
-import { Button, Collapse } from "antd";
+import { Button, Collapse, Typography } from "antd";
+import { BookOpen } from "lucide-react";
 import type {
   PreparedContentFieldView,
   RecordNavigationView,
@@ -20,21 +21,20 @@ import type {
 import {
   ActorActivities,
   ActorActivity,
-  ActorFacts,
   ActorCombatBudget,
   ActorSecondaryFacts,
-  Iwr,
 } from "./ActorReference";
-import {
-  FactLine,
-  factText,
-  hasReadingFact,
-  isEmptyFactValue,
-} from "./presentationFacts";
+import { FactLine, factText, isEmptyFactValue } from "./presentationFacts";
 import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent";
 import { SpellReference } from "./SpellReference";
 import { PhysicalReference } from "./PhysicalReference";
 import { ActionCost } from "./ActionCost";
+import { CreatureReference } from "./CreatureReference";
+import {
+  ActorEncounterLayout,
+  type ActorEncounterContent,
+} from "./ActorEncounterLayout";
+import { HazardDefenses } from "./HazardDefenses";
 import type { EmbeddedReadingContext } from "./EmbeddedAbilityReading";
 import { activityAddress } from "./embeddedNavigation";
 import {
@@ -143,9 +143,10 @@ export function RecordIdentity({
   selection,
   onOwnerReturn,
   visibleOwnerRecordKey,
-  originalRecord,
+  referenceRecord,
+  referenceLabel,
   onReference,
-  stacked = false,
+  stacked = true,
   headingRef,
   headingId,
   actions,
@@ -162,7 +163,8 @@ export function RecordIdentity({
   actionCost?: FactView<ActionCostView>;
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
-  originalRecord?: RecordNavigationView;
+  referenceRecord?: RecordNavigationView;
+  referenceLabel?: string;
   onReference: RecordReferenceHandler;
   visibleOwnerRecordKey?: string;
   onOwnerReturn?: (
@@ -238,31 +240,6 @@ export function RecordIdentity({
           </Button>
         ) : null
       }
-      identityActions={
-        originalRecord && (
-          <Button
-            className="record-reference__original"
-            type="link"
-            size="small"
-            href={atlasRoutePath({
-              kind: "record",
-              recordKey: originalRecord.record_key,
-              selection: originalRecord,
-            })}
-            onClick={(event) => {
-              if (!shouldHandleAtlasRouteClick(event)) return;
-              event.preventDefault();
-              onReference(
-                originalRecord.record_key,
-                event.currentTarget,
-                originalRecord,
-              );
-            }}
-          >
-            View original
-          </Button>
-        )
-      }
     >
       {(hasRarity || traits.length > 0) && (
         <div className="badge-row">
@@ -271,6 +248,28 @@ export function RecordIdentity({
             <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
           ))}
         </div>
+      )}
+      {referenceRecord && (
+        <Typography.Link
+          className="record-reference__reference-link"
+          href={atlasRoutePath({
+            kind: "record",
+            recordKey: referenceRecord.record_key,
+            selection: referenceRecord,
+          })}
+          onClick={(event) => {
+            if (!shouldHandleAtlasRouteClick(event)) return;
+            event.preventDefault();
+            onReference(
+              referenceRecord.record_key,
+              event.currentTarget,
+              referenceRecord,
+            );
+          }}
+        >
+          <BookOpen size={14} aria-hidden="true" />
+          {referenceLabel ?? "View reference entry"}
+        </Typography.Link>
       )}
     </DocumentIdentityHeader>
   );
@@ -286,7 +285,7 @@ export function RecordPresentationIdentity({
   onOwnerReturn,
   visibleOwnerRecordKey,
   showOwnerReturn = true,
-  stacked = false,
+  stacked = true,
   headingRef,
   headingId,
   actions,
@@ -310,7 +309,7 @@ export function RecordPresentationIdentity({
   actions?: ReactNode;
 }) {
   const body = presentation?.body;
-  const documentIdentity = stacked || body?.kind !== "creature";
+  const documentIdentity = stacked;
   return (
     <RecordIdentity
       stacked={documentIdentity}
@@ -336,7 +335,16 @@ export function RecordPresentationIdentity({
       selection={selection}
       onOwnerReturn={onOwnerReturn}
       onReference={onReference}
-      originalRecord={
+      referenceLabel={
+        body?.kind === "spell"
+          ? "View reference spell"
+          : body?.kind === "physical_reference"
+            ? "View reference item"
+            : body?.kind === "activity"
+              ? "View reference ability"
+              : "View reference entry"
+      }
+      referenceRecord={
         selection?.embedded_path.length
           ? (relationships.find(
               (relationship) =>
@@ -368,7 +376,9 @@ export function RecordPresentation({
   onOwnerReturn,
   visibleOwnerRecordKey,
   sectionLanding,
+  actorEncounter,
 }: {
+  actorEncounter?: ActorEncounterContent;
   sectionLanding?: string;
   presentation: RecordPresentationView;
   root?: RecordSummaryView;
@@ -472,120 +482,105 @@ export function RecordPresentation({
           {!encounter && flavor}
         </PhysicalReference>
       ) : (
-        body.kind !== "activity" && (
+        body.kind !== "activity" &&
+        body.kind !== "creature" && (
           <ReferenceProfiles body={body} onReference={onReference}>
             {!encounter && flavor}
           </ReferenceProfiles>
         )
       )}
-      {body.kind === "creature" && encounter && (
-        <ActorSecondaryFacts actor={body.value} />
-      )}
       {body.kind === "creature" && (
-        <ActorFacts
+        <CreatureReference
           actor={body.value}
-          hideHitPoints={encounter}
+          recordKey={presentation.identity.record_key}
+          prose={flavor}
           encounter={encounter}
+          encounterContent={actorEncounter}
+          reading={reading}
+          onReference={onReference}
+          activityRolls={activityRolls}
+          castingAnnotations={castingAnnotations}
+          sectionLanding={sectionLanding}
         />
       )}
       {body.kind === "hazard" && (
-        <>
-          <section className="hazard-reference__detection">
-            <h3>Detection</h3>
-            <div className="reference-profile__facts">
-              <ReferenceFact
-                label="Complexity"
-                fact={body.value.complex}
-                format={(complex) => (complex ? "Complex" : "Simple")}
-              />
-              <ReferenceFact label="Size" fact={body.value.actor.size} optional />
-              <ReferenceFact
-                label="Stealth"
-                fact={body.value.stealth}
-                format={(value) => `${Number(value) >= 0 ? "+" : ""}${value}`}
-              />
-            </div>
-            {presentation.content
-              .filter((field) => field.role === "stealth" && contentFieldVisible(field))
-              .map((field) => (
-                <PreparedContent
-                  key={JSON.stringify(field.locator)}
-                  content={field}
-                  relationships={relationships}
-                  onReference={onReference}
+        <ActorEncounterLayout
+          durability={actorEncounter?.durability}
+          runtime={
+            actorEncounter ? (
+              <>
+                <ActorCombatBudget actor={body.value.actor} />
+                {actorEncounter.conditions}
+              </>
+            ) : null
+          }
+        >
+          <div className="hazard-reference__rules">
+            <section className="hazard-reference__detection">
+              <h3>Detection</h3>
+              <div className="reference-profile__facts">
+                <ReferenceFact
+                  label="Complexity"
+                  fact={body.value.complex}
+                  format={(complex) => (complex ? "Complex" : "Simple")}
                 />
-              ))}
-          </section>
-          {!encounter && (
+                <ReferenceFact label="Size" fact={body.value.actor.size} optional />
+                <ReferenceFact
+                  label="Stealth"
+                  fact={body.value.stealth}
+                  format={(value) => `${Number(value) >= 0 ? "+" : ""}${value}`}
+                />
+              </div>
+              {presentation.content
+                .filter(
+                  (field) => field.role === "stealth" && contentFieldVisible(field),
+                )
+                .map((field) => (
+                  <PreparedContent
+                    key={JSON.stringify(field.locator)}
+                    content={field}
+                    relationships={relationships}
+                    onReference={onReference}
+                  />
+                ))}
+            </section>
+            {
+              <ContentFields
+                fields={presentation.content.filter(
+                  (field) => field.role === "disable",
+                )}
+                relationships={relationships}
+                onReference={onReference}
+              />
+            }
+            {!actorEncounter && <HazardDefenses hazard={body.value} />}
+            {encounter && !actorEncounter && (
+              <ActorCombatBudget actor={body.value.actor} />
+            )}
+            {encounter && <ActorSecondaryFacts actor={body.value.actor} hazard />}
+            <ActorActivities
+              castingAnnotations={castingAnnotations}
+              essential
+              actor={body.value.actor}
+              activityRolls={activityRolls}
+              onReference={onReference}
+              encounter={encounter}
+              reading={reading}
+            />
             <ContentFields
-              fields={presentation.content.filter((field) => field.role === "disable")}
+              fields={presentation.content.filter(
+                (field) =>
+                  ![
+                    "disable",
+                    "stealth",
+                    ...(!encounter ? ["description"] : []),
+                  ].includes(field.role),
+              )}
               relationships={relationships}
               onReference={onReference}
             />
-          )}
-          {(body.value.defense_block.value !== false ||
-            body.value.show_saves ||
-            [
-              body.value.actor.immunities,
-              body.value.actor.weaknesses,
-              body.value.actor.resistances,
-              ...Object.values(body.value.actor.defense_notes),
-            ].some(
-              (fact) => fact.state !== "missing" && hasReadingFact<unknown>(fact),
-            )) && (
-            <section className="reference-profile__section">
-              <h3>Defenses</h3>
-              <div className="reference-profile__groups">
-                {body.value.defense_block.value !== false && (
-                  <div className="reference-profile__facts">
-                    <ReferenceFact label="AC" fact={body.value.actor.armor_class} />
-                    <ReferenceFact label="HP" fact={body.value.actor.maximum_hp} />
-                    <ReferenceFact label="Hardness" fact={body.value.hardness} />
-                  </div>
-                )}
-                {body.value.show_saves && (
-                  <div className="reference-profile__facts">
-                    {(["fortitude", "reflex", "will"] as const).map((save) => (
-                      <ReferenceFact
-                        key={save}
-                        label={save[0].toUpperCase() + save.slice(1)}
-                        fact={body.value.actor.saves[save]}
-                        format={(value) => `${Number(value) >= 0 ? "+" : ""}${value}`}
-                      />
-                    ))}
-                  </div>
-                )}
-                <Iwr label="Immunities" fact={body.value.actor.immunities} />
-                <Iwr label="Weaknesses" fact={body.value.actor.weaknesses} />
-                <Iwr label="Resistances" fact={body.value.actor.resistances} />
-                <ReferenceFact
-                  label="AC details"
-                  fact={body.value.actor.defense_notes.armor_class}
-                  optional
-                />
-                <ReferenceFact
-                  label="HP details"
-                  fact={body.value.actor.defense_notes.hit_points}
-                  optional
-                />
-                <ReferenceFact
-                  label="Save details"
-                  fact={body.value.actor.defense_notes.all_saves}
-                  optional
-                />
-                {(["fortitude", "reflex", "will"] as const).map((save) => (
-                  <ReferenceFact
-                    key={save}
-                    label={`${save} details`}
-                    fact={body.value.actor.defense_notes[save]}
-                    optional
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-          {encounter && <ActorCombatBudget actor={body.value.actor} />}
-        </>
+          </div>
+        </ActorEncounterLayout>
       )}
       {body.kind === "activity" && (
         <>
@@ -630,36 +625,16 @@ export function RecordPresentation({
           <FactLine label="Result type" fact={body.value.result_type} required />
         </div>
       )}
-      {body.kind === "hazard" && encounter && (
-        <ActorSecondaryFacts actor={body.value.actor} hazard />
-      )}
-      {actor && (
-        <ActorActivities
-          castingAnnotations={castingAnnotations}
-          essential={body.kind === "hazard"}
-          actor={actor}
-          activityRolls={activityRolls}
-          onReference={onReference}
-          encounter={encounter}
-          reading={reading}
-        />
-      )}
-      {!encounter && body.kind === "hazard" && (
-        <ContentFields
-          fields={presentation.content.filter(
-            (field) => !["disable", "stealth", "description"].includes(field.role),
-          )}
-          relationships={relationships}
-          onReference={onReference}
-        />
-      )}
-      {encounter && presentation.content.some(contentFieldVisible) && (
-        <Collapse
-          size="small"
-          ghost
-          items={[{ key: "content", label: "Source description", children: content }]}
-        />
-      )}
+      {encounter &&
+        body.kind !== "creature" &&
+        body.kind !== "hazard" &&
+        presentation.content.some(contentFieldVisible) && (
+          <Collapse
+            size="small"
+            ghost
+            items={[{ key: "content", label: "Source description", children: content }]}
+          />
+        )}
       {body.kind === "roll_table" && body.value.results.state !== "value" && (
         <FactLine label="Results" fact={body.value.results} />
       )}

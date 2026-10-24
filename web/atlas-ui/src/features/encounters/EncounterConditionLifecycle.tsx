@@ -250,9 +250,13 @@ export function EncounterConditionRecovery({
     ),
     notice: query.error ? (
       <Alert
-        type="error"
-        title="Could not load recovery actions"
-        action={<Button onClick={() => void query.refetch()}>Retry</Button>}
+        type="warning"
+        title="Recovery choices unavailable"
+        action={
+          <Button size="small" onClick={() => void query.refetch()}>
+            Retry
+          </Button>
+        }
       />
     ) : null,
   };

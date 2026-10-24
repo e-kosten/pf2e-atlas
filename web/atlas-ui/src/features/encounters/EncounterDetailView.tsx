@@ -98,11 +98,18 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
       "encounter-condition-definitions",
       route.slug,
       selected?.participant_key,
+      encounter.data?.artifact_generation,
       encounter.data?.revision.toString(),
     ],
     queryFn: () =>
       getEncounterConditionDefinitions(route.slug, selected!.participant_key),
     enabled: !!selected,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === route.slug &&
+      previousQuery.queryKey[2] === selected?.participant_key &&
+      previousQuery.queryKey[3] === encounter.data?.artifact_generation
+        ? previous
+        : undefined,
   });
   const recordPreview = useRecordPreview({
     encounterRef: encounter.data?.encounter.encounter_key ?? route.slug,
@@ -405,7 +412,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               }}
               disabled={disabled}
               conditionsDisabled={
-                conditionDefinitions.isPending || !!conditionDefinitions.error
+                conditionDefinitions.isPending ||
+                conditionDefinitions.isPlaceholderData ||
+                !!conditionDefinitions.error
               }
               conditionError={conditionDefinitions.error}
               onRetryConditions={() => void conditionDefinitions.refetch()}

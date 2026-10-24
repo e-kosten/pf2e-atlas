@@ -71,7 +71,7 @@
   line-height: 1.55;
 }
 .record-view__pane > .record-reference__header {
-  margin-block-end: var(--space-section);
+  margin-block-end: var(--record-identity-gap, var(--space-section));
 }
 .record-view__pane > .detail-panel {
   padding: 0;

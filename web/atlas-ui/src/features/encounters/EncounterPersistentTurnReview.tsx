@@ -1,4 +1,4 @@
-import { Alert, Button, Space, Spin, Tooltip } from "antd";
+import { Alert, Button, Space, Spin } from "antd";
 import { X } from "lucide-react";
 import { useState } from "react";
 import type {
@@ -95,67 +95,88 @@ export function EncounterPersistentTurnReview({
               const episode = review.episodes.find(
                 (episode) => episode.episode_id === group.episode_id,
               );
+              const selected = group.sources.find(
+                (source) => source.condition_id === group.selected_source_id,
+              );
               return (
                 <section
                   className="encounter-persistent-type"
                   aria-label={`${type} persistent damage`}
                 >
-                  <div className="encounter-persistent-heading">
-                    <h4>{type}</h4>
-                    {ended && <span className="muted">Ended</span>}
-                  </div>
-                  <div
-                    className="encounter-persistent-sources"
-                    role="group"
-                    aria-label={`${type} sources`}
-                  >
-                    {group.sources.map((source) => {
-                      const condition = participant.conditions.find(
-                        (c) => c.condition_id === source.condition_id,
-                      );
-                      const from = participants.find(
-                        (p) => p.participant_key === condition?.source_participant_key,
-                      )?.display_name;
-                      const superseded =
-                        source.condition_id !== group.selected_source_id;
-                      return (
-                        <div
-                          key={source.condition_id.toString()}
-                          className={
-                            superseded
-                              ? "encounter-persistent-source--superseded"
-                              : undefined
-                          }
-                        >
-                          <span>
-                            {source.formula}
-                            {source.multiplier === "normal"
-                              ? ""
-                              : source.multiplier === "double"
-                                ? " ×2"
-                                : " ×½"}
+                  <div role="group" aria-label={`${type} sources`}>
+                    <div className="encounter-persistent-heading">
+                      <h4>{type}</h4>
+                      {selected && (
+                        <strong>
+                          {selected.formula}
+                          {selected.multiplier === "double"
+                            ? " ×2"
+                            : selected.multiplier === "half"
+                              ? " ×½"
+                              : ""}
+                        </strong>
+                      )}
+                      {ended && <span className="muted">Ended</span>}
+                    </div>
+                    <div className="encounter-persistent-sources">
+                      {group.sources.map((source) => {
+                        const condition = participant.conditions.find(
+                          (c) => c.condition_id === source.condition_id,
+                        );
+                        const from = participants.find(
+                          (p) =>
+                            p.participant_key === condition?.source_participant_key,
+                        )?.display_name;
+                        const superseded =
+                          source.condition_id !== group.selected_source_id;
+                        if (
+                          !superseded &&
+                          !from &&
+                          !condition?.duration &&
+                          !condition?.note
+                        )
+                          return null;
+                        return (
+                          <div
+                            key={source.condition_id.toString()}
+                            className={
+                              superseded
+                                ? "encounter-persistent-source--superseded"
+                                : undefined
+                            }
+                          >
                             {superseded && (
-                              <span className="encounter-condition-meta">
-                                {" "}
-                                · Superseded
+                              <span>
+                                {source.formula}
+                                {source.multiplier === "normal"
+                                  ? ""
+                                  : source.multiplier === "double"
+                                    ? " ×2"
+                                    : " ×½"}
+                                {superseded && (
+                                  <span className="encounter-condition-meta">
+                                    {" "}
+                                    · Superseded
+                                  </span>
+                                )}
                               </span>
                             )}
-                          </span>
-                          {(from || condition?.duration || condition?.note) && (
-                            <div className="encounter-condition-meta">
-                              {[
-                                from && `From ${from}`,
-                                condition?.duration &&
-                                  conditionDurationLabel(condition.duration),
-                                condition?.note,
-                              ]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                            {(from || condition?.duration || condition?.note) && (
+                              <div className="encounter-condition-meta">
+                                {[
+                                  from && `From ${from}`,
+                                  condition?.duration &&
+                                    conditionDurationLabel(condition.duration),
+                                  condition?.note,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                   {damage}
                   <div
@@ -163,7 +184,6 @@ export function EncounterPersistentTurnReview({
                     role="group"
                     aria-label={`${type} recovery`}
                   >
-                    <span>Recovery</span>
                     <Space size="small" align="center">
                       <EncounterPersistentRecovery
                         group={group}
@@ -171,7 +191,7 @@ export function EncounterPersistentTurnReview({
                           (result) => result.episode_id === group.episode_id,
                         )}
                         size="small"
-                        appearance="icon"
+                        appearance="button"
                         boundaryKey={boundaryKey}
                         mode="end_turn"
                         available={
@@ -198,40 +218,37 @@ export function EncounterPersistentTurnReview({
                         }}
                       />
 
-                      <Tooltip
-                        title={`End ${type.toLowerCase()} damage`}
-                        trigger={["hover", "focus"]}
-                      >
-                        <Button
-                          size="small"
-                          type="text"
-                          aria-label={`End ${type.toLowerCase()} damage`}
-                          icon={<X size={14} />}
-                          disabled={blocked || pending || ended}
-                          onClick={async () => {
-                            setClearError(undefined);
-                            try {
-                              await onRecover({
-                                resolution: "clear",
-                                boundary_key: boundaryKey,
-                                mode: "end_turn",
-                                participant_key: participant.participant_key,
-                                episode_id: group.episode_id,
-                                expected_encounter_revision: review.encounter_revision,
+                      <Button
+                        size="small"
+                        type="text"
+                        aria-label={`End ${type.toLowerCase()} damage`}
+                        icon={<X size={14} />}
+                        disabled={blocked || pending || ended}
+                        onClick={async () => {
+                          setClearError(undefined);
+                          try {
+                            await onRecover({
+                              resolution: "clear",
+                              boundary_key: boundaryKey,
+                              mode: "end_turn",
+                              participant_key: participant.participant_key,
+                              episode_id: group.episode_id,
+                              expected_encounter_revision: review.encounter_revision,
 
-                                dc_override: null,
-                              });
-                              void query.refetch();
-                            } catch (cause) {
-                              setClearError(
-                                cause instanceof Error
-                                  ? cause.message
-                                  : "Could not end persistent damage.",
-                              );
-                            }
-                          }}
-                        />
-                      </Tooltip>
+                              dc_override: null,
+                            });
+                            void query.refetch();
+                          } catch (cause) {
+                            setClearError(
+                              cause instanceof Error
+                                ? cause.message
+                                : "Could not end persistent damage.",
+                            );
+                          }
+                        }}
+                      >
+                        End damage
+                      </Button>
                     </Space>
                   </div>
                 </section>

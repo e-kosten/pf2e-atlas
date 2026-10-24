@@ -39,7 +39,7 @@ function DamageFields({
     (source) => source.condition_id === group.selected_source_id,
   );
   return (
-    <section>
+    <section className="encounter-persistent-damage-fields">
       {heading && (
         <h4>
           {label}
@@ -47,7 +47,9 @@ function DamageFields({
         </h4>
       )}
       <Form.Item
+        style={{ marginBottom: 0 }}
         name={["groups", group.episode_id, "mode"]}
+        label={heading ? undefined : "Damage"}
         getValueProps={(value) => ({ value: tableReason ? "table" : value })}
       >
         <Segmented
@@ -60,6 +62,7 @@ function DamageFields({
       </Form.Item>
       {mode === "table" && (
         <Form.Item
+          style={{ marginBottom: 0 }}
           name={["groups", group.episode_id, "amount"]}
           label="Damage taken"
           tooltip="After IWR"
