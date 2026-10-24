@@ -7,10 +7,11 @@ Last reviewed: 2026-10-24
 
 ## Problem
 
-The web UI renders transient semantic family facts and prepared HTML through
-shared presentation components. Creature, hazard and authored spell reference
-have deliberate layouts; other families retain content and narrow physical/table
-facts while their dedicated presentation remains future work.
+The web UI renders semantic family facts and prepared HTML through shared Ant
+document layouts. Spells, rituals, equipment, character options, journals, roll
+tables, creatures and hazards have dedicated presentation. Remaining coverage
+gaps concern source fields and consumer projections identified below, rather
+than another general layout pass.
 
 Further detail work should improve source-backed semantic contracts only when a
 consumer needs another fact, and reuse shared family presentation across detail,
@@ -25,22 +26,17 @@ search browser with explicit seed/filter state. These contracts are documented i
 [ADR 0047](../../architecture/decisions/0047-semantic-record-presentation.md) and
 [frontend guidelines](../../../web/atlas-ui/docs/frontend-guidelines.md).
 
-Creature, hazard and authored spell reference have dedicated layouts. Spell rank preview, casting resources, roll-table presentation and dice controls
-have landed; broader family work follows the capability tracker. Further changes should preserve useful content, availability states,
-source attribution and consistent behavior across hosts.
+Spell rank preview, casting resources, authored tables and dice controls use
+shared owners. Document widths, padding, identity, source attribution, inline
+reference reading and creature/encounter ordering follow the frontend guidelines.
+Further changes must preserve useful content, availability states and source
+meaning across hosts.
 
 ## Desired Outcome
 
-Improve the web record detail view for scanability, navigation, and PF2e-specific readability.
+Address the specific source-backed coverage gaps below using the existing family
+layouts and navigation. Additional open consumer work includes:
 
-The pass should consider:
-
-- stronger layout for identity facts, badges, sections, and rich content;
-- dedicated equipment, journal and table layouts where useful;
-- inline reference navigation and first-class record-detail routes;
-- loading, empty, error, and stale-detail states;
-- detail-pane behavior when results change, panes collapse, or users navigate by keyboard;
-- visual polish that stays consistent with the selected Ant Design-based UI.
 - meaningful casting-entry context for owned spells, resolved from their actual
   source owner through the existing service rather than displaying a raw local
   Foundry identifier or resolving it in the browser.

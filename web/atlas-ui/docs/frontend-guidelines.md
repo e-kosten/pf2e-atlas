@@ -1450,8 +1450,10 @@ Completed reminders retain their identity and confirmed result, replacing obsole
 instructions and actions. Removed conditions show Removed from the canonical
 boundary projection, not from a click or an optimistic assumption. Retain results
 through refreshes within that boundary; advancing again supersedes them. Return
-keyboard focus to the result when its initiating action disappears, without moving
-focus from another task. Failed actions retain their available retry path.
+keyboard focus to the retained result control when its submitted form disappears,
+waiting until the canonical update enables that control. Do not leave focus on
+the document body or replace a destination the user selected while the write was
+pending. Failed actions retain their available retry path.
 Damage applied and effect ended are separate facts: an active persistent effect
 keeps its permitted recovery/Clear actions after Apply, using the fresh revision.
 Recovery uses an anchored DC reminder and Roll; a recorded end-turn check becomes
