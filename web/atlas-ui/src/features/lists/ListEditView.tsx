@@ -226,9 +226,6 @@ export function ListEditView({ route }: ListEditViewProps) {
           </>
         )}
         {update.error && <InlineError message={update.error.message} />}
-        {deleteListMutation.error && (
-          <InlineError message={deleteListMutation.error.message} />
-        )}
       </section>
     </main>
   );

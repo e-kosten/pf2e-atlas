@@ -28,7 +28,9 @@ export function EmbeddedAbilityReading({
   abilities,
   context,
   onReference,
+  essential = false,
 }: {
+  essential?: boolean;
   abilities: ActorActivityView[];
   context?: EmbeddedReadingContext;
   onReference: RecordReferenceHandler;
@@ -55,6 +57,7 @@ export function EmbeddedAbilityReading({
   return (
     <OwnedAbilityBatch
       abilities={abilities}
+      essential={essential}
       context={context}
       onReference={onReference}
     />
@@ -64,7 +67,9 @@ function OwnedAbilityBatch({
   abilities,
   context,
   onReference,
+  essential = false,
 }: {
+  essential?: boolean;
   abilities: ActorActivityView[];
   context: EmbeddedReadingContext;
   onReference: RecordReferenceHandler;
@@ -177,122 +182,125 @@ function OwnedAbilityBatch({
     window.addEventListener("scroll", scroll, true);
     return () => window.removeEventListener("scroll", scroll, true);
   }, [open, loading, hasNextPage, isError, fetchNextPage]);
+  const content = (
+    <>
+      {!context && (
+        <Alert
+          type="info"
+          title="Ability content unavailable"
+          description="Open the parent reference to read its abilities."
+        />
+      )}
+      {first && first.start > 0 && (
+        <div className="embedded-reading-continuation">
+          <p>Earlier abilities are outside this reading range.</p>
+          <Button
+            size="small"
+            disabled={isArtifactGenerationChanged(reading.error)}
+            loading={reading.isFetchingPreviousPage}
+            onClick={() => {
+              setRetryDirection("previous");
+              void reading.fetchPreviousPage({ cancelRefetch: false });
+            }}
+          >
+            Read earlier abilities
+          </Button>
+        </div>
+      )}
+      {entries.map((entry) => {
+        const activity = abilities.find(
+          (candidate) =>
+            activityAnchor(candidate.navigation) === activityAnchor(entry.navigation),
+        );
+        return activity ? (
+          <section
+            key={activityAnchor(entry.navigation)}
+            className="embedded-ability-reading__entry"
+          >
+            <ActorActivity activity={activity} onReference={onReference} inline />
+            <ContentFields
+              inlineAbility
+              fields={entry.content}
+              relationships={entry.relationships}
+              onReference={onReference}
+            />
+          </section>
+        ) : (
+          <Alert
+            key={activityAnchor(entry.navigation)}
+            type="info"
+            title="Activity no longer available"
+            description="Reload the parent reference to refresh this reading range."
+          />
+        );
+      })}
+      {reading.isError && (
+        <Alert
+          type="error"
+          title="Unable to load ability content"
+          description={reading.error.message}
+          action={
+            <Space wrap>
+              <Button
+                size="small"
+                disabled={isArtifactGenerationChanged(reading.error)}
+                onClick={() => {
+                  if (!pages.length) void reading.refetch();
+                  else if (retryDirection === "previous")
+                    void reading.fetchPreviousPage();
+                  else void reading.fetchNextPage();
+                }}
+              >
+                Retry
+              </Button>
+              {context.reloadParent && (
+                <Button size="small" onClick={context.reloadParent}>
+                  {context.reloadParentLabel ?? "Reload reference"}
+                </Button>
+              )}
+            </Space>
+          }
+        />
+      )}
+      {loading && (
+        <div role="status">
+          <Spin size="small" /> Loading abilities…
+        </div>
+      )}
+      {last && last.end < last.total && (
+        <div
+          ref={sentinel}
+          className="embedded-reading-continuation"
+          aria-label="Continue reading abilities"
+        >
+          <p>More abilities continue below as you read.</p>
+        </div>
+      )}
+    </>
+  );
   return (
     <div ref={section} className="embedded-ability-reading">
-      <Collapse
-        ghost
-        size="small"
-        activeKey={open ? ["abilities"] : []}
-        onChange={(keys) => setOpen(keys.includes("abilities"))}
-        items={[
-          {
-            key: "abilities",
-            label: <h3>Abilities</h3>,
-            styles: { header: { paddingInline: 0 }, body: { paddingInline: 0 } },
-            children: (
-              <>
-                {!context && (
-                  <Alert
-                    type="info"
-                    title="Ability content unavailable"
-                    description="Open the parent reference to read its abilities."
-                  />
-                )}
-                {first && first.start > 0 && (
-                  <div className="embedded-reading-continuation">
-                    <p>Earlier abilities are outside this reading range.</p>
-                    <Button
-                      size="small"
-                      disabled={isArtifactGenerationChanged(reading.error)}
-                      loading={reading.isFetchingPreviousPage}
-                      onClick={() => {
-                        setRetryDirection("previous");
-                        void reading.fetchPreviousPage({ cancelRefetch: false });
-                      }}
-                    >
-                      Read earlier abilities
-                    </Button>
-                  </div>
-                )}
-                {entries.map((entry) => {
-                  const activity = abilities.find(
-                    (candidate) =>
-                      activityAnchor(candidate.navigation) ===
-                      activityAnchor(entry.navigation),
-                  );
-                  return activity ? (
-                    <section
-                      key={activityAnchor(entry.navigation)}
-                      className="embedded-ability-reading__entry"
-                    >
-                      <ActorActivity
-                        activity={activity}
-                        onReference={onReference}
-                        inline
-                      />
-                      <ContentFields
-                        inlineAbility
-                        fields={entry.content}
-                        relationships={entry.relationships}
-                        onReference={onReference}
-                      />
-                    </section>
-                  ) : (
-                    <Alert
-                      key={activityAnchor(entry.navigation)}
-                      type="info"
-                      title="Activity no longer available"
-                      description="Reload the parent reference to refresh this reading range."
-                    />
-                  );
-                })}
-                {reading.isError && (
-                  <Alert
-                    type="error"
-                    title="Unable to load ability content"
-                    description={reading.error.message}
-                    action={
-                      <Space wrap>
-                        <Button
-                          size="small"
-                          disabled={isArtifactGenerationChanged(reading.error)}
-                          onClick={() => {
-                            if (!pages.length) void reading.refetch();
-                            else if (retryDirection === "previous")
-                              void reading.fetchPreviousPage();
-                            else void reading.fetchNextPage();
-                          }}
-                        >
-                          Retry
-                        </Button>
-                        {context.reloadParent && (
-                          <Button size="small" onClick={context.reloadParent}>
-                            {context.reloadParentLabel ?? "Reload reference"}
-                          </Button>
-                        )}
-                      </Space>
-                    }
-                  />
-                )}
-                {loading && (
-                  <div role="status">
-                    <Spin size="small" /> Loading abilities…
-                  </div>
-                )}
-                {last && last.end < last.total && (
-                  <div
-                    ref={sentinel}
-                    className="embedded-reading-continuation"
-                    aria-label="Continue reading abilities"
-                  >
-                    <p>More abilities continue below as you read.</p>
-                  </div>
-                )}
-              </>
-            ),
-          },
-        ]}
-      />
+      {essential ? (
+        <section>
+          <h3>Abilities</h3>
+          {content}
+        </section>
+      ) : (
+        <Collapse
+          ghost
+          size="small"
+          activeKey={open ? ["abilities"] : []}
+          onChange={(keys) => setOpen(keys.includes("abilities"))}
+          items={[
+            {
+              key: "abilities",
+              label: <h3>Abilities</h3>,
+              styles: { header: { paddingInline: 0 }, body: { paddingInline: 0 } },
+              children: content,
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }

@@ -78,6 +78,12 @@ pub use party::{
 };
 mod prepared_content;
 mod presentation;
+mod reference_profiles;
+pub use reference_profiles::{
+    AncestryReferenceView, ArmyReferenceView, AttributeChoiceView, ClassReferenceView,
+    DeityReferenceView, DeitySanctificationView, HeritageReferenceView,
+    ObjectDefensesReferenceView, ReferenceGrantView, VehicleReferenceView,
+};
 mod readiness;
 mod record;
 mod search;
@@ -138,21 +144,26 @@ pub use list::{
 };
 pub use prepared_content::{
     ContentControlKindView, ContentControlView, PreparedContentFieldView, PreparedFieldBodyView,
-    PreparedReferenceView,
+    PreparedInclusionView, PreparedReferenceView,
 };
 pub use presentation::{
     ActionCostView, ActionGlyphView, ActivityEffectReferenceView, ActivityFrequencyView,
     ActorActivityKindView, ActorActivityView, ActorDefenseNotesView, ActorModifierView,
     ActorMovementView, ActorPresentationView, ActorRuntimeView, ActorSavesView, ActorSenseView,
-    ActorSkillView, CastingEntryContextView, ConditionalSkillView, ConsumableDamageView,
-    ConsumablePresentationView, DamageComponentView, EffectDurationView, EmbeddedRecordLinkView,
+    ActorSkillView, AmmunitionReferenceView, ArmorReferenceView, CastingEntryContextView,
+    ConditionalSkillView, ConsumableDamageView, ConsumablePresentationView, ContainerReferenceView,
+    DamageComponentView, EffectDurationView, EmbeddedRecordLinkView,
     EncounterContextualArmorClassView, EncounterSenseView, FactView, HazardPresentationView,
     HeighteningDamageView, IwrEntryView, JournalPagePresentationView, JournalPresentationView,
-    NumberAdjustmentView, NumberFactView, PhysicalPresentationView, PhysicalPriceView,
-    RecordBodyView, RecordPresentationView, RitualCastingView, RollTablePresentationView,
-    RollTableRowView, SpellAreaView, SpellChangeView, SpellDefenseView, SpellFixedLevelView,
-    SpellFormView, SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView,
-    TableResultPresentationView,
+    KitEntryReferenceView, KitReferenceView, NumberAdjustmentView, NumberFactView,
+    PhysicalDetailsView, PhysicalMaterialReferenceView, PhysicalPresentationView,
+    PhysicalPriceView, RecordBodyView, RecordPresentationView, RitualCastingView,
+    RollTablePresentationView, RollTableRowView, ShieldReferenceView, SpellAreaView,
+    SpellChangeView, SpellDefenseView, SpellFixedLevelView, SpellFormView,
+    SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView,
+    TableResultPresentationView, WeaponAmmunitionReferenceView, WeaponDamageReferenceView,
+    WeaponMeleeReferenceView, WeaponPersistentReferenceView, WeaponReferenceView,
+    WeaponRuneReferenceView,
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView, SearchProfileReadinessView};
 pub use record::{

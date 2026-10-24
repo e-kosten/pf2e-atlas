@@ -367,7 +367,7 @@ it.each([true, false])(
     fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
     const returned = await screen.findByRole("link", { name: "Nested Rule" });
     await waitFor(() => expect(reader.scrollTop).toBe(425));
-    expect(returned).toHaveFocus();
+    await waitFor(() => expect(returned).toHaveFocus());
     if (!desktop) {
       fireEvent.click(screen.getByRole("button", { name: "Results" }));
       await waitFor(() => expect(summary).toHaveFocus());

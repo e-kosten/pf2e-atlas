@@ -54,6 +54,10 @@
   --radius-lg: 8px;
   --radius-pill: 999px;
   --control-height: 34px;
-  --panel-gap: 14px;
-  --panel-padding: 14px;
+  --document-measure: 78ch;
+  --space-control: 8px;
+  --space-group: 16px;
+  --space-section: 24px;
+  --panel-gap: 16px;
+  --panel-padding: 16px;
 }

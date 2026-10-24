@@ -61,7 +61,13 @@ Reference recognition precedes display/graph/search policy. Hidden occurrences
 remain identifiable with explicit visibility; unresolved and sanitizer-blocked
 destinations remain evidence, not usable links. Resolver output carries identities
 and optional display names, never hard-coded web/CLI routes or copied destination
-prose. Embed targets/options remain occurrences without automatic expansion.
+prose. Preparation retains Embed targets/options as occurrences without expanding
+stored HTML or retrieval text. Selected application reading may compose the
+supported inline Item descriptions from checked prepared fields in one snapshot.
+Record owns pure option/field selection and structural prepared-HTML insertion;
+app-service owns bounded target reads and attributed transient bindings. Ordinary
+references remain navigation. This exception does not execute Foundry runtime
+code, evaluate expressions or add transitive search/embedding inputs.
 
 Whole-field visibility enters the same traversal as inline visibility; hidden
 fields retain recognized references while emitting no visible HTML/text or

@@ -9,7 +9,6 @@ import type { RecordDetailView } from "../../generated/atlas";
 import { RecordPresentation } from "./RecordPresentation";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { RelatedRecords } from "./RelatedRecords";
-import { currentAtlasRoute } from "../../app/routes";
 type RecordDetailPaneError = Error | { message: string } | null | undefined;
 export function RecordDetailPane({
   detail,
@@ -31,12 +30,14 @@ export function RecordDetailPane({
   onLandingReady,
   onOwnerReturn,
   visibleOwnerRecordKey,
-  hideTitle = false,
+  identityInHost = false,
   showOwnerReturn = true,
+  sectionLanding,
 }: {
+  sectionLanding?: string;
   detail: RecordDetailView | undefined;
   visibleOwnerRecordKey?: string;
-  hideTitle?: boolean;
+  identityInHost?: boolean;
   showOwnerReturn?: boolean;
   emptyMessage?: string;
   error?: RecordDetailPaneError;
@@ -63,11 +64,6 @@ export function RecordDetailPane({
   const code =
     error && "appError" in error ? (error as AtlasApiError).appError?.code : undefined;
   const notFound = code === "record_not_found";
-  const route = currentAtlasRoute();
-  const routeLanding = "landing" in route ? route.landing : undefined;
-  const readingLanding =
-    landing ??
-    (routeLanding?.record_key === detail?.record.record_key ? routeLanding : undefined);
   return (
     <section
       className={`detail-panel${compact ? " detail-panel--compact" : ""}`}
@@ -131,7 +127,8 @@ export function RecordDetailPane({
       {detail ? (
         <>
           <RecordPresentation
-            hideTitle={hideTitle}
+            sectionLanding={sectionLanding}
+            identityInHost={identityInHost}
             showOwnerReturn={showOwnerReturn}
             visibleOwnerRecordKey={visibleOwnerRecordKey}
             presentation={detail.presentation}
@@ -148,7 +145,7 @@ export function RecordDetailPane({
                 passage: null,
                 source_fingerprint: null,
               },
-              landing: readingLanding,
+              landing,
               onLandingReady,
               reloadParent: onReload,
               reloadParentLabel: reloadLabel,
@@ -168,10 +165,8 @@ export function RecordDetailPane({
           )}
         </>
       ) : loading ? (
-        <Spin description={loadingMessage}>
-          <div className="detail-empty" role="status">
-            {loadingMessage}
-          </div>
+        <Spin delay={500} description={loadingMessage}>
+          <div className="detail-empty" role="status" aria-label={loadingMessage} />
         </Spin>
       ) : !error ? (
         <div className="detail-empty">

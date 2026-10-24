@@ -1,15 +1,21 @@
 import { ListPlus } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Modal, Select, Tooltip } from "antd";
-import { useState } from "react";
+import { Alert, Button, Modal, Select, Tooltip, Typography } from "antd";
+import { useRef, useState } from "react";
 import { addSavedListItem } from "../../api/atlasApi";
 import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { invalidateSavedListQueries, useSavedLists } from "./savedListQueries";
+import {
+  listsPath,
+  navigateToAtlasRoute,
+  shouldHandleAtlasRouteClick,
+} from "../../app/routes";
 
 export function AddToListButton({ recordKey }: { recordKey: string }) {
   const [open, setOpen] = useState(false);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const inFlight = useRef(false);
   const lists = useSavedLists({ enabled: open });
   const addItem = useMutation({
     mutationFn: (slug: string) =>
@@ -19,6 +25,9 @@ export function AddToListButton({ recordKey }: { recordKey: string }) {
       setOpen(false);
       setSelectedSlug(null);
     },
+    onSettled: () => {
+      inFlight.current = false;
+    },
   });
 
   return (
@@ -27,18 +36,30 @@ export function AddToListButton({ recordKey }: { recordKey: string }) {
         <PaneIconButton
           icon={<ListPlus size={16} />}
           label="Add to saved list"
-          onClick={() => setOpen(true)}
+          onClick={(event) => {
+            event.currentTarget.focus({ preventScroll: true });
+            setOpen(true);
+          }}
         />
       </Tooltip>
       <Modal
-        okButtonProps={{ disabled: selectedSlug === null, loading: addItem.isPending }}
+        transitionName=""
+        confirmLoading={addItem.isPending}
+        okButtonProps={{ disabled: selectedSlug === null || !lists.data?.lists.length }}
+        cancelButtonProps={{ disabled: addItem.isPending }}
+        closable={{ disabled: addItem.isPending }}
+        keyboard={!addItem.isPending}
+        mask={{ closable: !addItem.isPending }}
         okText="Add"
         onCancel={() => {
+          if (inFlight.current) return;
           setOpen(false);
           setSelectedSlug(null);
+          addItem.reset();
         }}
         onOk={() => {
-          if (selectedSlug !== null) {
+          if (selectedSlug !== null && !inFlight.current && lists.data?.lists.length) {
+            inFlight.current = true;
             addItem.mutate(selectedSlug);
           }
         }}
@@ -47,6 +68,8 @@ export function AddToListButton({ recordKey }: { recordKey: string }) {
       >
         <div className="list-picker">
           <Select
+            aria-label="Saved list"
+            disabled={addItem.isPending || !lists.data?.lists.length}
             loading={lists.isLoading || lists.isFetching}
             onChange={(slug) => setSelectedSlug(slug)}
             options={(lists.data?.lists ?? []).map((list) => ({
@@ -56,7 +79,44 @@ export function AddToListButton({ recordKey }: { recordKey: string }) {
             placeholder="Select a saved list"
             value={selectedSlug}
           />
-          {addItem.error && <div className="error-banner">{addItem.error.message}</div>}
+          {lists.error && (
+            <Alert
+              type="error"
+              title={
+                lists.data
+                  ? "Saved lists could not refresh"
+                  : "Saved lists could not load"
+              }
+              description={
+                lists.data ? "Previously loaded lists remain available." : undefined
+              }
+              action={
+                <Button
+                  size="small"
+                  loading={lists.isFetching}
+                  onClick={() => void lists.refetch()}
+                >
+                  Retry
+                </Button>
+              }
+            />
+          )}
+          {lists.data?.lists.length === 0 && !lists.error && (
+            <Typography.Paragraph>
+              No saved lists yet.{" "}
+              <Typography.Link
+                href={listsPath()}
+                onClick={(event) => {
+                  if (!shouldHandleAtlasRouteClick(event)) return;
+                  event.preventDefault();
+                  navigateToAtlasRoute({ kind: "lists" });
+                }}
+              >
+                Open saved lists
+              </Typography.Link>
+            </Typography.Paragraph>
+          )}
+          {addItem.error && <Alert type="error" title={addItem.error.message} />}
         </div>
       </Modal>
     </>

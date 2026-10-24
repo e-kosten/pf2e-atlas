@@ -1,11 +1,10 @@
 .record-reference {
-  --record-inset: 24px;
   container-type: inline-size;
   container-name: record-pane;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
-  padding: var(--record-inset);
+  gap: var(--space-section);
+  padding: 0;
   line-height: 1.55;
   min-width: 0;
   overflow-wrap: anywhere;
@@ -18,7 +17,7 @@
 .prepared-content,
 .prose {
   width: 100%;
-  max-width: 78ch;
+  max-width: 100%;
   justify-self: start;
   margin-inline: 0;
 }
@@ -37,7 +36,27 @@
   overflow-x: auto;
 }
 .prepared-content table {
+  width: 100%;
+  border-collapse: collapse;
   overflow-wrap: normal;
+}
+.prepared-content :is(th, td) {
+  padding: var(--space-control) var(--space-group);
+  border-bottom: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+}
+.prepared-content th {
+  font-weight: 650;
+}
+.prepared-content__table-scroll {
+  max-width: 100%;
+  margin-block: var(--space-control) var(--space-group);
+  overflow-x: auto;
+}
+.prepared-content__table-scroll:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
 }
 .record-reference__header {
   border-bottom: 1px solid var(--line);
@@ -55,9 +74,6 @@
   align-items: flex-start;
   gap: 8px;
   margin-inline-start: auto;
-}
-.record-reference__rank {
-  width: 100px;
 }
 .record-reference__identity {
   flex: 1 1 12ch;
@@ -78,6 +94,44 @@
 }
 .record-reference__header p {
   margin: 6px 0 0;
+}
+.record-reference__header--stacked .record-reference__title {
+  align-items: flex-start;
+  gap: var(--space-control) var(--space-group);
+}
+.record-reference__metadata {
+  display: grid;
+  gap: var(--space-control);
+  margin-top: var(--space-control);
+}
+.record-reference__header--stacked .record-reference__classification {
+  margin: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.record-reference__header--stacked .record-reference__kind {
+  margin: 0;
+  text-align: start;
+}
+.record-reference__metadata .badge-row {
+  margin: 0;
+}
+.record-reference__source {
+  margin: var(--space-control) 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.record-reference__actions {
+  min-width: 0;
+  max-width: 100%;
+  font-weight: normal;
+}
+.record-reference__header--stacked:has(.encounter-casting__controls)
+  .record-reference__actions {
+  flex-basis: 100%;
 }
 .badge-row {
   display: flex;
@@ -168,17 +222,49 @@
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line);
 }
+.spell-reference__ritual-checks {
+  margin-block: var(--space-control);
+}
 .spell-reference__change {
   margin-top: 10px;
   padding-left: 12px;
   border-left: 2px solid var(--line);
 }
-.record-reference--compact {
-  --record-inset: 14px;
-  gap: 10px;
+.spell-reference__rank-change {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-control) var(--space-group);
+  padding: var(--space-control);
+  border-block-start: 1px solid var(--line);
 }
-.record-reference--encounter {
-  --record-inset: 0px;
+.spell-reference__rank-change h4 {
+  margin: 0;
+  font-size: inherit;
+}
+.spell-reference__rank-change[aria-current="true"] {
+  background: var(--active-bg);
+}
+.spell-reference__damage {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.spell-reference__damage .record-damage p {
+  margin: 0;
+}
+@container record-pane (max-width: 420px) {
+  .prepared-content :is(th, td) {
+    padding-inline: var(--space-control);
+  }
+  .spell-reference__rank-change {
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    gap: var(--space-control);
+  }
+}
+.record-reference--compact {
+  gap: var(--space-group);
 }
 .record-reference--compact .record-key {
   display: none;
@@ -188,11 +274,6 @@
 }
 .record-reference--compact .record-reference__kind {
   font-size: 0.85rem;
-}
-@media (max-width: 600px) {
-  .record-reference:not(.record-reference--compact):not(.record-reference--encounter) {
-    --record-inset: 16px;
-  }
 }
 
 .record-reference__flavor:empty {
@@ -258,7 +339,7 @@
   gap: 6px;
 }
 .hazard-reference__detection .prepared-content {
-  max-width: 78ch;
+  max-width: 100%;
 }
 @container record-pane (min-width: 680px) {
   .actor-reference__facts {
@@ -336,19 +417,10 @@
 }
 
 .spell-rank-control {
-  width: 100px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-.spell-rank-control__row {
   display: flex;
   align-items: center;
-}
-.spell-rank-control__base {
-  color: var(--muted);
-  font-size: 0.75rem;
+  flex-wrap: wrap;
+  gap: var(--space-control);
 }
 .detail-panel {
   position: relative;
@@ -360,14 +432,6 @@
   pointer-events: none;
 }
 
-.spell-rank-control__secondary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 24px;
-  width: max-content;
-  white-space: nowrap;
-}
 .record-reference__classification > .record-reference__kind {
   line-height: 24px;
 }
@@ -471,4 +535,29 @@
 }
 .record-preview-toolbar > .encounter-casting__controls > :not(:first-child) {
   grid-column: 1 / -1;
+}
+
+/* Actor workspace composition is reviewed separately from single-column records. */
+.record-view__pane--workspace .prepared-content,
+.reference-reader--workspace .prepared-content,
+.record-reference--encounter .prepared-content {
+  max-width: var(--document-measure);
+}
+
+.physical-reference {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-group);
+}
+.physical-reference__facts {
+  display: grid;
+  gap: var(--space-control);
+}
+
+.physical-reference__kit-items {
+  margin-block: var(--space-control) 0;
+  padding-inline-start: var(--space-section);
+}
+.physical-reference__kit-items > li {
+  margin-block: var(--space-control);
 }

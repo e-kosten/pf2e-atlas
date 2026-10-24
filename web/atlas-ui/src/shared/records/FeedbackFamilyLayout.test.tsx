@@ -147,6 +147,15 @@ it("omits the service-selected empty hazard defense block without hiding IWR", (
     <RecordPresentation presentation={detail.presentation} onReference={vi.fn()} />,
   );
   expect(screen.getByText("mental")).toBeVisible();
+  actor.immunities = knownFact([]);
+  actor.defense_notes.hit_points = knownFact(
+    "Cannot be damaged while the ward is active.",
+  );
+  rerender(
+    <RecordPresentation presentation={detail.presentation} onReference={vi.fn()} />,
+  );
+  expect(screen.getByText("Cannot be damaged while the ward is active.")).toBeVisible();
+  expect(screen.queryByText("AC")).toBeNull();
 });
 
 it("renders selected casting membership with parent context, ranks and exact customized navigation", () => {
@@ -202,7 +211,7 @@ it("omits known-empty optional headings while preserving unavailable and control
           locator: { record: "items:one", embedded_path: [], field: "empty" },
           role: "description",
           source_fingerprint: null,
-          body: { kind: "html", html: " ", controls: [] },
+          body: { kind: "html", inclusions: [], html: " ", controls: [] },
         },
         {
           locator: { record: "items:one", embedded_path: [], field: "unknown" },
@@ -216,6 +225,7 @@ it("omits known-empty optional headings while preserving unavailable and control
           source_fingerprint: null,
           body: {
             kind: "html",
+            inclusions: [],
             html: "",
             controls: [
               {
@@ -243,7 +253,9 @@ it.each([false, true])(
   "keeps independently applicable hazard zero saves visible (knownAbsent=%s)",
   (knownAbsent) => {
     const actor = actorFixture();
-    actor.armor_class = numberFact(0);
+    actor.armor_class = knownAbsent
+      ? numberFact(0)
+      : { state: "invalid", value: null, adjustment: null };
     actor.maximum_hp = numberFact(0);
     actor.saves = {
       fortitude: numberFact(0),
@@ -274,9 +286,8 @@ it.each([false, true])(
       expect(screen.queryByText("Hardness")).toBeNull();
       expect(screen.queryByRole("button", { name: "Defense details" })).toBeNull();
     } else {
-      expect(screen.getByText("Defense block").parentElement).toHaveTextContent(
-        "invalid",
-      );
+      expect(screen.getByText("AC").parentElement).toHaveTextContent("Unavailable");
+      expect(screen.queryByText("Defense block")).toBeNull();
     }
   },
 );

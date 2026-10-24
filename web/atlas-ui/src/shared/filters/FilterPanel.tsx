@@ -6,8 +6,8 @@ import {
   Input,
   Popover,
   Select,
+  Skeleton,
   Space,
-  Spin,
   Tooltip,
   Typography,
   theme,
@@ -292,6 +292,17 @@ export function FilterControls({
   const criteria = (
     <>
       <div className="common-filters">
+        {!editor && workspace.filterDiscoveryLoading && (
+          <div
+            className="filter-controls__pending"
+            role="status"
+            aria-label="Loading filters"
+          >
+            {[112, 144, 112, 112].map((width, index) => (
+              <Skeleton.Button key={index} style={{ width }} aria-hidden="true" />
+            ))}
+          </div>
+        )}
         {(editor?.common_field_ids ?? []).map((id) => {
           const field = fields.find((candidate) => candidate.definition.id === id);
           return field ? (
@@ -414,11 +425,6 @@ export function FilterControls({
         }
       >
         {children}
-        {!editor && workspace.filterDiscoveryLoading && (
-          <Spin description="Loading filters…">
-            <div className="filter-loading-placeholder" />
-          </Spin>
-        )}
         {layout === "inline-toolbar" ? (
           <PrimaryToolbar className="filter-controls__criteria filter-controls__inline">
             {searchEntry}

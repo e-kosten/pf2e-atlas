@@ -187,6 +187,13 @@ pub(super) fn render(
 }
 
 pub(super) fn activity_facts(out: &mut String, activity: &ActorActivityView, show_identity: bool) {
+    if activity
+        .first_level_only
+        .as_ref()
+        .is_some_and(|value| value.value == Some(true))
+    {
+        line(out, "Selection: At 1st level only");
+    }
     if show_identity {
         line(
             out,
@@ -386,7 +393,7 @@ fn collection<'a, T>(
     }
 }
 
-fn iwr(out: &mut String, label: &str, value: &FactView<Vec<IwrEntryView>>) {
+pub(super) fn iwr(out: &mut String, label: &str, value: &FactView<Vec<IwrEntryView>>) {
     fact(out, label, value, |entries| {
         if entries.is_empty() {
             return String::new();

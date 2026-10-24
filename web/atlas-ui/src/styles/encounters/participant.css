@@ -210,6 +210,9 @@
   display: inline-flex;
   align-items: center;
 }
+.encounter-hp-value {
+  min-inline-size: 24px;
+}
 .encounter-hp-value__input {
   text-align: center;
   width: 7ch;

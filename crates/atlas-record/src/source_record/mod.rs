@@ -12,6 +12,7 @@ mod query;
 mod relationships;
 mod resolver;
 mod search_selection;
+mod shield_content;
 #[cfg(test)]
 mod tests;
 mod text;
@@ -45,3 +46,6 @@ pub use text::{SourceTextKind, SourceTextSource};
 
 mod trait_memberships;
 pub use trait_memberships::{SourceTraitMembership, trait_record_memberships};
+
+mod inline_embed;
+pub use inline_embed::{InlineEmbedOptions, inline_embed_fields};

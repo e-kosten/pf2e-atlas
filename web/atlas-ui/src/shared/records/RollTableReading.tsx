@@ -106,7 +106,14 @@ export function RollTableReading({
         dataSource={data}
         rowKey={(row) => address(row.entry.navigation)}
         pagination={false}
-        size="small"
+        size="middle"
+        locale={{
+          emptyText: reading.isPending
+            ? "Loading results…"
+            : reading.isError
+              ? "Results unavailable"
+              : "No results.",
+        }}
         loading={{ spinning: reading.isFetching && entries.length === 0, delay: 300 }}
         rowClassName={(row) =>
           highlight.includes(address(row.entry.navigation))
@@ -116,7 +123,8 @@ export function RollTableReading({
         columns={[
           {
             title: "Range",
-            width: 90,
+            width: 64,
+            onCell: () => ({ style: { verticalAlign: "top" } }),
             render: (_, { row }) => {
               const range = row?.range.value;
               return range
@@ -128,6 +136,7 @@ export function RollTableReading({
           },
           {
             title: "Result",
+            onCell: () => ({ style: { verticalAlign: "top" } }),
             render: (_, { entry }) => (
               <TableResultContent entry={entry} onReference={onReference} />
             ),
@@ -199,9 +208,16 @@ function TableResultContent({
           <Button
             key={index}
             type="link"
-            onClick={(event) =>
-              onReference(target.record_key, event.currentTarget, target)
-            }
+            href={atlasRoutePath({
+              kind: "record",
+              recordKey: target.record_key,
+              selection: target,
+            })}
+            onClick={(event) => {
+              if (!shouldHandleAtlasRouteClick(event)) return;
+              event.preventDefault();
+              onReference(target.record_key, event.currentTarget, target);
+            }}
           >
             Open record
           </Button>

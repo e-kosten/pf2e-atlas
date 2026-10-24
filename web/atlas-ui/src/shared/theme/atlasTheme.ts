@@ -19,8 +19,8 @@ export const atlasTheme = {
   },
   controlHeight: 34,
   density: {
-    panelGap: 14,
-    panelPadding: 14,
+    panelGap: 16,
+    panelPadding: 16,
   },
 };
 
@@ -55,6 +55,9 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     "--radius-md": `${atlasTheme.radius.md}px`,
     "--radius-lg": `${atlasTheme.radius.lg}px`,
     "--radius-pill": `${atlasTheme.radius.pill}px`,
+    "--space-control": `${token.paddingXS}px`,
+    "--space-group": `${token.padding}px`,
+    "--space-section": `${token.paddingLG}px`,
     "--control-height": `${atlasTheme.controlHeight}px`,
     "--panel-gap": `${atlasTheme.density.panelGap}px`,
     "--panel-padding": `${atlasTheme.density.panelPadding}px`,

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { RecordPresentation } from "./RecordPresentation";
 import { ActorActivities, ActorFacts, DamageComponents } from "./ActorReference";
 import { SpellChanges, SpellReference } from "./SpellReference";
@@ -12,7 +12,11 @@ import {
   summaryFixture,
   unavailableFact,
 } from "../../test/fixtures";
-import type { RecordPresentationView, SpellChangeView } from "../../generated/atlas";
+import type {
+  NumberFactView,
+  RecordPresentationView,
+  SpellChangeView,
+} from "../../generated/atlas";
 
 function actorPresentation(): RecordPresentationView {
   const actor = actorFixture();
@@ -176,7 +180,11 @@ describe("semantic family presentation", () => {
       relationship.target,
     );
     fireEvent.click(original);
-    expect(window.location.pathname).toBe("/records/equipment:catalog-staff");
+    expect(onReference).toHaveBeenCalledWith(
+      "equipment:catalog-staff",
+      original,
+      relationship.target,
+    );
     onReference.mockClear();
     fireEvent.click(original, { ctrlKey: true });
     expect(onReference).not.toHaveBeenCalled();
@@ -314,6 +322,92 @@ describe("semantic family presentation", () => {
     },
   );
 
+  it.each(["AC", "HP", "Hardness", "Fortitude", "Reflex", "Will", "Stealth"])(
+    "retains the supplied hazard %s adjustment and explanation",
+    async (label) => {
+      const adjusted: NumberFactView = {
+        ...numberFact(11),
+        adjustment: {
+          authored: 12,
+          applied: [
+            {
+              source: "condition:frightened",
+              label: "Frightened",
+              modifier_type: "status",
+              value: -1n,
+            },
+          ],
+          suppressed: [
+            {
+              source: "condition:sickened",
+              label: "Sickened",
+              modifier_type: "status",
+              value: -1n,
+            },
+          ],
+          notes: [
+            {
+              source: "condition:context",
+              label: "Conditional defense",
+              reason: "Additional qualification.",
+            },
+          ],
+        },
+      };
+      const actor = actorFixture();
+      actor.armor_class = adjusted;
+      actor.maximum_hp = adjusted;
+      actor.saves = { fortitude: adjusted, reflex: adjusted, will: adjusted };
+      render(
+        <RecordPresentation
+          encounter
+          presentation={{
+            classification: "Hazard 1",
+            identity: summaryFixture("hazards:pit", "Pit"),
+            content: [],
+            embedded: [],
+            body: {
+              kind: "hazard",
+              value: {
+                actor,
+                defense_block: knownFact(true),
+                show_saves: true,
+                complex: knownFact(false),
+                stealth: adjusted,
+                hardness: adjusted,
+              },
+            },
+          }}
+          onReference={vi.fn()}
+        />,
+      );
+      const signed = ["Fortitude", "Reflex", "Will", "Stealth"].includes(label);
+      const control = screen.getByRole("button", {
+        name: `Show explanation for ${label}`,
+      });
+      expect(control.closest(".record-fact")).toHaveTextContent(signed ? "+11" : "11");
+      fireEvent.click(control);
+      const explanation = within(
+        await screen.findByRole("region", { name: `${label} calculation` }),
+      );
+      expect(explanation.getByRole("row", { name: /Original/ })).toHaveTextContent(
+        signed ? "+12" : "12",
+      );
+      expect(explanation.getByRole("row", { name: /Frightened/ })).toHaveTextContent(
+        "-1",
+      );
+      expect(explanation.getByRole("row", { name: /Sickened/ })).toHaveTextContent(
+        "Overridden",
+      );
+      expect(
+        explanation.getByRole("row", { name: /Conditional defense/ }),
+      ).toHaveTextContent("Additional qualification.");
+      expect(explanation.getByRole("row", { name: /Effective/ })).toHaveTextContent(
+        signed ? "+11" : "11",
+      );
+    },
+  );
+
   it.each(["invalid", "missing", "null"] as const)(
     "retains required IWR magnitude (%s), explicit null/invalid qualifiers and known zero",
     (state) => {
@@ -357,7 +451,8 @@ describe("semantic family presentation", () => {
       },
     ]);
     const { container, rerender } = render(<DamageComponents damage={damage} />);
-    expect(container).toHaveTextContent("1d6 fire; kinds [invalid]; materials —");
+    expect(container).toHaveTextContent("1d6 fire; kinds [invalid]");
+    expect(container).not.toHaveTextContent("materials");
     rerender(<DamageComponents damage={damage} patch />);
     expect(container).toHaveTextContent("kinds [invalid]; category cleared");
     expect(container).not.toHaveTextContent("materials");
@@ -537,6 +632,10 @@ describe("semantic family presentation", () => {
           body: {
             kind: "physical_reference",
             value: {
+              details: null,
+              quantity: numberFact(1),
+              material: unavailableFact("not_applicable"),
+              size: unavailableFact("not_applicable"),
               usage: knownFact("held in one hand"),
               bulk: numberFact(0.1),
               price: knownFact({
@@ -557,7 +656,7 @@ describe("semantic family presentation", () => {
     expect(screen.getByText("L")).toBeVisible();
     expect(screen.getByText("10 gp")).toBeVisible();
   });
-  it("shows fixed-rank authored changes as reference data", () => {
+  it("shows fixed-rank authored changes as reference data", async () => {
     const spell = spellFixture();
     const missing = <T,>() => unavailableFact<T>();
     const changes: SpellChangeView = {
@@ -593,15 +692,87 @@ describe("semantic family presentation", () => {
         onReference={vi.fn()}
       />,
     );
+    fireEvent.click(screen.getByRole("button", { name: "Heightening details" }));
     const change = screen.getByRole("heading", {
-      name: "Heightened (rank 5)",
+      name: "Rank 5",
     }).parentElement!;
-    expect(within(change).getByText("60 feet")).toBeVisible();
+    await waitFor(() => expect(within(change).getByText("60 feet")).toBeVisible());
     expect(within(change).getByText("No")).toBeVisible();
     expect(within(change).queryByText("—")).toBeNull();
     expect(screen.getByText("500 feet")).toBeVisible();
     expect(screen.queryByRole("combobox")).toBeNull();
   });
+});
+
+it("puts spell operating facts before prose without losing authored headings or unavailable facts", () => {
+  const detail = detailFixture("spells:allfood", "Allfood");
+  detail.presentation.body = {
+    kind: "spell",
+    value: {
+      ...spellFixture(),
+      target: knownFact("one object"),
+      requirements: unavailableFact("invalid"),
+    },
+  };
+  const locator = {
+    record: detail.record.record_key,
+    embedded_path: [],
+    field: "/system/description/value",
+  };
+  detail.presentation.content = [
+    {
+      locator,
+      role: "description",
+      source_fingerprint: null,
+      body: {
+        kind: "html",
+        inclusions: [],
+        html: "<p>You transform one object.</p><h4>Heightened (4th)</h4><p>The food has a longer duration.</p>",
+        controls: [],
+      },
+    },
+    {
+      locator: { ...locator, field: "/system/notes" },
+      role: "notes",
+      source_fingerprint: null,
+      body: { kind: "plain", text: "A separate supplied note." },
+    },
+  ];
+  render(
+    <RecordPresentation presentation={detail.presentation} onReference={vi.fn()} />,
+  );
+  const description = screen.getByText("You transform one object.");
+  expect(
+    screen.getByText("one object").compareDocumentPosition(description) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(screen.getByText("Requirements").parentElement).toHaveTextContent("invalid");
+  expect(screen.queryByRole("heading", { name: "Description" })).toBeNull();
+  expect(screen.getByRole("heading", { name: "Heightened (4th)" })).toBeVisible();
+  expect(screen.getByText("The food has a longer duration.")).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
+  expect(screen.getByText("A separate supplied note.")).toBeVisible();
+});
+
+it("keeps the field label when the principal description is unavailable", () => {
+  const detail = detailFixture("actions:example", "Example");
+  detail.presentation.content = [
+    {
+      locator: {
+        record: detail.record.record_key,
+        embedded_path: [],
+        field: "/system/description/value",
+      },
+      role: "description",
+      source_fingerprint: null,
+      body: { kind: "unavailable", state: "invalid" },
+    },
+  ];
+  render(
+    <RecordPresentation presentation={detail.presentation} onReference={vi.fn()} />,
+  );
+  expect(screen.getByRole("heading", { name: "Description" })).toBeVisible();
+  expect(screen.getByRole("alert")).toHaveTextContent("Content unavailable: invalid");
 });
 
 describe("Rust-owned optional spell presentation", () => {
@@ -709,6 +880,10 @@ describe("optional authored reference facts", () => {
             body: {
               kind: "physical_reference",
               value: {
+                details: null,
+                quantity: numberFact(1),
+                material: unavailableFact("not_applicable"),
+                size: unavailableFact("not_applicable"),
                 usage: knownFact("held in one hand"),
                 price: knownFact({
                   pp: { ...unavailableFact<number>("missing"), adjustment: null },
@@ -762,11 +937,11 @@ describe("optional authored reference facts", () => {
     },
   );
 
-  it("uses ordered damage captions instead of authored IDs for multiple components", () => {
-    const component = (id: string) => ({
+  it("keeps distinct damage rows without mechanical numbering or authored IDs", () => {
+    const component = (id: string, formula: string, damageType: string) => ({
       id,
-      formula: knownFact("1d6"),
-      damage_type: knownFact("fire"),
+      formula: knownFact(formula),
+      damage_type: knownFact(damageType),
       kinds: knownFact([]),
       category: unavailableFact<string>("null"),
       materials: knownFact([]),
@@ -774,11 +949,16 @@ describe("optional authored reference facts", () => {
     });
     const { container } = render(
       <DamageComponents
-        damage={knownFact([component("p36zyj2o94q5m2av6t6a"), component("0")])}
+        damage={knownFact([
+          component("p36zyj2o94q5m2av6t6a", "1d6", "fire"),
+          component("0", "2d8", "cold"),
+        ])}
       />,
     );
-    expect(container).toHaveTextContent("Damage component 1:");
-    expect(container).toHaveTextContent("Damage component 2:");
+    expect(
+      [...container.querySelectorAll(".record-damage p")].map((row) => row.textContent),
+    ).toEqual(["1d6 fire", "2d8 cold"]);
+    expect(container).not.toHaveTextContent("Damage component");
     expect(container).not.toHaveTextContent("p36zyj2o94q5m2av6t6a");
     expect(container).not.toHaveTextContent("Damage 0");
   });
@@ -792,6 +972,7 @@ describe("optional authored reference facts", () => {
       damage: knownFact([{ id: "0", formula: knownFact("2d6") }]),
     });
     const { rerender } = render(<SpellReference spell={spell} />);
+    fireEvent.click(screen.getByRole("button", { name: "Heightening details" }));
     expect(screen.getByText("Damage increase").parentElement).toHaveTextContent("2d6");
     if (!spell.heightening.value || spell.heightening.value.kind !== "interval")
       throw new Error("fixture heightening");
@@ -915,16 +1096,30 @@ it("presents consumable spell semantics, exact navigation, package prices and so
     spell_presented_inline: false,
     maximum_uses: numberFact(500),
     source_uses: numberFact(420),
-    source_quantity: numberFact(10),
   };
   const presentation: RecordPresentationView = {
     classification: "Item",
     identity: summaryFixture("equipment:wand", "Wand"),
-    content: [],
+    content: [
+      {
+        locator: {
+          record: "equipment:wand",
+          embedded_path: [],
+          field: "/system/description/value",
+        },
+        source_fingerprint: null,
+        role: "description",
+        body: { kind: "plain", text: "The exact wand activation and frequency." },
+      },
+    ],
     embedded: [],
     body: {
       kind: "physical_reference",
       value: {
+        details: null,
+        quantity: numberFact(10),
+        material: unavailableFact("not_applicable"),
+        size: unavailableFact("not_applicable"),
         consumable,
         usage: knownFact("Held in one hand"),
         bulk: numberFact(0.1),
@@ -942,9 +1137,18 @@ it("presents consumable spell semantics, exact navigation, package prices and so
   const { rerender } = render(
     <RecordPresentation presentation={presentation} onReference={onReference} />,
   );
+  expect(
+    screen
+      .getByText("Price per 10")
+      .compareDocumentPosition(
+        screen.getByText("The exact wand activation and frequency."),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
   expect(screen.getByText("Uses").parentElement).toHaveTextContent("420 / 500");
   expect(screen.getByText("Quantity").parentElement).toHaveTextContent("10");
-  expect(screen.getByText("Price per 10").parentElement).toHaveTextContent("1 gp");
+  expect(screen.getByText("Price per 10").parentElement?.textContent).toBe(
+    "Price per 10 1 gp",
+  );
   expect(screen.getByText("Spell").parentElement).toHaveTextContent("Heal · Rank 2");
   fireEvent.click(screen.getByRole("link", { name: "Heal" }));
   expect(onReference).toHaveBeenCalledWith(
@@ -953,14 +1157,21 @@ it("presents consumable spell semantics, exact navigation, package prices and so
     navigation,
   );
   expect(screen.queryByText("Contents")).toBeNull();
+  expect(screen.getByText("Category").parentElement).toHaveTextContent("wand");
+  presentation.identity.traits = [
+    { kind: "trait", value: "wand", label: "Wand", trait_key: "trait:wand" },
+  ];
   consumable.spell_presented_inline = true;
   consumable.source_uses = numberFact(1);
   consumable.maximum_uses = numberFact(1);
-  consumable.source_quantity = numberFact(1);
+  if (presentation.body.kind === "physical_reference")
+    presentation.body.value.quantity = numberFact(1);
   rerender(
     <RecordPresentation presentation={presentation} onReference={onReference} />,
   );
   expect(screen.queryByText("Spell")).toBeNull();
   expect(screen.queryByText("Uses")).toBeNull();
   expect(screen.queryByText("Quantity")).toBeNull();
+  expect(screen.queryByText("Category")).toBeNull();
+  expect(screen.getByRole("link", { name: "Wand" })).toBeVisible();
 });

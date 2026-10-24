@@ -1,18 +1,18 @@
 import type { ReactNode } from "react";
-import { PaneFrame } from "../layout/PaneLayout";
 
 export function DocumentPagePane({
-  actions,
+  identity,
   children,
-  title = "Reference",
+  layout = "document",
 }: {
-  actions?: ReactNode;
+  identity?: ReactNode;
   children: ReactNode;
-  title?: string;
+  layout?: "document" | "workspace";
 }) {
   return (
-    <PaneFrame className="record-view__pane" headerActions={actions} label={title}>
+    <section className={`record-view__pane record-view__pane--${layout}`}>
+      {identity}
       {children}
-    </PaneFrame>
+    </section>
   );
 }

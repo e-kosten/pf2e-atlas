@@ -132,7 +132,7 @@ describe("address-safe detail refresh", () => {
       );
       await waitFor(() => expect(api.getRecordDetail).toHaveBeenCalledTimes(2));
       expect(screen.queryByRole("heading", { name: "Previous selection" })).toBeNull();
-      expect(screen.getByRole("status")).toHaveTextContent("Loading record…");
+      expect(screen.getByRole("status")).toHaveAccessibleName("Loading record…");
       await act(async () =>
         next.resolve({
           ...detailFixture(nextKey, "Next selection"),

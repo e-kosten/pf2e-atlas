@@ -36,3 +36,9 @@ pub use text_projection::plain_text as prepared_plain_text;
 
 mod trait_references;
 pub use trait_references::{TraitLocalizationReference, trait_localization_references};
+
+mod inclusion;
+pub use inclusion::{
+    PreparedHtmlInclusion, PreparedInclusionSourceLink, compose_prepared_inclusions,
+    escape_content_text, terminal_prepared_reference,
+};

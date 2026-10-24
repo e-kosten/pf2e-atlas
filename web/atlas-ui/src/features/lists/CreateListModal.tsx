@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Form, Input, Modal, Select } from "antd";
-import { useMemo } from "react";
+import { Alert, Button, Form, Input, Modal, Select, Space, Typography } from "antd";
+import { useMemo, useRef } from "react";
 import { createSavedList } from "../../api/atlasApi";
 import type { CreateSavedListRequest } from "../../generated/atlas";
-import { InlineError, normalizeTags, savedListTagOptions, slugify } from "./listUtils";
+import { normalizeTags, savedListTagOptions, slugify } from "./listUtils";
 import { useSavedLists } from "./savedListQueries";
 
 type CreateListFormValues = {
@@ -22,6 +22,7 @@ export function CreateListModal({
 }) {
   const [form] = Form.useForm<CreateListFormValues>();
   const queryClient = useQueryClient();
+  const inFlight = useRef(false);
   const lists = useSavedLists({ enabled: open });
   const tagOptions = useMemo(
     () =>
@@ -38,13 +39,23 @@ export function CreateListModal({
       onCreated(view.list.slug);
       form.resetFields();
     },
+    onSettled: () => {
+      inFlight.current = false;
+    },
   });
 
   return (
     <Modal
+      transitionName=""
       confirmLoading={create.isPending}
+      cancelButtonProps={{ disabled: create.isPending }}
+      closable={{ disabled: create.isPending }}
+      keyboard={!create.isPending}
+      mask={{ closable: !create.isPending }}
       okText="Create"
-      onCancel={onCancel}
+      onCancel={() => {
+        if (!inFlight.current) onCancel();
+      }}
       onOk={() => form.submit()}
       open={open}
       title="New List"
@@ -52,13 +63,16 @@ export function CreateListModal({
       <Form
         form={form}
         layout="vertical"
-        onFinish={(values) =>
+        disabled={create.isPending}
+        onFinish={(values) => {
+          if (inFlight.current) return;
+          inFlight.current = true;
           create.mutate({
             slug: slugify(values.name),
             name: values.name,
             tags: normalizeTags(values.tags),
-          })
-        }
+          });
+        }}
       >
         <Form.Item
           label="Name"
@@ -75,8 +89,28 @@ export function CreateListModal({
         >
           <Input />
         </Form.Item>
-        <Form.Item label="Tags" name="tags">
+        <Form.Item
+          label="Tags"
+          name="tags"
+          extra={
+            lists.error && (
+              <Space wrap>
+                <Typography.Text type="secondary">
+                  Tag suggestions could not load.
+                </Typography.Text>
+                <Button
+                  size="small"
+                  loading={lists.isFetching}
+                  onClick={() => void lists.refetch()}
+                >
+                  Retry
+                </Button>
+              </Space>
+            )
+          }
+        >
           <Select
+            loading={lists.isFetching}
             mode="tags"
             showSearch={{ optionFilterProp: "label" }}
             options={tagOptions}
@@ -84,7 +118,7 @@ export function CreateListModal({
           />
         </Form.Item>
       </Form>
-      {create.error && <InlineError message={create.error.message} />}
+      {create.error && <Alert type="error" title={create.error.message} />}
     </Modal>
   );
 }

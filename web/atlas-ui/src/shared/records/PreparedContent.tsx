@@ -1,6 +1,8 @@
 import { sanitizePreparedHtml } from "./PreparedHtml";
 import DOMPurify from "dompurify";
-import { Alert, Modal } from "antd";
+import { Alert, Modal, Typography } from "antd";
+import { documentHeadings } from "./documentHeadings";
+import "../../styles/ui/journal-reading.css";
 import {
   useMemo,
   useLayoutEffect,
@@ -30,7 +32,11 @@ export function PreparedContent({
   content,
   relationships = NO_RELATIONSHIPS,
   onReference,
+  documentNavigation = false,
+  sectionLanding,
 }: {
+  documentNavigation?: boolean;
+  sectionLanding?: string;
   content: PreparedContentFieldView;
   relationships?: RecordRelationshipView[];
   onReference: RecordReferenceHandler;
@@ -38,6 +44,26 @@ export function PreparedContent({
   return (
     <PreparedContentBody
       body={content.body}
+      documentNavigation={
+        documentNavigation
+          ? {
+              identity: JSON.stringify(content.locator),
+              landing: sectionLanding,
+              href: atlasRoutePath({
+                kind: "record",
+                recordKey: content.locator.record,
+                selection: {
+                  record_key: content.locator.record,
+                  embedded_path: content.locator.embedded_path,
+                  spell_rank: undefined,
+                  field: null,
+                  passage: null,
+                  source_fingerprint: null,
+                },
+              }),
+            }
+          : undefined
+      }
       references={relationships.filter(
         (reference) =>
           JSON.stringify(reference.source) === JSON.stringify(content.locator),
@@ -51,7 +77,9 @@ export function PreparedContentBody({
   body,
   references,
   onReference,
+  documentNavigation,
 }: {
+  documentNavigation?: { identity: string; href: string; landing?: string };
   body: PreparedFieldBodyView;
   references: (PreparedReferenceView | RecordRelationshipView)[];
   onReference: RecordReferenceHandler;
@@ -67,10 +95,70 @@ export function PreparedContentBody({
     (...args) => referenceHandler.current(...args),
     [],
   );
-  const html = useMemo(
+  const sanitized = useMemo(
     () => (body.kind === "html" ? sanitizePreparedHtml(body.html) : ""),
     [body],
   );
+  const documentIdentity = documentNavigation?.identity;
+  const prepared = useMemo(
+    () =>
+      documentIdentity
+        ? documentHeadings(sanitized, documentIdentity)
+        : { html: sanitized, outline: [] },
+    [sanitized, documentIdentity],
+  );
+  const { html, outline } = prepared;
+  const sectionLanding = documentNavigation?.landing;
+  const landedSection = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (!sectionLanding || landedSection.current === sectionLanding) return;
+    const target = [
+      ...(container.current?.querySelectorAll<HTMLElement>(".document-heading") ?? []),
+    ].find((heading) => heading.id === sectionLanding);
+    if (target) {
+      landedSection.current = sectionLanding;
+      target.scrollIntoView({ block: "start" });
+      target.focus({ preventScroll: true });
+    }
+  }, [html, sectionLanding]);
+  useLayoutEffect(() => {
+    if (!container.current || !html) return;
+    const tables = Array.from(container.current.querySelectorAll("table")).filter(
+      (table) => !table.parentElement?.closest("table"),
+    );
+    const updateOverflow = () => {
+      for (const table of tables) {
+        const region = table.parentElement!;
+        if (region.scrollWidth > region.clientWidth) {
+          region.tabIndex = 0;
+          region.setAttribute("role", "region");
+          region.setAttribute(
+            "aria-label",
+            table.caption?.textContent?.trim() || "Reference table",
+          );
+        } else {
+          region.removeAttribute("tabindex");
+          region.removeAttribute("role");
+          region.removeAttribute("aria-label");
+        }
+      }
+    };
+    const observer = new ResizeObserver(updateOverflow);
+    for (const table of tables) {
+      // Keep the authored nodes and reading position on unchanged-content updates.
+      let region = table.parentElement!;
+      if (!region.classList.contains("prepared-content__table-scroll")) {
+        region = document.createElement("div");
+        region.className = "prepared-content__table-scroll";
+        table.replaceWith(region);
+        region.append(table);
+      }
+      observer.observe(region);
+      observer.observe(table);
+    }
+    updateOverflow();
+    return () => observer.disconnect();
+  }, [html]);
   // Native links must exist before parent reading hosts restore a bookmark.
   useLayoutEffect(() => {
     if (body.kind !== "html") return;
@@ -81,12 +169,23 @@ export function PreparedContentBody({
     const effects: ReactPortal[] = [];
     markers?.forEach((originalMarker) => {
       let marker = originalMarker;
+      const namespace = marker
+        .closest("[data-atlas-inclusion]")
+        ?.getAttribute("data-atlas-inclusion");
+      const inclusion =
+        namespace == null
+          ? undefined
+          : body.inclusions.find((entry) => entry.namespace === Number(namespace));
+      const markerReferences =
+        namespace == null ? references : (inclusion?.references ?? []);
+      const markerControls =
+        namespace == null ? body.controls : (inclusion?.controls ?? []);
       const ref = marker.getAttribute("data-atlas-reference");
       const fact =
-        ref === null ? null : references.find((r) => r.ordinal === Number(ref));
+        ref === null ? null : markerReferences.find((r) => r.ordinal === Number(ref));
       const control =
         ref === null
-          ? body.controls.find(
+          ? markerControls.find(
               (c) =>
                 c.ordinal === Number(marker.getAttribute("data-atlas-interaction")),
             )?.control
@@ -103,7 +202,7 @@ export function PreparedContentBody({
               onReference={openReference}
             />,
             host,
-            String(ref),
+            `${namespace ?? "host"}:${ref}`,
           ),
         );
         listeners.push(() => host.replaceWith(originalMarker));
@@ -175,14 +274,14 @@ export function PreparedContentBody({
         const reference = marker.getAttribute("data-atlas-reference");
         if (reference !== null) {
           const ordinal = Number(reference);
-          const fact = references.find((r) => r.ordinal === ordinal);
+          const fact = markerReferences.find((r) => r.ordinal === ordinal);
           if (!fact?.target) return;
           const target = fact.contextual_target ?? fact.target;
           openReference(target.record_key, marker as HTMLElement, target);
           return;
         }
         const ordinal = Number(marker.getAttribute("data-atlas-interaction"));
-        const control = body.controls.find((c) => c.ordinal === ordinal)?.control;
+        const control = markerControls.find((c) => c.ordinal === ordinal)?.control;
         if (!control || control.kind === "command") return;
         const title =
           control.kind === "check"
@@ -192,6 +291,12 @@ export function PreparedContentBody({
               : control.shape || "Template";
         modal.info({
           title,
+          closable: true,
+          mask: { closable: true },
+          afterClose: () => {
+            if (marker instanceof HTMLElement && marker.isConnected)
+              marker.focus({ preventScroll: true });
+          },
           content: (
             <dl>
               {Object.entries(control.options).map(([key, value]) => (
@@ -233,15 +338,55 @@ export function PreparedContentBody({
       <Alert type="info" title="Content reading limit" description={body.reason} />
     );
   if (body.kind === "plain") return <p className="prose">{body.text}</p>;
-  return (
+  const reading = (
     <>
-      {contextHolder}
-      {effectLinks}
+      {outline.length > 0 && (
+        <nav className="document-outline" aria-label="On this page">
+          <strong>On this page</strong>
+          <ul>
+            {outline.map((section) => (
+              <li key={section.id}>
+                <Typography.Link
+                  href={`${documentNavigation!.href}#${encodeURIComponent(section.id)}`}
+                  onClick={(event) => {
+                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    event.preventDefault();
+                    const heading = [
+                      ...(container.current?.querySelectorAll<HTMLElement>(
+                        ".document-heading",
+                      ) ?? []),
+                    ].find((heading) => heading.id === section.id);
+                    heading?.scrollIntoView({ block: "start" });
+                    heading?.focus({ preventScroll: true });
+                  }}
+                >
+                  {section.label}
+                </Typography.Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
       <div
         ref={container}
         className="prepared-content"
         dangerouslySetInnerHTML={{ __html: html }}
       />
+    </>
+  );
+  return (
+    <>
+      {contextHolder}
+      {effectLinks}
+      {documentNavigation ? (
+        <div
+          className={`document-reading${outline.length ? " document-reading--outlined" : ""}`}
+        >
+          {reading}
+        </div>
+      ) : (
+        reading
+      )}
     </>
   );
 }

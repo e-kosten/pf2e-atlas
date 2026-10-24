@@ -157,13 +157,18 @@ facts; html2text formats terminal output at read time. Neither renderer executes
 Foundry scripts or reconstructs a general document AST. Terminal formatting is not
 FTS text.
 
+Selected reading can compose checked inline Item fields into transient HTML with
+separate occurrence binding namespaces. This changes neither persisted prepared
+HTML nor interpretation identity: stored embed targets/options remain source
+occurrences, and indexed lexical/semantic inputs do not acquire transitive text.
+
 Preparation emits fixed action glyphs as allowlisted semantic HTML attributes
 with readable text, retaining nested enrichments rather than flattening them.
 Font characters are display decoration, not canonical search or terminal text.
 Prepared unresolved references preserve an explicit authored label or a qualified
 authored root name; opaque UUIDs display as unavailable. Their exact authored
 targets and unresolved status remain in relationship evidence and diagnostics.
-The content interpretation identity is `foundry-content/v7`; older prepared
+The content interpretation identity is `foundry-content/v9`; older prepared
 content requires re-preparation even when the physical schema is unchanged.
 Exact compatible embedding checkpoints remain reusable.
 

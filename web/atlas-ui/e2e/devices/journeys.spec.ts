@@ -9,6 +9,222 @@ import {
   sentinel,
 } from "./reading";
 
+test("variant comparison bounds complete documents on wide screens and stays reachable on touch layouts", async ({
+  page,
+}, info) => {
+  const sourceKey = "browser-spells:spell00000000001";
+  const targetKey = "browser-rules:rule000000000001";
+  const [sourceResponse, targetResponse] = await Promise.all([
+    page.request.get(`/api/records/${sourceKey}`),
+    page.request.get(`/api/records/${targetKey}`),
+  ]);
+  expect(sourceResponse.ok()).toBeTruthy();
+  expect(targetResponse.ok()).toBeTruthy();
+  const source = await sourceResponse.json();
+  const target = await targetResponse.json();
+  // Supply comparison eligibility; both displayed documents still come from
+  // the real fixture APIs and use the production shared renderer.
+  await page.route("**/api/related", async (route) => {
+    const response = await route.fetch();
+    const related = await response.json();
+    await route.fulfill({
+      response,
+      json: {
+        ...related,
+        variants: {
+          kind: "content",
+          content: {
+            seed: source.record,
+            base_name: source.record.title,
+            variants: [source.record, target.record],
+            evidence: [],
+            ambiguous: false,
+            truncated: false,
+          },
+        },
+      },
+    });
+  });
+  if (info.project.name === "desktop-chromium")
+    await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto(`/records/${sourceKey}`);
+  await activate(
+    page.getByRole("button", { name: "Related records", exact: true }),
+    info,
+  );
+  await activate(page.getByRole("tab", { name: "Variants", exact: true }), info);
+  const compare = page.getByRole("combobox", { name: "Compare variant", exact: true });
+  await compare.scrollIntoViewIfNeeded();
+  await activate(compare, info);
+  await expect(compare).toHaveAttribute("aria-expanded", "true");
+  await activate(
+    page
+      .locator(".ant-select-dropdown")
+      .getByText(target.record.title, { exact: true }),
+    info,
+  );
+  const dialog = page.getByRole("dialog", { name: "Variant comparison", exact: true });
+  await expect(dialog.getByRole("heading", { name: /^Signal Protocol/ })).toBeVisible();
+  // Ant's prepare phase has no running animations yet, but the dialog is still
+  // transparent. Measure and dismiss the fully presented, unscaled document.
+  await expect(dialog).toHaveCSS("opacity", "1");
+  await expect(dialog).toHaveCSS("transform", "none");
+  const assertLayout = async () => {
+    await noPageOverflow(page);
+    const panes = dialog.locator(".record-comparison > .detail-panel");
+    await expect(panes).toHaveCount(2);
+    for (const pane of await panes.all()) {
+      const geometry = await pane.evaluate((node) => {
+        const ruler = document.createElement("div");
+        ruler.style.width = "var(--document-measure)";
+        ruler.style.position = "absolute";
+        node.append(ruler);
+        const measure = ruler.getBoundingClientRect().width;
+        ruler.remove();
+        const style = getComputedStyle(node);
+        return {
+          width: node.getBoundingClientRect().width,
+          measure,
+          inset: parseFloat(style.paddingLeft) + parseFloat(style.paddingRight),
+          overflow: node.scrollWidth - node.clientWidth,
+        };
+      });
+      expect(geometry.width).toBeLessThanOrEqual(geometry.measure + geometry.inset + 1);
+      expect(geometry.overflow).toBeLessThanOrEqual(1);
+    }
+  };
+  await assertLayout();
+  if (info.project.name === "desktop-chromium") {
+    await page.setViewportSize({ width: 2560, height: 1080 });
+    await assertLayout();
+  }
+  await expect
+    .poll(() => dialog.evaluate((node) => node.contains(document.activeElement)))
+    .toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+});
+
+test("theme dismissal returns focus without stealing the next modal's focus", async ({
+  page,
+}, info) => {
+  await page.goto("/lists");
+  const theme = page.getByRole("button", { name: "Theme", exact: true });
+  await activate(theme, info);
+  await activate(page.getByText("Dark", { exact: true }), info);
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("Dark", { exact: true })).toBeHidden();
+  await expect(theme).toBeFocused();
+  await activate(theme, info);
+  await activate(page.getByRole("button", { name: "New list", exact: true }), info);
+  const dialog = page.getByRole("dialog", { name: "New List", exact: true });
+  await expect(dialog).toBeVisible();
+  const name = dialog.getByRole("textbox", { name: /Name$/ });
+  await name.fill("Retained draft");
+  await expect(name).toBeFocused();
+  await expect(page.getByText("Dark", { exact: true })).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  const create = page.getByRole("button", { name: "New list", exact: true });
+  await expect(create).toBeFocused();
+  await activate(create, info);
+  await expect(name).toHaveValue("Retained draft");
+});
+
+test("a long saved-list choice stays bounded through a pending and failed Add", async ({
+  page,
+}, info) => {
+  const slug = `overlay-${info.project.name}-${Date.now()}`;
+  const name =
+    "Expedition medicine and emergency supplies for the northern mountain watch";
+  const response = await page.request.post("/api/lists", {
+    data: { slug, name, tags: [] },
+  });
+  expect(response.ok()).toBeTruthy();
+  const { list } = await response.json();
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let writes = 0;
+  try {
+    await page.route(`**/api/lists/${slug}/items`, async (route) => {
+      writes += 1;
+      await gate;
+      await route.fulfill({
+        status: 503,
+        json: { code: "unavailable", message: "Service unavailable. Try again." },
+      });
+    });
+    await page.goto(`/records/${sentinel}`);
+    const trigger = page.getByRole("button", {
+      name: "Add to saved list",
+      exact: true,
+    });
+    await activate(trigger, info);
+    const dialog = page.getByRole("dialog", { name: "Add to List", exact: true });
+    const selector = dialog.getByRole("combobox", { name: "Saved list", exact: true });
+    await expect(selector).toBeEnabled();
+    await activate(selector, info);
+    const option = page.getByText(name, { exact: true });
+    await expect
+      .poll(async () => {
+        const choice = await option.boundingBox();
+        const field = await dialog.locator(".list-picker").boundingBox();
+        return choice && field ? field.width - choice.width : Infinity;
+      })
+      .toBeLessThan(48);
+    await activate(option, info);
+    await expect(page.getByRole("listbox")).toBeHidden();
+    await expect(selector.locator("..")).toHaveText(name);
+    const assertBounds = async () => {
+      const bounds = (await dialog.boundingBox())!;
+      const control = (await selector.boundingBox())!;
+      const viewport = page.viewportSize()!;
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+      expect(control.x + control.width).toBeLessThanOrEqual(bounds.x + bounds.width);
+      await noPageOverflow(page);
+    };
+    await assertBounds();
+    await activate(dialog.getByRole("button", { name: "Add", exact: true }), info);
+    await expect.poll(() => writes).toBe(1);
+    await expect(
+      dialog.getByRole("button", { name: "Cancel", exact: true }),
+    ).toBeDisabled();
+    await expect(
+      dialog.getByRole("button", { name: "Close", exact: true }),
+    ).toBeDisabled();
+    await expect(selector).toBeDisabled();
+    await page.keyboard.press("Escape");
+    if (info.project.use.hasTouch) await page.touchscreen.tap(2, 2);
+    else await page.mouse.click(2, 2);
+    await expect(dialog).toBeVisible();
+    release();
+    await expect(dialog.getByRole("alert")).toContainText("Service unavailable");
+    await expect(
+      dialog.getByRole("button", { name: "Add", exact: true }),
+    ).toBeEnabled();
+    await expect(selector.locator("..")).toHaveText(name);
+    await expect(page.getByRole("listbox")).toBeHidden();
+    await assertBounds();
+    await page.screenshot({
+      path: info.outputPath("list-add-failure.png"),
+      animations: "disabled",
+    });
+    await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+    expect(writes).toBe(1);
+    expect(
+      (await (await page.request.get(`/api/lists/${list.list_key}`)).json()).items,
+    ).toHaveLength(0);
+  } finally {
+    release();
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});
+
 test("compact filter links reload and recover without losing the selected entry", async ({
   page,
 }) => {
@@ -262,6 +478,122 @@ test("filters, exact late activity, preview dismissal and Results remain usable"
   }
 });
 
+test("standalone records scroll as pages from the gutter and keyboard", async ({
+  page,
+  browserName,
+}, info) => {
+  await page.goto(`/records/${sentinel}`);
+  await expect(
+    page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
+  ).toBeVisible();
+  // Playwright does not provide mouse-wheel input in mobile WebKit.
+  if (browserName !== "webkit" || !info.project.use.isMobile) {
+    await page.mouse.move(8, 320);
+    await page.mouse.wheel(0, 600);
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
+  }
+  await page.keyboard.press("Home");
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+  await page.keyboard.press("PageDown");
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
+  expect(
+    await page.locator(".record-view__pane").evaluate((node) => node.scrollTop),
+  ).toBe(0);
+  await noPageOverflow(page);
+});
+
+test("closing a reference with a feature-action tooltip preserves the owner viewport and position", async ({
+  page,
+}, info) => {
+  await page.goto(
+    `/records/${sentinel}?landing=${encodeURIComponent(JSON.stringify(landing))}`,
+  );
+  const host = page.locator(".record-view__pane");
+  await expect(host.getByRole("heading", { name: /^Signal Pulse\b/ })).toBeVisible();
+  const activity = host.locator(".embedded-ability-reading__entry").filter({
+    has: page.getByRole("heading", { name: /^Signal Pulse\b/ }),
+  });
+  const link = activity.getByRole("link", { name: "Off-Guard", exact: true });
+  await link.scrollIntoViewIfNeeded();
+  await link.focus();
+  const readPosition = () =>
+    host.evaluate((node) => ({ pane: node.scrollTop, page: scrollY }));
+  const position = await readPosition();
+  expect(Math.max(position.pane, position.page)).toBeGreaterThan(0);
+  await link.press("Enter");
+  const drawer = page.getByRole("dialog", { name: "Off-Guard", exact: true });
+  await expect(drawer).toBeVisible();
+  const save = drawer.getByRole("button", { name: "Add to saved list", exact: true });
+  await save.focus();
+  await save.hover();
+  await expect(page.getByRole("tooltip", { name: "Add to saved list" })).toBeVisible();
+  await page.evaluate(() => {
+    const probe = { running: true, widths: [] as number[] };
+    (
+      window as typeof window & { referenceTransition: typeof probe }
+    ).referenceTransition = probe;
+    const sample = () => {
+      if (!probe.running) return;
+      probe.widths.push(Math.max(innerWidth, document.documentElement.scrollWidth));
+      requestAnimationFrame(sample);
+    };
+    sample();
+  });
+  await activate(
+    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
+    info,
+  );
+  await expect(drawer).toBeHidden();
+  await expect(link).toBeFocused();
+  const widths = await page.evaluate(() => {
+    const probe = (
+      window as typeof window & {
+        referenceTransition: { running: boolean; widths: number[] };
+      }
+    ).referenceTransition;
+    probe.running = false;
+    return probe.widths;
+  });
+  await info.attach("reference-transition-widths", {
+    body: JSON.stringify(widths),
+    contentType: "application/json",
+  });
+  expect(Math.max(...widths)).toBe(widths[0]);
+  expect(Math.min(...widths)).toBe(widths[0]);
+  await expect.poll(readPosition).toEqual(position);
+  await noPageOverflow(page);
+});
+
+test("reference rank menus accept pointer selection and retain their trigger", async ({
+  page,
+}, info) => {
+  await page.goto("/records/browser-rules:rule000000000001");
+  const link = page.getByRole("link", { name: "Lantern Ward", exact: true });
+  await activate(link, info);
+  const drawer = page.getByRole("dialog", { name: "Lantern Ward", exact: true });
+  await expect(drawer).toBeVisible();
+  const changeRank = drawer.getByRole("button", { name: "Change rank", exact: true });
+  const trigger = await changeRank.elementHandle();
+  await activate(changeRank, info);
+  await activate(page.getByRole("menuitem", { name: "Rank 4", exact: true }), info);
+  await expect(drawer.getByText("Spell 4", { exact: true })).toBeVisible();
+  expect(await trigger!.evaluate((node) => node.isConnected)).toBe(true);
+  await expect(changeRank).toBeFocused();
+  const href = await drawer
+    .getByRole("link", { name: "Open reference full page", exact: true })
+    .getAttribute("href");
+  expect(
+    JSON.parse(new URL(href!, page.url()).searchParams.get("selection")!).spell_rank,
+  ).toBe(4);
+  await activate(
+    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
+    info,
+  );
+  await expect(drawer).toBeHidden();
+  await expect(link).toBeFocused();
+  await noPageOverflow(page);
+});
+
 test("list tags, editing and explicit Add survive constrained space", async ({
   page,
 }, info) => {
@@ -420,63 +752,37 @@ test("encounter references retain their owner, scroll and native destination", a
     if (originalSize.width < 768)
       await page.setViewportSize({ width: originalSize.width, height: 560 });
     await activate(page.getByRole("link", { name: "Signal Pulse", exact: true }), info);
-    const content = page.getByLabel(
-      (page.viewportSize()?.width ?? 1440) >= 768
-        ? "Reference preview"
-        : "Reference content",
-      { exact: true },
-    );
-    const widePreview = (page.viewportSize()?.width ?? 1440) >= 768;
-    await expect(
-      widePreview
-        ? content.getByRole("heading", { name: /^Signal Pulse\b/ })
-        : page.getByRole("dialog", { name: /^Signal Pulse\b/ }),
-    ).toBeVisible();
-    const ownerReturn = content.getByRole("link", {
+    const content = page.getByLabel("Reference content", { exact: true });
+    const drawer = page.getByRole("dialog", { name: /^Signal Pulse\b/ });
+    await expect(drawer).toBeVisible();
+    const ownerReturn = drawer.getByRole("link", {
       name: "Return to Atlas Sentinel",
       exact: true,
     });
     await expect(ownerReturn).toHaveCount(0);
-    const host = page.locator(
-      (page.viewportSize()?.width ?? 1440) >= 768
-        ? ".record-preview-popover__body"
-        : ".record-preview-drawer__body",
-    );
+    const host = page.locator(".record-preview-drawer__body");
     await expect(host).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "Open reference full page", exact: true }),
-    ).toBeFocused();
-    if (widePreview) {
-      const popup = page.locator(".record-preview-popover");
-      await popup.evaluate((node) => {
-        node.animate([{ transform: "scale(0.8)" }, { transform: "scale(1)" }], {
-          duration: 800,
-          easing: "ease-out",
-        });
-      });
+    const heading = drawer.getByRole("heading", { name: /^Signal Pulse\b/ });
+    await expect(heading).toBeFocused();
+    if (originalSize.width >= 768) {
+      const mountedDrawer = await drawer.elementHandle();
       await page.setViewportSize({ width: 844, height: 390 });
-      await popup.evaluate((node) =>
-        Promise.allSettled(node.getAnimations().map((motion) => motion.finished)),
-      );
       await expect
         .poll(async () => {
-          const box = await popup.boundingBox();
-          return {
-            box,
-            withinViewport:
-              !!box &&
-              box.x >= -1 &&
-              box.y >= -1 &&
-              box.x + box.width <= 845 &&
-              box.y + box.height <= 391,
-          };
+          const box = await drawer.boundingBox();
+          return (
+            !!box &&
+            box.x >= -1 &&
+            box.y >= -1 &&
+            box.x + box.width <= 845 &&
+            box.y + box.height <= 391
+          );
         })
-        .toMatchObject({ withinViewport: true });
+        .toBe(true);
+      expect(await mountedDrawer!.evaluate((node) => node.isConnected)).toBe(true);
       await noPageOverflow(page);
     }
-    await expect(
-      page.getByRole("link", { name: "Open reference full page", exact: true }),
-    ).toBeFocused();
+    await expect(heading).toBeFocused();
     const outer = await page.evaluate(() => scrollY);
     // Capture a real scroll position even when the nested reference is already visible.
     await host.evaluate((node) => {
@@ -536,7 +842,7 @@ test("encounter references retain their owner, scroll and native destination", a
     }
     await activate(
       page.getByRole("button", {
-        name: widePreview ? "Close reference preview" : "Close",
+        name: "Close reference preview",
         exact: true,
       }),
       info,
@@ -968,6 +1274,7 @@ test("list entry notes stay beneath the reader and removal confirms in place", a
     await expect(page.getByText("Remove from list?", { exact: true })).toBeVisible();
     await activate(page.getByRole("button", { name: "Cancel", exact: true }), info);
     await expect(page.getByText("Remove from list?", { exact: true })).toBeHidden();
+    await expect(remove).toBeFocused();
     await activate(remove, info);
     await activate(page.getByRole("button", { name: "Remove", exact: true }), info);
     await expect(remove).toBeHidden();

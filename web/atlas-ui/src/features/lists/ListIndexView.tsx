@@ -166,7 +166,10 @@ export function ListIndexView(_props: ListIndexViewProps) {
           )}
           <Button
             icon={<Plus size={16} />}
-            onClick={() => setCreateOpen(true)}
+            onClick={(event) => {
+              event.currentTarget.focus({ preventScroll: true });
+              setCreateOpen(true);
+            }}
             type="primary"
           >
             New list

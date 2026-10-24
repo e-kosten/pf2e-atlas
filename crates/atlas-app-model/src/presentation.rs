@@ -60,6 +60,12 @@ pub enum RecordBodyView {
     Spell(Box<SpellPresentationView>),
     Activity(Box<ActorActivityView>),
     PhysicalReference(Box<PhysicalPresentationView>),
+    Ancestry(Box<crate::AncestryReferenceView>),
+    Heritage(Box<crate::HeritageReferenceView>),
+    Class(Box<crate::ClassReferenceView>),
+    Deity(Box<crate::DeityReferenceView>),
+    Vehicle(Box<crate::VehicleReferenceView>),
+    Army(Box<crate::ArmyReferenceView>),
     RollTable(Box<RollTablePresentationView>),
     TableResult(Box<TableResultPresentationView>),
     Journal(Box<JournalPresentationView>),
@@ -189,6 +195,9 @@ pub enum ActorActivityKindView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorActivityView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub first_level_only: Option<FactView<bool>>,
     pub is_ranged: FactView<bool>,
     pub effect_duration: FactView<EffectDurationView>,
     pub self_effect: FactView<ActivityEffectReferenceView>,
@@ -331,11 +340,115 @@ pub struct SpellFormView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct PhysicalPresentationView {
+    pub details: Option<PhysicalDetailsView>,
+    pub quantity: NumberFactView,
+    pub material: FactView<PhysicalMaterialReferenceView>,
+    pub size: FactView<String>,
     pub consumable: Option<ConsumablePresentationView>,
     pub usage: FactView<String>,
     pub bulk: NumberFactView,
     pub price: FactView<PhysicalPriceView>,
     pub price_per: NumberFactView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub enum PhysicalDetailsView {
+    Weapon(Box<WeaponReferenceView>),
+    Armor(Box<ArmorReferenceView>),
+    Shield(Box<ShieldReferenceView>),
+    Container(Box<ContainerReferenceView>),
+    Ammunition(Box<AmmunitionReferenceView>),
+    Kit(Box<KitReferenceView>),
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct WeaponReferenceView {
+    pub category: FactView<String>,
+    pub group: FactView<String>,
+    pub damage: FactView<WeaponDamageReferenceView>,
+    pub range_increment: NumberFactView,
+    pub maximum_range: NumberFactView,
+    pub reload: FactView<String>,
+    pub splash_damage: FactView<String>,
+    pub ammunition: FactView<WeaponAmmunitionReferenceView>,
+    pub runes: FactView<WeaponRuneReferenceView>,
+    pub melee_usage: FactView<WeaponMeleeReferenceView>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct WeaponDamageReferenceView {
+    pub dice: NumberFactView,
+    pub die: FactView<String>,
+    pub damage_type: FactView<String>,
+    pub modifier: NumberFactView,
+    pub persistent: FactView<WeaponPersistentReferenceView>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct WeaponPersistentReferenceView {
+    pub number: NumberFactView,
+    pub faces: NumberFactView,
+    pub damage_type: FactView<String>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct WeaponAmmunitionReferenceView {
+    pub base_type: FactView<String>,
+    pub capacity: NumberFactView,
+    pub built_in: FactView<bool>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct WeaponRuneReferenceView {
+    pub potency: NumberFactView,
+    pub striking: FactView<String>,
+    pub property: FactView<Vec<String>>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct WeaponMeleeReferenceView {
+    pub die: FactView<String>,
+    pub damage_type: FactView<String>,
+    pub group: FactView<String>,
+    pub traits: FactView<Vec<String>>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ArmorReferenceView {
+    pub category: FactView<String>,
+    pub group: FactView<String>,
+    pub ac_bonus: NumberFactView,
+    pub dex_cap: NumberFactView,
+    pub check_penalty: NumberFactView,
+    pub speed_penalty: NumberFactView,
+    pub strength: NumberFactView,
+    pub potency: NumberFactView,
+    pub resilient: FactView<String>,
+    pub property_runes: FactView<Vec<String>>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ShieldReferenceView {
+    pub ac_bonus: NumberFactView,
+    pub speed_penalty: NumberFactView,
+    pub hardness: NumberFactView,
+    pub hit_points: NumberFactView,
+    pub durability_in_table: bool,
+    pub reinforcing: NumberFactView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ContainerReferenceView {
+    pub capacity: NumberFactView,
+    pub ignored_bulk: NumberFactView,
+    pub held_or_stowed_bulk: NumberFactView,
+    pub stowing: FactView<bool>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct AmmunitionReferenceView {
+    pub maximum_uses: NumberFactView,
+    pub source_uses: NumberFactView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct KitReferenceView {
+    pub items: FactView<Vec<KitEntryReferenceView>>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct KitEntryReferenceView {
+    pub name: FactView<String>,
+    pub quantity: NumberFactView,
+    pub items: FactView<Vec<KitEntryReferenceView>>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct PhysicalPriceView {
@@ -352,7 +465,6 @@ pub struct ConsumablePresentationView {
     pub damage: FactView<ConsumableDamageView>,
     pub maximum_uses: NumberFactView,
     pub source_uses: NumberFactView,
-    pub source_quantity: NumberFactView,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ConsumableDamageView {
@@ -426,4 +538,10 @@ pub struct EncounterSenseView {
 pub struct EncounterContextualArmorClassView {
     pub opponent_key: String,
     pub value: FactView<serde_json::Number>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct PhysicalMaterialReferenceView {
+    pub kind: FactView<String>,
+    pub grade: FactView<String>,
 }

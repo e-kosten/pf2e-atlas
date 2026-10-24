@@ -633,9 +633,7 @@ describe("list views", () => {
     expect(
       await screen.findByRole("heading", { name: "Nested Rule" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("dialog", { name: "Reference preview" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Nested Rule" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
       "aria-current",
       "true",
@@ -1039,6 +1037,7 @@ describe("list views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
 
     const selector = await screen.findByRole("combobox");
+    await waitFor(() => expect(selector).toBeEnabled());
     fireEvent.mouseDown(selector);
     fireEvent.click(await screen.findByText("Research"));
     fireEvent.click(screen.getByRole("button", { name: "Add" }));

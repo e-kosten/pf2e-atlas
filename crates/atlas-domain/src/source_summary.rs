@@ -49,6 +49,7 @@ pub struct SourceRecordSummary {
     pub record_kind: SourceQueryFact<RecordKind>,
     pub level: SourceQueryFact<Number>,
     pub level_basis: Option<SourceLevelBasis>,
+    pub spell_ritual: SourceQueryFact<bool>,
     pub rarity: SourceQueryFact<String>,
     pub traits: SourceQueryFact<Vec<String>>,
     pub size: SourceQueryFact<String>,

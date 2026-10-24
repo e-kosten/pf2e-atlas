@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { waitForRollReveal } from "./rollLifecycle";
 
 /** Owns presentation timing only. The supplied action determines and retains outcomes. */
-export function useDiceRoll<T>() {
+export function useDiceRoll<T>({
+  retainResultOnError = false,
+}: { retainResultOnError?: boolean } = {}) {
   const [result, setResult] = useState<T>();
   const [busy, setBusy] = useState(false);
   const [animating, setAnimating] = useState(false);
@@ -29,7 +31,7 @@ export function useDiceRoll<T>() {
       await waitForRollReveal();
     } catch (cause) {
       if (mounted.current) {
-        setResult(undefined);
+        if (!retainResultOnError) setResult(undefined);
         setError(
           cause instanceof AtlasApiError && cause.status < 500
             ? cause.message

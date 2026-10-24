@@ -2,9 +2,15 @@
 
 This package owns the React browser frontend for PF2e Atlas. Follow these rules when editing files under `web/atlas-ui`.
 
+Start composition and presentation reviews with the
+[design principles and Atlas examples](docs/frontend-guidelines.md#design-principles).
+Use the detailed sections there for padding ownership, reading widths, disclosures
+and update continuity; do not introduce a competing feature-local design policy.
+
 ## Frontend Ownership
 
 - Keep product semantics in Rust app-service/app-model contracts. The frontend should render generated DTOs and call the thin API client; it should not duplicate retrieval, filtering, ranking, record projection, saved-list, or encounter product rules.
+- Before redesigning a record family, audit generated Foundry DTO fields through source views, presentation and UI; do not assume the current presentation DTO is complete. Follow [Record presentation](docs/frontend-guidelines.md#record-presentation) for field dispositions, source examples and coverage checks.
 - Use Ant Design as the component library for generic application UI. Prefer Ant components for buttons, icon buttons, links, navigation controls, forms, tables, modals, popovers, tooltips, selectors, checkboxes, alerts, empty/loading states, tags, and pagination before adding custom controls.
 - Hand-roll UI only when the surface is product-specific, such as record presentation, PF2e stat/rendering layouts, rich result summaries that Ant list/table primitives cannot express cleanly, or encounter-runtime panels.
 - Use Atlas theme tokens and existing CSS variables. Do not add ad hoc raw colors or one-off palettes. Derive custom Atlas state variables from Ant semantic tokens, not raw brand tokens such as `colorPrimary`, where the variable represents selected, active, link, hover, or focus behavior.
@@ -21,8 +27,10 @@ Before creating a feature-local interaction pattern, check `src/shared/ui`.
 - Use `IndexTable` for clickable entity/index tables.
 - Use `EntityIndexPage` for `/things` index pages with a title, summary, actions, and table body.
 - Use `EditableCommitField` for inline fields that keep a local draft and commit on blur or Enter.
+- In reading/scanning views, editable values need a persistent subtle cue, with inputs revealed on activation. Use the neutral filled value-button pattern for inline encounter HP; spell rank has its adjacent Change rank action. Keep fields visible for data-entry tasks. Follow [Reading and editing values](docs/frontend-guidelines.md#reading-and-editing-values); hover alone must not establish editability.
 - Use `SearchPickerModal` for modal record-search selection flows.
 - Use `PaneIconButton` and `PaneIconLink` for pane-header icon actions.
+- Use `BrowsePaneHeader` in selected-record workspaces; `BrowseReader` owns alignment of the two natural header rows, including wrapped controls. Do not independently fix their heights.
 - Use `DangerActionButton` for buttons that open a destructive confirmation before running the action.
 - Keep lower-level helpers such as `useConfirmDangerAction` for non-button callbacks where a shared button is not the right shape.
 
@@ -32,12 +40,16 @@ For overlays and secondary tasks, follow
 [Choosing an interaction surface](docs/frontend-guidelines.md#choosing-an-interaction-surface).
 For record browsing, links and nested previews, follow
 [In-place reference reading](docs/frontend-guidelines.md#in-place-reference-reading).
-Reuse the shared browse/reader and preview owners with exact backend navigation;
+Reuse BrowseReader for selected results and RecordReferenceDrawer for linked documents on every viewport, with exact backend navigation;
 keep feature selection and mutations separate. Do not invent feature-local
 Popover/Drawer or link-navigation policies.
 
 ## CSS Layout
 
+- Each content boundary has one padding owner. DocumentPagePane owns a standalone page's inset around its identity and flush detail; RecordDetailPane owns the inset in a selected-results reader. A reference Drawer body owns its inset and its detail is flush. The page/pane host owns background, border and shadow; reusable detail content must not introduce a nested card. RecordPresentation adds no outer padding. Use the spacing and control-group ownership examples in the frontend guidelines.
+- Standalone record/trait page frames grow with their content and use native page scrolling, including from the outer margin. Keep bounded scrolling in search readers and Drawers; do not make a standalone document card a separate vertical scroll region. See the frontend guide for scroll ownership and authored-table overflow.
+- Before arranging dense facts or progression, read [Grouping reference facts](docs/frontend-guidelines.md#grouping-reference-facts): short related facts can share a row, different tasks get distinct groups, and repeated comparison dimensions use Ant Table.
+- Single-entity pages lead with the entity name and its actions. Do not add a generic Reference or Details pane bar above the actual title. Pane labels belong to workspaces with distinct regions. Use the shared classification/trait row defaults for non-creature document identity rather than family-specific opt-ins.
 - Put reusable component styles under `src/styles/ui`.
 - Put feature-specific styles under the owning feature stylesheet.
 - Keep page-level structure unframed unless the existing shared layout primitive intentionally frames it.

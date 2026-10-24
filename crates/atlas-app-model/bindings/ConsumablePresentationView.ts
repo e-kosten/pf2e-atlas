@@ -4,4 +4,4 @@ import type { EmbeddedRecordLinkView } from "./EmbeddedRecordLinkView";
 import type { FactView } from "./FactView";
 import type { NumberFactView } from "./NumberFactView";
 
-export type ConsumablePresentationView = { spell: FactView<EmbeddedRecordLinkView>, spell_presented_inline: boolean, category: FactView<string>, damage: FactView<ConsumableDamageView>, maximum_uses: NumberFactView, source_uses: NumberFactView, source_quantity: NumberFactView, };
+export type ConsumablePresentationView = { spell: FactView<EmbeddedRecordLinkView>, spell_presented_inline: boolean, category: FactView<string>, damage: FactView<ConsumableDamageView>, maximum_uses: NumberFactView, source_uses: NumberFactView, };

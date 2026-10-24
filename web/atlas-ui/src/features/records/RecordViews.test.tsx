@@ -1,6 +1,6 @@
 import { detailFixture } from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { ConfigProvider, Grid } from "antd";
@@ -9,7 +9,7 @@ import type {
   RecordDetailView,
   RecordNavigationView,
 } from "../../generated/atlas";
-import { ReaderView, RecordView } from "./RecordViews";
+import { RecordView } from "./RecordViews";
 import {
   ATLAS_ROUTE_CHANGE_EVENT,
   atlasRoutePath,
@@ -56,12 +56,11 @@ describe("record route views", () => {
 
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
     expect(screen.queryByText("spell:heal")).toBeNull();
-    expect(screen.getByRole("link", { name: "Reader view" })).toHaveAttribute(
-      "href",
-      "/reader/spell:heal",
-    );
-    expect(screen.getByText("Reader view")).toBeInTheDocument();
-    expect(screen.getByText("Reference", { exact: true })).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Reader view" })).toBeNull();
+    expect(screen.queryByText("Reference", { exact: true })).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "heal" }).closest("header"),
+    ).toContainElement(screen.getByRole("button", { name: "Add to saved list" }));
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Refresh" })).toBeNull();
   });
@@ -79,6 +78,25 @@ describe("record route views", () => {
       list_ref: "research",
       record_ref: "spell:heal",
     });
+  });
+
+  it("keeps an open saved-list dialog and its trigger when the page identity arrives", async () => {
+    let resolveDetail!: (detail: RecordDetailView) => void;
+    apiMocks.getRecordDetail.mockReturnValue(
+      new Promise<RecordDetailView>((resolve) => {
+        resolveDetail = resolve;
+      }),
+    );
+    render(<RecordView route={{ kind: "record", recordKey: "spell:heal" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const trigger = screen.getByRole("button", { name: "Add to saved list" });
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole("dialog", { name: "Add to List" });
+    await act(async () => resolveDetail(recordDetailFixture("spell:heal")));
+    expect(screen.getByRole("dialog", { name: "Add to List" })).toBe(dialog);
+    expect(trigger).toBeInTheDocument();
+    await waitFor(() => expect(trigger.closest("header")).toHaveTextContent("heal"));
   });
 
   it("previews a standalone reference without leaving its parent, with a native full-page link", async () => {
@@ -108,82 +126,38 @@ describe("record route views", () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 
-  it("opens linked references in reader preview without replacing the primary record", async () => {
-    history.replaceState(null, "", "/reader/spell%3Aheal");
-    render(<ReaderHarness />, { wrapper: queryClientWrapper() });
-
-    expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "Linked Record" }));
-
-    await waitFor(() => expect(window.location.pathname).toBe("/reader/spell:heal"));
+  it("opens a contextual reference as a full page without changing its exact destination", async () => {
+    history.replaceState(null, "", "/records/spell:heal");
+    render(<RecordHarness />, { wrapper: queryClientWrapper() });
+    fireEvent.click(await screen.findByRole("link", { name: "Linked Record" }));
+    await screen.findByRole("heading", { name: "linked" });
+    fireEvent.click(screen.getByRole("link", { name: "Open reference full page" }));
     expect(currentAtlasRoute()).toMatchObject({
-      kind: "reader",
-      recordKey: "spell:heal",
-      previewRecordKey: "spell:linked",
-      previewSelection: { record_key: "spell:linked" },
-    });
-    expect(screen.getByRole("heading", { name: "heal" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
-  });
-
-  it("promotes the reader preview into the primary reader slot", async () => {
-    history.replaceState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
-    render(<ReaderHarness />, { wrapper: queryClientWrapper() });
-
-    expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "Open preview as reader" }));
-
-    await waitFor(() => expect(window.location.pathname).toBe("/reader/spell:linked"));
-    expect(window.location.search).toBe("");
-  });
-
-  it("adds the reader primary record to a saved list", async () => {
-    history.replaceState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
-    render(<ReaderHarness />, { wrapper: queryClientWrapper() });
-
-    expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
-
-    await addCurrentRecordToList(0);
-
-    expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-      list_ref: "research",
-      record_ref: "spell:heal",
+      kind: "record",
+      recordKey: "spell:linked",
     });
   });
 
-  it("adds the reader preview record to a saved list", async () => {
-    history.replaceState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
-    render(<ReaderHarness />, { wrapper: queryClientWrapper() });
-
-    expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
-
+  it("adds the contextual reference to a list without changing the primary selection", async () => {
+    history.replaceState(null, "", "/records/spell:heal");
+    render(<RecordHarness />, { wrapper: queryClientWrapper() });
+    fireEvent.click(await screen.findByRole("link", { name: "Linked Record" }));
+    await screen.findByRole("heading", { name: "linked" });
     await addCurrentRecordToList(1);
-
     expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
       list_ref: "research",
       record_ref: "spell:linked",
     });
+    expect(currentAtlasRoute()).toMatchObject({
+      kind: "record",
+      recordKey: "spell:heal",
+    });
   });
 
-  it("closes the reader preview without replacing the primary reader record", async () => {
-    history.replaceState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
-    render(<ReaderHarness />, { wrapper: queryClientWrapper() });
-
-    expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Close preview" }));
-
-    await waitFor(() => expect(window.location.pathname).toBe("/reader/spell:heal"));
-    expect(window.location.search).toBe("");
-    expect(screen.getByText("Select a record")).toBeInTheDocument();
-  });
-
-  it("preserves embedded field and passage identity through preview follow, close, promotion and history", async () => {
-    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true, lg: true });
-    const selected = (record_key: string, ordinal: number): RecordNavigationView => ({
+  it("preserves embedded field, passage and fingerprint through nested reading and Back", async () => {
+    const selected = (record_key: string, index: number): RecordNavigationView => ({
       record_key,
-      embedded_path: [
-        { collection: "items", identity: { SnapshotLocal: { index: ordinal } } },
-      ],
+      embedded_path: [{ collection: "items", identity: { SnapshotLocal: { index } } }],
       field: "system.description.value",
       passage: {
         kind: "plain_section",
@@ -198,27 +172,19 @@ describe("record route views", () => {
     const primary = selected("actors:primary", 0);
     const first = selected("actors:first", 1);
     const second = selected("actors:second", 2);
-    const third = selected("actors:third", 3);
     apiMocks.getRecordDetail.mockImplementation(
       (recordKey: string, selection?: RecordDetailRequest) => {
         const result = recordDetailFixture(recordKey);
         result.relationships[0].target =
-          recordKey === primary.record_key
-            ? first
-            : recordKey === first.record_key
-              ? second
-              : third;
-        if (selection) {
-          const { record_key, embedded_path, fields, passage, source_fingerprint } =
-            selection;
+          recordKey === primary.record_key ? first : second;
+        if (selection)
           result.selected = {
-            record_key,
-            embedded_path,
-            field: fields[0] ?? null,
-            passage,
-            source_fingerprint,
+            record_key: selection.record_key,
+            embedded_path: selection.embedded_path,
+            field: selection.fields[0] ?? null,
+            passage: selection.passage,
+            source_fingerprint: selection.source_fingerprint,
           };
-        }
         return Promise.resolve(result);
       },
     );
@@ -226,46 +192,33 @@ describe("record route views", () => {
       null,
       "",
       atlasRoutePath({
-        kind: "reader",
+        kind: "record",
         recordKey: primary.record_key,
-        previewRecordKey: null,
         selection: primary,
       }),
     );
-    render(<ReaderHarness />, { wrapper: queryClientWrapper() });
-    fireEvent.click(await screen.findByRole("link", { name: "Linked Record" }));
+    render(<RecordHarness />, { wrapper: queryClientWrapper() });
+    const trigger = await screen.findByRole("link", { name: "Linked Record" });
+    fireEvent.click(trigger);
     await screen.findByRole("heading", { name: "first" });
-    expect(currentAtlasRoute()).toMatchObject({
-      selection: primary,
-      previewSelection: first,
-    });
     fireEvent.click(screen.getAllByRole("link", { name: "Linked Record" })[1]);
     await screen.findByRole("heading", { name: "second" });
-    // Nested reading is local; the primary and initial companion URL stay stable.
-    expect(currentAtlasRoute()).toMatchObject({
-      selection: primary,
-      previewSelection: first,
-    });
-    const exactFullPage = atlasRoutePath({
-      kind: "record",
-      recordKey: second.record_key,
-      selection: second,
-    });
+    expect(currentAtlasRoute()).toMatchObject({ kind: "record", selection: primary });
     expect(
       screen.getByRole("link", { name: "Open reference full page" }),
-    ).toHaveAttribute("href", exactFullPage);
-    fireEvent.click(screen.getAllByRole("link", { name: "Linked Record" })[2]);
-    await screen.findByRole("heading", { name: "third" });
+    ).toHaveAttribute(
+      "href",
+      atlasRoutePath({
+        kind: "record",
+        recordKey: second.record_key,
+        selection: second,
+      }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    await screen.findByRole("heading", { name: "second" });
+    await screen.findByRole("heading", { name: "first" });
     fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
-    expect(screen.getByRole("heading", { name: "first" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "Open preview as reader" }));
-    expect(currentAtlasRoute()).toMatchObject({
-      recordKey: first.record_key,
-      selection: first,
-      previewRecordKey: null,
-    });
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(currentAtlasRoute()).toMatchObject({ kind: "record", selection: primary });
     expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
       second.record_key,
       {
@@ -280,7 +233,7 @@ describe("record route views", () => {
   });
 });
 
-function ReaderHarness() {
+function RecordHarness() {
   const [route, setRoute] = useState(currentAtlasRoute);
 
   useEffect(() => {
@@ -293,7 +246,9 @@ function ReaderHarness() {
     };
   }, []);
 
-  return route.kind === "reader" ? <ReaderView route={route} /> : null;
+  return route.kind === "record" ? (
+    <RecordView key={route.recordKey} route={route} />
+  ) : null;
 }
 
 async function addCurrentRecordToList(buttonIndex = 0) {
@@ -303,6 +258,7 @@ async function addCurrentRecordToList(buttonIndex = 0) {
   fireEvent.click(buttons[buttonIndex]!);
 
   const selector = await screen.findByRole("combobox");
+  await waitFor(() => expect(selector).toBeEnabled());
   fireEvent.mouseDown(selector);
   fireEvent.click(await screen.findByText("Research"));
   fireEvent.click(screen.getByRole("button", { name: "Add" }));
