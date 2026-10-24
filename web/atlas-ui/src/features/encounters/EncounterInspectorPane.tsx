@@ -3,7 +3,9 @@ import { EncounterLifeStatus } from "./EncounterLifeStatus";
 import { EncounterConditionRecovery } from "./EncounterConditionLifecycle";
 import { FactRow, factText } from "../../shared/records/presentationFacts";
 import { EncounterStrikeControl } from "./EncounterStrikeControl";
-import { Alert, Button } from "antd";
+import { Alert, Button, Select } from "antd";
+import { ActorDefenses } from "../../shared/records/ActorReference";
+import { TraitBadge } from "../../shared/records/TraitBadge";
 import type { getRecordDetail } from "../../api/atlasApi";
 import type {
   AddEncounterParticipantConditionRequest,
@@ -408,12 +410,93 @@ function EncounterParticipantSurface({
       />
     );
 
+  const hpControls = (
+    <>
+      {hasHp && (
+        <EncounterHpControls
+          pending={pending}
+          recovery={recovery}
+          error={error}
+          disabled={disabled}
+          current={participant}
+          onAction={(action) => onHpAction(participant, action)}
+          statusControl={statusControl}
+        />
+      )}
+    </>
+  );
+  const conditionControls = (
+    <>
+      {conditionError && (
+        <Alert
+          type="warning"
+          title="Condition choices unavailable"
+          action={<Button onClick={onRetryConditions}>Retry</Button>}
+        />
+      )}
+      <EncounterConditionControls
+        requestedEdit={requestedConditionEdit}
+        encounterRef={encounterKey}
+        encounterRevision={encounterRevision}
+        pending={pending}
+        recovery={recovery}
+        disabled={disabled}
+        addDisabled={conditionsDisabled}
+        error={error}
+        conditionDefinitions={conditionDefinitions}
+        damageTypes={damageTypes}
+        standardRecoveryDc={standardRecoveryDc}
+        current={participant}
+        onAddCondition={onAddCondition}
+        onReference={onReference}
+        onRemoveCondition={onRemoveCondition}
+        onUpdateCondition={onUpdateCondition}
+        onPreviewCondition={onPreviewCondition}
+        onRecoverPersistent={onRecoverPersistent}
+        onResolveDrained={onResolveDrained}
+        participants={participants}
+      />
+    </>
+  );
+  const contextualDefenses = (
+    <>
+      {actor?.runtime && actor.runtime.contextual_armor_class.length > 0 && (
+        <div className="record-fact-list">
+          {actor.runtime.contextual_armor_class.map((defense) => (
+            <FactRow
+              key={defense.opponent_key}
+              label={`AC against ${participants.find((p) => p.participant_key === defense.opponent_key)?.display_name ?? defense.opponent_key}`}
+            >
+              {factText(defense.value)}
+            </FactRow>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
   return (
     <section className="encounter-reference">
       <div className="encounter-reference__header">
         <div className="encounter-reference__identity">
           <div className="encounter-reference__name">
             <h2>{participant.display_name}</h2>
+            {participant.participant_kind === "creature" && (
+              <Select
+                className="encounter-reference__adjustment"
+                aria-label="Creature adjustment"
+                value={participant.participant_variant}
+                disabled={disabled}
+                options={[
+                  { value: "normal", label: "Normal" },
+                  { value: "elite", label: "Elite" },
+                  { value: "weak", label: "Weak" },
+                ]}
+                onChange={(value) =>
+                  void updateParticipant({ participant_variant: value }).catch(() => {})
+                }
+              />
+            )}
             <EncounterParticipantSettings
               participant={participant}
               disabled={disabled}
@@ -428,12 +511,14 @@ function EncounterParticipantSurface({
           </div>
           <p className="record-reference__kind">
             {presentation?.classification ?? participant.participant_kind}
-            {participant.participant_variant !== "normal" && (
-              <span className="encounter-reference__variant">
-                {participant.participant_variant === "elite" ? "Elite" : "Weak"}
-              </span>
-            )}
           </p>
+          {presentation?.identity.traits.length ? (
+            <div className="badge-row">
+              {presentation.identity.traits.map((trait) => (
+                <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
+              ))}
+            </div>
+          ) : null}
         </div>
         <div className="encounter-reference__actions">
           {participant.record_key && (
@@ -445,72 +530,58 @@ function EncounterParticipantSurface({
       {participant.status === "unresolved" && (
         <p>Original record unavailable. Saved participant settings remain editable.</p>
       )}
-      <div
-        className={`encounter-reference__controls${hasHp ? "" : " encounter-reference__controls--without-hp"}`}
-      >
-        {hasHp && (
-          <EncounterHpControls
-            pending={pending}
-            recovery={recovery}
-            error={error}
-            disabled={disabled}
-            current={participant}
-            onAction={(action) => onHpAction(participant, action)}
-            statusControl={statusControl}
-          />
-        )}
-        {conditionError && (
-          <Alert
-            type="error"
-            title="Conditions could not load"
-            description={conditionError.message}
-            action={<Button onClick={onRetryConditions}>Retry conditions</Button>}
-          />
-        )}
-        <EncounterConditionControls
-          requestedEdit={requestedConditionEdit}
-          encounterRef={encounterKey}
-          encounterRevision={encounterRevision}
-          pending={pending}
-          recovery={recovery}
-          disabled={disabled}
-          addDisabled={conditionsDisabled}
-          error={error}
-          conditionDefinitions={conditionDefinitions}
-          damageTypes={damageTypes}
-          standardRecoveryDc={standardRecoveryDc}
-          current={participant}
-          onAddCondition={onAddCondition}
-          onReference={onReference}
-          onRemoveCondition={onRemoveCondition}
-          onUpdateCondition={onUpdateCondition}
-          onPreviewCondition={onPreviewCondition}
-          onRecoverPersistent={onRecoverPersistent}
-          onResolveDrained={onResolveDrained}
-          participants={participants}
-        />
-      </div>
-      {actor?.runtime && actor.runtime.contextual_armor_class.length > 0 && (
-        <div className="record-fact-list">
-          {actor.runtime.contextual_armor_class.map((defense) => (
-            <FactRow
-              key={defense.opponent_key}
-              label={`AC against ${participants.find((p) => p.participant_key === defense.opponent_key)?.display_name ?? defense.opponent_key}`}
-            >
-              {factText(defense.value)}
-            </FactRow>
-          ))}
-        </div>
+      {body?.kind !== "creature" && (
+        <>
+          <div
+            className={`encounter-reference__controls${hasHp ? "" : " encounter-reference__controls--without-hp"}`}
+          >
+            {hpControls}
+            {conditionControls}
+          </div>
+          {contextualDefenses}
+        </>
       )}
+
       {presentation && (
         <RecordPresentation
+          creatureEncounter={
+            body?.kind === "creature"
+              ? {
+                  participantKey: participant.participant_key,
+                  durability: (
+                    <section
+                      className="encounter-reference__durability"
+                      aria-label="HP and defenses"
+                    >
+                      {hpControls}
+                      {actor && <ActorDefenses actor={actor} hideHitPoints />}
+                      {contextualDefenses}
+                    </section>
+                  ),
+                  conditions: conditionControls,
+                }
+              : undefined
+          }
+          reading={
+            artifactGeneration && participant.record_key
+              ? {
+                  generation: artifactGeneration,
+                  parent: {
+                    record_key: participant.record_key,
+                    embedded_path: [],
+                    field: null,
+                    passage: null,
+                    source_fingerprint: null,
+                  },
+                }
+              : undefined
+          }
           activityRolls={(activity) =>
             activity.kind === "strike" && artifactGeneration ? (
               <EncounterStrikeControl
                 key={JSON.stringify([
                   activity.navigation,
                   participant.participant_key,
-                  participant.revision.toString(),
                   artifactGeneration,
                 ])}
                 encounterKey={encounterKey}

@@ -47,6 +47,7 @@ function DamageFields({
         </h4>
       )}
       <Form.Item
+        style={{ marginBottom: "var(--space-group)" }}
         name={["groups", group.episode_id, "mode"]}
         getValueProps={(value) => ({ value: tableReason ? "table" : value })}
       >
@@ -60,6 +61,7 @@ function DamageFields({
       </Form.Item>
       {mode === "table" && (
         <Form.Item
+          style={{ marginBottom: "var(--space-group)" }}
           name={["groups", group.episode_id, "amount"]}
           label="Damage taken"
           tooltip="After IWR"

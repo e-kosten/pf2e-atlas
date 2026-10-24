@@ -187,6 +187,30 @@
   gap: 8px;
   min-width: 0;
 }
+.encounter-reference__durability {
+  display: grid;
+  gap: var(--space-group);
+  margin-block-end: var(--space-section);
+}
+.encounter-reference__durability .actor-reference__defenses {
+  padding: 0;
+  border: 0;
+}
+.encounter-reference__durability .actor-reference__defenses h3 {
+  font-size: 14px;
+  margin: 0 0 var(--space-control);
+}
+.encounter-reference__durability .record-fact-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--space-group);
+}
+.encounter-reference__identity > .badge-row {
+  margin: 0;
+}
+.encounter-reference__adjustment {
+  min-width: 6rem;
+}
 .encounter-reference__name h2 {
   min-width: 0;
   overflow-wrap: anywhere;

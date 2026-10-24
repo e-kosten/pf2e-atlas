@@ -132,8 +132,21 @@
 }
 .encounter-persistent-sources {
   display: grid;
-  gap: 8px;
-  margin-block: 8px 16px;
+  gap: 4px;
+  margin-block: var(--space-control) var(--space-group);
+}
+.encounter-persistent-sources:empty {
+  display: none;
+}
+.encounter-turn-review__identity {
+  display: flex;
+  gap: var(--space-group);
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-block-end: var(--space-section);
+}
+.encounter-turn-review__identity h3 {
+  margin: 0;
 }
 .encounter-persistent-source--superseded {
   color: var(--muted);

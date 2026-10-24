@@ -8,6 +8,7 @@ export function EditableCommitField({
   blurOnEnter = true,
   className,
   disabled = false,
+  readOnly = false,
   inputMode,
   onCancel,
   onCommit,
@@ -23,6 +24,7 @@ export function EditableCommitField({
   blurOnEnter?: boolean;
   className?: string;
   disabled?: InputProps["disabled"];
+  readOnly?: InputProps["readOnly"];
   inputMode?: InputProps["inputMode"];
   onCancel?: () => void;
   onCommit: (value: string) => void | Promise<unknown>;
@@ -49,7 +51,7 @@ export function EditableCommitField({
   const editFinished = useRef(false);
 
   const finishEdit = (commit: boolean) => {
-    if (disabled || editFinished.current) {
+    if (disabled || readOnly || editFinished.current) {
       return;
     }
     editFinished.current = true;
@@ -80,6 +82,7 @@ export function EditableCommitField({
       aria-label={ariaLabel}
       className={className}
       disabled={disabled}
+      readOnly={readOnly}
       inputMode={inputMode}
       suffix={suffix}
       onBlur={() => finishEdit(true)}

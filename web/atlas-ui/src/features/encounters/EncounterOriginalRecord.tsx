@@ -1,4 +1,6 @@
-import { Button } from "antd";
+import { Tooltip } from "antd";
+import { ExternalLink } from "lucide-react";
+import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
 import {
@@ -11,18 +13,19 @@ export function EncounterOriginalRecord({ recordKey }: { recordKey: string }) {
   const preview = useRecordPreview();
   return (
     <>
-      <Button
-        type="link"
-        size="small"
-        href={atlasRoutePath({ kind: "record", recordKey })}
-        onClick={(event) => {
-          if (!shouldHandleAtlasRouteClick(event)) return;
-          event.preventDefault();
-          preview.open(recordKey, event.currentTarget);
-        }}
-      >
-        Original record
-      </Button>
+      <Tooltip title="Open source record" trigger={["hover", "focus"]}>
+        <PaneIconLink
+          title=""
+          label="Open source record"
+          icon={<ExternalLink size={16} aria-hidden="true" />}
+          href={atlasRoutePath({ kind: "record", recordKey })}
+          onClick={(event) => {
+            if (!shouldHandleAtlasRouteClick(event)) return;
+            event.preventDefault();
+            preview.open(recordKey, event.currentTarget);
+          }}
+        />
+      </Tooltip>
       {preview.recordKey && (
         <RecordReferenceDrawer
           anchor={preview.anchor}
