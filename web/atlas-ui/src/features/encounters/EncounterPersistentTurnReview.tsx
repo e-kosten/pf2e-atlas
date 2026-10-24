@@ -190,7 +190,7 @@ export function EncounterPersistentTurnReview({
                         recordedResult={review.recovery_results.find(
                           (result) => result.episode_id === group.episode_id,
                         )}
-                        size="small"
+                        size="middle"
                         appearance="button"
                         boundaryKey={boundaryKey}
                         mode="end_turn"
@@ -219,7 +219,6 @@ export function EncounterPersistentTurnReview({
                       />
 
                       <Button
-                        size="small"
                         aria-label={`Clear ${type.toLowerCase()} effect`}
                         icon={<X size={14} />}
                         disabled={blocked || pending || ended}

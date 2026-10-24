@@ -96,6 +96,12 @@
   gap: 8px;
 }
 
+.encounter-turn-reminder--condition {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-group);
+}
+
 .encounter-turn-reminder__heading {
   display: flex;
   align-items: center;

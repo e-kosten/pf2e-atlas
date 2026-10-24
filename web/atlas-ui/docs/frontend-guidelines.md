@@ -1326,7 +1326,7 @@ another source-selection form to damage or recovery.
 Recovery uses an anchored DC reminder and Roll; render its outcome in that popover,
 including after successful condition removal. Table recovery uses Clear effect.
 Support built-in rollers and physical dice equally: adjacent Roll recovery and
-Clear effect actions use the same size and outlined emphasis. A table outcome
+Clear effect actions use normal-size buttons with the same outlined emphasis. A table outcome
 does not require a DC, a raw die result, or invented roll history. Do not demote
 the table path to a faint icon or place it behind the built-in roller. This does
 not give every action equal emphasis: Apply damage still submits the displayed
