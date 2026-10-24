@@ -6,9 +6,9 @@ import { RollTableReading } from "./RollTableReading";
 import { RecordRarity } from "./RecordRarity";
 import { SpellRankControl } from "./SpellRankControl";
 import { recordReadingIdentity } from "./useRetainedRecord";
+import { RecordProvenanceAction } from "./RecordProvenanceAction";
 import type { ReactNode, Ref } from "react";
-import { Button, Collapse, Typography } from "antd";
-import { BookOpen } from "lucide-react";
+import { Button, Collapse, Space } from "antd";
 import type {
   PreparedContentFieldView,
   RecordNavigationView,
@@ -134,6 +134,8 @@ export function contentFieldVisible(field: PreparedContentFieldView) {
   return true;
 }
 
+type IdentityActions = ReactNode | ((secondaryActions: ReactNode) => ReactNode);
+
 export function RecordIdentity({
   identity,
   classification,
@@ -144,7 +146,7 @@ export function RecordIdentity({
   onOwnerReturn,
   visibleOwnerRecordKey,
   referenceRecord,
-  referenceLabel,
+  referenceTitle,
   onReference,
   stacked = true,
   headingRef,
@@ -156,7 +158,7 @@ export function RecordIdentity({
   stacked?: boolean;
   headingRef?: Ref<HTMLHeadingElement>;
   headingId?: string;
-  actions?: ReactNode;
+  actions?: IdentityActions;
   showOwnerReturn?: boolean;
   classification: string;
   rankControl?: ReactNode;
@@ -164,7 +166,7 @@ export function RecordIdentity({
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
   referenceRecord?: RecordNavigationView;
-  referenceLabel?: string;
+  referenceTitle?: string;
   onReference: RecordReferenceHandler;
   visibleOwnerRecordKey?: string;
   onOwnerReturn?: (
@@ -175,6 +177,13 @@ export function RecordIdentity({
 }) {
   const traits = identity?.traits.filter((trait) => trait.kind !== "rarity") ?? [];
   const hasRarity = Boolean(identity?.rarity?.trim() && identity.rarity !== "common");
+  const secondaryActions = referenceRecord ? (
+    <RecordProvenanceAction
+      navigation={referenceRecord}
+      title={referenceTitle}
+      onReference={onReference}
+    />
+  ) : null;
   const textCost =
     stacked && actionCost?.state === "value" && !actionCost.value?.glyph ? (
       <ActionCost fact={actionCost} />
@@ -201,7 +210,18 @@ export function RecordIdentity({
       stacked={stacked}
       headingRef={headingRef}
       headingId={headingId}
-      actions={actions}
+      actions={
+        typeof actions === "function" ? (
+          actions(secondaryActions)
+        ) : secondaryActions && actions ? (
+          <Space wrap align="start">
+            {secondaryActions}
+            {actions}
+          </Space>
+        ) : (
+          (actions ?? secondaryActions)
+        )
+      }
       attribution={
         identity?.publication?.trim() && (
           <p className="muted record-reference__source">
@@ -249,28 +269,6 @@ export function RecordIdentity({
           ))}
         </div>
       )}
-      {referenceRecord && (
-        <Typography.Link
-          className="record-reference__reference-link"
-          href={atlasRoutePath({
-            kind: "record",
-            recordKey: referenceRecord.record_key,
-            selection: referenceRecord,
-          })}
-          onClick={(event) => {
-            if (!shouldHandleAtlasRouteClick(event)) return;
-            event.preventDefault();
-            onReference(
-              referenceRecord.record_key,
-              event.currentTarget,
-              referenceRecord,
-            );
-          }}
-        >
-          <BookOpen size={14} aria-hidden="true" />
-          {referenceLabel ?? "View reference entry"}
-        </Typography.Link>
-      )}
     </DocumentIdentityHeader>
   );
 }
@@ -306,10 +304,18 @@ export function RecordPresentationIdentity({
   stacked?: boolean;
   headingRef?: Ref<HTMLHeadingElement>;
   headingId?: string;
-  actions?: ReactNode;
+  actions?: IdentityActions;
 }) {
   const body = presentation?.body;
   const documentIdentity = stacked;
+  const provenance = selection?.embedded_path.length
+    ? relationships.find(
+        (relationship) =>
+          relationship.origin === "structured" &&
+          relationship.kind === "CompendiumProvenance" &&
+          relationship.status === "resolved_record",
+      )
+    : undefined;
   return (
     <RecordIdentity
       stacked={documentIdentity}
@@ -335,25 +341,8 @@ export function RecordPresentationIdentity({
       selection={selection}
       onOwnerReturn={onOwnerReturn}
       onReference={onReference}
-      referenceLabel={
-        body?.kind === "spell"
-          ? "View reference spell"
-          : body?.kind === "physical_reference"
-            ? "View reference item"
-            : body?.kind === "activity"
-              ? "View reference ability"
-              : "View reference entry"
-      }
-      referenceRecord={
-        selection?.embedded_path.length
-          ? (relationships.find(
-              (relationship) =>
-                relationship.origin === "structured" &&
-                relationship.kind === "CompendiumProvenance" &&
-                relationship.status === "resolved_record",
-            )?.target ?? undefined)
-          : undefined
-      }
+      referenceTitle={provenance?.target_title}
+      referenceRecord={provenance?.target ?? undefined}
     />
   );
 }

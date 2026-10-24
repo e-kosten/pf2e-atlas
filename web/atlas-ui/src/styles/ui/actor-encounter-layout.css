@@ -32,7 +32,7 @@
 @container actor-encounter (min-width: 48rem) {
   .actor-encounter-layout {
     grid-template-areas: "durability runtime";
-    grid-template-columns: minmax(0, 1fr) 18rem;
+    grid-template-columns: minmax(0, 1fr) clamp(22rem, 35%, 26rem);
   }
   .actor-encounter-layout--with-rules {
     grid-template-areas: "durability runtime" "rules runtime";

@@ -111,7 +111,7 @@ it("shows every fire source directly and ends fire from a table outcome without 
   expect(within(sources).getByText("Lingering flames")).toBeVisible();
   expect(within(sources).getByText("Dragon flame")).toBeVisible();
   expect(screen.queryByText("Additional sources")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "End fire damage" }));
+  fireEvent.click(screen.getByRole("button", { name: "Clear fire effect" }));
   await waitFor(() =>
     expect(onRecover).toHaveBeenCalledExactlyOnceWith({
       resolution: "clear",
@@ -124,9 +124,9 @@ it("shows every fire source directly and ends fire from a table outcome without 
     }),
   );
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "End fire damage" })).toBeDisabled(),
+    expect(screen.getByRole("button", { name: "Clear fire effect" })).toBeDisabled(),
   );
-  expect(screen.getByRole("button", { name: "End bleed damage" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Clear bleed effect" })).toBeEnabled();
   expect(onApply).not.toHaveBeenCalled();
   expect(screen.queryByRole("spinbutton", { name: "Recovery DC" })).toBeNull();
   fireEvent.click(

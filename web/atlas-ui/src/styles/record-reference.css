@@ -476,13 +476,6 @@
   gap: 8px;
 }
 
-.record-reference__reference-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  font-size: 13px;
-}
 .hazard-reference__rules {
   display: grid;
   gap: var(--space-section);
@@ -546,7 +539,7 @@
 }
 @container activity-list (min-width: 35rem) {
   .actor-reference__activities--strike > .actor-activity {
-    grid-template-columns: minmax(12rem, 1fr) minmax(0, 1.2fr);
+    grid-template-columns: 16rem minmax(0, 1fr);
     align-items: start;
   }
 }

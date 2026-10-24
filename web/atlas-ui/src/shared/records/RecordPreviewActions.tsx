@@ -5,12 +5,14 @@ import { shouldHandleAtlasRouteClick } from "../../app/routes";
 
 export function RecordPreviewActions({
   actions,
+  secondaryActions,
   onClose,
   onOpenFullPage,
   fullPageHref,
   readingHistory,
 }: {
   actions?: React.ReactNode;
+  secondaryActions?: React.ReactNode;
   onClose: () => void;
   onOpenFullPage: () => void;
   fullPageHref?: string;
@@ -29,6 +31,7 @@ export function RecordPreviewActions({
             Back
           </Button>
         )}
+        {secondaryActions}
         <Tooltip title="Open full page" trigger={["hover", "focus"]}>
           <Button
             aria-label="Open reference full page"

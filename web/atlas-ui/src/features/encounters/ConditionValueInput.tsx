@@ -7,6 +7,7 @@ export function ConditionValueInput({
   removeLabel,
   disabled,
   readOnly = false,
+  size = "middle",
   name,
   onBlur,
   onKeyDown,
@@ -18,13 +19,14 @@ export function ConditionValueInput({
   removeLabel?: string;
   disabled?: boolean;
   readOnly?: boolean;
+  size?: "small" | "middle";
   name: string;
   onStep?: (value: number) => void;
   onBlur?: () => void;
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
 }) {
   return (
-    <Space.Compact>
+    <Space.Compact size={size}>
       <Button
         disabled={disabled || readOnly || (value === 1 && !onRemove) || value == null}
         icon={value === 1 && onRemove ? <X size={14} /> : <Minus size={14} />}
@@ -51,7 +53,7 @@ export function ConditionValueInput({
         onChange={onChange}
         onBlur={onBlur}
         onKeyDown={onKeyDown}
-        style={{ width: 64 }}
+        style={{ width: size === "small" ? 44 : 64 }}
         styles={{ input: { textAlign: "center" } }}
       />
       <Button

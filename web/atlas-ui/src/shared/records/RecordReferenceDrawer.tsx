@@ -119,15 +119,16 @@ export function RecordReferenceDrawer({
             onOwnerReturn={returnToOwner}
             visibleOwnerRecordKey={visibleOwnerRecordKey}
             showOwnerReturn={context !== "encounter"}
-            actions={
+            actions={(secondaryActions) => (
               <RecordPreviewActions
                 actions={recordActions}
+                secondaryActions={secondaryActions}
                 readingHistory={readingHistory}
                 onClose={close}
                 onOpenFullPage={openFullPage}
                 fullPageHref={href}
               />
-            }
+            )}
           />
         </div>
       }
