@@ -124,7 +124,6 @@
 .encounter-persistent-heading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
 }
 .encounter-persistent-heading h4 {
@@ -133,7 +132,7 @@
 .encounter-persistent-sources {
   display: grid;
   gap: 4px;
-  margin-block: var(--space-control) var(--space-group);
+  margin-block-start: var(--space-control);
 }
 .encounter-persistent-sources:empty {
   display: none;
@@ -143,7 +142,7 @@
   gap: var(--space-group);
   align-items: baseline;
   flex-wrap: wrap;
-  margin-block-end: var(--space-section);
+  margin-block: var(--space-control) var(--space-group);
 }
 .encounter-turn-review__identity h3 {
   margin: 0;
@@ -154,12 +153,19 @@
 
 .encounter-persistent-groups {
   display: grid;
-  gap: 20px;
+  gap: var(--space-group);
   margin-block-end: 16px;
 }
+.encounter-persistent-damage-fields {
+  display: grid;
+  gap: var(--space-group);
+}
 .encounter-persistent-type {
-  border-block-start: 1px solid var(--line);
-  padding-block-start: 12px;
+  display: grid;
+  gap: var(--space-group);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-group);
 }
 .encounter-persistent-heading h4 {
   font-size: inherit;
@@ -168,12 +174,8 @@
 .encounter-persistent-recovery-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  margin-block-start: 12px;
-}
-.encounter-persistent-recovery-row > span {
-  color: var(--muted);
+  flex-wrap: wrap;
 }
 .encounter-persistent-applied {
   display: grid;

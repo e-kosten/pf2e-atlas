@@ -1,5 +1,5 @@
 import { Tooltip } from "antd";
-import { ExternalLink } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
@@ -9,15 +9,21 @@ import {
   shouldHandleAtlasRouteClick,
 } from "../../app/routes";
 
-export function EncounterOriginalRecord({ recordKey }: { recordKey: string }) {
+export function EncounterOriginalRecord({
+  recordKey,
+  label,
+}: {
+  recordKey: string;
+  label: string;
+}) {
   const preview = useRecordPreview();
   return (
     <>
-      <Tooltip title="Open source record" trigger={["hover", "focus"]}>
+      <Tooltip title={label} trigger={["hover", "focus"]}>
         <PaneIconLink
           title=""
-          label="Open source record"
-          icon={<ExternalLink size={16} aria-hidden="true" />}
+          label={label}
+          icon={<BookOpen size={16} aria-hidden="true" />}
           href={atlasRoutePath({ kind: "record", recordKey })}
           onClick={(event) => {
             if (!shouldHandleAtlasRouteClick(event)) return;

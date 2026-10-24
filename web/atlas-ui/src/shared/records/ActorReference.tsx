@@ -1,7 +1,7 @@
 import { CalculationTable, type CalculationRow } from "../ui/tables/CalculationTable";
 import { statusReasonLabel } from "./statusReasonLabel";
 import { TraitBadge } from "./TraitBadge";
-import { Alert, Button, Collapse, Popover, Tag, Typography } from "antd";
+import { Alert, Button, Collapse, Popover, Typography } from "antd";
 import { useEffect, useId, useRef } from "react";
 import type {
   ActorActivityView,
@@ -709,220 +709,233 @@ export function ActorActivity({
   };
   return (
     <div
-      className="actor-activity"
+      className={`actor-activity actor-activity--${activity.kind}`}
       data-atlas-activity-anchor={
         !inline ? activityAnchor(activity.navigation) : undefined
       }
     >
-      {inline && (
-        <h4
-          id={`${id}-${activityAnchor(activity.navigation)}`}
-          data-atlas-activity-anchor={activityAnchor(activity.navigation)}
-          tabIndex={-1}
-          className="actor-activity__title"
-        >
-          {permalink ? (
-            <Typography.Link
-              className="actor-activity__heading-link"
-              href={atlasRoutePath(route)}
-              onClick={(event) => {
-                if (!shouldHandleAtlasRouteClick(event)) return;
-                event.preventDefault();
-                onReference(
-                  activity.navigation.record_key,
-                  event.currentTarget,
-                  activity.navigation,
-                );
-              }}
+      <div className="actor-activity__identity">
+        <div className="actor-activity__name">
+          {inline && (
+            <h4
+              id={`${id}-${activityAnchor(activity.navigation)}`}
+              data-atlas-activity-anchor={activityAnchor(activity.navigation)}
+              tabIndex={-1}
+              className="actor-activity__title"
             >
-              {activity.title}
-            </Typography.Link>
-          ) : (
-            activity.title
-          )}{" "}
-          {activity.action_cost.state === "value" && (
-            <ActionCost fact={activity.action_cost} />
+              {permalink ? (
+                <Typography.Link
+                  className="actor-activity__heading-link"
+                  href={atlasRoutePath(route)}
+                  onClick={(event) => {
+                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    event.preventDefault();
+                    onReference(
+                      activity.navigation.record_key,
+                      event.currentTarget,
+                      activity.navigation,
+                    );
+                  }}
+                >
+                  {activity.title}
+                </Typography.Link>
+              ) : (
+                activity.title
+              )}{" "}
+              {activity.action_cost.state === "value" && (
+                <ActionCost fact={activity.action_cost} />
+              )}
+            </h4>
           )}
-        </h4>
-      )}
-      {!selected &&
-        !inline &&
-        (interactive ? (
-          <Button
-            type="link"
-            style={{ paddingInline: 0, height: "auto", fontWeight: 700 }}
-            href={atlasRoutePath(route)}
-            onClick={(event) => {
-              if (!shouldHandleAtlasRouteClick(event)) return;
-              event.preventDefault();
-              onReference(
-                activity.navigation.record_key,
-                event.currentTarget,
-                activity.navigation,
-              );
-            }}
-          >
-            {activity.title}
-          </Button>
-        ) : (
-          <strong>{activity.title}</strong>
-        ))}
-      {headingActions}
-      {activity.first_level_only?.value === true && (
-        <FactRow label="Selection">At 1st level only</FactRow>
-      )}
-      {activity.first_level_only?.state === "invalid" && (
-        <FactRow label="Selection">Unavailable</FactRow>
-      )}
-      {activity.lore_modifier.state !== "not_applicable" && (
-        <span className="actor-activity__modifier">
-          {" "}
-          <NumberFact fact={activity.lore_modifier} signed />
-        </span>
-      )}
-      {activity.effect_duration.value ? (
-        <>
-          <FactLine
-            label="Duration"
-            fact={activity.effect_duration.value.duration}
-            required
-          />
-          {activity.effect_duration.value.sustained.value !== false && (
+          {!selected &&
+            !inline &&
+            (interactive ? (
+              <Button
+                type="link"
+                style={{ paddingInline: 0, height: "auto", fontWeight: 700 }}
+                href={atlasRoutePath(route)}
+                onClick={(event) => {
+                  if (!shouldHandleAtlasRouteClick(event)) return;
+                  event.preventDefault();
+                  onReference(
+                    activity.navigation.record_key,
+                    event.currentTarget,
+                    activity.navigation,
+                  );
+                }}
+              >
+                {activity.title}
+              </Button>
+            ) : (
+              <strong>{activity.title}</strong>
+            ))}
+          {headingActions}
+          {activity.kind === "strike" && activity.is_ranged.state === "value" && (
+            <span className="actor-activity__usage">
+              {activity.is_ranged.value ? "Ranged" : "Melee"}
+            </span>
+          )}
+          {activity.usage && !isEmptyFactValue(activity.usage) && (
+            <span className="actor-activity__usage">{activity.usage}</span>
+          )}
+        </div>
+        {!selected && (
+          <div className="badge-row">
+            {activity.traits.map((trait) => (
+              <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="actor-activity__facts">
+        {activity.first_level_only?.value === true && (
+          <FactRow label="Selection">At 1st level only</FactRow>
+        )}
+        {activity.first_level_only?.state === "invalid" && (
+          <FactRow label="Selection">Unavailable</FactRow>
+        )}
+        {activity.lore_modifier.state !== "not_applicable" && (
+          <span className="actor-activity__modifier">
+            {" "}
+            <NumberFact fact={activity.lore_modifier} signed />
+          </span>
+        )}
+        {activity.effect_duration.value ? (
+          <>
             <FactLine
-              label="Sustained"
-              fact={activity.effect_duration.value.sustained}
-              format={() => "Yes"}
+              label="Duration"
+              fact={activity.effect_duration.value.duration}
+              required
+            />
+            {activity.effect_duration.value.sustained.value !== false && (
+              <FactLine
+                label="Sustained"
+                fact={activity.effect_duration.value.sustained}
+                format={() => "Yes"}
+              />
+            )}
+            <FactLine label="Expires" fact={activity.effect_duration.value.expiry} />
+          </>
+        ) : (
+          <FactLine label="Duration" fact={activity.effect_duration} />
+        )}
+        {activity.frequency.state !== "missing" &&
+          activity.frequency.state !== "not_applicable" && (
+            <FactLine
+              label="Frequency"
+              fact={activity.frequency}
+              format={(frequency) =>
+                `${factText(frequency.maximum)} per ${factText(frequency.interval)}`
+              }
             />
           )}
-          <FactLine label="Expires" fact={activity.effect_duration.value.expiry} />
-        </>
-      ) : (
-        <FactLine label="Duration" fact={activity.effect_duration} />
-      )}
-      {activity.frequency.state !== "missing" &&
-        activity.frequency.state !== "not_applicable" && (
-          <FactLine
-            label="Frequency"
-            fact={activity.frequency}
-            format={(frequency) =>
-              `${factText(frequency.maximum)} per ${factText(frequency.interval)}`
-            }
-          />
+        {!hideCost && (!inline || activity.action_cost.state !== "value") && (
+          <ActionCost fact={activity.action_cost} label="Action cost" />
         )}
-      {!hideCost && (!inline || activity.action_cost.state !== "value") && (
-        <ActionCost fact={activity.action_cost} label="Action cost" />
-      )}
-      {activity.usage && !isEmptyFactValue(activity.usage) && (
-        <Tag>{activity.usage}</Tag>
-      )}
-      {!selected && (
-        <div className="badge-row">
-          {activity.traits.map((trait) => (
-            <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
-          ))}
-        </div>
-      )}
-      {rollControls ?? (
-        <>
-          {activity.attack.state !== "not_applicable" && (
-            <FactRow label="Attack">
-              <NumberFact fact={activity.attack} signed />
-              {activity.attack_options
-                .filter((option) => option.attack_number > 1)
-                .map((option) => (
-                  <span key={option.attack_number}>
-                    {" "}
-                    / {option.modifier >= 0 ? "+" : ""}
-                    {option.modifier}
-                  </span>
-                ))}
+        {rollControls ?? (
+          <>
+            {activity.attack.state !== "not_applicable" && (
+              <FactRow label="Attack">
+                <NumberFact fact={activity.attack} signed />
+                {activity.attack_options
+                  .filter((option) => option.attack_number > 1)
+                  .map((option) => (
+                    <span key={option.attack_number}>
+                      {" "}
+                      / {option.modifier >= 0 ? "+" : ""}
+                      {option.modifier}
+                    </span>
+                  ))}
+              </FactRow>
+            )}
+            <DamageComponents damage={activity.damage} />
+          </>
+        )}
+        {activity.strike_effects.state !== "missing" &&
+          activity.strike_effects.state !== "not_applicable" && (
+            <FactLine
+              label="Attack effects"
+              fact={activity.strike_effects}
+              format={(effects) => effects.join(", ")}
+            />
+          )}
+        {activity.self_effect.state !== "missing" &&
+          activity.self_effect.state !== "not_applicable" && (
+            <FactRow label="Self effect">
+              {activity.self_effect.value ? (
+                activity.self_effect.value.navigation ? (
+                  <EffectReferenceLink
+                    label={{
+                      text: factText(activity.self_effect.value.name),
+                      title: factText(activity.self_effect.value.name),
+                    }}
+                    target={activity.self_effect.value.navigation}
+                    onReference={onReference}
+                  />
+                ) : (
+                  <>
+                    {factText(activity.self_effect.value.name)}
+                    {!activity.self_effect.value.navigation &&
+                      " (reference unavailable)"}
+                  </>
+                )
+              ) : (
+                factText(activity.self_effect)
+              )}
             </FactRow>
           )}
-          <DamageComponents damage={activity.damage} />
-        </>
-      )}
-      {activity.strike_effects.state !== "missing" &&
-        activity.strike_effects.state !== "not_applicable" && (
-          <FactLine
-            label="Attack effects"
-            fact={activity.strike_effects}
-            format={(effects) => effects.join(", ")}
-          />
+        <FactLine label="Tradition" fact={activity.casting_tradition} />
+        <FactLine label="Preparation" fact={activity.preparation} />
+        {activity.focus_capacity.state !== "missing" &&
+          activity.focus_capacity.state !== "not_applicable" && (
+            <FactRow label="Focus capacity">
+              <NumberFact fact={activity.focus_capacity} />
+            </FactRow>
+          )}
+        {activity.difficulty_class.state !== "not_applicable" && (
+          <FactRow label="DC">
+            <NumberFact fact={activity.difficulty_class} />
+          </FactRow>
         )}
-      {activity.self_effect.state !== "missing" &&
-        activity.self_effect.state !== "not_applicable" && (
-          <FactRow label="Self effect">
-            {activity.self_effect.value ? (
-              activity.self_effect.value.navigation ? (
-                <EffectReferenceLink
-                  label={{
-                    text: factText(activity.self_effect.value.name),
-                    title: factText(activity.self_effect.value.name),
-                  }}
-                  target={activity.self_effect.value.navigation}
+
+        {activity.kind === "spell" &&
+          activity.casting_entry === null &&
+          activity.association.state !== "not_applicable" && (
+            <p className="muted">Spellcasting group unavailable.</p>
+          )}
+        {activity.base_rank.state !== "not_applicable" && (
+          <FactRow label="Base rank">
+            <NumberFact fact={activity.base_rank} />
+          </FactRow>
+        )}
+        {activity.authored_cast_rank.state !== "not_applicable" &&
+          activity.authored_cast_rank.state !== "missing" && (
+            <FactRow label="Cast rank">
+              <NumberFact fact={activity.authored_cast_rank} />
+            </FactRow>
+          )}
+        {activity.casting_context &&
+          hasReadingFact(activity.casting_context.spells) && (
+            <section className="actor-casting__context">
+              <h3>Spells for {activity.casting_context.parent_title}</h3>
+              {activity.casting_context.spells.state === "value" ? (
+                <CastingSpells
+                  spells={activity.casting_context.spells.value ?? []}
                   onReference={onReference}
                 />
               ) : (
-                <>
-                  {factText(activity.self_effect.value.name)}
-                  {!activity.self_effect.value.navigation && " (reference unavailable)"}
-                </>
-              )
-            ) : (
-              factText(activity.self_effect)
-            )}
-          </FactRow>
-        )}
-      <FactLine label="Tradition" fact={activity.casting_tradition} />
-      <FactLine label="Preparation" fact={activity.preparation} />
-      {activity.focus_capacity.state !== "missing" &&
-        activity.focus_capacity.state !== "not_applicable" && (
-          <FactRow label="Focus capacity">
-            <NumberFact fact={activity.focus_capacity} />
-          </FactRow>
-        )}
-      {activity.difficulty_class.state !== "not_applicable" && (
-        <FactRow label="DC">
-          <NumberFact fact={activity.difficulty_class} />
-        </FactRow>
-      )}
-
-      {activity.kind === "spell" &&
-        activity.casting_entry === null &&
-        activity.association.state !== "not_applicable" && (
-          <p className="muted">Spellcasting group unavailable.</p>
-        )}
-      {activity.base_rank.state !== "not_applicable" && (
-        <FactRow label="Base rank">
-          <NumberFact fact={activity.base_rank} />
-        </FactRow>
-      )}
-      {activity.authored_cast_rank.state !== "not_applicable" &&
-        activity.authored_cast_rank.state !== "missing" && (
-          <FactRow label="Cast rank">
-            <NumberFact fact={activity.authored_cast_rank} />
-          </FactRow>
-        )}
-      {activity.casting_context && hasReadingFact(activity.casting_context.spells) && (
-        <section className="actor-casting__context">
-          <h3>Spells for {activity.casting_context.parent_title}</h3>
-          {activity.casting_context.spells.state === "value" ? (
-            <CastingSpells
-              spells={activity.casting_context.spells.value ?? []}
-              onReference={onReference}
-            />
-          ) : (
-            <FactRow label="Associated spells">
-              {factText(activity.casting_context.spells)}
-            </FactRow>
+                <FactRow label="Associated spells">
+                  {factText(activity.casting_context.spells)}
+                </FactRow>
+              )}
+            </section>
           )}
-        </section>
-      )}
-      {activity.notes.map((note, index) => (
-        <p key={index}>
-          {note.label}: {note.reason}
-        </p>
-      ))}
+        {activity.notes.map((note, index) => (
+          <p key={index}>
+            {note.label}: {note.reason}
+          </p>
+        ))}
+      </div>
     </div>
   );
 }
@@ -995,7 +1008,7 @@ export function ActorActivities({
     if (!activities.length) return null;
     return (
       <section
-        className="actor-reference__activities"
+        className={`actor-reference__activities actor-reference__activities--${kind}`}
         key={kind}
         id={sectionIds?.[kind]}
         tabIndex={-1}

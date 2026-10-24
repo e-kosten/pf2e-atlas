@@ -92,6 +92,7 @@ export function EncounterTurnReview({
   return (
     <EncounterModal
       title="Turn reminders"
+      width={640}
       open={open && meaningful}
       footer={null}
       onCancel={onCancel}

@@ -1,4 +1,4 @@
-import { Alert, Button, Space, Spin, Tooltip } from "antd";
+import { Alert, Button, Space, Spin } from "antd";
 import { X } from "lucide-react";
 import { useState } from "react";
 import type {
@@ -184,7 +184,6 @@ export function EncounterPersistentTurnReview({
                     role="group"
                     aria-label={`${type} recovery`}
                   >
-                    <span>Recovery</span>
                     <Space size="small" align="center">
                       <EncounterPersistentRecovery
                         group={group}
@@ -192,7 +191,7 @@ export function EncounterPersistentTurnReview({
                           (result) => result.episode_id === group.episode_id,
                         )}
                         size="small"
-                        appearance="icon"
+                        appearance="button"
                         boundaryKey={boundaryKey}
                         mode="end_turn"
                         available={
@@ -219,40 +218,37 @@ export function EncounterPersistentTurnReview({
                         }}
                       />
 
-                      <Tooltip
-                        title={`End ${type.toLowerCase()} damage`}
-                        trigger={["hover", "focus"]}
-                      >
-                        <Button
-                          size="small"
-                          type="text"
-                          aria-label={`End ${type.toLowerCase()} damage`}
-                          icon={<X size={14} />}
-                          disabled={blocked || pending || ended}
-                          onClick={async () => {
-                            setClearError(undefined);
-                            try {
-                              await onRecover({
-                                resolution: "clear",
-                                boundary_key: boundaryKey,
-                                mode: "end_turn",
-                                participant_key: participant.participant_key,
-                                episode_id: group.episode_id,
-                                expected_encounter_revision: review.encounter_revision,
+                      <Button
+                        size="small"
+                        type="text"
+                        aria-label={`End ${type.toLowerCase()} damage`}
+                        icon={<X size={14} />}
+                        disabled={blocked || pending || ended}
+                        onClick={async () => {
+                          setClearError(undefined);
+                          try {
+                            await onRecover({
+                              resolution: "clear",
+                              boundary_key: boundaryKey,
+                              mode: "end_turn",
+                              participant_key: participant.participant_key,
+                              episode_id: group.episode_id,
+                              expected_encounter_revision: review.encounter_revision,
 
-                                dc_override: null,
-                              });
-                              void query.refetch();
-                            } catch (cause) {
-                              setClearError(
-                                cause instanceof Error
-                                  ? cause.message
-                                  : "Could not end persistent damage.",
-                              );
-                            }
-                          }}
-                        />
-                      </Tooltip>
+                              dc_override: null,
+                            });
+                            void query.refetch();
+                          } catch (cause) {
+                            setClearError(
+                              cause instanceof Error
+                                ? cause.message
+                                : "Could not end persistent damage.",
+                            );
+                          }
+                        }}
+                      >
+                        End damage
+                      </Button>
                     </Space>
                   </div>
                 </section>

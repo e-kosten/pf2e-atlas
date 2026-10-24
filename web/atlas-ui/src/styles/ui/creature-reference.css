@@ -89,10 +89,13 @@
 }
 .creature-reference .actor-reference__activities {
   display: grid;
-  gap: var(--space-control);
   min-width: 0;
 }
-.creature-reference .actor-reference__activities > h3 {
+.creature-reference
+  .actor-reference__activities:not(.actor-reference__activities--strike):not(
+    .actor-reference__activities--gear
+  )
+  > h3 {
   margin: 0;
 }
 .creature-reference .actor-reference__actions {
@@ -106,15 +109,15 @@
   gap: var(--space-section);
   min-width: 0;
 }
-.creature-reference .actor-activity {
+.creature-reference
+  .actor-activity:not(.actor-activity--strike):not(.actor-activity--gear) {
   padding-block: 0;
   border: 0;
 }
-.creature-reference .actor-activity + .actor-activity {
+.creature-reference
+  .actor-activity:not(.actor-activity--strike):not(.actor-activity--gear)
+  + .actor-activity:not(.actor-activity--strike):not(.actor-activity--gear) {
   margin-block-start: var(--space-control);
-}
-.creature-reference .actor-activity > .badge-row {
-  margin-block: var(--space-control);
 }
 .creature-reference .badge-row:empty {
   display: none;
@@ -163,16 +166,8 @@
 .creature-reference__rules {
   min-width: 0;
 }
-.creature-reference__runtime {
-  display: grid;
-  gap: var(--space-section);
-  align-content: start;
-  min-width: 0;
-  margin-block-end: var(--space-section);
-}
-.creature-reference__runtime .actor-reference__combat-budget {
-  padding: 0;
-  border: 0;
+.creature-reference--runtime-only .actor-encounter-host {
+  max-width: 52rem;
 }
 .creature-reference--encounter .creature-reference__outline {
   margin-block-end: var(--space-group);
@@ -236,23 +231,6 @@
   .creature-reference:not(.creature-reference--encounter)
     .actor-reference__rule-grid--caster
     > .actor-reference__actions {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .creature-reference--encounter .creature-reference__tasks {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 19rem;
-    gap: var(--space-section);
-    align-items: start;
-  }
-  .creature-reference--encounter .creature-reference__runtime {
-    grid-column: 2;
-    grid-row: 1;
-    margin: 0;
-    border-inline-start: 1px solid var(--line);
-    padding-inline-start: var(--space-group);
-  }
-  .creature-reference--encounter .creature-reference__rules {
     grid-column: 1;
     grid-row: 1;
   }

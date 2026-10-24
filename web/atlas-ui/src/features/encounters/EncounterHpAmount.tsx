@@ -36,7 +36,7 @@ export function EncounterHpAmount({
     }
   };
   return (
-    <div className="encounter-hp-control encounter-hp-control--wide">
+    <div className="encounter-hp-control">
       <label htmlFor={id} className="encounter-hp-control__label">
         HP change
       </label>
