@@ -620,6 +620,12 @@ Reject unsafe integer input before creating numeric literals.
 
 ### Choosing an interaction surface
 
+Noninteractive icon tooltips must not intercept pointer/touch input. Close the
+initiating tooltip when opening its editor; for example, a condition's Edit hint
+must not remain above the modal's Apply button. Use Ant's documented `open` and
+semantic `styles.root` API, preserving the button's accessible name and keyboard
+focus behavior. Verify with actual touch activation as well as mouse and keyboard.
+
 Condition actions belong beside their condition's edit/remove controls. Keep
 recovery rolls and results anchored to those controls, including when success
 clears the condition. Do not introduce general action groups or disclosures
