@@ -979,6 +979,10 @@ skills/Lore with qualifications; movement; languages/communication; strikes;
 active/free special abilities then offensive passives; spellcasting; reactions;
 supporting passives; unclassified abilities; equipment. For example, Rat Swarm's
 statistics stay above Swarming Bites, and Swarming Bites precedes Putrid Plague.
+The opening creature notes field reads directly as prose in browsing; omit its
+redundant generic Notes heading. Preserve authored subheadings, separate later
+notes headings and unavailable/bounded-field labels. This does not remove the
+Description outline destination or move encounter lore before mechanics.
 Do not move the statistics block below actions to make those actions easier to find.
 On wide encounter panes, turn context/conditions occupy an adjacent lane; in a
 single column they follow early statistics and precede action choices. Conditions
@@ -997,6 +1001,13 @@ Pitfall reaction must not require opening an Abilities accordion. Secondary
 provenance may be disclosed; that does not make all owned records or a long spell
 catalog essential inline content. Keep bounded continuation for substantial
 content instead of clipping it or requiring an unrelated disclosure.
+Do not show the generic creature Turn budget for any hazard. Simple hazards keep
+their supplied reaction/free action, trigger, effect and reset; complex hazards
+keep their complete Routine, including its authored action allotment. The
+structured simple/complex flag does not supply a numeric allotment; do not assume
+three actions or extract counts from prose in React. For example, Spinning Blade
+Pillar's (3 actions) stays in Routine rather than becoming a generic forecast.
+Conditions and live HP remain available independently of that budget.
 
 For inline record inclusions, prioritize reading over occasional source navigation.
 Reuse a meaningful existing rule heading or authored prose reference as the link;

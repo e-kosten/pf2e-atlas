@@ -56,6 +56,7 @@ export function ContentFields({
   onReference,
   inlineAbility = false,
   hideDescriptionHeading = false,
+  introduction,
   documentNavigation = false,
   sectionLanding,
 }: {
@@ -66,6 +67,7 @@ export function ContentFields({
   onReference: RecordReferenceHandler;
   inlineAbility?: boolean;
   hideDescriptionHeading?: boolean;
+  introduction?: PreparedContentFieldView;
 }) {
   const visibleFields = fields.filter(contentFieldVisible);
   const prerequisites = visibleFields.filter((field) => field.role === "prerequisite");
@@ -96,8 +98,9 @@ export function ContentFields({
             className="record-reference__content"
             key={JSON.stringify(field.locator)}
           >
-            {hideDescriptionHeading &&
-            field.role === "description" ? null : inlineAbility ? (
+            {field === introduction ||
+            (hideDescriptionHeading &&
+              field.role === "description") ? null : inlineAbility ? (
               field.role !== "description" && (
                 <h5>{contentRoleLabels[field.role] ?? field.role}</h5>
               )
@@ -431,6 +434,14 @@ export function RecordPresentation({
       <div className="record-reference__flavor">
         <ContentFields
           fields={flavorFields}
+          introduction={
+            body.kind === "creature" &&
+            !encounter &&
+            flavorFields[0].role === "notes" &&
+            ["html", "plain"].includes(flavorFields[0].body.kind)
+              ? flavorFields[0]
+              : undefined
+          }
           relationships={relationships}
           onReference={onReference}
           documentNavigation={body.kind === "journal_page"}

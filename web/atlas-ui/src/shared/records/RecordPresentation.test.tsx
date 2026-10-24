@@ -1211,3 +1211,70 @@ it("presents consumable spell semantics, exact navigation, package prices and so
   expect(screen.queryByText("Category")).toBeNull();
   expect(screen.getByRole("link", { name: "Wand" })).toBeVisible();
 });
+
+it("lets creature browse introductions lead directly into prose while keeping later notes and encounter headings", () => {
+  const presentation = actorPresentation();
+  presentation.content = [
+    {
+      locator: {
+        record: "actors:ghoul",
+        embedded_path: [],
+        field: "/system/details/publicNotes",
+      },
+      role: "notes",
+      source_fingerprint: null,
+      body: {
+        kind: "html",
+        html: "<p>Complete creature introduction.</p><h4>Authored lore heading</h4>",
+        controls: [],
+        inclusions: [],
+      },
+    },
+    {
+      locator: {
+        record: "actors:ghoul",
+        embedded_path: [],
+        field: "/system/details/privateNotes",
+      },
+      role: "notes",
+      source_fingerprint: null,
+      body: { kind: "plain", text: "Separate permitted notes." },
+    },
+  ];
+  const { rerender } = render(
+    <RecordPresentation presentation={presentation} onReference={vi.fn()} />,
+  );
+  const intro = screen.getByText("Complete creature introduction.");
+  expect(
+    within(intro.closest("section")!).queryByRole("heading", { name: "Notes" }),
+  ).toBeNull();
+  expect(screen.getByRole("heading", { name: "Authored lore heading" })).toBeVisible();
+  expect(
+    within(screen.getByText("Separate permitted notes.").closest("section")!).getByRole(
+      "heading",
+      { name: "Notes" },
+    ),
+  ).toBeVisible();
+  rerender(
+    <RecordPresentation presentation={presentation} onReference={vi.fn()} encounter />,
+  );
+  expect(screen.getAllByRole("heading", { name: "Notes" })).toHaveLength(2);
+});
+
+it("keeps the Notes heading when the opening creature field is unavailable", () => {
+  const presentation = actorPresentation();
+  presentation.content = [
+    {
+      locator: {
+        record: "actors:ghoul",
+        embedded_path: [],
+        field: "/system/details/publicNotes",
+      },
+      role: "notes",
+      source_fingerprint: null,
+      body: { kind: "unavailable", state: "invalid" },
+    },
+  ];
+  render(<RecordPresentation presentation={presentation} onReference={vi.fn()} />);
+  expect(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
+});

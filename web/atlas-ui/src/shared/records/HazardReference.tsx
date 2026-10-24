@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import type { HazardPresentationView } from "../../generated/atlas";
 import {
   ActorActivities,
-  ActorCombatBudget,
   ActorSecondaryFacts,
   type CastingAnnotations,
 } from "./ActorReference";
@@ -75,7 +74,6 @@ export function HazardReference({
         runtime={
           encounter && (hazard.actor.runtime || encounterContent) ? (
             <>
-              <ActorCombatBudget actor={hazard.actor} />
               <ActorSecondaryFacts actor={hazard.actor} runtimeOnly />
               {encounterContent?.conditions}
             </>
