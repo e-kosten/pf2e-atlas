@@ -256,12 +256,12 @@ function setupPersistentReview(damageApplied = false) {
   return state;
 }
 async function submitPersistentDamage(review: HTMLElement, amount: string) {
-  fireEvent.click(await within(review).findByText("Table result"));
+  fireEvent.click(await within(review).findByText("Table results"));
   fireEvent.change(await within(review).findByLabelText("fire damage amount"), {
     target: { value: amount },
   });
   fireEvent.click(
-    within(review).getByRole("button", { name: "Apply persistent damage" }),
+    await within(review).findByRole("button", { name: /^Apply \d+ damage$/ }),
   );
   await within(review).findByText(/Total: .* damage applied/);
 }

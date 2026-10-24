@@ -153,13 +153,11 @@ for (const outcome of [
         reminders.getByRole("button", { name: "Handled at table", exact: true }),
       ).toHaveCount(0);
       if (outcome !== "table") {
-        await reminders.getByText("Table result", { exact: true }).click();
+        await reminders.getByText("Table results", { exact: true }).click();
         await reminders
           .getByRole("spinbutton", { name: "Fire damage amount", exact: true })
           .fill("2");
-        await reminders
-          .getByRole("button", { name: "Apply persistent damage", exact: true })
-          .click();
+        await reminders.getByRole("button", { name: /^Apply \d+ damage$/ }).click();
         await expect(
           reminders.getByText("Total: 2 damage applied", { exact: true }),
         ).toBeVisible();

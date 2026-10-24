@@ -130,14 +130,16 @@ it("shows every fire source directly and ends fire from a table outcome without 
   expect(onApply).not.toHaveBeenCalled();
   expect(screen.queryByRole("spinbutton", { name: "Recovery DC" })).toBeNull();
   fireEvent.click(
-    within(screen.getByLabelText("Bleed damage result")).getByText("Table result"),
+    within(screen.getByLabelText("Persistent damage resolution")).getByText(
+      "Table results",
+    ),
   );
   const amount = await screen.findByRole("spinbutton", { name: "Bleed damage amount" });
   expect(amount).toBeEnabled();
   expect(screen.queryByText("Reload damage")).toBeNull();
   fireEvent.change(amount, { target: { value: "3" } });
   expect(screen.getByText("Damage taken")).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Apply persistent damage" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Apply 3 damage" }));
   await waitFor(() =>
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
