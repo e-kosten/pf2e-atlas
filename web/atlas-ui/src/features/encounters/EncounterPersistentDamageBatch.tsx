@@ -329,12 +329,18 @@ export function EncounterPersistentDamageBatch({
             const saved = committed?.groups.find(
               (g) => g.episode_id === group.episode_id,
             );
-            const rolled = rolls[group.episode_id]?.group;
+            const currentOutcome = current?.value?.damage.groups.find(
+              (outcome) => outcome.episode_id === group.episode_id,
+            );
+            const rolled =
+              (mode === "roll" ? currentOutcome : undefined) ??
+              rolls[group.episode_id]?.group;
             const resolution = resolutions[group.episode_id];
             const protection =
               saved?.protection ??
-              rolled?.protection ??
-              (resolution?.kind === "known" ? resolution.protection : undefined);
+              currentOutcome?.protection ??
+              (resolution?.kind === "known" ? resolution.protection : undefined) ??
+              rolled?.protection;
             const note = protection?.immune
               ? `Immune to ${label.toLowerCase()}`
               : protection

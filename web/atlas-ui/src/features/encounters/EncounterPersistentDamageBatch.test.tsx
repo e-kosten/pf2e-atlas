@@ -452,3 +452,53 @@ it("prepares recovery after one type while another amount is unresolved, then ap
     ],
   });
 });
+
+it("shows the backend's refreshed protections and amount while retaining prepared dice identity", async () => {
+  api.prepareEncounterPersistentDamage.mockImplementation(async (_ref, request) => {
+    const refreshed = request.groups[0]?.damage.kind === "prepared";
+    return {
+      complete: request.groups.length === 1,
+      recovery: null,
+      damage: {
+        encounter_key: "encounter",
+        request_id: request.request_id,
+        total: refreshed ? 0n : 5n,
+        hardness_absorbed: 0n,
+        groups: request.groups.length
+          ? [
+              {
+                episode_id: "fire",
+                damage_type: "fire",
+                source_condition_id: 7n,
+                amount: refreshed ? 0n : 5n,
+                roll: null,
+                table_resolved: false,
+                protection: { immune: refreshed, weakness: 0n, resistance: 0n },
+              },
+            ]
+          : [],
+      },
+    };
+  });
+  render(
+    <EncounterPersistentDamageBatch
+      encounterRef="encounter"
+      participant={{
+        ...participant,
+        persistent_damage_groups: [participant.persistent_damage_groups[0]],
+      }}
+      encounterRevision={6n}
+      generation="generation"
+      damageApplied={false}
+      damageTypes={[{ value: "fire", label: "Fire" }]}
+      disabled={false}
+      pending={false}
+      onApply={vi.fn()}
+      onRecover={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Roll Fire damage" }));
+  expect(await screen.findByText("Immune to fire")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Apply 0 damage" })).toBeEnabled();
+  expect(screen.queryByText("5 damage")).toBeNull();
+});
