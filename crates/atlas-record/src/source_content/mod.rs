@@ -39,5 +39,6 @@ pub use trait_references::{TraitLocalizationReference, trait_localization_refere
 
 mod inclusion;
 pub use inclusion::{
-    compose_prepared_inclusions, escape_content_text, terminal_prepared_reference,
+    PreparedHtmlInclusion, PreparedInclusionSourceLink, compose_prepared_inclusions,
+    escape_content_text, terminal_prepared_reference,
 };

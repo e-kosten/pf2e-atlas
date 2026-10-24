@@ -4,7 +4,11 @@ export function documentHeadings(html: string, identity: string) {
   const headings = [...parsed.body.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6")];
   const firstLevel = Math.min(
     ...headings
-      .filter((heading) => !heading.closest("[data-atlas-inclusion]"))
+      .filter(
+        (heading) =>
+          !heading.closest("[data-atlas-inclusion]") &&
+          !heading.hasAttribute("data-atlas-inclusion-heading"),
+      )
       .map((heading) => Number(heading.tagName.slice(1))),
   );
   const prefix = `atlas-section-${Array.from(identity).reduce((hash, char) => Math.imul(hash ^ char.charCodeAt(0), 16777619), 2166136261) >>> 0}`;
@@ -24,10 +28,11 @@ export function documentHeadings(html: string, identity: string) {
   let hostLevel = 3;
   headings.forEach((heading) => {
     const inclusion = heading.closest("[data-atlas-inclusion]");
+    const promoted = heading.hasAttribute("data-atlas-inclusion-heading");
     const namespace = inclusion?.getAttribute("data-atlas-inclusion");
     const sourceLevel = Number(heading.tagName.slice(1));
     const replacement = parsed.createElement(
-      `h${inclusion ? Math.min(6, hostLevel + 1 + sourceLevel - (inclusionLevels.get(namespace!) ?? sourceLevel)) : Math.min(6, sourceLevel - firstLevel + 3)}`,
+      `h${promoted ? Math.min(6, hostLevel + 1) : inclusion ? Math.min(6, hostLevel + 1 + sourceLevel - (inclusionLevels.get(namespace!) ?? sourceLevel)) : Math.min(6, sourceLevel - firstLevel + 3)}`,
     );
     for (const attribute of [...heading.attributes])
       replacement.setAttribute(attribute.name, attribute.value);
@@ -38,7 +43,11 @@ export function documentHeadings(html: string, identity: string) {
         .toLocaleLowerCase()
         .replace(/[^\p{L}\p{N}]+/gu, "-")
         .replace(/^-|-$/g, "") || "section";
-    const identitySlug = inclusion ? `inclusion-${namespace}-${slug}` : slug;
+    const identitySlug = promoted
+      ? `action-${slug}`
+      : inclusion
+        ? `inclusion-${namespace}-${slug}`
+        : slug;
     const occurrence = (occurrences.get(identitySlug) ?? 0) + 1;
     occurrences.set(identitySlug, occurrence);
     replacement.id =
@@ -46,8 +55,13 @@ export function documentHeadings(html: string, identity: string) {
       `${prefix}-${identitySlug}${occurrence > 1 ? `-${occurrence}` : ""}`;
     replacement.tabIndex = -1;
     replacement.append(...heading.childNodes);
-    if (!inclusion) hostLevel = Number(replacement.tagName.slice(1));
-    if (!inclusion && sourceLevel === firstLevel && replacement.textContent?.trim())
+    if (!inclusion && !promoted) hostLevel = Number(replacement.tagName.slice(1));
+    if (
+      !inclusion &&
+      !promoted &&
+      sourceLevel === firstLevel &&
+      replacement.textContent?.trim()
+    )
       outline.push({ id: replacement.id, label: replacement.textContent.trim() });
     heading.replaceWith(replacement);
   });

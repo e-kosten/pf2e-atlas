@@ -43,3 +43,20 @@ it("preserves host section destinations and outline when inserted headings are a
   const ids = [...parsed.querySelectorAll("[id]")].map((node) => node.id);
   expect(new Set(ids).size).toBe(ids.length);
 });
+
+it("keeps existing section anchors and outline after promoting a standalone action title", () => {
+  const original =
+    "<h1>Overview</h1><h1>Training</h1><h1>Features</h1><h2>Reactive Strike</h2>";
+  const revised =
+    original +
+    '<h3 data-atlas-inclusion-heading="true"><span data-atlas-reference="1">Reactive Strike</span><span data-atlas-action-glyph="reaction">reaction</span></h3>';
+  const before = documentHeadings(original, "fighter");
+  const after = documentHeadings(revised, "fighter");
+  expect(after.outline).toEqual(before.outline);
+  const document = new DOMParser().parseFromString(after.html, "text/html");
+  const beforeDocument = new DOMParser().parseFromString(before.html, "text/html");
+  expect(document.querySelector("h4")?.id).toEqual(
+    beforeDocument.querySelector("h4")?.id,
+  );
+  expect(document.querySelector("[data-atlas-inclusion-heading]")?.tagName).toBe("H5");
+});

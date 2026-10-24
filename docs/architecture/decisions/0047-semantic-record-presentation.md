@@ -41,6 +41,12 @@ bound inclusions, depth, fields, references and HTML size. Cycles or unsupported
 insertions retain a local unavailable explanation and exact navigation where
 resolved; artifact/generation failures keep canonical recovery. Ordinary links
 are not expanded. Stored HTML, search text and graph occurrences stay unchanged.
+Prepared reading composition can link an immediately preceding heading for one
+inclusion, or promote an authored standalone action-title/glyph line. It uses
+checked same-target reference ordinals and structural adjacency, never name-based
+matching. Existing heading IDs and local reading landings retain their meaning;
+source navigation uses the inclusion's exact reference namespace. Untitled
+insertions retain a compact Source record link without adding a heading.
 
 Borrowed record views remain storage and presentation neutral. They preserve
 availability and typed values; app-service owns labels and semantic composition.

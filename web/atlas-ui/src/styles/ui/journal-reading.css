@@ -93,16 +93,11 @@
   margin-block: var(--space-group);
 }
 .prepared-inclusion__source {
-  float: inline-end;
-  margin-inline-start: var(--space-control);
-  color: var(--muted);
-}
-.prepared-inclusion__source:is(a) {
   display: inline-flex;
-  min-width: 24px;
-  min-height: 24px;
   align-items: center;
-  justify-content: center;
+  min-height: 24px;
+  margin-block-end: var(--space-control);
+  font-size: 0.8125rem;
 }
 .prepared-inclusion__traits {
   display: flex;
