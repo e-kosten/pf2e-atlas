@@ -56,13 +56,17 @@ export function NumberFact({
   signed = false,
   unit = "",
   label,
+  format: formatValue,
 }: {
   fact: NumberFactView;
   signed?: boolean;
   unit?: string;
   label?: string;
+  format?: (value: number) => string;
 }) {
-  const format = (value: number) => `${signed && value >= 0 ? "+" : ""}${value}${unit}`;
+  const formatNumber =
+    formatValue ?? ((value: number) => `${signed && value >= 0 ? "+" : ""}${value}`);
+  const format = (value: number) => `${formatNumber(value)}${unit}`;
   const text = factText(fact, format);
   const adjustment = fact.adjustment;
   if (fact.state === "missing" && !adjustment) return <MissingFact label={label} />;

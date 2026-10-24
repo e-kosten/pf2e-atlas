@@ -12,7 +12,11 @@ import {
   summaryFixture,
   unavailableFact,
 } from "../../test/fixtures";
-import type { RecordPresentationView, SpellChangeView } from "../../generated/atlas";
+import type {
+  NumberFactView,
+  RecordPresentationView,
+  SpellChangeView,
+} from "../../generated/atlas";
 
 function actorPresentation(): RecordPresentationView {
   const actor = actorFixture();
@@ -315,6 +319,92 @@ describe("semantic family presentation", () => {
           .compareDocumentPosition(routine) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Reset" })).toBeVisible();
+    },
+  );
+
+  it.each(["AC", "HP", "Hardness", "Fortitude", "Reflex", "Will", "Stealth"])(
+    "retains the supplied hazard %s adjustment and explanation",
+    async (label) => {
+      const adjusted: NumberFactView = {
+        ...numberFact(11),
+        adjustment: {
+          authored: 12,
+          applied: [
+            {
+              source: "condition:frightened",
+              label: "Frightened",
+              modifier_type: "status",
+              value: -1n,
+            },
+          ],
+          suppressed: [
+            {
+              source: "condition:sickened",
+              label: "Sickened",
+              modifier_type: "status",
+              value: -1n,
+            },
+          ],
+          notes: [
+            {
+              source: "condition:context",
+              label: "Conditional defense",
+              reason: "Additional qualification.",
+            },
+          ],
+        },
+      };
+      const actor = actorFixture();
+      actor.armor_class = adjusted;
+      actor.maximum_hp = adjusted;
+      actor.saves = { fortitude: adjusted, reflex: adjusted, will: adjusted };
+      render(
+        <RecordPresentation
+          encounter
+          presentation={{
+            classification: "Hazard 1",
+            identity: summaryFixture("hazards:pit", "Pit"),
+            content: [],
+            embedded: [],
+            body: {
+              kind: "hazard",
+              value: {
+                actor,
+                defense_block: knownFact(true),
+                show_saves: true,
+                complex: knownFact(false),
+                stealth: adjusted,
+                hardness: adjusted,
+              },
+            },
+          }}
+          onReference={vi.fn()}
+        />,
+      );
+      const signed = ["Fortitude", "Reflex", "Will", "Stealth"].includes(label);
+      const control = screen.getByRole("button", {
+        name: `Show explanation for ${label}`,
+      });
+      expect(control.closest(".record-fact")).toHaveTextContent(signed ? "+11" : "11");
+      fireEvent.click(control);
+      const explanation = within(
+        await screen.findByRole("region", { name: `${label} calculation` }),
+      );
+      expect(explanation.getByRole("row", { name: /Original/ })).toHaveTextContent(
+        signed ? "+12" : "12",
+      );
+      expect(explanation.getByRole("row", { name: /Frightened/ })).toHaveTextContent(
+        "-1",
+      );
+      expect(explanation.getByRole("row", { name: /Sickened/ })).toHaveTextContent(
+        "Overridden",
+      );
+      expect(
+        explanation.getByRole("row", { name: /Conditional defense/ }),
+      ).toHaveTextContent("Additional qualification.");
+      expect(explanation.getByRole("row", { name: /Effective/ })).toHaveTextContent(
+        signed ? "+11" : "11",
+      );
     },
   );
 
