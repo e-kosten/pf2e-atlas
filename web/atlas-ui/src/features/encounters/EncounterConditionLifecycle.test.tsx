@@ -10,6 +10,7 @@ import {
 } from "./EncounterConditionLifecycle";
 import type {
   ConditionLifecycleOptionView,
+  ConditionLifecycleResultView,
   ConditionRecoveryOfferView,
   EncounterParticipantView,
 } from "../../generated/atlas";
@@ -323,5 +324,101 @@ it("offers Frightened reduction directly in turn reminders without opening a dic
   );
   await waitFor(() =>
     expect(screen.queryByRole("button", { name: "Reduce by 1" })).toBeNull(),
+  );
+});
+
+it("keeps a failed turn-recovery read visible with Retry", async () => {
+  api.getEncounterConditionLifecycleActions.mockRejectedValue(new Error("Unavailable"));
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <EncounterConditionRecovery
+        encounterRef="encounter"
+        boundaryKey="outgoing"
+        revision={4n}
+        participant={encounterParticipant()}
+        disabled={false}
+        contextualTurnActions
+        onApply={vi.fn()}
+      >
+        <EncounterTurnRecoveryActions />
+      </EncounterConditionRecovery>
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByText("Recovery choices unavailable")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Reduce by 1" })).toBeNull();
+  api.getEncounterConditionLifecycleActions.mockResolvedValue({
+    encounter_revision: 4n,
+    actions: [
+      {
+        ...option({ kind: "frightened_end_turn" }),
+        label: "Reduce Frightened by 1",
+      },
+    ],
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  expect(await screen.findByRole("button", { name: "Reduce by 1" })).toBeEnabled();
+  expect(screen.queryByText("Recovery choices unavailable")).toBeNull();
+});
+
+it("retains the pending reduction control until the owner's canonical refresh finishes", async () => {
+  const action = {
+    ...option({ kind: "frightened_end_turn" }),
+    label: "Reduce Frightened by 1",
+  };
+  api.getEncounterConditionLifecycleActions.mockResolvedValue({
+    encounter_revision: 4n,
+    actions: [action],
+  });
+  let finish!: () => void;
+  const onApply = vi.fn(
+    () =>
+      new Promise<ConditionLifecycleResultView>((resolve) => {
+        finish = () =>
+          resolve({ encounter_key: "encounter", request_id: "reduce", check: null });
+      }),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const show = (revision: bigint) => (
+    <QueryClientProvider client={client}>
+      <EncounterConditionRecovery
+        encounterRef="encounter"
+        boundaryKey="outgoing"
+        revision={revision}
+        participant={encounterParticipant()}
+        disabled={false}
+        contextualTurnActions
+        onApply={onApply}
+      >
+        <EncounterTurnRecoveryActions />
+      </EncounterConditionRecovery>
+    </QueryClientProvider>
+  );
+  const view = render(show(4n));
+  const button = await screen.findByRole("button", { name: /Reduce by 1$/ });
+  button.focus();
+  fireEvent.click(button);
+  api.getEncounterConditionLifecycleActions.mockResolvedValue({
+    encounter_revision: 5n,
+    actions: [],
+  });
+  view.rerender(show(5n));
+  await waitFor(() =>
+    expect(
+      client.getQueryData([
+        "condition-lifecycle-actions",
+        "encounter",
+        "actor",
+        "5",
+        "outgoing",
+      ]),
+    ).toEqual({ encounter_revision: 5n, actions: [] }),
+  );
+  expect(screen.getByRole("button", { name: /Reduce by 1$/ })).toBe(button);
+  expect(button).toBeDisabled();
+  finish();
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: /Reduce by 1$/ })).toBeNull(),
   );
 });
