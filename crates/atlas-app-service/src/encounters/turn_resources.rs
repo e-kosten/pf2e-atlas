@@ -57,7 +57,7 @@ pub(super) fn prepare_start(
                 }) {
                     if let Some(before) = condition.value {
                         effects.push(TurnResourceEffect {
-                            condition_id: condition.condition_id,
+                            condition_id: Some(condition.condition_id),
                             name: condition.name.clone(),
                             before: Some(before),
                             after: Some((before - lost).max(0)),

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TurnResourceEffect {
-    pub condition_id: i64,
+    pub condition_id: Option<i64>,
     pub name: String,
     pub before: Option<i64>,
     pub after: Option<i64>,

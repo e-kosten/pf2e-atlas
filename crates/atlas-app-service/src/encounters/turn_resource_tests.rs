@@ -355,3 +355,270 @@ fn new_mid_turn_stun_can_resolve_after_start_turn_stun_without_replaying_either_
         "Stunned 1 cleared · 1 action lost this turn"
     );
 }
+
+fn application(
+    f: &FixtureWorker,
+    key: &str,
+    p: &str,
+    value: i64,
+    intent: ConditionEventIntentView,
+    id: &str,
+) -> AddEncounterParticipantConditionRequest {
+    AddEncounterParticipantConditionRequest {
+        request_id: id.into(),
+        expected_encounter_revision: f.worker.encounter(key).unwrap().revision,
+        event_intent: intent,
+        decisions: Default::default(),
+        participant_key: p.into(),
+        condition_ref: Some(
+            super::conditions::condition_catalog()
+                .conditions
+                .into_iter()
+                .find(|c| c.name == "Stunned")
+                .unwrap()
+                .condition_ref,
+        ),
+        name: None,
+        value: Some(value),
+        source_participant_key: None,
+        scope: Default::default(),
+        extra_action: Default::default(),
+        immunity_override: false,
+        parameters: Default::default(),
+        origin: None,
+        duration: None,
+        note: Some("Source note".into()),
+    }
+}
+#[test]
+fn applying_stunned_mid_turn_previews_and_commits_the_same_remaining_loss_once() {
+    let (f, key, a, _) = fixture();
+    next(&f, &key, "a1");
+    let request = application(
+        &f,
+        &key,
+        &a,
+        2,
+        ConditionEventIntentView::Apply,
+        "stun-arrival",
+    );
+    let before = f.worker.encounter(&key).unwrap();
+    let preview = f
+        .worker
+        .preview_encounter_condition_add(&key, request.clone())
+        .unwrap();
+    assert!(
+        preview
+            .consequences
+            .contains(&ConditionEventConsequenceView::StunnedActionsLost {
+                participant_key: a.clone(),
+                before: 3,
+                after: 1,
+                stunned_after: 0
+            })
+    );
+    assert_eq!(f.worker.encounter(&key).unwrap(), before);
+    f.worker
+        .add_encounter_participant_condition(&key, request.clone())
+        .unwrap();
+    f.worker
+        .add_encounter_participant_condition(&key, request)
+        .unwrap();
+    let d = f.worker.encounter(&key).unwrap();
+    assert!(d.participants[0].conditions.is_empty());
+    let r = resources(&f, &key, &a);
+    assert_eq!(r.regular_remaining, Some(1));
+    assert_eq!(r.reactions_remaining, Some(1));
+    assert_eq!(
+        r.start_results,
+        ["Stunned 2 cleared · 2 actions lost this turn"]
+    );
+}
+#[test]
+fn arrival_uses_only_remaining_actions_and_keeps_the_unconsumed_source_faithfully() {
+    let (f, key, a, _) = fixture();
+    next(&f, &key, "a1");
+    change(
+        &f,
+        &key,
+        &a,
+        "spend1",
+        TurnResourceAction::Spend {
+            resource: TurnResourceKind::Action,
+        },
+    );
+    change(
+        &f,
+        &key,
+        &a,
+        "spend2",
+        TurnResourceAction::Spend {
+            resource: TurnResourceKind::Action,
+        },
+    );
+    let request = application(
+        &f,
+        &key,
+        &a,
+        2,
+        ConditionEventIntentView::Apply,
+        "part-stun",
+    );
+    f.worker
+        .add_encounter_participant_condition(&key, request)
+        .unwrap();
+    let d = f.worker.encounter(&key).unwrap();
+    let c = &d.participants[0].conditions[0];
+    assert!(c.condition_id > 0);
+    assert_eq!(c.value, Some(1));
+    assert_eq!(c.note.as_deref(), Some("Source note"));
+    assert_eq!(c.origin.as_ref().unwrap().application_id, "part-stun");
+    assert_eq!(resources(&f, &key, &a).regular_remaining, Some(0));
+    assert!(!resources(&f, &key, &a).can_spend_reactions.available);
+    next(&f, &key, "b1");
+    next(&f, &key, "a2");
+    assert_eq!(resources(&f, &key, &a).regular_remaining, Some(2));
+}
+#[test]
+fn off_turn_arrival_and_correction_do_not_consume_current_resources() {
+    let (f, key, a, b) = fixture();
+    next(&f, &key, "a1");
+    let request = application(
+        &f,
+        &key,
+        &a,
+        2,
+        ConditionEventIntentView::Correction,
+        "stun-correction",
+    );
+    f.worker
+        .add_encounter_participant_condition(&key, request)
+        .unwrap();
+    assert_eq!(resources(&f, &key, &a).regular_remaining, Some(3));
+    next(&f, &key, "b1");
+    let request = application(
+        &f,
+        &key,
+        &a,
+        3,
+        ConditionEventIntentView::Apply,
+        "off-turn-stun",
+    );
+    f.worker
+        .add_encounter_participant_condition(&key, request)
+        .unwrap();
+    assert_eq!(resources(&f, &key, &a).regular_remaining, Some(0));
+    assert_eq!(resources(&f, &key, &b).regular_remaining, Some(3));
+    assert_eq!(
+        f.worker.encounter(&key).unwrap().participants[0]
+            .conditions
+            .len(),
+        2
+    );
+}
+
+#[test]
+fn unknown_next_turn_slowed_does_not_block_known_current_stunned_loss() {
+    let (f, key, a, _) = fixture();
+    next(&f, &key, "a1");
+    add(&f, &a, "Slowed", None);
+    let request = application(
+        &f,
+        &key,
+        &a,
+        2,
+        ConditionEventIntentView::Apply,
+        "stun-with-unknown-slowed",
+    );
+    f.worker
+        .add_encounter_participant_condition(&key, request)
+        .unwrap();
+    let r = resources(&f, &key, &a);
+    assert_eq!(r.regular_remaining, Some(1));
+    assert_eq!(r.forecast.adjusted_value, None);
+    let d = f.worker.encounter(&key).unwrap();
+    assert_eq!(d.participants[0].conditions.len(), 1);
+    assert_eq!(d.participants[0].conditions[0].name, "Slowed");
+    assert_eq!(d.participants[0].conditions[0].value, None);
+}
+
+#[test]
+fn applying_an_updated_stunned_source_preserves_its_identity_and_edited_metadata() {
+    let (f, key, a, _) = fixture();
+    next(&f, &key, "a1");
+    change(
+        &f,
+        &key,
+        &a,
+        "spent-1",
+        TurnResourceAction::Spend {
+            resource: TurnResourceKind::Action,
+        },
+    );
+    change(
+        &f,
+        &key,
+        &a,
+        "spent-2",
+        TurnResourceAction::Spend {
+            resource: TurnResourceKind::Action,
+        },
+    );
+    let request = application(
+        &f,
+        &key,
+        &a,
+        1,
+        ConditionEventIntentView::Correction,
+        "original-stun",
+    );
+    f.worker
+        .add_encounter_participant_condition(&key, request)
+        .unwrap();
+    let condition_id = f.worker.encounter(&key).unwrap().participants[0].conditions[0].condition_id;
+    let request = UpdateEncounterParticipantConditionRequest {
+        request_id: "updated-stun".into(),
+        expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
+        event_intent: ConditionEventIntentView::Apply,
+        decisions: Default::default(),
+        condition_id,
+        condition_ref: None,
+        name: "Stunned".into(),
+        value: Some(3),
+        source_participant_key: None,
+        scope: Default::default(),
+        extra_action: Default::default(),
+        immunity_override: false,
+        parameters: Default::default(),
+        origin: None,
+        duration: None,
+        note: Some("Edited source note".into()),
+    };
+    let preview = f
+        .worker
+        .preview_encounter_condition_update(&key, &a, request.clone())
+        .unwrap();
+    assert!(
+        preview
+            .consequences
+            .contains(&ConditionEventConsequenceView::StunnedActionsLost {
+                participant_key: a.clone(),
+                before: 1,
+                after: 0,
+                stunned_after: 2
+            })
+    );
+    f.worker
+        .update_encounter_participant_condition(&key, &a, request.clone())
+        .unwrap();
+    f.worker
+        .update_encounter_participant_condition(&key, &a, request)
+        .unwrap();
+    let d = f.worker.encounter(&key).unwrap();
+    let c = &d.participants[0].conditions[0];
+    assert_eq!(c.condition_id, condition_id);
+    assert_eq!(c.value, Some(2));
+    assert_eq!(c.note.as_deref(), Some("Edited source note"));
+    assert_eq!(c.origin.as_ref().unwrap().application_id, "original-stun");
+    assert_eq!(resources(&f, &key, &a).regular_remaining, Some(0));
+}

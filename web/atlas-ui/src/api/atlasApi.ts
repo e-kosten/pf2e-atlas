@@ -1035,7 +1035,16 @@ async function atlasFetchEncounter<T>(
     result.consequences = result.consequences.map((value) => {
       if (!isRecord(value))
         throw new AtlasApiError(200, "Invalid condition consequence");
-      return { ...value, ...optionalIntegers(value, ["amount", "magnitude_increase"]) };
+      return {
+        ...value,
+        ...optionalIntegers(value, [
+          "amount",
+          "magnitude_increase",
+          "before",
+          "after",
+          "stunned_after",
+        ]),
+      };
     });
   if (Array.isArray(result.encounters))
     result.encounters = result.encounters.map(summary);

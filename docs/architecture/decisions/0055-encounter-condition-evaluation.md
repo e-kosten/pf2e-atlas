@@ -191,11 +191,16 @@ Persistent type cards own their existing damage/recovery results; ordinary durat
 timing and end-turn recovery rows follow the same retained-result policy. Reads
 neither recreate actions nor infer successful writes from frontend drafts. Receipts remain storage
 history, not a reminder inbox. Incoming deterministic regain changes are retained
-as concise results beneath Turn controls, before HP; ordinary starts remain quiet.
+as concise results beneath Turn controls in the runtime lane; ordinary starts remain quiet.
 Dying recovery remains an explicit inspector action and defers regain. Supported
 numeric Stunned is consumed at actual regain in the atomic advance; a new numeric
-Stunned during an open current turn uses the explicit lifecycle action against
-recorded remaining actions. Neither path is replayed by reading an outgoing event.
+Stunned applied during an open current turn invokes that same pure reducer within
+the condition application event against recorded remaining actions. The before/
+after preview and commit use one plan. A source consumed before insertion has no
+saved row ID; the application receipt and retained turn result preserve the event
+without persisting the preview subject's temporary ID. Surviving sources retain
+their notes, scope, origin and actual saved identity. Neither path is replayed by
+reading an outgoing event.
 Waking from
 noise is guidance alongside the existing Perception roller, not a DC-entry form.
 
@@ -218,8 +223,9 @@ Recovery offers are action-specific data, not a nullable field bag plus a parall
 required-input schema. Rust associates offers with saved condition source IDs;
 one browser recovery owner presents hints and meaningful actions in condition
 rows. Pending HP decisions stay beside HP controls.
-The compact manual Turn controls and their retained regain results sit between
-participant identity and HP. Condition-specific recovery stays in its condition
+The compact manual Turn controls and their retained results share the runtime
+lane with conditions beside HP and defenses. In a single column they follow
+defenses and precede statistics. Condition-specific recovery stays in its condition
 row rather than becoming an unrelated action/disclosure collection there.
 Recovery hints/results remain anchored to the requested action, including while
 successful resolution removes the associated condition. Listing and check
