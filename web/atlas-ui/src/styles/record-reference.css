@@ -100,10 +100,8 @@
   gap: var(--space-control) var(--space-group);
 }
 .record-reference__metadata {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-control) var(--space-group);
+  display: grid;
+  gap: var(--space-control);
   margin-top: var(--space-control);
 }
 .record-reference__header--stacked .record-reference__classification {
@@ -120,10 +118,6 @@
 }
 .record-reference__metadata .badge-row {
   margin: 0;
-}
-.record-reference__metadata--rows {
-  display: grid;
-  gap: var(--space-control);
 }
 .record-reference__source {
   margin: var(--space-control) 0 0;
