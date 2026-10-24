@@ -13,3 +13,6 @@ pub const CONDITION_SYSTEM_SCHEMA_SQL: &str = include_str!("condition_system.sql
 
 /// Receipt-only persistent damage/recovery preparation claims.
 pub const PERSISTENT_PREPARATION_SCHEMA_SQL: &str = include_str!("persistent_preparation.sql");
+
+/// Authoritative manual action/reaction resources for an actual turn.
+pub const TURN_RESOURCES_SCHEMA_SQL: &str = include_str!("turn_resources.sql");

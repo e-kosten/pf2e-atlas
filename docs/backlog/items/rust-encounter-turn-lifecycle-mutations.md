@@ -3,20 +3,29 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-10-19
+Last reviewed: 2026-10-24
 
 ## Current baseline
 
 Round-based condition durations and end-turn reminders landed with the encounter
 workflow. Non-round durations remain table reminders; persistent damage is not
 automatically rolled. Build further lifecycle rules on those existing contracts,
-not a second frontend event loop. The scope below concerns remaining rule effects.
+not a second frontend event loop. The scope below concerns remaining rule effects. Actual turn progression now
+retains backend-owned action/reaction resources, consumes numeric Stunned at
+regain, and supports explicit own-turn Stunned loss against remaining actions.
+Manual spending, correction, receipt recovery and pending Dying regain use the
+existing atomic event owner (ADR0048/0055). PR #105 is still under functional
+review; this does not establish final validation or acceptance.
 
 ## Problem
 
 Encounter runtime projection can now show action budgets, speeds, condition effects, and runtime notes, and turn progression already supports duration/reminder events. Several PF2E effects need mutation at specific encounter lifecycle points rather than passive projection.
 
-Remaining examples include stunned-with-a-value consuming regained or remaining actions, future slowed/quickened integration with turn progression, and persistent damage or recovery-check workflows. If these are added ad hoc from UI button handlers, the encounter runner will split rule timing across browser state, app-service projection, and local-state rows.
+Remaining work includes explicit choice of which Quickened/ordinary action to
+lose when a condition permits that choice, source-owned default conditions and
+other source-specific action economies. Zombie Slow's no-reaction restriction is
+prose-only and must not be inferred from Slowed. Persistent damage and recovery
+already have their own guarded explicit workflows. If these are added ad hoc from UI button handlers, the encounter runner will split rule timing across browser state, app-service projection, and local-state rows.
 
 ## Desired Outcome
 

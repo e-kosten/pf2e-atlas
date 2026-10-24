@@ -48,6 +48,8 @@ impl EncounterStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncounterParticipant {
+    #[serde(default)]
+    pub turn_resources: Option<super::TurnResources>,
     pub level_override: Option<i64>,
     pub base_death_threshold: i64,
     pub persistent_precedence: Vec<super::PersistentSourcePrecedence>,
@@ -441,6 +443,8 @@ pub struct ConditionDuration {
 }
 #[derive(Debug, Clone)]
 pub struct EncounterTurnUpdate {
+    pub start_event: Option<super::PreparedConditionEvent>,
+    pub start_claims: Vec<super::EncounterBoundaryClaim>,
     pub turn: EncounterTurnState,
     pub durations: Vec<(i64, i64)>,
 }

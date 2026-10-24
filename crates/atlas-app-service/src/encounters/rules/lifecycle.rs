@@ -88,16 +88,43 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
         } => {
             let selected = source(participant, *condition_id, ConditionRule::Stunned)?;
             positive_value(selected)?;
-            let maximum = super::capabilities::numeric_stunned_actions_lost(participant)
-                .ok_or_else(|| {
+            let maximum =
+                super::capabilities::stunned_resolution_loss(participant).ok_or_else(|| {
                     AppServiceError::invalid_request(
                         "Set the missing condition values before applying Stunned recovery",
                     )
                 })?;
             if maximum < 1 || *actions_lost != maximum {
                 return Err(AppServiceError::invalid_request(
-                    "Actions lost must match the current Stunned action-regain forecast",
+                    "Actions lost must match the available actions and current Stunned value",
                 ));
+            }
+            if let Some(mut resources) = participant
+                .turn_resources
+                .clone()
+                .filter(|r| r.pending_reason.is_none())
+            {
+                let extra_lost = resources.extra_remaining.min(*actions_lost);
+                resources.extra_remaining -= extra_lost;
+                resources.regular_remaining -= *actions_lost - extra_lost;
+                for condition in &participant.conditions {
+                    if condition_rule_for_key(condition.condition_key.as_deref())
+                        == Some(ConditionRule::Stunned)
+                    {
+                        if let Some(before) = condition.value {
+                            resources
+                                .effects
+                                .push(atlas_local_state::TurnResourceEffect {
+                                    condition_id: condition.condition_id,
+                                    name: condition.name.clone(),
+                                    before: Some(before),
+                                    after: Some((before - *actions_lost).max(0)),
+                                    actions_lost: before.min(*actions_lost),
+                                });
+                        }
+                    }
+                }
+                changes.turn_resources.push(resources);
             }
             // One overlapping action loss reduces every concurrently active numeric source.
             for condition in &participant.conditions {
@@ -498,7 +525,7 @@ pub(in crate::encounters) fn available_actions(
         add(
             Offer::StunnedActionsLost {
                 condition_id: condition.condition_id,
-                actions_lost: super::capabilities::numeric_stunned_actions_lost(participant),
+                actions_lost: super::capabilities::stunned_resolution_loss(participant),
             },
             "Consume actions lost to stunned",
             Some("stunned-actions"),
@@ -543,7 +570,7 @@ pub(in crate::encounters) fn available_actions(
         ) {
             option.available = false;
             option.unavailable_reason =
-                Some("No resolved numeric Stunned loss is available at this action regain.".into());
+                Some("No actions can currently be lost to this Stunned effect.".into());
         }
     }
     actions

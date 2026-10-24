@@ -1017,8 +1017,10 @@ fn reviewed_turn_revision_prevents_replay_and_concurrent_double_ticks()
                     &serde_json::json!({"next":true}),
                     revision,
                     |_| {
-                        (
+                        Ok((
                             crate::EncounterTurnUpdate {
+                                start_event: None,
+                                start_claims: vec![],
                                 turn: EncounterTurnState {
                                     participant_key: Some(key),
                                     round_number: 2,
@@ -1027,7 +1029,7 @@ fn reviewed_turn_revision_prevents_replay_and_concurrent_double_ticks()
                                 durations: vec![(id, 1)],
                             },
                             true,
-                        )
+                        ))
                     },
                 )
             })
@@ -1073,6 +1075,113 @@ fn reviewed_turn_revision_prevents_replay_and_concurrent_double_ticks()
 }
 
 #[test]
+fn failed_start_resource_write_rolls_back_turn_condition_changes_and_receipts()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("start-resources-rollback")?;
+    let p = store
+        .encounters()
+        .add_participant("test", creature("A", Some(20), 20))?;
+    let condition = store
+        .encounters()
+        .add_condition(AddEncounterParticipantCondition {
+            participant_key: p.participant_key.clone(),
+            condition_key: None,
+            name: "Stunned".into(),
+            value: Some(2),
+            source_participant_key: None,
+            scope: Default::default(),
+            extra_action: Default::default(),
+            immunity_override: false,
+            parameters: Default::default(),
+            origin: None,
+            duration: None,
+            note: None,
+        })?;
+    let before = store.encounters().get_with_participants("test")?.unwrap();
+    store.connection()?.execute_batch("CREATE TRIGGER reject_resources BEFORE UPDATE OF turn_resources_json ON encounter_participants BEGIN SELECT RAISE(ABORT,'resource failure'); END;")?;
+    let key = p.participant_key.clone();
+    let request = serde_json::json!({"next":true});
+    let advance = || {
+        store.encounters().advance_turn_once(
+            "test",
+            "start-rollback",
+            &request,
+            before.encounter.revision,
+            |_| {
+                Ok((
+                    EncounterTurnUpdate {
+                        turn: EncounterTurnState {
+                            participant_key: Some(key.clone()),
+                            round_number: 1,
+                            mark_running: true,
+                        },
+                        durations: vec![],
+                        start_claims: vec![],
+                        start_event: Some(PreparedConditionEvent {
+                            condition_changes: vec![ConditionEventChange::Remove {
+                                participant_key: key.clone(),
+                                condition_id: condition.condition_id,
+                            }],
+                            turn_resources: vec![TurnResources {
+                                actions_open: true,
+                                pending_reason: None,
+                                participant_key: key.clone(),
+                                turn_key: "turn:test".into(),
+                                round_number: 1,
+                                regular_total: 1,
+                                regular_remaining: 1,
+                                extra_total: 0,
+                                extra_remaining: 0,
+                                extra_uses: vec![],
+                                reactions_total: Some(1),
+                                reactions_remaining: Some(1),
+                                effects: vec![],
+                            }],
+                            ..Default::default()
+                        }),
+                    },
+                    false,
+                ))
+            },
+        )
+    };
+    assert!(advance().is_err());
+    assert_eq!(
+        store.encounters().get_with_participants("test")?.unwrap(),
+        before
+    );
+    assert_eq!(
+        store.connection()?.query_row(
+            "SELECT count(*) FROM encounter_outgoing_turns",
+            [],
+            |r| r.get::<_, i64>(0)
+        )?,
+        0
+    );
+    store
+        .connection()?
+        .execute_batch("DROP TRIGGER reject_resources")?;
+    advance()?;
+    let after = store.encounters().get_with_participants("test")?.unwrap();
+    assert!(after.participants[0].conditions.is_empty());
+    assert_eq!(
+        after.participants[0]
+            .turn_resources
+            .as_ref()
+            .unwrap()
+            .regular_remaining,
+        1
+    );
+    // The failed attempt did not leave a once-only marker that swallows retry.
+    advance()?;
+    assert_eq!(
+        store.encounters().get_with_participants("test")?.unwrap(),
+        after
+    );
+    Ok(())
+}
+
+#[test]
 fn failed_turn_write_rolls_back_duration_and_revision() -> Result<(), Box<dyn std::error::Error>> {
     let store = fixture("timing-rollback")?;
     let p = store
@@ -1109,8 +1218,10 @@ fn failed_turn_write_rolls_back_duration_and_revision() -> Result<(), Box<dyn st
                 &serde_json::json!({"next":true}),
                 before.encounter.revision,
                 |_| {
-                    (
+                    Ok((
                         crate::EncounterTurnUpdate {
+                            start_event: None,
+                            start_claims: vec![],
                             turn: EncounterTurnState {
                                 participant_key: Some(p.participant_key),
                                 round_number: 2,
@@ -1119,7 +1230,7 @@ fn failed_turn_write_rolls_back_duration_and_revision() -> Result<(), Box<dyn st
                             durations: vec![(condition.condition_id, 0)],
                         },
                         true,
-                    )
+                    ))
                 }
             )
             .is_err()
@@ -1165,8 +1276,10 @@ fn condition_update_checks_encounter_revision_inside_write_transaction()
         &serde_json::json!({"next":true}),
         revision,
         |_| {
-            (
+            Ok((
                 crate::EncounterTurnUpdate {
+                    start_event: None,
+                    start_claims: vec![],
                     turn: EncounterTurnState {
                         participant_key: Some(p.participant_key.clone()),
                         round_number: 1,
@@ -1175,7 +1288,7 @@ fn condition_update_checks_encounter_revision_inside_write_transaction()
                     durations: vec![(c.condition_id, 2)],
                 },
                 true,
-            )
+            ))
         },
     )?;
     let before = store.encounters().get_with_participants("test")?.unwrap();
