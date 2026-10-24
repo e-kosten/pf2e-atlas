@@ -214,3 +214,54 @@ it("opens calculation and correction from Actions without presenting the next-tu
     }),
   );
 });
+
+it("keeps extra action directly toggleable with its visible restriction and no separate menu", async () => {
+  const initial = {
+    ...value(),
+    extra_total: 1n,
+    extra_remaining: 1n,
+    extra_uses: [
+      {
+        kind: "restricted" as const,
+        actions: ["stride" as const, "strike" as const],
+        guidance: null,
+      },
+    ],
+  };
+  const onChange = vi.fn().mockResolvedValue(undefined);
+  const view = (v: TurnResourcesView) => (
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnResources
+        value={v}
+        disabled={false}
+        isCurrent
+        onChange={onChange}
+      />
+    </ConfigProvider>
+  );
+  const { rerender } = render(view(initial));
+  expect(screen.queryByText("Extra action", { exact: true })).toBeNull();
+  expect(screen.getByText("Extra action: stride, strike")).toBeVisible();
+  expect(screen.queryByRole("button", { name: /Extra action: details/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Spend extra action 1" }));
+  await waitFor(() =>
+    expect(onChange).toHaveBeenCalledWith({ kind: "spend", resource: "extra_action" }),
+  );
+  rerender(view({ ...initial, extra_remaining: 0n }));
+  fireEvent.click(screen.getByRole("button", { name: "Restore extra action 1" }));
+  await waitFor(() =>
+    expect(onChange).toHaveBeenLastCalledWith({
+      kind: "restore",
+      resource: "extra_action",
+    }),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Actions: details and remaining actions" }),
+  );
+  await waitFor(() =>
+    expect(screen.getByText("This turn: 1 action + 1 extra")).toBeVisible(),
+  );
+  expect(
+    screen.getByRole("spinbutton", { name: "Remaining ordinary actions" }),
+  ).toBeVisible();
+});

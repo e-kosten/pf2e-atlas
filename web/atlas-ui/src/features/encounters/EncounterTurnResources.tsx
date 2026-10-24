@@ -58,12 +58,15 @@ export function EncounterTurnResources({
     <section className="encounter-turn-resources" aria-label="Turn" aria-busy={busy}>
       <div className="encounter-turn-resources__controls">
         {value.regular_total !== null && value.regular_remaining !== null ? (
-          <>
+          <div className="encounter-turn-resources__actions">
             <ResourceCounter
               label="Actions"
               kind="action"
               turnKey={value.turn_key}
               forecast={value.forecast}
+              extraTotal={
+                value.extra_total === null ? undefined : Number(value.extra_total)
+              }
               total={Number(value.regular_total)}
               remaining={Number(value.regular_remaining)}
               disabled={unavailable}
@@ -88,7 +91,7 @@ export function EncounterTurnResources({
                 onAction={act}
               />
             )}
-          </>
+          </div>
         ) : (
           <div className="encounter-turn-resources__group">
             <RuntimeCount
@@ -221,6 +224,7 @@ function ResourceCounter({
   kind,
   turnKey,
   forecast,
+  extraTotal,
   total,
   remaining,
   disabled,
@@ -234,6 +238,7 @@ function ResourceCounter({
   kind: TurnResourceKind;
   turnKey: string | null;
   forecast?: TurnResourcesView["forecast"];
+  extraTotal?: number;
   total: number;
   remaining: number;
   disabled: boolean;
@@ -287,79 +292,91 @@ function ResourceCounter({
   }
   return (
     <div className="encounter-turn-resources__group">
-      <Popover
-        trigger="click"
-        open={open}
-        onOpenChange={(next) => {
-          if (!next) restoreOverlayFocus(button.current, popup.current);
-          setOpen(next);
-          if (next) setDraft(remaining);
-        }}
-        title={label}
-        content={
-          <div ref={popup} className="encounter-turn-resource-details">
-            <p>
-              This turn: {total} {total === 1 ? "action" : "actions"}
-            </p>
-            <div className="encounter-turn-resource-details__correction">
-              <span>Remaining</span>
-              <Space>
-                <InputNumber
-                  aria-label={`Remaining ${label.toLowerCase()}`}
-                  min={0}
-                  max={total}
-                  precision={0}
-                  value={draft}
-                  readOnly={pending || disabled || !canEdit}
-                  onChange={setDraft}
-                />
-                <Button
-                  type="primary"
-                  disabled={disabled || !canEdit || draft === null}
-                  aria-disabled={pending}
-                  onClick={() => {
-                    if (!pending && draft !== null)
-                      void onAction({
-                        kind: "correct",
-                        resource: kind,
-                        remaining: BigInt(draft),
-                      })
-                        .then(() => {
-                          restoreOverlayFocus(button.current, popup.current);
-                          setOpen(false);
+      {forecast ? (
+        <Popover
+          trigger="click"
+          open={open}
+          onOpenChange={(next) => {
+            if (!next) restoreOverlayFocus(button.current, popup.current);
+            setOpen(next);
+            if (next) setDraft(remaining);
+          }}
+          title={label}
+          content={
+            <div ref={popup} className="encounter-turn-resource-details">
+              <p>
+                This turn: {total} {total === 1 ? "action" : "actions"}
+                {extraTotal ? ` + ${extraTotal} extra` : null}
+              </p>
+              <div className="encounter-turn-resource-details__correction">
+                <span>{extraTotal ? "Ordinary remaining" : "Remaining"}</span>
+                <Space>
+                  <InputNumber
+                    aria-label={
+                      extraTotal
+                        ? "Remaining ordinary actions"
+                        : `Remaining ${label.toLowerCase()}`
+                    }
+                    min={0}
+                    max={total}
+                    precision={0}
+                    value={draft}
+                    readOnly={pending || disabled || !canEdit}
+                    onChange={setDraft}
+                  />
+                  <Button
+                    type="primary"
+                    disabled={disabled || !canEdit || draft === null}
+                    aria-disabled={pending}
+                    onClick={() => {
+                      if (!pending && draft !== null)
+                        void onAction({
+                          kind: "correct",
+                          resource: kind,
+                          remaining: BigInt(draft),
                         })
-                        .catch(() => {});
-                  }}
-                >
-                  Apply
-                </Button>
-              </Space>
-            </div>
-            {forecast && (
+                          .then(() => {
+                            restoreOverlayFocus(button.current, popup.current);
+                            setOpen(false);
+                          })
+                          .catch(() => {});
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </Space>
+              </div>
               <div>
                 <strong>Next turn</strong>
                 <RuntimeCountCalculation count={forecast} />
               </div>
-            )}
-          </div>
-        }
-      >
-        <Button
-          ref={button}
-          type="text"
-          icon={<ChevronDown size={14} />}
-          iconPlacement="end"
-          aria-expanded={open}
-          aria-label={`${label}: details and remaining actions`}
+            </div>
+          }
         >
-          <strong>{label}</strong>
-        </Button>
-      </Popover>
+          <Button
+            ref={button}
+            type="text"
+            styles={{ root: { paddingInline: 0, fontSize: "inherit" } }}
+            icon={<ChevronDown size={14} />}
+            iconPlacement="end"
+            aria-expanded={open}
+            aria-label={`${label}: details and remaining actions`}
+          >
+            <strong>{label}</strong>
+          </Button>
+        </Popover>
+      ) : null}
       <Space size={4} wrap>
         {slots.available.map((available, index) => (
           <Tooltip
             key={index}
-            title={available ? (!canSpend ? reason : "Spend action") : "Restore action"}
+            title={
+              available
+                ? !canSpend
+                  ? reason
+                  : `Spend ${kind === "action" ? "action" : "extra action"}`
+                : `Restore ${kind === "action" ? "action" : "extra action"}`
+            }
             trigger={["hover", "focus"]}
           >
             <Button
