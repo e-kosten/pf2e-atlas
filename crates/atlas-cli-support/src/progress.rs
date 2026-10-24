@@ -61,7 +61,8 @@ impl CliProgressLayer {
     fn new(options: ProgressOptions, internal_logs_enabled: bool) -> Self {
         Self {
             state: Mutex::new(CliProgressState {
-                is_interactive: std::io::stderr().is_terminal(),
+                is_interactive: std::io::stderr().is_terminal()
+                    && terminal_supports_cursor_movement(std::env::var("TERM").ok().as_deref()),
                 started_at: Instant::now(),
                 progress_bar: None,
                 progress_phase: None,
@@ -69,6 +70,15 @@ impl CliProgressLayer {
             options,
             internal_logs_enabled,
         }
+    }
+}
+
+fn terminal_supports_cursor_movement(term: Option<&str>) -> bool {
+    match term {
+        Some("dumb") => false,
+        Some(_) => true,
+        // Native Windows consoles normally have no TERM variable.
+        None => cfg!(windows),
     }
 }
 
@@ -600,6 +610,41 @@ mod tests {
     #[test]
     fn internal_library_logs_are_quiet_by_default() {
         assert!(!should_render_event("atlas_embedding::minilm", false));
+    }
+
+    #[test]
+    fn animated_progress_requires_a_cursor_capable_terminal() {
+        for (term, expected) in [
+            (Some("dumb"), false),
+            (Some("xterm-256color"), true),
+            (Some("screen"), true),
+            (None, cfg!(windows)),
+        ] {
+            let interactive = super::terminal_supports_cursor_movement(term);
+            let options = ProgressOptions {
+                mode: ProgressMode::Auto,
+                json: false,
+                setup_timing: true,
+            };
+            assert_eq!(
+                progress_render_mode_for_mode(ProgressMode::Auto, options, interactive),
+                if expected {
+                    ProgressRenderMode::Interactive
+                } else {
+                    ProgressRenderMode::Hidden
+                },
+                "automatic progress with TERM={term:?}",
+            );
+            assert_eq!(
+                progress_render_mode_for_mode(ProgressMode::Always, options, interactive),
+                if expected {
+                    ProgressRenderMode::Interactive
+                } else {
+                    ProgressRenderMode::Plain
+                },
+                "forced progress with TERM={term:?}",
+            );
+        }
     }
 
     #[test]
