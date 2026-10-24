@@ -1089,7 +1089,13 @@ it("opens verified self effects through the shared preview and leaves unverified
     authored_target: knownFact("Compendium.pf2e.effects.Item.ward"),
     navigation: target,
   });
-  activity.strike_effects = knownFact(["unresolved-poison"]);
+  activity.strike_effects = knownFact([
+    {
+      name: knownFact("unresolved-poison"),
+      authored_target: knownFact("unresolved-poison"),
+      navigation: null,
+    },
+  ]);
   actor.activities = knownFact([activity]);
   const onReference = vi.fn();
   const { rerender } = render(

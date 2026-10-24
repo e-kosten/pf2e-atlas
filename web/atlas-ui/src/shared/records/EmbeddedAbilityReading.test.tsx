@@ -31,6 +31,8 @@ vi.mock("../../api/atlasApi", async (original) => ({
 const abilities = Array.from({ length: 600 }, (_, index) => ({
   ...activityFixture(`Ability ${index}`, "actors:large"),
   kind: "ability" as const,
+  ability_group: "reaction" as const,
+  reading_order: index,
   navigation: {
     ...activityFixture().navigation,
     record_key: "actors:large",

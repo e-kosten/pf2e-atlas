@@ -17,6 +17,7 @@ pub enum EmbeddedReadingSelection {
         cursor: Option<EmbeddedReadingCursor>,
     },
     Abilities {
+        group: Option<crate::ActorAbilityGroupView>,
         cursor: Option<EmbeddedReadingCursor>,
         target: Option<RecordNavigationView>,
     },

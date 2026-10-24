@@ -291,7 +291,10 @@ it never matches names, interprets casting prose or rewrites graph identity.
 
 Product navigation uses `embedded_path`; presentation child links use `embedded`.
 The bounded reader is `/api/records/embedded-reading`, and CLI selection uses
-`--embedded-path`. Product content addresses are `ContentLocationView`; private
+`--embedded-path`. Creature ability groups are app-service presentation metadata;
+group filtering and reading order precede bounded pagination. Source activity-array
+order and exact owner identities remain unchanged for runtime overlays and direct
+navigation; see ADR0047. Product content addresses are `ContentLocationView`; private
 source locators retain their persisted ownership vocabulary. There are no legacy
 public aliases. Usage labels preserve exact source tokens for filtering and do
 not infer a normalized hand-count requirement.

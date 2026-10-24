@@ -3,7 +3,7 @@
 Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-23
+Last reviewed: 2026-10-24
 
 ## Problem
 
@@ -78,6 +78,40 @@ grade, and base damage plus runes is not a complete calculated attack. Integrate
 shield attack/rune details likewise require a qualified presentation rather than
 an inferred effective attack. These are explicit remaining coverage decisions,
 not claims that every nested equipment DTO member is now displayed.
+
+## Separately scoped creature coverage findings
+
+The creature audit at the same source pin distinguishes supplied facts from
+calculated character/familiar support. NPC movement qualifications, supplied
+character languages and owned strike range facts can use existing typed source
+support. Further bounded projection/content work remains:
+
+- NPC `details.blurb` is retained by `NPCDetailsSource` (1,620 nonempty records),
+  but lacks an attributed prepared-content selection. Review its role and overlap
+  with permitted notes, then add source-owned selection/preparation if useful.
+  Do not inject raw HTML or remove repeated prose by string matching.
+- `NPCSpecialSkillSource.predicate` is retained but not represented in conditional
+  skill facts. Preserve supplied label/modifier and unavailable/blank qualifiers;
+  define an honest readable predicate projection before interpreting it or
+  evaluating whether a bonus applies.
+- Owned effect badges (for example Prismhydra's Hydra Heads counter) are retained
+  but lack a presentation projection. Distinguish an authored counter, formula
+  and runtime reevaluation before exposing values as current encounter state.
+- Character build/proficiency inputs and familiar/master references do not supply
+  complete effective NPC-style combat statistics. Treat character identity and
+  calculated sheet support as separate projections; preserve biography visibility.
+- Legacy retained action requirements/trigger fields and casting-entry resource
+  snapshots need source-policy review before adding generic rows or workflows.
+  The observed owned action trigger/requirements objects have empty values; their
+  presence alone does not establish omitted rules prose.
+
+The audit traces root groups and immediate owned melee/action/feat/effect/lore,
+casting, spell and physical-item families. It is not certification that every
+nested DTO member is rendered. Rule elements, source snapshots and platform
+configuration are not automatically user-facing facts or permission to extend
+encounter mechanics. Unresolved glossary attack effects remain under the
+[localization-backed rules work](rust-localization-backed-rules-terms.md); exact
+unique owned-slug links do not establish a general glossary resolver.
 
 ## Related
 

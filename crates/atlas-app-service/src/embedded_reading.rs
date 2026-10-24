@@ -101,19 +101,29 @@ impl AtlasAppService {
                     }
                     (candidates, start, false)
                 }
-                EmbeddedReadingSelection::Abilities { cursor, target } => {
+                EmbeddedReadingSelection::Abilities {
+                    group,
+                    cursor,
+                    target,
+                } => {
                     if cursor.is_some() && target.is_some() {
                         return Err(AppServiceError::invalid_request(
                             "select a reading cursor or target, not both",
                         ));
                     }
-                    let candidates: Vec<_> = activities
+                    let mut selected: Vec<_> = activities
                         .value
                         .unwrap_or_default()
                         .into_iter()
-                        .filter(|a| a.kind == ActorActivityKindView::Ability)
-                        .map(|a| a.navigation)
+                        .filter(|a| {
+                            a.kind == ActorActivityKindView::Ability
+                                && group.is_none_or(|group| a.ability_group == Some(group))
+                        })
                         .collect();
+                    if group.is_some() {
+                        selected.sort_by_key(|a| a.reading_order);
+                    }
+                    let candidates: Vec<_> = selected.into_iter().map(|a| a.navigation).collect();
                     let start = if let Some(target) = target {
                         checked_activity(target, &key, r.source_fingerprint())?;
                         let index = candidates

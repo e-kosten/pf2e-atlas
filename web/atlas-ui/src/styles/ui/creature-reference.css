@@ -235,3 +235,8 @@
     grid-row: 1;
   }
 }
+
+.actor-reference__turn-context {
+  display: grid;
+  gap: var(--space-group);
+}

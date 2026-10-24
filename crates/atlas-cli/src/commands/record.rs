@@ -180,6 +180,7 @@ fn render_selected_record(
                     parent: record.selected.clone(),
                     artifact_generation: record.artifact_generation.clone(),
                     selection: EmbeddedReadingSelection::Abilities {
+                        group: None,
                         cursor,
                         target: None,
                     },

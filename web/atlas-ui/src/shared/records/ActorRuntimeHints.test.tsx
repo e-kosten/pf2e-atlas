@@ -1,5 +1,10 @@
 import { render, screen, within } from "@testing-library/react";
-import { ActorActivities, ActorFacts, ActorSecondaryFacts } from "./ActorReference";
+import {
+  ActorActivities,
+  ActorCombatBudget,
+  ActorFacts,
+  ActorSecondaryFacts,
+} from "./ActorReference";
 import { actorFixture, activityFixture, knownFact } from "../../test/fixtures";
 import type { ActorRuntimeView, RuntimeCountView } from "../../generated/atlas";
 
@@ -78,4 +83,38 @@ it("places the effective casting hint beside spellcasting without a duplicate ru
   expect(screen.getAllByText(/Spellcasting requires a DC 10 flat check/)).toHaveLength(
     1,
   );
+});
+
+it("separates current reactions and Stunned restrictions from the next-turn action forecast", () => {
+  const actor = actorFixture();
+  actor.runtime = runtime();
+  const budget = actor.runtime.action_budget!;
+  budget.actions = {
+    ...budget.actions,
+    label: "Actions",
+    base_value: 3n,
+    adjusted_value: 2n,
+  };
+  budget.reactions = {
+    ...budget.reactions,
+    label: "Reactions",
+    base_value: 1n,
+    adjusted_value: 0n,
+  };
+  budget.can_act = { available: false, source: "encounter_state", reason: "Stunned." };
+  budget.can_react = {
+    available: false,
+    source: "encounter_state",
+    reason: "Stunned.",
+  };
+  budget.extra_action_unavailable_reason = "Lost to Stunned";
+  render(<ActorCombatBudget actor={actor} />);
+  const current = screen.getByRole("region", { name: "Right now" });
+  expect(within(current).getByText("Reactions")).toBeVisible();
+  expect(within(current).getAllByText("No · Stunned")).toHaveLength(2);
+  expect(within(current).queryByText("Actions")).toBeNull();
+  const forecast = screen.getByRole("region", { name: "At turn start" });
+  expect(within(forecast).getByText("Actions")).toBeVisible();
+  expect(within(forecast).getByText("Lost to Stunned")).toBeVisible();
+  expect(within(forecast).queryByText("Reactions")).toBeNull();
 });
