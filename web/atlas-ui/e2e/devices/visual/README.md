@@ -5,7 +5,29 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
-## Accepted creature and encounter layout
+## Final creature/encounter validation references
+
+Candidate `385ea64455bec02f8fce82eac76be598fd13e2d1` adds the reviewed
+recovery-result focus repair after integrating main/PR106. The final macOS capture
+uses Playwright 1.62.1 on arm64 and the same four projects. It deliberately dismisses
+passive hints before the source/fallback checkpoints; exact pixel comparison stays
+enabled. Source facts, returned focus and all existing interaction/geometry checks
+remain visible and asserted.
+
+All 12 capture scenarios and the subsequent ordinary 12-scenario/40-frame comparison
+pass. Eleven macOS frames change from the initial creature set below: the parent
+directly reviewed six desktop/tablet pairs, independent Astra reviewed five phone
+pairs, and 29 frames remain byte-identical. Differences remove transient tooltips,
+retain returned focus outlines and adopt the shared recovery status track. Review
+hashes and paired images are retained under
+`scratch/review/creature-final-visuals/r23` and
+`scratch/review/creature-final-astra/r23-mac-phone-hashes.json`.
+The separate 16-case recovery matrix checks keyboard Enter, result focus, innermost
+Escape, canonical HP/receipts and unchanged 1px anchor tolerances on all four projects.
+Independent actual Chromium/WebKit follow-up also verifies deliberately moved focus
+is not stolen. These are browser/device emulation, not physical-device certification.
+
+## Initial creature/encounter reference provenance
 
 The macOS set captures the human-accepted r19 direction with the independently
 reviewed shared Trait header repair and condition Edit-tooltip touch fix. Source
