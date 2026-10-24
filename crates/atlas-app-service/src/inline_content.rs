@@ -87,22 +87,20 @@ impl Composer<'_> {
             else {
                 continue;
             };
-            let options = InlineEmbedOptions::parse(options);
-            let reason = if self.count >= INCLUSION_LIMIT
+            let options = if self.count >= INCLUSION_LIMIT
                 || active.len() > DEPTH_LIMIT
                 || self.bytes >= HTML_LIMIT
             {
-                Some("More content is available in the source record.")
+                Err("More content is available in the source record.")
             } else {
-                options.as_ref().err().copied()
+                InlineEmbedOptions::parse(options)
             };
             self.count += 1;
-            let insertion = if let Some(reason) = reason {
-                Err(reason)
-            } else {
-                self.insert(
+            let insertion = match options {
+                Err(reason) => Err(reason),
+                Ok(options) => self.insert(
                     reference,
-                    options.unwrap(),
+                    options,
                     references
                         .iter()
                         .filter(|other| {
@@ -120,7 +118,7 @@ impl Composer<'_> {
                         .collect(),
                     active,
                     bindings,
-                )?
+                )?,
             };
             let html = match insertion {
                 Ok(html) => html,

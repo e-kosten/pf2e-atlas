@@ -98,10 +98,10 @@ pub(super) fn render(out: &mut String, body: &RecordBodyView) {
             ] {
                 text(out, label, value);
             }
-            if let Some(name) = &v.other_weapons.value {
-                if !name.is_empty() {
-                    text(out, name, &v.other_weapon_rank);
-                }
+            if let Some(name) = &v.other_weapons.value
+                && !name.is_empty()
+            {
+                text(out, name, &v.other_weapon_rank);
             }
             names(out, "Trained skills", &v.trained_skills);
             number(
