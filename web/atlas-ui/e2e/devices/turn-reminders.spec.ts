@@ -135,6 +135,14 @@ for (const outcome of [
         ).toBeVisible();
       }
       await expect(reminders).not.toBeVisible();
+      const turn = page.getByRole("region", { name: "Turn", exact: true });
+      await expect(turn).toBeVisible();
+      await expect(turn.getByRole("button", { name: /Actions:/ })).toHaveCount(0);
+      await expect(turn.getByText("Actions", { exact: true })).toHaveJSProperty(
+        "tagName",
+        "STRONG",
+      );
+      await expect(turn.getByRole("button", { name: /^Spend action / })).toHaveCount(3);
       await page
         .getByRole("button", { name: "Next turn", exact: true })
         .filter({ visible: true })

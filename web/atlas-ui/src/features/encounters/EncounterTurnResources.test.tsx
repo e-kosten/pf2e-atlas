@@ -194,12 +194,14 @@ it("explains a modified allowance without duplicating chip controls or confusing
     </ConfigProvider>,
   );
   fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
-  await waitFor(() => expect(screen.getByText("This turn: 1 action")).toBeVisible());
+  expect(screen.queryByText(/^This turn:/)).toBeNull();
   expect(
     screen.getAllByText("Next turn").some((node) => node.tagName === "STRONG"),
   ).toBe(true);
   const calculation = screen.getByRole("region", { name: "Actions calculation" });
-  expect(within(calculation).getByRole("row", { name: "Total 3" })).toBeVisible();
+  await waitFor(() =>
+    expect(within(calculation).getByRole("row", { name: "Total 3" })).toBeVisible(),
+  );
   expect(screen.queryByRole("spinbutton")).toBeNull();
   expect(screen.queryByRole("button", { name: "Apply" })).toBeNull();
   expect(onChange).not.toHaveBeenCalled();
@@ -247,32 +249,44 @@ it("keeps extra action directly toggleable with its visible restriction and no s
   );
   fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
   await waitFor(() =>
-    expect(screen.getByText("This turn: 1 action + 1 extra")).toBeVisible(),
+    expect(screen.getByRole("region", { name: "Actions calculation" })).toBeVisible(),
   );
+  expect(screen.queryByText(/^This turn:/)).toBeNull();
   expect(screen.queryByRole("spinbutton")).toBeNull();
   expect(screen.queryByText("Ordinary remaining")).toBeNull();
 });
 
-it("keeps an unmodified three-action allowance plain while chips spend and restore", () => {
-  const initial = {
-    ...value(),
-    regular_total: 3n,
-    regular_remaining: 2n,
-    start_results: [],
-  };
-  render(
-    <EncounterTurnResources
-      value={initial}
-      disabled={false}
-      isCurrent
-      onChange={vi.fn()}
-    />,
-  );
-  expect(screen.getByText("Actions", { exact: true }).tagName).toBe("STRONG");
-  expect(screen.queryByRole("button", { name: /Actions:/ })).toBeNull();
-  expect(screen.getByRole("button", { name: "Spend action 1" })).toBeEnabled();
-  expect(screen.getByRole("button", { name: "Restore action 3" })).toBeEnabled();
-});
+it.each(["typed", "wire"])(
+  "keeps an unmodified three-action allowance plain while chips spend and restore (%s)",
+  (representation) => {
+    const initial = {
+      ...value(),
+      regular_total: 3n,
+      regular_remaining: 2n,
+      start_results: [],
+    };
+    const supplied =
+      representation === "wire"
+        ? JSON.parse(
+            JSON.stringify(initial, (_, item) =>
+              typeof item === "bigint" ? Number(item) : item,
+            ),
+          )
+        : initial;
+    render(
+      <EncounterTurnResources
+        value={supplied}
+        disabled={false}
+        isCurrent
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Actions", { exact: true }).tagName).toBe("STRONG");
+    expect(screen.queryByRole("button", { name: /Actions:/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Spend action 1" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Restore action 3" })).toBeEnabled();
+  },
+);
 it("keeps explanations when modifiers cancel to the base allowance", async () => {
   const initial = {
     ...value(),
