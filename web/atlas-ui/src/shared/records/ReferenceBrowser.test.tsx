@@ -128,6 +128,8 @@ it.each([
     const activity = {
       ...activityFixture("Jaws", "actors:ghoul"),
       kind: ability ? ("ability" as const) : ("strike" as const),
+      family: ability ? "action" : "melee",
+      ability_group: ability ? ("primary" as const) : null,
     };
     const parent = detailFixture(
       "actors:ghoul",

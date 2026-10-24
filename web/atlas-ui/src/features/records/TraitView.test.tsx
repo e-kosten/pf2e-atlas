@@ -131,7 +131,7 @@ it("shares the normal document identity chrome without routine navigation or ref
     ).not.toBeNull();
     expect(
       header.querySelector(
-        ".record-reference__title > .record-reference__classification > .record-reference__kind",
+        ".record-reference__metadata > .record-reference__classification > .record-reference__kind",
       ),
     ).not.toBeNull();
   }
