@@ -495,10 +495,20 @@ pub(super) fn select_content(source: SourceNodeView<'_>) -> Vec<SourceContentSel
         | SourceNodeView::Journal(_)
         | SourceNodeView::Macro(_) => {}
     }
-    if let SourceNodeView::Item(super::ItemSourceView::FeatSource(feat)) = source {
-        let values = SourceFieldView::from(&feat.system)
-            .and_then(|s| (&s.prerequisites).into())
-            .and_then(|p| (&p.value).into());
+    let prerequisites = match source {
+        SourceNodeView::Item(super::ItemSourceView::FeatSource(feat)) => Some(
+            SourceFieldView::from(&feat.system)
+                .and_then(|s| (&s.prerequisites).into())
+                .and_then(|p| (&p.value).into()),
+        ),
+        SourceNodeView::Item(super::ItemSourceView::CampaignFeatureSource(feature)) => Some(
+            SourceFieldView::from(&feature.system)
+                .and_then(|s| (&s.prerequisites).into())
+                .and_then(|p| (&p.value).into()),
+        ),
+        _ => None,
+    };
+    if let Some(values) = prerequisites {
         // PF2e 8.6.1 feat embedHTMLString enriches prerequisite text. Select each
         // entry independently to retain its exact address and link attribution.
         match values {

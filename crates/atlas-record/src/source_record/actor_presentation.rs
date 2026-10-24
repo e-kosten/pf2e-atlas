@@ -283,6 +283,9 @@ impl<'a> ItemSourceView<'a> {
             Self::AbilitySource(s) => {
                 SourceFieldView::from(&s.system).and_then(|s| (&s.frequency).into())
             }
+            Self::CampaignFeatureSource(s) => {
+                SourceFieldView::from(&s.system).and_then(|s| (&s.frequency).into())
+            }
             Self::FeatSource(s) => {
                 SourceFieldView::from(&s.system).and_then(|s| (&s.frequency).into())
             }

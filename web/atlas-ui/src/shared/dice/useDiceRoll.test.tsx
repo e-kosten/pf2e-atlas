@@ -81,6 +81,31 @@ describe("useDiceRoll", () => {
     expect(result.current.error).toBeUndefined();
   });
 
+  it("can retain a previous confirmed outcome without treating a failed roll as success", async () => {
+    reducedMotion();
+    const { result } = renderHook(() =>
+      useDiceRoll<number>({ retainResultOnError: true }),
+    );
+    await act(async () => {
+      await result.current.run(async () => 12);
+    });
+    const failed = vi.fn(async () => {
+      throw new Error("connection interrupted");
+    });
+    await act(async () => {
+      await result.current.run(failed);
+    });
+    expect(failed).toHaveBeenCalledTimes(1);
+    expect(result.current.result).toBe(12);
+    expect(result.current.error).toBe("Couldn’t confirm the roll.");
+    expect(result.current.busy).toBe(false);
+    await act(async () => {
+      await result.current.run(async () => 8);
+    });
+    expect(result.current.result).toBe(8);
+    expect(result.current.error).toBeUndefined();
+  });
+
   it("does not retry an uncertain response or surface server internals", async () => {
     reducedMotion();
     const action = vi.fn(async () => {

@@ -576,7 +576,7 @@ function Comparison({
       open
       footer={null}
       onCancel={onClose}
-      width="90vw"
+      width="min(90vw, calc(2 * var(--document-measure) + 6 * var(--space-section) + var(--panel-gap)))"
     >
       <div className="record-comparison">
         <RecordDetailPane

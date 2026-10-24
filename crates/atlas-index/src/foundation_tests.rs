@@ -346,6 +346,50 @@ fn publication_validation_observes_uncommitted_projection_changes() {
     validate_reference(&connection).unwrap();
 }
 #[test]
+fn ritual_summary_preserves_indexed_identity_without_decoding_bodies() {
+    for (ritual, state, value) in [
+        (
+            Some(json!({"primary":{"check":"Religion (expert)"}})),
+            QueryFieldState::Value,
+            Some(true),
+        ),
+        (Some(json!(null)), QueryFieldState::Value, Some(false)),
+        (Some(json!(42)), QueryFieldState::Invalid, None),
+        (None, QueryFieldState::Missing, None),
+    ] {
+        let mut input = fixture(false);
+        let mut source = json!({"_id":"cccccccccccccccc","name":"Ritual","type":"spell","system":{"level":{"value":5}}});
+        if let Some(ritual) = ritual {
+            source["system"]["ritual"] = ritual;
+        }
+        let mut replacement = record("items", "Item", source);
+        replacement.preparation_context_hash = input.records[2].preparation_context_hash.clone();
+        input.records[2] = replacement;
+        synchronize_fixture_terms(&mut input);
+        let (_directory, path) = build(&input);
+        let reader = crate::test_support::open_reader(&path).unwrap();
+        let summary = reader
+            .read_summary(input.records[2].record.key())
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            (summary.spell_ritual.state, summary.spell_ritual.value),
+            (state, value)
+        );
+        assert_eq!(
+            summary.record_kind.as_value(),
+            Some(&atlas_domain::RecordKind::Spell)
+        );
+        let actor = reader
+            .read_summary(input.records[0].record.key())
+            .unwrap()
+            .unwrap();
+        assert_eq!(actor.spell_ritual.state, QueryFieldState::NotApplicable);
+        assert_eq!(reader.read_metrics().source_body_decodes, 0);
+    }
+}
+
+#[test]
 fn roundtrip_summary_content_and_macro_scope() {
     let input = fixture(false);
     let (_directory, path) = build(&input);

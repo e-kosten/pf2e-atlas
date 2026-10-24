@@ -7,6 +7,8 @@ import {
 import { ReferenceReader } from "./ReferenceReader";
 import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
 import { type ReferenceReading } from "./useReferenceReading";
+import { BrowsePaneHeader } from "./BrowsePaneHeader";
+import { useBrowseHeaderAlignment } from "./useBrowseHeaderAlignment";
 
 // The browse host owns layout, scroll and mobile return. Features own rows,
 // queries, selection and mutation semantics; no search DTO is required here.
@@ -36,6 +38,8 @@ export function BrowseReader({
   onResultsScroll?: () => void;
 }) {
   const narrow = !Grid.useBreakpoint().lg;
+  const root = useRef<HTMLDivElement>(null);
+  useBrowseHeaderAlignment(root, !narrow, Boolean(resultsHeader));
   const [closedRequest, setClosedRequest] = useState<ReferenceReading["request"]>();
   const localPositions = useBrowsePositions();
   const saved = positions ?? localPositions;
@@ -95,7 +99,9 @@ export function BrowseReader({
       }}
     >
       {resultsHeader && (
-        <div className="reference-results__header">{resultsHeader}</div>
+        <BrowsePaneHeader className="reference-results__header">
+          {resultsHeader}
+        </BrowsePaneHeader>
       )}
       <div
         className="reference-results__scroll"
@@ -123,6 +129,7 @@ export function BrowseReader({
   );
   return (
     <div
+      ref={root}
       className="reference-browser"
       data-reading={narrow && readerOpen ? "true" : undefined}
     >

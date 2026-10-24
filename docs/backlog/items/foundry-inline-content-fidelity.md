@@ -3,7 +3,7 @@
 Status: proposed
 Priority: before extending supported inline mechanics
 Owner: unassigned
-Last reviewed: 2026-10-19
+Last reviewed: 2026-10-23
 
 Extend the upstream-backed comparison of Foundry rich-text syntax when changing
 the source pin or supporting additional content. ADR 0044 already established
@@ -25,6 +25,21 @@ not a replacement content model or a claim that the existing comparison is absen
 - Use representative corpus examples and adversarial fixtures for accepted
   corrections. Record the exact source revision; older 6.12.4 findings are
   historical evidence, not proof of parity with the current pin.
+
+## Remaining comparison scope
+
+Atlas's reading composition now expands supported paragraph-isolated inline Item
+inclusions from checked prepared fields, with bounded traversal and exact source
+attribution. Stored preparation keeps the embed marker and occurrence; read-time
+composition supplies the included prose. The Fighter class feature and reaction
+remain distinct records and must never be deduplicated by visible name.
+
+The broader comparison remains open: revisit unobserved options, non-Item inserts,
+other insertion positions, localization and contextual expressions against the
+pinned upstream behavior before extending support. Existing unsupported or bounded
+cases retain a local explanation and the checked destination when available.
+Do not infer complete Foundry runtime parity from the supported corpus examples.
+See [the read-time composition boundary](../../architecture/decisions/0044-shared-source-content-interpretation.md).
 
 ## Completion and boundaries
 

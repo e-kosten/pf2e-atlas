@@ -14,6 +14,7 @@ it("renders prepared definition references with their checked destination and st
     <PreparedContentBody
       body={{
         kind: "html",
+        inclusions: [],
         html: '<p>Become <span data-atlas-reference="0">Stupefied 1</span>.</p><img src="x" onerror="alert(1)"><script>alert(1)</script>',
         controls: [],
       }}

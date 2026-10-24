@@ -53,6 +53,84 @@ fn optional_spell_structures_distinguish_missing_leaf_from_unavailable_system() 
 }
 
 #[test]
+fn equipment_reference_facts_preserve_source_dice_zero_and_table_meaning() {
+    let project = |kind: &str, system: serde_json::Value| {
+        let input = record(
+            "items",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":kind,"system":system}),
+        );
+        let SourceNodeView::Item(item) =
+            SourceQueryView::new(input.record.source(), "items", "").source
+        else {
+            panic!("item")
+        };
+        physical(item)
+    };
+    let weapon = project(
+        "weapon",
+        json!({"damage":{"dice":1,"die":"d8","damageType":"slashing"},"range":null,"runes":{"potency":0,"striking":0,"property":[]}}),
+    );
+    let Some(PhysicalDetailsView::Weapon(w)) = weapon.details else {
+        panic!("weapon")
+    };
+    let d = w.damage.value.unwrap();
+    assert_eq!(d.dice.value.unwrap().as_i64(), Some(1));
+    assert_eq!(d.die.value.as_deref(), Some("d8"));
+    assert_eq!(d.damage_type.value.as_deref(), Some("slashing"));
+    assert_eq!(d.modifier.state, QueryFieldState::Missing);
+    assert_eq!(w.range_increment.state, QueryFieldState::Null);
+    let armor = project(
+        "armor",
+        json!({"acBonus":6,"dexCap":0,"checkPenalty":-3,"speedPenalty":-10,"strength":null}),
+    );
+    let Some(PhysicalDetailsView::Armor(a)) = armor.details else {
+        panic!("armor")
+    };
+    assert_eq!(a.dex_cap.value.unwrap().as_i64(), Some(0));
+    assert_eq!(a.check_penalty.value.unwrap().as_i64(), Some(-3));
+    assert_eq!(a.strength.state, QueryFieldState::Null);
+    for (table_hardness, expected) in [(5, true), (9, false)] {
+        let html = format!(
+            "<p>Keep the complete rule.</p><table><tr><th>Hardness</th><th>HP</th><th>BT</th></tr><tr><td>{table_hardness}</td><td>20</td><td>13</td></tr></table>"
+        );
+        let shield = project(
+            "shield",
+            json!({"acBonus":2,"hardness":5,"hp":{"max":20,"value":14},"description":{"value":html}}),
+        );
+        let Some(PhysicalDetailsView::Shield(s)) = shield.details else {
+            panic!("shield")
+        };
+        assert_eq!(s.durability_in_table, expected);
+        assert_eq!(s.hit_points.value.unwrap().as_i64(), Some(20));
+        assert_eq!(s.ac_bonus.value.unwrap().as_i64(), Some(2));
+        // BT13 is authored, not replaced with half HP; no BT calculation exists here.
+    }
+    let kit = project(
+        "kit",
+        json!({"price":{"value":{"sp":15}},"items":{"first":{"name":"Rope","quantity":2,"items":null}}}),
+    );
+    assert_eq!(
+        kit.price.value.unwrap().sp.value.unwrap().as_i64(),
+        Some(15)
+    );
+    let Some(PhysicalDetailsView::Kit(k)) = kit.details else {
+        panic!("kit")
+    };
+    let entries = k.items.value.unwrap();
+    assert_eq!(
+        entries[0].quantity.value.as_ref().unwrap(),
+        &serde_json::Number::from(2)
+    );
+    assert_eq!(entries[0].items.state, QueryFieldState::Null);
+    let unavailable = project("weapon", json!(null));
+    let Some(PhysicalDetailsView::Weapon(w)) = unavailable.details else {
+        panic!("weapon")
+    };
+    assert_eq!(w.damage.state, QueryFieldState::Null);
+}
+
+#[test]
 fn physical_prices_preserve_parent_and_currency_availability_without_mutating_source() {
     for (price, expected) in [
         (None, QueryFieldState::Missing),
@@ -1340,6 +1418,62 @@ fn reference_self_effect_navigation_survives_storage_and_selected_activity_readi
 }
 
 #[test]
+fn ritual_labels_match_root_and_embedded_records_at_selected_ranks() {
+    let ritual = json!({"_id":"ssssssssssssssss","name":"Resurrect","type":"spell","system":{
+        "level":{"value":5},"ritual":{"primary":{"check":"Religion (expert)"},"secondary":{"casters":2,"checks":"Medicine, Society"}}
+    }});
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        move || {
+            Ok(open_source_fixture(
+                vec![
+                    record("spells", "Item", ritual.clone()),
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Caster","items":[ritual]}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let parent = f.worker.record_detail("actors:aaaaaaaaaaaaaaaa").unwrap();
+    let local = &actor(&parent.presentation)
+        .activities
+        .value
+        .as_ref()
+        .unwrap()[0]
+        .navigation;
+    for (key, owners) in [
+        ("spells:ssssssssssssssss", vec![]),
+        ("actors:aaaaaaaaaaaaaaaa", local.owners.clone()),
+    ] {
+        for rank in [None, Some(6)] {
+            let detail = f
+                .worker
+                .record_detail_at(RecordDetailRequest {
+                    record_key: key.into(),
+                    spell_rank: rank,
+                    owners: owners.clone(),
+                    fields: vec![],
+                    passage: None,
+                    source_fingerprint: None,
+                })
+                .unwrap();
+            assert_eq!(detail.presentation.identity.kind, "spell");
+            assert_eq!(detail.presentation.identity.kind_label, "Ritual");
+            assert_eq!(
+                detail.presentation.classification,
+                format!("Ritual {}", rank.unwrap_or(5))
+            );
+            assert_eq!(detail.presentation.identity.record_key, key);
+        }
+    }
+}
+
+#[test]
 fn ritual_casting_preserves_compound_checks_zero_casters_and_unavailability() {
     for (ritual, expected) in [
         (
@@ -1647,7 +1781,7 @@ fn empty_scroll_has_no_invented_spell_link() {
 }
 
 #[test]
-fn selected_kind_labels_are_title_case_without_changing_source_identifiers() {
+fn selected_kind_labels_describe_documents_without_changing_source_identifiers() {
     let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
         1,
         16,
@@ -1692,7 +1826,7 @@ fn selected_kind_labels_are_title_case_without_changing_source_identifiers() {
             "Creature",
         ),
         ("tables:ffffffffffffffff", "roll_table", None, "Roll Table"),
-        ("journals:hhhhhhhhhhhhhhhh", "lore", None, "Lore"),
+        ("journals:hhhhhhhhhhhhhhhh", "lore", None, "Journal"),
         (
             "features:jjjjjjjjjjjjjjjj",
             "campaign_feature",
@@ -1740,8 +1874,8 @@ fn selected_kind_labels_are_title_case_without_changing_source_identifiers() {
             "/items",
             "eeeeeeeeeeeeeeee",
             "campaignFeature",
-            "Campaign Feature",
-            "Campaign Feature · level unavailable",
+            "Campaign feature",
+            "Campaign feature · level unavailable",
         ),
         (
             "tables:ffffffffffffffff",
@@ -1756,8 +1890,8 @@ fn selected_kind_labels_are_title_case_without_changing_source_identifiers() {
             "/pages",
             "iiiiiiiiiiiiiiii",
             "pdf",
-            "PDF",
-            "PDF",
+            "Journal page",
+            "Journal page",
         ),
     ] {
         let detail = fixture
@@ -1783,4 +1917,185 @@ fn selected_kind_labels_are_title_case_without_changing_source_identifiers() {
         assert_eq!(detail.presentation.classification, classification);
         assert_eq!(detail.record.record_key, key);
     }
+}
+
+#[test]
+fn reference_profiles_keep_choices_and_unavailable_source_distinct() {
+    let project = |kind: &str, system: serde_json::Value| {
+        let input = record(
+            "items",
+            "Item",
+            json!({"_id":"aaaaaaaaaaaaaaaa","type":kind,"system":system}),
+        );
+        let SourceNodeView::Item(item) =
+            SourceQueryView::new(input.record.source(), "items", "").source
+        else {
+            panic!("item");
+        };
+        reference_profiles::item(item).unwrap()
+    };
+    let RecordBodyView::Ancestry(v) = project(
+        "ancestry",
+        json!({"hp":10,"speed":0,"boosts":{"first":{"value":["con","wis"]}},"languages":{"value":[]},"vision":"darkvision"}),
+    ) else {
+        panic!("ancestry");
+    };
+    assert_eq!(v.hit_points.value.unwrap().as_u64(), Some(10));
+    assert_eq!(v.speed.value.unwrap().as_u64(), Some(0));
+    assert_eq!(
+        v.boosts.value.unwrap()[0].choices.value,
+        Some(vec!["Constitution".into(), "Wisdom".into()])
+    );
+    assert_eq!(v.languages.value, Some(vec![]));
+    assert_eq!(v.reach.state, QueryFieldState::Missing);
+    let RecordBodyView::Class(v) = project(
+        "class",
+        json!({"savingThrows":{"fortitude":0,"reflex":null,"will":9}}),
+    ) else {
+        panic!("class");
+    };
+    assert_eq!(v.fortitude.value.as_deref(), Some("Untrained"));
+    assert_eq!(v.reflex.state, QueryFieldState::Null);
+    assert_eq!(v.will.state, QueryFieldState::Invalid);
+    let RecordBodyView::Deity(v) = project(
+        "deity",
+        json!({"font":[],"sanctification":{"modal":"must","what":["unholy"]}}),
+    ) else {
+        panic!("deity");
+    };
+    assert_eq!(v.fonts.value, Some(vec![]));
+    assert_eq!(
+        v.sanctification.value.unwrap().requirement.value.as_deref(),
+        Some("must")
+    );
+    for (system, state) in [
+        (json!(null), QueryFieldState::Null),
+        (json!(42), QueryFieldState::Invalid),
+    ] {
+        let RecordBodyView::Ancestry(v) = project("ancestry", system) else {
+            panic!("ancestry");
+        };
+        assert_eq!(v.hit_points.state, state);
+        assert_eq!(v.boosts.state, state);
+    }
+}
+
+#[test]
+fn reference_profile_links_use_exact_source_identity_and_granted_spell_rank() {
+    let (retrieval, _artifact)=open_source_fixture(vec![
+        record("spells","Item",json!({"_id":"aaaaaaaaaaaaaaaa","name":"Fireball","type":"spell","system":{"level":{"value":3}}})),
+        record("other","Item",json!({"_id":"bbbbbbbbbbbbbbbb","name":"Fireball","type":"spell"})),
+    ],false).unwrap();
+    let input = record(
+        "deities",
+        "Item",
+        json!({"_id":"cccccccccccccccc","type":"deity","system":{"spells":{"5":"Compendium.pf2e.spells.Item.Fireball","7":"Compendium.pf2e.absent.Item.Fireball"}}}),
+    );
+    let SourceNodeView::Item(item) =
+        SourceQueryView::new(input.record.source(), "deities", "").source
+    else {
+        panic!("deity");
+    };
+    let mut body = reference_profiles::item(item).unwrap();
+    reference_profiles::resolve_links(&mut body, &retrieval).unwrap();
+    let RecordBodyView::Deity(v) = body else {
+        panic!("deity");
+    };
+    let spells = v.spells.value.unwrap();
+    let matched = spells
+        .iter()
+        .find(|spell| spell.level.value.as_ref().unwrap().as_u64() == Some(5))
+        .unwrap();
+    assert_eq!(
+        matched.navigation.as_ref().unwrap().record_key,
+        "spells:aaaaaaaaaaaaaaaa"
+    );
+    assert_eq!(matched.navigation.as_ref().unwrap().spell_rank, Some(5));
+    assert_eq!(matched.name.value.as_deref(), Some("Fireball"));
+    assert!(
+        spells
+            .iter()
+            .find(|spell| spell.level.value.as_ref().unwrap().as_u64() == Some(7))
+            .unwrap()
+            .navigation
+            .is_none()
+    );
+}
+
+#[test]
+fn campaign_prerequisites_share_attributed_content_selection() {
+    let input = record(
+        "campaign",
+        "Item",
+        json!({"_id":"aaaaaaaaaaaaaaaa","type":"campaignFeature","system":{"prerequisites":{"value":[{"value":"Loyalty 14"},{"value":"trained in Politics"}]},"actionType":{"value":"passive"},"frequency":{"max":2,"per":"day"}}}),
+    );
+    let node = SourceQueryView::new(input.record.source(), "campaign", "").source;
+    let selected = node
+        .content_selections()
+        .into_iter()
+        .filter(|field| field.role == atlas_record::source_record::SourceContentRole::Prerequisite)
+        .collect::<Vec<_>>();
+    assert_eq!(selected.len(), 2);
+    assert_eq!(selected[0].field, "/system/prerequisites/value/0/value");
+    assert_eq!(
+        selected[1].text.value().map(String::as_str),
+        Some("trained in Politics")
+    );
+    let SourceNodeView::Item(item) = node else {
+        panic!("item");
+    };
+    assert!(matches!(
+        selected_item_body(item),
+        SelectedItemBody::Activity { .. }
+    ));
+    let activity = actor::authored_activity(
+        item,
+        RecordNavigationView {
+            record_key: "campaign:aaaaaaaaaaaaaaaa".into(),
+            owners: vec![],
+            spell_rank: None,
+            field: None,
+            passage: None,
+            source_fingerprint: None,
+        },
+    );
+    assert_eq!(
+        activity
+            .frequency
+            .value
+            .unwrap()
+            .maximum
+            .value
+            .unwrap()
+            .as_u64(),
+        Some(2)
+    );
+}
+
+#[test]
+fn reference_profiles_use_vehicle_defenses_and_army_maximum_not_current_hp() {
+    let input = record(
+        "vehicles",
+        "Actor",
+        json!({"_id":"aaaaaaaaaaaaaaaa","type":"vehicle","system":{"attributes":{"ac":{"value":10},"hp":{"value":3,"max":16},"hardness":5,"collisionDC":{"value":14},"collisionDamage":{"value":"2d4"}},"details":{"crew":"1 pilot","speed":"swim 20 feet (rowed)","price":15}}}),
+    );
+    let node = SourceQueryView::new(input.record.source(), "vehicles", "").source;
+    let RecordBodyView::Vehicle(v) = reference_profiles::actor(&input.record, node).unwrap() else {
+        panic!("vehicle");
+    };
+    assert_eq!(v.defenses.armor_class.value.unwrap().as_u64(), Some(10));
+    assert_eq!(v.defenses.hit_points.value.unwrap().as_u64(), Some(16));
+    assert_eq!(v.collision_damage.value.as_deref(), Some("2d4"));
+    let input = record(
+        "armies",
+        "Actor",
+        json!({"_id":"bbbbbbbbbbbbbbbb","type":"army","system":{"attributes":{"hp":{"value":1,"max":4,"routThreshold":2}},"weapons":{"melee":{"name":"Weapons","potency":0},"ranged":null}}}),
+    );
+    let node = SourceQueryView::new(input.record.source(), "armies", "").source;
+    let RecordBodyView::Army(v) = reference_profiles::actor(&input.record, node).unwrap() else {
+        panic!("army");
+    };
+    assert_eq!(v.hit_points.value.unwrap().as_u64(), Some(4));
+    assert_eq!(v.rout_threshold.value.unwrap().as_u64(), Some(2));
+    assert_eq!(v.ranged_weapon.state, QueryFieldState::Null);
 }

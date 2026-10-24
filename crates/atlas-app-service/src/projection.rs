@@ -22,7 +22,15 @@ pub fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
             .as_value()
             .cloned()
             .unwrap_or_else(|| "Unnamed record".into()),
-        kind_label: kind_label(&kind),
+        kind_label: if record.document_kind == "JournalEntry" {
+            "Journal".into()
+        } else if kind == "spell" && record.spell_ritual.as_value() == Some(&true) {
+            "Ritual".into()
+        } else if kind == "equipment" {
+            physical_kind_label(record.source_type.as_value().map(String::as_str))
+        } else {
+            reference_kind_label(record.source_type.as_value().map(String::as_str), &kind)
+        },
         kind,
         source_type: record.source_type.as_value().cloned(),
         level_label: record.level.as_value().map(|level| {
@@ -100,6 +108,32 @@ pub(crate) fn coverage_view(coverage: SearchCoverage) -> SearchCoverageView {
         count_basis: coverage.count_basis,
     }
 }
+/// Display subtypes do not alter canonical equipment identity or filtering.
+pub(crate) fn physical_kind_label(source_type: Option<&str>) -> String {
+    match source_type {
+        Some("weapon") => "Weapon",
+        Some("armor") => "Armor",
+        Some("shield") => "Shield",
+        Some("consumable") => "Consumable",
+        Some("ammo") => "Ammunition",
+        Some("backpack") => "Container",
+        Some("treasure") => "Treasure",
+        Some("kit") => "Kit",
+        _ => "Equipment",
+    }
+    .into()
+}
+
+pub(crate) fn reference_kind_label(source_type: Option<&str>, fallback: &str) -> String {
+    match source_type {
+        Some(
+            value @ ("ancestry" | "heritage" | "background" | "class" | "deity" | "condition"
+            | "effect"),
+        ) => kind_label(value),
+        _ => kind_label(fallback),
+    }
+}
+
 pub(crate) fn kind_label(value: &str) -> String {
     // These source document/family tokens are finite upstream names, not product IDs.
     // Preserve the display boundary while keeping canonical kind/source tokens exact.
@@ -386,6 +420,7 @@ mod tests {
             record_kind: SourceQueryFact::known(atlas_domain::RecordKind::Equipment),
             level: SourceQueryFact::known(1.into()),
             level_basis: Some(SourceLevelBasis::ItemLevel),
+            spell_ritual: SourceQueryFact::unavailable(QueryFieldState::NotApplicable).unwrap(),
             rarity: SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap(),
             traits: SourceQueryFact::known(vec![]),
             size: SourceQueryFact::unavailable(QueryFieldState::NotApplicable).unwrap(),
@@ -393,6 +428,60 @@ mod tests {
             publication_remaster: SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap(),
             source_path: "items/unnamed.json".into(),
             content_hash: "source-content".into(),
+        }
+    }
+
+    #[test]
+    fn equipment_display_subtypes_keep_canonical_identity_and_source_type() {
+        use atlas_domain::SourceQueryFact;
+        let mut source = summary_with_name(SourceQueryFact::known("Item".into()));
+        for (source_type, label) in [
+            ("weapon", "Weapon"),
+            ("armor", "Armor"),
+            ("shield", "Shield"),
+            ("consumable", "Consumable"),
+            ("ammo", "Ammunition"),
+            ("backpack", "Container"),
+            ("treasure", "Treasure"),
+            ("kit", "Kit"),
+            ("equipment", "Equipment"),
+            ("custom-homebrew", "Equipment"),
+        ] {
+            source.source_type = SourceQueryFact::known(source_type.into());
+            let view = record_summary_view(&source);
+            assert_eq!(view.kind_label, label);
+            assert_eq!(view.kind, "equipment");
+            assert_eq!(view.source_type.as_deref(), Some(source_type));
+            assert_eq!(view.record_key, source.key.to_string());
+            assert_eq!(view.level_label.as_deref(), Some("Level 1"));
+        }
+    }
+
+    #[test]
+    fn ritual_display_label_requires_known_ritual_identity_and_keeps_spell_kind() {
+        use atlas_domain::{QueryFieldState, RecordKind, SourceQueryFact};
+        let mut source = summary_with_name(SourceQueryFact::known("Resurrect".into()));
+        source.source_type = SourceQueryFact::known("spell".into());
+        source.record_kind = SourceQueryFact::known(RecordKind::Spell);
+        for (ritual, label) in [
+            (SourceQueryFact::known(true), "Ritual"),
+            (SourceQueryFact::known(false), "Spell"),
+            (
+                SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap(),
+                "Spell",
+            ),
+            (
+                SourceQueryFact::unavailable(QueryFieldState::Invalid).unwrap(),
+                "Spell",
+            ),
+        ] {
+            source.spell_ritual = ritual;
+            let view = record_summary_view(&source);
+            assert_eq!(
+                (view.kind.as_str(), view.kind_label.as_str()),
+                ("spell", label)
+            );
+            assert_eq!(view.record_key, source.key.to_string());
         }
     }
 

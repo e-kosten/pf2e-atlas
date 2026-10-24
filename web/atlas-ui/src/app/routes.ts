@@ -25,24 +25,25 @@ export type AtlasRoute =
   | { kind: "listEdit"; slug: string }
   | {
       kind: "record";
+      section?: string;
       recordKey: string;
       selection?: RecordNavigationView;
-      landing?: RecordNavigationView;
-    }
-  | {
-      kind: "reader";
-      recordKey: string;
-      previewRecordKey: string | null;
-      selection?: RecordNavigationView;
-      previewSelection?: RecordNavigationView;
       landing?: RecordNavigationView;
     };
 
 export const ATLAS_ROUTE_CHANGE_EVENT = "atlas-route-change";
 
-export function parseAtlasRoute(pathname: string, search = ""): AtlasRoute {
+export function parseAtlasRoute(pathname: string, search = "", hash = ""): AtlasRoute {
   try {
-    return parseRoute(pathname, search);
+    const route = parseRoute(pathname, search);
+    if (route.kind === "record" && hash) {
+      try {
+        route.section = decodeURIComponent(hash.replace(/^#/, ""));
+      } catch {
+        route.section = hash.replace(/^#/, "");
+      }
+    }
+    return route;
   } catch (error) {
     return {
       kind: "invalid",
@@ -130,24 +131,15 @@ function parseRoute(pathname: string, search = ""): AtlasRoute {
     };
   }
 
-  const reader = pathname.match(/^\/reader\/(.+)$/);
-  if (reader) {
-    const previewRecordKey = new URLSearchParams(search).get("preview");
-    return {
-      kind: "reader",
-      recordKey: decodeURIComponent(reader[1]),
-      previewRecordKey,
-      landing: selectedNavigation(search, "landing"),
-      selection: selectedNavigation(search),
-      previewSelection: selectedNavigation(search, "previewSelection"),
-    };
-  }
-
   return { kind: "search", selectedRecordKey: null };
 }
 
 export function currentAtlasRoute(): AtlasRoute {
-  return parseAtlasRoute(window.location.pathname, window.location.search);
+  return parseAtlasRoute(
+    window.location.pathname,
+    window.location.search,
+    window.location.hash,
+  );
 }
 
 export function atlasRoutePath(route: AtlasRoute): string {
@@ -180,23 +172,15 @@ export function atlasRoutePath(route: AtlasRoute): string {
     case "listEdit":
       return listEditPath(route.slug);
     case "record":
-      return withLanding(
-        recordPath(route.recordKey) +
-          (route.selection
-            ? "?selection=" + encodeURIComponent(JSON.stringify(route.selection))
-            : ""),
-        route.landing,
+      return (
+        withLanding(
+          recordPath(route.recordKey) +
+            (route.selection
+              ? "?selection=" + encodeURIComponent(JSON.stringify(route.selection))
+              : ""),
+          route.landing,
+        ) + (route.section ? "#" + encodeURIComponent(route.section) : "")
       );
-    case "reader": {
-      const path = readerPath(route.recordKey);
-      const params = new URLSearchParams();
-      if (route.previewRecordKey) params.set("preview", route.previewRecordKey);
-      if (route.selection) params.set("selection", JSON.stringify(route.selection));
-      if (route.previewSelection)
-        params.set("previewSelection", JSON.stringify(route.previewSelection));
-      if (route.landing) params.set("landing", JSON.stringify(route.landing));
-      return path + (params.size ? "?" + params.toString() : "");
-    }
   }
 }
 function listQuery(search: string): { query?: string } {
@@ -279,10 +263,10 @@ export function navigateToAtlasPath(path: string) {
   const url = new URL(path, window.location.origin);
   if (
     url.origin !== window.location.origin ||
-    parseAtlasRoute(url.pathname, url.search).kind === "invalid"
+    parseAtlasRoute(url.pathname, url.search, url.hash).kind === "invalid"
   )
     return;
-  history.pushState(null, "", url.pathname + url.search);
+  history.pushState(null, "", url.pathname + url.search + url.hash);
   window.dispatchEvent(new Event(ATLAS_ROUTE_CHANGE_EVENT));
 }
 
@@ -343,9 +327,6 @@ export function recordPath(recordKey: string): string {
   return `/records/${recordKeyPathSegment(recordKey)}`;
 }
 
-export function readerPath(recordKey: string): string {
-  return `/reader/${recordKeyPathSegment(recordKey)}`;
-}
 function recordKeyPathSegment(recordKey: string): string {
   return encodeURIComponent(recordKey).replace(/%3A/g, ":");
 }

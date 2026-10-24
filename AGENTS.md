@@ -56,6 +56,12 @@ Keep each documentation surface focused on its job:
 
 When writing or editing docs, prefer statements of current behavior and current ownership over repo-history framing unless the document is explicitly an ADR or backlog/history note.
 
+When creating or materially revising project guidance, including contributor and
+agent instructions, use
+[maintain-project-guidance](.codex/skills/maintain-project-guidance/SKILL.md)
+for scoped rules, concrete examples, reconciliation and validation. Keep the
+actual product or workflow rules in their existing documentation owner.
+
 ## Planning Documents
 
 Use a written plan for substantial work, with one current plan per task. Reuse it

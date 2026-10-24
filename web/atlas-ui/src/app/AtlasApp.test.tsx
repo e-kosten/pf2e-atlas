@@ -135,7 +135,7 @@ describe("AtlasApp routing", () => {
     }
   });
 
-  it("restores record and reader views from browser history without running search queries", async () => {
+  it("restores record pages from browser history without running search queries", async () => {
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
 
     await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(1));
@@ -160,16 +160,16 @@ describe("AtlasApp routing", () => {
     );
 
     vi.clearAllMocks();
-    history.pushState(null, "", "/reader/spell%3Aheal?preview=spell%3Alinked");
+    history.pushState(null, "", "/records/spell%3Alinked");
     fireEvent.popState(window);
     await act(() => vi.dynamicImportSettled());
 
     expect(await screen.findByRole("heading", { name: "linked" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "heal" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "heal" })).not.toBeInTheDocument();
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterEditor).not.toHaveBeenCalled();
     expect(apiMocks.discoverFilterValues).not.toHaveBeenCalled();
-    expect(document.title).toBe("heal · Atlas");
+    expect(document.title).toBe("linked · Atlas");
 
     history.pushState(null, "", "/search");
     fireEvent.popState(window);
@@ -643,6 +643,7 @@ describe("AtlasApp routing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
     const dialog = await screen.findByRole("dialog", { name: "Add to List" });
     const selector = within(dialog).getByRole("combobox");
+    await waitFor(() => expect(selector).toBeEnabled());
     fireEvent.mouseDown(selector);
     fireEvent.click(await screen.findByText("Research"));
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));

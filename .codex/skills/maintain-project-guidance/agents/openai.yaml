@@ -1,0 +1,4 @@
+interface:
+  display_name: "Maintain Project Guidance"
+  short_description: "Scoped, verifiable docs and contributor guidance"
+  default_prompt: "Use $maintain-project-guidance to update project documentation and contributor instructions with scoped rules, concrete examples and appropriate validation."

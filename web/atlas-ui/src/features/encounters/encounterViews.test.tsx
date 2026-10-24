@@ -443,7 +443,9 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("link", { name: "Command" }));
-    const reference = await screen.findByLabelText("Reference preview");
+    const reference = (
+      await screen.findByLabelText("Reference content")
+    ).closest<HTMLElement>('[role="dialog"]')!;
     fireEvent.click(await within(reference).findByRole("button", { name: "Cast" }));
     await waitFor(() =>
       expect(apiMocks.applyEncounterSpellAction).toHaveBeenCalledWith(
@@ -453,7 +455,7 @@ describe("encounter views", () => {
         }),
       ),
     );
-    expect(screen.getByLabelText("Reference preview")).toBeInTheDocument();
+    expect(screen.getByLabelText("Reference content")).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Goblin: Command" })).toBeNull();
   });
 
@@ -1083,10 +1085,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Participant settings" }),
-    );
-    fireEvent.click(await screen.findByRole("button", { name: "Original record" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Original record" }));
     const linkedRuleButton = (await screen.findByText("Linked Rule")).closest(
       "a[href]",
     );
@@ -1102,7 +1101,7 @@ describe("encounter views", () => {
         expect.any(AbortSignal),
       ),
     );
-    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Reference content")).toBeInTheDocument();
 
     const kyraRow = (await screen.findByText("Kyra")).closest("button");
     if (!kyraRow) {
@@ -1110,7 +1109,7 @@ describe("encounter views", () => {
     }
     fireEvent.click(kyraRow);
     await waitFor(() =>
-      expect(screen.queryByLabelText("Reference preview")).not.toBeInTheDocument(),
+      expect(screen.queryByLabelText("Reference content")).not.toBeInTheDocument(),
     );
 
     fireEvent.click(
@@ -1119,10 +1118,7 @@ describe("encounter views", () => {
       }),
     );
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Participant settings" }),
-    );
-    fireEvent.click(await screen.findByRole("button", { name: "Original record" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Original record" }));
     const linkedRuleButtonAfterReselect = (
       await screen.findByText("Linked Rule")
     ).closest("a[href]");
@@ -1138,30 +1134,28 @@ describe("encounter views", () => {
       ),
     );
 
-    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Reference content")).toBeInTheDocument();
   });
 
   it("dismisses a linked record preview with Escape", async () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Participant settings" }),
-    );
-    fireEvent.click(await screen.findByRole("button", { name: "Original record" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Original record" }));
     const linkedRule = (await screen.findByText("Linked Rule")).closest("a[href]");
     if (!linkedRule) throw new Error("Linked Rule native link was not rendered");
     fireEvent.click(linkedRule);
-    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Reference content")).toBeInTheDocument();
 
-    const closePreview = screen.getByRole("button", {
-      name: "Close reference preview",
-    });
-    closePreview.focus();
-    fireEvent.keyDown(closePreview, { key: "Escape" });
+    const dialog = screen
+      .getByLabelText("Reference content")
+      .closest<HTMLElement>('[role="dialog"]')!;
+    const heading = within(dialog).getByRole("heading", { level: 2 });
+    heading.focus();
+    fireEvent.keyDown(heading, { key: "Escape", keyCode: 27 });
 
     await waitFor(() =>
-      expect(screen.queryByLabelText("Reference preview")).not.toBeInTheDocument(),
+      expect(screen.queryByLabelText("Reference content")).not.toBeInTheDocument(),
     );
   });
 
@@ -1206,7 +1200,7 @@ describe("encounter views", () => {
       </QueryClientProvider>,
     );
     fireEvent.click(await screen.findByRole("link", { name: "Claw" }));
-    const preview = await screen.findByLabelText("Reference preview");
+    const preview = await screen.findByLabelText("Reference content");
     await waitFor(() =>
       expect(
         within(preview).getByText("Customized participant Claw prose"),
@@ -1321,7 +1315,7 @@ describe("encounter views", () => {
         expect.any(AbortSignal),
       ),
     );
-    expect(await screen.findByLabelText("Reference preview")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Reference content")).toBeInTheDocument();
     expect(await screen.findByText("Frightened Condition")).toBeInTheDocument();
   });
 

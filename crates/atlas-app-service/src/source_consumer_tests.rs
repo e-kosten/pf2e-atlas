@@ -753,7 +753,7 @@ fn explicitly_selected_empty_and_null_prose_keep_distinct_availability() {
         .unwrap();
     let fields = d.presentation.content.iter().collect::<Vec<_>>();
     assert!(
-        matches!(&fields.iter().find(|f|f.locator.field.ends_with("/value")).unwrap().body,PreparedFieldBodyView::Html{html,controls}if html.is_empty()&&controls.is_empty())
+        matches!(&fields.iter().find(|f|f.locator.field.ends_with("/value")).unwrap().body,PreparedFieldBodyView::Html{html,controls,..}if html.is_empty()&&controls.is_empty())
     );
     assert!(matches!(
         &fields

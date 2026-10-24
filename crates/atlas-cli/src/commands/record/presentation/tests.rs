@@ -68,6 +68,20 @@ fn price_units_and_table_collections_preserve_unavailable_and_zero_facts() {
         adjustment: None,
     };
     let physical = PhysicalPresentationView {
+        details: None,
+        quantity: NumberFactView {
+            state: QueryFieldState::Value,
+            value: Some(1.into()),
+            adjustment: None,
+        },
+        material: FactView {
+            state: QueryFieldState::NotApplicable,
+            value: None,
+        },
+        size: FactView {
+            state: QueryFieldState::NotApplicable,
+            value: None,
+        },
         consumable: None,
         usage: known(" \t ".into()),
         bulk: numeric(0),
@@ -583,6 +597,7 @@ fn actor() -> ActorPresentationView {
         languages: known(vec!["common".into()]),
         language_details: missing(),
         activities: known(vec![ActorActivityView {
+            first_level_only: None,
             is_ranged: missing(),
             effect_duration: FactView {
                 state: QueryFieldState::NotApplicable,
@@ -762,6 +777,7 @@ fn cosmetic_blanks_and_inapplicable_rows_are_omitted_without_hiding_known_zero()
     })));
     for body in [
         PreparedFieldBodyView::Html {
+            inclusions: vec![],
             html: "<p> </p>".into(),
             controls: vec![],
         },
@@ -957,6 +973,7 @@ fn prerequisites_render_prepared_content_once_before_description() {
         role: "prerequisite".into(),
         source_fingerprint: None,
         body: PreparedFieldBodyView::Html {
+            inclusions: vec![],
             html: "<strong>expert</strong> in Medicine".into(),
             controls: vec![],
         },

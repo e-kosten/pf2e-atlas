@@ -2,6 +2,7 @@ import { Monitor, Moon, Sun } from "lucide-react";
 import { useRef } from "react";
 import { Alert, Button, Menu, Popover, Segmented, Space, Typography } from "antd";
 import type { MenuProps } from "antd";
+import { restoreOverlayFocus } from "../shared/ui/overlays/restoreOverlayFocus";
 import type { AppReadinessView } from "../generated/atlas";
 import type {
   ColorSchemePreference,
@@ -45,6 +46,8 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const themeTrigger = useRef<HTMLButtonElement>(null);
+  const themeContent = useRef<HTMLDivElement>(null);
   const selectedView = topLevelView(activeView);
   const destinations = [
     { key: "search", label: "Search", href: searchPath(), navigate: onNavigateSearch },
@@ -88,7 +91,10 @@ export function AppShell({
     readinessError?.message ??
     (readiness?.status === "blocked" ? readiness.message : null);
   return (
-    <div className="atlas-app" data-theme={resolvedColorScheme}>
+    <div
+      className={`atlas-app${activeView === "record" || activeView === "trait" ? " atlas-app--document" : ""}`}
+      data-theme={resolvedColorScheme}
+    >
       <Typography.Link
         className="skip-link"
         href="#atlas-main"
@@ -120,21 +126,28 @@ export function AppShell({
         <Space className="topbar__actions" size="small">
           <Popover
             trigger="click"
+            onOpenChange={(open) => {
+              if (!open)
+                restoreOverlayFocus(themeTrigger.current, themeContent.current);
+            }}
             placement="bottom"
             title="Theme"
             content={
-              <Segmented
-                value={colorScheme}
-                onChange={onColorSchemeChange}
-                options={[
-                  { value: "system", label: "System" },
-                  { value: "light", label: "Light" },
-                  { value: "dark", label: "Dark" },
-                ]}
-              />
+              <div ref={themeContent}>
+                <Segmented
+                  value={colorScheme}
+                  onChange={onColorSchemeChange}
+                  options={[
+                    { value: "system", label: "System" },
+                    { value: "light", label: "Light" },
+                    { value: "dark", label: "Dark" },
+                  ]}
+                />
+              </div>
             }
           >
             <Button
+              ref={themeTrigger}
               type="text"
               aria-label="Theme"
               icon={

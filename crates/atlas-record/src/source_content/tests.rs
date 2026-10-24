@@ -465,14 +465,42 @@ fn references_in_nested_labels_keep_separate_identity_without_nested_anchors() {
 }
 
 #[test]
+fn legacy_action_font_letters_use_the_same_accessible_glyphs_as_numeric_actions() {
+    let content = prepare(
+        "<span class='action-glyph'>A</span> <span class='pf2-icon'>D</span> <span class='action-glyph'>T</span> <span class='action-glyph'>unknown</span>",
+    );
+    for (glyph, label) in [
+        ("one_action", "one action"),
+        ("two_actions", "two actions"),
+        ("three_actions", "three actions"),
+    ] {
+        assert!(
+            content
+                .html
+                .contains(&format!("data-atlas-action-glyph=\"{glyph}\""))
+        );
+        assert!(content.text.contains(label));
+    }
+    assert!(content.text.contains("[action glyph: unknown]"));
+    assert_eq!(
+        content
+            .diagnostics
+            .iter()
+            .filter(|d| d.code == ContentDiagnosticCode::UnknownActionGlyph)
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn unknown_and_dynamic_content_survives_without_runtime_evaluation() {
     let content = prepare(
-        "@Mystery[odd]{Label} @Damage[(@actor.level+2)d6[fire]] @Check[type:reflex|dc:resolve(@actor.level)] <span class='action-glyph'>A</span> @Template[cone|distance:resolve(@actor.level)] <span class='pf2-icon'>R</span>",
+        "@Mystery[odd]{Label} @Damage[(@actor.level+2)d6[fire]] @Check[type:reflex|dc:resolve(@actor.level)] <span class='action-glyph'>unknown</span> @Template[cone|distance:resolve(@actor.level)] <span class='pf2-icon'>R</span>",
     );
     assert!(content.text.contains("@Mystery[odd]{Label}"));
     assert!(content.text.contains("(@actor.level+2)d6[fire]"));
     assert!(content.text.contains("resolve(@actor.level)"));
-    assert!(content.text.contains("[action glyph: A]"));
+    assert!(content.text.contains("[action glyph: unknown]"));
     assert!(content.text.contains("reaction"));
     for code in [
         ContentDiagnosticCode::UnknownMacro,

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import { Collapse } from "antd";
 import type {
   FactView,
   HeighteningDamageView,
@@ -120,9 +122,11 @@ function HeighteningDamage({
 function FixedLevels({
   fact,
   patch = false,
+  selectedRank,
 }: {
   fact: FactView<SpellFixedLevelView[]>;
   patch?: boolean;
+  selectedRank?: number;
 }) {
   if (!hasReadingFact(fact, { patch })) return null;
   if (fact.state !== "value" || !fact.value)
@@ -131,17 +135,31 @@ function FixedLevels({
     return <FactLine label="Fixed ranks" fact={fact} patch={patch} />;
   return (
     <>
-      {fact.value.map((level) => (
-        <section key={level.rank} className="spell-reference__change">
-          <h4>Heightened (rank {level.rank})</h4>
-          {level.changes.value ? (
-            <SpellChanges changes={level.changes.value} />
-          ) : (
-            <FactLine label="Other changes" fact={level.changes} patch />
-          )}
+      {fact.value.filter(hasLevelChanges).map((level) => (
+        <section
+          key={level.rank}
+          className="spell-reference__rank-change"
+          aria-current={level.rank === selectedRank ? "true" : undefined}
+        >
+          <h4>Rank {level.rank}</h4>
+          <div>
+            {level.changes.value ? (
+              <SpellChanges changes={level.changes.value} />
+            ) : (
+              <FactLine label="Other changes" fact={level.changes} patch />
+            )}
+          </div>
         </section>
       ))}
     </>
+  );
+}
+
+function hasLevelChanges(level: SpellFixedLevelView) {
+  if (level.changes.state !== "value" || !level.changes.value) return true;
+  // Omit an empty sparse patch, but retain explicit clears, empty values and errors.
+  return Object.values(level.changes.value).some(
+    (fact) => fact.state !== "missing" && fact.state !== "not_applicable",
   );
 }
 function HeighteningChanges({ fact }: { fact: FactView<SpellHeighteningChangeView> }) {
@@ -190,34 +208,66 @@ export function SpellChanges({ changes }: { changes: SpellChangeView }) {
     </>
   );
 }
-function Heightening({ fact }: { fact: FactView<SpellHeighteningView> }) {
+function Heightening({
+  fact,
+  selectedRank,
+}: {
+  fact: FactView<SpellHeighteningView>;
+  selectedRank?: number;
+}) {
   if (fact.state !== "value" || !fact.value)
     return <FactLine label="Heightening" fact={fact} />;
   const heightening = fact.value;
   if (heightening.kind === "fixed" && !hasReadingFact(heightening.levels)) return null;
+  if (
+    heightening.kind === "fixed" &&
+    heightening.levels.state === "value" &&
+    heightening.levels.value &&
+    !heightening.levels.value.some(hasLevelChanges)
+  )
+    return null;
   return (
-    <section className="spell-reference__heightening">
-      <h3>Heightening</h3>
-      {heightening.kind === "interval" ? (
-        <>
-          <FactRow label="Heightened">
-            (+
-            <NumberFact fact={heightening.interval} />)
-          </FactRow>
-          {!["missing", "not_applicable"].includes(heightening.area.state) && (
-            <FactRow label="Area increase">
-              <NumberFact fact={heightening.area} unit=" feet" />
-            </FactRow>
-          )}
-          <HeighteningDamage fact={heightening.damage} />
-        </>
-      ) : (
-        <FixedLevels fact={heightening.levels} />
-      )}
-    </section>
+    <Collapse
+      className="spell-reference__heightening"
+      size="small"
+      items={[
+        {
+          key: "heightening",
+          label: "Heightening details",
+          children:
+            heightening.kind === "interval" ? (
+              <>
+                <FactRow label="Heightened">
+                  (+
+                  <NumberFact fact={heightening.interval} />)
+                </FactRow>
+                {!["missing", "not_applicable"].includes(heightening.area.state) &&
+                  !(
+                    heightening.area.state === "value" &&
+                    Number(heightening.area.value) === 0
+                  ) && (
+                    <FactRow label="Area increase">
+                      <NumberFact fact={heightening.area} unit=" feet" />
+                    </FactRow>
+                  )}
+                <HeighteningDamage fact={heightening.damage} />
+              </>
+            ) : (
+              <FixedLevels fact={heightening.levels} selectedRank={selectedRank} />
+            ),
+        },
+      ]}
+    />
   );
 }
-export function SpellReference({ spell }: { spell: SpellPresentationView }) {
+export function SpellReference({
+  spell,
+  children,
+}: {
+  spell: SpellPresentationView;
+  children?: ReactNode;
+}) {
+  const ritual = spell.ritual.state === "value" ? spell.ritual.value : null;
   return (
     <div className="spell-reference">
       {spell.rank_note && <p>{spell.rank_note}</p>}
@@ -251,22 +301,27 @@ export function SpellReference({ spell }: { spell: SpellPresentationView }) {
           <FactLine label="Requirements" fact={spell.requirements} />
         )}
         {spell.cost && <FactLine label="Cost" fact={spell.cost} />}
-        {spell.ritual.value ? (
-          <>
-            <FactLine
-              label="Primary check"
-              fact={spell.ritual.value.primary_check}
-              required
-            />
+        {ritual ? (
+          <div className="spell-reference__ritual-checks">
+            <FactLine label="Primary check" fact={ritual.primary_check} required />
             <FactRow label="Secondary casters">
-              <NumberFact fact={spell.ritual.value.secondary_casters} />
+              {ritual.secondary_casters.state === "null" ? (
+                "Not specified"
+              ) : (
+                <NumberFact fact={ritual.secondary_casters} label="Secondary casters" />
+              )}
             </FactRow>
-            <FactLine
-              label="Secondary checks"
-              fact={spell.ritual.value.secondary_checks}
-              required
-            />
-          </>
+            {ritual.secondary_checks.state === "value" &&
+            !ritual.secondary_checks.value?.trim() ? (
+              <FactRow label="Secondary checks">None listed</FactRow>
+            ) : (
+              <FactLine
+                label="Secondary checks"
+                fact={ritual.secondary_checks}
+                required
+              />
+            )}
+          </div>
         ) : (
           spell.ritual.state !== "missing" && (
             <FactLine label="Ritual casting" fact={spell.ritual} />
@@ -289,11 +344,22 @@ export function SpellReference({ spell }: { spell: SpellPresentationView }) {
         ) : (
           <FactLine label="Sustained" fact={spell.sustained} />
         )}
+        {spell.damage.state === "value" && spell.damage.value?.length ? (
+          <div className="spell-reference__damage">
+            <strong>Damage</strong>
+            <DamageComponents damage={spell.damage} />
+          </div>
+        ) : (
+          <DamageComponents damage={spell.damage} />
+        )}
       </div>
-      <DamageComponents damage={spell.damage} />
+      {children}
       {
         <>
-          <Heightening fact={spell.heightening} />
+          <Heightening
+            fact={spell.heightening}
+            selectedRank={spell.rank.value ?? undefined}
+          />
           {spell.forms.value?.length ? (
             <section className="spell-reference__forms">
               <h3>Spell forms</h3>

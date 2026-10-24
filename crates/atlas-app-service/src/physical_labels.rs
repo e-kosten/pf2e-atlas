@@ -237,6 +237,9 @@ pub(crate) const USAGES: &[(&str, &str)] = &[
         "Held in 1 hand, hung on a cord, or attached to clothing",
     ),
     ("held-in-one-hand", "Held in 1 hand"),
+    // Legacy authored spelling still present in the pinned weapon pack. Preserve
+    // the plus qualifier; this is not a normalized one-or-two-hands requirement.
+    ("held-in-one-plus-hands", "Held in 1+ hands"),
     (
         "held-in-one-hand-or-free-standing",
         "Held in 1 hand or free-standing",
@@ -379,10 +382,7 @@ mod tests {
             super::usage("held-in-one-or-two-hands"),
             "Held in 1 or 2 hands"
         );
-        assert_eq!(
-            super::usage("held-in-one-plus-hands"),
-            "held-in-one-plus-hands"
-        );
+        assert_eq!(super::usage("held-in-one-plus-hands"), "Held in 1+ hands");
         assert_ne!(
             super::usage("held-in-one-hand"),
             super::usage("held-in-two-hands")

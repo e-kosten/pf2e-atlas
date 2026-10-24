@@ -97,18 +97,7 @@ pub(crate) fn authored_actor(
         _ => (unavailable(), unavailable(), unavailable(), unavailable()),
     };
     ActorPresentationView {
-        size: fact(a.size().map(|size| {
-            use atlas_foundry_model::generated::PhysicalSystemSourceSize::*;
-            match size {
-                Grg => "Gargantuan",
-                Huge => "Huge",
-                Lg => "Large",
-                Med => "Medium",
-                Sm => "Small",
-                Tiny => "Tiny",
-            }
-            .to_owned()
-        })),
+        size: fact(a.size().map(super::facts::size_label)),
         hardness: number(a.creature_hardness()),
         ritual_difficulty_class: number(a.ritual_difficulty_class()),
         defense_notes: ActorDefenseNotesView {
@@ -231,7 +220,7 @@ pub(crate) fn authored_activities(
     fact(items.map(|_| activities))
 }
 
-fn iwr(
+pub(super) fn iwr(
     v: SourceFieldView<'_, atlas_record::source_record::ActorIwrEntries<'_>>,
 ) -> FactView<Vec<IwrEntryView>> {
     fact(v.map(|v| {
@@ -390,6 +379,14 @@ pub(super) fn authored_activity(
         ),
     };
     let mut activity = ActorActivityView {
+        first_level_only: match item {
+            ItemSourceView::FeatSource(source) => Some(fact(
+                SourceFieldView::from(&source.system)
+                    .and_then(|s| (&s.only_level1).into())
+                    .map(|v| *v),
+            )),
+            _ => None,
+        },
         is_ranged: fact(match item {
             ItemSourceView::MeleeSource(s) => {
                 match SourceFieldView::from(&s.system).and_then(|s| (&s.range).into()) {

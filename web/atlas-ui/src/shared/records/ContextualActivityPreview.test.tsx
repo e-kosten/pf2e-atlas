@@ -25,7 +25,7 @@ import {
   unavailableFact,
 } from "../../test/fixtures";
 import { useRecordPreview } from "./useRecordPreview";
-import { RecordPreviewPopover } from "./RecordPreviewPopover";
+import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
 import { atlasRoutePath } from "../../app/routes";
 import { AtlasApiError } from "../../api/atlasApi";
 
@@ -64,6 +64,7 @@ function response(request: EncounterReferenceRequest): RecordDetailView {
                 source_fingerprint: "snapshot",
                 body: {
                   kind: "html",
+                  inclusions: [],
                   html: '<p>Exact local Jaws prose <span data-atlas-interaction="0">Reflex check</span></p>',
                   controls: [
                     {
@@ -121,7 +122,7 @@ function Flow({
         Jaws quick lookup
       </button>
       {preview.recordKey && (
-        <RecordPreviewPopover
+        <RecordReferenceDrawer
           context={context}
           anchor={preview.anchor}
           readingHistory={preview.readingHistory}
@@ -293,8 +294,8 @@ it("keeps the mounted document and reading position through a pending contextual
   const { update } = mount(jaws);
   fireEvent.click(screen.getByRole("button", { name: "Jaws quick lookup" }));
   const prose = await screen.findByText(/Exact local Jaws prose/);
-  const popup = screen.getByRole("dialog", { name: "Reference preview" });
-  const body = document.querySelector<HTMLElement>(".record-preview-popover__body")!;
+  const popup = screen.getByRole("dialog", { name: "Jaws 1 action" });
+  const body = document.querySelector<HTMLElement>(".record-preview-drawer__body")!;
   body.scrollTop = 180;
   let reject: (error: Error) => void = () => {};
   api.getEncounterReference.mockImplementationOnce(
@@ -305,7 +306,7 @@ it("keeps the mounted document and reading position through a pending contextual
   );
   update({ ...jaws, attack: numberFact(17) });
   await waitFor(() => expect(api.getEncounterReference).toHaveBeenCalledTimes(2));
-  expect(screen.getByRole("dialog", { name: "Reference preview" })).toBe(popup);
+  expect(screen.getByRole("dialog", { name: "Jaws 1 action" })).toBe(popup);
   expect(screen.getByText(/Exact local Jaws prose/)).toBe(prose);
   expect(body.scrollTop).toBe(180);
   await act(async () => reject(new Error("Context refresh failed")));
@@ -431,8 +432,10 @@ it.each(["desktop", "narrow"])(
     const trigger = screen.getByRole("button", { name: "Jaws quick lookup" });
     act(() => trigger.focus());
     fireEvent.click(trigger);
-    const full = await screen.findByRole("link", { name: "Open reference full page" });
-    await waitFor(() => expect(full).toHaveFocus());
+    await screen.findByRole("link", { name: "Open reference full page" });
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "Jaws 1 action" })).toHaveFocus(),
+    );
     const marker = await screen.findByRole("button", { name: "Reflex check" });
     act(() => marker.focus());
     fireEvent.keyDown(marker, { key: "Enter" });
@@ -442,11 +445,9 @@ it.each(["desktop", "narrow"])(
     fireEvent.keyDown(ok, { key: "Escape", keyCode: 27 });
     await waitFor(() => expect(modal).not.toBeInTheDocument());
     expect(marker).toHaveFocus();
-    const close = screen.getByRole("button", {
-      name: viewport === "narrow" ? "Close" : "Close reference preview",
-    });
-    act(() => close.focus());
-    fireEvent.keyDown(close, { key: "Escape", keyCode: 27 });
+    const heading = screen.getByRole("heading", { name: "Jaws 1 action" });
+    act(() => heading.focus());
+    fireEvent.keyDown(heading, { key: "Escape", keyCode: 27 });
     await waitFor(() =>
       expect(
         screen.queryByRole("link", { name: "Open reference full page" }),

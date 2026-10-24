@@ -1,3 +1,4 @@
+import { recordLayout } from "./recordLayout";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import { Button, Space, Typography } from "antd";
 import { ArrowLeft, ExternalLink } from "lucide-react";
@@ -9,13 +10,14 @@ import {
   shouldHandleAtlasRouteClick,
 } from "../../app/routes";
 import { useRecordPreview } from "./useRecordPreview";
-import { RecordPreviewPopover } from "./RecordPreviewPopover";
+import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
 import { activityAnchor } from "./embeddedNavigation";
 import { rootNavigation, type ReferenceReading } from "./useReferenceReading";
 import { usePreviewContentFocus } from "./usePreviewContentFocus";
 import { landReadingTarget } from "./landReadingTarget";
+import { BrowsePaneHeader } from "./BrowsePaneHeader";
 
 export function ReferenceReader({
   reading,
@@ -219,8 +221,11 @@ export function ReferenceReader({
       }
     : null;
   return (
-    <section className="reference-reader" aria-label="Record preview">
-      <div className="reference-reader__header">
+    <section
+      className={`reference-reader reference-reader--${recordLayout(detail?.presentation)}`}
+      aria-label="Record preview"
+    >
+      <BrowsePaneHeader className="reference-reader__header">
         {onResults ? (
           <Button ref={backRef} icon={<ArrowLeft size={16} />} onClick={onResults}>
             Results
@@ -273,7 +278,7 @@ export function ReferenceReader({
             />
           )}
         </Space>
-      </div>
+      </BrowsePaneHeader>
       <section
         className="reference-reader__scroll"
         {...contentFocus}
@@ -304,7 +309,7 @@ export function ReferenceReader({
       </section>
       {readerFooter}
       {preview.recordKey && (
-        <RecordPreviewPopover
+        <RecordReferenceDrawer
           anchor={preview.anchor}
           visibleOwnerRecordKey={
             detail?.selected.embedded_path.length === 0

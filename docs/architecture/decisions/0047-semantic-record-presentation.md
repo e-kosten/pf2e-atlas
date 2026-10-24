@@ -20,8 +20,9 @@ App-service projects selected records into explicit semantic family responses
 exported by app-model. Each presentation contains selected identity, prepared
 content, useful immediate owned-document navigation, and a tagged family body.
 The detail envelope retains the root summary and complete selected address.
-Creature, hazard, spell, activity, physical-reference, and table responses carry
-only facts needed by current consumers. Other families intentionally use content
+Creature, hazard, spell, activity, physical-reference, ancestry, heritage, class,
+deity, vehicle, army, and table responses carry only facts needed by current
+consumers. Other families intentionally use content
 and owner links until a useful family presentation is designed.
 
 Reference and encounter composition share authored actor extraction. Encounters
@@ -30,6 +31,23 @@ presentation beside durable participant state. Modifier explanations accompany
 the actual adjusted facts. There is no public duplicate stat-block transport.
 The private encounter arithmetic workspace supports existing bounded rules; it
 is not another response or an authored reference projection owner.
+
+Authored inline Item inclusions are composed at selected-read time in app-service,
+using record-owned field/option policy and the checked prepared caches. Flat,
+occurrence-local binding namespaces retain each included field's source locator,
+controls and exact relationships; they are not another public document tree.
+The composed HTML is shared by browser and terminal readers. Request-wide limits
+bound inclusions, depth, fields, references and HTML size. Cycles or unsupported
+insertions retain a local unavailable explanation and exact navigation where
+resolved; artifact/generation failures keep canonical recovery. Ordinary links
+are not expanded. Stored HTML, search text and graph occurrences stay unchanged.
+Prepared reading composition can link an immediately preceding heading for one
+inclusion, or promote an authored standalone action-title/glyph line. It uses
+checked same-target reference ordinals and structural adjacency, never name-based
+matching. Existing heading IDs and local reading landings retain their meaning;
+source navigation uses the inclusion's exact reference namespace. Description-only
+insertions add neither a heading nor a source shortcut. Existing Related records
+provides secondary access to the underlying record.
 
 Borrowed record views remain storage and presentation neutral. They preserve
 availability and typed values; app-service owns labels and semantic composition.
@@ -107,11 +125,26 @@ qualifiers. These policies do not rewrite checked DTOs or stored facts, inspect
 HTML for semantic emptiness, or introduce a visibility model.
 
 Physical price responses preserve outer and per-currency availability as typed
-number facts. Readers omit missing optional currency leaves but retain null,
-invalid and zero members; an empty currency object does not imply a free item.
+number facts. Readers omit missing optional currency leaves, retain null/invalid
+members and zero-only prices, and may omit redundant known-zero denominations
+beside a nonzero amount. They do not convert currencies; an empty currency object
+does not imply a free item.
 RollTable results carry collection availability and their sole authoritative
 owned-link list in the table body, rather than duplicating it in generic owned
 links. Both corrections are transient app-service projections over existing DTOs.
+
+Equipment subtype facts remain typed rather than becoming a generic field-layout
+interpreter. Base damage, rune labels, armor, container, ammunition and kit facts
+are projected from checked DTOs; UI layout does not calculate effective combat
+values. Authored tables remain source content. A narrow record-owned recognition
+policy marks a preserved two-row Hardness/HP/BT table as covering shield durability
+only when both hardness and maximum HP equal the typed source values. Mismatched
+or more complex tables do not suppress summaries, and BT is never synthesized.
+
+Content interpretation recognizes legacy PF2e font letters A/D/T alongside numeric
+action glyphs, with the same semantic markup and accessible labels. Its versioned
+preparation context requires ordinary reference republication; neither browser
+text replacement nor a legacy cached-HTML adapter is a supported update path.
 
 The shared browser identity row uses a compact service-owned classification
 caption derived from typed kind and level/rank facts. Known zero is meaningful;
@@ -197,8 +230,14 @@ shared Ant-based primitives. A new component needs a clear responsibility or
 actual reuse need; local copies of the same family layout are not independent
 presentation owners.
 
-Reference reading puts descriptive prose before grouped mechanics; encounters
-prioritize current combat state and actions. Family sections adapt to actual pane
+Reference reading uses family-specific task order: spells put supplied casting
+facts and damage before authored prose, followed by structured heightening and forms.
+Other reference families use their own task order; encounters
+prioritize current combat state and actions. A single principal description in a
+simple record needs no renderer-added Description heading; authored headings,
+other field labels and multiple description fields remain intact. These are
+browser composition rules, not changed projections or source parsing.
+Family sections adapt to actual pane
 width rather than assuming full-window width. Reference consumers show the same
 content and facts; compact density does not suppress sections. Immediate
 Ability-class action/effect/feat content reads inline by default through a
@@ -218,10 +257,10 @@ loaded text with local retry. A direct late owner starts at its bounded range,
 with explicit omitted-earlier content and backward/forward continuation. Anchors
 encode the complete checked owner address, while a separate landing state keeps
 parent return distinct from selected identity. Native permalinks and breadcrumbs
-preserve modified clicks and known search/list/reader context.
+preserve modified clicks and known search/list/record context.
 
 Encounter native quick lookup returns the complete selected-document view through
-the shared family renderer, with compact density. Rust app-service composes the
+the shared family renderer in a contextual Drawer. Rust app-service composes the
 selected view from one checked parent and the participant's current local state,
 retaining adjusted activities, casting rosters, complete spell details and runtime
 notes, and customized equipment. Runtime results have a separate participant and
@@ -240,13 +279,14 @@ display a generic Reference heading; native accessible labels remain available.
 
 Search and saved-list browsing share the browser's results/reader composition and
 record-summary activation while retaining feature-owned queries, match evidence,
-membership and ordering. The same reference reader serves the explicit Reader
-companion. Following document links changes local reading position, independently
-of selection or mutation drafts. A bounded session history restores exact
-navigation and scroll; browser history remains ordinary route navigation.
-Where no reader is present, shared previews use a desktop Popover and a Drawer
-below md (768px), with one renderer and one nested reading session. Native exact hrefs
-retain deliberate full-page and modified-click navigation. These browser rules
+membership and ordering. Following document links opens one shared contextual
+Ant Drawer on every viewport, independently of primary selection or mutation
+drafts. Nested links reuse that session; bounded local history restores exact
+navigation and scroll. Browser history remains ordinary route navigation.
+Full pages use the same family renderer. The separate Reader mode, companion
+layout and route are removed without an adapter. Native exact hrefs retain
+full-page and modified-click navigation. Original record links use the same
+contextual reading session while preserving typed provenance and local identity. These browser rules
 live in the frontend guidelines; they do not introduce stored content, a generic
 navigation framework or new backend presentation semantics.
 
@@ -263,7 +303,6 @@ immutable artifact-context hash for generation-aware secondary queries. This doe
 not replace source fingerprints in snapshot-local navigation. Similar remains a
 root discovery criterion in the stateless search-page workflow of ADR0049, with a
 body-free seed summary and truthful bounded pages, rather than a relationship.
-
 
 Embedded activity summaries expose `has_reference_details` from app-service.
 Selected item-body dispatch is shared with that decision: spell, physical and
@@ -292,3 +331,17 @@ keep the explicit Spell association. Conflicting/unavailable provenance does not
 choose a winner. This establishes contextual reading, not activation, consumption,
 targeting or casting execution semantics. Neither the graph edge nor the authored
 source is rewritten to make the display work.
+
+Read-only ancestry, class, deity, vehicle and army reference bodies carry supplied
+semantic facts with explicit availability. Class proficiencies are initial ranks,
+not an effective character build; army resources are supplied template values,
+not saved encounter expenditure. Class/ancestry grants and deity spell grants
+retain their supplied level/rank and resolve only verified root destinations.
+The record-owned SourceReferenceIndex identity/name policy is shared with a bounded,
+body-free search lookup over summaries; detail projection does not decode linked
+source documents or guess destinations from labels. Ambiguity remains unresolved.
+
+Campaign-feature prerequisites share attributed rich-field selection with feat
+prerequisites. Content interpretation version 9 includes that selection; existing
+artifacts require normal republication. Reference profile additions themselves
+are transient app projections and require no schema change or new gameplay rules.

@@ -16,7 +16,7 @@ import type {
   EmbeddedReadingRequest,
 } from "../../generated/atlas";
 import { recordDetailQueryOptions } from "./recordDetailQuery";
-import { RecordPreviewPopover } from "./RecordPreviewPopover";
+import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
 import { atlasRoutePath } from "../../app/routes";
 import { AtlasApiError } from "../../api/atlasApi";
 
@@ -249,12 +249,12 @@ it("cancels a pending old-generation read when identity changes and discards its
   expect(api.getEmbeddedReading).toHaveBeenCalledTimes(2);
 });
 
-it.each(["popover", "drawer", "comparison"])(
+it.each(["desktop", "narrow", "comparison"])(
   "uses the actual %s scrolling container and never drains a visible idle sentinel",
   async (surface) => {
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({
-      md: surface !== "drawer",
-      xs: surface === "drawer",
+      md: surface !== "narrow",
+      xs: surface === "narrow",
     });
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -278,7 +278,7 @@ it.each(["popover", "drawer", "comparison"])(
           {surface === "comparison" ? (
             <div className="comparison-test-host">{content}</div>
           ) : (
-            <RecordPreviewPopover
+            <RecordReferenceDrawer
               anchor={document.createElement("button")}
               detail={detail}
               loading={false}
@@ -294,11 +294,9 @@ it.each(["popover", "drawer", "comparison"])(
       expect(screen.getByText("Ability 0 authored explanation")).toBeVisible(),
     );
     const host = document.querySelector<HTMLElement>(
-      surface === "drawer"
-        ? ".record-preview-drawer__body"
-        : surface === "popover"
-          ? ".record-preview-popover__body"
-          : ".comparison-test-host",
+      surface === "comparison"
+        ? ".comparison-test-host"
+        : ".record-preview-drawer__body",
     )!;
     vi.spyOn(host, "getBoundingClientRect").mockReturnValue(
       new DOMRect(0, 0, 400, 300),

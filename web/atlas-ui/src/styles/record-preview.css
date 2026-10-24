@@ -1,47 +1,17 @@
-.record-preview-loading {
-  position: absolute;
-  inset-inline-start: 100%;
-  top: 0;
-  margin-inline-start: 4px;
-}
-
-.record-preview-popover__header {
-  min-width: 0;
-  padding-block-end: 8px;
-  align-items: center;
-  display: flex;
-  font-weight: 600;
-  justify-content: flex-end;
-}
-
-.record-preview-popover__surface {
-  width: min(560px, calc(100vw - 48px));
-}
-
-.record-preview-popover__body {
-  position: relative;
-  width: 100%;
-  max-height: min(560px, calc(100vh - 96px));
-  min-height: 0;
-  overscroll-behavior: contain;
-  overflow: auto;
-}
-
-/* The scroll host anchors refresh feedback. A positioned nested panel can
-   intercept toolbar clicks above the native popover's scrolled viewport. */
-.record-preview-popover__body > .detail-panel {
-  position: static;
+.record-preview-drawer {
+  --record-drawer-inset: var(--space-section);
 }
 
 .record-preview-drawer__header {
-  padding: 16px;
+  max-height: min(50dvh, 360px);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .record-preview-drawer__body {
   min-height: 0;
   overscroll-behavior: contain;
   overflow: auto;
-  padding: 0;
 }
 
 .record-comparison {
@@ -65,7 +35,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  width: 100%;
+  max-width: 100%;
   gap: 8px;
   font-weight: normal;
 }
@@ -73,4 +43,21 @@
   grid-column: 2;
   grid-row: 1;
   justify-self: end;
+}
+
+.record-preview-drawer__body .detail-panel {
+  padding: 0;
+}
+.record-preview-drawer__header .record-reference__header--stacked {
+  border: 0;
+  padding: 0;
+  font-weight: normal;
+}
+@media (max-width: 600px) {
+  .record-preview-drawer {
+    --record-drawer-inset: var(--space-group);
+  }
+  .record-preview-drawer__header .record-reference__title h2 {
+    font-size: 1.25rem;
+  }
 }

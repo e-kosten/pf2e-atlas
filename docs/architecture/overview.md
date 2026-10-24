@@ -106,6 +106,8 @@ from source remaining uses or saved encounter expenditure. CLI and web readers
 render these shared facts; known-empty optional notes remain quiet and malformed
 source values retain their unavailable state.
 
+Body-free summaries carry the indexed ritual discriminator for display labels;
+rituals retain the canonical spell kind and existing filter semantics.
 Ritual reference facts preserve authored primary/secondary checks and caster counts;
 counteraction is a source capability, not a calculated target DC. Feat prerequisites
 retain authored alternatives without eligibility evaluation. Each prerequisite is
@@ -114,6 +116,24 @@ field address; CLI and browser render those fields before descriptive prose. Eff
 is separate from saved encounter timing: encounter/unlimited units ignore numeric
 sentinels and inapplicable turn-expiry metadata, matching the pinned system policy.
 These facts are projected once in app-service for CLI and shared browser readers.
+
+Ancestry, class, deity, vehicle and army reference profiles project supplied facts
+without character building or gameplay execution. Class proficiencies are initial
+ranks; grants retain source levels and deity spells retain granted ranks. Verified
+root links reuse record-owned identity/name resolution through bounded summary-only
+search reads, without decoding linked bodies. Campaign prerequisites share the
+attributed content selection used for feat prerequisites; content/v9 binds that
+selection. Existing artifacts require normal republication, not a browser fallback.
+
+Physical reference bodies use a typed subtype union for weapons, armor, shields,
+containers, ammunition and kits. App-service projects existing checked source
+facts, including base weapon damage and separate rune labels; it does not compute
+wearer AC, effective rune damage or inventory expenditure. Kit contents retain
+source order, nesting, quantities and availability without creating saved items.
+Authored descriptions and tables remain intact. The record-owned shield content
+policy recognizes only an exact two-row Hardness/HP/BT table whose hardness and
+maximum HP match the typed facts; app-service can then omit duplicate durability
+summaries. It never computes BT or suppresses conflicting source values.
 
 App-service owns product filter grouping and editor hints shared by CLI discovery
 and the web builder, including compact collection controls and short choice lists.

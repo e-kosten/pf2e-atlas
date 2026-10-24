@@ -52,6 +52,48 @@ function renderControls(
 describe("shared common and maintained advanced filters", () => {
   beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
   afterEach(() => vi.restoreAllMocks());
+  it("keeps the search draft, focus and fixed controls mounted while filter definitions arrive", () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const setSearch = vi.fn();
+    const catalog = editorFixture([
+      fieldFixture("level_or_rank", "number", "Level / rank"),
+    ]);
+    const view = (filterEditor?: FilterEditorView, loading = false) => (
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <QueryClientProvider client={client}>
+          <FilterControls
+            layout="toolbar"
+            filterState={{
+              search: DEFAULT_SEARCH_STATE,
+              setSearch,
+              filterEditor,
+              filterDiscoveryLoading: loading,
+            }}
+          />
+        </QueryClientProvider>
+      </ConfigProvider>
+    );
+    const { rerender } = render(view(undefined, true));
+    const input = screen.getByRole("searchbox", { name: "Search records" });
+    const advanced = screen.getByRole("button", { name: "Advanced filters" });
+    const pending = screen.getByRole("status", { name: "Loading filters" });
+    expect(input.closest(".filter-controls__search-row")).not.toContainElement(pending);
+    expect(pending.closest(".filter-controls__criteria")).not.toBeNull();
+    input.focus();
+    fireEvent.change(input, { target: { value: "unfinished spell search" } });
+    rerender(view(catalog));
+    expect(screen.getByRole("searchbox", { name: "Search records" })).toBe(input);
+    expect(input).toHaveValue("unfinished spell search");
+    expect(input).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Advanced filters" })).toBe(advanced);
+    expect(screen.queryByRole("status", { name: "Loading filters" })).toBeNull();
+    const level = screen.getByRole("button", { name: "Edit Level / rank range" });
+    rerender(view(catalog, true));
+    expect(screen.getByRole("button", { name: "Edit Level / rank range" })).toBe(level);
+    expect(screen.queryByRole("status", { name: "Loading filters" })).toBeNull();
+    expect(input).toHaveFocus();
+    expect(setSearch).not.toHaveBeenCalled();
+  });
   it("does not announce pending changes for an empty filter draft", () => {
     renderControls(
       editorFixture([fieldFixture("defenses.hp.maximum", "number", "Maximum HP")]),
