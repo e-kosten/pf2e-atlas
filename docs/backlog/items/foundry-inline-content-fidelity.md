@@ -26,21 +26,20 @@ not a replacement content model or a claim that the existing comparison is absen
   corrections. Record the exact source revision; older 6.12.4 findings are
   historical evidence, not proof of parity with the current pin.
 
-## Concrete embed gap
+## Remaining comparison scope
 
-At pin `28d9d156f252d084371d994dc359509b49eadf18`, the Fighter page
-`journals:kzxu2dI7tFxv6Ix6` / page `HZbrRRVzW7w17L2W` authors a Reactive
-Strike heading, an inline `@Embed` of class feature `hmShTfPOcTaKgbf4`, an
-`@UUID` action link with reaction glyph, and an inline `@Embed` of action
-`KAVf7AmRnbCAHrkT`. Atlas preserves both resolved embed destinations as links
-and emits `EmbedNotExpanded`; the resulting four adjacent names do not provide
-the intended embedded feature/action prose. This is distinct from inline
-expression evaluation. Do not deduplicate by visible name: the class feature
-and action are different records, and an embed and a reference have different
-roles. Any future expansion must define bounded depth/work, cycle handling,
-source attribution, generation ownership and the relationship between an inline
-body and its exact native full-record destination. The Ant presentation work
-records this gap without introducing recursive expansion or changing preparation.
+Atlas's reading composition now expands supported paragraph-isolated inline Item
+inclusions from checked prepared fields, with bounded traversal and exact source
+attribution. Stored preparation keeps the embed marker and occurrence; read-time
+composition supplies the included prose. The Fighter class feature and reaction
+remain distinct records and must never be deduplicated by visible name.
+
+The broader comparison remains open: revisit unobserved options, non-Item inserts,
+other insertion positions, localization and contextual expressions against the
+pinned upstream behavior before extending support. Existing unsupported or bounded
+cases retain a local explanation and the checked destination when available.
+Do not infer complete Foundry runtime parity from the supported corpus examples.
+See [the read-time composition boundary](../../architecture/decisions/0044-shared-source-content-interpretation.md).
 
 ## Completion and boundaries
 

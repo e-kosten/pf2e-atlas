@@ -34,8 +34,11 @@ pub fn compose_prepared_inclusions(
     let fragment = Html::parse_fragment(html);
     let root = fragment.root_element();
     let mut headings = HashMap::new();
-    let paragraphs = scraper::Selector::parse("p").expect("static paragraph selector");
-    for paragraph in fragment.select(&paragraphs) {
+    for paragraph in root
+        .descendants()
+        .filter_map(ElementRef::wrap)
+        .filter(|element| element.value().name() == "p")
+    {
         let Some(ordinal) = isolated_marker(*paragraph) else {
             continue;
         };
@@ -181,17 +184,23 @@ fn is_heading(tag: &str) -> bool {
     matches!(tag, "h1" | "h2" | "h3" | "h4" | "h5" | "h6")
 }
 fn reference_ordinals(element: ElementRef<'_>) -> Vec<usize> {
-    let selector =
-        scraper::Selector::parse("[data-atlas-reference]").expect("static reference selector");
     element
-        .select(&selector)
-        .filter_map(|e| e.value().attr("data-atlas-reference")?.parse().ok())
+        .descendants()
+        .filter_map(ElementRef::wrap)
+        .filter(|child| child.id() != element.id())
+        .filter_map(|child| child.value().attr("data-atlas-reference")?.parse().ok())
         .collect()
 }
 fn has_links_or_controls(element: ElementRef<'_>) -> bool {
-    let selector = scraper::Selector::parse("a,[data-atlas-reference],[data-atlas-interaction]")
-        .expect("static control selector");
-    element.select(&selector).next().is_some()
+    element
+        .descendants()
+        .filter_map(ElementRef::wrap)
+        .filter(|child| child.id() != element.id())
+        .any(|child| {
+            child.value().name() == "a"
+                || child.value().attr("data-atlas-reference").is_some()
+                || child.value().attr("data-atlas-interaction").is_some()
+        })
 }
 fn source_heading_link(source: &PreparedInclusionSourceLink, title: &str) -> String {
     format!(
@@ -214,9 +223,13 @@ fn action_heading(
     paragraph: ElementRef<'_>,
     source: &PreparedInclusionSourceLink,
 ) -> Option<String> {
-    let glyph =
-        scraper::Selector::parse("[data-atlas-action-glyph]").expect("static glyph selector");
-    if paragraph.select(&glyph).count() != 1 {
+    if paragraph
+        .descendants()
+        .filter_map(ElementRef::wrap)
+        .filter(|child| child.value().attr("data-atlas-action-glyph").is_some())
+        .count()
+        != 1
+    {
         return None;
     }
     let first = paragraph
