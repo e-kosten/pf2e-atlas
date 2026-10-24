@@ -256,6 +256,8 @@ Build owners emit existing `atlas_progress` events with profile IDs/names, stage
 completed/total work and separate occurrence/unique/reuse counts. CLI-support owns
 TTY in-place and bounded nonTTY stderr rendering, elapsed/rate and supported ETA;
 unknown work stays unknown. JSON stdout and disabled progress remain clean.
+Workflow completion clears the display before reports or errors are printed.
+Nested artifact builds do not complete the enclosing setup workflow's display.
 
 Search pages, contextual filter counts, and both contextual and count-free value
 discovery receive an explicit, non-serialized `ReadExecutionContext`. Unrelated callers

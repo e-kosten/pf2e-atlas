@@ -1,6 +1,6 @@
 import { Button, Dropdown } from "antd";
 import { ChevronDown } from "lucide-react";
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { SpellPresentationView } from "../../generated/atlas";
 
 export function SpellRankControl({
@@ -16,7 +16,25 @@ export function SpellRankControl({
   const rank = Number(spell.rank.value);
   const [openingRank] = useState(() => (embedded ? rank : base));
   const trigger = useRef<HTMLButtonElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const focusMenu = () => {
+      const document = trigger.current?.ownerDocument;
+      if (!document) return;
+      const active = document.activeElement;
+      if (active !== trigger.current && active !== document.body) return;
+      const item = popup.current?.querySelector<HTMLElement>(
+        '[role="menuitem"]:not([aria-disabled="true"])',
+      );
+      item?.focus({ preventScroll: true });
+      if (!item || document.activeElement !== item)
+        frame = requestAnimationFrame(focusMenu);
+    };
+    let frame = requestAnimationFrame(focusMenu);
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
   const chooseRank = (nextRank: number) => {
     setOpen(false);
     if (nextRank !== rank) onChange(nextRank);
@@ -33,9 +51,7 @@ export function SpellRankControl({
     <div className="spell-rank-control">
       <Dropdown
         trigger={["click"]}
-        // Focus the menu only after explicit activation, never on document load.
-        // eslint-disable-next-line jsx-a11y/no-autofocus
-        autoFocus
+        popupRender={(menu) => <div ref={popup}>{menu}</div>}
         open={open}
         onOpenChange={setOpen}
         menu={{
@@ -45,7 +61,15 @@ export function SpellRankControl({
               : "Spell rank",
           selectable: true,
           selectedKeys: [String(rank)],
-          onKeyDown: closeOnEscape,
+          onKeyDown: (event) => {
+            closeOnEscape(event);
+            if (event.key === "Enter") event.preventDefault();
+            if (event.key === "Tab") {
+              event.stopPropagation();
+              setOpen(false);
+              trigger.current?.focus({ preventScroll: true });
+            }
+          },
           items: [
             ...Array.from({ length: 11 - base }, (_, i) => ({
               key: String(base + i),
