@@ -12,9 +12,10 @@ import {
 test("variant comparison bounds complete documents on wide screens and stays reachable on touch layouts", async ({
   page,
 }, info) => {
+  const sourceKey = "browser-spells:spell00000000001";
   const targetKey = "browser-rules:rule000000000001";
   const [sourceResponse, targetResponse] = await Promise.all([
-    page.request.get(`/api/records/${sentinel}`),
+    page.request.get(`/api/records/${sourceKey}`),
     page.request.get(`/api/records/${targetKey}`),
   ]);
   expect(sourceResponse.ok()).toBeTruthy();
@@ -46,16 +47,16 @@ test("variant comparison bounds complete documents on wide screens and stays rea
   });
   if (info.project.name === "desktop-chromium")
     await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.goto(`/records/${sentinel}`);
+  await page.goto(`/records/${sourceKey}`);
   await activate(
     page.getByRole("button", { name: "Related records", exact: true }),
     info,
   );
   await activate(page.getByRole("tab", { name: "Variants", exact: true }), info);
-  await activate(
-    page.getByRole("combobox", { name: "Compare variant", exact: true }),
-    info,
-  );
+  const compare = page.getByRole("combobox", { name: "Compare variant", exact: true });
+  await compare.scrollIntoViewIfNeeded();
+  await activate(compare, info);
+  await expect(compare).toHaveAttribute("aria-expanded", "true");
   await activate(
     page
       .locator(".ant-select-dropdown")
@@ -98,9 +99,7 @@ test("variant comparison bounds complete documents on wide screens and stays rea
     .toBe(true);
   await dialog.evaluate(async (node) => {
     await Promise.all(
-      node
-        .getAnimations({ subtree: true })
-        .map((animation) => animation.finished.catch(() => {})),
+      node.getAnimations().map((animation) => animation.finished.catch(() => {})),
     );
   });
   await page.keyboard.press("Escape");
