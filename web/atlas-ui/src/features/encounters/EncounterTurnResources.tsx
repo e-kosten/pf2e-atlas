@@ -255,8 +255,9 @@ function ResourceCounter({
     forecast &&
     (total !== 3 ||
       (extraTotal ?? 0) > 0 ||
-      forecast.base_value !== 3n ||
-      forecast.adjusted_value !== 3n ||
+      Number(forecast.base_value) !== 3 ||
+      forecast.adjusted_value === null ||
+      Number(forecast.adjusted_value) !== 3 ||
       forecast.explanation ||
       forecast.adjustments.length > 0 ||
       forecast.suppressed_adjustments.length > 0 ||
@@ -312,10 +313,6 @@ function ResourceCounter({
           title={label}
           content={
             <div ref={popup} className="encounter-turn-resource-details">
-              <p>
-                This turn: {total} {total === 1 ? "action" : "actions"}
-                {extraTotal ? ` + ${extraTotal} extra` : null}
-              </p>
               <div>
                 <strong>Next turn</strong>
                 <RuntimeCountCalculation count={forecast} />
