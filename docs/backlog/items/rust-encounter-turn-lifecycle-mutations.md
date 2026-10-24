@@ -14,8 +14,8 @@ not a second frontend event loop. The scope below concerns remaining rule effect
 retains backend-owned action/reaction resources, consumes numeric Stunned at
 regain, and supports explicit own-turn Stunned loss against remaining actions.
 Manual spending, correction, receipt recovery and pending Dying regain use the
-existing atomic event owner (ADR0048/0055). PR #105 is still under functional
-review; this does not establish final validation or acceptance.
+existing atomic event owner (ADR0048/0055). Remaining lifecycle work is scoped
+below; it must preserve those recorded allowances and receipt guards.
 
 ## Problem
 
