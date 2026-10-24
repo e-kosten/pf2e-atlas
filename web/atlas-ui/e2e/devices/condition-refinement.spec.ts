@@ -165,10 +165,7 @@ test("precedence survives source removal and recovery retains its anchor after c
       .getByRole("spinbutton", { name: "Fire damage amount", exact: true })
       .fill("2");
     await checkpoint(page, info, "turn-damage.png");
-    await activate(
-      reminders.getByRole("button", { name: "Apply persistent damage", exact: true }),
-      info,
-    );
+    await activate(reminders.getByRole("button", { name: /^Apply \d+ damage$/ }), info);
     await expect(
       reminders.getByText("Total: 2 damage applied", { exact: true }),
     ).toBeVisible();

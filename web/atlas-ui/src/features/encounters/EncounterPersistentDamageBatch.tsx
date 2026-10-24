@@ -1,12 +1,4 @@
-import {
-  Alert,
-  Button,
-  Form,
-  InputNumber,
-  Segmented,
-  Space,
-  type FormInstance,
-} from "antd";
+import { Alert, Button, Form, InputNumber, Segmented, Space, Tooltip } from "antd";
 import { useState, type ReactNode } from "react";
 import type {
   ApplyPersistentDamageRequest,
@@ -18,26 +10,24 @@ import type {
 import { RollResult } from "../../shared/dice/RollResult";
 import { nonNegativeIntegerRule } from "../../shared/ui/forms/nonNegativeIntegerRule";
 type Values = {
-  groups: Record<string, { mode: "roll" | "table"; amount?: number | null }>;
+  mode: "roll" | "table";
+  groups: Record<string, { amount?: number | null }>;
 };
 function DamageFields({
   group,
-  form,
+  mode,
   label,
   heading = true,
-  tableReason,
 }: {
   group: PersistentDamageGroupView;
-  form: FormInstance<Values>;
+  mode: Values["mode"];
   label: string;
   heading?: boolean;
-  tableReason?: string;
 }) {
-  const draftMode = Form.useWatch(["groups", group.episode_id, "mode"], form) ?? "roll";
-  const mode = tableReason ? "table" : draftMode;
   const selected = group.sources.find(
     (source) => source.condition_id === group.selected_source_id,
   );
+  if (!heading && mode !== "table") return null;
   return (
     <section className="encounter-persistent-damage-fields">
       {heading && (
@@ -46,20 +36,6 @@ function DamageFields({
           {selected ? ` · ${selected.formula}` : ""}
         </h4>
       )}
-      <Form.Item
-        style={{ marginBottom: 0 }}
-        name={["groups", group.episode_id, "mode"]}
-        label={heading ? undefined : "Damage"}
-        getValueProps={(value) => ({ value: tableReason ? "table" : value })}
-      >
-        <Segmented
-          aria-label={`${label} damage result`}
-          options={[
-            { value: "roll", label: "Roll in Atlas", disabled: !!tableReason },
-            { value: "table", label: "Table result" },
-          ]}
-        />
-      </Form.Item>
       {mode === "table" && (
         <Form.Item
           style={{ marginBottom: 0 }}
@@ -68,7 +44,12 @@ function DamageFields({
           tooltip="After IWR"
           rules={[nonNegativeIntegerRule(true)]}
         >
-          <InputNumber aria-label={`${label} damage amount`} step={1} />
+          <InputNumber
+            aria-label={`${label} damage amount`}
+            min={0}
+            max={1_000_000_000}
+            step={1}
+          />
         </Form.Item>
       )}
     </section>
@@ -106,6 +87,26 @@ export function EncounterPersistentDamageBatch({
   renderGroup?: (group: PersistentDamageGroupView, damage: ReactNode) => ReactNode;
 }) {
   const [form] = Form.useForm<Values>();
+  const draftMode = Form.useWatch("mode", form) ?? "roll";
+  const amounts = Form.useWatch("groups", { form, preserve: true }) as
+    | Values["groups"]
+    | undefined;
+  const requiresTable = participant.persistent_damage_groups.some(
+    (group) => resolutions[group.episode_id]?.kind === "table",
+  );
+  const mode: Values["mode"] = requiresTable ? "table" : draftMode;
+  const entered = participant.persistent_damage_groups.map(
+    (group) => amounts?.[group.episode_id]?.amount,
+  );
+  const total = entered.every(
+    (amount) =>
+      typeof amount === "number" &&
+      Number.isSafeInteger(amount) &&
+      amount >= 0 &&
+      amount <= 1_000_000_000,
+  )
+    ? entered.reduce<number>((sum, amount) => sum + amount!, 0)
+    : undefined;
   const membership = participant.persistent_damage_groups
     .map(
       (group) =>
@@ -147,17 +148,7 @@ export function EncounterPersistentDamageBatch({
         form={form}
         layout="vertical"
         disabled={disabled || pending || (changed && !applied)}
-        initialValues={{
-          groups: Object.fromEntries(
-            participant.persistent_damage_groups.map((group) => [
-              group.episode_id,
-              {
-                mode:
-                  resolutions[group.episode_id]?.kind === "table" ? "table" : "roll",
-              },
-            ]),
-          ),
-        }}
+        initialValues={{ mode: "roll" }}
         onFinish={async (values) => {
           if (disabled || pending || changed) return;
           try {
@@ -168,14 +159,15 @@ export function EncounterPersistentDamageBatch({
               participant_key: participant.participant_key,
               artifact_generation: generation,
               groups: participant.persistent_damage_groups.map((group) => {
-                const draft = values.groups[group.episode_id];
                 return {
                   episode_id: group.episode_id,
 
                   damage:
-                    draft.mode === "table" ||
-                    resolutions[group.episode_id]?.kind === "table"
-                      ? { kind: "table_result", amount: BigInt(draft.amount!) }
+                    mode === "table"
+                      ? {
+                          kind: "table_result",
+                          amount: BigInt(values.groups[group.episode_id].amount!),
+                        }
                       : { kind: "roll" },
                 };
               }),
@@ -201,6 +193,22 @@ export function EncounterPersistentDamageBatch({
           }
         }}
       >
+        {!applied && participant.persistent_damage_groups.length > 0 && (
+          <Form.Item
+            name="mode"
+            label="Damage"
+            style={{ marginBottom: "var(--space-group)" }}
+            getValueProps={(value) => ({ value: requiresTable ? "table" : value })}
+          >
+            <Segmented
+              aria-label="Persistent damage resolution"
+              options={[
+                { value: "roll", label: "Roll in Atlas", disabled: requiresTable },
+                { value: "table", label: "Table results" },
+              ]}
+            />
+          </Form.Item>
+        )}
         <div className="encounter-persistent-groups">
           {displayGroups.map((group) => {
             const label =
@@ -248,12 +256,9 @@ export function EncounterPersistentDamageBatch({
                 ) : !applied && active ? (
                   <DamageFields
                     group={active}
-                    form={form}
+                    mode={mode}
                     label={label}
                     heading={!renderGroup}
-                    tableReason={
-                      resolution?.kind === "table" ? resolution.reason : undefined
-                    }
                   />
                 ) : null}
               </>
@@ -276,19 +281,28 @@ export function EncounterPersistentDamageBatch({
         {applied && !committed && <p>Persistent damage applied</p>}
         {!applied && participant.persistent_damage_groups.length > 0 && (
           <Space wrap>
-            <Button
-              type="primary"
-              htmlType="submit"
-              disabled={
-                disabled ||
-                pending ||
-                changed ||
-                !participant.persistent_damage_groups.length
-              }
-              loading={pending}
+            <Tooltip
+              title="All persistent damage types resolve together. Effects triggered by taking damage, such as increasing Dying, happen once."
+              trigger={["hover", "focus"]}
             >
-              Apply persistent damage
-            </Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                disabled={
+                  disabled ||
+                  pending ||
+                  changed ||
+                  !participant.persistent_damage_groups.length
+                }
+                loading={pending}
+              >
+                {mode === "roll"
+                  ? "Roll & apply damage"
+                  : total === undefined
+                    ? "Apply damage"
+                    : `Apply ${total} damage`}
+              </Button>
+            </Tooltip>
           </Space>
         )}
       </Form>
