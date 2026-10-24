@@ -4,6 +4,13 @@ import { activate, noPageOverflow } from "./reading";
 
 async function checkpoint(page: Page, info: TestInfo, name: string) {
   await noPageOverflow(page);
+  if (name === "precedence-sources.png" || name === "precedence-fallback.png") {
+    // These compare the document after an edit/removal, with passive hints
+    // dismissed. Touch-synthesized hover must not define the reference state.
+    await page.mouse.move(0, 0);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+  }
   await expect(page).toHaveScreenshot(name, {
     animations: "disabled",
     maxDiffPixels: 0,
