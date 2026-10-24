@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getEmbeddedReading } from "../../api/atlasApi";
 import type {
   ActorActivityView,
+  ActorAbilityGroupView,
   EmbeddedReadingSelection,
   RecordNavigationView,
 } from "../../generated/atlas";
@@ -26,19 +27,23 @@ export type EmbeddedReadingContext = {
 
 export function EmbeddedAbilityReading({
   abilities,
+  group,
+  title = "Abilities",
   context,
   onReference,
   essential = false,
 }: {
   essential?: boolean;
   abilities: ActorActivityView[];
+  group?: ActorAbilityGroupView;
+  title?: string;
   context?: EmbeddedReadingContext;
   onReference: RecordReferenceHandler;
 }) {
   if (!context)
     return (
       <section className="actor-reference__activities">
-        <h3>Abilities</h3>
+        <h3>{title}</h3>
         <Alert
           type="info"
           title="Ability content unavailable"
@@ -57,6 +62,8 @@ export function EmbeddedAbilityReading({
   return (
     <OwnedAbilityBatch
       abilities={abilities}
+      group={group}
+      title={title}
       essential={essential}
       context={context}
       onReference={onReference}
@@ -65,12 +72,16 @@ export function EmbeddedAbilityReading({
 }
 function OwnedAbilityBatch({
   abilities,
+  group,
+  title = "Abilities",
   context,
   onReference,
   essential = false,
 }: {
   essential?: boolean;
   abilities: ActorActivityView[];
+  group?: ActorAbilityGroupView;
+  title?: string;
   context: EmbeddedReadingContext;
   onReference: RecordReferenceHandler;
 }) {
@@ -86,6 +97,7 @@ function OwnedAbilityBatch({
     context?.generation,
     context?.parent,
     "abilities",
+    group,
     target,
   ]);
   const queryKey = useMemo(() => ["embedded-reading", identity], [identity]);
@@ -94,6 +106,7 @@ function OwnedAbilityBatch({
     enabled: open && Boolean(context),
     initialPageParam: {
       kind: "abilities",
+      group: group ?? null,
       cursor: null,
       target,
     } as EmbeddedReadingSelection,
@@ -110,6 +123,7 @@ function OwnedAbilityBatch({
       last.next
         ? ({
             kind: "abilities",
+            group: group ?? null,
             cursor: last.next,
             target: null,
           } as EmbeddedReadingSelection)
@@ -118,6 +132,7 @@ function OwnedAbilityBatch({
       first.previous
         ? ({
             kind: "abilities",
+            group: group ?? null,
             cursor: first.previous,
             target: null,
           } as EmbeddedReadingSelection)
@@ -282,7 +297,7 @@ function OwnedAbilityBatch({
     <div ref={section} className="embedded-ability-reading">
       {essential ? (
         <section>
-          <h3>Abilities</h3>
+          <h3>{title}</h3>
           {content}
         </section>
       ) : (
@@ -294,7 +309,7 @@ function OwnedAbilityBatch({
           items={[
             {
               key: "abilities",
-              label: <h3>Abilities</h3>,
+              label: <h3>{title}</h3>,
               styles: { header: { paddingInline: 0 }, body: { paddingInline: 0 } },
               children: content,
             },

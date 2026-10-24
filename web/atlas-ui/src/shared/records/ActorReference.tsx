@@ -5,6 +5,7 @@ import { Alert, Button, Collapse, Popover, Typography } from "antd";
 import { useEffect, useId, useRef } from "react";
 import type {
   ActorActivityView,
+  ActorAbilityGroupView,
   ActorPresentationView,
   RuntimeCountView,
   DamageComponentView,
@@ -285,7 +286,10 @@ export function ActorSupportingFacts({
   ];
   const hasAwareness = !hazard && awarenessFacts.some((fact) => hasReadingFact(fact));
   const hasMovement =
-    !hazard && (hasReadingFact(actor.land_speed) || hasReadingFact(actor.movement));
+    !hazard &&
+    (hasReadingFact(actor.land_speed) ||
+      hasReadingFact(actor.movement) ||
+      hasReadingFact(actor.movement_details));
   return (
     <>
       {(hasAwareness || hasMovement) && (
@@ -371,6 +375,11 @@ export function ActorSupportingFacts({
                 {actor.movement.state !== "value" && (
                   <FactLine label="Other movement" fact={actor.movement} />
                 )}
+                {!["missing", "null", "not_applicable"].includes(
+                  actor.movement_details.state,
+                ) && (
+                  <FactLine label="Movement details" fact={actor.movement_details} />
+                )}
                 {(actor.movement.value ?? []).map((movement, index) => (
                   <FactRow key={index} label={factText(movement.movement_type)}>
                     <NumberFact fact={movement.feet} unit=" feet" />
@@ -424,7 +433,7 @@ export function ActorFacts({
   );
 }
 
-function ActorSkills({ actor }: { actor: ActorPresentationView }) {
+export function ActorSkills({ actor }: { actor: ActorPresentationView }) {
   const lore = (actor.activities.value ?? []).filter(
     (activity) => activity.kind === "lore",
   );
@@ -468,7 +477,11 @@ function ActorSkills({ actor }: { actor: ActorPresentationView }) {
                     : ""}
                   {skill.conditional.value?.map((conditional, index) => (
                     <span key={index}>
-                      ; {factText(conditional.label)}{" "}
+                      ;{" "}
+                      {conditional.label.state === "value" &&
+                      !conditional.label.value?.trim()
+                        ? "Unspecified condition"
+                        : factText(conditional.label)}{" "}
                       <NumberFact fact={conditional.modifier} signed />
                     </span>
                   ))}
@@ -497,9 +510,9 @@ function castingHint(actor: ActorPresentationView) {
     (effect) => effect.source === "condition:stupefied",
   );
 }
-function hasRuntimeDetails(actor: ActorPresentationView) {
+function hasRuntimeDetails(actor: ActorPresentationView, omitBudgetNotes = false) {
   return (
-    (actor.runtime?.action_budget?.notes.length ?? 0) > 0 ||
+    (!omitBudgetNotes && (actor.runtime?.action_budget?.notes.length ?? 0) > 0) ||
     (actor.runtime?.unapplied_effects.some(
       (effect) => effect.condition_id === undefined && effect !== castingHint(actor),
     ) ??
@@ -509,15 +522,17 @@ function hasRuntimeDetails(actor: ActorPresentationView) {
 function ActorRuntime({
   actor,
   detailsOnly = false,
+  omitBudgetNotes = false,
 }: {
   actor: ActorPresentationView;
   detailsOnly?: boolean;
+  omitBudgetNotes?: boolean;
 }) {
   return (
     <>
       {actor.runtime &&
         (detailsOnly
-          ? hasRuntimeDetails(actor)
+          ? hasRuntimeDetails(actor, omitBudgetNotes)
           : actor.runtime.action_budget !== null ||
             actor.runtime.unapplied_effects.length > 0) && (
           <div className="actor-reference__runtime">
@@ -530,11 +545,12 @@ function ActorRuntime({
                 {!detailsOnly && (
                   <RuntimeCount count={actor.runtime.action_budget.reactions} />
                 )}
-                {actor.runtime.action_budget.notes.map((note, index) => (
-                  <p key={index}>
-                    {note.label}: {note.reason}
-                  </p>
-                ))}
+                {!omitBudgetNotes &&
+                  actor.runtime.action_budget.notes.map((note, index) => (
+                    <p key={index}>
+                      {note.label}: {note.reason}
+                    </p>
+                  ))}
               </>
             )}
             {!detailsOnly &&
@@ -574,56 +590,71 @@ function ActorRuntime({
 }
 export function ActorCombatBudget({ actor }: { actor: ActorPresentationView }) {
   const budget = actor.runtime?.action_budget;
-  return budget ? (
-    <section className="actor-reference__combat-budget" aria-label="At turn start">
-      <h3>At turn start</h3>
-      <div className="actor-reference__turn-counts">
-        <RuntimeCount count={budget.actions} />
+  if (!budget) return null;
+  return (
+    <div className="actor-reference__turn-context">
+      <section className="actor-reference__combat-budget" aria-label="Right now">
+        <h3>Right now</h3>
         <RuntimeCount count={budget.reactions} />
-      </div>
-      {budget.extra_action_unavailable_reason ? (
-        <FactRow label="Extra action">
-          <span className="muted">{budget.extra_action_unavailable_reason}</span>
-        </FactRow>
-      ) : (
-        budget.quickened_sources.map((source, index) => (
-          <FactRow label="Extra action" key={index}>
-            {source.kind === "unspecified"
-              ? "Unspecified"
-              : source.kind === "unrestricted"
-                ? "Unrestricted"
-                : [
-                    source.actions
-                      .map((action) => sentenceCase(action.replace(/_/g, " ")))
-                      .join(", "),
-                    source.guidance,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+        {!budget.can_act.available &&
+          budget.can_act.source !== "participant_status" && (
+            <FactRow label="Can act">
+              {statusReasonLabel("No", budget.can_act.reason)}
+            </FactRow>
+          )}
+        {!budget.can_react.available &&
+          budget.can_react.source !== "participant_status" && (
+            <FactRow label="Can react">
+              {statusReasonLabel("No", budget.can_react.reason)}
+            </FactRow>
+          )}
+      </section>
+      <section className="actor-reference__combat-budget" aria-label="At turn start">
+        <h3>At turn start</h3>
+        <div className="actor-reference__turn-counts">
+          <RuntimeCount count={budget.actions} />
+        </div>
+        {budget.extra_action_unavailable_reason ? (
+          <FactRow label="Extra action">
+            <span className="muted">{budget.extra_action_unavailable_reason}</span>
           </FactRow>
-        ))
-      )}
-      {!budget.can_act.available && budget.can_act.source !== "participant_status" && (
-        <FactRow label="Can act">
-          {statusReasonLabel("No", budget.can_act.reason)}
-        </FactRow>
-      )}
-      {!budget.can_react.available &&
-        budget.can_react.source !== "participant_status" && (
-          <FactRow label="Can react">
-            {statusReasonLabel("No", budget.can_react.reason)}
-          </FactRow>
+        ) : (
+          budget.quickened_sources.map((source, index) => (
+            <FactRow label="Extra action" key={index}>
+              {source.kind === "unspecified"
+                ? "Unspecified"
+                : source.kind === "unrestricted"
+                  ? "Unrestricted"
+                  : [
+                      source.actions
+                        .map((action) => sentenceCase(action.replace(/_/g, " ")))
+                        .join(", "),
+                      source.guidance,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+            </FactRow>
+          ))
         )}
-    </section>
-  ) : null;
+        {budget.notes.map((note, index) => (
+          <p key={index}>
+            {note.label}: {note.reason}
+          </p>
+        ))}
+      </section>
+    </div>
+  );
 }
 export function ActorSecondaryFacts({
   actor,
+  runtimeOnly = false,
   hazard = false,
 }: {
+  runtimeOnly?: boolean;
   actor: ActorPresentationView;
   hazard?: boolean;
 }) {
+  if (runtimeOnly) return <ActorRuntime actor={actor} detailsOnly omitBudgetNotes />;
   if (
     !hasRuntimeDetails(actor) &&
     (hazard ||
@@ -794,6 +825,22 @@ export function ActorActivity({
         {activity.first_level_only?.state === "invalid" && (
           <FactRow label="Selection">Unavailable</FactRow>
         )}
+        {activity.strike_range.value ? (
+          <>
+            {activity.strike_range.value.increment.state !== "not_applicable" && (
+              <FactRow label="Range increment">
+                <NumberFact fact={activity.strike_range.value.increment} unit=" feet" />
+              </FactRow>
+            )}
+            {activity.strike_range.value.maximum.state !== "not_applicable" && (
+              <FactRow label="Maximum range">
+                <NumberFact fact={activity.strike_range.value.maximum} unit=" feet" />
+              </FactRow>
+            )}
+          </>
+        ) : activity.strike_range.state === "invalid" ? (
+          <FactRow label="Range">{factText(activity.strike_range)}</FactRow>
+        ) : null}
         {activity.lore_modifier.state !== "not_applicable" && (
           <span className="actor-activity__modifier">
             {" "}
@@ -851,14 +898,39 @@ export function ActorActivity({
             <DamageComponents damage={activity.damage} />
           </>
         )}
-        {activity.strike_effects.state !== "missing" &&
-          activity.strike_effects.state !== "not_applicable" && (
-            <FactLine
-              label="Attack effects"
-              fact={activity.strike_effects}
-              format={(effects) => effects.join(", ")}
-            />
-          )}
+        {hasReadingFact(activity.strike_effects) && (
+          <FactRow label="Attack effects">
+            {activity.strike_effects.value
+              ? activity.strike_effects.value.map((effect, index) => (
+                  <span key={index}>
+                    {index ? ", " : ""}
+                    {effect.navigation ? (
+                      <Typography.Link
+                        href={atlasRoutePath({
+                          kind: "record",
+                          recordKey: effect.navigation.record_key,
+                          selection: effect.navigation,
+                        })}
+                        onClick={(event) => {
+                          if (!shouldHandleAtlasRouteClick(event)) return;
+                          event.preventDefault();
+                          onReference(
+                            effect.navigation!.record_key,
+                            event.currentTarget,
+                            effect.navigation!,
+                          );
+                        }}
+                      >
+                        {factText(effect.name)}
+                      </Typography.Link>
+                    ) : (
+                      factText(effect.name)
+                    )}
+                  </span>
+                ))
+              : factText(activity.strike_effects)}
+          </FactRow>
+        )}
         {activity.self_effect.state !== "missing" &&
           activity.self_effect.state !== "not_applicable" && (
             <FactRow label="Self effect">
@@ -949,10 +1021,22 @@ export function ActorActivities({
   activityRolls,
   essential = false,
   sectionIds,
+  supportingFacts,
 }: {
+  supportingFacts?: React.ReactNode;
   essential?: boolean;
   sectionIds?: Partial<
-    Record<"strike" | "ability" | "gear" | "other" | "casting", string>
+    Record<
+      | "strike"
+      | "ability"
+      | "reaction"
+      | "passive"
+      | "unclassified"
+      | "gear"
+      | "other"
+      | "casting",
+      string
+    >
   >;
   actor: ActorPresentationView;
   onReference: RecordReferenceHandler;
@@ -1001,23 +1085,53 @@ export function ActorActivities({
   const renderGroup = (
     kind: "strike" | "ability" | "gear" | "other",
     title: string,
+    group?: ActorAbilityGroupView,
   ) => {
-    const activities = (actor.activities.value ?? []).filter(
-      (activity) => activity.kind === kind,
-    );
+    const activities = (actor.activities.value ?? [])
+      .filter(
+        (activity) =>
+          activity.kind === kind && (!group || activity.ability_group === group),
+      )
+      .sort((a, b) => a.reading_order - b.reading_order);
     if (!activities.length) return null;
     return (
       <section
         className={`actor-reference__activities actor-reference__activities--${kind}`}
-        key={kind}
-        id={sectionIds?.[kind]}
+        key={group ?? kind}
+        id={
+          sectionIds?.[
+            group === "reaction"
+              ? "reaction"
+              : group === "supporting"
+                ? "passive"
+                : group === "unclassified"
+                  ? "unclassified"
+                  : kind
+          ]
+        }
         tabIndex={-1}
       >
         {kind === "ability" && (!encounter || reading) ? (
           <EmbeddedAbilityReading
             abilities={activities}
             essential={essential}
-            context={abilityReading}
+            group={group}
+            title={title}
+            context={
+              abilityReading
+                ? {
+                    ...abilityReading,
+                    landing:
+                      targetActivity?.ability_group === group
+                        ? abilityReading.landing
+                        : undefined,
+                    onLandingReady:
+                      targetActivity?.ability_group === group
+                        ? abilityReading.onLandingReady
+                        : undefined,
+                  }
+                : undefined
+            }
             onReference={onReference}
           />
         ) : (
@@ -1037,6 +1151,9 @@ export function ActorActivities({
       </section>
     );
   };
+  const hasPrimary = actor.activities.value?.some(
+    (activity) => activity.ability_group === "primary",
+  );
   const hasCasting =
     actor.activities.value?.some(
       (activity) => activity.kind === "spell" || activity.kind === "casting_entry",
@@ -1055,13 +1172,15 @@ export function ActorActivities({
           <FactRow label="Activities">{factText(actor.activities)}</FactRow>
         )}
       {renderGroup("strike", "Strikes")}
-      {(hasCasting ||
-        actor.activities.value?.some((activity) =>
-          ["ability", "gear", "other"].includes(activity.kind),
-        )) && (
+      {(hasCasting || hasPrimary) && (
         <div
-          className={`actor-reference__rule-grid${hasCasting ? " actor-reference__rule-grid--caster" : ""}`}
+          className={`actor-reference__rule-grid${hasCasting && hasPrimary ? " actor-reference__rule-grid--caster" : ""}`}
         >
+          {hasPrimary && (
+            <div className="actor-reference__actions">
+              {renderGroup("ability", "Special abilities", "primary")}
+            </div>
+          )}
           {hasCasting && (
             <div
               className="actor-reference__casting"
@@ -1077,13 +1196,14 @@ export function ActorActivities({
               />
             </div>
           )}
-          <div className="actor-reference__actions">
-            {renderGroup("ability", "Abilities")}
-            {renderGroup("gear", "Equipment")}
-            {renderGroup("other", "Other entries")}
-          </div>
         </div>
       )}
+      {renderGroup("ability", "Reactions", "reaction")}
+      {renderGroup("ability", "Passive abilities", "supporting")}
+      {renderGroup("ability", "Other abilities", "unclassified")}
+      {supportingFacts}
+      {renderGroup("gear", "Equipment")}
+      {renderGroup("other", "Other entries")}
     </div>
   );
 }

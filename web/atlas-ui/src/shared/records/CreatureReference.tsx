@@ -10,7 +10,7 @@ import {
   ActorActivities,
   ActorCombatBudget,
   ActorDefenses,
-  ActorFacts,
+  ActorSkills,
   ActorSecondaryFacts,
   ActorSupportingFacts,
   type CastingAnnotations,
@@ -71,6 +71,7 @@ export function CreatureReference({
     actor.senses,
     actor.land_speed,
     actor.movement,
+    actor.movement_details,
     actor.perception_details,
     actor.languages,
     actor.language_details,
@@ -83,13 +84,25 @@ export function CreatureReference({
     hasReadingFact(actor.ritual_difficulty_class);
   const sections = [
     ...(!encounter && prose ? [["description", "Description"]] : []),
-    ...(!encounter || hasStatistics ? [["facts", "Statistics"]] : []),
+    ...(!encounter ? [["defenses", "Defenses"]] : []),
     ...(activities.some((a) => a.kind === "strike") ? [["strike", "Strikes"]] : []),
+    ...(activities.some((a) => a.ability_group === "primary")
+      ? [["ability", "Special abilities"]]
+      : []),
     ...(activities.some((a) => ["casting_entry", "spell"].includes(a.kind)) ||
     !["missing", "not_applicable"].includes(actor.ritual_difficulty_class.state)
       ? [["casting", "Spellcasting"]]
       : []),
-    ...(activities.some((a) => a.kind === "ability") ? [["ability", "Abilities"]] : []),
+    ...(activities.some((a) => a.ability_group === "reaction")
+      ? [["reaction", "Reactions"]]
+      : []),
+    ...(activities.some((a) => a.ability_group === "supporting")
+      ? [["passive", "Passive abilities"]]
+      : []),
+    ...(activities.some((a) => a.ability_group === "unclassified")
+      ? [["unclassified", "Other abilities"]]
+      : []),
+    ...(hasStatistics ? [["facts", "Statistics"]] : []),
     ...(activities.some((a) => a.kind === "gear") ? [["gear", "Equipment"]] : []),
     ...(activities.some((a) => a.kind === "other") ? [["other", "Other entries"]] : []),
     ...(encounterContent ? [["conditions", "Conditions"]] : []),
@@ -159,28 +172,46 @@ export function CreatureReference({
           >
             {(!encounter || hasRules || prose) && (
               <div className="creature-reference__rules">
-                {(!encounter || hasStatistics) && (
+                {!encounter && (
                   <section
                     className="creature-reference__facts"
-                    id={id("facts")}
+                    id={id("defenses")}
                     tabIndex={-1}
                   >
-                    {encounter ? (
-                      <>
-                        {!encounterContent && (
-                          <ActorDefenses actor={actor} hideHitPoints />
-                        )}
-                        <FactLine label="Size" fact={actor.size} />
-                        <ActorSupportingFacts actor={actor} encounter />
-                        <ActorSecondaryFacts actor={actor} />
-                      </>
-                    ) : (
-                      <ActorFacts actor={actor} />
-                    )}
+                    <FactLine label="Size" fact={actor.size} />
+                    <ActorDefenses actor={actor} />
                   </section>
+                )}
+                {encounter && !encounterContent && (
+                  <ActorDefenses actor={actor} hideHitPoints />
                 )}
                 <ActorActivities
                   actor={actor}
+                  supportingFacts={
+                    hasStatistics ? (
+                      <section
+                        className="creature-reference__facts"
+                        id={id("facts")}
+                        tabIndex={-1}
+                      >
+                        <h3>Statistics</h3>
+                        {encounter && <FactLine label="Size" fact={actor.size} />}
+                        <ActorSkills actor={actor} />
+                        <ActorSupportingFacts actor={actor} encounter />
+                        <FactLine
+                          label="Perception details"
+                          fact={actor.perception_details}
+                        />
+                        <FactLine
+                          label="Languages"
+                          fact={actor.languages}
+                          format={(values) => values.join(", ")}
+                        />
+                        <FactLine label="Communication" fact={actor.language_details} />
+                        <ActorSecondaryFacts actor={actor} runtimeOnly />
+                      </section>
+                    ) : undefined
+                  }
                   encounter={encounter}
                   essential
                   reading={reading}
@@ -190,6 +221,9 @@ export function CreatureReference({
                   sectionIds={{
                     strike: id("strike"),
                     ability: id("ability"),
+                    reaction: id("reaction"),
+                    passive: id("passive"),
+                    unclassified: id("unclassified"),
                     gear: id("gear"),
                     other: id("other"),
                     casting: id("casting"),

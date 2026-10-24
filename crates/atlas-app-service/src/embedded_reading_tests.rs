@@ -53,6 +53,7 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
         .embedded_reading(request(
             &detail.artifact_generation,
             EmbeddedReadingSelection::Abilities {
+                group: None,
                 cursor: None,
                 target: None,
             },
@@ -90,6 +91,7 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
         .embedded_reading(request(
             &detail.artifact_generation,
             EmbeddedReadingSelection::Abilities {
+                group: None,
                 cursor: None,
                 target: Some(last.clone()),
             },
@@ -113,6 +115,7 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
             .embedded_reading(request(
                 generation,
                 EmbeddedReadingSelection::Abilities {
+                    group: None,
                     cursor: first.next.clone(),
                     target: None,
                 },
@@ -149,6 +152,7 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
             .embedded_reading(request(
                 &detail.artifact_generation,
                 EmbeddedReadingSelection::Abilities {
+                    group: None,
                     cursor: Some(EmbeddedReadingCursor {
                         artifact_generation: detail.artifact_generation.clone(),
                         offset: 600
@@ -195,6 +199,7 @@ fn heavy_reference_fields_are_explicitly_bounded_without_breaking_other_fields()
         .embedded_reading(request(
             &detail.artifact_generation,
             EmbeddedReadingSelection::Abilities {
+                group: None,
                 cursor: None,
                 target: None,
             },
@@ -389,6 +394,7 @@ fn embedded_feat_prerequisites_keep_addresses_links_and_unavailable_members() {
         .embedded_reading(request(
             &detail.artifact_generation,
             EmbeddedReadingSelection::Abilities {
+                group: None,
                 cursor: None,
                 target: None,
             },
@@ -420,4 +426,79 @@ fn embedded_feat_prerequisites_keep_addresses_links_and_unavailable_members() {
                 .as_ref()
                 .is_some_and(|t| t.record_key == "actions:testAction100000")
     }));
+}
+
+#[test]
+fn ability_groups_filter_before_paging_and_target_the_same_source_identity() {
+    let children: Vec<_> = (0..100)
+        .map(|i| {
+            json!({
+                "type":"action", "name":format!("Ability {i}"),
+                "system":{"actionType":{"value":if i % 2 == 0 {"passive"} else {"action"}},
+                  "category":"defensive", "description":{"value":format!("<p>Owned {i}</p>")}}
+            })
+        })
+        .collect();
+    let source =
+        json!({"_id":"testCreature1000","type":"npc","name":"Grouped actor","items":children});
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        move || {
+            Ok(open_source_fixture(
+                vec![record("actors", "Actor", source.clone())],
+                false,
+            )?)
+        },
+    ));
+    let detail = f.worker.record_detail(ACTOR).unwrap();
+    let RecordBodyView::Creature(actor) = &detail.presentation.body else {
+        panic!("actor")
+    };
+    let activities = actor.activities.value.as_ref().unwrap();
+    assert_eq!(
+        activities[0].title, "Ability 0",
+        "reading groups cannot reorder source-indexed runtime facts"
+    );
+    assert_eq!(activities[1].title, "Ability 1");
+    let read = |cursor, target| {
+        f.worker
+            .embedded_reading(request(
+                &detail.artifact_generation,
+                EmbeddedReadingSelection::Abilities {
+                    group: Some(ActorAbilityGroupView::Primary),
+                    cursor,
+                    target,
+                },
+            ))
+            .unwrap()
+    };
+    let first = read(None, None);
+    assert_eq!((first.total, first.start, first.end), (50, 0, 32));
+    assert_eq!(first.entries[0].navigation, activities[1].navigation);
+    assert_eq!(first.entries[31].navigation, activities[63].navigation);
+    let next = read(first.next, None);
+    assert_eq!((next.start, next.end), (32, 50));
+    assert_eq!(
+        next.entries.last().unwrap().navigation,
+        activities[99].navigation
+    );
+    let target = read(None, Some(activities[99].navigation.clone()));
+    assert_eq!(target.start, 32);
+    assert_eq!(
+        target.entries.last().unwrap().navigation,
+        activities[99].navigation
+    );
+    assert!(
+        f.worker
+            .embedded_reading(request(
+                &detail.artifact_generation,
+                EmbeddedReadingSelection::Abilities {
+                    group: Some(ActorAbilityGroupView::Supporting),
+                    cursor: None,
+                    target: Some(activities[99].navigation.clone())
+                }
+            ))
+            .is_err()
+    );
 }
