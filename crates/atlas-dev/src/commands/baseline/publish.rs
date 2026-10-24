@@ -52,12 +52,13 @@ pub(super) fn publish(options: &PublishArgs, checkout: &Path, store: &Path) -> R
     );
     let executable = stage.path().join("atlas");
     let index = stage.path().join("workspace.sqlite");
-    eprintln!("Capturing executable and consistent workspace snapshot…");
+    tracing::info!(target:"atlas_progress",phase="capture_binary","Copying and verifying baseline executable");
     let original_hash = files::hash(&binary)?;
     fs::copy(&binary, &executable)?;
     if files::hash(&executable)? != original_hash {
         return Err("Executable changed while copying".into());
     }
+    tracing::info!(target:"atlas_progress",phase="capture_workspace","Copying a consistent database snapshot");
     atlas_storage::Workspace::at(&source)?.snapshot_to(&index)?;
     // Read reference provenance through its owning index API. Tool/schema skew
     // requires refreshing atlas-dev; it never causes a migration during capture.
@@ -70,11 +71,11 @@ pub(super) fn publish(options: &PublishArgs, checkout: &Path, store: &Path) -> R
             index_path: Some(index.clone()),
         },
     })?;
+    tracing::info!(target:"atlas_progress",phase="hash_workspace","Reading snapshot provenance and computing checksum");
     let database = {
         let reader = runtime.open_index()?;
         json!({"schema_version":WORKSPACE_SCHEMA_VERSION,"workspace_key":reader.workspace_session().workspace_key()?,"reference_revision":reader.workspace_session().reference_revision()?,"context":reader.context(),"sha256":files::hash(&index)?})
     };
-    eprintln!("Validating copied data and every configured search profile…");
     let validation = checks::validate(
         &executable,
         &index,
@@ -103,6 +104,7 @@ pub(super) fn publish(options: &PublishArgs, checkout: &Path, store: &Path) -> R
         captured_from: source,
         validation,
     };
+    tracing::info!(target:"atlas_progress",phase="publish_baseline","Publishing validated baseline");
     files::replace(&stage.path().join("manifest.json"), &manifest)?;
     for (filename, mode) in [
         ("atlas", 0o555),
@@ -120,6 +122,7 @@ pub(super) fn publish(options: &PublishArgs, checkout: &Path, store: &Path) -> R
             baseline: identifier.clone(),
         },
     )?;
+    tracing::info!(target:"atlas_progress",complete=true,"Baseline published");
     Ok(
         json!({"published":identifier,"directory":destination,"build":manifest.build,"assets":manifest.assets}),
     )

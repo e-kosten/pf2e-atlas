@@ -315,8 +315,12 @@ fn print_setup_report(report: &atlas_runtime::RuntimeSetupReport) {
             format_duration_ms(build.build_duration_ms)
         );
         println!(
-            "  records: {} ({} products)",
-            build.record_count, build.product_record_count
+            "  records: {} ({} available in Atlas, {} developer-only macros)",
+            build.record_count,
+            build.product_record_count,
+            build
+                .record_count
+                .saturating_sub(build.product_record_count)
         );
         println!(
             "  semantic units={} reused inputs={} inferred inputs={} shortened contexts={}",
