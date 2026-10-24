@@ -361,7 +361,8 @@ describe("semantic family presentation", () => {
       },
     ]);
     const { container, rerender } = render(<DamageComponents damage={damage} />);
-    expect(container).toHaveTextContent("1d6 fire; kinds [invalid]; materials —");
+    expect(container).toHaveTextContent("1d6 fire; kinds [invalid]");
+    expect(container).not.toHaveTextContent("materials");
     rerender(<DamageComponents damage={damage} patch />);
     expect(container).toHaveTextContent("kinds [invalid]; category cleared");
     expect(container).not.toHaveTextContent("materials");
@@ -846,11 +847,11 @@ describe("optional authored reference facts", () => {
     },
   );
 
-  it("uses ordered damage captions instead of authored IDs for multiple components", () => {
-    const component = (id: string) => ({
+  it("keeps distinct damage rows without mechanical numbering or authored IDs", () => {
+    const component = (id: string, formula: string, damageType: string) => ({
       id,
-      formula: knownFact("1d6"),
-      damage_type: knownFact("fire"),
+      formula: knownFact(formula),
+      damage_type: knownFact(damageType),
       kinds: knownFact([]),
       category: unavailableFact<string>("null"),
       materials: knownFact([]),
@@ -858,11 +859,16 @@ describe("optional authored reference facts", () => {
     });
     const { container } = render(
       <DamageComponents
-        damage={knownFact([component("p36zyj2o94q5m2av6t6a"), component("0")])}
+        damage={knownFact([
+          component("p36zyj2o94q5m2av6t6a", "1d6", "fire"),
+          component("0", "2d8", "cold"),
+        ])}
       />,
     );
-    expect(container).toHaveTextContent("Damage component 1:");
-    expect(container).toHaveTextContent("Damage component 2:");
+    expect(
+      [...container.querySelectorAll(".record-damage p")].map((row) => row.textContent),
+    ).toEqual(["1d6 fire", "2d8 cold"]);
+    expect(container).not.toHaveTextContent("Damage component");
     expect(container).not.toHaveTextContent("p36zyj2o94q5m2av6t6a");
     expect(container).not.toHaveTextContent("Damage 0");
   });

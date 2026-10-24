@@ -530,7 +530,7 @@ function ActorRuntime({
     </>
   );
 }
-function ActorCombatBudget({ actor }: { actor: ActorPresentationView }) {
+export function ActorCombatBudget({ actor }: { actor: ActorPresentationView }) {
   const budget = actor.runtime?.action_budget;
   return budget ? (
     <section className="actor-reference__combat-budget" aria-label="At turn start">
