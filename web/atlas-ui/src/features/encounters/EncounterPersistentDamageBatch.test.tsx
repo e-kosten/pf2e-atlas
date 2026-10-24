@@ -5,6 +5,34 @@ import type {
   PersistentDamageResultView,
 } from "../../generated/atlas";
 import { EncounterPersistentDamageBatch } from "./EncounterPersistentDamageBatch";
+const api = vi.hoisted(() => ({ prepareEncounterPersistentDamage: vi.fn() }));
+vi.mock("../../api/atlasApi", () => api);
+beforeEach(() => {
+  api.prepareEncounterPersistentDamage.mockImplementation(async (_ref, request) => ({
+    complete: request.groups.length === 2,
+    recovery: null,
+    damage: {
+      encounter_key: "encounter",
+      request_id: request.request_id,
+      total: request.groups.reduce(
+        (sum: bigint, g: { damage: { kind: string; amount?: bigint } }) =>
+          sum + (g.damage.amount ?? 0n),
+        0n,
+      ),
+      hardness_absorbed: 0n,
+      groups: request.groups.map(
+        (g: { episode_id: string; damage: { kind: string; amount?: bigint } }) => ({
+          episode_id: g.episode_id,
+          damage_type: g.episode_id,
+          source_condition_id: g.episode_id === "fire" ? 7n : 9n,
+          roll: null,
+          amount: g.damage.amount ?? 0n,
+          table_resolved: g.damage.kind === "table_result",
+        }),
+      ),
+    },
+  }));
+});
 const participant: EncounterParticipantView = {
   participant_key: "actor",
   display_name: "Actor",
@@ -81,6 +109,8 @@ it("submits all damage types together and retains table totals across an uncerta
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <EncounterPersistentDamageBatch
+        encounterRef="encounter"
+        onRecover={vi.fn()}
         participant={participant}
         encounterRevision={6n}
         generation="generation"
@@ -126,12 +156,12 @@ it("submits all damage types together and retains table totals across an uncerta
     "3",
   );
   expect(screen.queryByRole("combobox", { name: "Acid damage source" })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: /^Apply (?:\d+ )?damage$/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "Apply 8 damage" }));
   await screen.findByText("Connection lost");
   expect(screen.getByRole("spinbutton", { name: "Fire damage amount" })).toHaveValue(
     "5",
   );
-  fireEvent.click(screen.getByRole("button", { name: /^Apply (?:\d+ )?damage$/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "Apply 8 damage" }));
   await waitFor(() => expect(onApply).toHaveBeenCalledTimes(2));
   expect(onApply.mock.calls[0][0]).toEqual(onApply.mock.calls[1][0]);
   expect(onApply).toHaveBeenLastCalledWith({
@@ -139,6 +169,7 @@ it("submits all damage types together and retains table totals across an uncerta
     expected_encounter_revision: 6n,
     participant_key: "actor",
     artifact_generation: "generation",
+    recoveries: [],
     groups: [
       {
         episode_id: "fire",
@@ -167,6 +198,8 @@ it("uses table results for the whole form when one protection requires a table r
   const onApply = vi.fn().mockResolvedValue(result);
   render(
     <EncounterPersistentDamageBatch
+      encounterRef="encounter"
+      onRecover={vi.fn()}
       participant={participant}
       encounterRevision={6n}
       generation="generation"
@@ -186,8 +219,7 @@ it("uses table results for the whole form when one protection requires a table r
   fireEvent.change(screen.getByRole("spinbutton", { name: "Fire damage amount" }), {
     target: { value: "5" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Apply damage" }));
-  await waitFor(() => expect(screen.getByText("Enter a whole number.")).toBeVisible());
+  expect(screen.getByRole("button", { name: "Apply damage" })).toBeDisabled();
   expect(onApply).not.toHaveBeenCalled();
   fireEvent.change(screen.getByRole("spinbutton", { name: "Acid damage amount" }), {
     target: { value: "3" },
@@ -208,6 +240,8 @@ it("uses table results for the whole form when one protection requires a table r
 it("shows the server total after shared Hardness without claiming per-type totals were all applied", () => {
   render(
     <EncounterPersistentDamageBatch
+      encounterRef="encounter"
+      onRecover={vi.fn()}
       participant={participant}
       encounterRevision={6n}
       generation="generation"
@@ -263,15 +297,41 @@ it("shows immunity before damage and retains the recorded reason when reference 
   };
   const { rerender } = render(
     <EncounterPersistentDamageBatch
+      encounterRef="encounter"
+      onRecover={vi.fn()}
       {...props}
       resolutions={{ fire: { kind: "known", protection } }}
     />,
   );
   expect(screen.getByText("Immune to fire")).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Roll & apply damage" }));
+  api.prepareEncounterPersistentDamage.mockImplementation(async (_ref, request) => ({
+    complete: true,
+    recovery: null,
+    damage: {
+      encounter_key: "encounter",
+      request_id: request.request_id,
+      groups: [
+        {
+          episode_id: "fire",
+          damage_type: "fire",
+          source_condition_id: 7n,
+          amount: 0n,
+          roll: null,
+          table_resolved: false,
+          protection,
+        },
+      ],
+      total: 0n,
+      hardness_absorbed: 0n,
+    },
+  }));
+  fireEvent.click(screen.getByRole("button", { name: "Roll Fire damage" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Apply 0 damage" }));
   await screen.findByText("Total: 0 damage applied");
   rerender(
     <EncounterPersistentDamageBatch
+      encounterRef="encounter"
+      onRecover={vi.fn()}
       {...props}
       resolutions={{
         fire: { kind: "known", protection: { ...protection, immune: false } },
@@ -285,6 +345,8 @@ it("explains unresolved protections and starts with an editable table amount", a
   const onApply = vi.fn().mockResolvedValue({ ...result, total: 3n });
   render(
     <EncounterPersistentDamageBatch
+      encounterRef="encounter"
+      onRecover={vi.fn()}
       participant={{
         ...participant,
         persistent_damage_groups: [participant.persistent_damage_groups[0]],
@@ -302,7 +364,12 @@ it("explains unresolved protections and starts with an editable table amount", a
   expect(screen.getByText("Resolve silver at the table.")).toBeVisible();
   const amount = await screen.findByRole("spinbutton", { name: "Fire damage amount" });
   fireEvent.change(amount, { target: { value: "3" } });
-  fireEvent.click(screen.getByRole("button", { name: /^Apply (?:\d+ )?damage$/ }));
+  api.prepareEncounterPersistentDamage.mockResolvedValue({
+    complete: true,
+    recovery: null,
+    damage: { ...result, total: 3n },
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "Apply 3 damage" }));
   await waitFor(() =>
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -315,4 +382,73 @@ it("explains unresolved protections and starts with an editable table amount", a
       }),
     ),
   );
+});
+
+it("prepares recovery after one type while another amount is unresolved, then applies both once", async () => {
+  const original = api.prepareEncounterPersistentDamage.getMockImplementation()!;
+  api.prepareEncounterPersistentDamage.mockImplementation(async (ref, request) => {
+    const preview = await original(ref, request);
+    return {
+      ...preview,
+      recovery: request.recovery
+        ? {
+            encounter_key: "encounter",
+            request_id: request.request_id,
+            episode_id: request.recovery.episode_id,
+            damage_type: "fire",
+            dc: 0n,
+            roll: null,
+            success: true,
+          }
+        : null,
+    };
+  });
+  const onApply = vi.fn().mockResolvedValue(result);
+  const onRecover = vi.fn();
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterPersistentDamageBatch
+        encounterRef="encounter"
+        participant={participant}
+        encounterRevision={6n}
+        generation="generation"
+        damageApplied={false}
+        damageTypes={[
+          { value: "fire", label: "Fire" },
+          { value: "acid", label: "Acid" },
+        ]}
+        disabled={false}
+        pending={false}
+        onApply={onApply}
+        onRecover={onRecover}
+      />
+    </ConfigProvider>,
+  );
+  fireEvent.click(screen.getByText("Table results"));
+  fireEvent.change(
+    await screen.findByRole("spinbutton", { name: "Fire damage amount" }),
+    { target: { value: "5" } },
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Roll Fire recovery" }));
+  fireEvent.click(await screen.findByRole("button", { name: /^Roll$/ }));
+  await waitFor(() =>
+    expect(screen.getAllByText("Clears after Apply").length).toBeGreaterThan(0),
+  );
+  expect(onApply).not.toHaveBeenCalled();
+  expect(onRecover).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Apply damage" })).toBeDisabled();
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Acid damage amount" }), {
+    target: { value: "3" },
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "Apply 8 damage" }));
+  await waitFor(() => expect(onApply).toHaveBeenCalledOnce());
+  expect(onApply.mock.calls[0][0]).toMatchObject({
+    recoveries: [
+      { kind: "prepared", episode_id: "fire", request_id: expect.any(String) },
+    ],
+    groups: [
+      { episode_id: "fire", damage: { kind: "table_result", amount: 5n } },
+      { episode_id: "acid", damage: { kind: "table_result", amount: 3n } },
+    ],
+  });
 });

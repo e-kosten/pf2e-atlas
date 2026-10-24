@@ -1005,6 +1005,8 @@ it("reads persistent total and one shared Hardness deduction from the server", a
       ],
     },
     recovery_results: [],
+    prepared_damage: [],
+    prepared_recovery: [],
   });
   const review = await api.getEncounterPersistentReview("test", "actor");
   expect(review.round_number).toBe(2n);
@@ -1217,6 +1219,8 @@ it("normalizes the executable persistent-damage groups returned by turn review",
     episodes: [],
     damage_result: null,
     recovery_results: [],
+    prepared_damage: [],
+    prepared_recovery: [],
     damage_groups: [
       {
         episode_id: "fire",
@@ -1313,6 +1317,8 @@ it("normalizes reviewed and recorded protection facts", async () => {
       ],
     },
     recovery_results: [],
+    prepared_damage: [],
+    prepared_recovery: [],
   });
   const review = await api.getEncounterPersistentReview("encounter", "actor");
   expect(review.episodes[0].damage_resolution).toEqual({
@@ -1337,6 +1343,8 @@ it.each([null, undefined])(
       episodes: [],
       damage_result: null,
       recovery_results: [],
+      prepared_damage: [],
+      prepared_recovery: [],
       damage_groups: [
         {
           episode_id: "fire",
@@ -1353,3 +1361,80 @@ it.each([null, undefined])(
     ).rejects.toBeInstanceOf(AtlasApiError);
   },
 );
+
+it("normalizes prepared damage and recovery without changing their recorded identities", async () => {
+  const api = await import("./atlasApi");
+  respond({
+    complete: false,
+    damage: {
+      encounter_key: "encounter",
+      request_id: "prepared-damage",
+      total: 4,
+      hardness_absorbed: 0,
+      groups: [
+        {
+          episode_id: "fire",
+          damage_type: "fire",
+          source_condition_id: 9,
+          roll: null,
+          amount: 4,
+          table_resolved: false,
+          protection: { immune: false, weakness: 2, resistance: 3 },
+        },
+      ],
+    },
+    recovery: {
+      encounter_key: "encounter",
+      request_id: "prepared-recovery",
+      episode_id: "fire",
+      damage_type: "fire",
+      dc: 15,
+      roll: null,
+      success: false,
+    },
+  });
+  const prepared = await api.prepareEncounterPersistentDamage("encounter", {
+    request_id: "draft",
+    expected_encounter_revision: 7n,
+    participant_key: "actor",
+    boundary_key: "boundary",
+    artifact_generation: "generation",
+    groups: [
+      {
+        episode_id: "fire",
+        damage: { kind: "prepared", request_id: "prepared-damage" },
+      },
+    ],
+    recovery: null,
+  });
+  expect(prepared.damage.groups[0]).toMatchObject({
+    source_condition_id: 9n,
+    amount: 4n,
+    protection: { weakness: 2n, resistance: 3n },
+  });
+  expect(prepared.recovery).toMatchObject({
+    request_id: "prepared-recovery",
+    dc: 15n,
+    success: false,
+  });
+  expect(fetchMock).toHaveBeenLastCalledWith(
+    "/api/encounters/encounter/persistent-preparation",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({
+        request_id: "draft",
+        expected_encounter_revision: 7,
+        participant_key: "actor",
+        boundary_key: "boundary",
+        artifact_generation: "generation",
+        groups: [
+          {
+            episode_id: "fire",
+            damage: { kind: "prepared", request_id: "prepared-damage" },
+          },
+        ],
+        recovery: null,
+      }),
+    }),
+  );
+});

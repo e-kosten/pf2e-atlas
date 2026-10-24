@@ -739,6 +739,21 @@ pub(crate) async fn resolve_encounter_hp_lifecycle(
     ))
 }
 
+pub(crate) async fn prepare_persistent_damage(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+    payload: Result<Json<atlas_app_model::PreparePersistentDamageRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.prepare_persistent_damage(&encounter_ref, request)
+        })
+        .await?,
+    ))
+}
+
 pub(crate) async fn apply_persistent_damage(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,

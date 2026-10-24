@@ -1265,6 +1265,15 @@ impl AtlasWebService for MockService {
             encounter_key: encounter_ref.into(),
         })
     }
+    fn prepare_persistent_damage(
+        &self,
+        _encounter_ref: &str,
+        _request: atlas_app_model::PreparePersistentDamageRequest,
+    ) -> Result<atlas_app_model::PreparedPersistentDamageView, AppServiceError> {
+        Err(AppServiceError::invalid_request(
+            "persistent preparation fixture is not configured",
+        ))
+    }
     fn apply_persistent_damage(
         &self,
         _encounter_ref: &str,

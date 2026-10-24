@@ -8,7 +8,10 @@ import type {
   EncounterParticipantConditionView,
   PersistentDamageGroupView,
 } from "../../generated/atlas";
-const api = vi.hoisted(() => ({ getEncounterPersistentReview: vi.fn() }));
+const api = vi.hoisted(() => ({
+  getEncounterPersistentReview: vi.fn(),
+  prepareEncounterPersistentDamage: vi.fn(),
+}));
 vi.mock("../../api/atlasApi", () => api);
 const fire: PersistentDamageGroupView = {
   episode_id: "fire",
@@ -45,7 +48,21 @@ const condition = (id: bigint, note: string): EncounterParticipantConditionView 
   },
   note,
 });
-it("shows every fire source directly and ends fire from a table outcome without asking for a DC or damage", async () => {
+it("keeps every source and queues a table recovery without dropping its damage from the final submission", async () => {
+  api.prepareEncounterPersistentDamage.mockImplementation(async (_ref, request) => ({
+    complete: request.groups.length === 2,
+    recovery: null,
+    damage: {
+      encounter_key: "encounter",
+      request_id: request.request_id,
+      groups: [],
+      total: request.groups.reduce(
+        (sum: bigint, g: { damage: { amount: bigint } }) => sum + g.damage.amount,
+        0n,
+      ),
+      hardness_absorbed: 0n,
+    },
+  }));
   const review = {
     encounter_revision: 1n,
     damage_groups: [fire, bleed],
@@ -112,21 +129,9 @@ it("shows every fire source directly and ends fire from a table outcome without 
   expect(within(sources).getByText("Dragon flame")).toBeVisible();
   expect(screen.queryByText("Additional sources")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Clear fire effect" }));
-  await waitFor(() =>
-    expect(onRecover).toHaveBeenCalledExactlyOnceWith({
-      resolution: "clear",
-      mode: "end_turn",
-      boundary_key: "outgoing",
-      expected_encounter_revision: 1n,
-      participant_key: "actor",
-      episode_id: "fire",
-      dc_override: null,
-    }),
-  );
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Clear fire effect" })).toBeDisabled(),
-  );
-  expect(screen.getByRole("button", { name: "Clear bleed effect" })).toBeEnabled();
+  expect(onRecover).not.toHaveBeenCalled();
+  expect(screen.getByText("Clears after Apply")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Keep fire effect" })).toBeEnabled();
   expect(onApply).not.toHaveBeenCalled();
   expect(screen.queryByRole("spinbutton", { name: "Recovery DC" })).toBeNull();
   fireEvent.click(
@@ -138,13 +143,18 @@ it("shows every fire source directly and ends fire from a table outcome without 
   expect(amount).toBeEnabled();
   expect(screen.queryByText("Reload damage")).toBeNull();
   fireEvent.change(amount, { target: { value: "3" } });
-  expect(screen.getByText("Damage taken")).toBeVisible();
-  fireEvent.click(await screen.findByRole("button", { name: "Apply 3 damage" }));
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Fire damage amount" }), {
+    target: { value: "2" },
+  });
+  expect(screen.getAllByText("Damage taken")).toHaveLength(2);
+  fireEvent.click(await screen.findByRole("button", { name: "Apply 5 damage" }));
   await waitFor(() =>
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
-        expected_encounter_revision: 2n,
+        expected_encounter_revision: 1n,
+        recoveries: [{ kind: "clear", episode_id: "fire" }],
         groups: [
+          { episode_id: "fire", damage: { kind: "table_result", amount: 2n } },
           {
             episode_id: "bleed",
             damage: { kind: "table_result", amount: 3n },

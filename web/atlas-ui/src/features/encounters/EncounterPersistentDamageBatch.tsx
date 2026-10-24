@@ -1,61 +1,37 @@
 import { Alert, Button, Form, InputNumber, Segmented, Space, Tooltip } from "antd";
-import { useState, type ReactNode } from "react";
+import { Undo2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type {
   ApplyPersistentDamageRequest,
   EncounterParticipantView,
+  PersistentDamageGroupInput,
   PersistentDamageGroupView,
   PersistentDamageResultView,
   PersistentDamageResolutionView,
+  PersistentEpisodeReviewView,
+  PersistentRecoveryResultView,
+  PersistentRecoveryInput,
+  PreparePersistentDamageRequest,
+  PreparedPersistentDamageGroupView,
+  PreparedPersistentDamageView,
+  RecoverPersistentDamageRequest,
 } from "../../generated/atlas";
+import { prepareEncounterPersistentDamage } from "../../api/atlasApi";
 import { RollResult } from "../../shared/dice/RollResult";
 import { nonNegativeIntegerRule } from "../../shared/ui/forms/nonNegativeIntegerRule";
+import { EncounterPersistentRecovery } from "./EncounterPersistentRecovery";
+
 type Values = {
   mode: "roll" | "table";
   groups: Record<string, { amount?: number | null }>;
 };
-function DamageFields({
-  group,
-  mode,
-  label,
-  heading = true,
-}: {
-  group: PersistentDamageGroupView;
-  mode: Values["mode"];
-  label: string;
-  heading?: boolean;
-}) {
-  const selected = group.sources.find(
-    (source) => source.condition_id === group.selected_source_id,
-  );
-  if (!heading && mode !== "table") return null;
-  return (
-    <section className="encounter-persistent-damage-fields">
-      {heading && (
-        <h4>
-          {label}
-          {selected ? ` · ${selected.formula}` : ""}
-        </h4>
-      )}
-      {mode === "table" && (
-        <Form.Item
-          style={{ marginBottom: 0 }}
-          name={["groups", group.episode_id, "amount"]}
-          label="Damage taken"
-          tooltip="After IWR"
-          rules={[nonNegativeIntegerRule(true)]}
-        >
-          <InputNumber
-            aria-label={`${label} damage amount`}
-            min={0}
-            max={1_000_000_000}
-            step={1}
-          />
-        </Form.Item>
-      )}
-    </section>
-  );
-}
+const validAmount = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isSafeInteger(value) &&
+  value >= 0 &&
+  value <= 1_000_000_000;
 export function EncounterPersistentDamageBatch({
+  encounterRef,
   participant,
   encounterRevision,
   boundaryKey = null,
@@ -65,11 +41,17 @@ export function EncounterPersistentDamageBatch({
   disabled,
   pending,
   onApply,
+  onRecover,
   savedResult,
+  preparedDamage = [],
+  preparedRecovery = [],
+  recoveryResults = [],
+  episodes = [],
   displayGroups = participant.persistent_damage_groups,
   renderGroup,
   resolutions = {},
 }: {
+  encounterRef: string;
   participant: EncounterParticipantView;
   encounterRevision: bigint;
   boundaryKey?: string | null;
@@ -81,10 +63,21 @@ export function EncounterPersistentDamageBatch({
   onApply: (
     request: Omit<ApplyPersistentDamageRequest, "request_id">,
   ) => Promise<PersistentDamageResultView>;
+  onRecover: (
+    request: Omit<RecoverPersistentDamageRequest, "request_id">,
+  ) => Promise<PersistentRecoveryResultView>;
   savedResult?: PersistentDamageResultView | null;
+  preparedDamage?: PreparedPersistentDamageGroupView[];
+  preparedRecovery?: PersistentRecoveryResultView[];
+  recoveryResults?: PersistentRecoveryResultView[];
+  episodes?: PersistentEpisodeReviewView[];
   displayGroups?: PersistentDamageGroupView[];
   resolutions?: Record<string, PersistentDamageResolutionView>;
-  renderGroup?: (group: PersistentDamageGroupView, damage: ReactNode) => ReactNode;
+  renderGroup?: (
+    group: PersistentDamageGroupView,
+    damage: ReactNode,
+    recovery: ReactNode,
+  ) => ReactNode;
 }) {
   const [form] = Form.useForm<Values>();
   const draftMode = Form.useWatch("mode", form) ?? "roll";
@@ -92,51 +85,164 @@ export function EncounterPersistentDamageBatch({
     | Values["groups"]
     | undefined;
   const requiresTable = participant.persistent_damage_groups.some(
-    (group) => resolutions[group.episode_id]?.kind === "table",
+    (g) => resolutions[g.episode_id]?.kind === "table",
   );
   const mode: Values["mode"] = requiresTable ? "table" : draftMode;
-  const entered = participant.persistent_damage_groups.map(
-    (group) => amounts?.[group.episode_id]?.amount,
+  const [rolls, setRolls] = useState<Record<string, PreparedPersistentDamageGroupView>>(
+    () => Object.fromEntries(preparedDamage.map((r) => [r.group.episode_id, r])),
   );
-  const total = entered.every(
-    (amount) =>
-      typeof amount === "number" &&
-      Number.isSafeInteger(amount) &&
-      amount >= 0 &&
-      amount <= 1_000_000_000,
-  )
-    ? entered.reduce<number>((sum, amount) => sum + amount!, 0)
-    : undefined;
+  const [recoveries, setRecoveries] = useState<
+    Record<string, PersistentRecoveryResultView>
+  >(() => Object.fromEntries(preparedRecovery.map((r) => [r.episode_id, r])));
+  const [clears, setClears] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState<string>();
+  const [error, setError] = useState<string>();
+  const requests = useRef(new Map<string, PreparePersistentDamageRequest>());
   const membership = participant.persistent_damage_groups
-    .map(
-      (group) =>
-        `${group.episode_id}:${group.sources.map((source) => source.condition_id).join(",")}`,
-    )
+    .map((g) => `${g.episode_id}:${g.sources.map((s) => s.condition_id).join(",")}`)
     .join(";");
   const [anchor, setAnchor] = useState({ membership, revision: encounterRevision });
-  if (anchor.membership !== membership)
-    setAnchor({ membership, revision: encounterRevision });
-  const revision =
-    anchor.membership === membership ? anchor.revision : encounterRevision;
+  const changed =
+    anchor.membership !== membership || anchor.revision !== encounterRevision;
   const [result, setResult] = useState<PersistentDamageResultView | null>(null);
-  const [error, setError] = useState<string>();
   const committed = result ?? savedResult;
-  const changed = revision !== encounterRevision;
   const applied = damageApplied || !!committed;
+  const groups = useMemo<PersistentDamageGroupInput[]>(
+    () =>
+      participant.persistent_damage_groups.flatMap<PersistentDamageGroupInput>(
+        (group) => {
+          if (mode === "table") {
+            const amount = amounts?.[group.episode_id]?.amount;
+            return validAmount(amount)
+              ? [
+                  {
+                    episode_id: group.episode_id,
+                    damage: { kind: "table_result" as const, amount: BigInt(amount) },
+                  },
+                ]
+              : [];
+          }
+          const prepared = rolls[group.episode_id];
+          return prepared
+            ? [
+                {
+                  episode_id: group.episode_id,
+                  damage: {
+                    kind: "prepared" as const,
+                    request_id: prepared.request_id,
+                  },
+                },
+              ]
+            : [];
+        },
+      ),
+    [participant.persistent_damage_groups, mode, amounts, rolls],
+  );
+  const [previewAttempt, setPreviewAttempt] = useState(0);
+  const [preview, setPreview] = useState<{
+    inputs: PersistentDamageGroupInput[];
+    value?: PreparedPersistentDamageView;
+    error?: string;
+  }>();
+  useEffect(() => {
+    if (applied || changed || disabled || pending) return;
+    let active = true;
+    const timer = setTimeout(() => {
+      void prepareEncounterPersistentDamage(encounterRef, {
+        request_id: crypto.randomUUID(),
+        expected_encounter_revision: anchor.revision,
+        participant_key: participant.participant_key,
+        boundary_key: boundaryKey,
+        artifact_generation: generation,
+        groups,
+        recovery: null,
+      }).then(
+        (value) => {
+          if (active) setPreview({ inputs: groups, value });
+        },
+        (cause) => {
+          if (active)
+            setPreview({
+              inputs: groups,
+              error:
+                cause instanceof Error ? cause.message : "Could not calculate damage.",
+            });
+        },
+      );
+    }, 180);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [
+    groups,
+    applied,
+    changed,
+    disabled,
+    pending,
+    encounterRef,
+    anchor.revision,
+    participant.participant_key,
+    boundaryKey,
+    generation,
+    previewAttempt,
+  ]);
+  const current = preview?.inputs === groups ? preview : undefined;
+  const ready = !applied && !changed && !disabled && !pending && !busy;
+  const prepare = async (
+    slot: string,
+    inputs: PersistentDamageGroupInput[],
+    recovery: PreparePersistentDamageRequest["recovery"] = null,
+  ) => {
+    if (!ready)
+      throw new Error("Wait for the current update before preparing another result.");
+    let request = requests.current.get(slot);
+    if (!request) {
+      request = {
+        request_id: crypto.randomUUID(),
+        expected_encounter_revision: anchor.revision,
+        participant_key: participant.participant_key,
+        boundary_key: boundaryKey,
+        artifact_generation: generation,
+        groups: inputs,
+        recovery,
+      };
+      requests.current.set(slot, request);
+    }
+    setBusy(slot);
+    setError(undefined);
+    try {
+      const completed = await prepareEncounterPersistentDamage(encounterRef, request);
+      requests.current.delete(slot);
+      return completed;
+    } finally {
+      setBusy(undefined);
+    }
+  };
   return (
     <>
-      {error && (
-        <Alert type="error" title="Persistent damage failed" description={error} />
-      )}
+      {error && <Alert type="error" title={error} />}
       {changed && !applied && (
         <Alert
           type="warning"
           title="Encounter changed"
+          description="Review the current damage and recovery before applying."
           action={
             <Button
               onClick={() => {
                 form.resetFields();
+                setRolls(
+                  Object.fromEntries(
+                    preparedDamage.map((r) => [r.group.episode_id, r]),
+                  ),
+                );
+                setRecoveries(
+                  Object.fromEntries(preparedRecovery.map((r) => [r.episode_id, r])),
+                );
+                setClears({});
+                requests.current.clear();
                 setAnchor({ membership, revision: encounterRevision });
+                setError(undefined);
               }}
             >
               Reload damage
@@ -147,30 +253,33 @@ export function EncounterPersistentDamageBatch({
       <Form
         form={form}
         layout="vertical"
-        disabled={disabled || pending || (changed && !applied)}
+        disabled={disabled || pending || changed}
         initialValues={{ mode: "roll" }}
-        onFinish={async (values) => {
-          if (disabled || pending || changed) return;
+        onFinish={async () => {
+          if (!ready || !current?.value?.complete) return;
+          setError(undefined);
           try {
-            setError(undefined);
             const receipt = await onApply({
               boundary_key: boundaryKey,
-              expected_encounter_revision: revision,
+              expected_encounter_revision: anchor.revision,
               participant_key: participant.participant_key,
               artifact_generation: generation,
-              groups: participant.persistent_damage_groups.map((group) => {
-                return {
-                  episode_id: group.episode_id,
-
-                  damage:
-                    mode === "table"
-                      ? {
-                          kind: "table_result",
-                          amount: BigInt(values.groups[group.episode_id].amount!),
-                        }
-                      : { kind: "roll" },
-                };
-              }),
+              groups,
+              recoveries:
+                participant.persistent_damage_groups.flatMap<PersistentRecoveryInput>(
+                  (g) =>
+                    clears[g.episode_id]
+                      ? [{ kind: "clear" as const, episode_id: g.episode_id }]
+                      : recoveries[g.episode_id]
+                        ? [
+                            {
+                              kind: "prepared" as const,
+                              episode_id: g.episode_id,
+                              request_id: recoveries[g.episode_id].request_id,
+                            },
+                          ]
+                        : [],
+                ),
               context: {
                 lethality: null,
                 critical: null,
@@ -193,7 +302,7 @@ export function EncounterPersistentDamageBatch({
           }
         }}
       >
-        {!applied && participant.persistent_damage_groups.length > 0 && (
+        {!applied && (
           <Form.Item
             name="mode"
             label="Damage"
@@ -212,21 +321,21 @@ export function EncounterPersistentDamageBatch({
         <div className="encounter-persistent-groups">
           {displayGroups.map((group) => {
             const label =
-              damageTypes.find((type) => type.value === group.damage_type)?.label ??
+              damageTypes.find((t) => t.value === group.damage_type)?.label ??
               group.damage_type;
-            const active = participant.persistent_damage_groups.find(
-              (candidate) => candidate.episode_id === group.episode_id,
+            const active = participant.persistent_damage_groups.some(
+              (g) => g.episode_id === group.episode_id,
             );
-            const result = committed?.groups.find(
-              (result) => result.episode_id === group.episode_id,
+            const saved = committed?.groups.find(
+              (g) => g.episode_id === group.episode_id,
             );
+            const rolled = rolls[group.episode_id]?.group;
             const resolution = resolutions[group.episode_id];
-            const protection = result
-              ? result.protection
-              : active && resolution?.kind === "known"
-                ? resolution.protection
-                : undefined;
-            const protectionNote = protection?.immune
+            const protection =
+              saved?.protection ??
+              rolled?.protection ??
+              (resolution?.kind === "known" ? resolution.protection : undefined);
+            const note = protection?.immune
               ? `Immune to ${label.toLowerCase()}`
               : protection
                 ? [
@@ -238,34 +347,223 @@ export function EncounterPersistentDamageBatch({
                 : undefined;
             const damage = (
               <>
-                {protectionNote && (
-                  <p className="encounter-condition-meta">{protectionNote}</p>
-                )}
-                {!applied && active && resolution?.kind === "table" && (
+                {note && <p className="encounter-condition-meta">{note}</p>}
+                {!saved && resolution?.kind === "table" && (
                   <p className="encounter-condition-meta">{resolution.reason}</p>
                 )}
-                {result ? (
+                {saved ? (
                   <div className="encounter-persistent-applied">
-                    <span>
-                      {renderGroup
-                        ? `${result.amount} damage`
-                        : `${label}: ${result.amount}`}
-                    </span>
-                    {result.roll && <RollResult outcome={result.roll} />}
+                    {saved.roll && <RollResult outcome={saved.roll} />}
+                    <strong>
+                      {label}: {saved.amount.toString()}
+                    </strong>
                   </div>
                 ) : !applied && active ? (
-                  <DamageFields
-                    group={active}
-                    mode={mode}
-                    label={label}
-                    heading={!renderGroup}
-                  />
+                  <div className="encounter-persistent-damage-control">
+                    <span className="encounter-persistent-damage-control__label">
+                      Damage taken
+                    </span>
+                    <div className="encounter-persistent-damage-control__value">
+                      {mode === "table" ? (
+                        <Form.Item
+                          name={["groups", group.episode_id, "amount"]}
+                          style={{ marginBottom: 0 }}
+                          rules={[nonNegativeIntegerRule(true)]}
+                        >
+                          <InputNumber
+                            aria-label={`${label} damage amount`}
+                            min={0}
+                            max={1_000_000_000}
+                            step={1}
+                          />
+                        </Form.Item>
+                      ) : rolled ? (
+                        <Space>
+                          {rolled.roll && <RollResult outcome={rolled.roll} />}
+                          {(!rolled.roll ||
+                            BigInt(rolled.roll.total) !== rolled.amount) && (
+                            <strong>{rolled.amount.toString()} damage</strong>
+                          )}
+                        </Space>
+                      ) : (
+                        <Button
+                          loading={busy === `damage:${group.episode_id}`}
+                          aria-label={`Roll ${label} damage`}
+                          onClick={async () => {
+                            try {
+                              const completed = await prepare(
+                                `damage:${group.episode_id}`,
+                                [
+                                  ...groups,
+                                  {
+                                    episode_id: group.episode_id,
+                                    damage: { kind: "roll" },
+                                  },
+                                ],
+                              );
+                              const outcome = completed.damage.groups.find(
+                                (g) => g.episode_id === group.episode_id,
+                              );
+                              if (outcome)
+                                setRolls((previous) => ({
+                                  ...previous,
+                                  [group.episode_id]: {
+                                    request_id: completed.damage.request_id,
+                                    group: outcome,
+                                  },
+                                }));
+                            } catch (cause) {
+                              setError(
+                                cause instanceof Error
+                                  ? cause.message
+                                  : "Could not roll damage.",
+                              );
+                            }
+                          }}
+                        >
+                          Roll
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 ) : null}
               </>
             );
+            const episode = episodes.find((e) => e.episode_id === group.episode_id);
+            const staged = recoveries[group.episode_id];
+            const pendingClear = !!clears[group.episode_id] || !!staged?.success;
+            const hasDamage = groups.some((g) => g.episode_id === group.episode_id);
+            const recovery = (
+              <div
+                className="encounter-persistent-recovery-row"
+                role="group"
+                aria-label={`${label} recovery`}
+              >
+                <Space size="small" align="center" wrap>
+                  <EncounterPersistentRecovery
+                    group={group}
+                    recordedResult={
+                      applied
+                        ? recoveryResults.find((r) => r.episode_id === group.episode_id)
+                        : staged
+                    }
+                    resultPending={!applied}
+                    size="middle"
+                    appearance="button"
+                    boundaryKey={boundaryKey}
+                    mode="end_turn"
+                    available={
+                      active &&
+                      (applied ? !!episode?.end_turn_recovery_available : true)
+                    }
+                    rollAvailable={
+                      active &&
+                      (applied
+                        ? !!episode?.end_turn_roll_available
+                        : hasDamage && !staged)
+                    }
+                    rollUnavailableReason={
+                      applied
+                        ? episode?.end_turn_roll_unavailable_reason
+                        : !hasDamage
+                          ? `Enter or roll ${label.toLowerCase()} damage first.`
+                          : staged
+                            ? "Recovery already rolled for this turn."
+                            : undefined
+                    }
+                    participantKey={participant.participant_key}
+                    encounterRevision={anchor.revision}
+                    disabled={
+                      disabled ||
+                      changed ||
+                      (!!busy && busy !== `recovery:${group.episode_id}`)
+                    }
+                    pending={pending}
+                    damageType={label}
+                    onRecover={
+                      applied
+                        ? onRecover
+                        : async (request) => {
+                            const completed = await prepare(
+                              `recovery:${group.episode_id}`,
+                              groups,
+                              {
+                                episode_id: group.episode_id,
+                                dc_override: request.dc_override,
+                              },
+                            );
+                            if (!completed.recovery)
+                              throw new Error("Recovery result is unavailable.");
+                            const recovery = completed.recovery;
+                            setRecoveries((previous) => ({
+                              ...previous,
+                              [group.episode_id]: recovery,
+                            }));
+                            return recovery;
+                          }
+                    }
+                  />
+                  <Button
+                    aria-label={`${clears[group.episode_id] ? "Keep" : "Clear"} ${label.toLowerCase()} effect`}
+                    icon={
+                      clears[group.episode_id] ? <Undo2 size={14} /> : <X size={14} />
+                    }
+                    disabled={
+                      disabled ||
+                      pending ||
+                      changed ||
+                      !!busy ||
+                      !active ||
+                      !!staged?.success
+                    }
+                    onClick={async () => {
+                      if (!applied) {
+                        setClears((previous) => ({
+                          ...previous,
+                          [group.episode_id]: !previous[group.episode_id],
+                        }));
+                        return;
+                      }
+                      try {
+                        await onRecover({
+                          resolution: "clear",
+                          boundary_key: boundaryKey,
+                          mode: "end_turn",
+                          participant_key: participant.participant_key,
+                          episode_id: group.episode_id,
+                          expected_encounter_revision: encounterRevision,
+                          dc_override: null,
+                        });
+                      } catch (cause) {
+                        setError(
+                          cause instanceof Error
+                            ? cause.message
+                            : "Could not clear effect.",
+                        );
+                      }
+                    }}
+                  >
+                    {clears[group.episode_id] ? "Keep effect" : "Clear effect"}
+                  </Button>
+                </Space>
+                {!applied && (pendingClear || staged) && (
+                  <span className="encounter-condition-meta">
+                    {pendingClear ? "Clears after Apply" : "Still active"}
+                  </span>
+                )}
+              </div>
+            );
             return (
               <div key={group.episode_id}>
-                {renderGroup ? renderGroup(group, damage) : damage}
+                {renderGroup ? (
+                  renderGroup(group, damage, recovery)
+                ) : (
+                  <section className="encounter-persistent-type">
+                    <h4>{label}</h4>
+                    {damage}
+                    {recovery}
+                  </section>
+                )}
               </div>
             );
           })}
@@ -279,8 +577,36 @@ export function EncounterPersistentDamageBatch({
           </p>
         )}
         {applied && !committed && <p>Persistent damage applied</p>}
-        {!applied && participant.persistent_damage_groups.length > 0 && (
-          <Space wrap>
+        {!applied && (
+          <div className="encounter-persistent-footer">
+            <div aria-live="polite">
+              {current?.error ? (
+                <Alert
+                  type="error"
+                  title={current.error}
+                  action={
+                    <Button
+                      onClick={() => setPreviewAttempt((previous) => previous + 1)}
+                    >
+                      Retry
+                    </Button>
+                  }
+                />
+              ) : current?.value ? (
+                <span>
+                  {current.value.complete ? "Total" : "Prepared"}:{" "}
+                  <strong>{current.value.damage.total.toString()} damage</strong>
+                  {current.value.damage.hardness_absorbed > 0n
+                    ? ` · Hardness absorbs ${current.value.damage.hardness_absorbed}`
+                    : ""}
+                  {!current.value.complete
+                    ? ` · ${participant.persistent_damage_groups.length - groups.length} unresolved`
+                    : ""}
+                </span>
+              ) : (
+                <span className="muted">Updating total…</span>
+              )}
+            </div>
             <Tooltip
               title="All persistent damage types resolve together. Effects triggered by taking damage, such as increasing Dying, happen once."
               trigger={["hover", "focus"]}
@@ -288,22 +614,15 @@ export function EncounterPersistentDamageBatch({
               <Button
                 type="primary"
                 htmlType="submit"
-                disabled={
-                  disabled ||
-                  pending ||
-                  changed ||
-                  !participant.persistent_damage_groups.length
-                }
+                disabled={!ready || !current?.value?.complete}
                 loading={pending}
               >
-                {mode === "roll"
-                  ? "Roll & apply damage"
-                  : total === undefined
-                    ? "Apply damage"
-                    : `Apply ${total} damage`}
+                {current?.value?.complete
+                  ? `Apply ${current.value.damage.total} damage`
+                  : "Apply damage"}
               </Button>
             </Tooltip>
-          </Space>
+          </div>
         )}
       </Form>
     </>

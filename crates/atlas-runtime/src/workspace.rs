@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 10;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 11;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -67,6 +67,12 @@ const MIGRATIONS: &[Migration] = &[
             apply: atlas_index::backfill_embedding_storage,
         }),
     },
+    Migration {
+        version: 11,
+        name: "persistent-preparation",
+        sql: atlas_local_state::PERSISTENT_PREPARATION_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -99,6 +105,45 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewEncounter, NewSavedList};
+
+    #[test]
+    fn persistent_preparation_upgrade_preserves_old_claims_hp_and_receipts() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("preparation.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace
+            .migrate(&MIGRATIONS[..MIGRATIONS.len() - 1], |_| Ok(()))
+            .unwrap();
+        let write = workspace.write(10).unwrap();
+        let encounter = LocalStateWrite::new(&write)
+            .encounters()
+            .create(NewEncounter {
+                slug: "retained".into(),
+                name: "Retained".into(),
+                description: None,
+                note: None,
+            })
+            .unwrap();
+        write.connection().execute("INSERT INTO encounter_participants (encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,temporary_hp,created_at,updated_at) SELECT id,'retained-actor','pc',1,'PC',1,20,13,3,'now','now' FROM encounters WHERE encounter_key=?1",[&encounter.encounter_key]).unwrap();
+        write.connection().execute("INSERT INTO encounter_event_receipts SELECT id,'retained-request','{}','{\"version\":1,\"payload\":{}}' FROM encounters WHERE encounter_key=?1",[&encounter.encounter_key]).unwrap();
+        write.connection().execute("INSERT INTO encounter_boundary_claims SELECT id,'retained-actor',4,'persistent_damage','','retained-request' FROM encounters WHERE encounter_key=?1",[&encounter.encounter_key]).unwrap();
+        write.commit().unwrap();
+        let workspace = initialize_workspace(&path).unwrap();
+        let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let row=read.connection().query_row("SELECT p.current_hp,p.temporary_hp,c.round_number,c.kind,c.request_id,r.receipt_json FROM encounter_participants p JOIN encounter_boundary_claims c ON c.participant_key=p.participant_key JOIN encounter_event_receipts r ON r.encounter_id=c.encounter_id AND r.request_id=c.request_id",[],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,i64>(2)?,r.get::<_,String>(3)?,r.get::<_,String>(4)?,r.get::<_,String>(5)?))).unwrap();
+        assert_eq!(
+            row,
+            (
+                13,
+                3,
+                4,
+                "persistent_damage".into(),
+                "retained-request".into(),
+                r#"{"version":1,"payload":{}}"#.into()
+            )
+        );
+    }
 
     #[test]
     fn version_two_workspace_upgrade_preserves_saved_domains() {

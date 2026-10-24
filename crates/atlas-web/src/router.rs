@@ -80,6 +80,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/encounters/{encounter_ref}/condition-lifecycle-actions",get(crate::handlers::condition_lifecycle_actions))
         .route("/api/encounters/{encounter_ref}/condition-recoveries",get(crate::handlers::pending_condition_recoveries))
         .route("/api/encounters/{encounter_ref}/persistent-review",get(crate::handlers::persistent_damage_review))
+        .route("/api/encounters/{encounter_ref}/persistent-preparation",post(crate::handlers::prepare_persistent_damage))
         .route("/api/encounters/{encounter_ref}/persistent-damage",post(crate::handlers::apply_persistent_damage))
         .route("/api/encounters/{encounter_ref}/persistent-recovery",post(crate::handlers::recover_persistent_damage))
         .route("/api/encounters/{encounter_ref}/condition-consequences",get(crate::handlers::pending_encounter_condition_consequences))

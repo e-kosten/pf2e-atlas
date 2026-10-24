@@ -129,12 +129,27 @@ consume that same selection. Damage and recovery requests identify episodes;
 the guarded backend snapshot supplies their active source. Source comparison and ordering
 belong in Add/Edit, with no second source picker in damage or recovery. Storage resolves typed addition references after
 allocating their IDs in the event transaction; there is no intermediate write. Apply active
-damage types simultaneously through one HP event, then resolve recovery separately.
+damage types simultaneously through one HP event before condition removal. The
+turn reminder can prepare each damage roll and optional recovery check first.
+Receipt-only preparation preserves HP, conditions and encounter revision, with
+separate per-type preparation claims. Manual amounts and Clear choices remain
+frontend drafts. The final guarded damage command consumes prepared receipt IDs,
+checks exact boundary/source/formula/generation identity, recalculates current
+protections from retained raw dice, applies shared Hardness and HP consequences
+once, and then commits queued recovery/removal in the same event. A changed HP
+value does not require rerolling damage. An altered formula or selected source
+cannot reuse unrelated dice; table resolution remains available. Actual recovery
+checks retain their rolled DC and once-per-boundary claim; they are not simulated
+as table outcomes or silently omitted at final submission. Ordinary recovery after
+applied damage remains an independent guarded action.
 Successful recovery clears its episode; individual expiry/removal can reveal a
-weaker source. Physical-table recovery has a direct per-type Clear intent beside the recovery
-roller. It ends the recorded episode's matching current sources without a DC,
-source-selection form, simulated roll, HP change or turn-recovery claim. It
-preserves other types and sources added after the outgoing boundary. The review
+weaker source. Physical-table recovery has a per-type Clear intent beside the recovery roller.
+Before damage application it queues removal, visibly retaining this turn's damage;
+the final command records that table outcome with the batch's recovery claims.
+After damage application, or outside the prepared batch, direct Clear ends the
+recorded episode's matching current sources without a DC, source-selection form,
+simulated roll, HP change or turn-recovery claim. Both forms preserve other types
+and sources added after the outgoing boundary. The review
 and damage command share an executable-source projection intersecting the recorded
 sources with current episode membership, so ended sources cannot be charged later.
 Review responses pair those groups with their encounter revision so clearing a

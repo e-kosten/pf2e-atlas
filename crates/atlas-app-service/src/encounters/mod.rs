@@ -37,6 +37,7 @@ mod event_execution;
 mod hp_events;
 
 mod persistent_damage_resolution;
+mod persistent_preparation;
 
 #[cfg(test)]
 mod persistent_damage_tests;

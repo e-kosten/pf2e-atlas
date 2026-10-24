@@ -364,6 +364,7 @@ it("keeps persistent dice results out of the generic modal footer", async () => 
     await result.current.execute({
       kind: "persistent-damage",
       request: {
+        recoveries: [],
         participant_key: "actor",
         expected_encounter_revision: 8n,
         boundary_key: "outgoing",
