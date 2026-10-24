@@ -1,6 +1,6 @@
 import { Dice5 } from "lucide-react";
 import { Alert, Button, Form, InputNumber, Popover, Tooltip } from "antd";
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   PersistentDamageGroupView,
   PersistentRecoveryResultView,
@@ -59,6 +59,40 @@ export function EncounterPersistentRecovery({
   const [error, setError] = useState<string>();
   const dice = useDiceRoll<PersistentRecoveryResultView>();
   const result = dice.result ?? recordedResult;
+  const trigger = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const resultFocus = useRef<{
+    form: HTMLFormElement;
+    cancelled: boolean;
+  } | null>(null);
+  useLayoutEffect(() => {
+    if (!open) {
+      resultFocus.current = null;
+      return;
+    }
+    if (mode !== "end_turn" || !result || !resultFocus.current) return;
+    if (disabled || pending || dice.busy || trigger.current?.disabled) return;
+    const handoff = resultFocus.current;
+    resultFocus.current = null;
+    const owner = trigger.current?.ownerDocument;
+    if (owner && !handoff.cancelled && owner.activeElement === owner.body)
+      trigger.current?.focus({ preventScroll: true });
+  }, [open, mode, result, disabled, pending, dice.busy]);
+  useEffect(() => {
+    const owner = open ? trigger.current?.ownerDocument : null;
+    if (!owner) return;
+    const moved = (event: FocusEvent) => {
+      const handoff = resultFocus.current;
+      if (
+        handoff &&
+        event.target !== owner.body &&
+        !handoff.form.contains(event.target as Node)
+      )
+        handoff.cancelled = true;
+    };
+    owner.addEventListener("focusin", moved);
+    return () => owner.removeEventListener("focusin", moved);
+  }, [open]);
   const [form] = Form.useForm<Values>();
   const source = group.sources.find(
     (source) => source.condition_id === group.selected_source_id,
@@ -84,6 +118,13 @@ export function EncounterPersistentRecovery({
     try {
       const values = await form.validateFields(["dc"]);
       setError(undefined);
+      const sourceForm = panel.current?.querySelector("form");
+      resultFocus.current =
+        mode === "end_turn" &&
+        sourceForm?.contains(sourceForm.ownerDocument.activeElement)
+          ? { form: sourceForm, cancelled: false }
+          : null;
+      let received = false;
       await dice.run(async () => {
         const completed = await onRecover({
           resolution: "roll",
@@ -100,9 +141,11 @@ export function EncounterPersistentRecovery({
               ? null
               : BigInt(values.dc),
         });
+        received = true;
         onResult?.(completed);
         return completed;
       });
+      if (!received) resultFocus.current = null;
     } catch (cause) {
       if (cause instanceof Error) setError(cause.message);
     }
@@ -125,7 +168,7 @@ export function EncounterPersistentRecovery({
           onOpenChange?.(next);
         }}
         content={
-          <div className="encounter-recovery-actions">
+          <div ref={panel} className="encounter-recovery-actions">
             {dice.error && <Alert type="error" title={dice.error} />}
             {error && (
               <Alert type="error" title="Recovery failed" description={error} />
@@ -222,6 +265,7 @@ export function EncounterPersistentRecovery({
           trigger={["hover", "focus"]}
         >
           <Button
+            ref={trigger}
             type={appearance === "icon" ? "text" : "default"}
             icon={
               appearance === "icon" ? <Dice5 size={14} aria-hidden="true" /> : undefined
