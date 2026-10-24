@@ -101,3 +101,70 @@ it.each([false, true])(
     ).toBeTruthy();
   },
 );
+
+it.each([false, true, null])(
+  "retains hazard rules and conditions without treating the generic creature budget as a hazard allotment (complex=%s)",
+  (complex) => {
+    const actor = actorFixture();
+    const count = (label: string, value: bigint) => ({
+      label,
+      base_value: value,
+      adjusted_value: value,
+      segments: [],
+      adjustments: [],
+      suppressed_adjustments: [],
+    });
+    actor.runtime = {
+      senses: [],
+      contextual_armor_class: [],
+      unapplied_effects: [],
+      action_budget: {
+        actions: count("Actions", 3n),
+        reactions: count("Reactions", 1n),
+        can_act: { available: true },
+        can_react: { available: true },
+        quickened_sources: [],
+        notes: [],
+      },
+    };
+    render(
+      <HazardReference
+        hazard={{
+          actor,
+          complex:
+            complex === null ? { state: "missing", value: null } : knownFact(complex),
+          stealth: numberFact(12),
+          hardness: numberFact(5),
+          defense_block: knownFact(true),
+          show_saves: true,
+        }}
+        encounter
+        encounterContent={{
+          participantKey: "hazard",
+          durability: <button>Edit HP</button>,
+          conditions: <h3>Conditions</h3>,
+        }}
+        content={{
+          description: <p>Complete operating rules</p>,
+          detection: null,
+          disable: <p>Disable instructions</p>,
+          routine:
+            complex === true ? <p>(2 actions) Follow the authored routine.</p> : null,
+          reset: <p>Reset instructions</p>,
+          other: null,
+        }}
+        onReference={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("region", { name: "Turn" })).toBeNull();
+    expect(screen.queryByText("At turn start")).toBeNull();
+    expect(screen.queryByText("Reactions now")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Conditions" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Edit HP" })).toBeEnabled();
+    expect(screen.getByText("Reset instructions")).toBeVisible();
+    if (complex === true)
+      expect(
+        screen.getByText("(2 actions) Follow the authored routine."),
+      ).toBeVisible();
+  },
+);

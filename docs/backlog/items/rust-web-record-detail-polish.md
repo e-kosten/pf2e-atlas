@@ -86,6 +86,11 @@ calculated character/familiar support. NPC movement qualifications, supplied
 character languages and owned strike range facts can use existing typed source
 support. Further bounded projection/content work remains:
 
+- Hazard `details.isComplex` is structured, but `details.routine` is rich prose,
+  including any action allotment. The generic creature action/reaction defaults
+  are not a source-backed hazard budget. A structured hazard allotment and its
+  encounter calculation policy require separate modeling; retain the complete
+  routine and activation rules in the meantime.
 - NPC `details.blurb` already has a plain attributed Notes selection alongside
   permitted public/private notes (1,620 nonempty records). Review its labeling
   and overlap before adding a second summary; no new source selection is needed.
