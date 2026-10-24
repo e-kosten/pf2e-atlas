@@ -39,7 +39,7 @@ it("spends only on explicit input and retains the recorded allowance and start r
     />,
   );
   expect(onChange).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: /^Spend action$/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Spend action 1" }));
   await waitFor(() =>
     expect(onChange).toHaveBeenCalledWith({ kind: "spend", resource: "action" }),
   );
@@ -106,5 +106,5 @@ it("shows mid-turn Quickened as a forecast rather than another current action", 
     screen.getByRole("button", { name: /^Edit remaining actions:/ }),
   ).toHaveTextContent("2 / 3");
   expect(screen.getByText("Next turn")).toBeVisible();
-  expect(screen.queryByRole("button", { name: "Spend extra action" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Spend extra action 1" })).toBeNull();
 });
