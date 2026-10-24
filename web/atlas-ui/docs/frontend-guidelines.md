@@ -1350,7 +1350,7 @@ the running Rust preview total as Total: N damage, adding named missing types:
 Fire, Acid not rolled in Atlas mode, or not entered in table mode. Omit the missing
 context once complete. Apply N damage uses that same authoritative total. Its hover/focus tooltip explains the
 single simultaneous damage event. Keep the button concise; when recovery or Clear
-will remove effects, show Also clears plus their damage-type names beside the total.
+will remove effects, show Clear plus their damage-type names beside the total.
 Do not include failed recoveries or independent expired-condition actions in that
 summary. The final command applies HP consequences once,
 then queued recoveries, atomically. Do not simulate prepared rolls as table totals

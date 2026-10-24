@@ -691,9 +691,7 @@ export function EncounterPersistentDamageBatch({
               ) : (
                 <span className="muted">Updating total…</span>
               )}
-              {clearingTypes.length > 0 && (
-                <div>Also clears {clearingTypes.join(", ")}</div>
-              )}
+              {clearingTypes.length > 0 && <div>Clear {clearingTypes.join(", ")}</div>}
             </div>
             <Tooltip
               title="Damage applies together; effects triggered by damage happen once."
