@@ -269,6 +269,120 @@ export function ActorDefenses({
   );
 }
 
+export function ActorAwareness({
+  actor,
+  encounter = false,
+}: {
+  actor: ActorPresentationView;
+  encounter?: boolean;
+}) {
+  if (
+    ![actor.perception, actor.senses, actor.perception_details].some((fact) =>
+      hasReadingFact(fact as FactView<unknown>),
+    )
+  )
+    return null;
+  return (
+    <div className="actor-reference__awareness">
+      {actor.perception.state !== "not_applicable" && (
+        <FactRow label="Perception">
+          <NumberFact fact={actor.perception} signed label="Perception" />
+        </FactRow>
+      )}
+      {encounter && actor.runtime ? (
+        <div className="record-fact-list">
+          {actor.runtime.senses.map((sense, index) => (
+            <FactRow
+              label={sentenceCase(sense.sense_type.replace(/-/g, " "))}
+              key={index}
+            >
+              {[
+                sense.precision,
+                sense.range_feet === null ? null : `${sense.range_feet} feet`,
+                sense.available === false
+                  ? `Unavailable${sense.reason ? ` (${sense.reason})` : ""}`
+                  : null,
+                sense.perception === null || sense.perception === actor.perception.value
+                  ? null
+                  : `Perception ${sense.perception >= 0 ? "+" : ""}${sense.perception}`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </FactRow>
+          ))}
+        </div>
+      ) : (
+        <FactLine
+          label="Senses"
+          fact={actor.senses}
+          format={(senses) =>
+            senses
+              .map((sense) =>
+                [
+                  factText(sense.sense),
+                  sense.acuity.state === "missing" ? "" : factText(sense.acuity),
+                  sense.range_feet.state === "missing"
+                    ? ""
+                    : factText(sense.range_feet, (value) => `${value} feet`),
+                ]
+                  .filter(Boolean)
+                  .join(" "),
+              )
+              .join(", ")
+          }
+        />
+      )}
+      <FactLine label="Perception details" fact={actor.perception_details} />
+    </div>
+  );
+}
+
+export function ActorMovement({ actor }: { actor: ActorPresentationView }) {
+  if (
+    ![actor.land_speed, actor.movement, actor.movement_details].some((fact) =>
+      hasReadingFact(fact as FactView<unknown>),
+    )
+  )
+    return null;
+  return (
+    <section className="actor-reference__movement">
+      <div className="record-fact-list">
+        {actor.land_speed.state !== "not_applicable" && (
+          <FactRow label="Speed">
+            <NumberFact fact={actor.land_speed} unit=" feet" label="Speed" />
+          </FactRow>
+        )}
+        {actor.movement.state !== "value" && (
+          <FactLine label="Other movement" fact={actor.movement} />
+        )}
+        {!["missing", "null", "not_applicable"].includes(
+          actor.movement_details.state,
+        ) && <FactLine label="Movement details" fact={actor.movement_details} />}
+        {(actor.movement.value ?? []).map((movement, index) => (
+          <FactRow key={index} label={factText(movement.movement_type)}>
+            <NumberFact fact={movement.feet} unit=" feet" />
+          </FactRow>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function ActorLanguages({ actor }: { actor: ActorPresentationView }) {
+  if (!hasReadingFact(actor.languages) && !hasReadingFact(actor.language_details))
+    return null;
+  return (
+    <div className="actor-reference__languages">
+      <FactLine
+        label="Languages"
+        fact={actor.languages}
+        format={(values) => values.join(", ")}
+      />
+      <FactLine label="Communication" fact={actor.language_details} />
+    </div>
+  );
+}
+
 export function ActorSupportingFacts({
   actor,
   encounter = false,
@@ -278,119 +392,19 @@ export function ActorSupportingFacts({
   encounter?: boolean;
   hazard?: boolean;
 }) {
-  const awarenessFacts: FactView<unknown>[] = [
-    actor.perception,
-    actor.senses,
-    ...(!encounter ? [actor.perception_details] : []),
-    ...(!encounter ? [actor.languages, actor.language_details] : []),
-  ];
-  const hasAwareness = !hazard && awarenessFacts.some((fact) => hasReadingFact(fact));
-  const hasMovement =
-    !hazard &&
-    (hasReadingFact(actor.land_speed) ||
-      hasReadingFact(actor.movement) ||
-      hasReadingFact(actor.movement_details));
+  if (hazard) return null;
   return (
     <>
-      {(hasAwareness || hasMovement) && (
-        <div className="actor-reference__awareness-movement">
-          {hasAwareness && (
-            <div className="actor-reference__awareness">
-              {!encounter && <h3>Awareness and communication</h3>}
-              {actor.perception.state !== "not_applicable" && (
-                <FactRow label="Perception">
-                  <NumberFact fact={actor.perception} signed label="Perception" />
-                </FactRow>
-              )}
-              {encounter && actor.runtime ? (
-                <div className="record-fact-list">
-                  {actor.runtime.senses.map((sense, index) => (
-                    <FactRow
-                      label={sentenceCase(sense.sense_type.replace(/-/g, " "))}
-                      key={index}
-                    >
-                      {[
-                        sense.precision,
-                        sense.range_feet === null ? null : `${sense.range_feet} feet`,
-                        sense.available === false
-                          ? `Unavailable${sense.reason ? ` (${sense.reason})` : ""}`
-                          : null,
-                        sense.perception === null ||
-                        sense.perception === actor.perception.value
-                          ? null
-                          : `Perception ${sense.perception >= 0 ? "+" : ""}${sense.perception}`,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </FactRow>
-                  ))}
-                </div>
-              ) : (
-                <FactLine
-                  label="Senses"
-                  fact={actor.senses}
-                  format={(senses) =>
-                    senses
-                      .map((sense) =>
-                        [
-                          factText(sense.sense),
-                          sense.acuity.state === "missing"
-                            ? ""
-                            : factText(sense.acuity),
-                          sense.range_feet.state === "missing"
-                            ? ""
-                            : factText(sense.range_feet, (value) => `${value} feet`),
-                        ]
-                          .filter(Boolean)
-                          .join(" "),
-                      )
-                      .join(", ")
-                  }
-                />
-              )}
-              {!encounter && (
-                <FactLine label="Perception details" fact={actor.perception_details} />
-              )}
-              {!encounter && (
-                <>
-                  <FactLine
-                    label="Languages"
-                    fact={actor.languages}
-                    format={(value) => value.join(", ")}
-                  />
-                  <FactLine label="Communication" fact={actor.language_details} />
-                </>
-              )}
-            </div>
-          )}
-          {hasMovement && (
-            <section className="actor-reference__movement">
-              {!encounter && <h3>Movement</h3>}
-              <div className="record-fact-list">
-                {actor.land_speed.state !== "not_applicable" && (
-                  <FactRow label="Speed">
-                    <NumberFact fact={actor.land_speed} unit=" feet" label="Speed" />
-                  </FactRow>
-                )}
-                {actor.movement.state !== "value" && (
-                  <FactLine label="Other movement" fact={actor.movement} />
-                )}
-                {!["missing", "null", "not_applicable"].includes(
-                  actor.movement_details.state,
-                ) && (
-                  <FactLine label="Movement details" fact={actor.movement_details} />
-                )}
-                {(actor.movement.value ?? []).map((movement, index) => (
-                  <FactRow key={index} label={factText(movement.movement_type)}>
-                    <NumberFact fact={movement.feet} unit=" feet" />
-                  </FactRow>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
+      <div className="actor-reference__awareness-movement">
+        <ActorAwareness actor={actor} encounter={encounter} />
+        <ActorMovement actor={actor} />
+      </div>
+      {!encounter && (
+        <>
+          <ActorLanguages actor={actor} />
+          <ActorSkills actor={actor} />
+        </>
       )}
-      {!hazard && !encounter && <ActorSkills actor={actor} />}
     </>
   );
 }
@@ -591,60 +605,77 @@ function ActorRuntime({
 export function ActorCombatBudget({ actor }: { actor: ActorPresentationView }) {
   const budget = actor.runtime?.action_budget;
   if (!budget) return null;
+  const cannotAct =
+    !budget.can_act.available && budget.can_act.source !== "participant_status";
+  const cannotReact =
+    !budget.can_react.available && budget.can_react.source !== "participant_status";
+  const sharedRestriction =
+    cannotAct &&
+    cannotReact &&
+    budget.can_act.source === budget.can_react.source &&
+    budget.can_act.reason === budget.can_react.reason;
   return (
-    <div className="actor-reference__turn-context">
-      <section className="actor-reference__combat-budget" aria-label="Right now">
-        <h3>Right now</h3>
-        <RuntimeCount count={budget.reactions} />
-        {!budget.can_act.available &&
-          budget.can_act.source !== "participant_status" && (
-            <FactRow label="Can act">
-              {statusReasonLabel("No", budget.can_act.reason)}
-            </FactRow>
+    <section className="actor-reference__combat-budget" aria-label="Turn">
+      <h3>Turn</h3>
+      {sharedRestriction ? (
+        <p className="actor-reference__restriction">
+          {statusReasonLabel("Cannot act or react", budget.can_act.reason)}
+        </p>
+      ) : (
+        <>
+          {cannotAct && (
+            <p className="actor-reference__restriction">
+              {statusReasonLabel("Cannot act", budget.can_act.reason)}
+            </p>
           )}
-        {!budget.can_react.available &&
-          budget.can_react.source !== "participant_status" && (
-            <FactRow label="Can react">
-              {statusReasonLabel("No", budget.can_react.reason)}
-            </FactRow>
+          {cannotReact && (
+            <p className="actor-reference__restriction">
+              {statusReasonLabel("Cannot react", budget.can_react.reason)}
+            </p>
           )}
-      </section>
-      <section className="actor-reference__combat-budget" aria-label="At turn start">
-        <h3>At turn start</h3>
-        <div className="actor-reference__turn-counts">
-          <RuntimeCount count={budget.actions} />
-        </div>
-        {budget.extra_action_unavailable_reason ? (
-          <FactRow label="Extra action">
-            <span className="muted">{budget.extra_action_unavailable_reason}</span>
+        </>
+      )}
+      <RuntimeCount
+        count={budget.actions}
+        label="At turn start"
+        unit={Number(budget.actions.adjusted_value) === 1 ? " action" : " actions"}
+      />
+      {(!cannotReact ||
+        budget.reactions.adjusted_value === null ||
+        Number(budget.reactions.adjusted_value) !== 0) && (
+        <RuntimeCount count={budget.reactions} label="Reactions now" />
+      )}
+      {budget.extra_action_unavailable_reason ? (
+        <FactRow label="Extra action">
+          <span className="muted">{budget.extra_action_unavailable_reason}</span>
+        </FactRow>
+      ) : (
+        budget.quickened_sources.map((source, index) => (
+          <FactRow label="Extra action" key={index}>
+            {source.kind === "unspecified"
+              ? "Unspecified"
+              : source.kind === "unrestricted"
+                ? "Unrestricted"
+                : [
+                    source.actions
+                      .map((action) => sentenceCase(action.replace(/_/g, " ")))
+                      .join(", "),
+                    source.guidance,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
           </FactRow>
-        ) : (
-          budget.quickened_sources.map((source, index) => (
-            <FactRow label="Extra action" key={index}>
-              {source.kind === "unspecified"
-                ? "Unspecified"
-                : source.kind === "unrestricted"
-                  ? "Unrestricted"
-                  : [
-                      source.actions
-                        .map((action) => sentenceCase(action.replace(/_/g, " ")))
-                        .join(", "),
-                      source.guidance,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-            </FactRow>
-          ))
-        )}
-        {budget.notes.map((note, index) => (
-          <p key={index}>
-            {note.label}: {note.reason}
-          </p>
-        ))}
-      </section>
-    </div>
+        ))
+      )}
+      {budget.notes.map((note, index) => (
+        <p key={index}>
+          {note.label}: {note.reason}
+        </p>
+      ))}
+    </section>
   );
 }
+
 export function ActorSecondaryFacts({
   actor,
   runtimeOnly = false,
@@ -740,23 +771,54 @@ export function ActorActivity({
   };
   return (
     <div
-      className={`actor-activity actor-activity--${activity.kind}`}
+      className={`actor-activity actor-activity--${activity.kind}${selected ? " actor-activity--selected" : ""}`}
       data-atlas-activity-anchor={
         !inline ? activityAnchor(activity.navigation) : undefined
       }
     >
-      <div className="actor-activity__identity">
-        <div className="actor-activity__name">
-          {inline && (
-            <h4
-              id={`${id}-${activityAnchor(activity.navigation)}`}
-              data-atlas-activity-anchor={activityAnchor(activity.navigation)}
-              tabIndex={-1}
-              className="actor-activity__title"
-            >
-              {permalink ? (
-                <Typography.Link
-                  className="actor-activity__heading-link"
+      {(!selected ||
+        headingActions ||
+        (activity.kind === "strike" && activity.is_ranged.state === "value") ||
+        (activity.usage && !isEmptyFactValue(activity.usage))) && (
+        <div className="actor-activity__identity">
+          <div className="actor-activity__name">
+            {inline && (
+              <h4
+                id={`${id}-${activityAnchor(activity.navigation)}`}
+                data-atlas-activity-anchor={activityAnchor(activity.navigation)}
+                tabIndex={-1}
+                className="actor-activity__title"
+              >
+                {permalink ? (
+                  <Typography.Link
+                    className="actor-activity__heading-link"
+                    href={atlasRoutePath(route)}
+                    onClick={(event) => {
+                      if (!shouldHandleAtlasRouteClick(event)) return;
+                      event.preventDefault();
+                      onReference(
+                        activity.navigation.record_key,
+                        event.currentTarget,
+                        activity.navigation,
+                      );
+                    }}
+                  >
+                    {activity.title}
+                  </Typography.Link>
+                ) : (
+                  activity.title
+                )}{" "}
+                {activity.action_cost.state === "value" && (
+                  <ActionCost fact={activity.action_cost} />
+                )}
+              </h4>
+            )}
+            {!selected &&
+              !inline &&
+              (interactive ? (
+                <Button
+                  type="link"
+                  style={{ paddingInline: 0, height: "auto", fontWeight: 700 }}
                   href={atlasRoutePath(route)}
                   onClick={(event) => {
                     if (!shouldHandleAtlasRouteClick(event)) return;
@@ -769,55 +831,29 @@ export function ActorActivity({
                   }}
                 >
                   {activity.title}
-                </Typography.Link>
+                </Button>
               ) : (
-                activity.title
-              )}{" "}
-              {activity.action_cost.state === "value" && (
-                <ActionCost fact={activity.action_cost} />
-              )}
-            </h4>
-          )}
-          {!selected &&
-            !inline &&
-            (interactive ? (
-              <Button
-                type="link"
-                style={{ paddingInline: 0, height: "auto", fontWeight: 700 }}
-                href={atlasRoutePath(route)}
-                onClick={(event) => {
-                  if (!shouldHandleAtlasRouteClick(event)) return;
-                  event.preventDefault();
-                  onReference(
-                    activity.navigation.record_key,
-                    event.currentTarget,
-                    activity.navigation,
-                  );
-                }}
-              >
-                {activity.title}
-              </Button>
-            ) : (
-              <strong>{activity.title}</strong>
-            ))}
-          {headingActions}
-          {activity.kind === "strike" && activity.is_ranged.state === "value" && (
-            <span className="actor-activity__usage">
-              {activity.is_ranged.value ? "Ranged" : "Melee"}
-            </span>
-          )}
-          {activity.usage && !isEmptyFactValue(activity.usage) && (
-            <span className="actor-activity__usage">{activity.usage}</span>
+                <strong>{activity.title}</strong>
+              ))}
+            {headingActions}
+            {activity.kind === "strike" && activity.is_ranged.state === "value" && (
+              <span className="actor-activity__usage">
+                {activity.is_ranged.value ? "Ranged" : "Melee"}
+              </span>
+            )}
+            {activity.usage && !isEmptyFactValue(activity.usage) && (
+              <span className="actor-activity__usage">{activity.usage}</span>
+            )}
+          </div>
+          {!selected && (
+            <div className="badge-row">
+              {activity.traits.map((trait) => (
+                <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
+              ))}
+            </div>
           )}
         </div>
-        {!selected && (
-          <div className="badge-row">
-            {activity.traits.map((trait) => (
-              <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
-            ))}
-          </div>
-        )}
-      </div>
+      )}
       <div className="actor-activity__facts">
         {activity.first_level_only?.value === true && (
           <FactRow label="Selection">At 1st level only</FactRow>
@@ -1021,9 +1057,9 @@ export function ActorActivities({
   activityRolls,
   essential = false,
   sectionIds,
-  supportingFacts,
+  hazardContent,
 }: {
-  supportingFacts?: React.ReactNode;
+  hazardContent?: { routine: React.ReactNode; reset: React.ReactNode };
   essential?: boolean;
   sectionIds?: Partial<
     Record<
@@ -1171,6 +1207,12 @@ export function ActorActivities({
         actor.activities.state !== "not_applicable" && (
           <FactRow label="Activities">{factText(actor.activities)}</FactRow>
         )}
+      {hazardContent && (
+        <>
+          {renderGroup("ability", "Initial activation", "activation")}
+          {hazardContent.routine}
+        </>
+      )}
       {renderGroup("strike", "Strikes")}
       {(hasCasting || hasPrimary) && (
         <div
@@ -1198,17 +1240,25 @@ export function ActorActivities({
           )}
         </div>
       )}
-      {renderGroup("ability", "Reactions", "reaction")}
+      {!hazardContent && renderGroup("ability", "Reactions", "reaction")}
       {renderGroup("ability", "Passive abilities", "supporting")}
       {renderGroup("ability", "Other abilities", "unclassified")}
-      {supportingFacts}
+      {hazardContent?.reset}
       {renderGroup("gear", "Equipment")}
       {renderGroup("other", "Other entries")}
     </div>
   );
 }
 
-function RuntimeCount({ count }: { count: RuntimeCountView }) {
+function RuntimeCount({
+  count,
+  label = count.label,
+  unit = "",
+}: {
+  count: RuntimeCountView;
+  label?: string;
+  unit?: string;
+}) {
   const explanation =
     count.explanation ||
     count.adjustments.length ||
@@ -1245,7 +1295,7 @@ function RuntimeCount({ count }: { count: RuntimeCountView }) {
     },
   ];
   return (
-    <FactRow label={count.label}>
+    <FactRow label={label}>
       {explanation ? (
         <Popover
           title={count.label}
@@ -1267,13 +1317,13 @@ function RuntimeCount({ count }: { count: RuntimeCountView }) {
           >
             {count.adjusted_value === null
               ? "Needs review"
-              : String(count.adjusted_value)}
+              : `${count.adjusted_value}${unit}`}
           </Button>
         </Popover>
       ) : count.adjusted_value === null ? (
         "Needs review"
       ) : (
-        String(count.adjusted_value)
+        `${count.adjusted_value}${unit}`
       )}
     </FactRow>
   );

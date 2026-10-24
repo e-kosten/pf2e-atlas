@@ -76,7 +76,7 @@ it("keeps supplied strike rolls and casting annotations in the shared compositio
   expect(resourceAction).toHaveBeenCalledOnce();
 });
 
-it("uses the same authored reading groups in reference and encounter without moving supporting stats ahead of action choices", () => {
+it("uses the same authored reading groups in reference and encounter with early statistics and retained action choices", () => {
   const actor = actorFixture();
   const activities: ActorActivityView[] = [
     {
@@ -118,6 +118,15 @@ it("uses the same authored reading groups in reference and encounter without mov
     })),
   );
   actor.movement_details = knownFact("suction");
+  actor.skills = knownFact([
+    {
+      key: "athletics",
+      label: "Athletics",
+      modifier: { state: "value", value: 7, adjustment: null },
+      note: knownFact(""),
+      conditional: knownFact([]),
+    },
+  ]);
   const props = {
     actor,
     recordKey: "actors:ghoul",
@@ -141,9 +150,15 @@ it("uses the same authored reading groups in reference and encounter without mov
     expect(titles.indexOf("Reactions")).toBeLessThan(
       titles.indexOf("Passive abilities"),
     );
-    expect(titles.indexOf("Passive abilities")).toBeLessThan(
-      titles.indexOf("Statistics"),
-    );
+    expect(titles.indexOf("Statistics")).toBeLessThan(titles.indexOf("Strikes"));
+    expect(
+      screen
+        .getByText("Perception")
+        .compareDocumentPosition(
+          screen.getByRole("heading", { name: "Ability modifiers" }),
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(titles.indexOf("Ability modifiers")).toBeLessThan(titles.indexOf("Skills"));
     expect(screen.getByText("suction")).toBeVisible();
   };
   check();

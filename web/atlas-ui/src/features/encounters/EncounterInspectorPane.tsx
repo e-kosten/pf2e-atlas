@@ -7,6 +7,7 @@ import { Alert, Button } from "antd";
 import { ActorEncounterLayout } from "../../shared/records/ActorEncounterLayout";
 import { HazardDefenses } from "../../shared/records/HazardDefenses";
 import { ActorDefenses } from "../../shared/records/ActorReference";
+import { RecordRarity } from "../../shared/records/RecordRarity";
 import { TraitBadge } from "../../shared/records/TraitBadge";
 import type { getRecordDetail } from "../../api/atlasApi";
 import type {
@@ -23,7 +24,8 @@ import {
 } from "./EncounterSpellControls";
 import { participantUpdate } from "./participantEdits";
 import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
-import { RecordPresentation } from "../../shared/records/RecordPresentation";
+import { recordClassification } from "../../shared/records/RecordPresentation";
+import { EncounterActorReading } from "./EncounterActorReading";
 import type { RecordPreviewAnchor } from "../../shared/records/recordPreviewTypes";
 import { EncounterParticipantSettings } from "./EncounterParticipantSettings";
 import { EncounterConditionControls } from "./EncounterConditionControls";
@@ -496,15 +498,28 @@ function EncounterParticipantSurface({
             />
           </div>
           <p className="record-reference__kind">
-            {presentation?.classification ?? participant.participant_kind}
+            {presentation
+              ? recordClassification(presentation)
+              : participant.participant_kind}
           </p>
-          {presentation?.identity.traits.length ? (
+          {presentation &&
+          (presentation.identity.traits.length > 0 ||
+            (presentation.identity.rarity &&
+              presentation.identity.rarity !== "common")) ? (
             <div className="badge-row">
-              {presentation.identity.traits.map((trait) => (
-                <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
-              ))}
+              <RecordRarity rarity={presentation.identity.rarity} />
+              {presentation.identity.traits
+                .filter((trait) => trait.kind !== "rarity")
+                .map((trait) => (
+                  <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
+                ))}
             </div>
           ) : null}
+          {presentation?.identity.publication?.trim() && (
+            <p className="muted record-reference__source">
+              Source: <span>{presentation.identity.publication}</span>
+            </p>
+          )}
         </div>
         <div className="encounter-reference__actions">
           {participant.record_key && (
@@ -528,7 +543,7 @@ function EncounterParticipantSurface({
       )}
 
       {presentation && (
-        <RecordPresentation
+        <EncounterActorReading
           actorEncounter={
             body?.kind === "creature" || body?.kind === "hazard"
               ? {

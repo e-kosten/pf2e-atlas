@@ -243,6 +243,13 @@ content and facts; compact density does not suppress sections. Immediate
 Ability-class action/effect/feat content reads inline by default through a
 separate generation-bound embedded-reading response. Each explicit batch checks one
 parent and reads one prepared batch, limited to 32 activities and 256 fields.
+An actor-content selection reads only the parent actor's existing authored text
+selections and exact attributed relationships. Its availability is independent of
+the owned-item collection. The encounter reader caches this text by source address
+and artifact generation, adding it to the live presentation without replacing
+effective stats, activities, roll context or mutation ownership. Audience and
+unavailable/bounded field policy remain with prepared content. This avoids sending
+all participants' root prose on every canonical encounter refresh.
 The response carries authored content and exact per-activity relationships,
 without recursive detail envelopes or duplicated activity facts. Index owns
 combined exact-locator prepared/relationship SQL. Every delivered rich field has
@@ -252,8 +259,10 @@ remains separate. No artifact schema or admission policy changes.
 
 App-service projects creature ability reading groups from typed authored activation
 and category: active/free abilities and explicitly offensive passives are primary,
-reactions are separate, and other passives are supporting. Missing or invalid
-classification remains unclassified. Active/free choices precede offensive passives;
+reactions are separate, and other passives are supporting. Hazard reactions and
+free actions form an activation group before routine/additional actions. The same
+group is projected for the parent and exact selected owned activity. Missing or
+invalid classification remains unclassified. Active/free choices precede offensive passives;
 relative source order is retained within those classes. Reading order is separate
 metadata: the activity array and checked owner addresses retain source order,
 including the ordinals used by runtime modifier composition. Bounded ability reads

@@ -66,12 +66,16 @@ impl AtlasAppService {
                 node,
                 r.source_fingerprint(),
             );
-            let availability = if let SourceNodeView::Table(table) = node {
+            let actor_content = matches!(request.selection, EmbeddedReadingSelection::ActorContent);
+            let availability = if actor_content {
+                atlas_domain::QueryFieldState::Value
+            } else if let SourceNodeView::Table(table) = node {
                 crate::projection::field_state(SourceFieldView::from(&table.results).availability())
             } else {
                 activities.state
             };
             let (candidates, start, single) = match &request.selection {
+                EmbeddedReadingSelection::ActorContent => (vec![request.parent.clone()], 0, true),
                 EmbeddedReadingSelection::TableResults { cursor } => {
                     let candidates: Vec<_> = crate::presentation::owned_links(
                         &detail.source,
@@ -187,6 +191,11 @@ impl AtlasAppService {
                     .filter(|s| {
                         s.role != SourceContentRole::Name
                             && (matches!(s.text, SourceFieldView::Value(_))
+                                || actor_content
+                                    && !matches!(
+                                        s.text,
+                                        SourceFieldView::Missing | SourceFieldView::NotApplicable
+                                    )
                                 || s.role == SourceContentRole::Prerequisite)
                     })
                     .collect();

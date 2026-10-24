@@ -3,4 +3,4 @@ import type { ActorAbilityGroupView } from "./ActorAbilityGroupView";
 import type { EmbeddedReadingCursor } from "./EmbeddedReadingCursor";
 import type { RecordNavigationView } from "./RecordNavigationView";
 
-export type EmbeddedReadingSelection = { "kind": "table_results", cursor: EmbeddedReadingCursor | null, } | { "kind": "abilities", group: ActorAbilityGroupView | null, cursor: EmbeddedReadingCursor | null, target: RecordNavigationView | null, } | { "kind": "activity", navigation: RecordNavigationView, };
+export type EmbeddedReadingSelection = { "kind": "actor_content" } | { "kind": "table_results", cursor: EmbeddedReadingCursor | null, } | { "kind": "abilities", group: ActorAbilityGroupView | null, cursor: EmbeddedReadingCursor | null, target: RecordNavigationView | null, } | { "kind": "activity", navigation: RecordNavigationView, };

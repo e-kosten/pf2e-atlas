@@ -1,3 +1,8 @@
+.actor-reference-flow {
+  display: grid;
+  gap: var(--space-section);
+  min-width: 0;
+}
 .actor-encounter-host {
   container: actor-encounter / inline-size;
   min-width: 0;
