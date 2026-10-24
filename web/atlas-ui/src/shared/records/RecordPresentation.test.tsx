@@ -95,6 +95,22 @@ it("labels journal children as Pages even when the product kind is lore", () => 
 });
 
 describe("semantic family presentation", () => {
+  it("omits inapplicable spell attack and DC while retaining unavailable values", () => {
+    const spell = spellFixture();
+    spell.runtime_attack = { state: "not_applicable", value: null, adjustment: null };
+    spell.runtime_difficulty_class = {
+      state: "not_applicable",
+      value: null,
+      adjustment: null,
+    };
+    const { rerender } = render(<SpellReference spell={spell} />);
+    expect(screen.queryByText("Spell attack")).toBeNull();
+    expect(screen.queryByText("Spell DC")).toBeNull();
+    spell.runtime_attack = { state: "missing", value: null, adjustment: null };
+    rerender(<SpellReference spell={spell} />);
+    expect(screen.getByText("Spell attack")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Value is unavailable." })).toBeVisible();
+  });
   it.each([
     { compact: false, encounter: false },
     { compact: true, encounter: false },
@@ -144,7 +160,7 @@ describe("semantic family presentation", () => {
     expect(onReference).not.toHaveBeenCalled();
   });
 
-  it("offers the explicit original record separately from the customized embedded copy", () => {
+  it("offers reference navigation separately from the customized item", () => {
     const onReference = vi.fn();
     const detail = detailFixture(
       "actors:caster",
@@ -173,7 +189,7 @@ describe("semantic family presentation", () => {
     );
     const { rerender } = render(view());
     expect(screen.getByRole("heading", { name: "Customized staff" })).toBeVisible();
-    const original = screen.getByRole("link", { name: "View original" });
+    const original = screen.getByRole("link", { name: "View reference entry" });
     const destination = new URL(original.getAttribute("href")!, window.location.origin);
     expect(destination.pathname).toBe("/records/equipment:catalog-staff");
     expect(JSON.parse(destination.searchParams.get("selection")!)).toEqual(
@@ -189,7 +205,7 @@ describe("semantic family presentation", () => {
     fireEvent.click(original, { ctrlKey: true });
     expect(onReference).not.toHaveBeenCalled();
     rerender(view(false));
-    expect(screen.queryByRole("link", { name: "View original" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "View reference entry" })).toBeNull();
   });
 
   it("shows selected activity traits once in its identity and retains traits on embedded activities", () => {

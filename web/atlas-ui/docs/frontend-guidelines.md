@@ -731,11 +731,13 @@ fingerprint, selected spell rank and separate landing. Rank changes update the
 current document through their own callback. The page/reading host passes its
 landing explicitly; reusable detail content must not reparse the current URL on
 local renders and restart landing when a linked Drawer opens or closes.
-Original record follows verified
-structured provenance for an embedded copy; an encounter participant's root
-Original record opens its indexed baseline. Neither replaces a customized copy
-nor guesses a destination by name. Unavailable references remain explicit inert
-labels, without invented links.
+Opening the full page retains the exact document currently being read, including
+its owner and selected rank. Reference navigation follows verified structured
+provenance to the general entry; an encounter participant's reference opens its
+indexed baseline. Keep these destinations distinguishable without asking users
+to understand embedded storage or an "original record" concept. Neither action
+replaces a customized copy or guesses a destination by name. Unavailable
+references remain explicit inert labels, without invented links.
 
 The Drawer uses the same RecordDetailPane and family renderer as full pages.
 Its header shows the document title once and its consistent action group remains
@@ -744,7 +746,7 @@ title/actions, grouped classification and textual action cost, traits, then sour
 Keep these facts left aligned; do not leave an empty full-page title slot or
 push type to a detached right edge. Action glyphs stay beside the title; textual
 costs such as Treat Wounds' supplied "passive" belong with metadata, not in its
-heading. Keep rank selection and exact owner/original links in this shared
+heading. Keep rank selection and exact owner/reference links in this shared
 identity, without duplicating them in the body. Phone action groups wrap by row;
 substantial header details can scroll within a bounded header so the document
 body remains reachable. Transient references omit Related sections;
@@ -1191,7 +1193,8 @@ Preserve a request ID and unchanged intent for retry after an uncertain response
 A new deliberate roll gets a new ID. A batch shows participant-attributed results;
 there is no combined batch total. Ordinary manual initiative entry remains valid.
 
-Source content in an encounter loads only on explicit request. HP mutations
+Essential creature ability and hazard rules remain inline through the shared
+bounded reading owner; additional reference navigation is explicit. HP mutations
 carry an explicit action, raw integer/addition/subtraction input and the read
 participant revision. Rust interprets formulas, damage/healing and correction
 intent. Damage and Heal accept signed raw amounts; Rust reverses the operation
@@ -1290,14 +1293,18 @@ members writes their persisted positions, including unavailable records, without
 changing their snapshots or notes. Drag previews retain the complete member layout.
 Current turn uses the strong filled row treatment with `aria-current` and
 an accessible label; preview selection uses a separate outline. Each row's
-actions menu offers Set turn and confirmed removal. Cancelling a secondary dialog
+actions menu offers Set turn; the adjacent removal control retains confirmation.
+Cancelling a secondary dialog
 returns focus to its visible menu trigger. Fade defeated and disabled-hazard names and facts without dimming
 controls. Hazard Active/Disabled controls live beside the same participant HP/status
 controls; no HP display is required to disable or reactivate a hazard. Encounter-owned section spacing belongs under encounter styles; shared
 record CSS must not override HP borders, padding or encounter control spacing.
-HP and Conditions share a row when the reader has room and stack on narrow panes;
-HP identity/value and action groups align left and right. Creature-level facts,
-including ability modifiers/skills, precede embedded activities. In encounters,
+`ActorEncounterLayout` composes durability, condition/turn context and mechanics
+across creatures, hazards and PCs. Each feature owns its controls and requests;
+the shared layout owns the responsive tracks and section gaps. A taller runtime
+column must not stretch the HP row or move strikes on wide panes. Sparse PCs do
+not reserve empty mechanics sections. Creature-level facts, including ability
+modifiers before skills, precede embedded activities. In encounters,
 the Rust-owned has_reference_details flag controls activity-title links: known
 complete summaries stay plain, while additional content/richer views open the
 shared preview. Condition-specific manual notices attach by exact condition ID;

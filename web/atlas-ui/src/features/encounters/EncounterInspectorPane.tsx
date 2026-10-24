@@ -3,7 +3,9 @@ import { EncounterLifeStatus } from "./EncounterLifeStatus";
 import { EncounterConditionRecovery } from "./EncounterConditionLifecycle";
 import { FactRow, factText } from "../../shared/records/presentationFacts";
 import { EncounterStrikeControl } from "./EncounterStrikeControl";
-import { Alert, Button, Select } from "antd";
+import { Alert, Button } from "antd";
+import { ActorEncounterLayout } from "../../shared/records/ActorEncounterLayout";
+import { HazardDefenses } from "../../shared/records/HazardDefenses";
 import { ActorDefenses } from "../../shared/records/ActorReference";
 import { TraitBadge } from "../../shared/records/TraitBadge";
 import type { getRecordDetail } from "../../api/atlasApi";
@@ -481,22 +483,6 @@ function EncounterParticipantSurface({
         <div className="encounter-reference__identity">
           <div className="encounter-reference__name">
             <h2>{participant.display_name}</h2>
-            {participant.participant_kind === "creature" && (
-              <Select
-                className="encounter-reference__adjustment"
-                aria-label="Creature adjustment"
-                value={participant.participant_variant}
-                disabled={disabled}
-                options={[
-                  { value: "normal", label: "Normal" },
-                  { value: "elite", label: "Elite" },
-                  { value: "weak", label: "Weak" },
-                ]}
-                onChange={(value) =>
-                  void updateParticipant({ participant_variant: value }).catch(() => {})
-                }
-              />
-            )}
             <EncounterParticipantSettings
               participant={participant}
               disabled={disabled}
@@ -522,30 +508,29 @@ function EncounterParticipantSurface({
         </div>
         <div className="encounter-reference__actions">
           {participant.record_key && (
-            <EncounterOriginalRecord recordKey={participant.record_key} />
+            <EncounterOriginalRecord
+              recordKey={participant.record_key}
+              label={
+                participant.participant_kind === "hazard"
+                  ? "View hazard reference"
+                  : "View creature reference"
+              }
+            />
           )}
           {!hasHp && statusControl}
         </div>
       </div>
       {participant.status === "unresolved" && (
-        <p>Original record unavailable. Saved participant settings remain editable.</p>
+        <p>Reference unavailable. Saved participant settings remain editable.</p>
       )}
-      {body?.kind !== "creature" && (
-        <>
-          <div
-            className={`encounter-reference__controls${hasHp ? "" : " encounter-reference__controls--without-hp"}`}
-          >
-            {hpControls}
-            {conditionControls}
-          </div>
-          {contextualDefenses}
-        </>
+      {!presentation && (
+        <ActorEncounterLayout durability={hpControls} runtime={conditionControls} />
       )}
 
       {presentation && (
         <RecordPresentation
-          creatureEncounter={
-            body?.kind === "creature"
+          actorEncounter={
+            body?.kind === "creature" || body?.kind === "hazard"
               ? {
                   participantKey: participant.participant_key,
                   durability: (
@@ -554,7 +539,11 @@ function EncounterParticipantSurface({
                       aria-label="HP and defenses"
                     >
                       {hpControls}
-                      {actor && <ActorDefenses actor={actor} hideHitPoints />}
+                      {body?.kind === "hazard" ? (
+                        <HazardDefenses hazard={body.value} hideHitPoints />
+                      ) : (
+                        actor && <ActorDefenses actor={actor} hideHitPoints />
+                      )}
                       {contextualDefenses}
                     </section>
                   ),
