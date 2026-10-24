@@ -879,7 +879,7 @@ describe("encounter views", () => {
     ).toBeNull();
     expect(
       within(runtimeSection).getByRole("button", {
-        name: "Actions: details and remaining actions",
+        name: "Actions: calculation details",
       }),
     ).toBeVisible();
     expect(

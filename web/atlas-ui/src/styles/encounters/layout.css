@@ -167,9 +167,3 @@
 .encounter-turn-resource-details p {
   margin: 0;
 }
-.encounter-turn-resource-details__correction {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-control);
-}

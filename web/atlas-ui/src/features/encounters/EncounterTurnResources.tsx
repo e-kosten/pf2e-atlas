@@ -1,4 +1,4 @@
-import { Button, InputNumber, Popover, Space, Tooltip } from "antd";
+import { Button, Popover, Space, Tooltip } from "antd";
 import { ChevronDown } from "lucide-react";
 import { useRef, useState } from "react";
 import type {
@@ -249,9 +249,18 @@ function ResourceCounter({
   onAction: TurnResourceHandler;
 }) {
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<number | null>(remaining);
   const button = useRef<HTMLButtonElement>(null);
   const popup = useRef<HTMLDivElement>(null);
+  const hasDetails =
+    forecast &&
+    (total !== 3 ||
+      (extraTotal ?? 0) > 0 ||
+      forecast.base_value !== 3n ||
+      forecast.adjusted_value !== 3n ||
+      forecast.explanation ||
+      forecast.adjustments.length > 0 ||
+      forecast.suppressed_adjustments.length > 0 ||
+      forecast.segments.some((segment) => segment.restricted));
   // Slot positions are presentation only; the canonical count always owns stock.
   const [slots, setSlots] = useState(() => ({
     turnKey,
@@ -292,14 +301,13 @@ function ResourceCounter({
   }
   return (
     <div className="encounter-turn-resources__group">
-      {forecast ? (
+      {forecast && hasDetails ? (
         <Popover
           trigger="click"
           open={open}
           onOpenChange={(next) => {
             if (!next) restoreOverlayFocus(button.current, popup.current);
             setOpen(next);
-            if (next) setDraft(remaining);
           }}
           title={label}
           content={
@@ -308,44 +316,6 @@ function ResourceCounter({
                 This turn: {total} {total === 1 ? "action" : "actions"}
                 {extraTotal ? ` + ${extraTotal} extra` : null}
               </p>
-              <div className="encounter-turn-resource-details__correction">
-                <span>{extraTotal ? "Ordinary remaining" : "Remaining"}</span>
-                <Space>
-                  <InputNumber
-                    aria-label={
-                      extraTotal
-                        ? "Remaining ordinary actions"
-                        : `Remaining ${label.toLowerCase()}`
-                    }
-                    min={0}
-                    max={total}
-                    precision={0}
-                    value={draft}
-                    readOnly={pending || disabled || !canEdit}
-                    onChange={setDraft}
-                  />
-                  <Button
-                    type="primary"
-                    disabled={disabled || !canEdit || draft === null}
-                    aria-disabled={pending}
-                    onClick={() => {
-                      if (!pending && draft !== null)
-                        void onAction({
-                          kind: "correct",
-                          resource: kind,
-                          remaining: BigInt(draft),
-                        })
-                          .then(() => {
-                            restoreOverlayFocus(button.current, popup.current);
-                            setOpen(false);
-                          })
-                          .catch(() => {});
-                    }}
-                  >
-                    Apply
-                  </Button>
-                </Space>
-              </div>
               <div>
                 <strong>Next turn</strong>
                 <RuntimeCountCalculation count={forecast} />
@@ -360,11 +330,13 @@ function ResourceCounter({
             icon={<ChevronDown size={14} />}
             iconPlacement="end"
             aria-expanded={open}
-            aria-label={`${label}: details and remaining actions`}
+            aria-label={`${label}: calculation details`}
           >
             <strong>{label}</strong>
           </Button>
         </Popover>
+      ) : forecast ? (
+        <strong>{label}</strong>
       ) : null}
       <Space size={4} wrap>
         {slots.available.map((available, index) => (
