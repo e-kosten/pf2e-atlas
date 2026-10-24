@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import type { Page, TestInfo } from "@playwright/test";
+import type { Locator, Page, TestInfo } from "@playwright/test";
 import { activate, noPageOverflow } from "./reading";
 
 async function checkpoint(page: Page, info: TestInfo, name: string) {
@@ -19,6 +19,27 @@ async function choose(page: Page, name: string, value: string) {
     .locator(".ant-select-dropdown:visible")
     .getByText(value, { exact: true })
     .click();
+}
+
+async function recoveryGeometry(popup: Locator) {
+  return popup.evaluate((panel) => {
+    const input = panel.querySelector<HTMLInputElement>(
+      'input[aria-label="Recovery DC"]',
+    );
+    if (!input) throw new Error("Recovery DC input is missing");
+    const bounds = panel.getBoundingClientRect();
+    const control = input.getBoundingClientRect();
+    return {
+      x: bounds.x,
+      width: bounds.width,
+      input: {
+        x: control.x,
+        y: control.y - bounds.y,
+        width: control.width,
+        height: control.height,
+      },
+    };
+  });
 }
 
 test("precedence survives source removal and recovery retains its anchor after clearing", async ({
@@ -189,24 +210,20 @@ test("precedence survives source removal and recovery retains its anchor after c
     await expect(dc).toHaveValue("1");
     await expect(popup.getByRole("combobox")).toHaveCount(0);
     await expect(popup).toHaveCSS("opacity", "1");
-    const before = await popup.boundingBox();
-    const inputBefore = await dc.boundingBox();
     await checkpoint(page, info, "recovery-before.png");
+    const before = await recoveryGeometry(popup);
     await activate(popup.getByRole("button", { name: "Roll", exact: true }), info);
     await expect(popup.getByText("Recovered · DC 1", { exact: true })).toBeVisible();
     await expect(recovery).toBeVisible();
-    const after = (await popup.boundingBox())!;
-    expect(Math.abs(after.x - before!.x)).toBeLessThan(2);
-    expect(Math.abs(after.width - before!.width)).toBeLessThan(2);
-    const inputAfter = (await dc.boundingBox())!;
-    expect(inputAfter.x).toBe(inputBefore!.x);
-    expect(inputAfter.width).toBe(inputBefore!.width);
-    expect(inputAfter.height).toBe(inputBefore!.height);
+    const after = await recoveryGeometry(popup);
+    expect(Math.abs(after.x - before.x)).toBeLessThan(2);
+    expect(Math.abs(after.width - before.width)).toBeLessThan(2);
+    expect(after.input.x).toBe(before.input.x);
+    expect(after.input.width).toBe(before.input.width);
+    expect(after.input.height).toBe(before.input.height);
     // WebKit can clamp scroll when cleared rows shorten the reader. Compare the
-    // controls inside their retained popover, independent of that document scroll.
-    expect(
-      Math.abs(inputAfter.y - after.y - (inputBefore!.y - before!.y)),
-    ).toBeLessThan(1);
+    // controls inside their retained popover in one frame, independent of that scroll.
+    expect(Math.abs(after.input.y - before.input.y)).toBeLessThan(1);
     await expect(dc).toBeDisabled();
     await checkpoint(page, info, "recovery-cleared-anchor.png");
     expect(
