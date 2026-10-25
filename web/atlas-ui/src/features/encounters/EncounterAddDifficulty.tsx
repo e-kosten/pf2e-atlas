@@ -126,7 +126,9 @@ export function EncounterAddDifficulty({
   if (feedback.identity !== requestIdentity || feedback.pending !== pending)
     setFeedback({ identity: requestIdentity, pending, slow: false });
   useEffect(() => {
-    if (!pending) return;
+    // Typing debounce is not a slow request. Keep the entire last scenario
+    // unchanged for quick replacements, including its caption.
+    if (!pending || !settled) return;
     const timer = setTimeout(
       () =>
         setFeedback((current) =>
@@ -137,16 +139,15 @@ export function EncounterAddDifficulty({
       200,
     );
     return () => clearTimeout(timer);
-  }, [pending, requestIdentity]);
+  }, [pending, requestIdentity, settled]);
   const slowPending = pending && feedback.identity === requestIdentity && feedback.slow;
-  const previous = shown && JSON.stringify(shown.addition) !== JSON.stringify(addition);
   const scenario = shown ? `${shown.addition.quantity} × ${shown.name}` : null;
   const context = error
     ? `Update failed · ${scenario ? `previous: ${scenario}` : "current encounter"}`
     : addition && !valid
       ? "Enter quantity 1–50 · previous preview"
-      : previous
-        ? `Previous: ${scenario}`
+      : slowPending
+        ? "Updating…"
         : scenario
           ? `After adding ${scenario}`
           : "Current encounter";
@@ -161,9 +162,7 @@ export function EncounterAddDifficulty({
         role="status"
         style={{ minHeight: token.controlHeightSM }}
       >
-        <span className="encounter-add-difficulty__context">
-          {slowPending ? `Updating · ${context}` : context}
-        </span>
+        <span className="encounter-add-difficulty__context">{context}</span>
         <strong>{difficultySummary(display)}</strong>
         {error && (
           <Button size="small" onClick={() => void preview.refetch()}>

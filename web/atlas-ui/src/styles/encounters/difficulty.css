@@ -130,6 +130,7 @@
 }
 .encounter-add-difficulty {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
 }
 .encounter-add-difficulty__heading {

@@ -38,6 +38,7 @@
 
 @media (max-width: 767px) {
   .encounter-detail-view {
+    --encounter-pane-inset: 12px;
     display: flex;
     flex-direction: column;
     height: auto;
@@ -83,10 +84,6 @@
 
   .encounter-detail-view .workspace-pane--filter {
     height: 100%;
-  }
-
-  .encounter-detail-view .encounter-pane {
-    padding: 12px;
   }
 
   .encounter-detail-view .encounter-roster {
