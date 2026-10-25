@@ -43,11 +43,12 @@ oxblood role. Both the open picker rows and closed selection chips consume the
 same theme-defined foreground, background and border roles.
 
 The primary search filter region does not introduce a separate tinted surface.
-Context bars use the content surface in light
-appearance and the page background in dark appearance, with rules providing the
-separation. The top-level shell carries the distinct page chrome. Selected results use the selected surface,
-text and border roles as a set; they must not reuse the primary action foreground
-on the selected background.
+Context bars use the content surface in both appearances, with rules providing
+separation from the workbench below. The shared surface keeps the context region
+and panes visually continuous; the top-level shell carries the distinct page
+chrome. Selected results use the selected surface, text and border roles as a
+set; they must not reuse the primary action foreground on the selected
+background.
 
 Table headers use the neutral content surface and separators rather than a brown
 fill. The light palette assigns oxblood to active navigation, while the dark
