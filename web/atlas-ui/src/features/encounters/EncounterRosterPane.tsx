@@ -9,6 +9,7 @@ import {
   InputNumber,
   Select,
   Tooltip,
+  Typography,
 } from "antd";
 import type { FormInstance } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
@@ -47,6 +48,7 @@ export function EncounterRosterPane({
   currentTurnParticipantKey,
   encounterSummary,
   difficulty,
+  removeError,
   loading,
   onAddRecord,
   onAddManual,
@@ -71,6 +73,7 @@ export function EncounterRosterPane({
   currentTurnParticipantKey: string | null;
   encounterSummary?: import("../../generated/atlas").EncounterSummaryView;
   difficulty?: EncounterDifficultyProps;
+  removeError?: { participantKey: string; message: string };
   loading: boolean;
   onAddRecord: (request: AddEncounterRecordParticipantRequest) => Promise<boolean>;
   onAddParty: (
@@ -271,6 +274,16 @@ export function EncounterRosterPane({
               onSetTurn={() => onSetTurn(participant)}
               onRemove={() => onRemove(participant)}
             />
+            {removeError?.participantKey === participant.participant_key && (
+              <Typography.Text
+                type="danger"
+                role="alert"
+                className="encounter-roster__remove-error"
+              >
+                <span>{removeError.message}</span>
+                <span>Try removing again.</span>
+              </Typography.Text>
+            )}
           </>
         )}
       </SortableRow>
