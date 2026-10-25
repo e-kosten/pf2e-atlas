@@ -15,7 +15,7 @@
 .encounter-difficulty__popover {
   display: grid;
   gap: var(--space-group);
-  max-height: min(42rem, calc(100dvh - 6rem));
+  max-height: min(42rem, calc(100dvh - 8rem));
   overflow: auto;
   width: min(32rem, calc(100vw - 3rem));
 }

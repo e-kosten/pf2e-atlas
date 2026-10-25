@@ -7,20 +7,20 @@
   min-height: 0;
   margin-inline: auto;
 }
-.atlas-app:has(:is(.search-workspace, .list-workspace)) {
+.atlas-app:is(.atlas-app--search, :has(.list-workspace)) {
   position: fixed;
   inset: 0;
   height: 100dvh;
   overflow: clip;
 }
-.atlas-app:has(:is(.search-workspace, .list-workspace)) .atlas-app__content {
+.atlas-app:is(.atlas-app--search, :has(.list-workspace)) .atlas-app__content {
   overflow: clip;
 }
 .search-workspace {
   overflow: clip;
 }
-html:has(:is(.search-workspace, .list-workspace)),
-body:has(:is(.search-workspace, .list-workspace)) {
+html:has(:is(.atlas-app--search, .list-workspace)),
+body:has(:is(.atlas-app--search, .list-workspace)) {
   overflow: clip;
 }
 .reference-browser {
@@ -217,11 +217,11 @@ body:has(:is(.search-workspace, .list-workspace)) {
     > .filter-toolbar {
     display: none;
   }
-  .atlas-app:has(:is(.search-workspace, .list-workspace)) {
+  .atlas-app:is(.atlas-app--search, :has(.list-workspace)) {
     height: 100dvh;
     overflow: clip;
   }
-  .atlas-app:has(:is(.search-workspace, .list-workspace)) .atlas-app__content {
+  .atlas-app:is(.atlas-app--search, :has(.list-workspace)) .atlas-app__content {
     overflow: clip;
   }
   .reference-browser > div {

@@ -49,6 +49,8 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 - [`0052-pinned-reference-source.md`](./0052-pinned-reference-source.md): one immutable PF2e revision drives model generation and default data acquisition; supplied sources remain user-managed.
 
+- [`0058-browser-routing.md`](./0058-browser-routing.md): generated TanStack routes and typed destinations, persistent Search layout and separate request/reading lifetimes.
+
 ## Historical ADRs
 
 Historical ADRs preserve earlier architecture and migration decisions. Read their

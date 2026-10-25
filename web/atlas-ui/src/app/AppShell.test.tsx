@@ -1,16 +1,12 @@
+import { RouterTestContext } from "../test/router";
 import { readinessFixture } from "../test/fixtures";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AppShell } from "./AppShell";
 
 function renderShell(
   errorMessage: string | null = null,
   resolvedColorScheme: "light" | "dark" = "light",
 ) {
-  const navigate = {
-    search: vi.fn(),
-    encounters: vi.fn(),
-    lists: vi.fn(),
-  };
   const refresh = vi.fn();
   const changeTheme = vi.fn();
   render(
@@ -19,9 +15,6 @@ function renderShell(
       colorScheme="light"
       resolvedColorScheme={resolvedColorScheme}
       onColorSchemeChange={changeTheme}
-      onNavigateSearch={navigate.search}
-      onNavigateEncounters={navigate.encounters}
-      onNavigateLists={navigate.lists}
       readiness={readinessFixture()}
       readinessError={errorMessage ? new Error(errorMessage) : null}
       checkingReadiness={false}
@@ -31,13 +24,18 @@ function renderShell(
         <h2>Search records</h2>
       </main>
     </AppShell>,
+    { wrapper: RouterTestContext },
   );
-  return { navigate, refresh, changeTheme };
+  return { refresh, changeTheme };
 }
 
 describe("application navigation and accessibility", () => {
-  it("provides native destinations and handles ordinary navigation once", () => {
-    const { navigate } = renderShell();
+  beforeEach(() => {
+    history.replaceState(null, "", "/search");
+  });
+  it("provides native destinations and handles ordinary navigation once", async () => {
+    renderShell();
+    const entries = history.length;
     const brand = screen.getByRole("link", { name: "PF2e Atlas" });
     expect(brand).toHaveAttribute("href", "/search");
     expect(brand).toHaveStyle({ color: "var(--brand-text)" });
@@ -52,29 +50,33 @@ describe("application navigation and accessibility", () => {
       "page",
     );
     fireEvent.click(encounters);
-    expect(navigate.encounters).toHaveBeenCalledTimes(1);
-    expect(navigate.search).not.toHaveBeenCalled();
+    await waitFor(() => expect(location.pathname).toBe("/encounters"));
+    expect(history.length).toBe(entries + 1);
   });
 
   it.each([{ metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { button: 1 }])(
     "leaves modified and nonprimary clicks to the browser %j",
     (modifiers) => {
-      const { navigate } = renderShell();
+      renderShell();
+      const entries = history.length;
       const allowedDefault = fireEvent.click(
         screen.getByRole("link", { name: "Lists" }),
         modifiers,
       );
       expect(allowedDefault).toBe(true);
-      expect(navigate.lists).not.toHaveBeenCalled();
+      expect(location.pathname).toBe("/search");
+      expect(history.length).toBe(entries);
     },
   );
 
-  it("activates a focused Ant menu item with Enter", () => {
-    const { navigate } = renderShell();
+  it("activates a focused Ant menu item with Enter", async () => {
+    renderShell();
+    const entries = history.length;
     const item = screen.getByRole("menuitem", { name: "Encounters" });
     item.focus();
     fireEvent.keyDown(item, { key: "Enter", code: "Enter", keyCode: 13 });
-    expect(navigate.encounters).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(location.pathname).toBe("/encounters"));
+    expect(history.length).toBe(entries + 1);
   });
 
   it("gives Ant navigation the resolved shell appearance", () => {

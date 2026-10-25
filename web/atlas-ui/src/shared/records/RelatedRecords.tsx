@@ -1,4 +1,10 @@
 import {
+  destinationHref,
+  isPrimaryActivation,
+  navigateDestination,
+} from "../../app/navigation";
+import { recordDestination, searchDestination } from "../../app/destinations";
+import {
   Alert,
   Button,
   Collapse,
@@ -16,12 +22,7 @@ import { SearchProfileNotice } from "../search/SearchProfileNotice";
 import { assertSearchIdentity } from "../search/searchIdentity";
 import DOMPurify from "dompurify";
 import { AtlasApiError, getRelatedRecords, searchPage } from "../../api/atlasApi";
-import {
-  atlasRoutePath,
-  currentAtlasRoute,
-  navigateToAtlasRoute,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
+import { currentSearchLocation } from "../../app/searchLocation";
 import type {
   GraphSectionView,
   RecordDetailView,
@@ -37,10 +38,8 @@ import type { RecordReferenceHandler } from "./PreparedContent";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
-
 import { linkLeaf } from "../filters/linkPredicates";
 import { relationshipSearchRoute } from "./relationshipSearch";
-
 export function RelatedRecords({
   detail,
   onReference,
@@ -76,7 +75,6 @@ export function RelatedRecords({
     </section>
   );
 }
-
 function RelatedTabs({
   detail,
   onReference,
@@ -120,17 +118,17 @@ function RelatedTabs({
       : undefined;
   const variantChoices =
     variants?.variants.filter((record) => record.record_key !== key) ?? [];
-
   function link(label: string, selection: RecordNavigationView) {
     return (
       <Typography.Link
-        href={atlasRoutePath({
-          kind: "record",
-          recordKey: selection.record_key,
-          selection,
-        })}
+        href={destinationHref(
+          recordDestination({
+            recordKey: selection.record_key,
+            selection,
+          }),
+        )}
         onClick={(event) => {
-          if (!shouldHandleAtlasRouteClick(event)) return;
+          if (!isPrimaryActivation(event)) return;
           event.preventDefault();
           onReference(selection.record_key, event.currentTarget, selection);
         }}
@@ -163,11 +161,11 @@ function RelatedTabs({
     const route = relationshipSearchRoute(section.filter);
     return (
       <Typography.Link
-        href={atlasRoutePath(route)}
+        href={destinationHref(route)}
         onClick={(event) => {
-          if (!shouldHandleAtlasRouteClick(event)) return;
+          if (!isPrimaryActivation(event)) return;
           event.preventDefault();
-          navigateToAtlasRoute(route);
+          navigateDestination(route);
         }}
       >
         View all
@@ -235,7 +233,6 @@ function RelatedTabs({
       </>
     );
   }
-
   const items = [
     ...(graph
       ? [
@@ -336,11 +333,11 @@ function RelatedTabs({
           return (
             <Button
               key={direction}
-              href={atlasRoutePath(route)}
+              href={destinationHref(route)}
               onClick={(event) => {
-                if (!shouldHandleAtlasRouteClick(event)) return;
+                if (!isPrimaryActivation(event)) return;
                 event.preventDefault();
-                navigateToAtlasRoute(route);
+                navigateDestination(route);
               }}
             >
               {direction === "incoming"
@@ -440,7 +437,6 @@ function RelatedTabs({
     </div>
   );
 }
-
 function SimilarPreview({
   detail,
   onReference,
@@ -475,12 +471,11 @@ function SimilarPreview({
     },
   });
   const reloadRecord = isArtifactGenerationChanged(similar.error);
-  const route = {
-    kind: "search",
+  const route = searchDestination({
     selectedRecordKey: null,
     query: searchStateQueryString(
       {
-        ...(currentAtlasRoute().kind === "search"
+        ...(currentSearchLocation() !== null
           ? decodeSearchStateFromParams(new URLSearchParams(window.location.search))
           : DEFAULT_SEARCH_STATE),
         query: "",
@@ -489,7 +484,7 @@ function SimilarPreview({
       },
       profile.id ?? profile.pendingUrlProfile,
     ),
-  } as const;
+  });
   return (
     <>
       {!profile.storedVectors && <SearchProfileNotice />}
@@ -523,12 +518,13 @@ function SimilarPreview({
             {similar.data.rows.map((row) => (
               <li key={row.record.record_key}>
                 <Typography.Link
-                  href={atlasRoutePath({
-                    kind: "record",
-                    recordKey: row.record.record_key,
-                  })}
+                  href={destinationHref(
+                    recordDestination({
+                      recordKey: row.record.record_key,
+                    }),
+                  )}
                   onClick={(event) => {
-                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    if (!isPrimaryActivation(event)) return;
                     event.preventDefault();
                     onReference(row.record.record_key, event.currentTarget);
                   }}
@@ -544,11 +540,11 @@ function SimilarPreview({
           </Typography.Paragraph>
         ))}
       <Typography.Link
-        href={atlasRoutePath(route)}
+        href={destinationHref(route)}
         onClick={(event) => {
-          if (!shouldHandleAtlasRouteClick(event)) return;
+          if (!isPrimaryActivation(event)) return;
           event.preventDefault();
-          navigateToAtlasRoute(route);
+          navigateDestination(route);
         }}
       >
         See more similar records
@@ -556,7 +552,6 @@ function SimilarPreview({
     </>
   );
 }
-
 function Comparison({
   source,
   target,
@@ -569,7 +564,12 @@ function Comparison({
   const left = useRecordDetail(source);
   const right = useRecordDetail(target);
   const navigate: RecordReferenceHandler = (recordKey, _anchor, selection) =>
-    navigateToAtlasRoute({ kind: "record", recordKey, selection });
+    navigateDestination(
+      recordDestination({
+        recordKey,
+        selection,
+      }),
+    );
   return (
     <Modal
       title="Variant comparison"

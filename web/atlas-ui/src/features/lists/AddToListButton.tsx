@@ -1,3 +1,9 @@
+import {
+  destinationHref,
+  isPrimaryActivation,
+  navigateDestination,
+} from "../../app/navigation";
+import { listsDestination } from "../../app/destinations";
 import { ListPlus } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Modal, Select, Tooltip, Typography } from "antd";
@@ -5,12 +11,6 @@ import { useRef, useState } from "react";
 import { addSavedListItem } from "../../api/atlasApi";
 import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { invalidateSavedListQueries, useSavedLists } from "./savedListQueries";
-import {
-  listsPath,
-  navigateToAtlasRoute,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
-
 export function AddToListButton({ recordKey }: { recordKey: string }) {
   const [open, setOpen] = useState(false);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
@@ -29,7 +29,6 @@ export function AddToListButton({ recordKey }: { recordKey: string }) {
       inFlight.current = false;
     },
   });
-
   return (
     <>
       <Tooltip title="Add to saved list" trigger={["hover", "focus"]}>
@@ -105,11 +104,11 @@ export function AddToListButton({ recordKey }: { recordKey: string }) {
             <Typography.Paragraph>
               No saved lists yet.{" "}
               <Typography.Link
-                href={listsPath()}
+                href={destinationHref(listsDestination())}
                 onClick={(event) => {
-                  if (!shouldHandleAtlasRouteClick(event)) return;
+                  if (!isPrimaryActivation(event)) return;
                   event.preventDefault();
-                  navigateToAtlasRoute({ kind: "lists" });
+                  navigateDestination(listsDestination());
                 }}
               >
                 Open saved lists

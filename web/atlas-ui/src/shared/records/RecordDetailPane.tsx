@@ -1,15 +1,22 @@
+import {
+  destinationHref,
+  isPrimaryActivation,
+  navigateDestination,
+} from "../../app/navigation";
+import { searchDestination } from "../../app/destinations";
 import { Alert, Button, Empty, Space, Spin } from "antd";
 import type { AtlasApiError } from "../../api/atlasApi";
-import {
-  navigateToAtlasRoute,
-  searchPath,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
 import type { RecordDetailView } from "../../generated/atlas";
 import { RecordPresentation } from "./RecordPresentation";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { RelatedRecords } from "./RelatedRecords";
-type RecordDetailPaneError = Error | { message: string } | null | undefined;
+type RecordDetailPaneError =
+  | Error
+  | {
+      message: string;
+    }
+  | null
+  | undefined;
 export function RecordDetailPane({
   detail,
   emptyMessage = "Select a record",
@@ -109,11 +116,17 @@ export function RecordDetailPane({
                 ) : (
                   <Button
                     size="small"
-                    href={searchPath()}
+                    href={destinationHref(
+                      searchDestination({ selectedRecordKey: null }),
+                    )}
                     onClick={(event) => {
-                      if (!shouldHandleAtlasRouteClick(event)) return;
+                      if (!isPrimaryActivation(event)) return;
                       event.preventDefault();
-                      navigateToAtlasRoute({ kind: "search", selectedRecordKey: null });
+                      navigateDestination(
+                        searchDestination({
+                          selectedRecordKey: null,
+                        }),
+                      );
                     }}
                   >
                     Back to search

@@ -1286,7 +1286,7 @@ test("list entry notes stay beneath the reader and removal confirms in place", a
     const footer = page.getByRole("region", { name: "List entry note" });
     await expect(footer.getByText("A useful guardian for the garden")).toBeVisible();
     const before = await footer.boundingBox();
-    const reader = page.locator(".reference-reader__scroll");
+    const reader = page.locator(".list-workspace .reference-reader__scroll");
     await reader.evaluate((node) => {
       node.scrollTop = node.scrollHeight;
     });

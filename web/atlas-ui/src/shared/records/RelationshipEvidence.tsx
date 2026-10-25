@@ -1,12 +1,13 @@
+import {
+  destinationHref,
+  isPrimaryActivation,
+  navigateDestination,
+} from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { Alert, Button, Pagination, Space, Typography } from "antd";
 import { cloneElement, isValidElement, useState, type AriaAttributes } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AtlasApiError, getRelationshipOccurrences } from "../../api/atlasApi";
-import {
-  atlasRoutePath,
-  navigateToAtlasRoute,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
 import type {
   RecordNavigationView,
   RelationshipClauseSummaryView,
@@ -15,7 +16,6 @@ import type {
 } from "../../generated/atlas";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
-
 export function RelationshipEvidence({
   evidence,
   filter,
@@ -52,7 +52,6 @@ export function RelationshipEvidence({
     />
   );
 }
-
 function EvidencePage({
   evidence,
   filter,
@@ -181,7 +180,6 @@ function EvidencePage({
     </div>
   );
 }
-
 function EvidenceLink({
   selection,
   title,
@@ -191,15 +189,18 @@ function EvidenceLink({
   title: string;
   onNavigate?: (selection: RecordNavigationView, anchor: HTMLElement) => void;
 }) {
-  const route = { kind: "record", recordKey: selection.record_key, selection } as const;
+  const route = recordDestination({
+    recordKey: selection.record_key,
+    selection,
+  });
   return (
     <Typography.Link
-      href={atlasRoutePath(route)}
+      href={destinationHref(route)}
       onClick={(event) => {
-        if (!shouldHandleAtlasRouteClick(event)) return;
+        if (!isPrimaryActivation(event)) return;
         event.preventDefault();
         if (onNavigate) onNavigate(selection, event.currentTarget);
-        else navigateToAtlasRoute(route);
+        else navigateDestination(route);
       }}
     >
       {title}

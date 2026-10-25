@@ -1,13 +1,15 @@
+import { navigateDestination } from "../../app/navigation";
+import { encounterDestination, encountersDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button } from "antd";
 import { getEncounter } from "../../api/atlasApi";
-import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { EditEncounterForm } from "./EncounterModals";
 import { useEncounterMutations } from "./useEncounterMutations";
-
-type EncounterEditViewProps = { route: Extract<AtlasRoute, { kind: "encounterEdit" }> };
+type EncounterEditViewProps = {
+  route: { slug: string };
+};
 export function EncounterEditView({ route }: EncounterEditViewProps) {
   return <EncounterEditor key={route.slug} route={route} />;
 }
@@ -31,7 +33,13 @@ function EncounterEditor({ route }: EncounterEditViewProps) {
         </div>
         <Button
           disabled={mutations.pending}
-          onClick={() => navigateToAtlasRoute({ kind: "encounter", slug: route.slug })}
+          onClick={() =>
+            navigateDestination(
+              encounterDestination({
+                slug: route.slug,
+              }),
+            )
+          }
         >
           Done
         </Button>
@@ -80,7 +88,11 @@ function EncounterEditor({ route }: EncounterEditViewProps) {
               onSave={async (request) => {
                 const result = await mutations.run({ kind: "metadata", request });
                 if (result.active && result.refreshed)
-                  navigateToAtlasRoute({ kind: "encounter", slug: request.slug });
+                  navigateDestination(
+                    encounterDestination({
+                      slug: request.slug,
+                    }),
+                  );
               }}
             />
             <div className="encounter-edit-view__metadata">
@@ -94,7 +106,7 @@ function EncounterEditor({ route }: EncounterEditViewProps) {
               confirmTitle={`Delete ${encounter.data.encounter.name}?`}
               onConfirm={async () => {
                 const result = await mutations.run({ kind: "delete" });
-                if (result.active) navigateToAtlasRoute({ kind: "encounters" });
+                if (result.active) navigateDestination(encountersDestination());
               }}
             >
               Delete encounter

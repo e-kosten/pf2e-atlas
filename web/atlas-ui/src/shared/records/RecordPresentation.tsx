@@ -1,3 +1,10 @@
+import {
+  ownerReturnHref,
+  isPrimaryActivation,
+  navigatePath,
+  destinationHref,
+} from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { ReferenceProfiles } from "./ReferenceProfiles";
 import { JournalContents } from "./JournalContents";
 import { DocumentIdentityHeader } from "./DocumentIdentityHeader";
@@ -29,14 +36,7 @@ import type { ActorEncounterContent } from "./ActorEncounterLayout";
 import { HazardReference } from "./HazardReference";
 import type { EmbeddedReadingContext } from "./EmbeddedAbilityReading";
 import { activityAddress } from "./embeddedNavigation";
-import {
-  ownerReturnPath,
-  atlasRoutePath,
-  navigateToAtlasPath,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
 import { ChevronLeft } from "lucide-react";
-
 const contentRoleLabels: Record<string, string> = {
   name: "Name",
   description: "Description",
@@ -49,7 +49,6 @@ const contentRoleLabels: Record<string, string> = {
   caption: "Caption",
   tableresult: "Table result",
 };
-
 export function ContentFields({
   fields,
   relationships = [],
@@ -119,7 +118,6 @@ export function ContentFields({
     </>
   );
 }
-
 export function contentFieldVisible(field: PreparedContentFieldView) {
   if (field.body.kind === "unavailable" && field.body.state === "not_applicable")
     return false;
@@ -128,7 +126,6 @@ export function contentFieldVisible(field: PreparedContentFieldView) {
     return field.body.html.trim().length > 0 || field.body.controls.length > 0;
   return true;
 }
-
 export function recordClassification(presentation: RecordPresentationView) {
   if (
     presentation.body.kind === "hazard" &&
@@ -138,9 +135,7 @@ export function recordClassification(presentation: RecordPresentationView) {
   }
   return presentation.classification;
 }
-
 type IdentityActions = ReactNode | ((secondaryActions: ReactNode) => ReactNode);
-
 export function RecordIdentity({
   identity,
   classification,
@@ -234,9 +229,9 @@ export function RecordIdentity({
             className="record-reference__owner"
             icon={<ChevronLeft size={14} aria-hidden="true" />}
             aria-label={`Return to ${root.title}`}
-            href={ownerReturnPath(root.record_key, activityAddress(selection))}
+            href={ownerReturnHref(root.record_key, activityAddress(selection))}
             onClick={(event) => {
-              if (!shouldHandleAtlasRouteClick(event)) return;
+              if (!isPrimaryActivation(event)) return;
               event.preventDefault();
               if (onOwnerReturn)
                 onOwnerReturn(
@@ -245,8 +240,8 @@ export function RecordIdentity({
                   event.currentTarget,
                 );
               else
-                navigateToAtlasPath(
-                  ownerReturnPath(root.record_key, activityAddress(selection)),
+                navigatePath(
+                  ownerReturnHref(root.record_key, activityAddress(selection)),
                 );
             }}
           >
@@ -266,7 +261,6 @@ export function RecordIdentity({
     </DocumentIdentityHeader>
   );
 }
-
 export function RecordPresentationIdentity({
   presentation,
   root,
@@ -340,7 +334,6 @@ export function RecordPresentationIdentity({
     />
   );
 }
-
 export function RecordPresentation({
   presentation,
   root,
@@ -646,13 +639,14 @@ export function RecordPresentation({
               <div key={index}>
                 <Button
                   type="link"
-                  href={atlasRoutePath({
-                    kind: "record",
-                    recordKey: link.navigation.record_key,
-                    selection: link.navigation,
-                  })}
+                  href={destinationHref(
+                    recordDestination({
+                      recordKey: link.navigation.record_key,
+                      selection: link.navigation,
+                    }),
+                  )}
                   onClick={(event) => {
-                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    if (!isPrimaryActivation(event)) return;
                     event.preventDefault();
                     onReference(
                       link.navigation.record_key,

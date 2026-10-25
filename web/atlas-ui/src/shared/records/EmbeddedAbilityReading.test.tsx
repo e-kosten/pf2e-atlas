@@ -17,7 +17,8 @@ import type {
 } from "../../generated/atlas";
 import { recordDetailQueryOptions } from "./recordDetailQuery";
 import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
-import { atlasRoutePath } from "../../app/routes";
+import { destinationHref } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { AtlasApiError } from "../../api/atlasApi";
 
 const api = vi.hoisted(() => ({
@@ -168,11 +169,12 @@ it("reads a finite default batch inline, preserves native permalinks and never s
   const link = screen.getByRole("link", { name: "Ability 0" });
   expect(link).toHaveAttribute(
     "href",
-    atlasRoutePath({
-      kind: "record",
-      recordKey: "actors:large",
-      selection: abilities[0].navigation,
-    }),
+    destinationHref(
+      recordDestination({
+        recordKey: "actors:large",
+        selection: abilities[0].navigation,
+      }),
+    ),
   );
   fireEvent.click(link, { ctrlKey: true });
   expect(api.getEmbeddedReading).toHaveBeenCalledTimes(1);

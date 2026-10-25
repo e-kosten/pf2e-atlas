@@ -1,8 +1,9 @@
+import { atlasRouter } from "../../app/router";
 import { encodeFilterUrl } from "../../shared/filters/filterUrl";
 import { fieldFixture } from "../../test/fixtures";
 import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
 import {
-  initialWorkspaceInteractionState,
+  initialWorkspaceInteractionState as readInitialState,
   rememberKindPreference,
   KIND_PREFERENCE_KEY,
   workspaceInteractionReducer,
@@ -195,3 +196,8 @@ it("resets restored paging before executing a recovered URL without adding a rem
   expect(state.search.filterWasReset).toBe(true);
   localStorage.clear();
 });
+
+function initialWorkspaceInteractionState() {
+  atlasRouter.updateLatestLocation();
+  return readInitialState();
+}
