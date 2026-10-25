@@ -2,6 +2,20 @@ export type ResolvedColorScheme = "light" | "dark";
 export type StatusRole = "success" | "warning" | "error" | "info";
 export type RarityRole = "common" | "uncommon" | "rare" | "unique";
 
+export const darkTextPalettes = {
+  warm: { text: "#F3E9D7", muted: "#C4B6A1" },
+  bright: { text: "#F7F1E7", muted: "#D0C6B7" },
+} as const;
+export type DarkTextPalette = keyof typeof darkTextPalettes;
+export const DEFAULT_DARK_TEXT_PALETTE: DarkTextPalette = "bright";
+const defaultDarkTextPalette = darkTextPalettes[DEFAULT_DARK_TEXT_PALETTE];
+
+export function isDarkTextPalette(value: string | null): value is DarkTextPalette {
+  return (
+    value !== null && Object.prototype.hasOwnProperty.call(darkTextPalettes, value)
+  );
+}
+
 export interface BadgeColors {
   text: string;
   background: string;
@@ -42,15 +56,54 @@ export interface BrandMarkColors {
   ];
 }
 
-export const darkNeutralRamp = {
-  shell: "#111110",
-  background: "#171615",
-  surface: "#211F1C",
-  elevated: "#28241F",
-  subtle: "#302A23",
-  separator: "#4A4136",
-  border: "#5C5144",
-} as const satisfies DarkNeutralRamp;
+export const darkNeutralRamps = {
+  standard: {
+    shell: "#111110",
+    background: "#171615",
+    surface: "#211F1C",
+    elevated: "#28241F",
+    subtle: "#302A23",
+    separator: "#4A4136",
+    border: "#776858",
+  },
+  deep: {
+    shell: "#121110",
+    background: "#181615",
+    surface: "#201D1A",
+    elevated: "#25211D",
+    subtle: "#2B2621",
+    separator: "#40382F",
+    border: "#776655",
+  },
+  dark: {
+    shell: "#0D0C0B",
+    background: "#121110",
+    surface: "#191715",
+    elevated: "#201C19",
+    subtle: "#27221D",
+    separator: "#3A322A",
+    border: "#736251",
+  },
+  ink: {
+    shell: "#090908",
+    background: "#0E0D0C",
+    surface: "#151311",
+    elevated: "#1B1815",
+    subtle: "#221D19",
+    separator: "#342C25",
+    border: "#705F50",
+  },
+} as const satisfies Record<string, DarkNeutralRamp>;
+
+export type DarkNeutralLevel = keyof typeof darkNeutralRamps;
+export const DEFAULT_DARK_NEUTRAL_LEVEL: DarkNeutralLevel = "ink";
+export const darkNeutralRamp = darkNeutralRamps[DEFAULT_DARK_NEUTRAL_LEVEL];
+
+export function isDarkNeutralLevel(value: string | null): value is DarkNeutralLevel {
+  return (
+    value !== null && Object.prototype.hasOwnProperty.call(darkNeutralRamps, value)
+  );
+}
 
 export interface AtlasPalette {
   primary: string;
@@ -194,29 +247,29 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
     shadow: "rgba(72, 52, 33, 0.18)",
   },
   dark: {
-    primary: "#7F2F24",
-    primaryHover: "#954033",
-    primaryActive: "#6E281F",
+    primary: "#AD4D3B",
+    primaryHover: "#B35844",
+    primaryActive: "#963B2F",
     onPrimary: "#FFF8EF",
     link: "#D6BA86",
     background: darkNeutralRamp.background,
     surface: darkNeutralRamp.surface,
     elevated: darkNeutralRamp.elevated,
     subtle: darkNeutralRamp.subtle,
-    text: "#F3E9D7",
-    muted: "#C4B6A1",
+    text: defaultDarkTextPalette.text,
+    muted: defaultDarkTextPalette.muted,
     border: darkNeutralRamp.border,
     separator: darkNeutralRamp.separator,
     selection: {
-      background: "#382622",
-      text: "#F3E9D7",
-      hover: "#493029",
-      border: "#9B4737",
+      background: "#503129",
+      text: defaultDarkTextPalette.text,
+      hover: "#5A3930",
+      border: "#B55D49",
     },
     contextBar: darkNeutralRamp.surface,
     shell: {
       background: darkNeutralRamp.shell,
-      text: "#F3E9D7",
+      text: defaultDarkTextPalette.text,
       border: darkNeutralRamp.separator,
     },
     brand: {
@@ -250,8 +303,8 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
       activeText: "#D6BA86",
       hoverText: "#D6BA86",
       pressedText: "#D6BA86",
-      activeBackground: "#382622",
-      hoverBackground: "#382622",
+      activeBackground: "#503129",
+      hoverBackground: "#503129",
     },
     recordKind: { text: "#A8C7B0", background: "#29312B", border: "#5C7662" },
     filter: {
@@ -259,10 +312,10 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
       exclude: { text: "#EE9A89", background: "#422622", border: "#B95540" },
     },
     rarity: {
-      common: { text: "#C4B6A1", background: "#302E2A", border: "#5C5144" },
+      common: { text: "#C4B6A1", background: "#302E2A", border: "#756858" },
       uncommon: { text: "#E1B27A", background: "#3D2E21", border: "#865722" },
-      rare: { text: "#E8A093", background: "#422622", border: "#9B4737" },
-      unique: { text: "#D2AFE8", background: "#35283D", border: "#684582" },
+      rare: { text: "#E8A093", background: "#422622", border: "#B55D49" },
+      unique: { text: "#D2AFE8", background: "#35283D", border: "#845DA0" },
     },
     status: {
       success: { text: "#A8C99F", background: "#273126", border: "#668F59" },
@@ -282,6 +335,43 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
   },
 };
 
-export function resolveAtlasPalette(scheme: ResolvedColorScheme): AtlasPalette {
-  return atlasPalettes[scheme];
+export function resolveAtlasPalette(
+  scheme: ResolvedColorScheme,
+  darkNeutralLevel: DarkNeutralLevel = DEFAULT_DARK_NEUTRAL_LEVEL,
+  darkTextPalette: DarkTextPalette = DEFAULT_DARK_TEXT_PALETTE,
+): AtlasPalette {
+  if (scheme === "light") return atlasPalettes.light;
+  if (
+    darkNeutralLevel === DEFAULT_DARK_NEUTRAL_LEVEL &&
+    darkTextPalette === DEFAULT_DARK_TEXT_PALETTE
+  )
+    return atlasPalettes.dark;
+
+  const palette = atlasPalettes.dark;
+  const ramp = darkNeutralRamps[darkNeutralLevel];
+  const textPalette = darkTextPalettes[darkTextPalette];
+  return {
+    ...palette,
+    background: ramp.background,
+    surface: ramp.surface,
+    elevated: ramp.elevated,
+    subtle: ramp.subtle,
+    border: ramp.border,
+    separator: ramp.separator,
+    text: textPalette.text,
+    muted: textPalette.muted,
+    selection: { ...palette.selection, text: textPalette.text },
+    contextBar: ramp.surface,
+    shell: {
+      ...palette.shell,
+      background: ramp.shell,
+      border: ramp.separator,
+      text: textPalette.text,
+    },
+    brand: {
+      ...palette.brand,
+      mark: { ...palette.brand.mark, inner: ramp.background },
+    },
+    tooltip: { ...palette.tooltip, background: ramp.shell },
+  };
 }
