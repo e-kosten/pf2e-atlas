@@ -121,21 +121,21 @@ export function EncounterHpControls({
               .join(" ")}
             style={{ width: `${hpPercent}%` }}
           />
-          {missingHp > 0 && (
-            <span
-              className="encounter-hp-meter__missing"
-              style={{
-                left: `${hpPercent + tempHpPercent}%`,
-                width: `${missingHpPercent}%`,
-              }}
-            />
-          )}
           {temporaryHp > 0 && (
             <span
               className="encounter-hp-meter__temporary"
               style={{
                 left: `${hpPercent}%`,
                 width: `${tempHpPercent}%`,
+              }}
+            />
+          )}
+          {missingHp > 0 && (
+            <span
+              className="encounter-hp-meter__missing"
+              style={{
+                left: `${hpPercent + tempHpPercent}%`,
+                width: `${missingHpPercent}%`,
               }}
             />
           )}

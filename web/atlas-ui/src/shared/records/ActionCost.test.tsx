@@ -112,7 +112,7 @@ describe("authored action costs", () => {
       };
       render(<RecordPresentation presentation={presentation} onReference={vi.fn()} />);
       expect(screen.getByRole("heading", { name: "Example feat" })).toBeVisible();
-      expect(screen.getByText("Action cost")).toBeVisible();
+      expect(screen.getByText("Activation")).toBeVisible();
     },
   );
 

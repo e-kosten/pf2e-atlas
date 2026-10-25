@@ -510,25 +510,27 @@ function EncounterParticipantSurface({
     <section className="encounter-reference">
       <div className="encounter-reference__header">
         <div className="encounter-reference__identity">
-          <div className="encounter-reference__name">
-            <h2>{participant.display_name}</h2>
-            <EncounterParticipantSettings
-              participant={participant}
-              disabled={disabled}
-              pending={pending}
-              error={error}
-              recovery={recovery}
-              onUpdate={onUpdate}
-              onLifeSettings={(settings) =>
-                onLifeSettings(participant.participant_key, settings)
-              }
-            />
+          <div className="encounter-reference__title">
+            <div className="encounter-reference__name">
+              <h2>{participant.display_name}</h2>
+              <EncounterParticipantSettings
+                participant={participant}
+                disabled={disabled}
+                pending={pending}
+                error={error}
+                recovery={recovery}
+                onUpdate={onUpdate}
+                onLifeSettings={(settings) =>
+                  onLifeSettings(participant.participant_key, settings)
+                }
+              />
+            </div>
+            <p className="record-reference__kind">
+              {presentation
+                ? recordClassification(presentation)
+                : participant.participant_kind}
+            </p>
           </div>
-          <p className="record-reference__kind">
-            {presentation
-              ? recordClassification(presentation)
-              : participant.participant_kind}
-          </p>
           {presentation &&
           (presentation.identity.traits.length > 0 ||
             (presentation.identity.rarity &&

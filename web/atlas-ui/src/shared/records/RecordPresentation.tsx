@@ -181,7 +181,7 @@ export function RecordIdentity({
   ) => void;
 }) {
   const traits = identity?.traits.filter((trait) => trait.kind !== "rarity") ?? [];
-  const hasRarity = Boolean(identity?.rarity?.trim() && identity.rarity !== "common");
+  const hasRarity = Boolean(identity?.rarity?.trim());
   const secondaryActions = referenceRecord ? (
     <RecordProvenanceAction
       navigation={referenceRecord}
@@ -189,29 +189,18 @@ export function RecordIdentity({
       onReference={onReference}
     />
   ) : null;
-  const textCost =
-    stacked && actionCost?.state === "value" && !actionCost.value?.glyph ? (
-      <ActionCost fact={actionCost} />
-    ) : null;
   return (
     <DocumentIdentityHeader
       title={
         <>
           {identity?.title ?? "Reference"}{" "}
-          {actionCost?.state === "value" && (!stacked || actionCost.value?.glyph) && (
+          {actionCost?.state === "value" && actionCost.value?.glyph && (
             <ActionCost fact={actionCost} />
           )}
         </>
       }
       classification={classification}
-      classificationControl={
-        rankControl || textCost ? (
-          <>
-            {rankControl}
-            {textCost}
-          </>
-        ) : undefined
-      }
+      classificationAction={rankControl}
       stacked={stacked}
       headingRef={headingRef}
       headingId={headingId}
@@ -576,7 +565,8 @@ export function RecordPresentation({
             selected
             hideCost={
               (!hideIdentity || identityInHost) &&
-              body.value.action_cost.state === "value"
+              body.value.action_cost.state === "value" &&
+              Boolean(body.value.action_cost.value?.glyph)
             }
           />
           {!encounter && flavor}

@@ -1,5 +1,5 @@
 .roll-table-result--highlight > td {
-  background: var(--active-bg);
+  background: var(--selection-bg);
 }
 
 .roll-table-result-summary {

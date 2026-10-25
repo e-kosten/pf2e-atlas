@@ -1,9 +1,9 @@
 # Product Color System
 
-Status: proposed
-Priority: later
-Owner: unassigned
-Last reviewed: 2026-10-18
+Status: in_progress
+Priority: now
+Owner: product-theme workstream
+Last reviewed: 2026-10-24
 
 ## Outcome
 
@@ -13,8 +13,17 @@ appearances. Keep labels meaningful without relying on color alone.
 
 ## Scope
 
-Prototype alternatives for early human review before expanding implementation.
 Use shared theme tokens and components so search results, record readers, saved
 lists and encounters remain consistent. Verify contrast and interaction states.
-The current shared rarity badge is an accepted interim treatment, not a final
-palette decision.
+
+## Current delivery
+
+The selected identity is Parchment and Oxblood in light appearance and warmer
+Oxblood and Brass in dark appearance. Light/Dark/System remains the only theme
+preference. Rarity uses neutral common, lighter copper uncommon, oxblood rare and
+purple unique badges. HP uses green healthy, amber wounded, red critical, and
+sage/light or parchment/dark temporary HP. Role mappings and constraints live in
+`web/atlas-ui/docs/theme-design.md`.
+
+Implementation and focused validation are in progress. Full frontend validation,
+visual acceptance and publication remain separate checkpoints.

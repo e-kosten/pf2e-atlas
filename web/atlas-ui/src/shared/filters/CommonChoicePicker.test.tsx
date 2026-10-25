@@ -210,6 +210,10 @@ describe("compact common choice picker", () => {
     await waitFor(() =>
       expect(row).toHaveAccessibleName("Traits: Fire, included; activate to exclude"),
     );
+    expect(row).toHaveStyle({
+      color: "var(--filter-include-text)",
+      background: "var(--filter-include-bg)",
+    });
     expect(row).toHaveFocus();
     act(() => popup.complete?.(true));
     expect(row).toHaveFocus();
@@ -302,6 +306,10 @@ describe("compact common choice picker", () => {
     await waitFor(() =>
       expect(row).toHaveAccessibleName("Traits: Fire, excluded; activate to clear"),
     );
+    expect(row).toHaveStyle({
+      color: "var(--filter-exclude-text)",
+      background: "var(--filter-exclude-bg)",
+    });
     expect(change).toHaveBeenLastCalledWith(
       expect.objectContaining({
         kind: "set_match",
@@ -328,6 +336,11 @@ describe("compact common choice picker", () => {
       name: "Remove excluded Fire from Traits",
     });
     expect(remove).toHaveTextContent("Fire");
+    expect(remove).toHaveStyle({
+      color: "var(--filter-exclude-text)",
+      background: "var(--filter-exclude-bg)",
+    });
+    expect(remove.style.borderColor).toBe("var(--filter-exclude-border)");
     expect(screen.queryByText("cold")).not.toBeInTheDocument();
     fireEvent.click(remove);
     expect(change).toHaveBeenLastCalledWith(null);
