@@ -358,7 +358,7 @@ fn new_mid_turn_stun_can_resolve_after_start_turn_stun_without_replaying_either_
                 .definition()
                 .record_key
                 .into(),
-            outcome: "1 cleared · 1 action lost this turn".into(),
+            outcome: "1 cleared".into(),
         }
     );
 }
@@ -485,7 +485,7 @@ fn applying_stunned_mid_turn_previews_and_commits_the_same_remaining_loss_once()
                 .definition()
                 .record_key
                 .into(),
-            outcome: "2 cleared · 2 actions lost this turn".into(),
+            outcome: "2 cleared".into(),
         }]
     );
 }
@@ -755,6 +755,19 @@ fn inherent_slowed_and_temporary_slowed_share_one_allocation_without_saving_dupl
         );
         next(&f, &key, "source-first");
         assert_eq!(resources(&f, &key, &p).regular_remaining, Some(2));
+        let equal_source = add(&f, &p, "Slowed", Some(1));
+        assert_eq!(resources(&f, &key, &p).forecast.adjusted_value, Some(2));
+        next(&f, &key, "source-equal");
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(2));
+        f.worker
+            .with_write(|session| {
+                session
+                    .local_state()
+                    .encounters()
+                    .remove_condition(&p, equal_source)?;
+                Ok(())
+            })
+            .unwrap();
         let temporary = add(&f, &p, "Slowed", Some(2));
         assert_eq!(resources(&f, &key, &p).forecast.adjusted_value, Some(1));
         assert_eq!(resources(&f, &key, &p).regular_remaining, Some(2));
@@ -788,6 +801,43 @@ fn inherent_slowed_and_temporary_slowed_share_one_allocation_without_saving_dupl
             f.worker.encounter(&key).unwrap().participants[0]
                 .conditions
                 .is_empty()
+        );
+    }
+}
+
+#[test]
+fn inherent_slowed_and_turn_start_stunned_overlap_without_an_additional_action_loss() {
+    use serde_json::json;
+    for (stunned, remaining, stunned_after, outcome) in [
+        (1, 2, None, "1 cleared"),
+        (2, 1, None, "2 cleared"),
+        (4, 0, Some(1), "4 → 1"),
+    ] {
+        let (f, key, p) = source_condition_fixture(json!([{
+            "_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Generic slow ability",
+            "system":{"actionType":{"value":"passive"},"rules":[{"key":"GrantItem","inMemoryOnly":true,"uuid":"Compendium.pf2e.conditionitems.Item.Slowed"}]}
+        }]));
+        add(&f, &p, "Stunned", Some(stunned));
+        next(&f, &key, "source-stunned-overlap");
+        let current = resources(&f, &key, &p);
+        assert_eq!(current.regular_total, Some(remaining));
+        assert_eq!(current.regular_remaining, Some(remaining));
+        assert_eq!(current.extra_remaining, Some(0));
+        assert_eq!(current.start_results.len(), 1);
+        assert_eq!(current.start_results[0].condition_name, "Stunned");
+        assert_eq!(current.start_results[0].outcome, outcome);
+        let detail = f.worker.encounter(&key).unwrap();
+        assert_eq!(
+            detail.participants[0]
+                .conditions
+                .iter()
+                .find(|condition| condition.name == "Stunned")
+                .and_then(|condition| condition.value),
+            stunned_after
+        );
+        assert_eq!(
+            current.inherent_conditions.unwrap().entries[0].value,
+            Some(1)
         );
     }
 }

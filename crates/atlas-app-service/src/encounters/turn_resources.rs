@@ -206,29 +206,13 @@ pub(super) fn view(
                 r.effects
                     .iter()
                     .map(|e| {
+                        // Stunned can overlap Slowed at regain. Describe the
+                        // condition transition, not an extra deduction from the
+                        // available actions already displayed by the chips.
                         let outcome = if e.after == Some(0) {
-                            format!(
-                                "{} cleared · {} {} lost this turn",
-                                e.before.unwrap_or(0),
-                                e.actions_lost,
-                                if e.actions_lost == 1 {
-                                    "action"
-                                } else {
-                                    "actions"
-                                }
-                            )
+                            format!("{} cleared", e.before.unwrap_or(0))
                         } else {
-                            format!(
-                                "{} → {} · {} {} lost this turn",
-                                e.before.unwrap_or(0),
-                                e.after.unwrap_or(0),
-                                e.actions_lost,
-                                if e.actions_lost == 1 {
-                                    "action"
-                                } else {
-                                    "actions"
-                                }
-                            )
+                            format!("{} → {}", e.before.unwrap_or(0), e.after.unwrap_or(0),)
                         };
                         // Both effect producers are Stunned reducers. Preserve
                         // that rule identity after the saved condition is gone;
