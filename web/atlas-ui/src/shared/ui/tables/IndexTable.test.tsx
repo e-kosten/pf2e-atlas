@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { Button } from "antd";
 import type { ReactNode } from "react";
-import { shouldHandleAtlasRouteClick } from "../../../app/routes";
+import { isPrimaryActivation } from "../../../app/navigation";
 import { IndexTable, RowTitleLink } from "./IndexTable";
 
 const row = { key: "goblins", name: "Goblins" };
@@ -68,7 +68,7 @@ describe("IndexTable", () => {
       <RowTitleLink
         href="/lists/goblins"
         onClick={(event) => {
-          if (shouldHandleAtlasRouteClick(event)) {
+          if (isPrimaryActivation(event)) {
             event.preventDefault();
             onNavigate();
           }
@@ -98,7 +98,7 @@ describe("IndexTable", () => {
       <RowTitleLink
         href="/lists/goblins"
         onClick={(event) => {
-          if (shouldHandleAtlasRouteClick(event)) {
+          if (isPrimaryActivation(event)) {
             event.preventDefault();
             onNavigate();
           }

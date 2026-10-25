@@ -1,15 +1,12 @@
+import { isPrimaryActivation } from "../../app/navigation";
 import { Grid, Splitter } from "antd";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import {
-  ATLAS_ROUTE_CHANGE_EVENT,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
+import { atlasRouter } from "../../app/router";
 import { ReferenceReader } from "./ReferenceReader";
 import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
 import { type ReferenceReading } from "./useReferenceReading";
 import { BrowsePaneHeader } from "./BrowsePaneHeader";
 import { useBrowseHeaderAlignment } from "./useBrowseHeaderAlignment";
-
 // The browse host owns layout, scroll and mobile return. Features own rows,
 // queries, selection and mutation semantics; no search DTO is required here.
 export function BrowseReader({
@@ -53,12 +50,7 @@ export function BrowseReader({
       if (listRef.current && (!narrow || !readerOpen))
         saved.saveList(listRef.current.scrollTop);
     };
-    window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, snapshot);
-    window.addEventListener("popstate", snapshot);
-    return () => {
-      window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, snapshot);
-      window.removeEventListener("popstate", snapshot);
-    };
+    return atlasRouter.subscribe("onBeforeNavigate", snapshot);
   }, [saved, narrow, readerOpen]);
   useLayoutEffect(() => {
     if (listRef.current && (!narrow || !readerOpen))
@@ -88,13 +80,10 @@ export function BrowseReader({
       className="reference-results"
       aria-label={resultsLabel}
       onClickCapture={(event) => {
-        if (shouldHandleAtlasRouteClick(event)) rememberOpener(event.target);
+        if (isPrimaryActivation(event)) rememberOpener(event.target);
       }}
       onKeyDownCapture={(event) => {
-        if (
-          (event.key === " " || event.key === "Enter") &&
-          shouldHandleAtlasRouteClick(event)
-        )
+        if ((event.key === " " || event.key === "Enter") && isPrimaryActivation(event))
           rememberOpener(event.target);
       }}
     >

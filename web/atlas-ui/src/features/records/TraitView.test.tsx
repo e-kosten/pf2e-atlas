@@ -5,7 +5,8 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import { AtlasApiError } from "../../api/atlasApi";
 import { RecordIdentity } from "../../shared/records/RecordPresentation";
-import { currentAtlasRoute } from "../../app/routes";
+import { atlasRouter } from "../../app/router";
+import { selectedNavigation } from "../../app/urlState";
 import { TraitView } from "./TraitView";
 import type { TraitDetailView, TraitRecordsRequest } from "../../generated/atlas";
 import { summaryFixture } from "../../test/fixtures";
@@ -63,7 +64,7 @@ function setup() {
   render(
     <QueryClientProvider client={client}>
       <SearchProfileProvider id="embeddinggemma">
-        <TraitView route={{ kind: "trait", traitKey: "trait:agile" }} />
+        <TraitView route={{ traitKey: "trait:agile" }} />
       </SearchProfileProvider>
     </QueryClientProvider>,
   );
@@ -216,11 +217,8 @@ it("keeps exact embedded membership addresses in native links and navigation", a
     ),
   ).toBe(JSON.stringify(navigation));
   fireEvent.click(link);
-  expect(currentAtlasRoute()).toMatchObject({
-    kind: "record",
-    recordKey: "actors:creature",
-    selection: navigation,
-  });
+  await waitFor(() => expect(location.pathname).toBe("/records/actors:creature"));
+  expect(selectedNavigation(atlasRouter.latestLocation.search)).toEqual(navigation);
 });
 it("requests stored Similar with the selected profile and no text fallback", async () => {
   setup();
@@ -262,7 +260,6 @@ it("restores the Similar tab/order from its URL and keeps other association requ
       <SearchProfileProvider id="embeddinggemma">
         <TraitView
           route={{
-            kind: "trait",
             traitKey: "trait:agile",
             query: "?tab=similar&sort=level_desc",
           }}
@@ -338,7 +335,6 @@ it.each([
         <SearchProfileProvider id="embeddinggemma">
           <TraitView
             route={{
-              kind: "trait",
               traitKey: "trait:agile",
               query: "?tab=similar&" + query,
             }}

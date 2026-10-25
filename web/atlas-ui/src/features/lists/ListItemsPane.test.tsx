@@ -57,7 +57,7 @@ it("keeps 120 ordered member summaries and unavailable snapshots without radio o
   ).toBeEnabled();
 });
 
-it("shares deliberate preview, native modified navigation, Enter and keyboard focus with search", () => {
+it("shares deliberate preview, native modified navigation, Enter and keyboard focus with search", async () => {
   const { onSelect } = mount([active(0), active(1)]);
   const first = screen.getByRole("link", { name: /Saved record 0/ });
   const second = screen.getByRole("link", { name: /Saved record 1/ });
@@ -71,7 +71,7 @@ it("shares deliberate preview, native modified navigation, Enter and keyboard fo
   expect(second).toHaveFocus();
   expect(onSelect).toHaveBeenCalledTimes(1);
   fireEvent.keyDown(second, { key: "Enter" });
-  expect(window.location.pathname).toBe("/records/rules:record-1");
+  await waitFor(() => expect(window.location.pathname).toBe("/records/rules:record-1"));
   expect(onSelect).toHaveBeenCalledTimes(1);
 });
 

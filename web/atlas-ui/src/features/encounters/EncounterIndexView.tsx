@@ -1,3 +1,9 @@
+import {
+  navigateDestination,
+  destinationHref,
+  isPrimaryActivation,
+} from "../../app/navigation";
+import { encounterDestination, encounterEditDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Tabs } from "antd";
@@ -6,13 +12,6 @@ import { Edit2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { deleteEncounter, getEncounters } from "../../api/atlasApi";
 import type { EncounterSummaryView } from "../../generated/atlas";
-import {
-  encounterPath,
-  atlasRoutePath,
-  shouldHandleAtlasRouteClick,
-  navigateToAtlasRoute,
-  type AtlasRoute,
-} from "../../app/routes";
 import { formatDate } from "../../shared/ui/formatDate";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
@@ -20,11 +19,9 @@ import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTabl
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 import { PartyManager } from "../parties/PartyManager";
 import { CreateEncounterModal } from "./EncounterModals";
-
 type EncounterIndexViewProps = {
-  route: Extract<AtlasRoute, { kind: "encounters" }>;
+  route: Record<string, never>;
 };
-
 export function EncounterIndexView(_props: EncounterIndexViewProps) {
   usePageTitle("Encounters");
   const queryClient = useQueryClient();
@@ -76,7 +73,11 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
             onCancel={() => setCreateOpen(false)}
             onCreated={(slug) => {
               setCreateOpen(false);
-              navigateToAtlasRoute({ kind: "encounter", slug });
+              navigateDestination(
+                encounterDestination({
+                  slug,
+                }),
+              );
             }}
           />
         </>
@@ -124,7 +125,11 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
       <IndexTable
         columns={encounterColumns(
           (encounter) =>
-            navigateToAtlasRoute({ kind: "encounterEdit", slug: encounter.slug }),
+            navigateDestination(
+              encounterEditDestination({
+                slug: encounter.slug,
+              }),
+            ),
           (encounter) => deleteMutation.mutateAsync(encounter),
           deleteMutation.isPending,
         )}
@@ -141,14 +146,17 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
                 : "No active encounters. Create an encounter to get started.",
         }}
         onActivateRow={(encounter) =>
-          navigateToAtlasRoute({ kind: "encounter", slug: encounter.slug })
+          navigateDestination(
+            encounterDestination({
+              slug: encounter.slug,
+            }),
+          )
         }
         rowKey={(encounter) => encounter.encounter_key}
       />
     </EntityIndexPage>
   );
 }
-
 function encounterColumns(
   onEdit: (encounter: EncounterSummaryView) => void,
   onDelete: (encounter: EncounterSummaryView) => Promise<unknown>,
@@ -161,7 +169,9 @@ function encounterColumns(
       width: 280,
       dataIndex: "name",
       render: (_value, encounter) => (
-        <a href={encounterPath(encounter.slug)}>{encounter.name}</a>
+        <a href={destinationHref(encounterDestination({ slug: encounter.slug }))}>
+          {encounter.name}
+        </a>
       ),
     },
     { title: "Status", dataIndex: "status", width: 120 },
@@ -179,12 +189,16 @@ function encounterColumns(
       render: (_value, encounter) => (
         <span className="encounter-row-actions">
           <PaneIconLink
-            href={atlasRoutePath({ kind: "encounterEdit", slug: encounter.slug })}
+            href={destinationHref(
+              encounterEditDestination({
+                slug: encounter.slug,
+              }),
+            )}
             label={`Edit ${encounter.name}`}
             icon={<Edit2 size={14} />}
             onClick={(event) => {
               stopIndexRowAction(event);
-              if (!shouldHandleAtlasRouteClick(event)) return;
+              if (!isPrimaryActivation(event)) return;
               event.preventDefault();
               onEdit(encounter);
             }}

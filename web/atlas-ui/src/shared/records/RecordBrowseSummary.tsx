@@ -1,13 +1,13 @@
+import {
+  destinationHref,
+  isPrimaryActivation,
+  navigatePath,
+} from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { TraitBadge } from "./TraitBadge";
 import { Button } from "antd";
 import type { RecordSummaryView } from "../../generated/atlas";
-import {
-  atlasRoutePath,
-  navigateToAtlasPath,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
 import { RecordRarity } from "./RecordRarity";
-
 export function RecordBrowseSummary({
   record,
   selected,
@@ -28,7 +28,12 @@ export function RecordBrowseSummary({
     .filter(Boolean)
     .join(" ");
   const recordHref =
-    href ?? atlasRoutePath({ kind: "record", recordKey: record.record_key });
+    href ??
+    destinationHref(
+      recordDestination({
+        recordKey: record.record_key,
+      }),
+    );
   return (
     <>
       <Button
@@ -58,23 +63,23 @@ export function RecordBrowseSummary({
         disabled={disabled}
         aria-current={selected ? "true" : undefined}
         onClick={(event) => {
-          if (!shouldHandleAtlasRouteClick(event)) return;
+          if (!isPrimaryActivation(event)) return;
           event.preventDefault();
           onPreview(event.currentTarget);
         }}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && shouldHandleAtlasRouteClick(event)) {
+          if (event.key === "Enter" && isPrimaryActivation(event)) {
             event.preventDefault();
-            navigateToAtlasPath(recordHref);
+            navigatePath(recordHref);
             return;
           }
-          if (event.key === " " && shouldHandleAtlasRouteClick(event)) {
+          if (event.key === " " && isPrimaryActivation(event)) {
             event.preventDefault();
             onPreview(event.currentTarget);
           }
           if (
             ["ArrowDown", "ArrowUp", "j", "k"].includes(event.key) &&
-            shouldHandleAtlasRouteClick(event)
+            isPrimaryActivation(event)
           ) {
             event.preventDefault();
             const links = Array.from(

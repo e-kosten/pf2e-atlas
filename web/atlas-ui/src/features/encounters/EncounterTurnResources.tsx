@@ -1,3 +1,5 @@
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { Button, Popover, Space, Tooltip } from "antd";
 import { ChevronDown } from "lucide-react";
 import { useRef, useState } from "react";
@@ -10,9 +12,7 @@ import { RuntimeCount } from "../../shared/records/ActorReference";
 import { RuntimeCountCalculation } from "../../shared/records/RuntimeCountCalculation";
 import { CalculationTable } from "../../shared/ui/tables/CalculationTable";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
-import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import type { RecordReferenceHandler } from "../../shared/records/PreparedContent";
-
 export type TurnResourceHandler = (action: TurnResourceAction) => Promise<void>;
 export function EncounterTurnResources({
   value,
@@ -214,9 +214,13 @@ export function EncounterTurnResources({
           <Button
             type="link"
             styles={{ root: { padding: 0, height: "auto", fontSize: "inherit" } }}
-            href={atlasRoutePath({ kind: "record", recordKey: result.condition_ref })}
+            href={destinationHref(
+              recordDestination({
+                recordKey: result.condition_ref,
+              }),
+            )}
             onClick={(event) => {
-              if (!onReference || !shouldHandleAtlasRouteClick(event)) return;
+              if (!onReference || !isPrimaryActivation(event)) return;
               event.preventDefault();
               onReference(result.condition_ref, event.currentTarget);
             }}
@@ -290,7 +294,12 @@ function ResourceCounter({
     total,
     remaining,
     available: Array.from({ length: total }, (_, index) => index < remaining),
-    target: undefined as { index: number; remaining: number } | undefined,
+    target: undefined as
+      | {
+          index: number;
+          remaining: number;
+        }
+      | undefined,
   }));
   if (
     slots.turnKey !== turnKey ||

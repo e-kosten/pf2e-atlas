@@ -67,8 +67,7 @@ export function SearchPickerModal<FormValues>({
   buildRequest: (query: string) => SearchResultsRequest;
   disabled?: boolean;
   children?:
-    | React.ReactNode
-    | ((detail: RecordDetailView | undefined) => React.ReactNode);
+    React.ReactNode | ((detail: RecordDetailView | undefined) => React.ReactNode);
   emptyPrompt: string;
   emptyResults: string;
   form: FormInstance<FormValues>;

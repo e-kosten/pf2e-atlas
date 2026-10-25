@@ -1,4 +1,6 @@
 import { EncounterDifficulty } from "./EncounterDifficulty";
+import { navigateDestination } from "../../app/navigation";
+import { recordDestination, encountersDestination } from "../../app/destinations";
 import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,21 +17,17 @@ import { useEncounterTurnReview } from "./useEncounterTurnReview";
 import { EncounterRosterPane } from "./EncounterRosterPane";
 import { InitiativeRollModal } from "./InitiativeRollModal";
 import { participantUpdate } from "./participantEdits";
-import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
 import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
-
 type EncounterDetailViewProps = {
-  route: Extract<AtlasRoute, { kind: "encounter" }>;
+  route: { slug: string };
 };
-
 const ENCOUNTER_WIDTH_SPECS = {
   filter: { defaultWidth: 360, minWidth: 300 },
   results: { defaultWidth: 620, minWidth: 420 },
   detail: { defaultWidth: 360, minWidth: 320 },
 };
-
 export function EncounterDetailView({ route }: EncounterDetailViewProps) {
   return <EncounterDetail key={route.slug} route={route} />;
 }
@@ -62,9 +60,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     null,
   );
   const [editEncounterOpen, setEditEncounterOpen] = useState(false);
-  const [initiativeOpen, setInitiativeOpen] = useState<{ participant?: string } | null>(
-    null,
-  );
+  const [initiativeOpen, setInitiativeOpen] = useState<{
+    participant?: string;
+  } | null>(null);
   const encounter = useQuery({
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
@@ -172,7 +170,6 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
   });
   const disabled = mutationDisabled || turnReview.preparing;
   const encounterSummary = encounter.data?.encounter ?? null;
-
   const recovery = mutations.refreshError ? (
     <Alert
       type="error"
@@ -194,7 +191,6 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
       }
     />
   ) : null;
-
   return (
     <EncounterModalProvider area={host}>
       <div
@@ -207,9 +203,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               <h2>{encounterSummary?.name ?? route.slug}</h2>
               <p>
                 {encounterSummary
-                  ? `${encounterSummary.status} - round ${
-                      encounterSummary.round_number ?? 1
-                    } - ${encounterSummary.participant_count} participants`
+                  ? `${encounterSummary.status} - round ${encounterSummary.round_number ?? 1} - ${encounterSummary.participant_count} participants`
                   : "Loading encounter"}
               </p>
               {encounter.data && (
@@ -467,11 +461,12 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               }}
               onCloseRecordPreview={recordPreview.close}
               onOpenRecordFullPage={(recordKey) =>
-                navigateToAtlasRoute({
-                  kind: "record",
-                  recordKey,
-                  selection: recordPreview.selection,
-                })
+                navigateDestination(
+                  recordDestination({
+                    recordKey,
+                    selection: recordPreview.selection,
+                  }),
+                )
               }
               onReference={recordPreview.open}
               onPreviewRankChange={recordPreview.changeRank}
@@ -620,7 +615,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             onCancel={() => setEditEncounterOpen(false)}
             onDelete={async () => {
               const result = await mutations.run({ kind: "delete" });
-              if (result.active) navigateToAtlasRoute({ kind: "encounters" });
+              if (result.active) navigateDestination(encountersDestination());
             }}
             onSave={async (request) => {
               await mutations.run({ kind: "metadata", request });

@@ -1,3 +1,6 @@
+import type { ListPageInput } from "../../app/destinations";
+import { navigateDestination, destinationHref } from "../../app/navigation";
+import { listDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ListEntryNote } from "./ListEntryNote";
 import { ListRecordPicker } from "./ListRecordPicker";
@@ -13,12 +16,6 @@ import {
   removeSavedListItem,
   reorderSavedListItem,
 } from "../../api/atlasApi";
-import {
-  atlasRoutePath,
-  ATLAS_ROUTE_CHANGE_EVENT,
-  navigateToAtlasRoute,
-  type AtlasRoute,
-} from "../../app/routes";
 import {
   buildFilter,
   decodeSearchStateFromParams,
@@ -43,11 +40,9 @@ import {
   useDebouncedSearchFilters,
   useSavedListFilterDiscovery,
 } from "./useSavedListFilters";
-
 type ListDetailViewProps = {
-  route: Extract<AtlasRoute, { kind: "list" }>;
+  route: ListPageInput;
 };
-
 export function ListDetailView({ route }: ListDetailViewProps) {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
@@ -64,13 +59,12 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   }, [route.query]);
   useFilterUrlRecovery(filters, (restored) => {
     setFilters(restored);
-    window.dispatchEvent(new Event(ATLAS_ROUTE_CHANGE_EVENT));
   });
   function changeFilters(next: SearchFormState) {
     const query = searchStateQueryString(next);
     previousQuery.current = query || undefined;
     setFilters(next);
-    navigateToAtlasRoute({ ...route, query });
+    navigateDestination(listDestination({ ...route, query }));
   }
   const listQuery = searchStateQueryString(filters);
   const reading = useReferenceReading();
@@ -102,9 +96,13 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   );
   usePageTitle(list.data?.list.name ?? "List");
   const inspectSelection = reading.select;
-  const selectedRoute = useRef<{ identity: string; blocked: boolean } | undefined>(
-    undefined,
-  );
+  const selectedRoute = useRef<
+    | {
+        identity: string;
+        blocked: boolean;
+      }
+    | undefined
+  >(undefined);
   useEffect(() => {
     const identity = JSON.stringify([route.slug, route.selectedRecordKey]);
     const previous = selectedRoute.current;
@@ -133,12 +131,13 @@ export function ListDetailView({ route }: ListDetailViewProps) {
         view.list_key,
       ]);
       if (recordKey === route.selectedRecordKey) {
-        navigateToAtlasRoute({
-          kind: "list",
-          slug: route.slug,
-          selectedRecordKey: null,
-          query: listQuery,
-        });
+        navigateDestination(
+          listDestination({
+            slug: route.slug,
+            selectedRecordKey: null,
+            query: listQuery,
+          }),
+        );
       }
     },
   });
@@ -167,7 +166,6 @@ export function ListDetailView({ route }: ListDetailViewProps) {
     !activeFilters.query.trim() &&
     !buildFilter(filters) &&
     !buildFilter(activeFilters);
-
   return (
     <main className="list-workspace">
       <ListBrowseHeader
@@ -247,12 +245,13 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           removingKey={removeItem.isPending ? removeItem.variables : null}
           selectedRecordKey={route.selectedRecordKey}
           itemHref={(recordKey) =>
-            atlasRoutePath({
-              kind: "list",
-              slug: route.slug,
-              selectedRecordKey: recordKey,
-              query: listQuery,
-            })
+            destinationHref(
+              listDestination({
+                slug: route.slug,
+                selectedRecordKey: recordKey,
+                query: listQuery,
+              }),
+            )
           }
           onRemove={(key) => removeItem.mutateAsync(key)}
           onReorder={
@@ -269,12 +268,13 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           }
           onSelect={(recordKey) => {
             reading.select({ navigation: rootNavigation(recordKey) });
-            navigateToAtlasRoute({
-              kind: "list",
-              slug: route.slug,
-              selectedRecordKey: recordKey,
-              query: listQuery,
-            });
+            navigateDestination(
+              listDestination({
+                slug: route.slug,
+                selectedRecordKey: recordKey,
+                query: listQuery,
+              }),
+            );
           }}
         />
       </BrowseReader>

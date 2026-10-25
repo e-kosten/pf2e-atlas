@@ -1,19 +1,15 @@
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { useQuery } from "@tanstack/react-query";
 import { getEncounterConditionConsequences } from "../../api/atlasApi";
 import { useConditionRecoveryControls } from "./EncounterConditionLifecycle";
 import { conditionUpdate } from "./conditionDraft";
 import { EncounterModal } from "./EncounterModal";
 import { EncounterConditionConsequences } from "./EncounterConditionConsequences";
-
 import { EncounterPersistentRecovery } from "./EncounterPersistentRecovery";
 import { useConditionEventPreview } from "./useConditionEventPreview";
 import { conditionDurationLabel } from "./conditionDurationLabel";
 import { Pencil, Plus, X } from "lucide-react";
-import {
-  atlasRoutePath,
-  recordPath,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
 import { Alert, Button, ConfigProvider, Popover, Space, Tooltip } from "antd";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type {
@@ -25,7 +21,6 @@ import type {
 } from "../../generated/atlas";
 import { EncounterConditionEditor } from "./EncounterConditionEditor";
 import { EncounterConditionValue } from "./EncounterConditionValue";
-
 export function EncounterConditionControls({
   disabled,
   encounterRef,
@@ -57,7 +52,10 @@ export function EncounterConditionControls({
   recovery?: ReactNode;
   current: EncounterParticipantView;
   conditionDefinitions: EncounterConditionDefinitionView[];
-  damageTypes?: Array<{ value: string; label: string }>;
+  damageTypes?: Array<{
+    value: string;
+    label: string;
+  }>;
   standardRecoveryDc?: bigint;
   onAddCondition: (
     condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
@@ -97,7 +95,12 @@ export function EncounterConditionControls({
     onPreviewCondition(current.participant_key, request),
   );
   const [editor, setEditor] = useState<
-    "add" | { conditionId: bigint; revision: bigint } | null
+    | "add"
+    | {
+        conditionId: bigint;
+        revision: bigint;
+      }
+    | null
   >(null);
   const recoveryControls = useConditionRecoveryControls();
   const conditions = recoveryControls.retainedCondition
@@ -392,9 +395,11 @@ export function EncounterConditionControls({
             className="encounter-condition-row__name"
             style={{ padding: 0, height: "auto", justifyContent: "start" }}
             aria-label={presentation?.label}
-            href={recordPath(condition.condition_key)}
+            href={destinationHref(
+              recordDestination({ recordKey: condition.condition_key }),
+            )}
             onClick={(event) => {
-              if (!shouldHandleAtlasRouteClick(event)) return;
+              if (!isPrimaryActivation(event)) return;
               event.preventDefault();
               onReference(condition.condition_key!, event.currentTarget);
             }}
@@ -567,9 +572,11 @@ export function EncounterConditionControls({
                     fontSize: "inherit",
                   },
                 }}
-                href={recordPath(condition.condition_ref)}
+                href={destinationHref(
+                  recordDestination({ recordKey: condition.condition_ref }),
+                )}
                 onClick={(event) => {
-                  if (!shouldHandleAtlasRouteClick(event)) return;
+                  if (!isPrimaryActivation(event)) return;
                   event.preventDefault();
                   onReference(condition.condition_ref, event.currentTarget);
                 }}
@@ -582,13 +589,14 @@ export function EncounterConditionControls({
                 <Button
                   type="link"
                   styles={{ root: { padding: 0, height: "auto", fontSize: "inherit" } }}
-                  href={atlasRoutePath({
-                    kind: "record",
-                    recordKey: condition.source.record_key,
-                    selection: condition.source,
-                  })}
+                  href={destinationHref(
+                    recordDestination({
+                      recordKey: condition.source.record_key,
+                      selection: condition.source,
+                    }),
+                  )}
                   onClick={(event) => {
-                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    if (!isPrimaryActivation(event)) return;
                     event.preventDefault();
                     onReference(
                       condition.source.record_key,

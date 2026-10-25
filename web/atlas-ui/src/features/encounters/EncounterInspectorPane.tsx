@@ -1,3 +1,5 @@
+import { destinationHref } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import {
   EncounterTurnResources,
   type TurnResourceHandler,
@@ -34,8 +36,6 @@ import type { RecordPreviewAnchor } from "../../shared/records/recordPreviewType
 import { EncounterParticipantSettings } from "./EncounterParticipantSettings";
 import { EncounterConditionControls } from "./EncounterConditionControls";
 import { EncounterHpControls } from "./EncounterHpControls";
-import { atlasRoutePath } from "../../app/routes";
-
 export function EncounterInspectorPane({
   disabled,
   encounterRevision,
@@ -161,7 +161,10 @@ export function EncounterInspectorPane({
   participant: EncounterParticipantView | undefined;
   participants: EncounterParticipantView[];
   conditionDefinitions: EncounterConditionDefinitionView[];
-  damageTypes?: Array<{ value: string; label: string }>;
+  damageTypes?: Array<{
+    value: string;
+    label: string;
+  }>;
   standardRecoveryDc?: bigint;
   onPreviewRankChange?: (rank: number | undefined) => void;
   previewSelection?: import("../../generated/atlas").RecordNavigationView;
@@ -259,12 +262,13 @@ export function EncounterInspectorPane({
           readingHistory={previewReadingHistory}
           landing={previewLanding}
           detail={previewDetail}
-          fullPageHref={atlasRoutePath({
-            kind: "record",
-            recordKey: previewRecordKey,
-            selection: previewSelection,
-            landing: previewLanding,
-          })}
+          fullPageHref={destinationHref(
+            recordDestination({
+              recordKey: previewRecordKey,
+              selection: previewSelection,
+              landing: previewLanding,
+            }),
+          )}
           loading={previewLoading}
           error={previewError}
           onRetry={onRetryPreview}
@@ -279,7 +283,6 @@ export function EncounterInspectorPane({
     </section>
   );
 }
-
 function EncounterParticipantSurface({
   disabled,
   encounterRevision,
@@ -328,7 +331,10 @@ function EncounterParticipantSurface({
   error?: string;
   spellError?: string;
   conditionDefinitions: EncounterConditionDefinitionView[];
-  damageTypes?: Array<{ value: string; label: string }>;
+  damageTypes?: Array<{
+    value: string;
+    label: string;
+  }>;
   standardRecoveryDc?: bigint;
   onAddCondition: (
     condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
@@ -428,7 +434,6 @@ function EncounterParticipantSurface({
         onResolve={onResolveHpLifecycle}
       />
     );
-
   const hpControls = (
     <>
       {hasHp && (
@@ -505,7 +510,6 @@ function EncounterParticipantSurface({
       )}
     </>
   );
-
   return (
     <section className="encounter-reference">
       <div className="encounter-reference__header">

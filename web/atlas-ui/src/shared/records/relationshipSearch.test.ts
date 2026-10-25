@@ -1,3 +1,4 @@
+import { stringifySearchParams } from "../../app/urlState";
 import type { QueryRelationship } from "../../generated/atlas";
 import { linkLeaf } from "../filters/linkPredicates";
 import { linkClauses } from "../filters/LinkFilterControls";
@@ -41,8 +42,10 @@ it("ANDs a record-origin condition with the entire previous tree while retaining
       ),
   );
   const route = relationshipSearchRoute(linkLeaf(constraint, "new"));
-  if (route.kind !== "search") throw new Error("Expected Search");
-  const search = decodeSearchStateFromParams(new URLSearchParams(route.query));
+  if (route.to !== "/search") throw new Error("Expected Search");
+  const search = decodeSearchStateFromParams(
+    new URLSearchParams(stringifySearchParams(route.search)),
+  );
   expect(linkClauses(search.filter).map((leaf) => leaf.relationship)).toEqual([
     { ...constraint, direction: "incoming" },
     constraint,
@@ -55,5 +58,7 @@ it("ANDs a record-origin condition with the entire previous tree while retaining
       expect.objectContaining({ kind: "relationship", relationship: constraint }),
     ],
   });
-  expect(new URLSearchParams(route.query).get("search_profile")).toBe("bge-base");
+  expect(
+    new URLSearchParams(stringifySearchParams(route.search)).get("search_profile"),
+  ).toBe("bge-base");
 });
