@@ -3,11 +3,22 @@
   gap: var(--space-control);
 }
 
+.party-editor__level-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-control);
+  align-items: start;
+}
+
 .party-editor__row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 5.5rem 2.25rem;
   gap: var(--space-control);
   align-items: start;
+}
+
+.party-editor__row--shared {
+  grid-template-columns: minmax(0, 1fr) 2.25rem;
 }
 
 .party-editor__headings {
