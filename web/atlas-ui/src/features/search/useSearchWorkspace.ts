@@ -1,7 +1,7 @@
-import { destinationHref } from "../../app/navigation";
 import { searchDestination } from "../../app/destinations";
 import {
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useMemo,
   useReducer,
@@ -17,6 +17,7 @@ import type {
   QueryPredicate,
 } from "../../generated/atlas";
 import {
+  decodeSearchStateFromParams,
   buildFilterDiscoveryContext,
   buildSearchRequest,
   effectiveResultSort,
@@ -88,6 +89,15 @@ type UseAtlasWorkspaceOptions = {
   searchProfileUsable?: boolean;
   includeSearchProfileInUrl?: boolean;
 };
+function urlCriteria(query: string) {
+  const decoded = decodeSearchStateFromParams(new URLSearchParams(query));
+  return JSON.stringify([
+    searchStateQueryString(decoded),
+    decoded.filterError,
+    decoded.filterWasReset,
+  ]);
+}
+
 export function useSearchWorkspace({
   enabled = true,
   searchProfile,
@@ -128,6 +138,14 @@ export function useSearchWorkspace({
   });
   const location = useRouterState({ select: (state) => state.location });
   const initialRoute = currentSearchLocation();
+  const previousUrlCriteria = useRef(urlCriteria(atlasRouter.latestLocation.searchStr));
+  const previousUrlReading = useRef(
+    JSON.stringify([
+      initialRoute?.selectedRecordKey,
+      initialRoute?.selection,
+      initialRoute?.landing,
+    ]),
+  );
   const reading = useReferenceReading(
     initialRoute?.selectedRecordKey
       ? {
@@ -166,16 +184,19 @@ export function useSearchWorkspace({
       liveRequest.current.retiring = true;
     };
   }, [activeSearchExecutionToken, retrieval.epoch, retrieval.recovering]);
-  useLayoutEffect(() => {
+  const restoreLocation = useEffectEvent(() => {
     if (!enabled) return;
     const route = currentSearchLocation();
     if (!route) return;
     const restored = initialWorkspaceInteractionState();
-    // Keep the actual editor tree when a local URL update represents the same criteria.
+    const incomingCriteria = urlCriteria(atlasRouter.latestLocation.searchStr);
+    const criteriaChanged = previousUrlCriteria.current !== incomingCriteria;
+    previousUrlCriteria.current = incomingCriteria;
     if (
-      searchStateQueryString(restored.search) !== searchStateQueryString(search) ||
-      restored.search.filterError !== search.filterError ||
-      restored.search.filterWasReset !== search.filterWasReset
+      criteriaChanged &&
+      (searchStateQueryString(restored.search) !== searchStateQueryString(search) ||
+        restored.search.filterError !== search.filterError ||
+        restored.search.filterWasReset !== search.filterWasReset)
     ) {
       dispatch({
         type: "url.restored",
@@ -198,13 +219,24 @@ export function useSearchWorkspace({
           landing: route.landing,
         }
       : null;
+    const incomingReading = JSON.stringify([
+      route.selectedRecordKey,
+      route.selection,
+      route.landing,
+    ]);
+    const readingChanged = previousUrlReading.current !== incomingReading;
+    previousUrlReading.current = incomingReading;
     if (
-      JSON.stringify(reading.request?.navigation ?? null) !==
+      readingChanged &&
+      (JSON.stringify(reading.request?.navigation ?? null) !==
         JSON.stringify(request?.navigation ?? null) ||
-      JSON.stringify(reading.request?.landing) !== JSON.stringify(request?.landing)
+        JSON.stringify(reading.request?.landing) !== JSON.stringify(request?.landing))
     )
       inspectReading(request);
-  }, [enabled, location, inspectReading]);
+  });
+  useLayoutEffect(() => {
+    restoreLocation();
+  }, [enabled, location]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -295,7 +327,13 @@ export function useSearchWorkspace({
     }));
   }
   useEffect(() => {
-    if (!enabled || !reading.detail || !currentSearchLocation()) return;
+    if (
+      !enabled ||
+      !reading.detail ||
+      search.filterWasReset ||
+      !currentSearchLocation()
+    )
+      return;
     const selected = reading.detail.selected;
     const selection =
       selected.spell_rank !== undefined ||

@@ -92,8 +92,8 @@ Individual conditions support exclusion independently of genuine group negation.
 Operand transitions follow app-service metadata, preserving compatible values
 and resetting incompatible shapes before rendering a different input.
 
-Filter URL state uses a versioned lz-string URI encoding of the existing predicate
-JSON. Clause and collection-scope IDs are editor/discovery identities, omitted
+Filter URL state uses a versioned compact tuple form of the existing typed
+predicate, compressed into a URL-safe alphabet. Clause and collection-scope IDs are editor/discovery identities, omitted
 from the URL and reconstructed distinctly and deterministically on restoration.
 Groups, literals and collection boundaries remain intact. Backend catalog and
 query validation retain semantic authority. Query text, similarity seed and
@@ -103,8 +103,9 @@ parallel simple-filter dialect or a server-side short-link registry.
 
 Page remains request state and is retained in browser
 history state for same-tab Back; generation stays in the search owner. That owner
-remains mounted across application routes, while its requests are disabled outside
-Search. Non-search route changes do not reset its committed criteria or page.
+remains mounted under the persistent Router layout through React Activity, while
+its requests are disabled outside Search. [ADR0058](./0058-browser-routing.md)
+defines global route and browser-history ownership. Non-search route changes do not reset its committed criteria or page.
 Result-list and per-address reader positions are separate in-memory browser state;
 restoring them does not claim a frozen result set or survive a full reload. The search owner tracks generation and an epoch. Query keys include
 criteria, page and known generation. It adopts a first response only for current

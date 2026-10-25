@@ -62,3 +62,15 @@ export function validateReadingSearch(search: AtlasSearchParams): AtlasSearchPar
   selectedNavigation(search, "landing");
   return search;
 }
+
+/** Router decodes hashes with decodeURI; authored section IDs need component decoding. */
+export function documentSection(href: string): string | undefined {
+  const index = href.indexOf("#");
+  if (index < 0 || index === href.length - 1) return undefined;
+  const section = href.slice(index + 1);
+  try {
+    return decodeURIComponent(section);
+  } catch {
+    return section;
+  }
+}

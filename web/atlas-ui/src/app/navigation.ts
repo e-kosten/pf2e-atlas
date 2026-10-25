@@ -43,7 +43,9 @@ export function ownerReturnHref(parent: string, landing: RecordNavigationView): 
       ? current.href
       : fallback;
   const url = new URL(
-    origin?.recordKey === parent ? origin.href : knownParent,
+    origin?.recordKey === parent && typeof origin.href === "string"
+      ? origin.href
+      : knownParent,
     window.location.origin,
   );
   if (url.origin !== window.location.origin) return fallback;

@@ -1,7 +1,8 @@
 import { detailFixture } from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { useEffect, useState } from "react";
+import { useRouterState } from "@tanstack/react-router";
+import { RouterTestContext } from "../../test/router";
 import type { ReactNode } from "react";
 import { ConfigProvider, Grid } from "antd";
 import type {
@@ -10,11 +11,10 @@ import type {
   RecordNavigationView,
 } from "../../generated/atlas";
 import { RecordView } from "./RecordViews";
-import {
-  ATLAS_ROUTE_CHANGE_EVENT,
-  atlasRoutePath,
-  currentAtlasRoute,
-} from "../../app/routes";
+import { destinationHref } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
+import { selectedNavigation } from "../../app/urlState";
+import { atlasRouter } from "../../app/router";
 
 const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
@@ -116,11 +116,12 @@ describe("record route views", () => {
       screen.getByRole("link", { name: "Open reference full page" }),
     ).toHaveAttribute(
       "href",
-      atlasRoutePath({
-        kind: "record",
-        recordKey: "spell:linked",
-        selection: recordDetailFixture("spell:linked").selected,
-      }),
+      destinationHref(
+        recordDestination({
+          recordKey: "spell:linked",
+          selection: recordDetailFixture("spell:linked").selected,
+        }),
+      ),
     );
     fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
     await waitFor(() => expect(trigger).toHaveFocus());
@@ -132,10 +133,9 @@ describe("record route views", () => {
     fireEvent.click(await screen.findByRole("link", { name: "Linked Record" }));
     await screen.findByRole("heading", { name: "linked" });
     fireEvent.click(screen.getByRole("link", { name: "Open reference full page" }));
-    expect(currentAtlasRoute()).toMatchObject({
-      kind: "record",
-      recordKey: "spell:linked",
-    });
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/records/" + "spell:linked"),
+    );
   });
 
   it("adds the contextual reference to a list without changing the primary selection", async () => {
@@ -148,10 +148,9 @@ describe("record route views", () => {
       list_ref: "research",
       record_ref: "spell:linked",
     });
-    expect(currentAtlasRoute()).toMatchObject({
-      kind: "record",
-      recordKey: "spell:heal",
-    });
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/records/" + "spell:heal"),
+    );
   });
 
   it("preserves embedded field, passage and fingerprint through nested reading and Back", async () => {
@@ -191,11 +190,12 @@ describe("record route views", () => {
     history.replaceState(
       null,
       "",
-      atlasRoutePath({
-        kind: "record",
-        recordKey: primary.record_key,
-        selection: primary,
-      }),
+      destinationHref(
+        recordDestination({
+          recordKey: primary.record_key,
+          selection: primary,
+        }),
+      ),
     );
     render(<RecordHarness />, { wrapper: queryClientWrapper() });
     const trigger = await screen.findByRole("link", { name: "Linked Record" });
@@ -203,22 +203,23 @@ describe("record route views", () => {
     await screen.findByRole("heading", { name: "first" });
     fireEvent.click(screen.getAllByRole("link", { name: "Linked Record" })[1]);
     await screen.findByRole("heading", { name: "second" });
-    expect(currentAtlasRoute()).toMatchObject({ kind: "record", selection: primary });
+    expect(selectedNavigation(atlasRouter.latestLocation.search)).toEqual(primary);
     expect(
       screen.getByRole("link", { name: "Open reference full page" }),
     ).toHaveAttribute(
       "href",
-      atlasRoutePath({
-        kind: "record",
-        recordKey: second.record_key,
-        selection: second,
-      }),
+      destinationHref(
+        recordDestination({
+          recordKey: second.record_key,
+          selection: second,
+        }),
+      ),
     );
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     await screen.findByRole("heading", { name: "first" });
     fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
     await waitFor(() => expect(trigger).toHaveFocus());
-    expect(currentAtlasRoute()).toMatchObject({ kind: "record", selection: primary });
+    expect(selectedNavigation(atlasRouter.latestLocation.search)).toEqual(primary);
     expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
       second.record_key,
       {
@@ -234,21 +235,16 @@ describe("record route views", () => {
 });
 
 function RecordHarness() {
-  const [route, setRoute] = useState(currentAtlasRoute);
-
-  useEffect(() => {
-    const onRouteChange = () => setRoute(currentAtlasRoute());
-    window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, onRouteChange);
-    window.addEventListener("popstate", onRouteChange);
-    return () => {
-      window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, onRouteChange);
-      window.removeEventListener("popstate", onRouteChange);
-    };
-  }, []);
-
-  return route.kind === "record" ? (
-    <RecordView key={route.recordKey} route={route} />
-  ) : null;
+  const location = useRouterState({ select: (state) => state.location });
+  const matches = atlasRouter.matchRoutes(location.pathname, location.search);
+  const match = matches.find((match) => match.routeId === "/records/$recordKey");
+  if (!match || !("recordKey" in match.params)) return null;
+  const route = {
+    recordKey: match.params.recordKey,
+    selection: selectedNavigation(location.search),
+    landing: selectedNavigation(location.search, "landing"),
+  };
+  return <RecordView key={route.recordKey} route={route} />;
 }
 
 async function addCurrentRecordToList(buttonIndex = 0) {
@@ -275,7 +271,11 @@ function queryClientWrapper() {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <ConfigProvider theme={{ token: { motion: false } }}>{children}</ConfigProvider>
+        <RouterTestContext>
+          <ConfigProvider theme={{ token: { motion: false } }}>
+            {children}
+          </ConfigProvider>
+        </RouterTestContext>
       </QueryClientProvider>
     );
   };

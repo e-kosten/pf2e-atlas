@@ -10,7 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   fireEvent,
-  render,
+  render as renderDom,
   screen,
   waitFor,
   within,
@@ -25,6 +25,20 @@ import type {
   RecordDetailRequest,
 } from "../generated/atlas";
 import { AtlasApp } from "./AtlasApp";
+import { atlasRouter } from "./router";
+const routerSlot = vi.hoisted(() => ({
+  current: null as import("./router").AtlasRouter | null,
+}));
+vi.mock("./router", () => ({
+  get atlasRouter() {
+    return routerSlot.current;
+  },
+}));
+async function loadApplication() {
+  const { createAtlasRouter } =
+    await vi.importActual<typeof import("./router")>("./router");
+  routerSlot.current = createAtlasRouter();
+}
 import { SEARCH_PROFILE_PREFERENCE_KEY } from "../shared/search/SearchProfileContext";
 import { rootNavigation } from "../shared/records/useReferenceReading";
 import { encodeFilterUrl } from "../shared/filters/filterUrl";
@@ -53,7 +67,7 @@ vi.mock("../api/atlasApi", async (original) => ({
 }));
 
 describe("AtlasApp routing", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     installLocalStorage();
     Element.prototype.scrollIntoView = vi.fn();
@@ -89,6 +103,7 @@ describe("AtlasApp routing", () => {
       }),
     );
     apiMocks.getSavedLists.mockResolvedValue(savedListIndexFixture());
+    await loadApplication();
     apiMocks.addSavedListItem.mockImplementation(
       ({ record_ref, list_ref }: { record_ref: string; list_ref: string }) =>
         Promise.resolve({
@@ -289,6 +304,7 @@ describe("AtlasApp routing", () => {
       expect(JSON.parse(copiedParams.get("landing")!)).toEqual(landing);
       expect(apiMocks.searchPage).not.toHaveBeenCalled();
       first.unmount();
+      await loadApplication();
       history.replaceState(null, "", copied);
       render(<AtlasApp />, { wrapper: queryClientWrapper() });
       expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
@@ -408,6 +424,7 @@ describe("AtlasApp routing", () => {
         expect(fireEvent.click(link, nativeClick)).toBe(true);
       expect(window.location.pathname).toBe("/records/spell:heal");
       reader.unmount();
+      await loadApplication();
       history.replaceState(null, "", copied.pathname + copied.search);
       render(<AtlasApp />, { wrapper: queryClientWrapper() });
       await act(() => vi.dynamicImportSettled());
@@ -741,4 +758,12 @@ function savedListIndexFixture() {
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
   return detailFixture(recordKey);
+}
+
+function render(
+  ui: ReactNode,
+  options?: import("@testing-library/react").RenderOptions,
+) {
+  atlasRouter.updateLatestLocation();
+  return renderDom(ui, options);
 }

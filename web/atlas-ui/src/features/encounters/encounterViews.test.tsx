@@ -39,7 +39,10 @@ import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
 import { EncounterIndexView } from "./EncounterIndexView";
 import { EditEncounterForm } from "./EncounterModals";
-import { atlasRoutePath, currentAtlasRoute } from "../../app/routes";
+import { destinationHref } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
+import { selectedNavigation } from "../../app/urlState";
+import { atlasRouter } from "../../app/router";
 
 const apiMocks = vi.hoisted(() => ({
   applyEncounterSpellAction: vi.fn(),
@@ -1344,22 +1347,24 @@ describe("encounter views", () => {
       }),
     ).not.toBeInTheDocument();
     const full = screen.getByRole("link", { name: "Open reference full page" });
-    const expected = atlasRoutePath({
-      kind: "record",
-      recordKey: selected.selected.record_key,
-      selection: selected.selected,
-    });
+    const expected = destinationHref(
+      recordDestination({
+        recordKey: selected.selected.record_key,
+        selection: selected.selected,
+      }),
+    );
     expect(full).toHaveAttribute("href", expected);
     const before = window.location.href;
     for (const modifiers of [{ metaKey: true }, { ctrlKey: true }, { button: 1 }])
       expect(fireEvent.click(full, modifiers)).toBe(true);
     expect(window.location.href).toBe(before);
     fireEvent.click(full);
-    expect(currentAtlasRoute()).toMatchObject({
-      kind: "record",
-      recordKey: selected.selected.record_key,
-      selection: selected.selected,
-    });
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/records/" + selected.selected.record_key),
+    );
+    expect(selectedNavigation(atlasRouter.latestLocation.search)).toEqual(
+      selected.selected,
+    );
   });
 
   it("opens condition reference previews from canonical condition rows", async () => {

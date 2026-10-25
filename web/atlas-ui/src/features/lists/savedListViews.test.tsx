@@ -1,3 +1,4 @@
+import { RouterTestContext } from "../../test/router";
 import type { ResultSort } from "../../generated/atlas";
 import {
   detailFixture,
@@ -1168,7 +1169,9 @@ function queryClientWrapper() {
       <QueryClientProvider client={queryClient}>
         <ConfigProvider theme={{ token: { motion: false } }}>
           <SearchProfileProvider>
-            <App>{children}</App>
+            <RouterTestContext>
+              <App>{children}</App>
+            </RouterTestContext>
           </SearchProfileProvider>
         </ConfigProvider>
       </QueryClientProvider>

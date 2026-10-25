@@ -1,7 +1,6 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import type { AppReadinessView, SearchProfileId } from "../../generated/atlas";
-import { atlasRouter } from "../../app/router";
-import { useRouterState } from "@tanstack/react-router";
+import { useRouter, useRouterState } from "@tanstack/react-router";
 import { searchParam } from "../../app/urlState";
 import { currentSearchLocation } from "../../app/searchLocation";
 export const SEARCH_PROFILE_PREFERENCE_KEY = "atlas.search.profile.v1";
@@ -33,9 +32,6 @@ export const SearchProfileContext = createContext<SearchProfileSelection>({
 export function useSearchProfile() {
   return useContext(SearchProfileContext);
 }
-function urlProfile() {
-  return searchParam(atlasRouter.latestLocation.search, SEARCH_PROFILE_PARAM) ?? null;
-}
 function storedProfile() {
   try {
     return localStorage.getItem(SEARCH_PROFILE_PREFERENCE_KEY);
@@ -47,8 +43,7 @@ type ProfileChoice = {
   id: string;
   source: "url" | "preference" | "default" | "selection";
 };
-function initialChoice(): ProfileChoice | null {
-  const explicit = urlProfile();
+function initialChoice(explicit: string | null): ProfileChoice | null {
   if (explicit !== null) return { id: explicit, source: "url" };
   const preference = storedProfile();
   return preference === null ? null : { id: preference, source: "preference" };
@@ -67,7 +62,12 @@ function defaultChoice(readiness: AppReadinessView): ProfileChoice {
 export function useSearchProfileSelection(
   readiness: AppReadinessView | undefined,
 ): SearchProfileSelection {
-  const [choice, setChoice] = useState(initialChoice);
+  const router = useRouter();
+  const [choice, setChoice] = useState(() =>
+    initialChoice(
+      searchParam(router.latestLocation.search, SEARCH_PROFILE_PARAM) ?? null,
+    ),
+  );
   const explicitProfile = useRouterState({
     select: (state) => searchParam(state.location.search, SEARCH_PROFILE_PARAM),
   });
@@ -82,14 +82,12 @@ export function useSearchProfileSelection(
         : defaultChoice(readiness)
       : choice;
   if (resolved !== choice) setChoice(resolved);
-  useEffect(() => {
-    if (explicitProfile !== undefined)
-      setChoice((previous) =>
-        previous?.id === explicitProfile
-          ? previous
-          : { id: explicitProfile, source: "url" },
-      );
-  }, [explicitProfile]);
+  const [observedProfile, setObservedProfile] = useState(explicitProfile);
+  if (observedProfile !== explicitProfile) {
+    setObservedProfile(explicitProfile);
+    if (explicitProfile !== undefined && choice?.id !== explicitProfile)
+      setChoice({ id: explicitProfile, source: "url" });
+  }
   const id = readiness ? resolved!.id : null;
   const profiles = readiness?.search_profiles ?? [];
   const selected = profiles.find((profile) => profile.id === id);
@@ -120,8 +118,9 @@ export function useSearchProfileSelection(
     resetLink: () => {
       if (!readiness) return;
       setChoice(defaultChoice(readiness));
-      void atlasRouter.navigate({
+      void router.navigate({
         to: ".",
+        hash: true,
         search: (search) => {
           const next = { ...search };
           delete next[SEARCH_PROFILE_PARAM];
@@ -139,9 +138,10 @@ export function useSearchProfileSelection(
       } catch {
         // Optional preferences never prevent a deliberate selection.
       }
-      if (currentSearchLocation())
-        void atlasRouter.navigate({
+      if (currentSearchLocation(router))
+        void router.navigate({
           to: ".",
+          hash: true,
           search: (search) => ({ ...search, [SEARCH_PROFILE_PARAM]: next }),
           replace: true,
           resetScroll: false,

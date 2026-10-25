@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { PreparedContent } from "./PreparedContent";
-import { atlasRoutePath } from "../../app/routes";
+import { destinationHref } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { detailFixture } from "../../test/fixtures";
 import { ConfigProvider, theme } from "antd";
 
@@ -64,11 +65,12 @@ describe("prepared source HTML", () => {
     expect(link).toHaveTextContent("Effect");
     expect(link).toHaveAttribute(
       "href",
-      atlasRoutePath({
-        kind: "record",
-        recordKey: edge.target!.record_key,
-        selection: edge.target!,
-      }),
+      destinationHref(
+        recordDestination({
+          recordKey: edge.target!.record_key,
+          selection: edge.target!,
+        }),
+      ),
     );
     fireEvent.click(link, { ctrlKey: true });
     expect(onReference).not.toHaveBeenCalled();
@@ -248,11 +250,12 @@ describe("prepared source HTML", () => {
     const reference = screen.getByText("Nested Rule");
     expect(reference).toHaveAttribute(
       "href",
-      atlasRoutePath({
-        kind: "record",
-        recordKey: "rules:nested",
-        selection: detail.relationships[0].target!,
-      }),
+      destinationHref(
+        recordDestination({
+          recordKey: "rules:nested",
+          selection: detail.relationships[0].target!,
+        }),
+      ),
     );
     expect(reference).not.toHaveAttribute("role", "button");
     expect(reference).toHaveAttribute("tabindex", "0");
@@ -335,7 +338,9 @@ it("retains exact native local addresses, modifiers and target intent through li
   const link = screen.getByRole("link", { name: "Nested Rule" });
   expect(link).toHaveAttribute(
     "href",
-    atlasRoutePath({ kind: "record", recordKey: target.record_key, selection: target }),
+    destinationHref(
+      recordDestination({ recordKey: target.record_key, selection: target }),
+    ),
   );
   for (const modifiers of [
     { metaKey: true },
@@ -402,11 +407,12 @@ it("opens verified item context without changing the original citation", () => {
   const link = screen.getByRole("link", { name: "Heal" });
   expect(link).toHaveAttribute(
     "href",
-    atlasRoutePath({
-      kind: "record",
-      recordKey: "equipment:wand",
-      selection: edge.contextual_target,
-    }),
+    destinationHref(
+      recordDestination({
+        recordKey: "equipment:wand",
+        selection: edge.contextual_target,
+      }),
+    ),
   );
   fireEvent.click(link);
   expect(onReference).toHaveBeenCalledWith(
