@@ -216,6 +216,8 @@ it("explains a modified allowance without duplicating chip controls or confusing
   await waitFor(() =>
     expect(screen.getByText("This turn", { exact: true })).toBeVisible(),
   );
+  const scrollRegion = screen.getByRole("region", { name: "Action calculation" });
+  expect(scrollRegion).toHaveAttribute("tabindex", "0");
   const calculation = screen.getByRole("region", { name: "Actions calculation" });
   await waitFor(() =>
     expect(within(calculation).getByRole("row", { name: "Total 1" })).toBeVisible(),

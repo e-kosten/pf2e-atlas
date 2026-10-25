@@ -334,7 +334,14 @@ function ResourceCounter({
           }}
           title={calculation.kind === "this_turn" ? "This turn" : "Next turn"}
           content={
-            <div ref={popup} className="encounter-turn-resource-details">
+            <div
+              ref={popup}
+              className="encounter-turn-resource-details"
+              role="region"
+              aria-label="Action calculation"
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- WebKit requires focus for keyboard scrolling of this bounded region.
+              tabIndex={0}
+            >
               <div>
                 {calculation.kind === "this_turn" && count && (
                   <strong>At turn start</strong>
