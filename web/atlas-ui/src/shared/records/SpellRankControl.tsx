@@ -1,5 +1,4 @@
 import { Button, Dropdown } from "antd";
-import { ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { SpellPresentationView } from "../../generated/atlas";
 
@@ -89,10 +88,9 @@ export function SpellRankControl({
           ref={trigger}
           type="text"
           size="small"
+          className="spell-rank-control__trigger"
           aria-haspopup="menu"
           aria-expanded={open}
-          icon={<ChevronDown size={14} aria-hidden="true" />}
-          iconPlacement="end"
           onKeyDown={(event) => {
             closeOnEscape(event);
             if (event.key === "ArrowDown") {
