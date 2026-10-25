@@ -1,4 +1,5 @@
 mod conditions;
+mod difficulty;
 mod hp;
 #[cfg(test)]
 mod hp_tests;

@@ -41,7 +41,13 @@ pub(super) fn encounter_detail_from_records(
     let participant_count = participants.len() as u32;
     let current_turn_participant_key = encounter.current_turn_participant_key.clone();
     let note = encounter.note.clone();
+    let difficulty = super::difficulty::project(
+        encounter.difficulty_reference,
+        &participants,
+        &records_by_key,
+    );
     EncounterDetailView {
+        difficulty,
         revision: encounter.revision,
         artifact_generation,
         encounter: encounter_summary(encounter, participant_count),

@@ -409,6 +409,7 @@ pub struct EncounterCreateView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterDetailView {
+    pub difficulty: crate::EncounterDifficultyView,
     pub revision: i64,
     pub artifact_generation: Option<String>,
     pub encounter: EncounterSummaryView,

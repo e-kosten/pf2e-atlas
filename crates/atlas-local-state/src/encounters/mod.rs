@@ -34,17 +34,19 @@ mod model;
 pub use initiative_rolls::{
     InitiativeRollReceipt, ParticipantInitiativeRoll, ResolvedInitiativeRoll,
 };
+mod difficulty;
 mod service;
 mod storage;
 
 pub use model::{
     AddEncounterParticipant, AddEncounterParticipantCondition, ConditionAction, ConditionDuration,
     ConditionDurationUnit, ConditionExtraAction, ConditionScope, ConditionTiming,
-    ConditionTurnEvent, Encounter, EncounterParticipant, EncounterParticipantCondition,
-    EncounterStatus, EncounterTurnState, EncounterTurnUpdate, EncounterWithParticipants,
-    NewEncounter, ParticipantHpOrigin, ParticipantKind, ParticipantSide, ParticipantVariant,
-    ParticipantVariantOrigin, ReorderEncounterParticipant, ReorderPlacement, SpellResource,
-    UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
+    ConditionTurnEvent, Encounter, EncounterDifficultyReference, EncounterParticipant,
+    EncounterParticipantCondition, EncounterStatus, EncounterTurnState, EncounterTurnUpdate,
+    EncounterWithParticipants, NewEncounter, ParticipantHpOrigin, ParticipantKind, ParticipantSide,
+    ParticipantVariant, ParticipantVariantOrigin, ReorderEncounterParticipant, ReorderPlacement,
+    SpellResource, UpdateEncounter, UpdateEncounterParticipant,
+    UpdateEncounterParticipantCondition,
 };
 pub use service::{EncountersRead, EncountersWrite};
 
