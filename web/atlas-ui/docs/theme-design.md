@@ -12,7 +12,7 @@ receives those roles through the root `ConfigProvider`; Atlas CSS consumes the
 matching semantic custom properties. Layout, spacing and typography do not change
 with appearance.
 
-## Authored dark variants
+## Active dark palette and retained references
 
 The product default is **Ink + Bright**. These values are semantic anchors; they
 are projected through `atlasTheme.ts` rather than used directly by features.
@@ -32,16 +32,12 @@ are projected through `atlasTheme.ts` rather than used directly by features.
 | Primary text     | `#F7F1E7` |
 | Muted text       | `#D0C6B7` |
 
-The Theme popover exposes the authored neutral ramps and text palettes as
-session-scoped comparison controls. They do not persist as additional supported
-product themes.
-
-Retain the following earlier anchors as exact historical references. The Warm
-text palette remains an authored comparison option. Prior Standard Umber records
-the original neutral ramp; its border predates the current 3:1 control-boundary
-requirement, and selecting the current Standard comparison does not recreate the
-entire earlier dark appearance. Exploratory palettes do not need permanent
-documentation unless they are deliberately accepted for possible reuse.
+The product exposes one dark palette. Retain the following earlier anchors only
+as historical developer references; they are not runtime tokens or selectable
+themes. Prior Standard Umber records the original neutral ramp, whose border
+predates the current 3:1 control-boundary requirement. Exploratory palettes do
+not need permanent documentation unless they are deliberately accepted for
+possible reuse.
 
 | Standard Umber neutral role | Value     |
 | --------------------------- | --------- |
@@ -58,12 +54,11 @@ documentation unless they are deliberately accepted for possible reuse.
 | Primary text   | `#F3E9D7` |
 | Muted text     | `#C4B6A1` |
 
-The current Standard comparison keeps the same first six neutral anchors but
-uses `#776858` for its control border. When changing the product default, update
-the corresponding `DEFAULT_*` constant in `themeDefinitions.ts` and this section
-together. Keep neutral ramps independent from text palettes so either retained
-direction can be evaluated without changing semantic accents such as brass,
-rarity, status or HP colors.
+When changing the product palette, update the active anchors in
+`themeDefinitions.ts` and this section together. A future experiment may start
+from either retained direction without changing semantic accents such as brass,
+rarity, status or HP colors, but should not add runtime alternatives until the
+product requires a user-selectable theme.
 
 Components select a semantic role, not a hue. Each appearance may map that role
 to a different foreground when contrast requires it: selected search results use
