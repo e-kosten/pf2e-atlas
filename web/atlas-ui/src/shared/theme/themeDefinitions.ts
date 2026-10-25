@@ -18,6 +18,30 @@ export interface DarkNeutralRamp {
   border: string;
 }
 
+export interface BrandMarkColors {
+  ring: string;
+  inner: string;
+  cardinal: string;
+  shade: string;
+  outline: string;
+  secondary: string;
+  tick: string;
+  dieRim: string;
+  dieField: string;
+  dieFaces: readonly [
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
+}
+
 export const darkNeutralRamp = {
   shell: "#111110",
   background: "#171615",
@@ -52,7 +76,9 @@ export interface AtlasPalette {
   shell: BadgeColors;
   brand: {
     text: string;
+    mark: BrandMarkColors;
   };
+  actionGlyph: string;
   navigation: {
     activeText: string;
     hoverText: string;
@@ -103,7 +129,33 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
     },
     contextBar: "#FFFCF4",
     shell: { background: "#F6EFE3", text: "#292621", border: "#D6C6AD" },
-    brand: { text: "#8C333A" },
+    brand: {
+      text: "#8C333A",
+      mark: {
+        ring: "#8C333A",
+        inner: "#FFFCF4",
+        cardinal: "#FFFCF4",
+        shade: "#D6C6AD",
+        outline: "#74272E",
+        secondary: "#346C63",
+        tick: "#74272E",
+        dieRim: "#8C333A",
+        dieField: "#F6EFE3",
+        dieFaces: [
+          "#F6EFE3",
+          "#F3EBDD",
+          "#F5EDE1",
+          "#F4ECDF",
+          "#F2E9DB",
+          "#DDD0BD",
+          "#F1E8D9",
+          "#D5C6B1",
+          "#F3EADC",
+          "#DACCB9",
+        ],
+      },
+    },
+    actionGlyph: "#74272E",
     navigation: {
       activeText: "#8C333A",
       hoverText: "#9D4349",
@@ -164,7 +216,33 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
       text: "#F3E9D7",
       border: darkNeutralRamp.separator,
     },
-    brand: { text: "#D6BA86" },
+    brand: {
+      text: "#D6BA86",
+      mark: {
+        ring: "#D6BA86",
+        inner: darkNeutralRamp.background,
+        cardinal: "#F3E9D7",
+        shade: "#D6BA86",
+        outline: "#C4B6A1",
+        secondary: "#954033",
+        tick: "#D6BA86",
+        dieRim: "#7F2F24",
+        dieField: "#E4D9C6",
+        dieFaces: [
+          "#E4D9C6",
+          "#DFD3C0",
+          "#E3D7C4",
+          "#E1D5C2",
+          "#DCD1BD",
+          "#8F8576",
+          "#D7CBB7",
+          "#807567",
+          "#DBCFBB",
+          "#8B8072",
+        ],
+      },
+    },
+    actionGlyph: "#D6BA86",
     navigation: {
       activeText: "#D6BA86",
       hoverText: "#D6BA86",
