@@ -2920,6 +2920,19 @@ function encounterDetailFixture(
   firstParticipantOverrides: Partial<EncounterParticipantView> = {},
 ): EncounterDetailViewDto {
   return {
+    difficulty: {
+      reference: { party_level: null, party_size: null },
+      party_level: null,
+      party_size: null,
+      pc_count: 0,
+      basis: "Choose party reference.",
+      reference_note: null,
+      total_xp: null,
+      known_xp: 0,
+      rating: null,
+      budgets: [],
+      opposition: [],
+    },
     revision: 0n,
     artifact_generation: "test-generation",
     encounter: encounterIndexFixture().encounters[0],

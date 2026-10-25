@@ -2,6 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { App } from "antd";
 import { useEffect, useRef, useState } from "react";
 import {
+  setEncounterDifficulty,
+  previewEncounterDifficulty,
   updateTurnResources,
   applyEncounterHpAction,
   applyEncounterConditionLifecycle,
@@ -72,6 +74,10 @@ export type EncounterMutationCommand =
       request: import("../../generated/atlas").ApplyEncounterSpellActionRequest;
     }
   | { kind: "hp"; request: Omit<ApplyEncounterHpActionRequest, "request_id"> }
+  | {
+      kind: "difficulty";
+      request: import("../../generated/atlas").SetEncounterDifficultyRequest;
+    }
   | { kind: "metadata"; request: UpdateEncounterRequest }
   | { kind: "participant"; request: UpdateEncounterParticipantRequest }
   | { kind: "add-record"; request: AddEncounterRecordParticipantRequest }
@@ -256,6 +262,8 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
             ...command.request,
             request_id: eventRequestId(command),
           });
+        case "difficulty":
+          return setEncounterDifficulty(currentRef, command.request);
         case "metadata":
           return updateEncounter(command.request);
         case "participant":
@@ -414,6 +422,19 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       }
     },
   });
+  const previewDifficulty = async (
+    request: import("../../generated/atlas").SetEncounterDifficultyRequest,
+  ) => {
+    try {
+      return await previewEncounterDifficulty(currentRef, request);
+    } catch (error) {
+      if (isEncounterConflict(error)) {
+        setRefreshOrigin("conflict");
+        await attemptRefresh();
+      }
+      throw error;
+    }
+  };
   const previewCondition = async (
     participantKey: string,
     request: import("./useConditionEventPreview").ConditionEventInput,
@@ -467,6 +488,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
   return {
     run,
     previewCondition,
+    previewDifficulty,
     pending: mutation.isPending || refreshing,
     error: mutation.error,
     errorKind: mutation.variables?.kind,
