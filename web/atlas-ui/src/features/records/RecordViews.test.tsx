@@ -1,4 +1,4 @@
-import { detailFixture } from "../../test/fixtures";
+import { detailFixture, spellFixture, numberFact } from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useRouterState } from "@tanstack/react-router";
@@ -47,6 +47,52 @@ describe("record route views", () => {
           outcome: "added",
         }),
     );
+  });
+
+  it("changes standalone spell rank without adding history entries or losing its owner", async () => {
+    const origin = {
+      recordKey: "spell:heal",
+      href: "/search/records/spell:heal?q=heal",
+    };
+    history.replaceState({ atlasOwnerOrigin: origin }, "", "/records/spell:heal");
+    apiMocks.getRecordDetail.mockImplementation(
+      (key: string, request?: RecordDetailRequest) => {
+        const detail = detailFixture(key);
+        const rank = request?.spell_rank ?? 3;
+        return Promise.resolve({
+          ...detail,
+          selected: { ...detail.selected, spell_rank: rank },
+          presentation: {
+            ...detail.presentation,
+            body: {
+              kind: "spell",
+              value: { ...spellFixture(), rank: numberFact(rank) },
+            },
+          },
+        });
+      },
+    );
+    render(<RecordHarness />, { wrapper: queryClientWrapper() });
+    await screen.findByRole("button", { name: "Change rank" });
+    const entries = history.length;
+    for (const rank of [4, 5]) {
+      fireEvent.click(screen.getByRole("button", { name: "Change rank" }));
+      fireEvent.click(await screen.findByRole("menuitem", { name: "Rank " + rank }));
+      await waitFor(() =>
+        expect(selectedNavigation(atlasRouter.latestLocation.search)?.spell_rank).toBe(
+          rank,
+        ),
+      );
+      await waitFor(() =>
+        expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+          "spell:heal",
+          expect.objectContaining({ spell_rank: rank }),
+          expect.any(AbortSignal),
+        ),
+      );
+      expect(history.length).toBe(entries);
+      expect(history.state.atlasOwnerOrigin).toEqual(origin);
+    }
   });
 
   it("renders a standalone record detail route", async () => {
