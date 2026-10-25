@@ -39,7 +39,10 @@ import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
 import { EncounterIndexView } from "./EncounterIndexView";
 import { EditEncounterForm } from "./EncounterModals";
-import { atlasRoutePath, currentAtlasRoute } from "../../app/routes";
+import { destinationHref } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
+import { selectedNavigation } from "../../app/urlState";
+import { atlasRouter } from "../../app/router";
 
 const apiMocks = vi.hoisted(() => ({
   applyEncounterSpellAction: vi.fn(),
@@ -408,18 +411,15 @@ describe("encounter views", () => {
   });
 
   it("keeps the approved inspector sections stable through repeated rerenders", async () => {
-    const view = render(
-      <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
-      { wrapper: queryClientWrapper() },
-    );
+    const view = render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
     await screen.findByLabelText("HP summary");
     for (let count = 0; count < 4; count += 1) {
       expect(screen.queryByRole("button", { name: "Relationships" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Action context" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Strike history" })).toBeNull();
-      view.rerender(
-        <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
-      );
+      view.rerender(<EncounterDetailView route={{ slug: "ambush" }} />);
     }
   });
 
@@ -474,7 +474,7 @@ describe("encounter views", () => {
       expected_encounter_revision: 0n,
       expected_participant_revision: 0n,
     });
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("link", { name: "Command" }));
@@ -495,7 +495,7 @@ describe("encounter views", () => {
   });
 
   it("renders active encounter rows, hides archived rows, and routes to edit", async () => {
-    render(<EncounterIndexView route={{ kind: "encounters" }} />, {
+    render(<EncounterIndexView route={{}} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -526,7 +526,7 @@ describe("encounter views", () => {
   });
 
   it("edits encounter metadata without exposing slug", async () => {
-    render(<EncounterEditView route={{ kind: "encounterEdit", slug: "ambush" }} />, {
+    render(<EncounterEditView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -550,7 +550,7 @@ describe("encounter views", () => {
 
   it("loads the participant condition catalog with a bigint encounter revision", async () => {
     setEncounterDetail({ ...encounterDetailFixture(), revision: 9007199254740993n });
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -564,7 +564,7 @@ describe("encounter views", () => {
   });
 
   it("selects roster participants without setting the turn, then supports explicit turn", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -603,12 +603,9 @@ describe("encounter views", () => {
   });
 
   it("advances turns from the roster play control", async () => {
-    const { unmount } = render(
-      <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
-      {
-        wrapper: queryClientWrapper(),
-      },
-    );
+    const { unmount } = render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Next turn" })).not.toBeDisabled(),
@@ -627,7 +624,7 @@ describe("encounter views", () => {
       ...encounterDetailFixture(),
       current_turn_participant_key: undefined,
     });
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -652,7 +649,7 @@ describe("encounter views", () => {
       };
       return { encounter_key: "encounter_ambush" };
     });
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     await waitFor(() =>
@@ -685,10 +682,9 @@ describe("encounter views", () => {
         };
         return { encounter_key: "encounter_ambush" };
       });
-      const { container } = render(
-        <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
-        { wrapper: queryClientWrapper() },
-      );
+      const { container } = render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+        wrapper: queryClientWrapper(),
+      });
       await screen.findByLabelText("HP summary");
       const roster = container.querySelector<HTMLElement>(".encounter-roster")!;
       roster.scrollTop = 85;
@@ -722,7 +718,7 @@ describe("encounter views", () => {
       .mockResolvedValueOnce(initial)
       .mockRejectedValueOnce(new Error("Artifact unavailable"))
       .mockResolvedValue({ ...initial, current_turn_participant_key: "participant_b" });
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     await waitFor(() =>
@@ -761,7 +757,7 @@ describe("encounter views", () => {
         };
       },
     );
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     const handle = await screen.findByRole("button", { name: "Reorder Kyra" });
@@ -788,7 +784,7 @@ describe("encounter views", () => {
   });
 
   it("uses distinct form identities after Add PC cancellation and encounter settings", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     await waitFor(() =>
@@ -811,7 +807,7 @@ describe("encounter views", () => {
   });
 
   it("selects the roster by keyboard and commits initiative without setting turn", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     await screen.findByText("Kyra");
@@ -840,7 +836,7 @@ describe("encounter views", () => {
   });
 
   it("marks the current roster row and shows current plus temporary HP", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -863,7 +859,7 @@ describe("encounter views", () => {
       body.value.runtime!.action_budget!.actions,
     );
     setEncounterDetail(initial);
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -917,7 +913,7 @@ describe("encounter views", () => {
       false,
     );
     setEncounterDetail(initial);
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -934,7 +930,7 @@ describe("encounter views", () => {
   });
 
   it("edits the selected participant in the participant sheet", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -961,7 +957,7 @@ describe("encounter views", () => {
   });
 
   it("keeps combat controls visible and saves participant settings once", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     const participantHeading = await screen.findByRole("heading", { name: "Goblin" });
@@ -1004,7 +1000,7 @@ describe("encounter views", () => {
   });
 
   it("preserves maximum override and reset intent through HP controls", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -1041,7 +1037,7 @@ describe("encounter views", () => {
   });
 
   it("preserves adjustment intent through participant settings", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(
@@ -1069,12 +1065,9 @@ describe("encounter views", () => {
   });
 
   it("reloads saved current HP without reapplying edit intent", async () => {
-    const { unmount } = render(
-      <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
-      {
-        wrapper: queryClientWrapper(),
-      },
-    );
+    const { unmount } = render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
     const hp = await openHpEditor();
     fireEvent.change(hp, { target: { value: "8" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -1095,7 +1088,7 @@ describe("encounter views", () => {
       }),
     );
     apiMocks.applyEncounterHpAction.mockClear();
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     expect(await screen.findByLabelText("HP summary")).toHaveTextContent("8/12");
@@ -1106,7 +1099,7 @@ describe("encounter views", () => {
   });
 
   it("resets participant editor drafts when selecting another participant", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.change(await openHpEditor("Maximum HP"), { target: { value: "999" } });
@@ -1118,7 +1111,7 @@ describe("encounter views", () => {
   });
 
   it("keeps encounter lifecycle actions in the edit modal", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -1141,7 +1134,7 @@ describe("encounter views", () => {
   });
 
   it("dismisses linked previews on participant changes and allows reopening", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -1202,7 +1195,7 @@ describe("encounter views", () => {
   });
 
   it("dismisses a linked record preview with Escape", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(
@@ -1259,7 +1252,7 @@ describe("encounter views", () => {
         <SearchProfileProvider>
           <ConfigProvider theme={{ token: { motion: false } }}>
             <App>
-              <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />
+              <EncounterDetailView route={{ slug: "ambush" }} />
             </App>
           </ConfigProvider>
         </SearchProfileProvider>
@@ -1343,7 +1336,7 @@ describe("encounter views", () => {
       (_encounter, _participant, request) =>
         Promise.resolve(request.selection.embedded_path.length ? selected : parent),
     );
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("link", { name: "Claw" }));
@@ -1354,26 +1347,28 @@ describe("encounter views", () => {
       }),
     ).not.toBeInTheDocument();
     const full = screen.getByRole("link", { name: "Open reference full page" });
-    const expected = atlasRoutePath({
-      kind: "record",
-      recordKey: selected.selected.record_key,
-      selection: selected.selected,
-    });
+    const expected = destinationHref(
+      recordDestination({
+        recordKey: selected.selected.record_key,
+        selection: selected.selected,
+      }),
+    );
     expect(full).toHaveAttribute("href", expected);
     const before = window.location.href;
     for (const modifiers of [{ metaKey: true }, { ctrlKey: true }, { button: 1 }])
       expect(fireEvent.click(full, modifiers)).toBe(true);
     expect(window.location.href).toBe(before);
     fireEvent.click(full);
-    expect(currentAtlasRoute()).toMatchObject({
-      kind: "record",
-      recordKey: selected.selected.record_key,
-      selection: selected.selected,
-    });
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/records/" + selected.selected.record_key),
+    );
+    expect(selectedNavigation(atlasRouter.latestLocation.search)).toEqual(
+      selected.selected,
+    );
   });
 
   it("opens condition reference previews from canonical condition rows", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -1397,12 +1392,9 @@ describe("encounter views", () => {
         temporary_hp: 5n,
       }),
     );
-    const { unmount } = render(
-      <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
-      {
-        wrapper: queryClientWrapper(),
-      },
-    );
+    const { unmount } = render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
 
     const meter = await screen.findByLabelText("HP remaining: 6/12 +5");
     const currentSegment = meter.querySelector<HTMLElement>(
@@ -1441,7 +1433,7 @@ describe("encounter views", () => {
         temporary_hp: 0n,
       }),
     );
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -1454,7 +1446,7 @@ describe("encounter views", () => {
   });
 
   it("passes raw HP settings formulas to Rust", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     const hp = await openHpEditor();
@@ -1487,7 +1479,7 @@ describe("encounter views", () => {
   });
 
   it("passes raw HP changes and Enter healing to Rust", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     const amount = await screen.findByLabelText("HP change");
@@ -1521,7 +1513,7 @@ describe("encounter views", () => {
   });
 
   it("searches before adding a record-backed participant", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -1616,7 +1608,7 @@ describe("encounter views", () => {
       .mockResolvedValueOnce(encounterDetailFixture())
       .mockRejectedValueOnce(new Error("Artifact unavailable"))
       .mockImplementation(() => Promise.resolve(serverEncounter));
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     await waitFor(() =>
@@ -1689,7 +1681,7 @@ describe("encounter views", () => {
 
   it("advances first and applies outgoing damage and recovery to their original boundary", async () => {
     const state = setupPersistentReview();
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
@@ -1745,7 +1737,7 @@ describe("encounter views", () => {
       };
       return { encounter_key: "encounter_ambush" };
     });
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     await screen.findByRole("button", { name: "Next turn" });
@@ -1774,7 +1766,7 @@ describe("encounter views", () => {
 
   it("closing persistent reminders keeps saved damage and never advances twice", async () => {
     setupPersistentReview();
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
@@ -1812,7 +1804,7 @@ describe("encounter views", () => {
         retryable: false,
       });
     });
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Edit Frightened" }));
@@ -1858,7 +1850,7 @@ describe("encounter views", () => {
   });
 
   it("validates consecutive Add drafts and allows optional duration to be cleared", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Add Condition" }));
@@ -1905,7 +1897,7 @@ describe("encounter views", () => {
       apiMocks.getEncounter.mockRejectedValueOnce(new Error("Owner read unavailable"));
       return { encounter_key: "encounter_ambush" };
     });
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Add Condition" }));
@@ -1931,7 +1923,7 @@ describe("encounter views", () => {
     const state = setupPersistentReview();
     state.afterSave = () =>
       apiMocks.getEncounter.mockRejectedValueOnce(new Error("Owner read unavailable"));
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
@@ -1958,7 +1950,7 @@ describe("encounter views", () => {
         apiMocks.getEncounterTurnReview.mockRejectedValue(
           new Error("Review unavailable"),
         );
-      render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      render(<EncounterDetailView route={{ slug: "ambush" }} />, {
         wrapper: queryClientWrapper(),
       });
       fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
@@ -1998,7 +1990,7 @@ describe("encounter views", () => {
         retryable: false,
       });
     });
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
@@ -2064,7 +2056,7 @@ describe("encounter views", () => {
           }
         : null,
     }));
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Next turn" }));
@@ -2091,7 +2083,7 @@ describe("encounter views", () => {
   });
 
   it("adds conditions with compact fields and details", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -2158,7 +2150,7 @@ describe("encounter views", () => {
         return { encounter_key: serverEncounter.encounter.encounter_key };
       },
     );
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -2245,7 +2237,7 @@ describe("encounter views", () => {
   it("keeps server HP truthful, disables duplicate edits, and retains failed HP input", async () => {
     const pending = deferred<{ encounter_key: string }>();
     apiMocks.applyEncounterHpAction.mockReturnValue(pending.promise);
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     const hp = await openHpEditor();
@@ -2291,7 +2283,7 @@ describe("encounter views", () => {
         retryable: false,
       }),
     );
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     const hp = await openHpEditor();
@@ -2317,7 +2309,7 @@ describe("encounter views", () => {
       .mockResolvedValue(
         encounterDetailFixture("participant_a", { current_hp: 3n, revision: 1n }),
       );
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     const hp = await openHpEditor();
@@ -2345,7 +2337,7 @@ describe("encounter views", () => {
   it("keeps delayed and rejected Save open with its draft", async () => {
     const saving = deferred<{ encounter_key: string }>();
     apiMocks.updateEncounter.mockReturnValue(saving.promise);
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     await waitFor(() => expect(screen.getByLabelText("Settings")).not.toBeDisabled());
@@ -2370,7 +2362,7 @@ describe("encounter views", () => {
   });
 
   it("discards canceled encounter metadata when opening a new editing session", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     const edit = screen.getByRole("button", { name: "Settings" });
@@ -2407,10 +2399,9 @@ describe("encounter views", () => {
         </SearchProfileProvider>
       </QueryClientProvider>
     );
-    const { rerender } = render(
-      <EncounterEditView route={{ kind: "encounterEdit", slug: "ambush" }} />,
-      { wrapper },
-    );
+    const { rerender } = render(<EncounterEditView route={{ slug: "ambush" }} />, {
+      wrapper,
+    });
     const name = await screen.findByLabelText("Name");
     fireEvent.change(name, { target: { value: "My draft" } });
     client.setQueryData(["record-detail", "old"], {
@@ -2436,7 +2427,7 @@ describe("encounter views", () => {
       encounter: { ...encounterIndexFixture().encounters[1], name: "Other encounter" },
     };
     setEncounterDetail(other);
-    rerender(<EncounterEditView route={{ kind: "encounterEdit", slug: "other" }} />);
+    rerender(<EncounterEditView route={{ slug: "other" }} />);
     expect(await screen.findByLabelText("Name")).toHaveValue("Other encounter");
   });
 
@@ -2445,7 +2436,7 @@ describe("encounter views", () => {
     apiMocks.getEncounterConditionDefinitions.mockRejectedValueOnce(
       new Error("Catalog unavailable"),
     );
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     expect(await screen.findByText("Encounter could not load")).toBeInTheDocument();
@@ -2467,10 +2458,9 @@ describe("encounter views", () => {
   it("does not carry an old route's pending failure into a different encounter", async () => {
     const pending = deferred<{ encounter_key: string }>();
     apiMocks.applyEncounterHpAction.mockReturnValue(pending.promise);
-    const { rerender } = render(
-      <EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />,
-      { wrapper: queryClientWrapper() },
-    );
+    const { rerender } = render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
     const hp = await openHpEditor();
     fireEvent.change(hp, { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -2479,7 +2469,7 @@ describe("encounter views", () => {
       ...encounterDetailFixture(),
       encounter: { ...encounterIndexFixture().encounters[1], name: "Other" },
     });
-    rerender(<EncounterDetailView route={{ kind: "encounter", slug: "other" }} />);
+    rerender(<EncounterDetailView route={{ slug: "other" }} />);
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Edit HP" })).not.toBeDisabled(),
     );
@@ -2495,7 +2485,7 @@ describe("encounter views", () => {
       deleted: boolean;
     }>();
     apiMocks.deleteEncounter.mockReturnValueOnce(deleting.promise);
-    render(<EncounterIndexView route={{ kind: "encounters" }} />, {
+    render(<EncounterIndexView route={{}} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByLabelText("Delete Ambush"));
@@ -2519,7 +2509,7 @@ describe("encounter views", () => {
   });
 
   it("validates optional PC integers visibly and permits clearing both fields before retry", async () => {
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Add participants" }));
@@ -2554,7 +2544,7 @@ describe("encounter views", () => {
       .mockResolvedValue(
         encounterDetailFixture("participant_a", { current_hp: 5n, revision: 1n }),
       );
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     const amount = await screen.findByLabelText("HP change");
@@ -2577,7 +2567,7 @@ describe("encounter views", () => {
   it("preserves a failed add-PC draft until a successful receipt", async () => {
     const adding = deferred<{ encounter_key: string }>();
     apiMocks.addEncounterManualParticipant.mockReturnValueOnce(adding.promise);
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     await waitFor(() =>
@@ -2606,7 +2596,7 @@ describe("encounter views", () => {
     apiMocks.updateEncounterParticipantCondition.mockRejectedValue(
       new Error("Condition unavailable"),
     );
-    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Edit Frightened" }));
@@ -2652,17 +2642,16 @@ describe("encounter views", () => {
     apiMocks.getEncounter.mockImplementation((ref) =>
       Promise.resolve(ref === "other" ? other : original),
     );
-    const { rerender } = render(
-      <EncounterEditView route={{ kind: "encounterEdit", slug: "ambush" }} />,
-      { wrapper: queryClientWrapper() },
-    );
+    const { rerender } = render(<EncounterEditView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
     fireEvent.change(await screen.findByLabelText("Name"), {
       target: { value: "Saved name" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(apiMocks.updateEncounter).toHaveBeenCalledOnce());
     history.replaceState(null, "", "/encounters/other/edit");
-    rerender(<EncounterEditView route={{ kind: "encounterEdit", slug: "other" }} />);
+    rerender(<EncounterEditView route={{ slug: "other" }} />);
     await waitFor(() => expect(screen.getByLabelText("Name")).toHaveValue("Other"));
     await act(async () => saving.resolve({ encounter_key: "encounter_ambush" }));
     await waitFor(() =>

@@ -1,3 +1,5 @@
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { RuntimeCountCalculation } from "./RuntimeCountCalculation";
 import { statusReasonLabel } from "./statusReasonLabel";
 import { TraitBadge } from "./TraitBadge";
@@ -29,8 +31,6 @@ import { EffectReferenceLink } from "./EffectReferenceLink";
 import { ActionCost } from "./ActionCost";
 import { sentenceCase } from "../ui/labels";
 import { activityAnchor } from "./embeddedNavigation";
-import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
-
 function qualifierText<T extends string | string[]>(
   fact: FactView<T>,
   patch = false,
@@ -44,7 +44,6 @@ function qualifierText<T extends string | string[]>(
         { patch },
       );
 }
-
 export function DamageComponents({
   damage,
   patch = false,
@@ -132,7 +131,6 @@ export function DamageComponents({
     </div>
   );
 }
-
 export function Iwr({
   label,
   fact,
@@ -178,17 +176,14 @@ export function Iwr({
     </FactRow>
   );
 }
-
 function DefenseNote({ label, fact }: { label: string; fact: FactView<string> }) {
   if (fact.state === "missing" || fact.state === "not_applicable") return null;
   return <FactLine label={label} fact={fact} />;
 }
-
 function DefenseQualifier({ fact }: { fact: FactView<string> }) {
   if (fact.state === "missing" || !hasReadingFact(fact)) return null;
   return <> {factText(fact)}</>;
 }
-
 export function ActorDefenses({
   actor,
   hideHitPoints = false,
@@ -268,7 +263,6 @@ export function ActorDefenses({
     </>
   );
 }
-
 export function ActorAwareness({
   actor,
   encounter = false,
@@ -336,7 +330,6 @@ export function ActorAwareness({
     </div>
   );
 }
-
 export function ActorMovement({ actor }: { actor: ActorPresentationView }) {
   if (
     ![actor.land_speed, actor.movement, actor.movement_details].some((fact) =>
@@ -367,7 +360,6 @@ export function ActorMovement({ actor }: { actor: ActorPresentationView }) {
     </section>
   );
 }
-
 export function ActorLanguages({ actor }: { actor: ActorPresentationView }) {
   if (!hasReadingFact(actor.languages) && !hasReadingFact(actor.language_details))
     return null;
@@ -382,7 +374,6 @@ export function ActorLanguages({ actor }: { actor: ActorPresentationView }) {
     </div>
   );
 }
-
 export function ActorSupportingFacts({
   actor,
   encounter = false,
@@ -408,7 +399,6 @@ export function ActorSupportingFacts({
     </>
   );
 }
-
 export function ActorFacts({
   actor,
   hazard = false,
@@ -446,7 +436,6 @@ export function ActorFacts({
     </>
   );
 }
-
 export function ActorSkills({ actor }: { actor: ActorPresentationView }) {
   const lore = (actor.activities.value ?? []).filter(
     (activity) => activity.kind === "lore",
@@ -675,7 +664,6 @@ export function ActorCombatBudget({ actor }: { actor: ActorPresentationView }) {
     </section>
   );
 }
-
 export function ActorSecondaryFacts({
   actor,
   runtimeOnly = false,
@@ -731,7 +719,6 @@ export function ActorSecondaryFacts({
     </section>
   );
 }
-
 export type CastingAnnotations = {
   entry: (entry: ActorActivityView) => React.ReactNode;
   rank: (entry: ActorActivityView, rank: number) => React.ReactNode;
@@ -741,7 +728,6 @@ export type CastingAnnotations = {
     suffix?: React.ReactNode;
   };
 };
-
 export function ActorActivity({
   activity,
   onReference,
@@ -764,11 +750,10 @@ export function ActorActivity({
   interactive?: boolean;
 }) {
   const id = useId();
-  const route = {
-    kind: "record" as const,
+  const route = recordDestination({
     recordKey: activity.navigation.record_key,
     selection: activity.navigation,
-  };
+  });
   return (
     <div
       className={`actor-activity actor-activity--${activity.kind}${selected ? " actor-activity--selected" : ""}`}
@@ -792,9 +777,9 @@ export function ActorActivity({
                 {permalink ? (
                   <Typography.Link
                     className="actor-activity__heading-link"
-                    href={atlasRoutePath(route)}
+                    href={destinationHref(route)}
                     onClick={(event) => {
-                      if (!shouldHandleAtlasRouteClick(event)) return;
+                      if (!isPrimaryActivation(event)) return;
                       event.preventDefault();
                       onReference(
                         activity.navigation.record_key,
@@ -819,9 +804,9 @@ export function ActorActivity({
                 <Button
                   type="link"
                   style={{ paddingInline: 0, height: "auto", fontWeight: 700 }}
-                  href={atlasRoutePath(route)}
+                  href={destinationHref(route)}
                   onClick={(event) => {
-                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    if (!isPrimaryActivation(event)) return;
                     event.preventDefault();
                     onReference(
                       activity.navigation.record_key,
@@ -942,13 +927,14 @@ export function ActorActivity({
                     {index ? ", " : ""}
                     {effect.navigation ? (
                       <Typography.Link
-                        href={atlasRoutePath({
-                          kind: "record",
-                          recordKey: effect.navigation.record_key,
-                          selection: effect.navigation,
-                        })}
+                        href={destinationHref(
+                          recordDestination({
+                            recordKey: effect.navigation.record_key,
+                            selection: effect.navigation,
+                          }),
+                        )}
                         onClick={(event) => {
-                          if (!shouldHandleAtlasRouteClick(event)) return;
+                          if (!isPrimaryActivation(event)) return;
                           event.preventDefault();
                           onReference(
                             effect.navigation!.record_key,
@@ -1047,7 +1033,6 @@ export function ActorActivity({
     </div>
   );
 }
-
 export function ActorActivities({
   actor,
   onReference,
@@ -1059,7 +1044,10 @@ export function ActorActivities({
   sectionIds,
   hazardContent,
 }: {
-  hazardContent?: { routine: React.ReactNode; reset: React.ReactNode };
+  hazardContent?: {
+    routine: React.ReactNode;
+    reset: React.ReactNode;
+  };
   essential?: boolean;
   sectionIds?: Partial<
     Record<
@@ -1249,7 +1237,6 @@ export function ActorActivities({
     </div>
   );
 }
-
 export function RuntimeCount({
   count,
   label = count.label,
@@ -1292,7 +1279,6 @@ export function RuntimeCount({
     </FactRow>
   );
 }
-
 function CastingRoster({
   hint,
   ritualDifficultyClass,
@@ -1357,7 +1343,6 @@ function CastingRoster({
     </section>
   );
 }
-
 function CastingSpells({
   annotations,
   entry,
@@ -1369,7 +1354,13 @@ function CastingSpells({
   annotations?: CastingAnnotations;
   onReference: RecordReferenceHandler;
 }) {
-  const groups = new Map<string, { rank: number; spells: ActorActivityView[] }>();
+  const groups = new Map<
+    string,
+    {
+      rank: number;
+      spells: ActorActivityView[];
+    }
+  >();
   for (const spell of spells) {
     const ranks: (number | undefined)[] = spell.casting_ranks.length
       ? spell.casting_ranks
@@ -1426,13 +1417,14 @@ function CastingSpells({
                         whiteSpace: "normal",
                         textAlign: "left",
                       }}
-                      href={atlasRoutePath({
-                        kind: "record",
-                        recordKey: spell.navigation.record_key,
-                        selection: spell.navigation,
-                      })}
+                      href={destinationHref(
+                        recordDestination({
+                          recordKey: spell.navigation.record_key,
+                          selection: spell.navigation,
+                        }),
+                      )}
                       onClick={(event) => {
-                        if (!shouldHandleAtlasRouteClick(event)) return;
+                        if (!isPrimaryActivation(event)) return;
                         event.preventDefault();
                         onReference(
                           spell.navigation.record_key,

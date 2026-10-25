@@ -248,6 +248,14 @@ Foundry parser, mechanics inference or CEL editor translation. Follow
 [`web/atlas-ui/AGENTS.md`](../../web/atlas-ui/AGENTS.md) and
 [frontend guidelines](../../web/atlas-ui/docs/frontend-guidelines.md).
 
+TanStack Router owns browser route matching, generated typed destinations and
+history/location subscriptions. Thin route modules compose existing feature
+owners under a persistent layout. React Activity retains Search's draft/reading
+state outside Search, with requests disabled; TanStack Query remains the request
+and cache owner. URL codecs preserve strings, repeated sort priority and exact
+reading addresses. Browser page scrolling and bounded reader/Drawer restoration
+have distinct owners. See [ADR0058](./decisions/0058-browser-routing.md).
+
 Reuse family presentation components across detail, preview, comparison and
 encounter surfaces; feature modules compose their own controls around them.
 Repeated generic interactions use shared Ant-based primitives. New components

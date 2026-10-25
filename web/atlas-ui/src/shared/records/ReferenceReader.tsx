@@ -1,14 +1,15 @@
+import {
+  destinationHref,
+  isPrimaryActivation,
+  navigateDestination,
+} from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { recordLayout } from "./recordLayout";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import { Button, Space, Typography } from "antd";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
-import {
-  ATLAS_ROUTE_CHANGE_EVENT,
-  atlasRoutePath,
-  navigateToAtlasRoute,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
+import { atlasRouter } from "../../app/router";
 import { useRecordPreview } from "./useRecordPreview";
 import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
 import { RecordDetailPane } from "./RecordDetailPane";
@@ -18,7 +19,6 @@ import { rootNavigation, type ReferenceReading } from "./useReferenceReading";
 import { usePreviewContentFocus } from "./usePreviewContentFocus";
 import { landReadingTarget } from "./landReadingTarget";
 import { BrowsePaneHeader } from "./BrowsePaneHeader";
-
 export function ReferenceReader({
   reading,
   selectedRecordKey = null,
@@ -90,12 +90,7 @@ export function ReferenceReader({
   );
   useLayoutEffect(() => {
     const snapshot = () => rememberPosition();
-    window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, snapshot);
-    window.addEventListener("popstate", snapshot);
-    return () => {
-      window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, snapshot);
-      window.removeEventListener("popstate", snapshot);
-    };
+    return atlasRouter.subscribe("onBeforeNavigate", snapshot);
   }, [rememberPosition]);
   useLayoutEffect(() => {
     if (
@@ -206,8 +201,7 @@ export function ReferenceReader({
   const detail = reading.detail;
   const fullNavigation = detail?.selected ?? reading.request?.navigation;
   const fullRoute = fullNavigation
-    ? {
-        kind: "record" as const,
+    ? recordDestination({
         recordKey: fullNavigation.record_key,
         selection:
           fullNavigation.embedded_path.length ||
@@ -218,7 +212,7 @@ export function ReferenceReader({
             ? fullNavigation
             : undefined,
         landing: reading.landing ?? reading.request?.landing,
-      }
+      })
     : null;
   return (
     <section
@@ -269,11 +263,11 @@ export function ReferenceReader({
               aria-label="Open full page"
               title="Open full page"
               icon={<ExternalLink size={16} />}
-              href={atlasRoutePath(fullRoute)}
+              href={destinationHref(fullRoute)}
               onClick={(event) => {
-                if (!shouldHandleAtlasRouteClick(event)) return;
+                if (!isPrimaryActivation(event)) return;
                 event.preventDefault();
-                navigateToAtlasRoute(fullRoute);
+                navigateDestination(fullRoute);
               }}
             />
           )}
@@ -326,12 +320,13 @@ export function ReferenceReader({
           readingHistory={preview.readingHistory}
           landing={preview.landing}
           onOpenFullPage={() => {
-            navigateToAtlasRoute({
-              kind: "record",
-              recordKey: preview.recordKey!,
-              selection: preview.selection,
-              landing: preview.landing,
-            });
+            navigateDestination(
+              recordDestination({
+                recordKey: preview.recordKey!,
+                selection: preview.selection,
+                landing: preview.landing,
+              }),
+            );
             preview.close();
           }}
         />

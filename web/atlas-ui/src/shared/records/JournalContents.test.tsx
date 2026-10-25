@@ -89,24 +89,19 @@ it("keeps an active filter clearable when the same journal's page count drops", 
 });
 
 it("keeps page filtering local, focused and source-ordered with native destinations", () => {
-  const pages = Array.from(
-    { length: 22 },
-    (_, index): EmbeddedRecordLinkView => ({
-      title: `Page ${index}`,
-      family: "JournalEntryPage",
-      usage: null,
-      action_cost: unavailableFact("not_applicable"),
-      navigation: {
-        record_key: "journals:root",
-        embedded_path: [
-          { collection: "/pages", identity: { Stable: `page-${index}` } },
-        ],
-        field: null,
-        passage: null,
-        source_fingerprint: null,
-      },
-    }),
-  );
+  const pages = Array.from({ length: 22 }, (_, index): EmbeddedRecordLinkView => ({
+    title: `Page ${index}`,
+    family: "JournalEntryPage",
+    usage: null,
+    action_cost: unavailableFact("not_applicable"),
+    navigation: {
+      record_key: "journals:root",
+      embedded_path: [{ collection: "/pages", identity: { Stable: `page-${index}` } }],
+      field: null,
+      passage: null,
+      source_fingerprint: null,
+    },
+  }));
   const open = vi.fn();
   render(<JournalContents pages={knownFact(pages)} onReference={open} />);
   const input = screen.getByRole("textbox", { name: "Find a page" });

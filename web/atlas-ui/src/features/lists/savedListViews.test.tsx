@@ -1,3 +1,4 @@
+import { RouterTestContext } from "../../test/router";
 import type { ResultSort } from "../../generated/atlas";
 import {
   detailFixture,
@@ -165,7 +166,7 @@ describe("list views", () => {
   });
 
   it("renders saved-list index rows and routes into a list", async () => {
-    render(<ListIndexView route={{ kind: "lists" }} />, {
+    render(<ListIndexView route={{}} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -190,7 +191,7 @@ describe("list views", () => {
   });
 
   it("routes from the saved-list index when clicking the row", async () => {
-    render(<ListIndexView route={{ kind: "lists" }} />, {
+    render(<ListIndexView route={{}} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -203,7 +204,7 @@ describe("list views", () => {
   });
 
   it("routes from the saved-list index to edit a list", async () => {
-    render(<ListIndexView route={{ kind: "lists" }} />, {
+    render(<ListIndexView route={{}} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -219,7 +220,7 @@ describe("list views", () => {
       const fixture = savedListIndexFixture();
       fixture.lists[0].tags = [tag, "boss"];
       apiMocks.getSavedLists.mockResolvedValue(fixture);
-      render(<ListIndexView route={{ kind: "lists" }} />, {
+      render(<ListIndexView route={{}} />, {
         wrapper: queryClientWrapper(),
       });
 
@@ -242,7 +243,7 @@ describe("list views", () => {
   );
 
   it("combines any included tag with no excluded tags, retaining searchable stable rows", async () => {
-    render(<ListIndexView route={{ kind: "lists" }} />, {
+    render(<ListIndexView route={{}} />, {
       wrapper: queryClientWrapper(),
     });
     await screen.findByText("Research");
@@ -284,7 +285,7 @@ describe("list views", () => {
 
   it("restores list-name, tag and actual index scroll state after unmount and resets scroll on a filter change", async () => {
     const wrapper = queryClientWrapper();
-    const view = render(<ListIndexView route={{ kind: "lists" }} />, { wrapper });
+    const view = render(<ListIndexView route={{}} />, { wrapper });
     await screen.findByText("Research");
     fireEvent.change(screen.getByRole("textbox", { name: "Search saved lists" }), {
       target: { value: "Research" },
@@ -301,7 +302,7 @@ describe("list views", () => {
     table.scrollTop = 345;
     fireEvent.scroll(table);
     view.unmount();
-    const returned = render(<ListIndexView route={{ kind: "lists" }} />, { wrapper });
+    const returned = render(<ListIndexView route={{}} />, { wrapper });
     expect(
       await screen.findByRole("textbox", { name: "Search saved lists" }),
     ).toHaveValue("Research");
@@ -329,7 +330,7 @@ describe("list views", () => {
     });
     try {
       const wrapper = queryClientWrapper();
-      const view = render(<ListIndexView route={{ kind: "lists" }} />, { wrapper });
+      const view = render(<ListIndexView route={{}} />, { wrapper });
       const link = await screen.findByText("research");
       // Initial restore belongs to the fresh index; emulate subsequent user scrolling.
       Object.defineProperty(window, "scrollY", {
@@ -344,7 +345,7 @@ describe("list views", () => {
         value: 0,
       });
       view.unmount();
-      render(<ListIndexView route={{ kind: "lists" }} />, { wrapper });
+      render(<ListIndexView route={{}} />, { wrapper });
       await screen.findByText("Campaign prep");
       expect(scrollTo).toHaveBeenLastCalledWith(0, 613);
     } finally {
@@ -355,7 +356,7 @@ describe("list views", () => {
 
   it("distinguishes initial list failure from empty data and retries", async () => {
     apiMocks.getSavedLists.mockRejectedValueOnce(new Error("Index unavailable"));
-    render(<ListIndexView route={{ kind: "lists" }} />, {
+    render(<ListIndexView route={{}} />, {
       wrapper: queryClientWrapper(),
     });
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -373,7 +374,7 @@ describe("list views", () => {
     render(
       <QueryClientProvider client={client}>
         <App>
-          <ListIndexView route={{ kind: "lists" }} />
+          <ListIndexView route={{}} />
         </App>
       </QueryClientProvider>,
     );
@@ -409,7 +410,7 @@ describe("list views", () => {
         fail = reject;
       }),
     );
-    render(<ListEditView route={{ kind: "listEdit", slug: "research" }} />, {
+    render(<ListEditView route={{ slug: "research" }} />, {
       wrapper: queryClientWrapper(),
     });
     const name = await screen.findByRole("textbox", { name: "Name" });
@@ -440,7 +441,7 @@ describe("list views", () => {
       (_, index) => `Preparation tag ${index}`,
     );
     apiMocks.getSavedLists.mockResolvedValue(fixture);
-    render(<ListIndexView route={{ kind: "lists" }} />, {
+    render(<ListIndexView route={{}} />, {
       wrapper: queryClientWrapper(),
     });
     const title = await screen.findByRole("link", {
@@ -469,7 +470,6 @@ describe("list views", () => {
     render(
       <ListDetailView
         route={{
-          kind: "list",
           slug: "research",
           selectedRecordKey: "actions:testAction1",
         }}
@@ -560,9 +560,7 @@ describe("list views", () => {
     render(
       <QueryClientProvider client={client}>
         <App>
-          <ListDetailView
-            route={{ kind: "list", slug: "research", selectedRecordKey: null }}
-          />
+          <ListDetailView route={{ slug: "research", selectedRecordKey: null }} />
           <ListDiscoveryProbe listRef="research" />
           <ListDiscoveryProbe listRef="list_research" />
           <ListDiscoveryProbe listRef="other-list" />
@@ -613,7 +611,6 @@ describe("list views", () => {
     render(
       <ListDetailView
         route={{
-          kind: "list",
           slug: "research",
           selectedRecordKey: "actions:testAction1",
         }}
@@ -678,7 +675,6 @@ describe("list views", () => {
           <App>
             <ListDetailView
               route={{
-                kind: "list",
                 slug: "research",
                 selectedRecordKey: "actions:testAction1",
               }}
@@ -736,7 +732,6 @@ describe("list views", () => {
     render(
       <ListDetailView
         route={{
-          kind: "list",
           slug: "research",
           selectedRecordKey: "actions:testAction1",
           query,
@@ -817,7 +812,6 @@ describe("list views", () => {
     render(
       <ListDetailView
         route={{
-          kind: "list",
           slug: "research",
           selectedRecordKey: "actions:testAction1",
         }}
@@ -850,7 +844,6 @@ describe("list views", () => {
     render(
       <ListDetailView
         route={{
-          kind: "list",
           slug: "research",
           selectedRecordKey: null,
         }}
@@ -883,7 +876,6 @@ describe("list views", () => {
     render(
       <ListEditView
         route={{
-          kind: "listEdit",
           slug: "research",
         }}
       />,
@@ -919,7 +911,6 @@ describe("list views", () => {
     render(
       <ListEditView
         route={{
-          kind: "listEdit",
           slug: "research",
         }}
       />,
@@ -938,12 +929,9 @@ describe("list views", () => {
   });
 
   it("returns to the saved-lists index using a native parent link without a duplicate switcher", async () => {
-    render(
-      <ListDetailView
-        route={{ kind: "list", slug: "research", selectedRecordKey: null }}
-      />,
-      { wrapper: queryClientWrapper() },
-    );
+    render(<ListDetailView route={{ slug: "research", selectedRecordKey: null }} />, {
+      wrapper: queryClientWrapper(),
+    });
     const parent = await screen.findByRole("link", { name: "Saved lists" });
     expect(parent).toHaveAttribute("href", "/lists");
     expect(screen.queryByRole("combobox", { name: "Selected list" })).toBeNull();
@@ -961,7 +949,6 @@ describe("list views", () => {
     render(
       <ListDetailView
         route={{
-          kind: "list",
           slug: "research",
           selectedRecordKey: "actions:testAction1",
         }}
@@ -1051,7 +1038,7 @@ describe("list views", () => {
   });
 
   it("creates lists from a name without asking for a slug", async () => {
-    render(<ListIndexView route={{ kind: "lists" }} />, {
+    render(<ListIndexView route={{}} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -1082,10 +1069,9 @@ describe("list views", () => {
         <ConfigProvider theme={{ token: { motion: false } }}>{children}</ConfigProvider>
       </QueryClientProvider>
     );
-    const { rerender } = render(
-      <ListEditView route={{ kind: "listEdit", slug: "research" }} />,
-      { wrapper },
-    );
+    const { rerender } = render(<ListEditView route={{ slug: "research" }} />, {
+      wrapper,
+    });
     const name = await screen.findByLabelText("Name");
     fireEvent.change(name, { target: { value: "My list draft" } });
     client.setQueryData(["record-detail", "old"], {
@@ -1118,12 +1104,12 @@ describe("list views", () => {
         name: "Other list",
       },
     });
-    rerender(<ListEditView route={{ kind: "listEdit", slug: "other" }} />);
+    rerender(<ListEditView route={{ slug: "other" }} />);
     expect(await screen.findByLabelText("Name")).toHaveValue("Other list");
   });
   it("retries an initial list failure without discarding later edits", async () => {
     apiMocks.getSavedList.mockRejectedValueOnce(new Error("List unavailable"));
-    render(<ListEditView route={{ kind: "listEdit", slug: "research" }} />, {
+    render(<ListEditView route={{ slug: "research" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Retry list" }));
@@ -1183,7 +1169,9 @@ function queryClientWrapper() {
       <QueryClientProvider client={queryClient}>
         <ConfigProvider theme={{ token: { motion: false } }}>
           <SearchProfileProvider>
-            <App>{children}</App>
+            <RouterTestContext>
+              <App>{children}</App>
+            </RouterTestContext>
           </SearchProfileProvider>
         </ConfigProvider>
       </QueryClientProvider>

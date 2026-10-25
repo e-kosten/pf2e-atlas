@@ -1,3 +1,4 @@
+import { RouterTestContext } from "../../test/router";
 import type { ResultSort } from "../../generated/atlas";
 import {
   summaryFixture,
@@ -84,7 +85,7 @@ describe("useSearchWorkspace", () => {
       result.current.setSearch({ ...result.current.search, query: ` ${key} ` }),
     );
     expect(result.current.selectedRecordKey).toBe(key);
-    expect(decodeURIComponent(location.pathname)).toContain(key);
+    await waitFor(() => expect(decodeURIComponent(location.pathname)).toContain(key));
     await waitFor(() =>
       expect(result.current.reading.detail?.record.record_key).toBe(key),
     );
@@ -480,7 +481,7 @@ describe("useSearchWorkspace", () => {
     });
     act(() => result.current.setSearch({ ...result.current.search, query: "dragon" }));
     expect(result.current.search.similarSeed).toBeNull();
-    expect(window.location.search).not.toContain("similar=");
+    await waitFor(() => expect(window.location.search).not.toContain("similar="));
     // Back/Forward use the same popstate restoration owner as real browser history.
     act(() => {
       history.replaceState(null, "", similarUrl);
@@ -647,7 +648,7 @@ describe("useSearchWorkspace", () => {
       "embeddinggemma",
     );
     act(() => result.current.selectRecord(null));
-    expect(window.location.pathname).toBe("/search");
+    await waitFor(() => expect(window.location.pathname).toBe("/search"));
     expect(new URLSearchParams(window.location.search).get("search_profile")).toBe(
       "embeddinggemma",
     );
@@ -918,7 +919,7 @@ describe("useSearchWorkspace", () => {
     expect(result.current.search.query).toBe("fi");
     expect(result.current.resultsLoading).toBe(true);
     expect(result.current.resultPage).toBeUndefined();
-    expect(window.location.pathname).toBe("/search");
+    await waitFor(() => expect(window.location.pathname).toBe("/search"));
     expect(window.location.search).toBe("?search_profile=bge-base&q=fi");
     await delay(150);
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
@@ -973,12 +974,14 @@ describe("useSearchWorkspace", () => {
     expect(result.current.selectedRecordKey).toBeNull();
     act(() => result.current.selectRecord("spell:heal"));
     expect(result.current.selectedRecordKey).toBe("spell:heal");
-    expect(window.location.pathname).toBe("/search/records/spell:heal");
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/search/records/spell:heal"),
+    );
     expect(window.location.search).toBe("?search_profile=bge-base&q=dirge");
 
     act(() => result.current.selectRecord(null));
     expect(result.current.selectedRecordKey).toBeNull();
-    expect(window.location.pathname).toBe("/search");
+    await waitFor(() => expect(window.location.pathname).toBe("/search"));
     expect(window.location.search).toBe("?search_profile=bge-base&q=dirge");
   });
 
@@ -1018,7 +1021,7 @@ describe("useSearchWorkspace", () => {
       }),
     );
 
-    expect(window.location.pathname).toBe("/search");
+    await waitFor(() => expect(window.location.pathname).toBe("/search"));
     expect(window.location.search).toBe(
       searchStateQueryString(result.current.search, "bge-base"),
     );
@@ -1272,7 +1275,11 @@ function queryClientWrapper(
   }),
 ) {
   return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <QueryClientProvider client={queryClient}>
+        <RouterTestContext>{children}</RouterTestContext>
+      </QueryClientProvider>
+    );
   };
 }
 

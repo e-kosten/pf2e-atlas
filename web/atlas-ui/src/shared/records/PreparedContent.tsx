@@ -1,3 +1,5 @@
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { sanitizePreparedHtml } from "./PreparedHtml";
 import DOMPurify from "dompurify";
 import { Alert, Modal, Typography } from "antd";
@@ -20,7 +22,6 @@ import type {
   RecordRelationshipView,
   RecordNavigationView,
 } from "../../generated/atlas";
-import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
 export type RecordReferenceHandler = (
   recordKey: string,
   anchor?: HTMLElement,
@@ -49,18 +50,19 @@ export function PreparedContent({
           ? {
               identity: JSON.stringify(content.locator),
               landing: sectionLanding,
-              href: atlasRoutePath({
-                kind: "record",
-                recordKey: content.locator.record,
-                selection: {
-                  record_key: content.locator.record,
-                  embedded_path: content.locator.embedded_path,
-                  spell_rank: undefined,
-                  field: null,
-                  passage: null,
-                  source_fingerprint: null,
-                },
-              }),
+              href: destinationHref(
+                recordDestination({
+                  recordKey: content.locator.record,
+                  selection: {
+                    record_key: content.locator.record,
+                    embedded_path: content.locator.embedded_path,
+                    spell_rank: undefined,
+                    field: null,
+                    passage: null,
+                    source_fingerprint: null,
+                  },
+                }),
+              ),
             }
           : undefined
       }
@@ -72,14 +74,17 @@ export function PreparedContent({
     />
   );
 }
-
 export function PreparedContentBody({
   body,
   references,
   onReference,
   documentNavigation,
 }: {
-  documentNavigation?: { identity: string; href: string; landing?: string };
+  documentNavigation?: {
+    identity: string;
+    href: string;
+    landing?: string;
+  };
   body: PreparedFieldBodyView;
   references: (PreparedReferenceView | RecordRelationshipView)[];
   onReference: RecordReferenceHandler;
@@ -244,11 +249,12 @@ export function PreparedContentBody({
         }
         marker.setAttribute(
           "href",
-          atlasRoutePath({
-            kind: "record",
-            recordKey: readingTarget.record_key,
-            selection: readingTarget,
-          }),
+          destinationHref(
+            recordDestination({
+              recordKey: readingTarget.record_key,
+              selection: readingTarget,
+            }),
+          ),
         );
         marker.removeAttribute("role");
       } else marker.setAttribute("role", "button");
@@ -268,8 +274,7 @@ export function PreparedContentBody({
           "[data-atlas-reference],[data-atlas-interaction]",
         );
         if (!marker || !container.current?.contains(marker)) return;
-        if (fact?.target && e instanceof MouseEvent && !shouldHandleAtlasRouteClick(e))
-          return;
+        if (fact?.target && e instanceof MouseEvent && !isPrimaryActivation(e)) return;
         e.preventDefault();
         const reference = marker.getAttribute("data-atlas-reference");
         if (reference !== null) {
@@ -311,7 +316,7 @@ export function PreparedContentBody({
       };
       const keyboard = (e: KeyboardEvent) => {
         if (!ownsEvent(e)) return;
-        if ((e.key === "Enter" || e.key === " ") && shouldHandleAtlasRouteClick(e)) {
+        if ((e.key === "Enter" || e.key === " ") && isPrimaryActivation(e)) {
           e.preventDefault();
           marker.click();
         }
@@ -349,7 +354,7 @@ export function PreparedContentBody({
                 <Typography.Link
                   href={`${documentNavigation!.href}#${encodeURIComponent(section.id)}`}
                   onClick={(event) => {
-                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    if (!isPrimaryActivation(event)) return;
                     event.preventDefault();
                     const heading = [
                       ...(container.current?.querySelectorAll<HTMLElement>(

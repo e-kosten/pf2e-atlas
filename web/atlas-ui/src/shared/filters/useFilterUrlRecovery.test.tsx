@@ -1,3 +1,5 @@
+import { atlasRouter } from "../../app/router";
+import { createBrowserHistory } from "@tanstack/react-router";
 import { StrictMode, useState } from "react";
 import { renderHook, waitFor } from "@testing-library/react";
 import {
@@ -10,7 +12,13 @@ import { encodeFilterUrl } from "./filterUrl";
 import { FILTER_URL_RESET_NOTICE, useFilterUrlRecovery } from "./useFilterUrlRecovery";
 
 const info = vi.hoisted(() => vi.fn());
-vi.mock("antd", () => ({ App: { useApp: () => ({ message: { info } }) } }));
+vi.mock("antd", async (original) => {
+  const actual = await original<typeof import("antd")>();
+  return {
+    ...actual,
+    App: Object.assign(actual.App, { useApp: () => ({ message: { info } }) }),
+  };
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -108,11 +116,13 @@ it.each(["/search/records/items:chosen", "/lists/my-list/records/items:chosen"])
       ranking: "rrf",
       other: "retained",
     });
+    atlasRouter.update({ history: createBrowserHistory() });
     history.replaceState(
       { atlasSearchPage: 9, atlasOwnerOrigin: { recordKey: "items:chosen" } },
       "",
       path + "?" + params + "#section",
     );
+    atlasRouter.updateLatestLocation();
     const initialLength = history.length;
     const restored = decodeSearchStateFromParams(params);
     const { result, rerender } = renderHook(
@@ -124,6 +134,9 @@ it.each(["/search/records/items:chosen", "/lists/my-list/records/items:chosen"])
       { wrapper: StrictMode },
     );
     await waitFor(() => expect(result.current.filterWasReset).toBeUndefined());
+    await waitFor(() =>
+      expect(new URLSearchParams(location.search).has("filter")).toBe(false),
+    );
     expect(location.pathname).toBe(path);
     expect(location.hash).toBe("#section");
     const current = new URLSearchParams(location.search);
@@ -131,7 +144,7 @@ it.each(["/search/records/items:chosen", "/lists/my-list/records/items:chosen"])
     params.delete("relationships");
     expect([...current]).toEqual([...params]);
     expect(history.length).toBe(initialLength);
-    expect(history.state).toEqual({
+    expect(history.state).toMatchObject({
       atlasSearchPage: 1,
       atlasOwnerOrigin: { recordKey: "items:chosen" },
     });
