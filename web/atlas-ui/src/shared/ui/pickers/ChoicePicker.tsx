@@ -137,14 +137,18 @@ export function ChoicePicker({
               styles={{
                 root: {
                   color:
-                    unavailable && state === "neutral"
-                      ? token.colorTextDisabled
-                      : undefined,
+                    state === "include"
+                      ? "var(--filter-include-text)"
+                      : state === "exclude"
+                        ? "var(--filter-exclude-text)"
+                        : unavailable
+                          ? token.colorTextDisabled
+                          : undefined,
                   background:
                     state === "include"
-                      ? token.colorPrimaryBg
+                      ? "var(--filter-include-bg)"
                       : state === "exclude"
-                        ? token.colorErrorBg
+                        ? "var(--filter-exclude-bg)"
                         : undefined,
                 },
               }}
@@ -266,8 +270,24 @@ export function ChoicePicker({
               <Button
                 key={value}
                 size="small"
-                color={state === "exclude" ? "danger" : "primary"}
+                color="default"
                 variant="filled"
+                styles={{
+                  root: {
+                    color:
+                      state === "exclude"
+                        ? "var(--filter-exclude-text)"
+                        : "var(--filter-include-text)",
+                    background:
+                      state === "exclude"
+                        ? "var(--filter-exclude-bg)"
+                        : "var(--filter-include-bg)",
+                    borderColor:
+                      state === "exclude"
+                        ? "var(--filter-exclude-border)"
+                        : "var(--filter-include-border)",
+                  },
+                }}
                 aria-label={`Remove ${state === "exclude" ? "excluded" : "included"} ${valueLabel} from ${label}`}
                 onClick={() => change(value, "neutral")}
               >

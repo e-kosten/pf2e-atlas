@@ -105,6 +105,8 @@ export function AppShell({
       <header className="topbar">
         <Typography.Link
           className="topbar__brand"
+          style={{ color: "var(--brand-text)" }}
+          aria-label="PF2e Atlas"
           href={searchPath()}
           onClick={(event) => {
             if (!shouldHandleAtlasRouteClick(event)) return;
@@ -112,6 +114,7 @@ export function AppShell({
             onNavigateSearch();
           }}
         >
+          <img src="/favicon.svg" alt="" />
           <span className="topbar__brand-prefix">PF2e </span>Atlas
         </Typography.Link>
         <Menu
@@ -122,6 +125,7 @@ export function AppShell({
           mode="horizontal"
           onClick={onNavClick}
           selectedKeys={[selectedView]}
+          theme={resolvedColorScheme}
         />
         <Space className="topbar__actions" size="small">
           <Popover
@@ -134,15 +138,17 @@ export function AppShell({
             title="Theme"
             content={
               <div ref={themeContent}>
-                <Segmented
-                  value={colorScheme}
-                  onChange={onColorSchemeChange}
-                  options={[
-                    { value: "system", label: "System" },
-                    { value: "light", label: "Light" },
-                    { value: "dark", label: "Dark" },
-                  ]}
-                />
+                <Space orientation="vertical" size="small">
+                  <Segmented
+                    value={colorScheme}
+                    onChange={onColorSchemeChange}
+                    options={[
+                      { value: "system", label: "System" },
+                      { value: "light", label: "Light" },
+                      { value: "dark", label: "Dark" },
+                    ]}
+                  />
+                </Space>
               </div>
             }
           >

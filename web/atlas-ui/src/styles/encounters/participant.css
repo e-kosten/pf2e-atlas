@@ -5,6 +5,8 @@
 }
 
 .encounter-reference {
+  container-name: encounter-reference;
+  container-type: inline-size;
   display: grid;
   min-width: 0;
   gap: 20px;
@@ -27,6 +29,17 @@
 .encounter-reference__identity h2,
 .encounter-reference__identity p {
   margin: 0;
+}
+
+.encounter-reference__title {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-control) var(--space-group);
+  min-width: 0;
+}
+
+.encounter-reference__title > .record-reference__kind {
+  flex-shrink: 0;
 }
 
 .encounter-reference__actions {
@@ -113,7 +126,7 @@
 
 .encounter-hp-meter__temporary {
   background: var(--hp-temp);
-  opacity: 0.75;
+  border-inline-start: 2px solid var(--panel);
 }
 
 .encounter-hp-control {
@@ -147,7 +160,7 @@
 }
 
 .encounter-record-pane:focus-visible {
-  outline: 2px solid var(--active-border);
+  outline: 2px solid var(--selection-border);
   outline-offset: -2px;
 }
 
@@ -165,6 +178,7 @@
 .encounter-reference__name {
   display: flex;
   align-items: center;
+  flex: 1 1 12ch;
   gap: 8px;
   min-width: 0;
 }
@@ -195,6 +209,21 @@
 }
 .encounter-reference__name > button {
   flex-shrink: 0;
+}
+
+@container encounter-reference (max-width: 32rem) {
+  .encounter-reference__title {
+    flex-wrap: wrap;
+  }
+
+  .encounter-reference__name {
+    flex-basis: 100%;
+  }
+
+  .encounter-reference__title > .record-reference__kind {
+    margin-inline-start: 0;
+    text-align: start;
+  }
 }
 
 .encounter-hp-panel__values {

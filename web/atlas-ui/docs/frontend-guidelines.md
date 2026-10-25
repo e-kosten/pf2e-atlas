@@ -2,7 +2,7 @@
 
 The Atlas web UI is a React frontend over generated Rust app DTOs. It uses Ant Design for general application UI and a small first-party shared UI layer for Atlas-specific interaction patterns.
 
-The application shell owns navigation, system-following appearance, and reference availability. It receives readiness facts, not the search workspace. Healthy availability needs no status control. Connection failures show an actionable error with Retry; search failures and generation recovery belong beside search results.
+The application shell owns navigation, product theme, system-following appearance, and reference availability. It receives readiness facts, not the search workspace. Healthy availability needs no status control. Connection failures show an actionable error with Retry; search failures and generation recovery belong beside search results.
 
 AtlasApp owns one tab-local search-profile selection from the generated readiness
 catalog. An explicit `search_profile` URL parameter wins over the browser's launch
@@ -220,12 +220,75 @@ types and contextual notes alongside their cause.
 
 ## Styling
 
+[Theme design](theme-design.md) records the product palette and semantic roles.
+Atlas has one identity with independent system/light/dark appearance: Parchment
+and Oxblood in light appearance, and warmer Oxblood and Brass in dark appearance.
+Use flat surfaces, subtle separators, the existing interface typography and the
+shared 6px base radius. Generic controls retain Ant component/token ownership.
+
+`themeDefinitions.ts` owns the authored light/dark anchors and shared semantic
+roles. `atlasTheme.ts` projects them into the Ant configuration and document-level
+CSS variables. Use the root provider so portaled content receives the same colors.
+The shell stores only the optional appearance preference; changing it must preserve
+the active route, reader and drafts. Native `color-scheme` follows the resolved
+appearance. Pass that resolved appearance to Ant components with documented
+light/dark modes, including the shell `Menu`; their component tokens own hover,
+focus and selected states.
+
+Every application color comes from `themeDefinitions.ts` or Ant's derivation from
+those roles. The small startup fallback in `styles/theme.css` mirrors light-mode
+anchors before React applies the resolved appearance, and a parity test keeps that
+fallback aligned with the runtime projection. The style guard rejects raw literals,
+named colors and undefined CSS-variable references elsewhere. Authored rules, table
+borders and highlights use shared reading tokens.
+
+The central color definitions own status foreground/background/border sets, solid-control foregrounds,
+HP current/bloodied/critical/temporary/missing fills, shadows and overlay masks as
+well as neutral and interaction roles. HP presentation consumes its dedicated
+variables, never a fixed green/red or a generic primary accent. Temporary HP is
+opaque and separated from the adjacent fill; labels and values retain meaning
+without color. Dice, encounter selection and portaled controls use the same
+semantic variables/provider. Shaded dice express facets with fill contrast and
+draw the visible silhouette once; do not stroke every face and double shared
+edges at small sizes. Do not add component-local palettes. Rarity uses
+dedicated text/background/border roles for neutral common, copper uncommon,
+oxblood rare and purple unique, independently of primary interaction colors.
+Keep every known rarity label visible and unknown rarities neutral. Success,
+warning and error retain their semantic meanings through theme-owned Ant tokens.
+
 - Use Atlas CSS variables and Ant Design theme tokens; avoid raw color values.
 - Atlas CSS variables should describe semantic app states, such as active background, active border, active text, muted text, and panel surfaces. They should be derived from Ant semantic tokens rather than raw brand tokens where possible.
 - Put shared primitive styles under `src/styles/ui`.
 - Keep feature-specific styles in the feature stylesheet.
 - Do not create nested cards or duplicate pane/index/table styles in feature modules.
 - Prefer stable layout dimensions for repeated controls so dynamic labels, icons, loading states, and validation text do not shift the page.
+
+### Page and workspace composition
+
+Choose one of three shared layout hosts according to the user's task. Entity
+indexes use the inset `EntityIndexPage` composition: identity and actions, an
+optional control row, and one restrained table surface. Reading and editing pages
+use one bounded document column, with hierarchy supplied by typography, spacing
+and rules rather than a card around each section.
+
+Search, saved-list browsing and encounter runtime are continuous workbenches.
+Their context or filter strip is separated from the workspace by a rule, and the
+workspace panes form one continuous surface. Search and encounter workbenches
+may center and cap the complete pane system at 100rem on very wide displays; the
+cap applies to the whole workspace, never to each pane or reader independently.
+Pane headers inherit that surface and use a bottom rule; pane boundaries use a
+visible divider while preserving a larger resize target. Do not give persistent
+workbench panes an inset card frame, shadow or separately filled heading cap. A
+card remains appropriate for a genuinely independent object or transient
+elevated surface, not for the primary regions of a split workspace.
+
+The host types share semantic surfaces, spacing roles and header hierarchy, but
+they do not have identical geometry. Do not make an entity index edge-to-edge
+merely to resemble Search, and do not put Search or the encounter runtime inside
+an inset index sheet. A wide-screen workbench cap is whitespace management, not
+a card treatment. Verify the selected host in both appearances and at wide,
+intermediate and phone widths; inspect scroll ownership, divider alignment and
+resize/focus behavior as well as the static screenshot.
 
 Give single-column record pages one document width, including their toolbar,
 identity, traits, facts, prose, lists and horizontal rules. Bound the whole sheet
@@ -256,10 +319,14 @@ Do not reserve an empty outline column on short pages.
 This follows the [USWDS in-page navigation pattern](https://designsystem.digital.gov/components/in-page-navigation/);
 Atlas chooses the responsive fit and keeps its established reading hosts.
 In a reference Drawer the document fills its body.
-Simple records use one identity flow: title/action glyph and document actions,
-then classification/rank on one row, traits on their own row, then source
-attribution. Use this identity structure across non-creature kinds and reading
-hosts, rather than maintaining spell/equipment exceptions. Put this default in
+Simple records use one identity flow: title/action glyph with classification/rank
+at the trailing edge, followed by document actions, then traits on their own row
+and source attribution. A control that changes classification, such as spell
+rank, sits below the classification without moving it; text-only activation facts
+belong in the document body. At narrow pane widths the classification stack wraps
+beneath the title and aligns to its leading edge rather than squeezing it. Use this
+identity structure across non-creature kinds and reading hosts, rather than
+maintaining spell/equipment exceptions. Put this default in
 DocumentIdentityHeader, not a family-name allowlist or a remembered opt-in flag.
 Treat this as an identity composition, not a requirement to force result summaries
 or encounter roster rows into the same vertical stack. Spell identity is static
@@ -452,6 +519,9 @@ Common categorical controls cycle each value through neutral, included and
 excluded in a compact searchable Ant Popover or mobile Drawer, allowing both
 included and excluded values in one field. Menu rows show a name and a small
 plus/minus marker; their accessible name states the current value and next action.
+Included states use the theme's sage filter roles and excluded states use its
+error/oxblood filter roles; do not collapse polarity into the generic primary
+interaction color.
 Closed controls show only active choices with individually removable selections.
 Keep the menu open and its native button nodes stable during edits; changing a
 row's Ant variant between text and filled remounts its node, so use a consistent
@@ -747,15 +817,17 @@ references remain explicit inert labels, without invented links.
 
 The Drawer uses the same RecordDetailPane and family renderer as full pages.
 Its header shows the document title once and its consistent action group remains
-reachable while the body scrolls. Use the shared stacked identity composition:
-title/actions, grouped classification and textual action cost, traits, then source attribution.
-Keep these facts left aligned; do not leave an empty full-page title slot or
-push type to a detached right edge. Action glyphs stay beside the title; textual
-costs such as Treat Wounds' supplied "passive" belong with metadata, not in its
-heading. Keep rank selection and exact owner/reference links in this shared
-identity, without duplicating them in the body. Phone action groups wrap by row;
-substantial header details can scroll within a bounded header so the document
-body remains reachable. Transient references omit Related sections;
+reachable while the body scrolls. Use the shared identity composition: title and
+glyph, trailing classification, document actions, traits, then source attribution.
+Classification is a scan anchor within the title row, not a detached pane control;
+controls that change it sit directly below it, and the stack wraps beneath the
+title and aligns left when the pane is narrow. Action glyphs stay beside the title;
+textual activation facts such as Treat Wounds' supplied "passive" belong in the
+document body, not in its heading or classification. Keep
+rank selection and exact owner/reference links in this shared identity, without
+duplicating them in the body. Phone action groups wrap by row; substantial header
+details can scroll within a bounded header so the document body remains
+reachable. Transient references omit Related sections;
 full pages retain relationship discovery. The Drawer body owns one content
 inset; the embedded detail/family presentation does not add another.
 
@@ -871,10 +943,11 @@ Physical prices format the supplied currency number facts without inferring free
 from empty prices; table results use their one fact-owned link collection.
 
 `DocumentIdentityHeader` supplies shared identity structure for records and traits.
-Simple records use stacked identity metadata, with classification and its optional
-control together and traits on their own row. Keep the name and selected activity
-glyph together and wrap to the actual pane. Record classification labels come from
-the service; the trait document uses the title-cased Trait classification.
+Simple records keep classification and an optional classification-changing action
+in a trailing vertical stack, with traits on their own row. Keep the name and
+selected activity glyph together and wrap the classification stack to the leading
+edge of the next row at narrow pane widths. Record classification labels come from the
+service; the trait document uses the title-cased Trait classification.
 `DocumentPagePane` provides their common page layout without a generic Reference bar. Record-only actions
 such as Add to list stay in the record composition. Full pages use
 native browser history for Back; they expose Retry or Reload only with a local

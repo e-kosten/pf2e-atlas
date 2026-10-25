@@ -1,4 +1,4 @@
-import { Button, Empty, Popover, Spin, theme } from "antd";
+import { Button, Empty, Popover, Spin } from "antd";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
@@ -122,7 +122,6 @@ function ReferenceResult({
   onPreview: (anchor: HTMLElement) => void;
   onMatch: (navigation: RecordNavigationView, anchor: HTMLElement) => void;
 }) {
-  const { token } = theme.useToken();
   const setMatchesOpen = onMatchesOpenChange;
   const trigger = useRef<HTMLButtonElement>(null);
   const matches = row.matches.filter(
@@ -156,13 +155,7 @@ function ReferenceResult({
   }, [matchesOpen, setMatchesOpen]);
   const record = row.record;
   return (
-    <div
-      className="reference-result"
-      style={{
-        background: selected ? token.colorPrimaryBg : undefined,
-        borderInlineStart: `3px solid ${selected ? token.colorPrimaryBorder : "transparent"}`,
-      }}
-    >
+    <div className={`reference-result${selected ? " reference-result--selected" : ""}`}>
       <RecordBrowseSummary
         record={record}
         selected={selected}
@@ -251,8 +244,8 @@ function ReferenceResult({
             aria-label={`${matchCount.toString()} matches in ${record.title}`}
             styles={{
               root: {
-                color: token.colorTextDescription,
-                outlineColor: token.colorText,
+                color: "var(--muted)",
+                outlineColor: "var(--text)",
               },
             }}
             disabled={disabled}

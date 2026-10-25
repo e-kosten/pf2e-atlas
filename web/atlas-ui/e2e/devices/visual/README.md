@@ -5,6 +5,31 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Product theme references
+
+The current references capture the accepted parchment-and-oxblood light theme,
+oxblood-and-brass dark theme, workbench layout and revised record identity. The
+live product direction was accepted before capture. All 80 macOS/Linux frames
+were then reviewed in per-project contact sheets, with the editor, preview,
+Quickened, damage and recovery states also inspected at full size. Exact pixel
+comparison remains enabled.
+
+macOS arm64, Playwright 1.62.1: captured from source
+`3d643cae21f511f9f4c9aef1e055d9a9c5636d09` using all four maintained projects.
+All 12 interaction and geometry scenarios passed while generating the 40 frames.
+The same candidate also passed the four-project spell-rank keyboard journey.
+
+Linux x64, Ubuntu 24.04, Playwright 1.62.1: [capture 40170724383](https://github.com/e-kosten/pf2e-atlas/actions/runs/40170724383)
+passed all 12 scenarios using the authenticated fixture from CI 40169761259,
+PR head `7f212c71e527b95feca31b54dfce7cbf161ae6d0` and synthetic merge commit
+`4b4edde5f9bf37934c713dda40e0f3fd4a209621`. Binary SHA-256:
+`17ee086c535451354e52a3929d6e319f8d14b309f3f3c4b9f403dd1c85449b6d`;
+frontend index SHA-256:
+`f85d47e55d28e663f69b14cdd93efdaaac59e4ead384bc71f26b1be779bffdef`.
+The later keyboard-focus and production chunk-initialization repairs do not alter
+these frames. A normal hosted comparison with snapshot updates disabled remains
+the final acceptance check for the published candidate.
+
 ## Final creature/encounter validation references
 
 The current references use the human-accepted creature/encounter direction plus
