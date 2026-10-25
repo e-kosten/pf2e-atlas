@@ -1556,6 +1556,10 @@ describe("encounter views", () => {
     const goblinOption = await within(dialog).findByText("Goblin Warrior");
     fireEvent.click(goblinOption.closest("a")!);
     expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled();
+    await selectOption(
+      within(dialog).getByRole("combobox", { name: "Adjustment" }),
+      "Elite",
+    );
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "2" },
     });
@@ -1576,6 +1580,7 @@ describe("encounter views", () => {
         record_ref: "actors:goblin",
         quantity: 2,
         initiative: 18n,
+        participant_variant: "elite",
       }),
     );
     await waitFor(() =>

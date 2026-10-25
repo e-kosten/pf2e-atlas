@@ -98,6 +98,7 @@ fn quantity_add_returns_receipt_when_any_postcommit_retrieval_would_fail() {
     let receipt = f
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: encounter.slug,
             record_ref: "Test Creature 1".into(),
             quantity: 3,
@@ -147,6 +148,7 @@ fn derived_edit_receipt_and_stale_guard_do_not_run_postcommit_hydration() {
         .encounter;
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: encounter.encounter_key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -238,6 +240,7 @@ fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
     assert!(
         f.worker
             .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                participant_variant: None,
                 encounter_ref: encounter.encounter_key.clone(),
                 record_ref: "Test Action 1".into(),
                 quantity: 2,
@@ -257,6 +260,7 @@ fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
     );
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: encounter.encounter_key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -316,6 +320,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
         .encounter;
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: encounter.encounter_key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -679,6 +684,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
     let initial = f
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: e.encounter_key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 3,
@@ -731,6 +737,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
         .unwrap();
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: e.encounter_key.clone(),
             record_ref: "Test Hazard 1".into(),
             quantity: 1,
@@ -850,6 +857,7 @@ fn strike_status_penalties_preserve_strongest_and_suppressed_explanations_in_bot
         let detail = f
             .worker
             .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                participant_variant: None,
                 encounter_ref: e.encounter_key.clone(),
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -985,6 +993,7 @@ fn encounter_projection_keeps_semantic_statistics_and_authored_context() {
     let d = f
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: e.encounter_key,
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -1046,6 +1055,7 @@ fn derived_capacity_changes_clamp_valid_damage_at_zero_and_preserve_manual_outli
     let d = f
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: e.encounter_key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -1196,6 +1206,7 @@ fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capaci
     let detail = f
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: encounter.encounter_key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -1358,6 +1369,7 @@ fn same_value_hp_edit_is_preserved_and_manual_hp_is_never_clamped() {
     let detail = f
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: encounter.encounter_key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -1478,6 +1490,7 @@ fn inherited_elite_applies_once_unknown_adjustment_stays_unknown_and_active_hp_p
     let add = |name: &str| {
         f.worker
             .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                participant_variant: None,
                 encounter_ref: e.encounter_key.clone(),
                 record_ref: name.into(),
                 quantity: 1,
@@ -1604,6 +1617,7 @@ fn conditions_stack_known_penalties_and_preserve_unapplied_context() {
     let detail = f
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: e.encounter_key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -1706,6 +1720,7 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
             let detail = f
                 .worker
                 .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                    participant_variant: None,
                     encounter_ref: encounter.encounter_key.clone(),
                     record_ref: format!("Speed {baseline}"),
                     quantity: 3,
@@ -1815,6 +1830,7 @@ fn artifact_rebuild_does_not_reinitialize_capacity_or_current_hp() {
     let d = before
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: e.encounter_key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -1880,6 +1896,7 @@ fn hazard_uses_authored_hp_hardness_and_stealth_without_npc_adjustments() {
     let d = f
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: e.encounter_key.clone(),
             record_ref: "Test Hazard 1".into(),
             quantity: 1,
@@ -2030,6 +2047,7 @@ fn omitted_adjustment_under_known_attributes_defaults_local_hp_without_rewriting
     let d = f
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: e.encounter_key,
             record_ref: "Ghoul".into(),
             quantity: 1,
@@ -2132,6 +2150,7 @@ fn condition_manual_notes_bind_exact_rows_and_keep_other_diagnostics_unbound() {
         .encounter;
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: e.encounter_key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -2314,6 +2333,7 @@ fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
         .encounter;
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: encounter.encounter_key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -2538,6 +2558,7 @@ fn disabled_hazard_preserves_state_and_next_turn_continues_from_its_position() {
     ] {
         f.worker
             .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                participant_variant: None,
                 encounter_ref: key.clone(),
                 record_ref: reference.into(),
                 quantity: 1,
@@ -2673,4 +2694,176 @@ fn strike_range_uses_authored_range_instead_of_trait_spelling() {
         );
         assert_eq!(block.activities[0].is_ranged, expected);
     }
+}
+
+#[test]
+fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
+    use crate::{executor::RetrievalExecutor, test_support::fixture_worker_with_executor};
+    use atlas_search::test_support::{open_source_fixture, record};
+    use serde_json::json;
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+        Ok(open_source_fixture(
+            vec![
+                record(
+                    "actors",
+                    "Actor",
+                    json!({"_id":"elite00000000000","name":"Elite source","type":"npc","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":"elite","hp":{"max":60},"ac":{"value":22}}}}),
+                ),
+                record(
+                    "actors",
+                    "Actor",
+                    json!({"_id":"unknown000000000","name":"Unknown adjustment","type":"npc","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":"bad","hp":{"max":60},"ac":{"value":22}}}}),
+                ),
+                record(
+                    "actors",
+                    "Actor",
+                    json!({"_id":"unknownhp0000000","name":"Unknown HP","type":"npc","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":null,"hp":{"max":"unknown"}}}}),
+                ),
+                record(
+                    "hazards",
+                    "Actor",
+                    json!({"_id":"hazard0000000000","name":"Trap","type":"hazard","system":{"details":{"level":{"value":5}},"attributes":{"hp":{"max":60}}}}),
+                ),
+            ],
+            false,
+        )?)
+    });
+    let f = fixture_worker_with_executor(executor);
+    for (index, (name, choice, hp, variant, origin, ac)) in [
+        (
+            "Elite source",
+            None,
+            Some(80),
+            EncounterParticipantVariantView::Elite,
+            "inherited_known",
+            Some(24),
+        ),
+        (
+            "Elite source",
+            Some(EncounterParticipantVariantView::Normal),
+            Some(60),
+            EncounterParticipantVariantView::Normal,
+            "explicit",
+            Some(22),
+        ),
+        (
+            "Elite source",
+            Some(EncounterParticipantVariantView::Elite),
+            Some(80),
+            EncounterParticipantVariantView::Elite,
+            "explicit",
+            Some(24),
+        ),
+        (
+            "Elite source",
+            Some(EncounterParticipantVariantView::Weak),
+            Some(45),
+            EncounterParticipantVariantView::Weak,
+            "explicit",
+            Some(20),
+        ),
+        (
+            "Unknown adjustment",
+            None,
+            None,
+            EncounterParticipantVariantView::Normal,
+            "inherited_unknown",
+            Some(22),
+        ),
+        (
+            "Unknown adjustment",
+            Some(EncounterParticipantVariantView::Normal),
+            Some(60),
+            EncounterParticipantVariantView::Normal,
+            "explicit",
+            Some(22),
+        ),
+        (
+            "Unknown HP",
+            Some(EncounterParticipantVariantView::Elite),
+            None,
+            EncounterParticipantVariantView::Elite,
+            "explicit",
+            None,
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let e = f
+            .worker
+            .create_encounter(CreateEncounterRequest {
+                name: format!("Add adjustment {index}"),
+                description: None,
+                note: None,
+            })
+            .unwrap()
+            .encounter;
+        let receipt = f
+            .worker
+            .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                encounter_ref: e.encounter_key,
+                record_ref: name.into(),
+                quantity: 2,
+                initiative: Some(17),
+                participant_variant: choice,
+            })
+            .unwrap();
+        let detail = f.worker.encounter(&receipt.encounter_key).unwrap();
+        assert_eq!(detail.participants.len(), 2);
+        for p in &detail.participants {
+            assert_eq!(
+                (p.max_hp, p.current_hp, p.temporary_hp),
+                (hp, hp, 0),
+                "{name} {choice:?}"
+            );
+            assert_eq!(p.participant_variant, variant);
+            assert_eq!(p.variant_origin, origin);
+            assert_eq!(p.initiative, Some(17));
+            assert_eq!(
+                actor(p).armor_class.value.as_ref().and_then(|n| n.as_i64()),
+                ac
+            );
+        }
+    }
+    let e = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Hazard adjustment rejection".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    assert!(
+        f.worker
+            .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                encounter_ref: e.encounter_key.clone(),
+                record_ref: "Trap".into(),
+                quantity: 2,
+                initiative: None,
+                participant_variant: Some(EncounterParticipantVariantView::Elite)
+            })
+            .is_err()
+    );
+    assert!(
+        f.worker
+            .encounter(&e.encounter_key)
+            .unwrap()
+            .participants
+            .is_empty()
+    );
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: e.encounter_key.clone(),
+            record_ref: "Trap".into(),
+            quantity: 1,
+            initiative: None,
+            participant_variant: None,
+        })
+        .unwrap();
+    assert_eq!(
+        f.worker.encounter(&e.encounter_key).unwrap().participants[0].current_hp,
+        Some(60)
+    );
 }

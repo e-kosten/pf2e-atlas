@@ -231,9 +231,20 @@ impl AtlasAppService {
         } else {
             ParticipantSide::Enemy
         };
-        let (inherited, variant_origin) = initial_variant(&record.source);
-        let variant = inherited.unwrap_or(atlas_local_state::ParticipantVariant::Normal);
-        let max_hp = effective_max(&record.source, inherited);
+        if request.participant_variant.is_some() && participant_kind != ParticipantKind::Creature {
+            return Err(AppServiceError::invalid_request(
+                "Elite and Weak adjustments apply only to creatures.",
+            ));
+        }
+        let (chosen, variant_origin) = match request.participant_variant {
+            Some(variant) => (
+                Some(participant_variant(variant)),
+                atlas_local_state::ParticipantVariantOrigin::Explicit,
+            ),
+            None => initial_variant(&record.source),
+        };
+        let variant = chosen.unwrap_or(atlas_local_state::ParticipantVariant::Normal);
+        let max_hp = effective_max(&record.source, chosen);
         let current_hp = max_hp;
         let mut participants = Vec::with_capacity(request.quantity as usize);
         for index in 0..request.quantity {

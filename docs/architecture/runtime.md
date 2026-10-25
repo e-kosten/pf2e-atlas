@@ -511,6 +511,9 @@ maximum; unknown does not become zero. Source adjustments apply once, explicit
 participant choices replace them, and saved HP/overrides/edit intent survive
 artifact rebuilds. No Foundry world execution or guessed aggregate mechanics is
 introduced. Local-state migrations preserve existing ambiguous values.
+Adding creatures accepts an optional Normal/Elite/Weak choice. Omission inherits
+the source (As listed); an explicit choice replaces it and initializes every added
+copy from the same effective HP owner. Hazards cannot receive NPC adjustments.
 
 Encounter HP actions carry participant identity, expected revision and one explicit
 operation: damage, heal, exact current/temporary/maximum correction, or derived
