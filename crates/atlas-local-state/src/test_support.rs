@@ -20,6 +20,7 @@ impl TestStore {
             conn.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
             conn.execute_batch(CONDITION_SYSTEM_SCHEMA_SQL)?;
             conn.execute_batch(TURN_RESOURCES_SCHEMA_SQL)?;
+            conn.execute_batch(CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL)?;
         }
         Ok(store)
     }

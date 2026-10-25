@@ -16,20 +16,20 @@ pub use encounters::{
     ConditionDuration, ConditionDurationUnit, ConditionEventBoundary, ConditionEventChange,
     ConditionEventOutcome, ConditionEventSource, ConditionExtraAction, ConditionOrigin,
     ConditionParameters, ConditionScope, ConditionSubject, ConditionTiming, ConditionTurnEvent,
-    DamageLethality, DamageMultiplier, Encounter, EncounterBoundaryClaim, EncounterBoundaryKind,
-    EncounterEventReceipt, EncounterParticipant, EncounterParticipantCondition, EncounterStatus,
-    EncounterTurnState, EncounterTurnUpdate, EncounterWithParticipants, EncountersRead,
-    EncountersWrite, FrightenedRecovery, InitiativeRollReceipt, LifecycleCheckPurpose,
-    MortalityState, NewEncounter, ParticipantEventChange, ParticipantHpOrigin,
-    ParticipantInitiativeRoll, ParticipantKind, ParticipantRollGuard, ParticipantSide,
-    ParticipantVariant, ParticipantVariantOrigin, PendingConsequence, PersistentDamageOutcome,
-    PersistentDamageProtection, PersistentPrecedenceChange, PersistentPreparationContext,
-    PersistentRecovery, PersistentSourcePrecedence, PreparedConditionEvent,
-    PreparedPersistentRecovery, ReorderEncounterParticipant, ReorderPlacement,
-    ResolvedInitiativeRoll, SavedHpEventContext, SavedPendingConsequence, SpellResource,
-    StoredStrikeDamage, StoredStrikeDamageTotal, StoredStrikeOutcome, StoredStrikeReceipt,
-    StoredStrikeRoll, UpdateEncounter, UpdateEncounterParticipant,
-    UpdateEncounterParticipantCondition, WakingRule,
+    ConsumedConditionApplication, DamageLethality, DamageMultiplier, Encounter,
+    EncounterBoundaryClaim, EncounterBoundaryKind, EncounterEventReceipt, EncounterParticipant,
+    EncounterParticipantCondition, EncounterStatus, EncounterTurnState, EncounterTurnUpdate,
+    EncounterWithParticipants, EncountersRead, EncountersWrite, FrightenedRecovery,
+    InitiativeRollReceipt, LifecycleCheckPurpose, MortalityState, NewEncounter,
+    ParticipantEventChange, ParticipantHpOrigin, ParticipantInitiativeRoll, ParticipantKind,
+    ParticipantRollGuard, ParticipantSide, ParticipantVariant, ParticipantVariantOrigin,
+    PendingConsequence, PersistentDamageOutcome, PersistentDamageProtection,
+    PersistentPrecedenceChange, PersistentPreparationContext, PersistentRecovery,
+    PersistentSourcePrecedence, PreparedConditionEvent, PreparedPersistentRecovery,
+    ReorderEncounterParticipant, ReorderPlacement, ResolvedInitiativeRoll, SavedHpEventContext,
+    SavedPendingConsequence, SpellResource, StoredStrikeDamage, StoredStrikeDamageTotal,
+    StoredStrikeOutcome, StoredStrikeReceipt, StoredStrikeRoll, UpdateEncounter,
+    UpdateEncounterParticipant, UpdateEncounterParticipantCondition, WakingRule,
 };
 pub use encounters::{SavedOutgoingTurn, TurnResourceEffect, TurnResources};
 pub use error::{LocalStateError, LocalStateResult};
@@ -41,8 +41,9 @@ pub use saved_lists::{
 };
 pub use schema::TURN_RESOURCES_SCHEMA_SQL;
 pub use schema::{
-    CONDITION_SYSTEM_SCHEMA_SQL, ENCOUNTER_STATUS_SCHEMA_SQL, HAZARD_PARTICIPATION_SCHEMA_SQL,
-    LOCAL_STATE_SCHEMA_SQL, PARTIES_SCHEMA_SQL, PERSISTENT_PREPARATION_SCHEMA_SQL,
+    CONDITION_SYSTEM_SCHEMA_SQL, CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL,
+    ENCOUNTER_STATUS_SCHEMA_SQL, HAZARD_PARTICIPATION_SCHEMA_SQL, LOCAL_STATE_SCHEMA_SQL,
+    PARTIES_SCHEMA_SQL, PERSISTENT_PREPARATION_SCHEMA_SQL,
 };
 pub use slug::derive_slug;
 pub use store::{LocalStateRead, LocalStateWrite};

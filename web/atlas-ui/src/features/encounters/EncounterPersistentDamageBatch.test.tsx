@@ -335,6 +335,75 @@ it("shows the server total after shared Hardness without claiming per-type total
   expect(screen.queryByText("Fire: 5 damage applied")).not.toBeInTheDocument();
 });
 
+it("keeps current protections as editing advice without attributing them to saved table damage", async () => {
+  const onApply = vi.fn().mockResolvedValue(result);
+  const props = {
+    encounterRef: "encounter",
+    participant,
+    encounterRevision: 6n,
+    generation: "generation",
+    damageApplied: false,
+    damageTypes: [
+      { value: "fire", label: "Fire" },
+      { value: "acid", label: "Acid" },
+    ],
+    disabled: false,
+    pending: false,
+    onApply,
+    onRecover: vi.fn(),
+  };
+  const { rerender } = render(
+    <EncounterPersistentDamageBatch
+      {...props}
+      resolutions={{
+        fire: {
+          kind: "known",
+          protection: { immune: true, weakness: 0n, resistance: 0n },
+        },
+        acid: {
+          kind: "known",
+          protection: { immune: false, weakness: 3n, resistance: 0n },
+        },
+      }}
+    />,
+  );
+  fireEvent.click(screen.getByText("Table results"));
+  expect(screen.getByText("Immune to fire")).toBeVisible();
+  expect(screen.getByText("Weakness 3")).toBeVisible();
+  fireEvent.change(
+    await screen.findByRole("spinbutton", { name: "Fire damage amount" }),
+    { target: { value: "5" } },
+  );
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Acid damage amount" }), {
+    target: { value: "3" },
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "Apply 8 damage" }));
+  expect(await screen.findByText("Damage: 5 applied")).toBeVisible();
+  expect(screen.getByText("Damage: 3 applied")).toBeVisible();
+  expect(screen.queryByText("Immune to fire")).toBeNull();
+  expect(screen.queryByText("Weakness 3")).toBeNull();
+  rerender(
+    <EncounterPersistentDamageBatch
+      {...props}
+      damageApplied
+      savedResult={result}
+      resolutions={{
+        fire: {
+          kind: "known",
+          protection: { immune: false, weakness: 0n, resistance: 9n },
+        },
+        acid: {
+          kind: "known",
+          protection: { immune: true, weakness: 0n, resistance: 0n },
+        },
+      }}
+    />,
+  );
+  expect(screen.getByText("Total: 8 damage applied")).toBeVisible();
+  expect(screen.queryByText("Resistance 9")).toBeNull();
+  expect(screen.queryByText("Immune to acid")).toBeNull();
+});
+
 it("shows immunity before damage and retains the recorded reason when reference advice changes", async () => {
   const source = {
     ...participant,
@@ -407,11 +476,15 @@ it("shows immunity before damage and retains the recorded reason when reference 
       onRecover={vi.fn()}
       {...props}
       resolutions={{
-        fire: { kind: "known", protection: { ...protection, immune: false } },
+        fire: {
+          kind: "known",
+          protection: { immune: false, weakness: 9n, resistance: 0n },
+        },
       }}
     />,
   );
   expect(screen.getByText("Immune to fire")).toBeVisible();
+  expect(screen.queryByText("Weakness 9")).toBeNull();
 });
 
 it("explains unresolved protections and starts with an editable table amount", async () => {

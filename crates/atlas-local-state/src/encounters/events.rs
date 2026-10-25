@@ -293,6 +293,23 @@ impl EncountersWrite<'_> {
                     });
                 }
             }
+            for application in changes.consumed_applications {
+                if !snapshot
+                    .participants
+                    .iter()
+                    .any(|p| p.participant_key == application.participant_key)
+                {
+                    return Err(LocalStateError::ParticipantNotFound(
+                        application.participant_key,
+                    ));
+                }
+                self.claim_condition_application(
+                    encounter_key,
+                    &application.participant_key,
+                    &application.origin,
+                    None,
+                )?;
+            }
             let mut added_condition_ids = Vec::new();
             for change in changes.condition_changes {
                 match change {
@@ -308,17 +325,14 @@ impl EncountersWrite<'_> {
                         }
                         let origin = condition.origin.clone();
                         let participant = condition.participant_key.clone();
-                        if let Some(origin) = &origin {
-                            let prior:Option<i64>=self.connection.query_row("SELECT condition_id FROM encounter_condition_applications WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND participant_key=?2 AND application_id=?3 AND grant_slot=?4",params![encounter_key,participant,origin.application_id,origin.grant_slot],|r|r.get(0)).optional()?;
-                            if prior.is_some() {
-                                return Err(LocalStateError::InvalidRollRequest(
-                                    "condition application was already committed",
-                                ));
-                            }
-                        }
                         let id = storage::add_condition(self.connection, condition)?;
                         if let Some(origin) = origin {
-                            self.connection.execute("INSERT INTO encounter_condition_applications(encounter_id,participant_key,application_id,grant_slot,condition_id) SELECT id,?2,?3,?4,?5 FROM encounters WHERE encounter_key=?1",params![encounter_key,participant,origin.application_id,origin.grant_slot,id])?;
+                            self.claim_condition_application(
+                                encounter_key,
+                                &participant,
+                                &origin,
+                                Some(id),
+                            )?;
                         }
                         added_condition_ids.push(id);
                     }
@@ -466,5 +480,29 @@ impl EncountersWrite<'_> {
             self.connection.execute("INSERT INTO encounter_event_receipts(encounter_id,request_id,intent_json,receipt_json) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1",params![encounter_key,request_id,serde_json::to_string(intent)?,receipt_codec::encode(&receipt)?])?;
             Ok(receipt)
         })
+    }
+
+    fn claim_condition_application(
+        &self,
+        encounter_key: &str,
+        participant_key: &str,
+        origin: &super::ConditionOrigin,
+        condition_id: Option<i64>,
+    ) -> LocalStateResult<()> {
+        let claimed: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM encounter_condition_applications WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND participant_key=?2 AND application_id=?3 AND grant_slot=?4)",
+            params![encounter_key, participant_key, origin.application_id, origin.grant_slot],
+            |row| row.get(0),
+        )?;
+        if claimed {
+            return Err(LocalStateError::InvalidRollRequest(
+                "condition application was already committed",
+            ));
+        }
+        self.connection.execute(
+            "INSERT INTO encounter_condition_applications(encounter_id,participant_key,application_id,grant_slot,condition_id) SELECT id,?2,?3,?4,?5 FROM encounters WHERE encounter_key=?1",
+            params![encounter_key, participant_key, origin.application_id, origin.grant_slot, condition_id],
+        )?;
+        Ok(())
     }
 }

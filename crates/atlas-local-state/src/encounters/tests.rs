@@ -1870,6 +1870,155 @@ fn invalid_later_condition_change_rolls_back_prior_change_and_receipt()
     Ok(())
 }
 #[test]
+fn consumed_application_claim_and_stock_roll_back_when_receipt_fails()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("consumed-application-rollback")?;
+    let participant = store
+        .encounters()
+        .add_participant("test", creature("One", None, 20))?;
+    let before = store.encounters().get_with_participants("test")?.unwrap();
+    let key = &before.encounter.encounter_key;
+    let origin = event_condition(&participant.participant_key, "consumed")
+        .origin
+        .unwrap();
+    let changes = PreparedConditionEvent {
+        consumed_applications: vec![ConsumedConditionApplication {
+            participant_key: participant.participant_key.clone(),
+            origin,
+        }],
+        turn_resources: vec![TurnResources {
+            actions_open: true,
+            pending_reason: None,
+            participant_key: participant.participant_key.clone(),
+            turn_key: "turn:test".into(),
+            round_number: 1,
+            regular_total: 3,
+            regular_remaining: 2,
+            extra_total: 0,
+            extra_remaining: 0,
+            extra_uses: vec![],
+            reactions_total: Some(1),
+            reactions_remaining: Some(1),
+            effects: vec![],
+        }],
+        ..Default::default()
+    };
+    let intent = serde_json::json!({"application":"consumed"});
+    store.connection()?.execute_batch("CREATE TRIGGER reject_consumed_receipt BEFORE INSERT ON encounter_event_receipts BEGIN SELECT RAISE(ABORT,'receipt failure'); END;")?;
+    // Catch the action error and commit its caller's transaction: the savepoint
+    // must already have restored both the identity claim and resource write.
+    let mut connection = store.connection()?;
+    let transaction = connection.transaction()?;
+    let domain = EncountersWrite::from_connection(&transaction);
+    assert!(
+        domain
+            .apply_condition_event(
+                key,
+                "consume",
+                &intent,
+                before.encounter.revision,
+                changes.clone()
+            )
+            .is_err()
+    );
+    transaction.commit()?;
+    assert_eq!(
+        store.encounters().get_with_participants(key)?.unwrap(),
+        before
+    );
+    assert_eq!(
+        store.connection()?.query_row(
+            "SELECT count(*) FROM encounter_condition_applications",
+            [],
+            |row| row.get::<_, i64>(0),
+        )?,
+        0
+    );
+    assert!(
+        store
+            .encounters()
+            .condition_event_receipt(key, "consume", &intent)?
+            .is_none()
+    );
+    store
+        .connection()?
+        .execute_batch("DROP TRIGGER reject_consumed_receipt")?;
+    let receipt = store.encounters().apply_condition_event(
+        key,
+        "consume",
+        &intent,
+        before.encounter.revision,
+        changes.clone(),
+    )?;
+    let after = store.encounters().get_with_participants(key)?.unwrap();
+    assert!(after.participants[0].conditions.is_empty());
+    assert_eq!(
+        after.participants[0]
+            .turn_resources
+            .as_ref()
+            .unwrap()
+            .regular_remaining,
+        2
+    );
+    let reopened = TestStore::open(store.path())?;
+    assert_eq!(
+        reopened.encounters().apply_condition_event(
+            key,
+            "consume",
+            &intent,
+            before.encounter.revision,
+            changes.clone(),
+        )?,
+        receipt
+    );
+    for condition_changes in [
+        vec![],
+        vec![ConditionEventChange::Add(event_condition(
+            &participant.participant_key,
+            "consumed",
+        ))],
+    ] {
+        let duplicate = if condition_changes.is_empty() {
+            changes.clone()
+        } else {
+            PreparedConditionEvent {
+                condition_changes,
+                ..Default::default()
+            }
+        };
+        assert!(matches!(
+            reopened.encounters().apply_condition_event(
+                key,
+                "duplicate",
+                &intent,
+                after.encounter.revision,
+                duplicate,
+            ),
+            Err(crate::LocalStateError::InvalidRollRequest(
+                "condition application was already committed"
+            ))
+        ));
+        assert_eq!(
+            reopened.encounters().get_with_participants(key)?.unwrap(),
+            after
+        );
+        assert!(
+            reopened
+                .encounters()
+                .condition_event_receipt(key, "duplicate", &intent)?
+                .is_none()
+        );
+    }
+    let marker: Option<i64> = reopened.connection()?.query_row(
+        "SELECT condition_id FROM encounter_condition_applications WHERE application_id='consumed'",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(marker, None);
+    Ok(())
+}
+
+#[test]
 fn independent_applications_survive_and_removed_application_cannot_replay()
 -> Result<(), Box<dyn std::error::Error>> {
     let store = fixture("condition-application-identity")?;
