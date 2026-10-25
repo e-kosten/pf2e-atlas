@@ -514,6 +514,9 @@ introduced. Local-state migrations preserve existing ambiguous values.
 Adding creatures accepts an optional Normal/Elite/Weak choice. Omission inherits
 the source (As listed); an explicit choice replaces it and initializes every added
 copy from the same effective HP owner. Hazards cannot receive NPC adjustments.
+Record detail projects the resolved encounter adjustment using that same source
+default owner. The picker shows Normal/Elite/Weak when known and retains inherited
+intent until the user changes the selector; unavailable defaults stay unknown.
 
 Encounter HP actions carry participant identity, expected revision and one explicit
 operation: damage, heal, exact current/temporary/maximum correction, or derived

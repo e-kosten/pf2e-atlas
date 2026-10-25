@@ -61,6 +61,10 @@ pub struct RecordDetailRequest {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordDetailView {
+    /// Resolved source default for adding this NPC to an encounter; absent if unknown/inapplicable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub encounter_adjustment: Option<crate::EncounterParticipantVariantView>,
     pub artifact_generation: String,
     pub record: RecordSummaryView,
     pub presentation: RecordPresentationView,

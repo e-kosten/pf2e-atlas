@@ -2729,6 +2729,24 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
         )?)
     });
     let f = fixture_worker_with_executor(executor);
+    for (key, expected) in [
+        (
+            "actors:elite00000000000",
+            Some(EncounterParticipantVariantView::Elite),
+        ),
+        ("actors:unknown000000000", None),
+        (
+            "actors:unknownhp0000000",
+            Some(EncounterParticipantVariantView::Normal),
+        ),
+        ("hazards:hazard0000000000", None),
+    ] {
+        assert_eq!(
+            f.worker.record_detail(key).unwrap().encounter_adjustment,
+            expected
+        );
+    }
+
     for (index, (name, choice, hp, variant, origin, ac)) in [
         (
             "Elite source",
