@@ -14,6 +14,10 @@ import { EditEncounterModal } from "./EncounterModals";
 import { EncounterTurnReview } from "./EncounterTurnReview";
 import { useEncounterTurnReview } from "./useEncounterTurnReview";
 import { EncounterRosterPane } from "./EncounterRosterPane";
+import {
+  EncounterDifficulty,
+  type EncounterDifficultyProps,
+} from "./EncounterDifficulty";
 import { InitiativeRollModal } from "./InitiativeRollModal";
 import { participantUpdate } from "./participantEdits";
 import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
@@ -47,7 +51,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     if (destination === "participant") {
       host.current?.querySelector<HTMLElement>(".encounter-record-pane")?.focus();
     } else {
-      const pane = host.current?.querySelector<HTMLElement>(".encounter-roster");
+      const pane = host.current?.querySelector<HTMLElement>(
+        ".encounter-roster__participants",
+      );
       if (pane) pane.scrollTop = rosterPosition.current.pane;
       window.scrollTo({ top: rosterPosition.current.page });
       host.current
@@ -126,7 +132,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
       if (!participantOpen) {
         rosterPosition.current = {
           page: window.scrollY,
-          pane: host.current?.querySelector(".encounter-roster")?.scrollTop ?? 0,
+          pane:
+            host.current?.querySelector(".encounter-roster__participants")?.scrollTop ??
+            0,
         };
       }
       focusDestination.current = "participant";
@@ -169,6 +177,26 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
   });
   const disabled = mutationDisabled || turnReview.preparing;
   const encounterSummary = encounter.data?.encounter ?? null;
+  const difficulty: EncounterDifficultyProps | undefined = encounter.data
+    ? {
+        encounterKey: encounter.data.encounter.encounter_key,
+        artifactGeneration: encounter.data.artifact_generation,
+        revision: encounter.data.revision,
+        value: encounter.data.difficulty,
+        onPreview: mutations.previewDifficulty,
+        onReference: recordPreview.open,
+        disabled: mutationDisabled,
+        onSave: async (reference) => {
+          await mutations.run({
+            kind: "difficulty",
+            request: {
+              expected_revision: encounter.data!.revision,
+              reference,
+            },
+          });
+        },
+      }
+    : undefined;
   const recovery = mutations.refreshError ? (
     <Alert
       type="error"
@@ -280,31 +308,11 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           </div>
         )}
         <WorkspaceLayout
+          filterHeaderActions={difficulty && <EncounterDifficulty {...difficulty} />}
           filter={
             <EncounterRosterPane
               encounterSummary={encounterSummary ?? undefined}
-              difficulty={
-                encounter.data
-                  ? {
-                      encounterKey: encounter.data.encounter.encounter_key,
-                      artifactGeneration: encounter.data.artifact_generation,
-                      revision: encounter.data.revision,
-                      value: encounter.data.difficulty,
-                      onPreview: mutations.previewDifficulty,
-                      onReference: recordPreview.open,
-                      disabled: mutationDisabled,
-                      onSave: async (reference) => {
-                        await mutations.run({
-                          kind: "difficulty",
-                          request: {
-                            expected_revision: encounter.data!.revision,
-                            reference,
-                          },
-                        });
-                      },
-                    }
-                  : undefined
-              }
+              difficulty={difficulty}
               onRoll={async (request) => {
                 const result = await mutations.run({ kind: "initiative", request });
                 if (!("rolls" in result.receipt))
@@ -543,7 +551,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               previewRecordKey={recordPreview.recordKey}
             />
           }
-          collapsiblePanes={["filter"]}
+          collapsiblePanes={[]}
           labels={{
             filter: encounterSummary
               ? `Roster (${encounterSummary.participant_count})`

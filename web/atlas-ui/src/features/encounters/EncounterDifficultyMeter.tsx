@@ -1,5 +1,5 @@
 import { Progress, theme } from "antd";
-import type { CSSProperties } from "react";
+import { useLayoutEffect, useRef } from "react";
 import type { EncounterDifficultyView } from "../../generated/atlas";
 
 /** XP positions are linear; the published Extreme budget is the full scale. */
@@ -12,7 +12,37 @@ export function EncounterDifficultyMeter({
 }) {
   const { token } = theme.useToken();
   const maximum = Math.max(0, ...value.budgets.map((budget) => budget.xp));
+  const axis = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = axis.current;
+    if (!element) return;
+    // Large parties can put distinct XP thresholds very close together. Keep
+    // their marks, but omit colliding numbers; the calculator lists every budget.
+    const fitLabels = () => {
+      const labels = Array.from(element.children) as HTMLElement[];
+      const last = labels[labels.length - 1];
+      if (!last) return;
+      const finalBounds = last.getBoundingClientRect();
+      let previousRight = -Infinity;
+      for (const label of labels) {
+        const bounds = label.getBoundingClientRect();
+        const visible =
+          label === last ||
+          (bounds.left >= previousRight + 4 && bounds.right + 4 <= finalBounds.left);
+        label.style.visibility = visible ? "visible" : "hidden";
+        if (visible) previousRight = bounds.right;
+      }
+    };
+    fitLabels();
+    const observer = new ResizeObserver(fitLabels);
+    observer.observe(element);
+    for (const label of Array.from(element.children)) observer.observe(label);
+    return () => observer.disconnect();
+  }, [value.budgets]);
   if (!maximum) return null;
+  const thresholds = [...new Set([0, ...value.budgets.map((budget) => budget.xp)])]
+    .filter((xp) => xp >= 0)
+    .sort((left, right) => left - right);
   const color =
     value.rating === "Trivial" || value.rating === "Low"
       ? token.colorSuccess
@@ -26,7 +56,6 @@ export function EncounterDifficultyMeter({
   return (
     <div
       className={`encounter-difficulty-meter${compact ? " encounter-difficulty-meter--compact" : ""}`}
-      style={{ "--difficulty-color": color } as CSSProperties}
     >
       <div className="encounter-difficulty-meter__track">
         {value.total_xp === null ? (
@@ -60,23 +89,11 @@ export function EncounterDifficultyMeter({
             ))}
         </div>
       </div>
-      <div
-        className="encounter-difficulty__budgets"
-        role="group"
-        aria-label="XP budgets"
-      >
-        {value.budgets.map((budget) => (
-          <div
-            key={budget.label}
-            className={
-              value.rating === budget.label
-                ? "encounter-difficulty-meter__current"
-                : undefined
-            }
-          >
-            <span>{budget.label}</span>
-            <strong>{budget.xp}</strong>
-          </div>
+      <div ref={axis} className="encounter-difficulty-meter__axis" aria-hidden="true">
+        {thresholds.map((xp) => (
+          <span key={xp} style={{ left: `${(xp / maximum) * 100}%` }}>
+            {xp}
+          </span>
         ))}
       </div>
     </div>

@@ -50,67 +50,58 @@ export function EncounterDifficulty(props: EncounterDifficultyProps) {
       : difficultySummary(props.value);
   return (
     <div className="encounter-difficulty">
-      <div className="encounter-difficulty__heading">
-        <Popover
-          trigger="click"
-          placement="bottomLeft"
-          align={{
-            offset: [0, 0],
-            overflow: { adjustX: true, adjustY: true, shiftX: true, shiftY: true },
-            htmlRegion: "visible",
-          }}
-          open={open}
-          onOpenChange={changeOpen}
-          afterOpenChange={(next) => {
-            if (next && open && document.activeElement === button.current)
-              content.current?.focus({ preventScroll: true });
-          }}
-          destroyOnHidden
-          content={
-            <div
-              ref={content}
-              className="encounter-difficulty__popover"
-              role="dialog"
-              aria-label="Encounter difficulty"
-              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- A bounded reading region needs keyboard scrolling in WebKit.
-              tabIndex={0}
-            >
-              <DifficultyReference
-                {...props}
-                onClose={() => changeOpen(false)}
-                initialReference={ruleDraft ?? props.value.reference}
-                onReadRule={(selection, anchor, draft) => {
-                  changeOpen(false);
-                  setRuleDraft(draft);
-                  props.onReference(
-                    selection.record_key,
-                    button.current ?? anchor,
-                    selection,
-                  );
-                }}
-              />
-            </div>
-          }
-        >
-          <Button
-            ref={button}
-            size="small"
-            aria-expanded={open}
-            aria-label={`Encounter difficulty: ${buttonLabel}`}
-            icon={<ChevronDown size={14} />}
-            iconPlacement="end"
+      <Popover
+        trigger="click"
+        placement="bottomLeft"
+        align={{
+          offset: [0, 0],
+          overflow: { adjustX: true, adjustY: true, shiftX: true, shiftY: true },
+          htmlRegion: "visible",
+        }}
+        open={open}
+        onOpenChange={changeOpen}
+        afterOpenChange={(next) => {
+          if (next && open && document.activeElement === button.current)
+            content.current?.focus({ preventScroll: true });
+        }}
+        destroyOnHidden
+        content={
+          <div
+            ref={content}
+            className="encounter-difficulty__popover"
+            role="dialog"
+            aria-label="Encounter difficulty"
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- A bounded reading region needs keyboard scrolling in WebKit.
+            tabIndex={0}
           >
-            {buttonLabel}
-          </Button>
-        </Popover>
-        {props.value.party_level !== null && props.value.party_size !== null && (
-          <span className="encounter-difficulty__reference">
-            Level {props.value.party_level} ·{" "}
-            {props.value.reference_note ? "Budget for " : ""}
-            {props.value.party_size} PCs
-          </span>
-        )}
-      </div>
+            <DifficultyReference
+              {...props}
+              onClose={() => changeOpen(false)}
+              initialReference={ruleDraft ?? props.value.reference}
+              onReadRule={(selection, anchor, draft) => {
+                changeOpen(false);
+                setRuleDraft(draft);
+                props.onReference(
+                  selection.record_key,
+                  button.current ?? anchor,
+                  selection,
+                );
+              }}
+            />
+          </div>
+        }
+      >
+        <Button
+          ref={button}
+          size="small"
+          aria-expanded={open}
+          aria-label={`Encounter difficulty: ${buttonLabel}`}
+          icon={<ChevronDown size={14} />}
+          iconPlacement="end"
+        >
+          {buttonLabel}
+        </Button>
+      </Popover>
     </div>
   );
 }
@@ -317,6 +308,14 @@ function DifficultyReference({
           <p>{display.known_xp} known XP · missing contributions below</p>
         )}
         <EncounterDifficultyMeter value={display} />
+        <dl className="encounter-difficulty__budgets" aria-label="XP budgets">
+          {display.budgets.map((budget) => (
+            <div key={budget.label}>
+              <dt>{budget.label}</dt>
+              <dd>{budget.xp} XP</dd>
+            </div>
+          ))}
+        </dl>
         <div className="encounter-difficulty__award">
           <span>
             Suggested XP per PC
