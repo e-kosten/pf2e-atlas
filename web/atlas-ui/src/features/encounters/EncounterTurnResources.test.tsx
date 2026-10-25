@@ -4,6 +4,18 @@ import { EncounterTurnResources } from "./EncounterTurnResources";
 import type { TurnResourcesView } from "../../generated/atlas";
 function value(): TurnResourcesView {
   return {
+    action_calculation: {
+      kind: "this_turn",
+      count: {
+        label: "Actions",
+        base_value: 3n,
+        adjusted_value: 1n,
+        segments: [],
+        adjustments: [{ source: "stunned", label: "Stunned 2", value: -2n }],
+        suppressed_adjustments: [],
+      },
+      changes: [],
+    },
     turn_key: "turn:a",
     round_number: 1n,
     regular_total: 1n,
@@ -201,12 +213,12 @@ it("explains a modified allowance without duplicating chip controls or confusing
   );
   fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
   expect(screen.queryByText(/^This turn:/)).toBeNull();
-  expect(
-    screen.getAllByText("Next turn").some((node) => node.tagName === "STRONG"),
-  ).toBe(true);
+  await waitFor(() =>
+    expect(screen.getByText("This turn", { exact: true })).toBeVisible(),
+  );
   const calculation = screen.getByRole("region", { name: "Actions calculation" });
   await waitFor(() =>
-    expect(within(calculation).getByRole("row", { name: "Total 3" })).toBeVisible(),
+    expect(within(calculation).getByRole("row", { name: "Total 1" })).toBeVisible(),
   );
   expect(screen.queryByRole("spinbutton")).toBeNull();
   expect(screen.queryByRole("button", { name: "Apply" })).toBeNull();
@@ -270,6 +282,11 @@ it.each(["typed", "wire"])(
       regular_total: 3n,
       regular_remaining: 2n,
       start_results: [],
+      action_calculation: {
+        kind: "this_turn" as const,
+        count: value().forecast,
+        changes: [],
+      },
     };
     const supplied =
       representation === "wire"
@@ -304,6 +321,11 @@ it("keeps explanations when modifiers cancel to the base allowance", async () =>
     { source: "slowed", label: "Slowed", value: -1n },
     { source: "quickened", label: "Quickened", value: 1n },
   ];
+  initial.action_calculation = {
+    kind: "this_turn",
+    count: initial.forecast,
+    changes: [],
+  };
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <EncounterTurnResources
@@ -343,4 +365,123 @@ it("opens the retained Stunned rules without restoring a cleared condition or sp
   expect(onChange).not.toHaveBeenCalled();
   fireEvent.click(link, { ctrlKey: true });
   expect(onReference).toHaveBeenCalledTimes(1);
+});
+
+it("keeps this turn's overlap explanation while conditions change and switches to the forecast at turn end", async () => {
+  const initial = value();
+  initial.regular_total = 2n;
+  initial.regular_remaining = 2n;
+  initial.action_calculation = {
+    kind: "this_turn",
+    count: {
+      ...initial.forecast,
+      adjusted_value: 2n,
+      adjustments: [{ source: "stunned", label: "Stunned 1", value: -1n }],
+      suppressed_adjustments: [
+        {
+          source: "slowed",
+          label: "Slowed 1",
+          value: -1n,
+          reason: "Overlaps Stunned; no additional action lost.",
+        },
+      ],
+    },
+    changes: [],
+  };
+  const view = (v: TurnResourcesView, current: boolean) => (
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnResources
+        value={v}
+        disabled={false}
+        isCurrent={current}
+        onChange={vi.fn()}
+      />
+    </ConfigProvider>
+  );
+  const { rerender } = render(view(initial, true));
+  fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
+  const table = await screen.findByRole("region", { name: "Actions calculation" });
+  await waitFor(() =>
+    expect(within(table).getByRole("row", { name: "Stunned 1 -1" })).toBeVisible(),
+  );
+  expect(
+    within(table).getByText("Overlaps Stunned; no additional action lost."),
+  ).toBeVisible();
+  const changed = {
+    ...initial,
+    regular_remaining: 1n,
+    forecast: {
+      ...initial.forecast,
+      adjusted_value: 1n,
+      adjustments: [{ source: "slowed", label: "Slowed 2", value: -2n }],
+    },
+  };
+  rerender(view(changed, true));
+  await waitFor(() =>
+    expect(screen.getByText("This turn", { exact: true })).toBeVisible(),
+  );
+  expect(within(table).getByRole("row", { name: "Total 2" })).toBeVisible();
+  expect(within(table).queryByText("Slowed 2")).toBeNull();
+  rerender(
+    view(
+      {
+        ...changed,
+        action_calculation: { kind: "next_turn", count: changed.forecast },
+      },
+      false,
+    ),
+  );
+  await waitFor(() =>
+    expect(within(table).getByRole("row", { name: "Total 1" })).toBeVisible(),
+  );
+  expect(within(table).getByRole("row", { name: "Slowed 2 -2" })).toBeVisible();
+  expect(within(table).queryByText("Stunned 1")).toBeNull();
+});
+
+it("keeps later automatic losses separate from the initial allocation", async () => {
+  const initial = value();
+  initial.action_calculation = {
+    kind: "this_turn",
+    count: initial.forecast,
+    changes: [{ source: "stunned-during-0", label: "Stunned 1", value: -1n }],
+  };
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnResources
+        value={initial}
+        disabled={false}
+        isCurrent
+        onChange={vi.fn()}
+      />
+    </ConfigProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
+  const start = await screen.findByRole("region", { name: "Actions calculation" });
+  await waitFor(() =>
+    expect(within(start).getByRole("row", { name: "Total 3" })).toBeVisible(),
+  );
+  const later = screen.getByRole("region", { name: "Automatic action changes" });
+  expect(within(later).getByRole("row", { name: "Stunned 1 -1" })).toBeVisible();
+});
+
+it("does not reconstruct an older turn's missing calculation from today's conditions", async () => {
+  const initial = value();
+  initial.action_calculation = { kind: "this_turn", count: null, changes: [] };
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnResources
+        value={initial}
+        disabled={false}
+        isCurrent
+        onChange={vi.fn()}
+      />
+    </ConfigProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
+  await waitFor(() =>
+    expect(
+      screen.getByText("Allocation details were not recorded for this turn."),
+    ).toBeVisible(),
+  );
+  expect(screen.queryByRole("region", { name: "Actions calculation" })).toBeNull();
 });

@@ -108,6 +108,24 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
                 let extra_lost = resources.extra_remaining.min(*actions_lost);
                 resources.extra_remaining -= extra_lost;
                 resources.regular_remaining -= *actions_lost - extra_lost;
+                if resources.actions_open
+                    && let Some(allocation) = &mut resources.allocation
+                {
+                    let value = super::causes::condition_causes(participant, None)
+                        .into_iter()
+                        .filter(|cause| cause.rule == ConditionRule::Stunned)
+                        .filter_map(|cause| cause.value)
+                        .max()
+                        .ok_or_else(|| {
+                            AppServiceError::invalid_request("Current Stunned value is unavailable")
+                        })?;
+                    allocation.adjustments.push(
+                        atlas_local_state::TurnActionAdjustment::StunnedDuringTurn {
+                            value,
+                            lost: *actions_lost,
+                        },
+                    );
+                }
                 for condition in &participant.conditions {
                     if condition_rule_for_key(condition.condition_key.as_deref())
                         == Some(ConditionRule::Stunned)

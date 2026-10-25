@@ -8,6 +8,7 @@ import type {
 } from "../../generated/atlas";
 import { RuntimeCount } from "../../shared/records/ActorReference";
 import { RuntimeCountCalculation } from "../../shared/records/RuntimeCountCalculation";
+import { CalculationTable } from "../../shared/ui/tables/CalculationTable";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import type { RecordReferenceHandler } from "../../shared/records/PreparedContent";
@@ -67,7 +68,8 @@ export function EncounterTurnResources({
               label="Actions"
               kind="action"
               turnKey={value.turn_key}
-              forecast={value.forecast}
+              calculation={value.action_calculation}
+              hasRetainedResults={value.start_results.length > 0}
               extraTotal={
                 value.extra_total === null ? undefined : Number(value.extra_total)
               }
@@ -239,7 +241,8 @@ function ResourceCounter({
   label,
   kind,
   turnKey,
-  forecast,
+  calculation,
+  hasRetainedResults = false,
   extraTotal,
   total,
   remaining,
@@ -253,7 +256,8 @@ function ResourceCounter({
   label: string;
   kind: TurnResourceKind;
   turnKey: string | null;
-  forecast?: TurnResourcesView["forecast"];
+  calculation?: TurnResourcesView["action_calculation"];
+  hasRetainedResults?: boolean;
   extraTotal?: number;
   total: number;
   remaining: number;
@@ -267,17 +271,19 @@ function ResourceCounter({
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   const popup = useRef<HTMLDivElement>(null);
+  const count = calculation?.count;
+  const changes = calculation?.kind === "this_turn" ? calculation.changes : [];
   const hasDetails =
-    forecast &&
-    (total !== 3 ||
-      (extraTotal ?? 0) > 0 ||
-      Number(forecast.base_value) !== 3 ||
-      forecast.adjusted_value === null ||
-      Number(forecast.adjusted_value) !== 3 ||
-      forecast.explanation ||
-      forecast.adjustments.length > 0 ||
-      forecast.suppressed_adjustments.length > 0 ||
-      forecast.segments.some((segment) => segment.restricted));
+    changes.length > 0 ||
+    (count
+      ? Number(count.base_value) !== 3 ||
+        count.adjusted_value === null ||
+        Number(count.adjusted_value) !== 3 ||
+        count.explanation ||
+        count.adjustments.length > 0 ||
+        count.suppressed_adjustments.length > 0 ||
+        count.segments.some((segment) => segment.restricted)
+      : calculation && (total !== 3 || (extraTotal ?? 0) > 0 || hasRetainedResults));
   // Slot positions are presentation only; the canonical count always owns stock.
   const [slots, setSlots] = useState(() => ({
     turnKey,
@@ -318,7 +324,7 @@ function ResourceCounter({
   }
   return (
     <div className="encounter-turn-resources__group">
-      {forecast && hasDetails ? (
+      {calculation && hasDetails ? (
         <Popover
           trigger="click"
           open={open}
@@ -326,13 +332,33 @@ function ResourceCounter({
             if (!next) restoreOverlayFocus(button.current, popup.current);
             setOpen(next);
           }}
-          title={label}
+          title={calculation.kind === "this_turn" ? "This turn" : "Next turn"}
           content={
             <div ref={popup} className="encounter-turn-resource-details">
               <div>
-                <strong>Next turn</strong>
-                <RuntimeCountCalculation count={forecast} />
+                {calculation.kind === "this_turn" && count && (
+                  <strong>At turn start</strong>
+                )}
+                {count ? (
+                  <RuntimeCountCalculation count={count} />
+                ) : (
+                  <p>Allocation details were not recorded for this turn.</p>
+                )}
               </div>
+              {changes.length > 0 && (
+                <div>
+                  <strong>During turn</strong>
+                  <CalculationTable
+                    label="Automatic action changes"
+                    valueLabel="Actions"
+                    rows={changes.map((change) => ({
+                      key: change.source,
+                      label: change.label,
+                      value: String(change.value),
+                    }))}
+                  />
+                </div>
+              )}
             </div>
           }
         >
@@ -348,7 +374,7 @@ function ResourceCounter({
             <strong>{label}</strong>
           </Button>
         </Popover>
-      ) : forecast ? (
+      ) : calculation ? (
         <strong>{label}</strong>
       ) : null}
       <Space size={4} wrap>

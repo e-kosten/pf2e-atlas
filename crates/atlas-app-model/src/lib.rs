@@ -2,8 +2,9 @@
 mod turn_resources;
 pub use dice::{FlatCheckRollView, RollFlatCheckRequest};
 pub use turn_resources::{
-    InherentActionConditionView, InherentActionConditionsView, TurnResourceAction,
-    TurnResourceKind, TurnResourceResultView, TurnResourcesView, UpdateTurnResourcesRequest,
+    InherentActionConditionView, InherentActionConditionsView, TurnActionCalculationView,
+    TurnResourceAction, TurnResourceKind, TurnResourceResultView, TurnResourcesView,
+    UpdateTurnResourcesRequest,
 };
 mod encounter_action;
 pub use encounter_action::{EncounterStrikeActionContextView, EncounterTargetingRequirementsView};

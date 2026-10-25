@@ -350,6 +350,22 @@ fn new_mid_turn_stun_can_resolve_after_start_turn_stun_without_replaying_either_
     f.worker.apply_condition_lifecycle(&key, request).unwrap();
     assert_eq!(resources(&f, &key, &a).regular_remaining, Some(1));
     assert_eq!(resources(&f, &key, &a).start_results.len(), 2);
+    let TurnActionCalculationView::ThisTurn {
+        count: Some(count),
+        changes,
+    } = resources(&f, &key, &a).action_calculation
+    else {
+        panic!("missing recorded allocation")
+    };
+    assert_eq!(count.adjusted_value, Some(2));
+    assert_eq!(count.adjustments[0].label, "Stunned 1");
+    assert_eq!(
+        changes.len(),
+        1,
+        "matching retry must not repeat the automatic loss"
+    );
+    assert_eq!(changes[0].label, "Stunned 1");
+    assert_eq!(changes[0].value, -1);
     assert_eq!(
         resources(&f, &key, &a).start_results[0],
         TurnResourceResultView {
@@ -826,6 +842,15 @@ fn inherent_slowed_and_turn_start_stunned_overlap_without_an_additional_action_l
         assert_eq!(current.start_results.len(), 1);
         assert_eq!(current.start_results[0].condition_name, "Stunned");
         assert_eq!(current.start_results[0].outcome, outcome);
+        let TurnActionCalculationView::ThisTurn {
+            count: Some(count), ..
+        } = &current.action_calculation
+        else {
+            panic!("missing turn-start calculation")
+        };
+        assert_eq!(count.adjusted_value, Some(remaining));
+        assert_eq!(count.adjustments[0].label, format!("Stunned {stunned}"));
+        assert_eq!(count.suppressed_adjustments[0].label, "Slowed 1");
         let detail = f.worker.encounter(&key).unwrap();
         assert_eq!(
             detail.participants[0]
@@ -840,6 +865,49 @@ fn inherent_slowed_and_turn_start_stunned_overlap_without_an_additional_action_l
             Some(1)
         );
     }
+}
+
+#[test]
+fn current_action_calculation_retains_regain_facts_until_turn_end() {
+    use serde_json::json;
+    let (f, key, p) = source_condition_fixture(json!([{
+        "_id":"bbbbbbbbbbbbbbbb","type":"condition","name":"Inherent Slowed",
+        "system":{"slug":"slowed","value":{"isValued":true,"value":1}}
+    }]));
+    f.worker
+        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
+            encounter_ref: key.clone(),
+            display_name: "Other participant".into(),
+            max_hp: Some(20),
+            current_hp: Some(20),
+            initiative: Some(10),
+        })
+        .unwrap();
+    add(&f, &p, "Stunned", Some(1));
+    next(&f, &key, "calculation-start");
+    let allocation = resources(&f, &key, &p).action_calculation;
+    add(&f, &p, "Slowed", Some(2));
+    let updated = resources(&f, &key, &p);
+    assert_eq!(updated.forecast.adjusted_value, Some(1));
+    assert_eq!(updated.action_calculation, allocation);
+    change(
+        &f,
+        &key,
+        &p,
+        "calculation-spend",
+        TurnResourceAction::Spend {
+            resource: TurnResourceKind::Action,
+        },
+    );
+    assert_eq!(resources(&f, &key, &p).action_calculation, allocation);
+    next(&f, &key, "calculation-end");
+    let off_turn = resources(&f, &key, &p);
+    let TurnActionCalculationView::NextTurn { count } = off_turn.action_calculation else {
+        panic!("ended turns must show the live forecast")
+    };
+    assert_eq!(count.adjusted_value, Some(1));
+    assert_eq!(count.adjustments[0].label, "Slowed 2");
+    assert!(count.adjustments.iter().all(|row| row.source != "stunned"));
 }
 
 #[test]

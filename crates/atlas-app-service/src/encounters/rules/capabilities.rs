@@ -5,7 +5,7 @@ use atlas_app_model::{
     ActionBudgetView, RuntimeAdjustmentView, RuntimeCapabilityView, RuntimeCountView,
     RuntimeEffectNoteView,
 };
-use atlas_local_state::EncounterParticipant;
+use atlas_local_state::{EncounterParticipant, TurnActionAdjustment, TurnActionAllocation};
 
 pub(in crate::encounters) fn cannot_act_reason(p: &EncounterParticipant) -> Option<&'static str> {
     if p.mortality == atlas_local_state::MortalityState::Dead {
@@ -137,72 +137,24 @@ pub(in crate::encounters) fn action_budget(
     p: &EncounterParticipant,
     sources: &SourceActionConditions,
 ) -> ActionBudgetView {
+    let forecast = regain_forecast(p, sources);
     let RegainForecast {
-        slowed,
-        stunned,
+        slowed: _,
+        stunned: _,
         quickened,
         duration_stun,
         unknown,
-        allotment,
+        allotment: _,
         lost_to_stun,
         lost_to_slowed,
-    } = regain_forecast(p, sources);
+    } = forecast;
     let inactive =
         p.defeated || p.hazard_disabled || p.mortality == atlas_local_state::MortalityState::Dead;
-    let mut actions = count(
-        "Actions",
-        3,
-        if inactive || duration_stun {
-            Some(0)
-        } else if unknown {
-            None
-        } else {
-            Some(allotment - lost_to_stun - lost_to_slowed)
-        },
-    );
+    let mut actions = allocation_count(&allocation_from_forecast(forecast, inactive));
+    if unknown && !inactive && !duration_stun {
+        actions.adjusted_value = None;
+    }
     let mut notes = Vec::new();
-    if quickened {
-        actions
-            .adjustments
-            .push(adjustment("quickened", "Quickened", 1, None));
-    }
-    if inactive {
-        actions
-            .adjustments
-            .push(adjustment("inactive", "Inactive", -allotment, None));
-    } else {
-        if lost_to_stun > 0 {
-            let label = if duration_stun {
-                "Stunned (duration)".into()
-            } else {
-                format!("Stunned {stunned}")
-            };
-            actions
-                .adjustments
-                .push(adjustment("stunned", &label, -lost_to_stun, None));
-        }
-        if lost_to_slowed > 0 {
-            let overlap = slowed.min(allotment).min(lost_to_stun);
-            actions.adjustments.push(adjustment(
-                "slowed",
-                &format!("Slowed {slowed}"),
-                -lost_to_slowed,
-                (overlap > 0).then(|| {
-                    format!(
-                        "{overlap} {} already lost to Stunned.",
-                        if overlap == 1 { "action" } else { "actions" }
-                    )
-                }),
-            ));
-        } else if slowed > 0 && lost_to_stun > 0 {
-            actions.suppressed_adjustments.push(adjustment(
-                "slowed",
-                &format!("Slowed {slowed}"),
-                -slowed.min(allotment),
-                Some("Overridden by Stunned".into()),
-            ));
-        }
-    }
     if unknown {
         let reason = sources.unavailable_reason.as_deref().unwrap_or_else(|| {
                 if sources.entries.iter().any(|c| c.rule == ConditionRule::Slowed && c.value.is_none()) {
@@ -267,6 +219,142 @@ pub(in crate::encounters) fn action_budget(
         notes,
     }
 }
+/// Capture the same evaluated regain facts before Stunned is consumed.
+pub(in crate::encounters) fn action_allocation(
+    p: &EncounterParticipant,
+    sources: &SourceActionConditions,
+) -> Option<TurnActionAllocation> {
+    let forecast = regain_forecast(p, sources);
+    let inactive =
+        p.defeated || p.hazard_disabled || p.mortality == atlas_local_state::MortalityState::Dead;
+    (!forecast.unknown).then(|| allocation_from_forecast(forecast, inactive))
+}
+
+fn allocation_from_forecast(forecast: RegainForecast, inactive: bool) -> TurnActionAllocation {
+    let mut adjustments = vec![];
+    if forecast.quickened {
+        adjustments.push(TurnActionAdjustment::Quickened { gained: 1 });
+    }
+    if inactive {
+        adjustments.push(TurnActionAdjustment::Inactive {
+            lost: forecast.allotment,
+        });
+    } else {
+        if forecast.lost_to_stun > 0 {
+            adjustments.push(TurnActionAdjustment::Stunned {
+                value: (!forecast.duration_stun).then_some(forecast.stunned),
+                lost: forecast.lost_to_stun,
+            });
+        }
+        if forecast.slowed > 0 {
+            adjustments.push(TurnActionAdjustment::Slowed {
+                value: forecast.slowed,
+                lost: forecast.lost_to_slowed,
+                overlap: forecast
+                    .slowed
+                    .min(forecast.allotment)
+                    .min(forecast.lost_to_stun),
+            });
+        }
+    }
+    TurnActionAllocation {
+        base: 3,
+        adjustments,
+    }
+}
+
+/// Presentation of recorded facts never reads today's conditions or source data.
+pub(in crate::encounters) fn allocation_count(
+    allocation: &TurnActionAllocation,
+) -> RuntimeCountView {
+    let total = allocation.base
+        + allocation
+            .adjustments
+            .iter()
+            .map(|change| match *change {
+                TurnActionAdjustment::Quickened { gained } => gained,
+                TurnActionAdjustment::Stunned { lost, .. }
+                | TurnActionAdjustment::Slowed { lost, .. }
+                | TurnActionAdjustment::Inactive { lost } => -lost,
+                TurnActionAdjustment::StunnedDuringTurn { .. } => 0,
+            })
+            .sum::<i64>();
+    let mut actions = count("Actions", allocation.base, Some(total));
+    for change in &allocation.adjustments {
+        match *change {
+            TurnActionAdjustment::Quickened { gained } => {
+                actions
+                    .adjustments
+                    .push(adjustment("quickened", "Quickened", gained, None));
+            }
+            TurnActionAdjustment::Inactive { lost } => {
+                actions
+                    .adjustments
+                    .push(adjustment("inactive", "Inactive", -lost, None));
+            }
+            TurnActionAdjustment::Stunned { value, lost } => {
+                let label = value
+                    .map(|value| format!("Stunned {value}"))
+                    .unwrap_or_else(|| "Stunned (duration)".into());
+                actions
+                    .adjustments
+                    .push(adjustment("stunned", &label, -lost, None));
+            }
+            TurnActionAdjustment::Slowed {
+                value,
+                lost,
+                overlap,
+            } => {
+                let label = format!("Slowed {value}");
+                if lost > 0 {
+                    actions.adjustments.push(adjustment(
+                        "slowed",
+                        &label,
+                        -lost,
+                        (overlap > 0).then(|| {
+                            format!(
+                                "{overlap} {} already lost to Stunned.",
+                                if overlap == 1 { "action" } else { "actions" }
+                            )
+                        }),
+                    ));
+                } else if overlap > 0 {
+                    actions.suppressed_adjustments.push(adjustment(
+                        "slowed",
+                        &label,
+                        -overlap,
+                        Some("Overlaps Stunned; no additional action lost.".into()),
+                    ));
+                }
+            }
+            TurnActionAdjustment::StunnedDuringTurn { .. } => {}
+        }
+    }
+    actions
+}
+
+pub(in crate::encounters) fn allocation_changes(
+    allocation: &TurnActionAllocation,
+) -> Vec<RuntimeAdjustmentView> {
+    allocation
+        .adjustments
+        .iter()
+        .enumerate()
+        .filter_map(|(index, change)| {
+            if let TurnActionAdjustment::StunnedDuringTurn { value, lost } = change {
+                Some(adjustment(
+                    &format!("stunned-during-{index}"),
+                    &format!("Stunned {value}"),
+                    -*lost,
+                    None,
+                ))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 fn count(label: &str, base_value: i64, adjusted_value: Option<i64>) -> RuntimeCountView {
     RuntimeCountView {
         label: label.into(),
@@ -398,7 +486,7 @@ mod tests {
         assert_eq!(budget.actions.suppressed_adjustments[0].label, "Slowed 1");
         assert_eq!(
             budget.actions.suppressed_adjustments[0].reason.as_deref(),
-            Some("Overridden by Stunned")
+            Some("Overlaps Stunned; no additional action lost.")
         );
     }
 

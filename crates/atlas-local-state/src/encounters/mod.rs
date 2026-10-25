@@ -1,5 +1,7 @@
 mod turn_resources;
-pub use turn_resources::{TurnResourceEffect, TurnResources};
+pub use turn_resources::{
+    TurnActionAdjustment, TurnActionAllocation, TurnResourceEffect, TurnResources,
+};
 mod outgoing_turns;
 pub use outgoing_turns::SavedOutgoingTurn;
 mod persistent_precedence;

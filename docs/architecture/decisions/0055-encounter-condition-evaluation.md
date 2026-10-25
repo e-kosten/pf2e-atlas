@@ -61,6 +61,13 @@ the inherited value again. Turn-start and explicit regain prepare reference fact
 before the guarded write and check the reference revision before allocating stock.
 Matching turn receipts recover before reference loading or that guard. Recorded
 stock survives later source changes; subsequent forecasts use the current source.
+Each successful allocation also saves typed calculation facts with the turn stock,
+before consuming Stunned. While that turn is open, the Actions explanation uses
+those recorded facts, including Slowed/Stunned overlap. Later automatic losses are
+recorded separately from the initial allotment; manual spending/restoring does not
+rewrite it. When the turn ends, the explanation returns to the live regain forecast.
+Older turns without allocation facts retain usable stock and explicitly unavailable
+historical detail; reads never reconstruct that history from current conditions.
 Grant immunity uses the shared checked immunity policy. Conditional, equipment-
 dependent, altered or unsupported-lifetime grants remain unautomated authored
 rules. Prose-only restrictions, including Zombie Slow's reaction prohibition, are

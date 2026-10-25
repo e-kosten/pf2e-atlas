@@ -369,6 +369,17 @@ it("keeps inherited conditions read-only and preserves distinct rules and exact 
   };
   const current = encounterParticipant({
     turn_resources: {
+      action_calculation: {
+        kind: "next_turn",
+        count: {
+          label: "Actions",
+          base_value: 3n,
+          adjusted_value: 2n,
+          segments: [],
+          adjustments: [],
+          suppressed_adjustments: [],
+        },
+      },
       turn_key: null,
       round_number: null,
       regular_total: null,

@@ -2872,6 +2872,9 @@ function turnResourcesFixture(
   current = true,
 ): TurnResourcesView {
   return {
+    action_calculation: current
+      ? { kind: "this_turn", count: forecast, changes: [] }
+      : { kind: "next_turn", count: forecast },
     turn_key: "turn:test",
     round_number: 1n,
     regular_total: actions,

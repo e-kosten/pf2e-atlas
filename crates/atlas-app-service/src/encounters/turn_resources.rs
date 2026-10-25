@@ -104,6 +104,10 @@ pub(super) fn prepare_start(
             .unwrap_or((None, None))
     };
     changes.turn_resources.push(TurnResources {
+        allocation: pending_reason
+            .is_none()
+            .then(|| rules::capabilities::action_allocation(participant, sources))
+            .flatten(),
         actions_open: pending_reason.is_none(),
         participant_key: participant.participant_key.clone(),
         turn_key: format!("turn:{id}"),
@@ -160,6 +164,23 @@ pub(super) fn view(
         action_permission.reason = Some("Regain actions to start tracking this turn.".into());
     }
     Some(TurnResourcesView {
+        action_calculation: if current == Some(participant.participant_key.as_str())
+            && ready.is_some_and(|r| r.actions_open)
+        {
+            TurnActionCalculationView::ThisTurn {
+                count: ready
+                    .and_then(|r| r.allocation.as_ref())
+                    .map(rules::capabilities::allocation_count),
+                changes: ready
+                    .and_then(|r| r.allocation.as_ref())
+                    .map(rules::capabilities::allocation_changes)
+                    .unwrap_or_default(),
+            }
+        } else {
+            TurnActionCalculationView::NextTurn {
+                count: budget.actions.clone(),
+            }
+        },
         inherent_conditions: participant.record_key.as_ref().map(|key| {
             InherentActionConditionsView {
                 unavailable_reason: sources.unavailable_reason.clone(),
