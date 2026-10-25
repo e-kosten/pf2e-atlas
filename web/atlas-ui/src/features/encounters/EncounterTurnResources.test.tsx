@@ -17,7 +17,7 @@ function value(): TurnResourcesView {
       {
         condition_name: "Stunned",
         condition_ref: "conditionitems:dfCMdR4wnpbYNTix",
-        outcome: "2 cleared · 2 actions lost this turn",
+        outcome: "2 cleared",
       },
     ],
     pending_reason: null,
