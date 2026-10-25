@@ -14,6 +14,7 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
     action: &ConditionLifecycleActionView,
     pending: Option<&SavedPendingConsequence>,
     request_id: &'a str,
+    sources: &super::source_action_conditions::SourceActionConditions,
 ) -> AppServiceResult<PreparedLifecycle<'a>> {
     let mut changes = PreparedConditionEvent::default();
     let mut effect = None;
@@ -88,8 +89,8 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
         } => {
             let selected = source(participant, *condition_id, ConditionRule::Stunned)?;
             positive_value(selected)?;
-            let maximum =
-                super::capabilities::stunned_resolution_loss(participant).ok_or_else(|| {
+            let maximum = super::capabilities::stunned_resolution_loss(participant, sources)
+                .ok_or_else(|| {
                     AppServiceError::invalid_request(
                         "Set the missing condition values before applying Stunned recovery",
                     )
@@ -395,6 +396,7 @@ pub(in crate::encounters) fn available_actions(
     fortitude: Option<i64>,
     pending: &[SavedPendingConsequence],
     claims: &[atlas_local_state::EncounterBoundaryClaim],
+    source_actions: &super::source_action_conditions::SourceActionConditions,
 ) -> Vec<ConditionLifecycleOptionView> {
     use ConditionRecoveryOfferView as Offer;
     let sources = |rule| {
@@ -524,7 +526,10 @@ pub(in crate::encounters) fn available_actions(
         add(
             Offer::StunnedActionsLost {
                 condition_id: condition.condition_id,
-                actions_lost: super::capabilities::stunned_resolution_loss(participant),
+                actions_lost: super::capabilities::stunned_resolution_loss(
+                    participant,
+                    source_actions,
+                ),
             },
             "Consume actions lost to stunned",
             Some("stunned-actions"),
@@ -678,7 +683,10 @@ mod recovery_tests {
             }
             let actions_lost = if quickened { 4 } else { 3 };
             assert_eq!(
-                super::super::capabilities::numeric_stunned_actions_lost(&actor),
+                super::super::capabilities::numeric_stunned_actions_lost(
+                    &actor,
+                    &Default::default()
+                ),
                 Some(actions_lost)
             );
             let changes = prepare_lifecycle(
@@ -689,6 +697,7 @@ mod recovery_tests {
                 },
                 None,
                 "mixed-stun",
+                &Default::default(),
             )
             .unwrap()
             .resolve(None)
@@ -723,7 +732,7 @@ mod recovery_tests {
             condition(5, ConditionRule::Unconscious, None),
         ];
         let before = actor.clone();
-        let offers = available_actions(&actor, None, &[], &[]);
+        let offers = available_actions(&actor, None, &[], &[], &Default::default());
         assert_eq!(offers.len(), 5);
         for (offer, id) in offers.iter().zip(1..=5) {
             assert_eq!(offer.condition_ids, [id]);
@@ -734,7 +743,7 @@ mod recovery_tests {
         }
         assert_eq!(actor, before);
         actor.current_hp = Some(0);
-        let offers = available_actions(&actor, None, &[], &[]);
+        let offers = available_actions(&actor, None, &[], &[], &Default::default());
         assert!(
             offers
                 .iter()
@@ -753,7 +762,7 @@ mod recovery_tests {
         actor.conditions[1].parameters = ConditionParameters::Frightened {
             recovery: FrightenedRecovery::SourceDependent,
         };
-        let offers = available_actions(&actor, None, &[], &[]);
+        let offers = available_actions(&actor, None, &[], &[], &Default::default());
         let reduction = offers
             .iter()
             .find(|offer| matches!(offer.action, ConditionRecoveryOfferView::FrightenedEndTurn))
@@ -764,6 +773,7 @@ mod recovery_tests {
             &ConditionLifecycleActionView::FrightenedEndTurn,
             None,
             "fear",
+            &Default::default(),
         )
         .unwrap()
         .resolve(None)

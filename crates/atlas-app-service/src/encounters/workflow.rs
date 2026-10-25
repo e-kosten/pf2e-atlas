@@ -661,14 +661,50 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: AdvanceEncounterTurnRequest,
     ) -> AppServiceResult<EncounterMutationView> {
+        if request.expected_revision < 0 {
+            return Err(AppServiceError::invalid_request(
+                "expected revision must be nonnegative",
+            ));
+        }
+        let intent = serde_json::to_value(&request)
+            .map_err(|error| AppServiceError::invalid_request(error.to_string()))?;
+        if let Some(encounter) = self.with_state(|session| {
+            Ok(session.local_state().encounters().advance_turn_receipt(
+                encounter_ref,
+                &request.request_id,
+                &intent,
+            )?)
+        })? {
+            return Ok(EncounterMutationView {
+                encounter_key: encounter.encounter_key,
+            });
+        }
+        let snapshot =
+            super::event_execution::snapshot(self, encounter_ref, request.expected_revision)?;
+        let next = super::turns::next_turn(&snapshot);
+        let (source_actions, reference_revision) = if let Some(participant) = snapshot
+            .participants
+            .iter()
+            .find(|p| Some(&p.participant_key) == next.participant_key.as_ref())
+        {
+            super::turn_resources::source_action_context(self, participant)?
+        } else {
+            (Default::default(), None)
+        };
         self.with_write(move |session| {
-            if request.expected_revision < 0 {
-                return Err(AppServiceError::invalid_request(
-                    "expected revision must be nonnegative",
-                ));
+            // A concurrent matching request still recovers before the source guard.
+            if let Some(encounter) = session.local_state().encounters().advance_turn_receipt(
+                encounter_ref,
+                &request.request_id,
+                &intent,
+            )? {
+                return Ok(EncounterMutationView {
+                    encounter_key: encounter.encounter_key,
+                });
             }
-            let intent = serde_json::to_value(&request)
-                .map_err(|error| AppServiceError::invalid_request(error.to_string()))?;
+            if let Some(revision) = reference_revision {
+                session.require_reference_revision(revision)?;
+            }
             let encounter = session
                 .local_state()
                 .encounters()
@@ -687,6 +723,7 @@ impl AtlasAppService {
                                 update.turn.round_number,
                                 &request.request_id,
                                 false,
+                                &source_actions,
                             )
                             .map_err(|error| {
                                 atlas_local_state::LocalStateError::InvalidConditionEvent(
@@ -925,6 +962,7 @@ pub(super) fn condition_extra_action_input(
 }
 
 pub(super) struct ConditionSubjectContext {
+    pub(super) source_actions: super::rules::source_action_conditions::SourceActionConditions,
     pub(super) participant: atlas_local_state::EncounterParticipant,
     pub(super) facts: super::rules::ConditionApplicabilityFacts,
     pub(super) reference_revision: Option<u64>,
@@ -936,6 +974,7 @@ impl ConditionSubjectContext {
     /// Facts available from saved encounter state, without a reference read or guard.
     pub(super) fn from_saved(participant: &atlas_local_state::EncounterParticipant) -> Self {
         Self {
+            source_actions: Default::default(),
             participant: participant.clone(),
             facts: Default::default(),
             reference_revision: None,
@@ -980,29 +1019,32 @@ pub(super) fn condition_subject_context(
                     )
                 })
                 .unwrap_or_default();
-            let block = detail.as_ref().and_then(|detail| {
-                let baseline = super::rules::source_baseline(
-                    &detail.source,
-                    retrieval.source_fingerprint(),
-                    None,
-                )?;
-                let adjustment_applicable = !matches!(
-                    atlas_record::source_record::SourceQueryView::new(
-                        detail.source.source(),
-                        detail.summary.key.pack().as_str(),
-                        "",
+            let baseline = detail
+                .as_ref()
+                .map(|detail| super::hydration::source_baseline(&detail.source, retrieval, None))
+                .transpose()?
+                .flatten();
+            let block = detail
+                .as_ref()
+                .zip(baseline.as_ref())
+                .map(|(detail, baseline)| {
+                    let adjustment_applicable = !matches!(
+                        atlas_record::source_record::SourceQueryView::new(
+                            detail.source.source(),
+                            detail.summary.key.pack().as_str(),
+                            "",
+                        )
+                        .actor()
+                        .authored_adjustment(),
+                        atlas_record::source_record::SourceFieldView::NotApplicable
+                    );
+                    super::rules::project_participant(
+                        &participant,
+                        baseline,
+                        adjustment_applicable,
+                        &[],
                     )
-                    .actor()
-                    .authored_adjustment(),
-                    atlas_record::source_record::SourceFieldView::NotApplicable
-                );
-                Some(super::rules::project_participant(
-                    &participant,
-                    &baseline,
-                    adjustment_applicable,
-                    &[],
-                ))
-            });
+                });
             let level = participant.level_override.or_else(|| {
                 block
                     .as_ref()
@@ -1018,6 +1060,17 @@ pub(super) fn condition_subject_context(
                 .and_then(|number| number.as_i64());
             let reference_revision = Some(session.reference_revision()?);
             Ok(ConditionSubjectContext {
+                source_actions: baseline
+                    .map(|baseline| baseline.source_actions)
+                    .unwrap_or_else(|| {
+                        super::rules::source_action_conditions::SourceActionConditions {
+                            entries: vec![],
+                            unavailable_reason: Some(
+                                "This creature's source conditions are unavailable.".into(),
+                            ),
+                            source_fingerprint: None,
+                        }
+                    }),
                 participant,
                 facts,
                 level,
@@ -1145,6 +1198,7 @@ mod immunity_override_tests {
             })
             .unwrap();
         let context = ConditionSubjectContext {
+            source_actions: Default::default(),
             participant: snapshot.participants[0].clone(),
             reference_revision: None,
             level: None,

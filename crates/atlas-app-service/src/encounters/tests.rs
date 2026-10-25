@@ -640,7 +640,7 @@ fn actor(p: &EncounterParticipantView) -> &ActorPresentationView {
 }
 fn authored_arithmetic_baseline(source: serde_json::Value) -> super::mechanics::StatBlockView {
     let input = atlas_search::test_support::record("actors", "Actor", source);
-    super::rules::source_baseline(&input.record, &"a".repeat(64), None).unwrap()
+    super::rules::authored_stat_baseline(&input.record, &"a".repeat(64), None).unwrap()
 }
 
 fn worker_arithmetic_baseline(worker: &crate::AtlasAppService) -> super::mechanics::StatBlockView {
@@ -654,10 +654,12 @@ fn worker_arithmetic_baseline(worker: &crate::AtlasAppService) -> super::mechani
                     selected_content: &[],
                 })?
                 .unwrap();
-            Ok(
-                super::rules::source_baseline(&detail.source, retrieval.source_fingerprint(), None)
-                    .unwrap(),
+            Ok(super::rules::authored_stat_baseline(
+                &detail.source,
+                retrieval.source_fingerprint(),
+                None,
             )
+            .unwrap())
         })
         .unwrap()
 }

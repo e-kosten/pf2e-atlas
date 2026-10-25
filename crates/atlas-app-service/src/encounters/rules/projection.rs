@@ -384,7 +384,10 @@ fn project_for_opponent(
             sense.perception = perception.and_then(Number::from_f64);
         }
     }
-    block.action_budget = Some(super::capabilities::action_budget(participant));
+    block.action_budget = Some(super::capabilities::action_budget(
+        participant,
+        &block.source_actions,
+    ));
     block
 }
 fn condition_note(
@@ -527,6 +530,7 @@ fn apply_modifier(
 
 pub(in crate::encounters) fn participant_runtime_block(p: &EncounterParticipant) -> StatBlockView {
     StatBlockView {
+        source_actions: Default::default(),
         record_key: p.participant_key.clone(),
         title: p.display_name.clone(),
         level: None,
@@ -539,7 +543,7 @@ pub(in crate::encounters) fn participant_runtime_block(p: &EncounterParticipant)
         senses_known: false,
         contextual_armor_class: vec![],
         speeds: vec![],
-        action_budget: Some(super::capabilities::action_budget(p)),
+        action_budget: Some(super::capabilities::action_budget(p, &Default::default())),
         activities: vec![],
         unapplied_effects: super::causes::condition_causes(p, None)
             .into_iter()

@@ -55,6 +55,7 @@ pub(super) fn encounter_detail_from_records(
                 view.turn_resources = super::turn_resources::view(
                     participant,
                     current_turn_participant_key.as_deref(),
+                    &super::hydration::participant_source_actions(participant, &records_by_key),
                 );
                 view
             })

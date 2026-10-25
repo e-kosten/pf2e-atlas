@@ -13,7 +13,8 @@ pub(super) use applicability::{
     condition_applicability,
 };
 mod source_facts;
-pub(super) use source_facts::{source_applicability, source_baseline};
+pub(super) use source_facts::{authored_stat_baseline, source_applicability};
+pub(super) mod source_action_conditions;
 
 pub(in crate::encounters) mod causes;
 

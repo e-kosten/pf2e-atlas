@@ -677,3 +677,142 @@ fn applying_an_updated_stunned_source_preserves_its_identity_and_edited_metadata
     assert_eq!(c.origin.as_ref().unwrap().application_id, "original-stun");
     assert_eq!(resources(&f, &key, &a).regular_remaining, Some(0));
 }
+
+fn source_condition_fixture(items: serde_json::Value) -> (FixtureWorker, String, String) {
+    use crate::executor::RetrievalExecutor;
+    use atlas_search::test_support::{open_source_fixture, record};
+    use serde_json::json;
+    let f = crate::test_support::fixture_worker_with_executor(
+        RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
+            let mut records = vec![record(
+                "actors",
+                "Actor",
+                json!({
+                    "_id":"aaaaaaaaaaaaaaaa", "type":"npc", "name":"Generic source creature",
+                    "system":{"details":{"level":{"value":1}},"traits":{"value":[]},
+                        "attributes":{"adjustment":null,"hp":{"max":20},"immunities":[]}},
+                    "items":items
+                }),
+            )];
+            for rule in [
+                super::conditions::ConditionRule::Slowed,
+                super::conditions::ConditionRule::Quickened,
+            ] {
+                let definition = rule.definition();
+                let key = atlas_domain::RecordKey::parse(definition.record_key).unwrap();
+                records.push(record("conditionitems", "Item", json!({
+                    "_id":key.id().as_str(),"type":"condition","name":definition.name,
+                    "system":{"slug":definition.slug,"value":{"isValued":definition.has_value,"value":definition.default_value}}
+                })));
+            }
+            Ok(open_source_fixture(records, false)?)
+        }),
+    );
+    let key = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Inherent conditions".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter
+        .encounter_key;
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: key.clone(),
+            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+            quantity: 1,
+            initiative: Some(20),
+        })
+        .unwrap();
+    let participant = f.worker.encounter(&key).unwrap().participants[0]
+        .participant_key
+        .clone();
+    (f, key, participant)
+}
+
+#[test]
+fn inherent_slowed_and_temporary_slowed_share_one_allocation_without_saving_duplicate_causes() {
+    use serde_json::json;
+    for items in [
+        json!([{"_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Renamed source ability",
+            "system":{"actionType":{"value":"passive"},"rules":[{"key":"GrantItem","inMemoryOnly":true,"uuid":"Compendium.pf2e.conditionitems.Item.Slowed"}]}}]),
+        json!([{"_id":"bbbbbbbbbbbbbbbb","type":"condition","name":"Owned Slowed",
+            "system":{"slug":"slowed","value":{"isValued":true,"value":1}}}]),
+    ] {
+        let (f, key, p) = source_condition_fixture(items);
+        let initial = resources(&f, &key, &p);
+        assert_eq!(initial.forecast.adjusted_value, Some(2));
+        assert_eq!(
+            initial.inherent_conditions.as_ref().unwrap().entries[0].value,
+            Some(1)
+        );
+        assert!(
+            f.worker.encounter(&key).unwrap().participants[0]
+                .conditions
+                .is_empty()
+        );
+        next(&f, &key, "source-first");
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(2));
+        let temporary = add(&f, &p, "Slowed", Some(2));
+        assert_eq!(resources(&f, &key, &p).forecast.adjusted_value, Some(1));
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(2));
+        next(&f, &key, "source-second");
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(1));
+        f.worker
+            .with_write(|session| {
+                session
+                    .local_state()
+                    .encounters()
+                    .remove_condition(&p, temporary)?;
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(resources(&f, &key, &p).forecast.adjusted_value, Some(2));
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(1));
+        let advance = next(&f, &key, "source-third");
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(2));
+        change(
+            &f,
+            &key,
+            &p,
+            "source-spend",
+            TurnResourceAction::Spend {
+                resource: TurnResourceKind::Action,
+            },
+        );
+        f.worker.advance_encounter_turn(&key, advance).unwrap();
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(1));
+        assert!(
+            f.worker.encounter(&key).unwrap().participants[0]
+                .conditions
+                .is_empty()
+        );
+    }
+}
+
+#[test]
+fn inherent_quickened_is_included_when_stunned_consumes_turn_start_actions() {
+    use serde_json::json;
+    let (f, key, p) = source_condition_fixture(json!([{
+        "_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Swift Steps",
+        "system":{"actionType":{"value":"passive"},"rules":[{"key":"GrantItem","inMemoryOnly":true,"uuid":"Compendium.pf2e.conditionitems.Item.Quickened"}]}
+    }]));
+    assert_eq!(resources(&f, &key, &p).forecast.adjusted_value, Some(4));
+    add(&f, &p, "Stunned", Some(3));
+    next(&f, &key, "source-stunned");
+    let current = resources(&f, &key, &p);
+    assert_eq!(current.regular_remaining, Some(1));
+    assert_eq!(current.extra_remaining, Some(0));
+    assert_eq!(current.forecast.adjusted_value, Some(4));
+    assert!(matches!(
+        current.extra_uses.as_slice(),
+        [ConditionExtraActionView::Unspecified]
+    ));
+    assert!(
+        f.worker.encounter(&key).unwrap().participants[0]
+            .conditions
+            .is_empty()
+    );
+}
