@@ -24,6 +24,10 @@ describe("Atlas brand mark", () => {
       expect(source).toContain('<title id="title">PF2e Atlas logo</title>');
       expect(source).not.toContain("Compass over die faces");
       expect(source).toContain('viewBox="0 0 160 160"');
+      expect(source).toMatch(
+        /<circle cx="80" cy="80" r="54" fill="none" stroke="#[0-9A-F]+" stroke-width="8"\/>/,
+      );
+      expect(source).not.toContain('r="50"');
     },
   );
 });

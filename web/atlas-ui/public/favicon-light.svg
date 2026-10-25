@@ -2,8 +2,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160" role="img" aria-labelledby="title description">
   <title id="title">PF2e Atlas logo</title>
   <desc id="description">An oxblood compass rose surrounding a parchment d20.</desc>
-  <circle cx="80" cy="80" r="58" fill="#8C333A"/>
-  <circle cx="80" cy="80" r="50" fill="#FFFCF4"/>
+  <circle cx="80" cy="80" r="54" fill="none" stroke="#8C333A" stroke-width="8"/>
   <g fill="#FFFCF4" stroke="#74272E" stroke-width="3.2" stroke-linejoin="round">
     <path d="M80 6 94.5659 70 80 66 65.4341 70Z"/>
     <path d="M154 80 90 93.042 94 80 90 66.958Z"/>
