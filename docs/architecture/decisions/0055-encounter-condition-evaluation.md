@@ -52,6 +52,20 @@ Behavioral subjects, such as a fascination or threat, are distinct from the sour
 that applied the condition. Missing subjects require context only when an action
 depends on them; the causal source is not an implicit substitute.
 
+Source-owned action-allotment conditions are distinct, read-only causes. Checked
+owned Slowed/Quickened and supported unconditional, passive in-memory grants feed
+the same regain forecast as saved temporary causes. They retain the checked owner,
+rule ordinal and reference generation, not synthetic saved condition IDs. A higher
+temporary Slowed value does not erase the inherent source; removing it exposes
+the inherited value again. Turn-start and explicit regain prepare reference facts
+before the guarded write and check the reference revision before allocating stock.
+Matching turn receipts recover before reference loading or that guard. Recorded
+stock survives later source changes; subsequent forecasts use the current source.
+Grant immunity uses the shared checked immunity policy. Conditional, equipment-
+dependent, altered or unsupported-lifetime grants remain unautomated authored
+rules. Prose-only restrictions, including Zombie Slow's reaction prohibition, are
+not inferred from condition identity, creature names or traits.
+
 Unknown facts stay unknown. An unavailable calculation does not silently use an
 authored subtotal, assume a missing trait is false, or substitute an unheightened
 spell. Ask only for facts relevant to the requested operation. Browsing a creature
@@ -244,10 +258,12 @@ resolves the actual check outcome once; it is never saved as an attempt. The con
 encounter event executor owns receipt recovery, reference/participant checks and
 entry to local-state's guarded callback. Storage remains the sole atomic write owner.
 
-Recovery reads reference facts only for an integrated Retch roll's current
-Fortitude. Hints, table outcomes and saved-counter recovery have no reference
-dependency or reference revision guard. When reference statistics are unavailable,
-hints and table outcomes remain usable; no integrated roll is offered. Outcome
+Recovery reads reference facts for an integrated Retch roll's current Fortitude
+and for Stunned action loss when no usable current stock has been recorded.
+Known recorded stock, other hints, table outcomes and saved-counter recovery have
+no reference dependency or reference revision guard. When reference facts are
+unavailable, those other offers remain usable; an integrated Retch roll or an
+unrecorded Stunned allowance is not guessed. Outcome
 validation retains the specific rule message through the atomic boundary; failed
 outcomes save no receipt or boundary claim.
 

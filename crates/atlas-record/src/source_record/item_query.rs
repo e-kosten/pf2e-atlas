@@ -32,6 +32,17 @@ macro_rules! family_field {
     };
 }
 impl<'a> ItemSourceView<'a> {
+    /// Retained rule nodes; specific interpretation is atomic and model-owned.
+    pub fn rules(self) -> SourceFieldView<'a, &'a [RuleElementSource]> {
+        super::nodes::item_fields!(
+            self,
+            source,
+            SourceFieldView::from(&source.system)
+                .and_then(|system| (&system.rules).into())
+                .map(Vec::as_slice)
+        )
+    }
+
     family_field!(
         ability_slug,
         &'a str,

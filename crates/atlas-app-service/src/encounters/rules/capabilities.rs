@@ -1,5 +1,6 @@
 //! Bounded PF2e 8.6.1 assistance: current permission and a read-only regain forecast.
 use super::super::conditions::{ConditionRule, condition_rule_for_key};
+use super::source_action_conditions::SourceActionConditions;
 use atlas_app_model::{
     ActionBudgetView, RuntimeAdjustmentView, RuntimeCapabilityView, RuntimeCountView,
     RuntimeEffectNoteView,
@@ -38,23 +39,32 @@ struct RegainForecast {
     lost_to_stun: i64,
     lost_to_slowed: i64,
 }
-fn regain_forecast(p: &EncounterParticipant) -> RegainForecast {
+fn regain_forecast(p: &EncounterParticipant, sources: &SourceActionConditions) -> RegainForecast {
     let mut slowed = 0;
     let mut stunned = 0;
     let mut quickened = false;
     let mut duration_stun = false;
-    let mut unknown = false;
-    for cause in super::causes::condition_causes(p, None) {
-        let c = cause.source;
-        match cause.rule {
+    let mut unknown = sources.unavailable_reason.is_some();
+    let saved = super::causes::condition_causes(p, None);
+    let causes = saved
+        .iter()
+        .map(|cause| (cause.rule, cause.value, cause.source.duration.is_some()))
+        .chain(
+            sources
+                .entries
+                .iter()
+                .map(|cause| (cause.rule, cause.value, false)),
+        );
+    for (rule, value, has_duration) in causes {
+        match rule {
             ConditionRule::Quickened => quickened = true,
-            ConditionRule::Slowed => match c.value {
+            ConditionRule::Slowed => match value {
                 Some(v) if v >= 0 => slowed = slowed.max(v),
                 _ => unknown = true,
             },
-            ConditionRule::Stunned => match c.value {
+            ConditionRule::Stunned => match value {
                 Some(v) if v >= 0 => stunned = stunned.max(v),
-                None if c.duration.is_some() => duration_stun = true,
+                None if has_duration => duration_stun = true,
                 _ => unknown = true,
             },
             _ => {}
@@ -78,8 +88,11 @@ fn regain_forecast(p: &EncounterParticipant) -> RegainForecast {
         lost_to_slowed,
     }
 }
-pub(in crate::encounters) fn numeric_stunned_actions_lost(p: &EncounterParticipant) -> Option<i64> {
-    let forecast = regain_forecast(p);
+pub(in crate::encounters) fn numeric_stunned_actions_lost(
+    p: &EncounterParticipant,
+    sources: &SourceActionConditions,
+) -> Option<i64> {
+    let forecast = regain_forecast(p, sources);
     if forecast.unknown {
         None
     } else if p.defeated
@@ -92,7 +105,10 @@ pub(in crate::encounters) fn numeric_stunned_actions_lost(p: &EncounterParticipa
     }
 }
 /// Explicit Stunned resolution uses a recorded remaining pool when this turn has begun.
-pub(in crate::encounters) fn stunned_resolution_loss(p: &EncounterParticipant) -> Option<i64> {
+pub(in crate::encounters) fn stunned_resolution_loss(
+    p: &EncounterParticipant,
+    sources: &SourceActionConditions,
+) -> Option<i64> {
     if p.defeated || p.hazard_disabled || p.mortality == atlas_local_state::MortalityState::Dead {
         return Some(0);
     }
@@ -115,9 +131,12 @@ pub(in crate::encounters) fn stunned_resolution_loss(p: &EncounterParticipant) -
         }
         return Some(stunned.min(remaining));
     }
-    numeric_stunned_actions_lost(p)
+    numeric_stunned_actions_lost(p, sources)
 }
-pub(in crate::encounters) fn action_budget(p: &EncounterParticipant) -> ActionBudgetView {
+pub(in crate::encounters) fn action_budget(
+    p: &EncounterParticipant,
+    sources: &SourceActionConditions,
+) -> ActionBudgetView {
     let RegainForecast {
         slowed,
         stunned,
@@ -127,7 +146,7 @@ pub(in crate::encounters) fn action_budget(p: &EncounterParticipant) -> ActionBu
         allotment,
         lost_to_stun,
         lost_to_slowed,
-    } = regain_forecast(p);
+    } = regain_forecast(p, sources);
     let inactive =
         p.defeated || p.hazard_disabled || p.mortality == atlas_local_state::MortalityState::Dead;
     let mut actions = count(
@@ -185,11 +204,15 @@ pub(in crate::encounters) fn action_budget(p: &EncounterParticipant) -> ActionBu
         }
     }
     if unknown {
-        notes.push(note(
-            "unresolved",
-            "Needs review",
-            "A condition has no usable value or duration. Edit it before relying on the forecast.",
-        ));
+        let reason = sources.unavailable_reason.as_deref().unwrap_or_else(|| {
+                if sources.entries.iter().any(|c| c.rule == ConditionRule::Slowed && c.value.is_none()) {
+                    "The source record does not supply a usable Slowed value."
+                } else {
+                    "A condition has no usable value or duration. Edit it before relying on the forecast."
+                }
+            });
+        actions.explanation = Some(reason.into());
+        notes.push(note("unresolved", "Needs review", reason));
     }
     let reason = cannot_act_reason(p);
     let reaction_reason = reason.or_else(|| {
@@ -229,6 +252,13 @@ pub(in crate::encounters) fn action_budget(p: &EncounterParticipant) -> ActionBu
                 condition_rule_for_key(c.condition_key.as_deref()) == Some(ConditionRule::Quickened)
             })
             .map(|c| super::super::projection::condition_extra_action_view(c.extra_action.clone()))
+            .chain(
+                sources
+                    .entries
+                    .iter()
+                    .filter(|c| c.rule == ConditionRule::Quickened)
+                    .map(|_| atlas_app_model::ConditionExtraActionView::Unspecified),
+            )
             .collect(),
         actions,
         reactions: count("Reactions", 1, Some(i64::from(reaction_reason.is_none()))),
@@ -338,9 +368,12 @@ mod tests {
     fn extra_action_status_follows_the_known_action_loss() {
         let mut p = participant();
         p.conditions = vec![condition("Quickened", None)];
-        assert_eq!(action_budget(&p).extra_action_unavailable_reason, None);
+        assert_eq!(
+            action_budget(&p, &Default::default()).extra_action_unavailable_reason,
+            None
+        );
         p.conditions.push(condition("Slowed", Some(1)));
-        let budget = action_budget(&p);
+        let budget = action_budget(&p, &Default::default());
         assert_eq!(
             budget.extra_action_unavailable_reason.as_deref(),
             Some("Lost to Slowed")
@@ -354,7 +387,7 @@ mod tests {
                 .all(|row| row.reason.is_none())
         );
         p.conditions.push(condition("Stunned", Some(2)));
-        let budget = action_budget(&p);
+        let budget = action_budget(&p, &Default::default());
         assert_eq!(
             budget.extra_action_unavailable_reason.as_deref(),
             Some("Lost to Stunned")
@@ -373,15 +406,20 @@ mod tests {
     fn complete_allotment_and_overlap_are_forecast_without_consuming_conditions() {
         let mut p = participant();
         p.conditions = vec![condition("Quickened", None), condition("Slowed", Some(4))];
-        assert_eq!(action_budget(&p).actions.adjusted_value, Some(0));
+        assert_eq!(
+            action_budget(&p, &Default::default())
+                .actions
+                .adjusted_value,
+            Some(0)
+        );
         assert!(
-            action_budget(&p).can_act.available,
+            action_budget(&p, &Default::default()).can_act.available,
             "Slowed is a regain loss, not immediate inability to act"
         );
         p.conditions = vec![condition("Stunned", Some(1)), condition("Slowed", Some(2))];
         let before = p.clone();
         for _ in 0..2 {
-            let budget = action_budget(&p);
+            let budget = action_budget(&p, &Default::default());
             assert_eq!(budget.actions.adjusted_value, Some(1));
             assert!(!budget.can_act.available);
             assert!(!budget.can_react.available);
@@ -414,21 +452,31 @@ mod tests {
     fn duration_stun_and_unknown_stun_are_never_stunned_one() {
         let mut p = participant();
         p.conditions = vec![condition("Stunned", None)];
-        assert_eq!(action_budget(&p).actions.adjusted_value, None);
+        assert_eq!(
+            action_budget(&p, &Default::default())
+                .actions
+                .adjusted_value,
+            None
+        );
         p.conditions[0].duration = Some(ConditionDuration {
             amount: 2,
             unit: ConditionDurationUnit::Minutes,
             timing: None,
         });
-        assert_eq!(action_budget(&p).actions.adjusted_value, Some(0));
+        assert_eq!(
+            action_budget(&p, &Default::default())
+                .actions
+                .adjusted_value,
+            Some(0)
+        );
         p.conditions[0].duration.as_mut().unwrap().amount = 0;
         assert!(
-            !action_budget(&p).can_act.available,
+            !action_budget(&p, &Default::default()).can_act.available,
             "Expiry still requires explicit removal"
         );
         p.conditions[0].value = Some(0);
         assert!(
-            action_budget(&p).can_act.available,
+            action_budget(&p, &Default::default()).can_act.available,
             "Explicit numeric recovery to zero permits acting"
         );
     }
@@ -436,32 +484,49 @@ mod tests {
     fn inactive_status_preserves_hp_and_blocks_current_capability() {
         let mut p = participant();
         p.defeated = true;
-        assert_eq!(action_budget(&p).actions.adjusted_value, Some(0));
-        assert!(!action_budget(&p).can_act.available);
         assert_eq!(
-            action_budget(&p).can_act.source.as_deref(),
+            action_budget(&p, &Default::default())
+                .actions
+                .adjusted_value,
+            Some(0)
+        );
+        assert!(!action_budget(&p, &Default::default()).can_act.available);
+        assert_eq!(
+            action_budget(&p, &Default::default())
+                .can_act
+                .source
+                .as_deref(),
             Some("participant_status")
         );
         p.defeated = false;
         p.participant_kind = ParticipantKind::Hazard;
         p.hazard_disabled = true;
-        assert!(!action_budget(&p).can_react.available);
+        assert!(!action_budget(&p, &Default::default()).can_react.available);
         assert_eq!(
-            action_budget(&p).can_react.source.as_deref(),
+            action_budget(&p, &Default::default())
+                .can_react
+                .source
+                .as_deref(),
             Some("participant_status")
         );
         assert_eq!(p.current_hp, Some(20));
         p.hazard_disabled = false;
-        assert!(action_budget(&p).can_act.available);
+        assert!(action_budget(&p, &Default::default()).can_act.available);
         p.mortality = atlas_local_state::MortalityState::Dead;
         assert_eq!(
-            action_budget(&p).can_act.source.as_deref(),
+            action_budget(&p, &Default::default())
+                .can_act
+                .source
+                .as_deref(),
             Some("participant_status")
         );
         p.mortality = atlas_local_state::MortalityState::Alive;
         p.conditions = vec![condition("Unconscious", None)];
         assert_eq!(
-            action_budget(&p).can_act.source.as_deref(),
+            action_budget(&p, &Default::default())
+                .can_act
+                .source
+                .as_deref(),
             Some("encounter_state")
         );
     }
@@ -532,12 +597,12 @@ mod tests {
     fn unconscious_blocks_actions_but_paralyzed_retains_mental_actions() {
         let mut p = participant();
         p.conditions = vec![condition("Unconscious", None)];
-        assert!(!action_budget(&p).can_act.available);
+        assert!(!action_budget(&p, &Default::default()).can_act.available);
         p.conditions = vec![condition("Paralyzed", None)];
-        assert!(action_budget(&p).can_act.available);
+        assert!(action_budget(&p, &Default::default()).can_act.available);
         p.conditions = vec![condition("Confused", None)];
-        assert!(action_budget(&p).can_act.available);
-        assert!(!action_budget(&p).can_react.available);
+        assert!(action_budget(&p, &Default::default()).can_act.available);
+        assert!(!action_budget(&p, &Default::default()).can_react.available);
     }
 
     #[test]

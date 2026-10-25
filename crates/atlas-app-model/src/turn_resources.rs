@@ -4,6 +4,9 @@ use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct TurnResourcesView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub inherent_conditions: Option<InherentActionConditionsView>,
     pub turn_key: Option<String>,
     pub round_number: Option<i64>,
     pub regular_total: Option<i64>,
@@ -19,6 +22,20 @@ pub struct TurnResourcesView {
     pub can_edit_actions: bool,
     pub can_spend_actions: crate::RuntimeCapabilityView,
     pub can_spend_reactions: crate::RuntimeCapabilityView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct InherentActionConditionsView {
+    pub entries: Vec<InherentActionConditionView>,
+    pub unavailable_reason: Option<String>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct InherentActionConditionView {
+    pub name: String,
+    pub has_value: bool,
+    pub value: Option<i64>,
+    pub condition_ref: String,
+    pub source_name: String,
+    pub source: crate::RecordNavigationView,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct TurnResourceResultView {

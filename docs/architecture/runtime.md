@@ -590,10 +590,16 @@ data does not imply runtime execution support. See the active backlog and ADR004
 
 App-service projects current acting/reacting capability separately from a
 PF2e 8.6.1 next-regain forecast. Unknown condition values produce an unavailable
-forecast. Quickened restrictions and overlapping Stunned/Slowed losses remain
-visible; reads never recover conditions. Explicit Stunned action-loss events use
-the same forecast and record the GM-confirmed loss without maintaining a current
-action ledger. Ordinary strikes retain direct guarded rolls with optional reference
+forecast. Checked source-owned Slowed/Quickened and supported passive in-memory
+grants contribute distinct read-only causes alongside temporary encounter
+conditions. They use checked reference resolution and immunity facts; no source
+restriction is inferred from prose. Quickened restrictions and overlapping
+Stunned/Slowed losses remain visible; reads never recover conditions. Turn start
+and explicit regain allocate retained action/reaction stock through the guarded
+event owner. Explicit Stunned loss uses that recorded remaining stock or the same
+source-backed regain forecast. Turn receipts recover before reference loading;
+new source-dependent allocations check the prepared reference revision. Ordinary
+strikes retain direct guarded rolls with optional reference
 checks; ordinary casting records table-resolved use from the spell popover. Casting reminders and optional strike context are read-only, with no durable
 action-attempt workflow. Source-specific judgments support the actual Retch
 lifecycle action. Scoped detection effects derive from active conditions, without

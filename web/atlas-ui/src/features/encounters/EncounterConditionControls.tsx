@@ -9,7 +9,11 @@ import { EncounterPersistentRecovery } from "./EncounterPersistentRecovery";
 import { useConditionEventPreview } from "./useConditionEventPreview";
 import { conditionDurationLabel } from "./conditionDurationLabel";
 import { Pencil, Plus, X } from "lucide-react";
-import { recordPath, shouldHandleAtlasRouteClick } from "../../app/routes";
+import {
+  atlasRoutePath,
+  recordPath,
+  shouldHandleAtlasRouteClick,
+} from "../../app/routes";
 import { Alert, Button, ConfigProvider, Popover, Space, Tooltip } from "antd";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type {
@@ -502,6 +506,8 @@ export function EncounterConditionControls({
       group.sources.map((source) => source.condition_id),
     ),
   );
+  const inherent = current.turn_resources?.inherent_conditions;
+  const inherentConditions = inherent?.entries ?? [];
   return (
     <section className="encounter-conditions">
       {!open && preview.errorNotice}
@@ -530,13 +536,72 @@ export function EncounterConditionControls({
         />
       </div>
       {recoveryControls.notice}
+      {inherent?.unavailable_reason && (
+        <p className="encounter-condition-manual-note" role="status">
+          {inherent.unavailable_reason}
+        </p>
+      )}
       {error && !open && (
         <Alert type="error" title="Condition action failed" description={error} />
       )}
-      {current.conditions.length === 0 && !recoveryGroup ? (
+      {current.conditions.length === 0 &&
+      !inherent?.unavailable_reason &&
+      inherentConditions.length === 0 &&
+      !recoveryGroup ? (
         <p className="encounter-empty-note">No conditions</p>
       ) : (
         <div className="encounter-condition-list">
+          {inherentConditions.map((condition, index) => (
+            <div
+              className="encounter-condition-row encounter-condition-row--inherent"
+              key={`${condition.condition_ref}:${JSON.stringify(condition.source.embedded_path)}:${index}`}
+            >
+              <Button
+                type="link"
+                className="encounter-condition-row__name"
+                styles={{
+                  root: {
+                    padding: 0,
+                    height: "auto",
+                    justifyContent: "flex-start",
+                    fontSize: "inherit",
+                  },
+                }}
+                href={recordPath(condition.condition_ref)}
+                onClick={(event) => {
+                  if (!shouldHandleAtlasRouteClick(event)) return;
+                  event.preventDefault();
+                  onReference(condition.condition_ref, event.currentTarget);
+                }}
+              >
+                {condition.name}
+                {condition.has_value ? ` ${condition.value ?? "—"}` : ""}
+              </Button>
+              <span className="encounter-condition-meta">
+                Inherent{" · "}
+                <Button
+                  type="link"
+                  styles={{ root: { padding: 0, height: "auto", fontSize: "inherit" } }}
+                  href={atlasRoutePath({
+                    kind: "record",
+                    recordKey: condition.source.record_key,
+                    selection: condition.source,
+                  })}
+                  onClick={(event) => {
+                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    event.preventDefault();
+                    onReference(
+                      condition.source.record_key,
+                      event.currentTarget,
+                      condition.source,
+                    );
+                  }}
+                >
+                  {condition.source_name || condition.name}
+                </Button>
+              </span>
+            </div>
+          ))}
           {visibleGroups.map((group) => {
             const damageType =
               damageTypes?.find((type) => type.value === group.damage_type)?.label ??

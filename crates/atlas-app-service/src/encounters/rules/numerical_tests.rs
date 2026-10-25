@@ -73,7 +73,7 @@ fn source_baseline() -> super::super::stat_block::StatBlockView {
             {"_id":"dddddddddddddddd","type":"melee","name":"Finesse claw","system":{"range":null,"bonus":{"value":14},"traits":{"value":["finesse"]},"damageRolls":{"first":{"damage":"1d6+4","damageType":"slashing","category":null}}}}
         ]}),
     );
-    super::source_baseline(&input.record, "fixture", None).unwrap()
+    super::authored_stat_baseline(&input.record, "fixture", None).unwrap()
 }
 #[test]
 fn typed_spell_statistics_and_damage_share_variant_and_condition_policy() {
@@ -165,7 +165,7 @@ fn petrified_replacement_does_not_require_or_invent_authored_defenses() {
         "Actor",
         json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","system":{"attributes":{"adjustment":null}}}),
     );
-    let baseline = super::source_baseline(&input.record, "fixture", None).unwrap();
+    let baseline = super::authored_stat_baseline(&input.record, "fixture", None).unwrap();
     assert!(
         baseline
             .effective_stat(&StatisticTarget::ArmorClass)
@@ -686,7 +686,7 @@ fn blinded_ranged_precision_preserves_known_perception_and_context() {
             ]}}
         }),
     );
-    let baseline = super::source_baseline(&input.record, "fixture", None).unwrap();
+    let baseline = super::authored_stat_baseline(&input.record, "fixture", None).unwrap();
     let mut p = participant();
     p.conditions = vec![condition(1, ConditionRule::Blinded, None)];
     let projected = project_participant(&p, &baseline, true, &[]);
