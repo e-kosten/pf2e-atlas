@@ -6,6 +6,12 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Product color system](items/product-color-system.md)
+  PR108 delivered the Parchment and Oxblood light identity, warmer Oxblood and
+  Brass dark identity, centralized theme roles, semantic rarity and HP colors,
+  and coherent workbench surfaces. The follow-up brand pass completes the Lora
+  wordmark, compass/d20 mark, themed favicon and action-glyph contrast. Status: done.
+
 - [Trait reference pages](items/trait-reference-pages.md)
   PR93 delivered exact trait identities, definitions, membership/reference
   navigation, stored-vector Similar and shared document presentation. Glossary,
