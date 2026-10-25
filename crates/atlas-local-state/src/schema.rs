@@ -16,3 +16,7 @@ pub const PERSISTENT_PREPARATION_SCHEMA_SQL: &str = include_str!("persistent_pre
 
 /// Authoritative manual action/reaction resources for an actual turn.
 pub const TURN_RESOURCES_SCHEMA_SQL: &str = include_str!("turn_resources.sql");
+
+/// Application identities that survive even when no condition row is inserted.
+pub const CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL: &str =
+    include_str!("consumed_condition_applications.sql");

@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 12;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 13;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -79,6 +79,12 @@ const MIGRATIONS: &[Migration] = &[
         sql: atlas_local_state::TURN_RESOURCES_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 13,
+        name: "consumed-condition-applications",
+        sql: atlas_local_state::CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -111,6 +117,103 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewEncounter, NewSavedList};
+
+    #[test]
+    fn consumed_application_upgrade_preserves_markers_receipts_and_saved_state() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("consumed-applications.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..12], |_| Ok(())).unwrap();
+        let write = workspace.write(12).unwrap();
+        write.connection().execute_batch(r#"
+            INSERT INTO encounters(id,encounter_key,slug,name,status,current_turn_participant_key,round_number,revision,created_at,updated_at)
+            VALUES(1,'kept','kept','Kept','running','actor',4,7,'before','before');
+            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,current_hp,max_hp,temporary_hp,revision,created_at,updated_at)
+            VALUES(1,1,'actor','pc',0,'PC',0,13,20,3,5,'before','before');
+            INSERT INTO encounter_participant_conditions(id,participant_id,name,value,note,created_at,updated_at)
+            VALUES(1,1,'Slowed',1,'Keep note','before','before');
+            INSERT INTO encounter_condition_applications VALUES(1,'actor','kept-application','condition',1);
+            INSERT INTO encounter_condition_applications VALUES(1,'actor','removed-application','condition',99);
+            INSERT INTO encounter_event_receipts VALUES(1,'kept-request','{}','{"version":1,"payload":{}}');
+        "#).unwrap();
+        let before = LocalStateWrite::new(&write)
+            .encounters()
+            .get_with_participants("kept")
+            .unwrap()
+            .unwrap();
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(&path).unwrap();
+        {
+            let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+            assert_eq!(
+                LocalStateRead::new(&read)
+                    .encounters()
+                    .get_with_participants("kept")
+                    .unwrap()
+                    .unwrap(),
+                before
+            );
+            let mut statement = read.connection().prepare("SELECT application_id,condition_id FROM encounter_condition_applications ORDER BY application_id").unwrap();
+            let markers = statement
+                .query_map([], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, Option<i64>>(1)?))
+                })
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            assert_eq!(
+                markers,
+                vec![
+                    ("kept-application".into(), Some(1)),
+                    ("removed-application".into(), Some(99))
+                ]
+            );
+            let receipt: String = read.connection().query_row("SELECT receipt_json FROM encounter_event_receipts WHERE request_id='kept-request'", [], |row| row.get(0)).unwrap();
+            assert_eq!(receipt, r#"{"version":1,"payload":{}}"#);
+        }
+        let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        write.connection().execute("INSERT INTO encounter_condition_applications VALUES(1,'actor','consumed','condition',NULL)", []).unwrap();
+        assert!(write.connection().execute("INSERT INTO encounter_condition_applications VALUES(1,'actor','consumed','condition',NULL)", []).is_err());
+        write
+            .connection()
+            .execute(
+                "DELETE FROM encounter_participants WHERE participant_key='actor'",
+                [],
+            )
+            .unwrap();
+        let markers: i64 = write
+            .connection()
+            .query_row(
+                "SELECT count(*) FROM encounter_condition_applications",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(markers, 0);
+        let receipts: i64 = write
+            .connection()
+            .query_row("SELECT count(*) FROM encounter_event_receipts", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(
+            receipts, 1,
+            "receipts survive until the encounter is deleted"
+        );
+        write
+            .connection()
+            .execute("DELETE FROM encounters WHERE encounter_key='kept'", [])
+            .unwrap();
+        let receipts: i64 = write
+            .connection()
+            .query_row("SELECT count(*) FROM encounter_event_receipts", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(receipts, 0);
+        write.commit().unwrap();
+    }
 
     #[test]
     fn turn_resource_upgrade_preserves_state_without_inventing_an_allocation() {
