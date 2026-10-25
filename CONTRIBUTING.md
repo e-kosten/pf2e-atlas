@@ -56,7 +56,25 @@ before broad test rewrites and final validation. Clearly identify unfinished
 behavior and validation gaps. Existing tests remain intact, and all applicable
 final gates and applicable independent reviews still follow once the UX direction is agreed.
 
-Provide a stable local build when a change is useful to inspect. State its branch, commit, URL or run command, and any sample-data limitations. Disclose uncommitted differences if present. Preserve that build while developing further changes, using a separate checkout or built artifact when necessary, and explicitly identify when an updated build replaces it.
+Use one published localhost URL per active task. Keep that URL across iterations
+and related follow-ups, and tell the user which branch/commit it now serves, including uncommitted
+differences and sample-data limitations. Build a replacement before switching the
+preview; replace its served build deliberately and verify readiness at the same
+URL. Reuse the task workspace so lists, encounters and other review edits carry
+forward. Do not reset saved state to publish a new preview.
+
+For example, after feedback on a spell, update the existing preview and reuse its
+backend when the frontend is the only change. Creating another numbered preview,
+port and full database copy for each revision is not the default. A backend or
+schema change normally replaces the task backend and uses the supported workspace
+migration; it does not require preserving every earlier version.
+
+Keep an additional frozen build only for an explicitly requested comparison or a
+bounded investigation that needs it. Record its purpose and removal milestone in
+the current task plan, then retire its processes and disposable copies when that
+purpose ends. A preview left running by the agent does not by itself establish an
+active review or a reason to retain it. Automated browser fixtures remain separate,
+temporary resources with their own cleanup lifecycle.
 
 Human UI previews use a compatible full-corpus development workspace and shared
 verified model cache, with every configured profile usable. Reference data and
@@ -247,8 +265,9 @@ published. Initialization accepts `--baseline ID` to select an older version for
 a new workspace. Existing lists/encounters must be preserved through normal
 setup; there is intentionally no overwrite/reset flag. Do not point the web app
 at the immutable seed itself, or hard-link writable SQLite databases. Seeds retain
-the copied workspace identity; use separate preview ports and do not exchange
-saved-state generations between divergent copies.
+the copied workspace identity; use separate ports for concurrently active tasks,
+reuse each task's URL across revisions, and do not exchange saved-state generations
+between divergent copies.
 
 Publish new baseline versions when a validated main build or data-contract change
 makes one useful; ordinary presentation edits need no data rebuild. Retain the
@@ -296,13 +315,14 @@ obsolete configurations rather than retaining both indefinitely. Normal
 rebuilding them adds latency and disk writes. Neither retained size nor build
 time alone establishes SSD write volume or endurance.
 
-Before creating a worktree or running expensive gates, check free space and the
-current task's output:
+Before creating a worktree, copying a preview workspace or running expensive gates,
+check free space and the current task's compiler and runtime output:
 
 ```bash
 df -h .
 git worktree list
 test ! -d target || du -sh target
+test ! -d .atlas || du -sh .atlas
 ```
 
 Below 30 GiB free, reclaim obsolete task build output before starting another
@@ -335,10 +355,14 @@ installed workspace without explicit authorization. Normal Atlas setup continues
 to preserve saved state; the development cleanup policy does not change product
 behavior.
 
-Reuse one workspace per active task. Keep a separate frozen preview only when
-review requires it, and remove superseded copies promptly. Preserve the shared
-baseline while active checkouts reference it. A completed task's disposable
-database does not need to survive merely because it contains saved rows.
+Reuse one workspace per active task and follow the stable-URL lifecycle under
+[Local Build Review](#local-build-review). Before another full workspace copy, inspect existing databases,
+upgrade backups and task-owned preview processes. Remove superseded copies and
+stop their servers as iterations advance; do not wait for the entire workstream
+to end. Retain an upgrade backup only while upgrade verification or recovery needs
+it. Preserve the shared baseline while active checkouts reference it. A completed
+task's disposable database does not need to survive merely because it contains
+saved rows.
 
 Do not routinely archive databases, backup copies, executables, Git bundles or
 entire retired worktrees under `scratch/`. Do not create export scripts or recovery
