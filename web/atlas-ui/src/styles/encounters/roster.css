@@ -202,3 +202,7 @@
 .encounter-roster__hp--critical {
   color: var(--hp-critical-text, var(--text));
 }
+
+.encounter-add-adjustment {
+  width: 6.5rem;
+}

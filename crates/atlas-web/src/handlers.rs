@@ -983,7 +983,7 @@ pub(crate) async fn set_encounter_difficulty(
 pub(crate) async fn preview_encounter_difficulty(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
-    payload: Result<Json<atlas_app_model::SetEncounterDifficultyRequest>, JsonRejection>,
+    payload: Result<Json<atlas_app_model::PreviewEncounterDifficultyRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();

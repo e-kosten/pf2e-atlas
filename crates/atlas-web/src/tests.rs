@@ -1420,7 +1420,7 @@ impl AtlasWebService for MockService {
     fn preview_encounter_difficulty(
         &self,
         encounter_ref: &str,
-        _request: atlas_app_model::SetEncounterDifficultyRequest,
+        _request: atlas_app_model::PreviewEncounterDifficultyRequest,
     ) -> Result<atlas_app_model::EncounterDifficultyView, AppServiceError> {
         Ok(encounter_detail(encounter_ref, None, false).difficulty)
     }
@@ -1928,6 +1928,8 @@ fn encounter_detail(
             reference_note: None,
             total_xp: None,
             known_xp: 0,
+            xp_per_pc: None,
+            award_note: None,
             rating: None,
             budgets: vec![],
             opposition: vec![],

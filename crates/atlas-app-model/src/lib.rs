@@ -1,9 +1,9 @@
 #![deny(unsafe_code)]
 mod encounter_difficulty;
 pub use encounter_difficulty::{
-    EncounterDifficultyBudgetView, EncounterDifficultyOpponentView,
+    EncounterDifficultyAddition, EncounterDifficultyBudgetView, EncounterDifficultyOpponentView,
     EncounterDifficultyReferenceView, EncounterDifficultyRuleView, EncounterDifficultyView,
-    SetEncounterDifficultyRequest,
+    PreviewEncounterDifficultyRequest, SetEncounterDifficultyRequest,
 };
 mod turn_resources;
 pub use dice::{FlatCheckRollView, RollFlatCheckRequest};
@@ -332,6 +332,8 @@ mod tests {
             .expect("EncounterConditionCategoryView bindings should export");
         EncounterConditionDefinitionView::export_all_to(path)
             .expect("EncounterConditionDefinitionView bindings should export");
+        PreviewEncounterDifficultyRequest::export_all_to(path)
+            .expect("difficulty preview bindings should export");
         SetEncounterDifficultyRequest::export_all_to(path)
             .expect("difficulty request bindings should export");
         EncounterDetailView::export_all_to(path)

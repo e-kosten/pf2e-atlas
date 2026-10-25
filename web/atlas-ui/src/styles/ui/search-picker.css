@@ -38,3 +38,8 @@
     min-height: 200px;
   }
 }
+
+.reference-picker__summary {
+  flex: 1 0 100%;
+  min-width: 0;
+}

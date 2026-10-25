@@ -63,6 +63,7 @@ export function SearchPickerModal<FormValues>({
   dismissLabel = "Cancel",
   confirmLabel = "Add",
   status,
+  summary,
 }: {
   buildRequest: (query: string) => SearchResultsRequest;
   disabled?: boolean;
@@ -81,6 +82,7 @@ export function SearchPickerModal<FormValues>({
   dismissLabel?: string;
   confirmLabel?: string;
   status?: React.ReactNode;
+  summary?: React.ReactNode;
 }) {
   const formId = useId();
   const profile = useSearchProfile();
@@ -378,6 +380,7 @@ export function SearchPickerModal<FormValues>({
               {confirmLabel}
             </Button>
           </Space>
+          {summary && <div className="reference-picker__summary">{summary}</div>}
         </Form>
       </Modal>
     </ConfigProvider>

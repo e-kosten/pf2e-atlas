@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, InputNumber, Popover, Table, Typography } from "antd";
-import { ChevronDown } from "lucide-react";
+import { Alert, Button, InputNumber, Popover, Table, Tooltip, Typography } from "antd";
+import { ChevronDown, Info } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type {
   EncounterDifficultyReferenceView,
   EncounterDifficultyView,
-  SetEncounterDifficultyRequest,
+  PreviewEncounterDifficultyRequest,
   RecordNavigationView,
 } from "../../generated/atlas";
 import { EncounterDifficultyMeter } from "./EncounterDifficultyMeter";
@@ -14,24 +14,25 @@ import { recordDestination } from "../../app/destinations";
 import type { RecordReferenceHandler } from "../../shared/records/PreparedContent";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 
-interface Props {
+export interface EncounterDifficultyProps {
   encounterKey: string;
   revision: bigint;
+  artifactGeneration?: string | null;
   value: EncounterDifficultyView;
   disabled: boolean;
   onPreview: (
-    request: SetEncounterDifficultyRequest,
+    request: PreviewEncounterDifficultyRequest,
   ) => Promise<EncounterDifficultyView>;
   onReference: RecordReferenceHandler;
   onSave: (reference: EncounterDifficultyReferenceView) => Promise<void>;
 }
-function summary(value: EncounterDifficultyView) {
+export function difficultySummary(value: EncounterDifficultyView) {
   if (value.party_level === null || value.party_size === null)
     return "Set party reference";
   if (value.total_xp === null) return "Difficulty incomplete";
   return `${value.rating} · ${value.total_xp} XP`;
 }
-export function EncounterDifficulty(props: Props) {
+export function EncounterDifficulty(props: EncounterDifficultyProps) {
   const [open, setOpen] = useState(false);
   const [ruleDraft, setRuleDraft] = useState<EncounterDifficultyReferenceView>();
   const button = useRef<HTMLButtonElement>(null);
@@ -45,71 +46,75 @@ export function EncounterDifficulty(props: Props) {
   }
   return (
     <div className="encounter-difficulty">
-      <Popover
-        trigger="click"
-        placement="bottomLeft"
-        align={{
-          offset: [0, 0],
-          overflow: { adjustX: true, adjustY: true, shiftX: true, shiftY: true },
-          htmlRegion: "visible",
-        }}
-        open={open}
-        onOpenChange={changeOpen}
-        afterOpenChange={(next) => {
-          if (next && open && document.activeElement === button.current)
-            content.current?.focus({ preventScroll: true });
-        }}
-        destroyOnHidden
-        content={
-          <div
-            ref={content}
-            className="encounter-difficulty__popover"
-            role="dialog"
-            aria-label="Encounter difficulty"
-            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- A bounded reading region needs keyboard scrolling in WebKit.
-            tabIndex={0}
-          >
-            <DifficultyReference
-              {...props}
-              onClose={() => changeOpen(false)}
-              initialReference={ruleDraft ?? props.value.reference}
-              onReadRule={(selection, anchor, draft) => {
-                changeOpen(false);
-                setRuleDraft(draft);
-                props.onReference(
-                  selection.record_key,
-                  button.current ?? anchor,
-                  selection,
-                );
-              }}
-            />
-          </div>
-        }
-      >
-        <Button
-          ref={button}
-          size="small"
-          aria-expanded={open}
-          aria-label={`Encounter difficulty: ${summary(props.value)}`}
-          icon={<ChevronDown size={14} />}
-          iconPlacement="end"
+      <div className="encounter-difficulty__heading">
+        <Popover
+          trigger="click"
+          placement="bottomLeft"
+          align={{
+            offset: [0, 0],
+            overflow: { adjustX: true, adjustY: true, shiftX: true, shiftY: true },
+            htmlRegion: "visible",
+          }}
+          open={open}
+          onOpenChange={changeOpen}
+          afterOpenChange={(next) => {
+            if (next && open && document.activeElement === button.current)
+              content.current?.focus({ preventScroll: true });
+          }}
+          destroyOnHidden
+          content={
+            <div
+              ref={content}
+              className="encounter-difficulty__popover"
+              role="dialog"
+              aria-label="Encounter difficulty"
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- A bounded reading region needs keyboard scrolling in WebKit.
+              tabIndex={0}
+            >
+              <DifficultyReference
+                {...props}
+                onClose={() => changeOpen(false)}
+                initialReference={ruleDraft ?? props.value.reference}
+                onReadRule={(selection, anchor, draft) => {
+                  changeOpen(false);
+                  setRuleDraft(draft);
+                  props.onReference(
+                    selection.record_key,
+                    button.current ?? anchor,
+                    selection,
+                  );
+                }}
+              />
+            </div>
+          }
         >
-          {summary(props.value)}
-        </Button>
-      </Popover>
-      {props.value.party_level !== null && props.value.party_size !== null && (
-        <span className="encounter-difficulty__reference">
-          Level {props.value.party_level} ·{" "}
-          {props.value.reference_note ? "Budget for " : ""}
-          {props.value.party_size} PCs
-        </span>
-      )}
+          <Button
+            ref={button}
+            size="small"
+            aria-expanded={open}
+            aria-label={`Encounter difficulty: ${difficultySummary(props.value)}`}
+            icon={<ChevronDown size={14} />}
+            iconPlacement="end"
+          >
+            {difficultySummary(props.value)}
+          </Button>
+        </Popover>
+        {props.value.party_level !== null && props.value.party_size !== null && (
+          <span className="encounter-difficulty__reference">
+            Level {props.value.party_level} ·{" "}
+            {props.value.reference_note ? "Budget for " : ""}
+            {props.value.party_size} PCs
+          </span>
+        )}
+      </div>
+      <EncounterDifficultyMeter value={props.value} showBudgets={false} />
     </div>
   );
 }
 function DifficultyReference({
   encounterKey,
   revision,
+  artifactGeneration,
   value,
   disabled,
   onSave,
@@ -117,7 +122,7 @@ function DifficultyReference({
   onReadRule,
   initialReference,
   onClose,
-}: Props & {
+}: EncounterDifficultyProps & {
   onClose: () => void;
   initialReference: EncounterDifficultyReferenceView;
   onReadRule: (
@@ -161,11 +166,13 @@ function DifficultyReference({
       encounterKey,
       revision.toString(),
       debounced,
+      artifactGeneration,
     ],
     queryFn: () =>
       onPreview({
         expected_revision: revision,
         reference: debounced,
+        addition: null,
       }),
     enabled: valid && !unchanged,
     retry: false,
@@ -174,9 +181,15 @@ function DifficultyReference({
     draft.party_level === debounced.party_level &&
     draft.party_size === debounced.party_size;
   const shown = unchanged ? value : currentDraft ? preview.data : undefined;
-  const [retained, setRetained] = useState(value);
-  if (shown && shown !== retained) setRetained(shown);
-  const display = shown ?? retained;
+  const identity = JSON.stringify([
+    encounterKey,
+    revision.toString(),
+    artifactGeneration,
+  ]);
+  const [retained, setRetained] = useState({ identity, value });
+  if (shown && (retained.identity !== identity || shown !== retained.value))
+    setRetained({ identity, value: shown });
+  const display = shown ?? (retained.identity === identity ? retained.value : value);
   const previewError = !unchanged && currentDraft ? preview.error : null;
   const pending = valid && !unchanged && !shown && !previewError;
   async function save() {
@@ -279,7 +292,7 @@ function DifficultyReference({
       </form>
       <div className="encounter-difficulty__calculation" aria-busy={pending}>
         <div className="encounter-difficulty__total" role="status">
-          <strong>{summary(display)}</strong>
+          <strong>{difficultySummary(display)}</strong>
           <span>
             {pending
               ? "Updating preview…"
@@ -299,11 +312,27 @@ function DifficultyReference({
           <p>{display.known_xp} known XP · missing contributions below</p>
         )}
         <EncounterDifficultyMeter value={display} />
+        <div className="encounter-difficulty__award">
+          <span>
+            Suggested XP per PC
+            {display.award_note && (
+              <Tooltip title={display.award_note} trigger={["hover", "focus"]}>
+                <Button
+                  type="text"
+                  size="small"
+                  aria-label="XP award calculation"
+                  icon={<Info size={14} />}
+                />
+              </Tooltip>
+            )}
+          </span>
+          <strong>{display.xp_per_pc ?? "—"}</strong>
+        </div>
         {display.opposition.length > 0 ? (
           <Table
             size="small"
             pagination={false}
-            rowKey="participant_key"
+            rowKey={(row) => row.participant_key ?? "prospective-addition"}
             dataSource={display.opposition}
             columns={[
               {

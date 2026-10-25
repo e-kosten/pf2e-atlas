@@ -1,6 +1,6 @@
 import { ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { EncounterDifficulty } from "./EncounterDifficulty";
 import type { EncounterDifficultyView } from "../../generated/atlas";
 import { previewEncounterDifficulty } from "../../api/atlasApi";
@@ -15,6 +15,8 @@ const initial: EncounterDifficultyView = {
   reference_note: null,
   total_xp: 80,
   known_xp: 80,
+  xp_per_pc: 80,
+  award_note: "Encounter XP × 4 ÷ 4, rounded down.",
   rating: "Moderate",
   budgets: [
     { label: "Trivial", xp: 40 },
@@ -75,6 +77,7 @@ it("previews edits without saving, and submits one explicit reference", async ()
     expect(previewEncounterDifficulty).toHaveBeenCalledWith("encounter", {
       expected_revision: 9n,
       reference: { party_level: 6, party_size: null },
+      addition: null,
     }),
   );
   expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
@@ -146,6 +149,7 @@ it.each([
       expect(previewEncounterDifficulty).toHaveBeenCalledWith("encounter", {
         expected_revision: 9n,
         reference,
+        addition: null,
       }),
     );
   },
@@ -153,12 +157,19 @@ it.each([
 it("uses an XP meter with a text alternative and leaves unknown totals unfilled", async () => {
   setup();
   await waitFor(() =>
-    expect(screen.getByRole("progressbar", { name: "Encounter XP" })).toBeVisible(),
+    expect(
+      within(screen.getByRole("dialog", { name: "Encounter difficulty" })).getByRole(
+        "progressbar",
+        { name: "Encounter XP" },
+      ),
+    ).toBeVisible(),
   );
-  expect(screen.getByRole("progressbar", { name: "Encounter XP" })).toHaveAttribute(
-    "aria-valuetext",
-    "Moderate, 80 XP; Extreme budget 160 XP",
-  );
+  expect(
+    within(screen.getByRole("dialog", { name: "Encounter difficulty" })).getByRole(
+      "progressbar",
+      { name: "Encounter XP" },
+    ),
+  ).toHaveAttribute("aria-valuetext", "Moderate, 80 XP; Extreme budget 160 XP");
   expect(screen.queryByText(/Includes defeated/)).not.toBeInTheDocument();
 });
 

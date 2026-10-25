@@ -1,5 +1,6 @@
 //! Planned encounter budgets. Rules: GM Core 56–57 and 75–76 (AoN 2649/2653/2716).
 //! Defeated/disabled state never changes the planned opposition or party.
+mod preview;
 use super::hydration::HydratedParticipantRecord;
 use crate::{AppServiceResult, AtlasAppService};
 use atlas_app_model::{
@@ -32,52 +33,6 @@ impl AtlasAppService {
                 encounter_key: encounter.encounter_key,
             })
         })
-    }
-
-    pub fn preview_encounter_difficulty(
-        &self,
-        encounter_ref: &str,
-        request: SetEncounterDifficultyRequest,
-    ) -> AppServiceResult<EncounterDifficultyView> {
-        let reference = local_reference(request.reference);
-        reference.validate()?;
-        // One workspace snapshot owns both saved state and source-backed XP inputs.
-        let initial = self.with_state(|session| {
-            session
-                .local_state()
-                .encounters()
-                .get_with_participants(encounter_ref)?
-                .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))
-        })?;
-        if !initial.participants.iter().any(|p| {
-            p.record_key
-                .as_deref()
-                .is_some_and(|key| atlas_domain::RecordKey::parse(key).is_ok())
-        }) {
-            guard_revision(&initial.encounter, request.expected_revision)?;
-            return Ok(project(
-                reference,
-                &initial.participants,
-                &Default::default(),
-            ));
-        }
-        let encounter_ref = encounter_ref.to_owned();
-        self.with_workspace(
-            &crate::ReadExecutionContext::uncancellable(),
-            move |session| {
-                let snapshot = session
-                    .local_state()
-                    .encounters()
-                    .get_with_participants(&encounter_ref)?
-                    .ok_or_else(|| super::projection::encounter_not_found(&encounter_ref))?;
-                guard_revision(&snapshot.encounter, request.expected_revision)?;
-                let (_, records) = super::hydration::hydrate_participant_records(
-                    session.retrieval_mut(),
-                    &snapshot.participants,
-                )?;
-                Ok(project(reference, &snapshot.participants, &records))
-            },
-        )
     }
 }
 fn local_reference(reference: EncounterDifficultyReferenceView) -> EncounterDifficultyReference {
@@ -152,48 +107,18 @@ pub(super) fn project(
                 .hazard_complexity()
                 .value()
             });
-            let kind = if p.participant_kind == ParticipantKind::Creature {
-                "Creature"
-            } else {
-                match complexity {
-                    Some(true) => "Complex hazard",
-                    Some(false) => "Simple hazard",
-                    None => "Hazard",
-                }
-            };
-            let result = match (party_level, level) {
-                (None, _) => Err("Set a party level to calculate XP."),
-                (_, None) => Err("Participant level is unavailable."),
-                (Some(party), Some(level)) => xp(
-                    level - party as i32,
-                    p.participant_kind == ParticipantKind::Hazard,
-                    complexity,
-                ),
-            };
-            let (xp, unavailable_reason) = match result {
-                Ok(xp) => (Some(xp), None),
-                Err(reason) => (None, Some(reason.into())),
-            };
-            EncounterDifficultyOpponentView {
-                participant_key: p.participant_key.clone(),
-                name: p.display_name.clone(),
-                kind: kind.into(),
+            opponent(
+                Some(p.participant_key.clone()),
+                p.display_name.clone(),
+                p.participant_kind,
                 level,
-                xp,
-                unavailable_reason,
-            }
+                complexity,
+                party_level,
+                1,
+            )
         })
         .collect::<Vec<_>>();
-    let known_xp = opposition
-        .iter()
-        .filter_map(|o| o.xp)
-        .fold(0u32, u32::saturating_add);
-    let total_xp = opposition
-        .iter()
-        .map(|o| o.xp)
-        .try_fold(0u32, |sum, xp| sum.checked_add(xp?));
-    let rating = total_xp.zip(party_size).map(|(xp, _)| rating(xp, &budgets));
-    EncounterDifficultyView {
+    let mut view = EncounterDifficultyView {
         rules: rule_references(),
         reference: EncounterDifficultyReferenceView {
             party_level: reference.party_level,
@@ -204,11 +129,100 @@ pub(super) fn project(
         pc_count,
         basis,
         reference_note,
-        total_xp,
-        known_xp,
-        rating,
+        total_xp: None,
+        known_xp: 0,
+        rating: None,
+        xp_per_pc: None,
+        award_note: None,
         budgets,
         opposition,
+    };
+    recalculate(&mut view, participants);
+    view
+}
+
+// A prospective row has no participant identity and is never written to saved state.
+fn opponent(
+    participant_key: Option<String>,
+    name: String,
+    kind: ParticipantKind,
+    level: Option<i32>,
+    complexity: Option<bool>,
+    party_level: Option<u32>,
+    quantity: u32,
+) -> EncounterDifficultyOpponentView {
+    let result = match (party_level, level) {
+        (None, _) => Err("Set a party level to calculate XP."),
+        (_, None) => Err("Participant level is unavailable."),
+        (Some(party), Some(level)) => level
+            .checked_sub(party as i32)
+            .ok_or("Outside the party level −4 to +4 XP table.")
+            .and_then(|relative| xp(relative, kind == ParticipantKind::Hazard, complexity))
+            .and_then(|xp| xp.checked_mul(quantity).ok_or("XP total is too large.")),
+    };
+    let (xp, unavailable_reason) = match result {
+        Ok(xp) => (Some(xp), None),
+        Err(reason) => (None, Some(reason.into())),
+    };
+    EncounterDifficultyOpponentView {
+        participant_key,
+        name: if quantity == 1 {
+            name
+        } else {
+            format!("{quantity} × {name}")
+        },
+        kind: match (kind, complexity) {
+            (ParticipantKind::Creature, _) => "Creature",
+            (_, Some(true)) => "Complex hazard",
+            (_, Some(false)) => "Simple hazard",
+            _ => "Hazard",
+        }
+        .into(),
+        level,
+        xp,
+        unavailable_reason,
+    }
+}
+fn recalculate(view: &mut EncounterDifficultyView, participants: &[EncounterParticipant]) {
+    view.known_xp = view
+        .opposition
+        .iter()
+        .filter_map(|o| o.xp)
+        .fold(0, u32::saturating_add);
+    view.total_xp = view
+        .opposition
+        .iter()
+        .map(|o| o.xp)
+        .try_fold(0u32, |sum, xp| sum.checked_add(xp?));
+    view.rating = view
+        .total_xp
+        .zip(view.party_size)
+        .map(|(xp, _)| rating(xp, &view.budgets));
+    // Pinned PF2e calculateXP: src/scripts/macros/xp/index.ts. Keep normalization
+    // separate from the published budget adjustments (notably Low's +20).
+    view.xp_per_pc = view
+        .total_xp
+        .zip(view.party_size)
+        .filter(|(_, size)| *size > 0)
+        .filter(|_| view.party_level.is_some())
+        .and_then(|(xp, size)| u32::try_from(u64::from(xp) * 4 / u64::from(size)).ok());
+    view.award_note = view.party_size.map(|size| {
+        let mut note = format!("Encounter XP × 4 ÷ {size}, rounded down.");
+        if let Some(party) = view.party_level
+            && participants.iter().any(|p| {
+                p.participant_kind == ParticipantKind::Pc
+                    && p.side == ParticipantSide::Pc
+                    && p.level_override
+                        .is_some_and(|level| level < i64::from(party))
+            })
+        {
+            note.push_str(&format!(" PCs below level {party} earn double."));
+        }
+        note
+    });
+    if view.rating.as_deref() == Some("Trivial") {
+        view.xp_per_pc = view.party_level.map(|_| 0);
+        view.award_note = Some("Trivial encounters normally grant no XP.".into());
     }
 }
 
