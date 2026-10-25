@@ -77,7 +77,17 @@ pub(in crate::encounters) fn apply(
                     }
                 }
                 ConditionEventChange::Remove { .. } if condition_id == -1 => {
-                    planned.changes.condition_changes.remove(0);
+                    if let ConditionEventChange::Add(input) =
+                        planned.changes.condition_changes.remove(0)
+                        && let Some(origin) = input.origin
+                    {
+                        planned.changes.consumed_applications.push(
+                            atlas_local_state::ConsumedConditionApplication {
+                                participant_key: input.participant_key,
+                                origin,
+                            },
+                        );
+                    }
                 }
                 ConditionEventChange::Remove { .. } => {
                     planned.changes.condition_changes[0] = reduction

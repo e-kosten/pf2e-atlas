@@ -398,6 +398,47 @@ fn application(
     }
 }
 #[test]
+fn consumed_stunned_application_rejects_a_new_request_for_the_same_origin() {
+    let (f, key, a, _) = fixture();
+    next(&f, &key, "a1");
+    let mut request = application(
+        &f,
+        &key,
+        &a,
+        1,
+        ConditionEventIntentView::Apply,
+        "consume-origin",
+    );
+    request.origin = Some(ConditionOriginView {
+        application_id: "same-effect".into(),
+        grant_slot: "condition".into(),
+        participant_key: None,
+        record_key: None,
+        activity_id: None,
+        artifact_generation: None,
+    });
+    f.worker
+        .add_encounter_participant_condition(&key, request.clone())
+        .unwrap();
+    let after = f.worker.encounter(&key).unwrap();
+    assert!(after.participants[0].conditions.is_empty());
+    assert_eq!(resources(&f, &key, &a).regular_remaining, Some(2));
+    f.worker
+        .add_encounter_participant_condition(&key, request.clone())
+        .unwrap();
+    assert_eq!(f.worker.encounter(&key).unwrap(), after);
+
+    request.request_id = "replay-origin".into();
+    request.expected_encounter_revision = after.revision;
+    assert!(
+        f.worker
+            .add_encounter_participant_condition(&key, request)
+            .is_err()
+    );
+    assert_eq!(f.worker.encounter(&key).unwrap(), after);
+}
+
+#[test]
 fn applying_stunned_mid_turn_previews_and_commits_the_same_remaining_loss_once() {
     let (f, key, a, _) = fixture();
     next(&f, &key, "a1");

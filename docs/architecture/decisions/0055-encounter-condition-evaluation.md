@@ -150,6 +150,9 @@ Successful recovery clears its episode; individual expiry/removal can reveal a
 weaker source. Physical-table recovery has a per-type Clear intent beside the recovery roller.
 Before damage application it queues removal, visibly retaining this turn's damage;
 the final command records that table outcome with the batch's recovery claims.
+If an actual check was already prepared, Clear still removes the effect while
+retaining that check's DC, dice and success in canonical review. Removal does not
+rewrite a failed check as a successful or unrolled result.
 After damage application, or outside the prepared batch, direct Clear ends the
 recorded episode's matching current sources without a DC, source-selection form,
 simulated roll, HP change or turn-recovery claim. Both forms preserve other types
@@ -199,8 +202,9 @@ the condition application event against recorded remaining actions. The before/
 after preview and commit use one plan. A source consumed before insertion has no
 saved row ID; the application receipt and retained turn result preserve the event
 without persisting the preview subject's temporary ID. Surviving sources retain
-their notes, scope, origin and actual saved identity. Neither path is replayed by
-reading an outgoing event.
+their notes, scope, origin and actual saved identity. A separate consumed-application
+marker retains replay protection when there is no surviving source row. Neither
+path is replayed by reading an outgoing event.
 Waking from
 noise is guidance alongside the existing Perception roller, not a DC-entry form.
 

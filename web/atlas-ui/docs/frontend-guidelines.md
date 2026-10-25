@@ -1438,6 +1438,10 @@ State labels on the same action share an intrinsic footprint: Roll recovery and
 View result reserve the wider label's width. Do not let a result label wrap its
 neighboring Clear effect action and recenter the entire modal.
 Manual drafts and prepared dice survive method switches.
+Applied outcomes own their recorded facts. A table total without saved protection
+must not acquire today's immunity, weakness or resistance attribution; current
+IWR advice belongs to editing. An actual recovery check keeps its DC and result
+when a later Clear removes the effect.
 
 Resolve each type's damage before optionally preparing its recovery. Successful
 recovery and Clear effect show Clears after Apply; their damage remains in this

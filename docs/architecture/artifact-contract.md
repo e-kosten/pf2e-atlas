@@ -42,6 +42,10 @@ expenditure. Saved HP, conditions, parties, reference rows and prior receipts re
 unchanged. Old outgoing snapshots omit this field and decode as an unknown allocation.
 App-service owns allocation/spending policy; local-state persists it with the same
 atomic revision, receipt and boundary protections as other encounter events.
+Workspace migration 13 allows a condition application marker to omit its source
+row ID when the application is consumed before insertion. It preserves existing
+markers, including those whose source was removed, and all saved state and receipts.
+The application identity remains claimed without creating an inactive condition.
 
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
