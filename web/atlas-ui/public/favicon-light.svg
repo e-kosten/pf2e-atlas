@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160" role="img" aria-labelledby="title description">
+  <title id="title">PF2e Atlas logo</title>
+  <desc id="description">An oxblood compass rose surrounding a parchment d20.</desc>
+  <circle cx="80" cy="80" r="54" fill="none" stroke="#8C333A" stroke-width="8"/>
+  <g fill="#FFFCF4" stroke="#74272E" stroke-width="3.2" stroke-linejoin="round">
+    <path d="M80 6 94.5659 70 80 66 65.4341 70Z"/>
+    <path d="M154 80 90 93.042 94 80 90 66.958Z"/>
+    <path d="M80 154 65.4341 90 80 94 94.5659 90Z"/>
+    <path d="M6 80 70 66.958 66 80 70 93.042Z"/>
+  </g>
+  <g fill="#D6C6AD">
+    <path d="M80 6v60L65.4341 70Z"/>
+    <path d="M154 80H94L90 66.958Z"/>
+    <path d="M80 154V94L94.5659 90Z"/>
+    <path d="M6 80H66L70 93.042Z"/>
+  </g>
+  <g transform="translate(54 50.1312) scale(.52)">
+    <path fill="#8C333A" d="M50 0 100 28.72 100 86.16 50 114.88 0 86.16 0 28.72Z"/>
+    <path fill="#F6EFE3" d="M50 5.744 95 31.592 95 83.288 50 109.136 5 83.288 5 31.592Z"/>
+    <path fill="#F6EFE3" d="M50 25.490115 77.811529 73.414943 22.188471 73.414943Z"/>
+    <path fill="#F3EBDD" d="M50 25.490115 77.811529 73.414943 95 31.592Z"/>
+    <path fill="#F5EDE1" d="M50 25.490115 5 31.592 50 5.744Z"/>
+    <path fill="#F4ECDF" d="M50 25.490115 5 31.592 22.188471 73.414943Z"/>
+    <path fill="#F2E9DB" d="M50 25.490115 50 5.744 95 31.592Z"/>
+    <path fill="#DDD0BD" d="M77.811529 73.414943 50 109.136 95 83.288Z"/>
+    <path fill="#F1E8D9" d="M77.811529 73.414943 50 109.136 22.188471 73.414943Z"/>
+    <path fill="#D5C6B1" d="M77.811529 73.414943 95 83.288 95 31.592Z"/>
+    <path fill="#F3EADC" d="M5 31.592 22.188471 73.414943 5 83.288Z"/>
+    <path fill="#DACCB9" d="M50 109.136 22.188471 73.414943 5 83.288Z"/>
+    <path fill="none" stroke="#8C333A" stroke-width="8" stroke-linejoin="round" d="M50 0 100 28.72 100 86.16 50 114.88 0 86.16 0 28.72Z"/>
+  </g>
+</svg>

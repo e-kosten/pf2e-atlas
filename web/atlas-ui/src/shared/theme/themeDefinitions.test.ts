@@ -1,7 +1,11 @@
 import { theme as antTheme } from "antd";
 // @ts-expect-error Vitest runs in Node; the product build intentionally omits Node types.
 import { readFileSync } from "node:fs";
-import { antDesignTheme, atlasCssVariables } from "./atlasTheme";
+import {
+  antDesignTheme,
+  applyAtlasDocumentTheme,
+  atlasCssVariables,
+} from "./atlasTheme";
 import { atlasPalettes, darkNeutralRamp } from "./themeDefinitions";
 
 function luminance(hex: string) {
@@ -37,6 +41,9 @@ describe("Atlas product palette", () => {
       ).toBeGreaterThanOrEqual(4.5);
       expect(
         contrast(palette.brand.text, palette.shell.background),
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(
+        contrast(palette.tooltip.text, palette.tooltip.background),
       ).toBeGreaterThanOrEqual(4.5);
       expect(
         contrast(palette.navigation.activeText, palette.navigation.activeBackground),
@@ -107,6 +114,18 @@ describe("Atlas product palette", () => {
       );
       expect(variables["--brand-text" as keyof typeof variables]).toBe(
         palette.brand.text,
+      );
+      expect(variables["--brand-mark-ring" as keyof typeof variables]).toBe(
+        palette.brand.mark.ring,
+      );
+      expect(variables["--brand-mark-die-face-9" as keyof typeof variables]).toBe(
+        palette.brand.mark.dieFaces[9],
+      );
+      expect(tokens.colorBgSpotlight.toLowerCase()).toBe(
+        palette.tooltip.background.toLowerCase(),
+      );
+      expect(tokens.colorTextLightSolid.toLowerCase()).toBe(
+        palette.tooltip.text.toLowerCase(),
       );
       expect(config.components?.Menu).toMatchObject({
         itemColor: palette.shell.text,
@@ -192,6 +211,24 @@ describe("Atlas product palette", () => {
     for (const [name, value] of Object.entries(atlasCssVariables("light"))) {
       expect(fallback[name], name).toBe(normalizeCssValue(String(value)));
     }
+  });
+
+  it("applies the resolved appearance to the document and favicon", () => {
+    const favicon = document.createElement("link");
+    favicon.dataset.atlasFavicon = "";
+    favicon.rel = "icon";
+    document.head.append(favicon);
+
+    applyAtlasDocumentTheme(document, "dark");
+
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.documentElement.style.colorScheme).toBe("dark");
+    expect(document.documentElement.style.getPropertyValue("--wordmark-font")).toBe(
+      '"Lora Variable", Lora, Georgia, serif',
+    );
+    expect(favicon.getAttribute("href")).toBe("/favicon-dark.svg");
+
+    favicon.remove();
   });
 });
 
