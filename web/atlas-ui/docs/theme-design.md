@@ -68,16 +68,13 @@ use simplified light and dark SVGs without the smallest points and ticks, which
 would become visual noise at favicon sizes. The resolved application appearance
 selects the matching favicon.
 
-Pathfinder action glyphs use the dedicated `actionGlyph` role rather than muted,
-link or body-text colors. The authored light role is deep oxblood and the dark
-role is brass; both retain at least 4.5:1 contrast against primary reading
-surfaces. Glyphs inside filled encounter controls inherit the control foreground
-so their contrast follows the Ant button token pair.
+Pathfinder action glyphs in reference content use the surrounding body-text
+color. Glyphs inside solid encounter resource controls inherit the control
+foreground, so their contrast follows the Ant `primary`/`onPrimary` token pair.
 
 ## Validation
 
-Check authored text/background pairs, solid-control foregrounds, action glyphs
-against reading surfaces, HP fills against their missing-HP track, and rendered
-Ant tokens. Review the full header mark and simplified favicon at their actual
-sizes. Visual acceptance in both appearances remains separate from focused
-contrast tests and the full frontend gate.
+Check authored text/background pairs, solid-control foregrounds, HP fills against
+their missing-HP track, and rendered Ant tokens. Review the full header mark and
+simplified favicon at their actual sizes. Visual acceptance in both appearances
+remains separate from focused contrast tests and the full frontend gate.
