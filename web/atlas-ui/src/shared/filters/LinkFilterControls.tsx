@@ -1,3 +1,9 @@
+import {
+  destinationHref,
+  isPrimaryActivation,
+  navigateDestination,
+} from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { Button, Popover, Radio, Space, Tooltip, Typography, theme } from "antd";
 import { CloseOutlined, DownOutlined } from "@ant-design/icons";
 import { useRef, useState } from "react";
@@ -6,12 +12,12 @@ import type {
   QueryRelationship,
   FilterEditorFieldView,
 } from "../../generated/atlas";
-import {
-  atlasRoutePath,
-  navigateToAtlasRoute,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
-export type LinkLeaf = Extract<QueryPredicate, { kind: "relationship" }>;
+export type LinkLeaf = Extract<
+  QueryPredicate,
+  {
+    kind: "relationship";
+  }
+>;
 export function linkClauses(filter: QueryPredicate | null): LinkLeaf[] {
   if (!filter) return [];
   if (filter.kind === "relationship") return [filter];
@@ -189,20 +195,22 @@ function LinkChip({
         content={
           <div className="relationship-filter__scope">
             <Typography.Link
-              href={atlasRoutePath({
-                kind: "record",
-                recordKey: relationship.selection.record_key,
-                selection: relationship.selection,
-              })}
-              onKeyDown={keyDown}
-              onClick={(event) => {
-                if (!shouldHandleAtlasRouteClick(event)) return;
-                event.preventDefault();
-                navigateToAtlasRoute({
-                  kind: "record",
+              href={destinationHref(
+                recordDestination({
                   recordKey: relationship.selection.record_key,
                   selection: relationship.selection,
-                });
+                }),
+              )}
+              onKeyDown={keyDown}
+              onClick={(event) => {
+                if (!isPrimaryActivation(event)) return;
+                event.preventDefault();
+                navigateDestination(
+                  recordDestination({
+                    recordKey: relationship.selection.record_key,
+                    selection: relationship.selection,
+                  }),
+                );
               }}
             >
               Open {title}

@@ -1,16 +1,16 @@
+import {
+  isPrimaryActivation,
+  navigateDestination,
+  destinationHref,
+} from "../../app/navigation";
+import { listsDestination, listEditDestination } from "../../app/destinations";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { Alert, Button, Spin, Typography } from "antd";
 import { ArrowLeft, Pencil, Plus } from "lucide-react";
 import { ListTagSummary } from "./ListTagSummary";
 import type { SavedListSummaryView } from "../../generated/atlas";
-import {
-  listEditPath,
-  navigateToAtlasRoute,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
 import { FilterControls } from "../../shared/filters/FilterPanel";
 import type { FilterPanelState } from "../../shared/filters/filterControls";
-
 export function ListBrowseHeader({
   error,
   filterState,
@@ -42,9 +42,9 @@ export function ListBrowseHeader({
           className="list-browse-header__parent-link"
           href="/lists"
           onClick={(event) => {
-            if (!shouldHandleAtlasRouteClick(event)) return;
+            if (!isPrimaryActivation(event)) return;
             event.preventDefault();
-            navigateToAtlasRoute({ kind: "lists" });
+            navigateDestination(listsDestination());
           }}
         >
           <ArrowLeft size={14} aria-hidden="true" />
@@ -69,12 +69,16 @@ export function ListBrowseHeader({
                 Add records
               </Button>
               <Button
-                href={listEditPath(list.slug)}
+                href={destinationHref(listEditDestination({ slug: list.slug }))}
                 icon={<Pencil size={16} />}
                 onClick={(event) => {
-                  if (!shouldHandleAtlasRouteClick(event)) return;
+                  if (!isPrimaryActivation(event)) return;
                   event.preventDefault();
-                  navigateToAtlasRoute({ kind: "listEdit", slug: list.slug });
+                  navigateDestination(
+                    listEditDestination({
+                      slug: list.slug,
+                    }),
+                  );
                 }}
               >
                 Edit list

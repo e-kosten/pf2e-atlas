@@ -1,3 +1,5 @@
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { Table, Typography } from "antd";
 import type { ReactNode } from "react";
 import type {
@@ -8,12 +10,10 @@ import type {
   ReferenceGrantView,
   AttributeChoiceView,
 } from "../../generated/atlas";
-import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { FactRow, NumberFact } from "./presentationFacts";
 import { Iwr } from "./ActorReference";
 import "../../styles/ui/reference-profiles.css";
-
 export function ReferenceFact<T>({
   label,
   fact,
@@ -132,13 +132,14 @@ function Grants({
             )}
             {grant.navigation ? (
               <Typography.Link
-                href={atlasRoutePath({
-                  kind: "record",
-                  recordKey: grant.navigation.record_key,
-                  selection: grant.navigation,
-                })}
+                href={destinationHref(
+                  recordDestination({
+                    recordKey: grant.navigation.record_key,
+                    selection: grant.navigation,
+                  }),
+                )}
                 onClick={(event) => {
-                  if (!shouldHandleAtlasRouteClick(event)) return;
+                  if (!isPrimaryActivation(event)) return;
                   event.preventDefault();
                   onReference(
                     grant.navigation!.record_key,

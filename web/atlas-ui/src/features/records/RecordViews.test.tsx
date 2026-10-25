@@ -50,7 +50,7 @@ describe("record route views", () => {
   });
 
   it("renders a standalone record detail route", async () => {
-    render(<RecordView route={{ kind: "record", recordKey: "spell:heal" }} />, {
+    render(<RecordView route={{ recordKey: "spell:heal" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -66,7 +66,7 @@ describe("record route views", () => {
   });
 
   it("adds a standalone record detail route record to a saved list", async () => {
-    render(<RecordView route={{ kind: "record", recordKey: "spell:heal" }} />, {
+    render(<RecordView route={{ recordKey: "spell:heal" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -87,7 +87,7 @@ describe("record route views", () => {
         resolveDetail = resolve;
       }),
     );
-    render(<RecordView route={{ kind: "record", recordKey: "spell:heal" }} />, {
+    render(<RecordView route={{ recordKey: "spell:heal" }} />, {
       wrapper: queryClientWrapper(),
     });
     const trigger = screen.getByRole("button", { name: "Add to saved list" });
@@ -102,7 +102,7 @@ describe("record route views", () => {
   it("previews a standalone reference without leaving its parent, with a native full-page link", async () => {
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ xl: true });
     history.replaceState(null, "", "/records/spell:heal");
-    render(<RecordView route={{ kind: "record", recordKey: "spell:heal" }} />, {
+    render(<RecordView route={{ recordKey: "spell:heal" }} />, {
       wrapper: queryClientWrapper(),
     });
     const trigger = await screen.findByRole("link", { name: "Linked Record" });

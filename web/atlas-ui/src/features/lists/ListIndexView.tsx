@@ -1,3 +1,10 @@
+import { atlasRouter } from "../../app/router";
+import {
+  navigateDestination,
+  destinationHref,
+  isPrimaryActivation,
+} from "../../app/navigation";
+import { listDestination, listEditDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { ListTagSummary } from "./ListTagSummary";
@@ -9,14 +16,6 @@ import { Pencil, Plus, Search } from "lucide-react";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { SavedListSummaryView } from "../../generated/atlas";
 import {
-  ATLAS_ROUTE_CHANGE_EVENT,
-  listEditPath,
-  listPath,
-  navigateToAtlasRoute,
-  shouldHandleAtlasRouteClick,
-  type AtlasRoute,
-} from "../../app/routes";
-import {
   IndexTable,
   RowTitleLink,
   stopIndexRowAction,
@@ -27,11 +26,9 @@ import { CreateListModal } from "./CreateListModal";
 import { useSavedLists } from "./savedListQueries";
 import { listCountLabel, savedListTagOptions } from "./listUtils";
 import { formatDate } from "../../shared/ui/formatDate";
-
 type ListIndexViewProps = {
-  route: Extract<AtlasRoute, { kind: "lists" }>;
+  route: Record<string, never>;
 };
-
 type IndexState = {
   name: string;
   include: string[];
@@ -70,7 +67,6 @@ export function ListIndexView(_props: ListIndexViewProps) {
   const allLists = useMemo(() => lists.data?.lists ?? [], [lists.data?.lists]);
   const tagOptions = useMemo(() => savedListTagOptions(allLists), [allLists]);
   const filteredLists = useMemo(() => filterLists(allLists, state), [allLists, state]);
-
   useLayoutEffect(() => {
     if (lists.data && scrollRef.current && !restored.current) {
       const restore = () => {
@@ -91,12 +87,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
         scroll: scrollRef.current?.scrollTop ?? 0,
         documentScroll: window.scrollY,
       });
-    window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, snapshot);
-    window.addEventListener("popstate", snapshot);
-    return () => {
-      window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, snapshot);
-      window.removeEventListener("popstate", snapshot);
-    };
+    return atlasRouter.subscribe("onBeforeNavigate", snapshot);
   }, [client, state]);
   return (
     <EntityIndexPage
@@ -183,7 +174,12 @@ export function ListIndexView(_props: ListIndexViewProps) {
           onCancel={() => setCreateOpen(false)}
           onCreated={(slug) => {
             setCreateOpen(false);
-            navigateToAtlasRoute({ kind: "list", slug, selectedRecordKey: null });
+            navigateDestination(
+              listDestination({
+                slug,
+                selectedRecordKey: null,
+              }),
+            );
           }}
         />
       }
@@ -219,18 +215,18 @@ export function ListIndexView(_props: ListIndexViewProps) {
                 : "No saved lists. Create a list to collect records.",
         }}
         onActivateRow={(list) =>
-          navigateToAtlasRoute({
-            kind: "list",
-            slug: list.slug,
-            selectedRecordKey: null,
-          })
+          navigateDestination(
+            listDestination({
+              slug: list.slug,
+              selectedRecordKey: null,
+            }),
+          )
         }
         rowKey={(list) => list.list_key}
       />
     </EntityIndexPage>
   );
 }
-
 function filterLists(
   lists: SavedListSummaryView[],
   state: IndexState,
@@ -245,7 +241,6 @@ function filterLists(
       !list.tags.some((tag) => excluded.has(tag)),
   );
 }
-
 function listIndexColumns(): ColumnsType<SavedListSummaryView> {
   const columns: ColumnsType<SavedListSummaryView> = [
     {
@@ -254,17 +249,20 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
       width: 280,
       render: (_, list) => (
         <RowTitleLink
-          href={listPath(list.slug)}
+          href={destinationHref(
+            listDestination({ slug: list.slug, selectedRecordKey: null }),
+          )}
           onClick={(event) => {
-            if (!shouldHandleAtlasRouteClick(event)) {
+            if (!isPrimaryActivation(event)) {
               return;
             }
             event.preventDefault();
-            navigateToAtlasRoute({
-              kind: "list",
-              slug: list.slug,
-              selectedRecordKey: null,
-            });
+            navigateDestination(
+              listDestination({
+                slug: list.slug,
+                selectedRecordKey: null,
+              }),
+            );
           }}
           subtitle={list.slug}
           title={list.name}
@@ -314,16 +312,20 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
       width: 72,
       render: (_, list) => (
         <PaneIconLink
-          href={listEditPath(list.slug)}
+          href={destinationHref(listEditDestination({ slug: list.slug }))}
           icon={<Pencil size={15} />}
           label={`Edit ${list.name}`}
           onClick={(event) => {
             stopIndexRowAction(event);
-            if (!shouldHandleAtlasRouteClick(event)) {
+            if (!isPrimaryActivation(event)) {
               return;
             }
             event.preventDefault();
-            navigateToAtlasRoute({ kind: "listEdit", slug: list.slug });
+            navigateDestination(
+              listEditDestination({
+                slug: list.slug,
+              }),
+            );
           }}
           title="Edit"
         />

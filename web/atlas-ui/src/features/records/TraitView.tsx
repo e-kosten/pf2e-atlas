@@ -1,14 +1,16 @@
+import { traitDestination } from "../../app/destinations";
+import type { TraitPageInput } from "../../app/destinations";
+import {
+  navigateDestination,
+  destinationHref,
+  isPrimaryActivation,
+} from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { Alert, Button, Empty, Pagination, Spin, Tabs, Typography } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { AtlasApiError, getTraitRecords } from "../../api/atlasApi";
-import {
-  atlasRoutePath,
-  navigateToAtlasRoute,
-  shouldHandleAtlasRouteClick,
-  type AtlasRoute,
-} from "../../app/routes";
 import type {
   TraitAssociationKind,
   TraitDetailView,
@@ -37,12 +39,7 @@ import {
   isArtifactGenerationChanged,
   retireImmutableReferenceQueries,
 } from "../../shared/queries/immutableReferenceQueries";
-
-export function TraitView({
-  route,
-}: {
-  route: Extract<AtlasRoute, { kind: "trait" }>;
-}) {
+export function TraitView({ route }: { route: TraitPageInput }) {
   const query = useTraitDetail(route.traitKey);
   usePageTitle(query.data?.label ?? "Trait");
   const client = useQueryClient();
@@ -92,7 +89,12 @@ export function TraitView({
                   body={query.data.content.body}
                   references={query.data.content.references}
                   onReference={(recordKey, _anchor, selection) =>
-                    navigateToAtlasRoute({ kind: "record", recordKey, selection })
+                    navigateDestination(
+                      recordDestination({
+                        recordKey,
+                        selection,
+                      }),
+                    )
                   }
                 />
               ) : (
@@ -121,14 +123,13 @@ export function TraitView({
     </main>
   );
 }
-
 function TraitAssociations({
   detail,
   route,
   onReload,
 }: {
   detail: TraitDetailView;
-  route: Extract<AtlasRoute, { kind: "trait" }>;
+  route: TraitPageInput;
   onReload: () => void;
 }) {
   const [state, setState] = useState(() =>
@@ -148,7 +149,7 @@ function TraitAssociations({
     const query = params.size ? "?" + params.toString() : undefined;
     previousQuery.current = query;
     setState({ kind, search });
-    navigateToAtlasRoute({ ...route, query });
+    navigateDestination(traitDestination({ ...route, query }));
   }
   return (
     <Tabs
@@ -174,11 +175,13 @@ function TraitAssociations({
     />
   );
 }
-
 function traitAssociationState(
   query: string | undefined,
   traitKey: string,
-): { kind: TraitAssociationKind; search: SearchFormState } {
+): {
+  kind: TraitAssociationKind;
+  search: SearchFormState;
+} {
   const params = new URLSearchParams(query);
   const tab = params.get("tab");
   const { sort, sortError } = decodeResultSort(params, "search", true);
@@ -192,7 +195,6 @@ function traitAssociationState(
     },
   };
 }
-
 function TraitRecords({
   detail,
   kind,
@@ -334,19 +336,18 @@ function TraitRecords({
           ) : (
             <ul className="trait-records">
               {data.rows.map((row, index) => {
-                const route = {
-                  kind: "record" as const,
+                const route = recordDestination({
                   recordKey: row.navigation.record_key,
                   selection: row.navigation,
-                };
+                });
                 return (
                   <li key={JSON.stringify([row.navigation, index])}>
                     <Typography.Link
-                      href={atlasRoutePath(route)}
+                      href={destinationHref(route)}
                       onClick={(event) => {
-                        if (!shouldHandleAtlasRouteClick(event)) return;
+                        if (!isPrimaryActivation(event)) return;
                         event.preventDefault();
-                        navigateToAtlasRoute(route);
+                        navigateDestination(route);
                       }}
                     >
                       {row.source_label

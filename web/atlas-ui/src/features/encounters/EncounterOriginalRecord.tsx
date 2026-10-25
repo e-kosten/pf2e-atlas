@@ -1,14 +1,14 @@
+import {
+  destinationHref,
+  isPrimaryActivation,
+  navigateDestination,
+} from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { Tooltip } from "antd";
 import { BookOpen } from "lucide-react";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
-import {
-  atlasRoutePath,
-  navigateToAtlasRoute,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
-
 export function EncounterOriginalRecord({
   recordKey,
   label,
@@ -24,9 +24,13 @@ export function EncounterOriginalRecord({
           title=""
           label={label}
           icon={<BookOpen size={16} aria-hidden="true" />}
-          href={atlasRoutePath({ kind: "record", recordKey })}
+          href={destinationHref(
+            recordDestination({
+              recordKey,
+            }),
+          )}
           onClick={(event) => {
-            if (!shouldHandleAtlasRouteClick(event)) return;
+            if (!isPrimaryActivation(event)) return;
             event.preventDefault();
             preview.open(recordKey, event.currentTarget);
           }}
@@ -45,12 +49,13 @@ export function EncounterOriginalRecord({
           readingHistory={preview.readingHistory}
           landing={preview.landing}
           onOpenFullPage={() => {
-            navigateToAtlasRoute({
-              kind: "record",
-              recordKey: preview.recordKey!,
-              selection: preview.selection,
-              landing: preview.landing,
-            });
+            navigateDestination(
+              recordDestination({
+                recordKey: preview.recordKey!,
+                selection: preview.selection,
+                landing: preview.landing,
+              }),
+            );
             preview.close();
           }}
         />

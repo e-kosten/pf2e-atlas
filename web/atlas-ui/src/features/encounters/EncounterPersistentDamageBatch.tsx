@@ -83,8 +83,7 @@ export function EncounterPersistentDamageBatch({
   const [form] = Form.useForm<Values>();
   const draftMode = Form.useWatch("mode", form) ?? "roll";
   const amounts = Form.useWatch("groups", { form, preserve: true }) as
-    | Values["groups"]
-    | undefined;
+    Values["groups"] | undefined;
   const requiresTable = participant.persistent_damage_groups.some(
     (g) => resolutions[g.episode_id]?.kind === "table",
   );

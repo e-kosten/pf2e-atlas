@@ -1,10 +1,10 @@
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { Button, Dropdown, Typography } from "antd";
 import { Ellipsis } from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
 import type { RecordNavigationView } from "../../generated/atlas";
-import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import type { RecordReferenceHandler } from "./PreparedContent";
-
 /** Optional general-entry lookup, separate from reading the selected item. */
 export function RecordProvenanceAction({
   navigation,
@@ -46,13 +46,14 @@ export function RecordProvenanceAction({
             key: "general-entry",
             label: (
               <Typography.Link
-                href={atlasRoutePath({
-                  kind: "record",
-                  recordKey: navigation.record_key,
-                  selection: navigation,
-                })}
+                href={destinationHref(
+                  recordDestination({
+                    recordKey: navigation.record_key,
+                    selection: navigation,
+                  }),
+                )}
                 onClick={(event) => {
-                  if (!shouldHandleAtlasRouteClick(event)) return;
+                  if (!isPrimaryActivation(event)) return;
                   event.preventDefault();
                   setOpen(false);
                   onReference(
