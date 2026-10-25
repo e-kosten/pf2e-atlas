@@ -5,10 +5,10 @@ import type { EncounterDifficultyView } from "../../generated/atlas";
 /** XP positions are linear; the published Extreme budget is the full scale. */
 export function EncounterDifficultyMeter({
   value,
-  showBudgets = true,
+  compact = false,
 }: {
   value: EncounterDifficultyView;
-  showBudgets?: boolean;
+  compact?: boolean;
 }) {
   const { token } = theme.useToken();
   const maximum = Math.max(0, ...value.budgets.map((budget) => budget.xp));
@@ -25,7 +25,7 @@ export function EncounterDifficultyMeter({
       : `${value.rating}, ${value.total_xp} XP; Extreme budget ${maximum} XP`;
   return (
     <div
-      className="encounter-difficulty-meter"
+      className={`encounter-difficulty-meter${compact ? " encounter-difficulty-meter--compact" : ""}`}
       style={{ "--difficulty-color": color } as CSSProperties}
     >
       <div className="encounter-difficulty-meter__track">
@@ -60,23 +60,25 @@ export function EncounterDifficultyMeter({
             ))}
         </div>
       </div>
-      {showBudgets && (
-        <div className="encounter-difficulty__budgets" aria-label="XP budgets">
-          {value.budgets.map((budget) => (
-            <div
-              key={budget.label}
-              className={
-                value.rating === budget.label
-                  ? "encounter-difficulty-meter__current"
-                  : undefined
-              }
-            >
-              <span>{budget.label}</span>
-              <strong>{budget.xp}</strong>
-            </div>
-          ))}
-        </div>
-      )}
+      <div
+        className="encounter-difficulty__budgets"
+        role="group"
+        aria-label="XP budgets"
+      >
+        {value.budgets.map((budget) => (
+          <div
+            key={budget.label}
+            className={
+              value.rating === budget.label
+                ? "encounter-difficulty-meter__current"
+                : undefined
+            }
+          >
+            <span>{budget.label}</span>
+            <strong>{budget.xp}</strong>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -210,3 +210,26 @@ it("uses an exact native rules destination and retains the draft after reading r
     expect(screen.getByRole("spinbutton", { name: "Party level" })).toHaveValue("6"),
   );
 });
+
+it("offers plain party inputs without requiring PCs or showing average narration", async () => {
+  setup(undefined, {
+    ...initial,
+    party_level: null,
+    party_size: null,
+    pc_count: 0,
+    basis: "Suggested level 5 · rounded party average.",
+    total_xp: null,
+    rating: null,
+    budgets: [],
+  });
+  expect(
+    screen.getByRole("button", { name: "Encounter difficulty: Difficulty" }),
+  ).toBeVisible();
+  expect(screen.getByRole("spinbutton", { name: "Party level" })).toHaveValue("");
+  expect(screen.getByRole("spinbutton", { name: "PC count" })).toHaveValue("");
+  await waitFor(() =>
+    expect(screen.getByText("Enter party level and size, or add PCs.")).toBeVisible(),
+  );
+  expect(screen.queryByText(/rounded party average/)).toBeNull();
+  expect(screen.queryByText("Set party reference")).toBeNull();
+});

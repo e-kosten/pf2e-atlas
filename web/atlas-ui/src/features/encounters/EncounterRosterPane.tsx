@@ -1,3 +1,4 @@
+import { encounterStatusLabels } from "./encounterStatus";
 import { EncounterModal } from "./EncounterModal";
 import {
   Alert,
@@ -286,7 +287,7 @@ export function EncounterRosterPane({
           <div className="encounter-roster__turn-summary">
             <span className="encounter-roster__turn-caption">
               {encounterSummary
-                ? `${encounterSummary.status} · Round ${encounterSummary.round_number}`
+                ? `${encounterStatusLabels[encounterSummary.status]} · Round ${encounterSummary.round_number}`
                 : "Current turn"}
             </span>
             <strong>

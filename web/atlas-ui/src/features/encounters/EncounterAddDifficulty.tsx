@@ -134,32 +134,28 @@ export function EncounterAddDifficulty({
       aria-label="Encounter difficulty preview"
       aria-busy={pending}
     >
-      <div className="encounter-add-difficulty__heading" role="status">
-        <span>{context}</span>
-        <strong>{difficultySummary(display)}</strong>
-      </div>
-      <EncounterDifficultyMeter value={display} />
       <div
-        className="encounter-add-difficulty__status"
+        className="encounter-add-difficulty__heading"
         role="status"
         style={{ minHeight: token.controlHeightSM }}
       >
-        {error ? (
-          <>
-            <span>
-              {shown ? "Previous preview" : "Current encounter"} · preview could not
-              update
-            </span>
-            <Button size="small" onClick={() => void preview.refetch()}>
-              Retry
-            </Button>
-          </>
-        ) : pending ? (
-          "Updating preview…"
-        ) : addition && !valid ? (
-          "Enter a quantity from 1 to 50 to preview."
-        ) : null}
+        <span className="encounter-add-difficulty__context">
+          {error
+            ? `Update failed · ${shown ? "previous preview" : "current encounter"}`
+            : pending
+              ? "Updating preview…"
+              : addition && !valid
+                ? "Enter quantity 1–50"
+                : context}
+        </span>
+        <strong>{difficultySummary(display)}</strong>
+        {error && (
+          <Button size="small" onClick={() => void preview.refetch()}>
+            Retry
+          </Button>
+        )}
       </div>
+      <EncounterDifficultyMeter value={display} compact />
     </section>
   );
 }

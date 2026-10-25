@@ -222,7 +222,7 @@ export function SearchPickerModal<FormValues>({
         width="min(1400px, calc(100vw - 32px))"
         styles={{
           body: {
-            height: "min(70dvh, 820px)",
+            height: "min(82dvh, 900px, calc(100dvh - 8rem))",
             display: "flex",
             flexDirection: "column",
           },
@@ -357,7 +357,7 @@ export function SearchPickerModal<FormValues>({
         />
         <Form
           name={formId}
-          className="reference-picker__footer"
+          className={`reference-picker__footer${summary ? " reference-picker__footer--summary" : ""}`}
           disabled={disabled}
           form={form}
           layout="vertical"
@@ -366,8 +366,9 @@ export function SearchPickerModal<FormValues>({
           <div className="reference-picker__fields">
             {typeof children === "function" ? children(reading.detail) : children}
           </div>
-          {status}
-          <Space>
+          {summary && <div className="reference-picker__summary">{summary}</div>}
+          {!summary && status}
+          <Space className="reference-picker__actions">
             <Button disabled={disabled} onClick={onCancel}>
               {dismissLabel}
             </Button>
@@ -380,7 +381,9 @@ export function SearchPickerModal<FormValues>({
               {confirmLabel}
             </Button>
           </Space>
-          {summary && <div className="reference-picker__summary">{summary}</div>}
+          {summary && status && (
+            <div className="reference-picker__status">{status}</div>
+          )}
         </Form>
       </Modal>
     </ConfigProvider>
