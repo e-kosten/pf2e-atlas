@@ -158,7 +158,7 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
       hover: "#493029",
       border: "#9B4737",
     },
-    contextBar: darkNeutralRamp.background,
+    contextBar: darkNeutralRamp.surface,
     shell: {
       background: darkNeutralRamp.shell,
       text: "#F3E9D7",

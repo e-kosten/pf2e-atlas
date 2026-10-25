@@ -157,7 +157,7 @@ describe("Atlas product palette", () => {
       subtle: ramp.subtle,
       separator: ramp.separator,
       border: ramp.border,
-      contextBar: ramp.background,
+      contextBar: ramp.surface,
       shell: { background: ramp.shell, border: ramp.separator },
     });
     expect(tokens.colorBgLayout.toLowerCase()).toBe(ramp.background.toLowerCase());
