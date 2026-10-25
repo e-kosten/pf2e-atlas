@@ -78,7 +78,10 @@ export interface AtlasPalette {
     text: string;
     mark: BrandMarkColors;
   };
-  actionGlyph: string;
+  tooltip: {
+    background: string;
+    text: string;
+  };
   navigation: {
     activeText: string;
     hoverText: string;
@@ -155,7 +158,7 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
         ],
       },
     },
-    actionGlyph: "#74272E",
+    tooltip: { background: "#292621", text: "#FFFFFF" },
     navigation: {
       activeText: "#8C333A",
       hoverText: "#9D4349",
@@ -242,7 +245,7 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
         ],
       },
     },
-    actionGlyph: "#D6BA86",
+    tooltip: { background: darkNeutralRamp.shell, text: "#FFF8EF" },
     navigation: {
       activeText: "#D6BA86",
       hoverText: "#D6BA86",

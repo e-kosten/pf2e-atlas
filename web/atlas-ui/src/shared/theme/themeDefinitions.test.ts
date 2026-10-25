@@ -42,9 +42,9 @@ describe("Atlas product palette", () => {
       expect(
         contrast(palette.brand.text, palette.shell.background),
       ).toBeGreaterThanOrEqual(4.5);
-      for (const surface of [palette.background, palette.surface, palette.elevated]) {
-        expect(contrast(palette.actionGlyph, surface)).toBeGreaterThanOrEqual(4.5);
-      }
+      expect(
+        contrast(palette.tooltip.text, palette.tooltip.background),
+      ).toBeGreaterThanOrEqual(4.5);
       expect(
         contrast(palette.navigation.activeText, palette.navigation.activeBackground),
       ).toBeGreaterThanOrEqual(4.5);
@@ -121,8 +121,11 @@ describe("Atlas product palette", () => {
       expect(variables["--brand-mark-die-face-9" as keyof typeof variables]).toBe(
         palette.brand.mark.dieFaces[9],
       );
-      expect(variables["--action-glyph" as keyof typeof variables]).toBe(
-        palette.actionGlyph,
+      expect(tokens.colorBgSpotlight.toLowerCase()).toBe(
+        palette.tooltip.background.toLowerCase(),
+      );
+      expect(tokens.colorTextLightSolid.toLowerCase()).toBe(
+        palette.tooltip.text.toLowerCase(),
       );
       expect(config.components?.Menu).toMatchObject({
         itemColor: palette.shell.text,
