@@ -207,6 +207,20 @@ fn signed_amounts_reverse_operations_through_actual_hp_policy() {
             30,
             8,
         ),
+        (
+            EncounterHpAction::Damage {
+                amount: "-(10+5-2)".into(),
+            },
+            30,
+            8,
+        ),
+        (
+            EncounterHpAction::Heal {
+                amount: "-(10+5-2)".into(),
+            },
+            20,
+            0,
+        ),
     ] {
         let (f, key, p) = manual(Some(30), Some(25));
         apply(

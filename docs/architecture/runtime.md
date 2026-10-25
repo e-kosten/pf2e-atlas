@@ -516,13 +516,15 @@ Encounter HP actions carry participant identity, expected revision and one expli
 operation: damage, heal, exact current/temporary/maximum correction, or derived
 maximum reset. App-service interprets raw integer addition/subtraction input against
 the checked current participant, then reuses provenance policy and the transactional
-replacement guard. The bounded shortcut accepts one initial plus/minus sign.
+replacement guard. The bounded shortcut accepts parentheses and one initial
+plus/minus sign per grouped expression (for example, `-(10+5-2)`).
 Enter sends signed Heal intent (positive heals, negative damages); negative Damage
 or Heal amounts reverse the operation in Rust before applying its complete policy.
 Exact correction formulas retain their zero floor and never acquire a maximum
 clamp. Null explicitly clears
 current/maximum availability. Formula length, arithmetic and browser-safe final
-input bounds are checked; dice and general expressions are unsupported. Damage
+input bounds are checked, with at most 512 bytes and 64 nested groups; dice,
+multiplication and general expressions are unsupported. Damage
 absorbs temporary HP first and floors current HP at zero. Participants tracking
 Dying enter the shared mortality/lifecycle planner; untracked participants retain
 Defeated/Disabled participation behavior. Healing caps at condition-adjusted maximum
