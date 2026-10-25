@@ -217,10 +217,12 @@ export function SearchPickerModal<FormValues>({
   return (
     <ConfigProvider componentDisabled={disabled}>
       <Modal
+        centered
         className="reference-picker"
         classNames={{ body: "reference-picker__body" }}
         width="min(1400px, calc(100vw - 32px))"
         styles={{
+          wrapper: { paddingBlock: "var(--space-group)" },
           body: {
             height: "min(82dvh, 900px, calc(100dvh - 8rem))",
             display: "flex",
