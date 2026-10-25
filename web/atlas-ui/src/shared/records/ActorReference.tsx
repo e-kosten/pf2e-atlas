@@ -913,7 +913,7 @@ export function ActorActivity({
             />
           )}
         {!hideCost && (!inline || activity.action_cost.state !== "value") && (
-          <ActionCost fact={activity.action_cost} label="Action cost" />
+          <ActionCost fact={activity.action_cost} label="Activation" />
         )}
         {rollControls ?? (
           <>

@@ -48,17 +48,31 @@ it("opens from ArrowDown without its default scrolling behavior and selects an e
   expect(trigger).toHaveFocus();
 });
 
-it("closes on Tab and lets the browser continue from the trigger", async () => {
+it.each([
+  ["Tab", "Following action"],
+  ["Shift+Tab", "Previous action"],
+])("closes on %s and continues from the trigger", async (key, destination) => {
   const onChange = vi.fn();
   render(
-    <SpellRankControl spell={spellFixture()} embedded={false} onChange={onChange} />,
+    <div role="dialog" aria-label="Reference">
+      <button>Previous action</button>
+      <SpellRankControl spell={spellFixture()} embedded={false} onChange={onChange} />
+      <button>Following action</button>
+    </div>,
   );
   const trigger = screen.getByRole("button", { name: "Change rank" });
   fireEvent.click(trigger);
   const item = await screen.findByRole("menuitem", { name: "Rank 1 (base)" });
-  expect(fireEvent.keyDown(item, { key: "Tab" })).toBe(true);
+  expect(
+    fireEvent.keyDown(item, {
+      key: "Tab",
+      shiftKey: key === "Shift+Tab",
+    }),
+  ).toBe(false);
   expect(trigger).toHaveAttribute("aria-expanded", "false");
-  expect(trigger).toHaveFocus();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: destination })).toHaveFocus(),
+  );
   expect(onChange).not.toHaveBeenCalled();
 });
 

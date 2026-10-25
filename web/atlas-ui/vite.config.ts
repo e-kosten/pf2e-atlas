@@ -7,10 +7,19 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
-        // Preserve React and Ant module initialization across vendor chunks.
+        // Keep Ant's generated initializers together while bounding its dependencies
+        // with the rest of the vendor graph.
         strictExecutionOrder: true,
         codeSplitting: {
-          groups: [{ name: "vendor", test: /node_modules/, maxSize: 350_000 }],
+          includeDependenciesRecursively: false,
+          groups: [
+            {
+              name: "ant",
+              test: /node_modules[\\/]antd[\\/]/,
+              priority: 1,
+            },
+            { name: "vendor", test: /node_modules/, maxSize: 350_000 },
+          ],
         },
       },
     },

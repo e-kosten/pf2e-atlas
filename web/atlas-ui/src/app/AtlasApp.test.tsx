@@ -58,6 +58,7 @@ describe("AtlasApp routing", () => {
     installLocalStorage();
     Element.prototype.scrollIntoView = vi.fn();
     window.localStorage.clear();
+    window.sessionStorage.clear();
     history.replaceState(null, "", "/search");
     apiMocks.getReadiness.mockResolvedValue(readinessFixture());
     apiMocks.discoverFilterEditor.mockResolvedValue(emptyFilterEditor());
