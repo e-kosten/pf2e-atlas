@@ -211,13 +211,16 @@ it("explains a modified allowance without duplicating chip controls or confusing
       />
     </ConfigProvider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
+  const trigger = screen.getByRole("button", { name: "Actions: calculation details" });
+  trigger.focus();
+  fireEvent.click(trigger);
   expect(screen.queryByText(/^This turn:/)).toBeNull();
   await waitFor(() =>
     expect(screen.getByText("This turn", { exact: true })).toBeVisible(),
   );
   const scrollRegion = screen.getByRole("region", { name: "Action calculation" });
   expect(scrollRegion).toHaveAttribute("tabindex", "0");
+  await waitFor(() => expect(scrollRegion).toHaveFocus());
   const calculation = screen.getByRole("region", { name: "Actions calculation" });
   await waitFor(() =>
     expect(within(calculation).getByRole("row", { name: "Total 1" })).toBeVisible(),

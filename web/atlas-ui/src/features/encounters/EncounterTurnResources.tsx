@@ -332,6 +332,10 @@ function ResourceCounter({
             if (!next) restoreOverlayFocus(button.current, popup.current);
             setOpen(next);
           }}
+          afterOpenChange={(next) => {
+            if (next && open && document.activeElement === button.current)
+              popup.current?.focus({ preventScroll: true });
+          }}
           title={calculation.kind === "this_turn" ? "This turn" : "Next turn"}
           content={
             <div
