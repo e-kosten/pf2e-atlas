@@ -964,6 +964,12 @@ describe("encounter views", () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
+    const participantHeading = await screen.findByRole("heading", { name: "Goblin" });
+    expect(
+      participantHeading
+        .closest(".encounter-reference__header")
+        ?.querySelector(".encounter-reference__title > .record-reference__kind"),
+    ).toHaveTextContent("Creature");
     const summary = await screen.findByLabelText("HP summary");
     expect(screen.getByRole("button", { name: "Damage" })).toBeVisible();
     expect(screen.queryByLabelText("HP")).toBeNull();
