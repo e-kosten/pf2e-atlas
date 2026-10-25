@@ -1,3 +1,4 @@
+import { atlasRouter } from "../../app/router";
 import type { RecordPageInput } from "../../app/destinations";
 import { navigateDestination } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
@@ -19,12 +20,15 @@ export function RecordView({ route }: RecordViewProps) {
   const preview = useRecordPreview();
   const changeRank = (spell_rank: number | undefined) => {
     if (detail.data)
-      navigateDestination(
-        recordDestination({
+      void atlasRouter.navigate({
+        ...recordDestination({
           ...route,
           selection: { ...detail.data.selected, spell_rank },
         }),
-      );
+        replace: true,
+        resetScroll: false,
+        state: true,
+      });
   };
   return (
     <>
