@@ -219,3 +219,11 @@
 .encounter-add-adjustment {
   width: 6.5rem;
 }
+
+.encounter-roster__remove-error {
+  display: grid;
+  gap: 4px;
+  grid-column: 1 / -1;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

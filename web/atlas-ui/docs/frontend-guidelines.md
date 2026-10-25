@@ -1492,9 +1492,15 @@ members writes their persisted positions, including unavailable records, without
 changing their snapshots or notes. Drag previews retain the complete member layout.
 Current turn uses the strong filled row treatment with `aria-current` and
 an accessible label; preview selection uses a separate outline. Each row's
-actions menu offers Set turn; the adjacent removal control retains confirmation.
-Cancelling a secondary dialog
-returns focus to its visible menu trigger. Fade defeated and disabled-hazard names and facts without dimming
+actions menu offers Set turn. The adjacent removal control acts directly, without
+confirmation, for creatures, hazards and PCs. Keep its accessible participant name,
+prevent repeat/competing writes, and retain the row on failure. Remove a row only
+after canonical refresh; a failed post-write refresh offers Retry without repeating
+the removal. When the focused row disappears, focus its next neighbor (previous for
+the last row), or Add when the roster is empty; preserve focus moved elsewhere
+while waiting. This encounter shortcut does not remove the confirmation for deleting
+an entire encounter or saved list. Cancelling a secondary dialog returns focus to
+its visible menu trigger. Fade defeated and disabled-hazard names and facts without dimming
 controls. Hazard Active/Disabled controls live beside the same participant HP/status
 controls; no HP display is required to disable or reactivate a hazard. Encounter-owned section spacing belongs under encounter styles; shared
 record CSS must not override HP borders, padding or encounter control spacing.

@@ -20,7 +20,6 @@ import {
 } from "./EncounterDifficulty";
 import { InitiativeRollModal } from "./InitiativeRollModal";
 import { participantUpdate } from "./participantEdits";
-import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
 type EncounterDetailViewProps = {
@@ -36,12 +35,17 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
 }
 function EncounterDetail({ route }: EncounterDetailViewProps) {
   const client = useQueryClient();
-  const confirmDangerAction = useConfirmDangerAction();
   const screens = Grid.useBreakpoint();
   const narrow = screens.md === false;
   const [participantOpen, setParticipantOpen] = useState(false);
   const host = useRef<HTMLDivElement>(null);
   const rosterPosition = useRef({ page: 0, pane: 0 });
+  const [removalKey, setRemovalKey] = useState<string | null>(null);
+  const removedParticipantFocus = useRef<{
+    key: string;
+    index: number;
+    opener: Element | null;
+  } | null>(null);
   const focusDestination = useRef<"participant" | "roster" | null>(null);
   const followAfterRefresh = useRef(false);
   useLayoutEffect(() => {
@@ -72,6 +76,33 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     queryKey: ["encounter", route.slug],
     queryFn: () => getEncounter(route.slug),
   });
+  useLayoutEffect(() => {
+    const removal = removedParticipantFocus.current;
+    const participants = encounter.data?.participants;
+    if (
+      !removal ||
+      !participants ||
+      participants.some((p) => p.participant_key === removal.key)
+    )
+      return;
+    removedParticipantFocus.current = null;
+    // Only restore focus lost with the removed row. A user may have moved to
+    // another control while the write or its canonical refresh was pending.
+    if (
+      document.activeElement !== document.body &&
+      document.activeElement !== removal.opener
+    )
+      return;
+    const neighbor = participants[Math.min(removal.index, participants.length - 1)];
+    const target = neighbor
+      ? Array.from(
+          host.current?.querySelectorAll<HTMLElement>("[data-participant-key]") ?? [],
+        ).find((element) => element.dataset.participantKey === neighbor.participant_key)
+      : host.current?.querySelector<HTMLElement>(
+          ".encounter-roster__management button",
+        );
+    target?.focus({ preventScroll: true });
+  }, [encounter.data]);
   usePageTitle(encounter.data?.encounter.name ?? "Encounter");
   const mutations = useEncounterMutations(
     route.slug,
@@ -222,6 +253,11 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     <EncounterModalProvider area={host}>
       <div
         ref={host}
+        onFocusCapture={(event) => {
+          const removal = removedParticipantFocus.current;
+          if (removal && event.target !== removal.opener)
+            removedParticipantFocus.current = null;
+        }}
         className={`encounter-detail-view${participantOpen ? " encounter-detail-view--participant" : ""}`}
       >
         <div>
@@ -269,13 +305,15 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               }
             />
           )}
-          {mutations.error && mutations.errorKind !== "spell" && (
-            <Alert
-              type="error"
-              title="Encounter action failed"
-              description={mutations.errorMessage}
-            />
-          )}
+          {mutations.error &&
+            mutations.errorKind !== "spell" &&
+            mutations.errorKind !== "remove" && (
+              <Alert
+                type="error"
+                title="Encounter action failed"
+                description={mutations.errorMessage}
+              />
+            )}
           {turnReview.data?.next_turn_unavailable_reason ===
             "no_initiative_participants" && (
             <Alert
@@ -313,6 +351,11 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             <EncounterRosterPane
               encounterSummary={encounterSummary ?? undefined}
               difficulty={difficulty}
+              removeError={
+                mutations.errorKind === "remove" && mutations.errorMessage && removalKey
+                  ? { participantKey: removalKey, message: mutations.errorMessage }
+                  : undefined
+              }
               onRoll={async (request) => {
                 const result = await mutations.run({ kind: "initiative", request });
                 if (!("rolls" in result.receipt))
@@ -323,7 +366,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               recovery={recovery}
               disabled={disabled}
               error={
-                mutations.errorKind === "spell" ? undefined : mutations.errorMessage
+                mutations.errorKind === "spell" || mutations.errorKind === "remove"
+                  ? undefined
+                  : mutations.errorMessage
               }
               currentTurnParticipantKey={
                 encounter.data?.current_turn_participant_key ?? null
@@ -343,18 +388,26 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               advanceDisabled={!!turnReview.data?.next_turn_unavailable_reason}
               advanceLoading={turnReview.preparing}
               onAdvanceTurn={() => void turnReview.begin()}
-              onRemove={(participant) =>
-                confirmDangerAction({
-                  title: `Remove ${participant.display_name}?`,
-                  content: "This removes the participant from the encounter.",
-                  okText: "Remove",
-                  onConfirm: () =>
-                    mutations.run({
-                      kind: "remove",
-                      participantKey: participant.participant_key,
-                    }),
-                })
-              }
+              onRemove={(participant) => {
+                if (removedParticipantFocus.current) return;
+                setRemovalKey(participant.participant_key);
+                removedParticipantFocus.current = {
+                  key: participant.participant_key,
+                  index: encounter.data!.participants.findIndex(
+                    (p) => p.participant_key === participant.participant_key,
+                  ),
+                  opener: document.activeElement,
+                };
+                void mutations
+                  .run({
+                    kind: "remove",
+                    participantKey: participant.participant_key,
+                  })
+                  .catch(() => {
+                    removedParticipantFocus.current = null;
+                    // The mutation owner retains the row and displays the failure.
+                  });
+              }}
               onSelect={revealParticipant}
               onReorder={async (participantKey, targetParticipantKey, placement) => {
                 const result = await mutations.run({
@@ -460,7 +513,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               conditionError={conditionDefinitions.error}
               onRetryConditions={() => void conditionDefinitions.refetch()}
               error={
-                mutations.errorKind === "spell" ? undefined : mutations.errorMessage
+                mutations.errorKind === "spell" || mutations.errorKind === "remove"
+                  ? undefined
+                  : mutations.errorMessage
               }
               onAddCondition={async (request) => {
                 const result = await mutations.run({ kind: "add-condition", request });
@@ -621,7 +676,11 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             encounter={encounterSummary}
             disabled={disabled}
             pending={mutations.pending}
-            error={mutations.errorKind === "spell" ? undefined : mutations.errorMessage}
+            error={
+              mutations.errorKind === "spell" || mutations.errorKind === "remove"
+                ? undefined
+                : mutations.errorMessage
+            }
             encounterNote={encounter.data?.note}
             open={editEncounterOpen}
             onCancel={() => setEditEncounterOpen(false)}
