@@ -94,6 +94,7 @@ export function EncounterDifficulty(props: EncounterDifficultyProps) {
         <Button
           ref={button}
           size="small"
+          type="text"
           aria-expanded={open}
           aria-label={`Encounter difficulty: ${buttonLabel}`}
           icon={<ChevronDown size={14} />}
