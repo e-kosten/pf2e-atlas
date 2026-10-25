@@ -1556,6 +1556,9 @@ describe("encounter views", () => {
     const goblinOption = await within(dialog).findByText("Goblin Warrior");
     fireEvent.click(goblinOption.closest("a")!);
     expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled();
+    await waitFor(() =>
+      expect(within(dialog).getByText("Normal", { exact: true })).toBeVisible(),
+    );
     await selectOption(
       within(dialog).getByRole("combobox", { name: "Adjustment" }),
       "Elite",
@@ -3200,6 +3203,7 @@ function recordDetailFixture(recordKey: string): RecordDetailView {
     recordKey.startsWith("conditionitems:") ? "Frightened Condition" : "Goblin Warrior",
     "rules:linked",
   );
+  result.encounter_adjustment = "normal";
   const body = result.presentation.content[0]?.body;
   if (body?.kind === "html")
     body.html = body.html.replace("Nested Rule", "Linked Rule");
@@ -3213,7 +3217,11 @@ function deferred<T>() {
     resolve = yes;
     reject = no;
   });
-  return { promise, resolve, reject };
+  return {
+    promise,
+    resolve,
+    reject,
+  };
 }
 
 async function openHpEditor(target = "Current HP") {

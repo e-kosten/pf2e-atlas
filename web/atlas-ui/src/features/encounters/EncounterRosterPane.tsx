@@ -9,6 +9,7 @@ import {
   Select,
   Tooltip,
 } from "antd";
+import type { FormInstance } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableRow, useSortableList } from "../../shared/ui/sortable/SortableList";
@@ -20,6 +21,7 @@ import type {
   EncounterParticipantView,
   EncounterParticipantVariantView,
   SearchResultsRequest,
+  RecordDetailView,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
 import { EncounterAddMenu } from "./EncounterAddMenu";
@@ -32,7 +34,7 @@ import { SearchPickerModal } from "../../shared/ui/pickers/SearchPickerModal";
 type AddRecordForm = {
   quantity?: number | null;
   initiative?: number | null;
-  adjustment?: "as_listed" | EncounterParticipantVariantView;
+  adjustment?: EncounterParticipantVariantView;
 };
 
 type AddPcForm = {
@@ -135,7 +137,9 @@ export function EncounterRosterPane({
         encounter_ref: slug,
         record_ref: selectedRecordKey ?? "",
         quantity: values.quantity ?? 1,
-        ...(selectedIsCreature && values.adjustment && values.adjustment !== "as_listed"
+        ...(selectedIsCreature &&
+        values.adjustment &&
+        recordForm.isFieldTouched("adjustment")
           ? { participant_variant: values.adjustment }
           : {}),
         ...(values.initiative == null ? {} : { initiative: BigInt(values.initiative) }),
@@ -393,51 +397,45 @@ export function EncounterRosterPane({
           ) : undefined
         }
       >
-        {recovery}
-        {error && (
-          <Alert
-            type="error"
-            title="Participant could not be added"
-            description={error}
-          />
-        )}
-        {selectedIsCreature && (
-          <Form.Item
-            name="adjustment"
-            label="Adjustment"
-            initialValue="as_listed"
-            preserve={false}
-          >
-            <Select
-              aria-label="Adjustment"
-              options={[
-                { value: "as_listed", label: "As listed" },
-                { value: "normal", label: "Normal" },
-                { value: "elite", label: "Elite" },
-                { value: "weak", label: "Weak" },
+        {(detail) => (
+          <>
+            {recovery}
+            {error && (
+              <Alert
+                type="error"
+                title="Participant could not be added"
+                description={error}
+              />
+            )}
+            {selectedIsCreature && selectedRecordKey && (
+              <EncounterRecordAdjustment
+                key={selectedRecordKey}
+                recordKey={selectedRecordKey}
+                detail={detail}
+                form={recordForm}
+              />
+            )}
+            <Form.Item
+              name="quantity"
+              label="Quantity"
+              initialValue={1}
+              rules={[
+                {
+                  required: true,
+                  type: "integer",
+                  min: 1,
+                  max: 50,
+                  message: "Enter a whole number from 1 to 50.",
+                },
               ]}
-            />
-          </Form.Item>
+            >
+              <InputNumber aria-label="Quantity" min={1} max={50} />
+            </Form.Item>
+            <Form.Item name="initiative" label="Initiative" rules={[initiativeRule]}>
+              <InputNumber aria-label="Initiative" />
+            </Form.Item>
+          </>
         )}
-        <Form.Item
-          name="quantity"
-          label="Quantity"
-          initialValue={1}
-          rules={[
-            {
-              required: true,
-              type: "integer",
-              min: 1,
-              max: 50,
-              message: "Enter a whole number from 1 to 50.",
-            },
-          ]}
-        >
-          <InputNumber aria-label="Quantity" min={1} max={50} />
-        </Form.Item>
-        <Form.Item name="initiative" label="Initiative" rules={[initiativeRule]}>
-          <InputNumber aria-label="Initiative" />
-        </Form.Item>
       </SearchPickerModal>
       <EncounterModal
         title="Add PC"
@@ -620,4 +618,36 @@ function rosterHpTone(participant: EncounterParticipantView): string {
     : ratio <= 0.5
       ? "encounter-roster__hp--bloodied"
       : "encounter-roster__hp--healthy";
+}
+
+function EncounterRecordAdjustment({
+  recordKey,
+  detail,
+  form,
+}: {
+  recordKey: string;
+  detail?: RecordDetailView;
+  form: FormInstance<AddRecordForm>;
+}) {
+  const matches =
+    detail?.record.record_key === recordKey &&
+    detail.selected.embedded_path.length === 0;
+  const resolved = matches ? detail.encounter_adjustment : undefined;
+  useEffect(() => {
+    if (matches && !form.isFieldTouched("adjustment"))
+      form.setFields([{ name: "adjustment", value: resolved, touched: false }]);
+  }, [form, matches, resolved]);
+  return (
+    <Form.Item name="adjustment" label="Adjustment" preserve={false}>
+      <Select
+        aria-label="Adjustment"
+        placeholder="Unknown"
+        options={[
+          { value: "normal", label: "Normal" },
+          { value: "elite", label: "Elite" },
+          { value: "weak", label: "Weak" },
+        ]}
+      />
+    </Form.Item>
+  );
 }

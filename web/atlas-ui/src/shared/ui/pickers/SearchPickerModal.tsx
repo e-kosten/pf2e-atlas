@@ -20,6 +20,7 @@ import {
 } from "../../search/searchIdentity";
 import type {
   RecordSummaryView,
+  RecordDetailView,
   SearchResultsPage,
   SearchResultsRequest,
 } from "../../../generated/atlas";
@@ -65,7 +66,9 @@ export function SearchPickerModal<FormValues>({
 }: {
   buildRequest: (query: string) => SearchResultsRequest;
   disabled?: boolean;
-  children?: React.ReactNode;
+  children?:
+    | React.ReactNode
+    | ((detail: RecordDetailView | undefined) => React.ReactNode);
   emptyPrompt: string;
   emptyResults: string;
   form: FormInstance<FormValues>;
@@ -359,7 +362,9 @@ export function SearchPickerModal<FormValues>({
           layout="vertical"
           onFinish={onFinish}
         >
-          <div className="reference-picker__fields">{children}</div>
+          <div className="reference-picker__fields">
+            {typeof children === "function" ? children(reading.detail) : children}
+          </div>
           {status}
           <Space>
             <Button disabled={disabled} onClick={onCancel}>
