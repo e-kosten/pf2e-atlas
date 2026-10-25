@@ -132,9 +132,7 @@ it("labels a retained failed preview, retries, and isolates another record and r
     target: { value: "2" },
   });
   await waitFor(() =>
-    expect(
-      within(bar).getByText("Previous preview · preview could not update"),
-    ).toBeVisible(),
+    expect(within(bar).getByText("Update failed · previous preview")).toBeVisible(),
   );
   expect(within(bar).getByText("Severe · 120 XP")).toBeVisible();
   onPreview.mockResolvedValue({ ...current, total_xp: 160, rating: "Extreme" });
@@ -145,8 +143,9 @@ it("labels a retained failed preview, retries, and isolates another record and r
   expect(within(bar).getByText("Extreme · 160 XP")).toBeVisible();
   onPreview.mockImplementation(() => new Promise(() => {}));
   fireEvent.click(screen.getByRole("button", { name: "Choose trap" }));
-  expect(within(bar).getByText("Current encounter")).toBeVisible();
+  expect(within(bar).getByText("Updating preview…")).toBeVisible();
+  expect(within(bar).getByText("Moderate · 80 XP")).toBeVisible();
   expect(within(bar).queryByText("Extreme · 160 XP")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Refresh encounter" }));
-  expect(within(bar).getByText("Current encounter")).toBeVisible();
+  expect(within(bar).getByText("Moderate · 80 XP")).toBeVisible();
 });

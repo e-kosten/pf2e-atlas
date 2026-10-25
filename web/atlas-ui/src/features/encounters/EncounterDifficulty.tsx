@@ -28,7 +28,7 @@ export interface EncounterDifficultyProps {
 }
 export function difficultySummary(value: EncounterDifficultyView) {
   if (value.party_level === null || value.party_size === null)
-    return "Set party reference";
+    return "Difficulty unavailable";
   if (value.total_xp === null) return "Difficulty incomplete";
   return `${value.rating} · ${value.total_xp} XP`;
 }
@@ -44,6 +44,10 @@ export function EncounterDifficulty(props: EncounterDifficultyProps) {
     }
     setOpen(next);
   }
+  const buttonLabel =
+    props.value.party_level === null || props.value.party_size === null
+      ? "Difficulty"
+      : difficultySummary(props.value);
   return (
     <div className="encounter-difficulty">
       <div className="encounter-difficulty__heading">
@@ -92,11 +96,11 @@ export function EncounterDifficulty(props: EncounterDifficultyProps) {
             ref={button}
             size="small"
             aria-expanded={open}
-            aria-label={`Encounter difficulty: ${difficultySummary(props.value)}`}
+            aria-label={`Encounter difficulty: ${buttonLabel}`}
             icon={<ChevronDown size={14} />}
             iconPlacement="end"
           >
-            {difficultySummary(props.value)}
+            {buttonLabel}
           </Button>
         </Popover>
         {props.value.party_level !== null && props.value.party_size !== null && (
@@ -107,7 +111,6 @@ export function EncounterDifficulty(props: EncounterDifficultyProps) {
           </span>
         )}
       </div>
-      <EncounterDifficultyMeter value={props.value} showBudgets={false} />
     </div>
   );
 }
@@ -201,7 +204,7 @@ function DifficultyReference({
       if (active.current) onClose();
     } catch (error) {
       setSaveError(
-        error instanceof Error ? error : new Error("Party reference could not save."),
+        error instanceof Error ? error : new Error("Party details could not save."),
       );
     } finally {
       setSaving(false);
@@ -261,7 +264,7 @@ function DifficultyReference({
             }
             onClick={() => setDraft({ party_level: null, party_size: null })}
           >
-            Use party
+            Use PCs
           </Button>
           <Button
             type="primary"
@@ -272,14 +275,16 @@ function DifficultyReference({
             Save
           </Button>
         </div>
-        <p className="encounter-difficulty__basis">
-          {display.basis}
-          {display.reference_note ? ` ${display.reference_note}` : ""}
-        </p>
+        {display.reference_note && (
+          <p className="encounter-difficulty__basis">{display.reference_note}</p>
+        )}
+        {(display.party_level === null || display.party_size === null) && (
+          <p>Enter party level and size, or add PCs.</p>
+        )}
         {saveError && <Alert type="error" title={saveError.message} />}
         {!valid && (
           <p role="alert">
-            Choose level 1–20 and 1–100 PCs, or leave blank to follow the party.
+            Use level 1–20 and 1–100 PCs. Leave blank to use encounter PCs.
           </p>
         )}
         {!unchanged && previewError && (
@@ -297,15 +302,15 @@ function DifficultyReference({
             {pending
               ? "Updating preview…"
               : !valid
-                ? "Previous calculation · invalid reference"
+                ? "Previous calculation · check party details"
                 : !unchanged && previewError
                   ? "Previous calculation · update failed"
                   : !unchanged
                     ? "Preview · not saved"
                     : display.reference.party_level !== null ||
                         display.reference.party_size !== null
-                      ? "GM reference"
-                      : "From party"}
+                      ? "Custom party details"
+                      : "From encounter PCs"}
           </span>
         </div>
         {display.total_xp === null && display.party_level !== null && (
@@ -393,7 +398,7 @@ function automaticFormatter(override: number | null) {
   return (value: number | undefined, info: { userTyping: boolean; input: string }) =>
     info.userTyping
       ? info.input
-      : value === undefined
+      : value == null || String(value).trim() === ""
         ? ""
         : override === null
           ? `Auto: ${value}`

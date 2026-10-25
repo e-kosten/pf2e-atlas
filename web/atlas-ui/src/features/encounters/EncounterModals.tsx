@@ -1,3 +1,4 @@
+import { encounterStatusLabels } from "./encounterStatus";
 import { EncounterModal } from "./EncounterModal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Form, Input, Popconfirm, Select } from "antd";
@@ -210,7 +211,7 @@ export function EditEncounterForm({
         <Select<EncounterStatusView>
           options={["draft", "running", "complete", "archived"].map((value) => ({
             value: value as EncounterStatusView,
-            label: value,
+            label: encounterStatusLabels[value as EncounterStatusView],
           }))}
         />
       </Form.Item>

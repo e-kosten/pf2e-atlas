@@ -57,14 +57,17 @@
   justify-content: space-between;
 }
 .encounter-difficulty__budgets {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-control);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px var(--space-control);
   font-size: 12px;
 }
 .encounter-difficulty__budgets > div {
-  display: grid;
-  gap: var(--space-control);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
 }
 .encounter-difficulty__opponent-kind {
   display: block;
@@ -106,32 +109,39 @@
   color: var(--difficulty-color);
 }
 
-.encounter-difficulty__award,
-.encounter-add-difficulty__heading,
-.encounter-add-difficulty__status {
+.encounter-difficulty__award {
   display: flex;
   align-items: baseline;
-  flex-wrap: wrap;
   gap: var(--space-control);
   justify-content: space-between;
-}
-.encounter-difficulty__award {
   border-top: 1px solid var(--line);
   padding-top: var(--space-control);
 }
 .encounter-add-difficulty {
   display: grid;
+  gap: 4px;
+}
+.encounter-add-difficulty__heading {
+  display: flex;
+  align-items: center;
   gap: var(--space-control);
 }
-.encounter-add-difficulty__heading > span,
-.encounter-add-difficulty__status {
+.encounter-add-difficulty__heading > strong {
+  white-space: nowrap;
+}
+.encounter-add-difficulty__context {
+  flex: 1;
+  min-width: 0;
   color: var(--muted);
   font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.encounter-add-difficulty__heading > span {
-  overflow-wrap: anywhere;
-  min-width: 0;
+.encounter-difficulty-meter--compact {
+  gap: 4px;
 }
-.encounter-add-difficulty__status {
-  align-items: center;
+.encounter-difficulty-meter--compact .encounter-difficulty__budgets {
+  font-size: 11px;
+  gap: 4px;
 }
