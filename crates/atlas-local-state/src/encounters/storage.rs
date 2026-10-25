@@ -165,9 +165,9 @@ pub(crate) fn add_participant(
                 encounter_id, participant_key, record_key, participant_kind, participant_variant, position,
                 display_name, record_title_snapshot, record_kind_snapshot, side,
                 initiative, initiative_order, max_hp, current_hp, temporary_hp,
-                defeated, hidden, note, created_at, updated_at, hp_origin, variant_origin, track_dying
+                defeated, hidden, note, created_at, updated_at, hp_origin, variant_origin, track_dying, level_override
              )
-             VALUES (?1, ?2, ?3, ?4, ?19, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 0, 0, ?15, ?16, ?16, ?17, ?18, ?20)",
+             VALUES (?1, ?2, ?3, ?4, ?19, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 0, 0, ?15, ?16, ?16, ?17, ?18, ?20, ?21)",
             params![
                 encounter_id,
                 participant_key,
@@ -189,6 +189,7 @@ pub(crate) fn add_participant(
                 participant.variant_origin.as_str(),
                 participant.participant_variant.as_str(),
                 participant.participant_kind == ParticipantKind::Pc,
+                participant.level_override,
             ],
         );
         match result {

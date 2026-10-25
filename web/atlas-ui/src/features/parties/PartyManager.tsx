@@ -1,5 +1,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Form, Input, Modal, Space, Table } from "antd";
+import {
+  Alert,
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Space,
+  Table,
+  Tooltip,
+} from "antd";
+import { Trash2 } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { createParty, deleteParty, updateParty } from "../../api/atlasApi";
 import type {
@@ -185,7 +196,13 @@ function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => voi
     if (inFlight.current) return;
     inFlight.current = true;
     try {
-      await save.mutateAsync(values);
+      await save.mutateAsync({
+        ...values,
+        members: values.members.map((member) => ({
+          ...member,
+          level: member.level ?? undefined,
+        })),
+      });
     } catch {
       /* Keep the draft and show the mutation error. */
     } finally {
@@ -237,15 +254,25 @@ function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => voi
         </Form.Item>
         <Form.List name="members">
           {(fields, { add, remove }) => (
-            <>
+            <div className="party-editor__members">
+              {fields.length > 0 && (
+                <div
+                  className="party-editor__row party-editor__headings"
+                  aria-hidden="true"
+                >
+                  <span>PC name</span>
+                  <span>Level</span>
+                  <span />
+                </div>
+              )}
               {fields.map(({ key, name, ...rest }) => (
-                <Space key={key} align="start" style={{ display: "flex" }}>
+                <div key={key} className="party-editor__row">
                   <Form.Item {...rest} name={[name, "member_key"]} hidden>
                     <Input />
                   </Form.Item>
                   <Form.Item
                     {...rest}
-                    label={`PC ${name + 1}`}
+                    className="party-editor__field"
                     name={[name, "name"]}
                     rules={[
                       {
@@ -256,24 +283,40 @@ function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => voi
                       },
                     ]}
                   >
-                    <Input maxLength={255} />
+                    <Input maxLength={255} aria-label={`PC ${name + 1} name`} />
                   </Form.Item>
-                  <Button
-                    style={{ marginTop: 30 }}
-                    aria-label={`Remove PC ${name + 1}`}
-                    onClick={() => remove(name)}
+                  <Form.Item
+                    {...rest}
+                    className="party-editor__field"
+                    name={[name, "level"]}
+                    rules={[{ type: "integer", min: 1, max: 20, message: "Use 1–20." }]}
                   >
-                    Remove
-                  </Button>
-                </Space>
+                    <InputNumber
+                      className="party-editor__level"
+                      aria-label={`PC ${name + 1} level`}
+                      min={1}
+                      max={20}
+                      placeholder="—"
+                    />
+                  </Form.Item>
+                  <Tooltip title={`Remove PC ${name + 1}`} trigger={["hover", "focus"]}>
+                    <Button
+                      type="text"
+                      aria-label={`Remove PC ${name + 1}`}
+                      onClick={() => remove(name)}
+                      icon={<Trash2 size={16} aria-hidden="true" />}
+                    />
+                  </Tooltip>
+                </div>
               ))}
               <Button
+                className="party-editor__add"
                 disabled={save.isPending || fields.length >= 50}
                 onClick={() => add({ name: "" })}
               >
                 Add PC
               </Button>
-            </>
+            </div>
           )}
         </Form.List>
       </Form>

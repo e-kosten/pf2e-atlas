@@ -144,17 +144,20 @@ it("keeps a failed party creation draft and permits an explicit retry", async ()
     target: { value: "Campaign" },
   });
   fireEvent.click(within(dialog).getByRole("button", { name: "Add PC" }));
-  fireEvent.change(within(dialog).getByLabelText("PC 1"), {
+  fireEvent.change(within(dialog).getByLabelText("PC 1 name"), {
     target: { value: "Aster" },
+  });
+  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "PC 1 level" }), {
+    target: { value: "5" },
   });
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
   expect(await screen.findByText("Could not save")).toBeInTheDocument();
-  expect(within(dialog).getByLabelText("PC 1")).toHaveValue("Aster");
+  expect(within(dialog).getByLabelText("PC 1 name")).toHaveValue("Aster");
   expect(onClose).not.toHaveBeenCalled();
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   expect(api.createParty).toHaveBeenLastCalledWith({
     name: "Campaign",
-    members: [{ name: "Aster" }],
+    members: [{ name: "Aster", level: 5 }],
   });
 });

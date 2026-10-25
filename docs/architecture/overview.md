@@ -214,9 +214,11 @@ unknown/conflicting states. See [ADR0055](./decisions/0055-encounter-condition-e
 
 Do not implement a Foundry world/rule/macro execution engine through presentation.
 
-Saved parties are ordered, name-only reusable PC definitions owned by local-state.
-App-service copies every member into independent manual encounter participants
-in one workspace write, checking the reviewed party revision.
+Saved parties are ordered reusable PC names and optional levels owned by local-state.
+App-service copies every member, including its supplied level, into independent
+manual encounter participants in one workspace write, checking the reviewed party
+revision. Unknown levels remain unknown; level changes on a party do not rewrite
+previously added PCs.
 Party edits and deletion do not affect existing encounters. Party/member identities
 are independent of names; no live HP, conditions, initiative or reference records
 are stored on parties. Web exposes party management through shared app contracts.
