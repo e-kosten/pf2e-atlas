@@ -403,7 +403,11 @@ content must not bring another card into an overlay. For example, Battle Medicin
 in a Drawer has one reading surface, not a padded surround and nested card. The
 shared RecordPresentation arranges facts/prose and adds no outer padding. An
 encounter pane owns the inset around its product-specific content. Header/footer
-insets align with their body. A section supplies internal gaps, not another body
+insets align with their body: encounter pane bars and bodies inherit
+`--encounter-pane-inset`; browse headers and content inherit `--browse-pane-inset`.
+Include decorative borders inside that total inset, so selected and unselected
+result titles align with Results. Do not give a header its own smaller gutter.
+A section supplies internal gaps, not another body
 inset. Do not repair nesting with negative margins or arbitrary local padding.
 
 A single-entity page starts with the entity name and its actions. Do not put a
@@ -1418,10 +1422,13 @@ confirmation and await their action. Keep membership/order semantics in the list
 owner; do not reconstruct undo from a partial display snapshot.
 
 An encounter's Add-preview meter can retain its last complete, named what-if
-scenario while the next selection loads. Label it as Previous with its original
-name and quantity; never relabel those values as the new candidate or reset the
-bar to the saved total between selections. Start selection requests immediately,
-debounce typing, and delay slow-operation feedback without moving controls. Retain
+scenario while the next selection loads. Keep its caption and values together
+for fast replacements; if the request takes longer, replace only the caption with
+Updating… while retaining the bar and total. Do not flash Previous between every
+quantity edit, relabel retained values as the new candidate, or reset the bar to
+the saved total between selections. A failure identifies the previous scenario
+and offers Retry. Start selection requests immediately, debounce typing, and
+count the slow-feedback delay from the request rather than the typing pause. Retain
 only within the same encounter revision, artifact generation and party settings;
 a new basis must not reuse an older calculation. A completed unavailable result
 remains unavailable rather than retaining a previous total as if it were current.

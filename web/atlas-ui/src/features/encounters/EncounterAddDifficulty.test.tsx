@@ -150,11 +150,56 @@ it("retains a named previous scenario across selections and failures, but not re
   expect(within(bar).getByText("Extreme · 160 XP")).toBeVisible();
   onPreview.mockImplementation(() => new Promise(() => {}));
   fireEvent.click(screen.getByRole("button", { name: "Choose trap" }));
-  expect(within(bar).getByText("Previous: 2 × Ogre")).toBeVisible();
+  expect(within(bar).getByText("After adding 2 × Ogre")).toBeVisible();
+  await within(bar).findByText("Updating…");
   expect(within(bar).getByText("Extreme · 160 XP")).toBeVisible();
   expect(within(bar).queryByText("Moderate · 80 XP")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Refresh encounter" }));
   expect(within(bar).getByText("Moderate · 80 XP")).toBeVisible();
+});
+
+it("replaces fast quantity and selection results without intermediate captions or mismatched totals", async () => {
+  let finish!: (value: EncounterDifficultyView) => void;
+  const onPreview = vi.fn(
+    () =>
+      new Promise<EncounterDifficultyView>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const bar = setup(onPreview);
+  fireEvent.click(screen.getByRole("button", { name: "Choose ogre" }));
+  await act(async () => finish({ ...current, total_xp: 120, rating: "Severe" }));
+  await within(bar).findByText("After adding 1 × Ogre");
+  const heading = within(bar).getByRole("status");
+  const frames: string[] = [heading.textContent!];
+  const observer = new MutationObserver(() => frames.push(heading.textContent!));
+  observer.observe(heading, { childList: true, characterData: true, subtree: true });
+  try {
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Quantity" }), {
+      target: { value: "2" },
+    });
+    expect(heading).toHaveTextContent("After adding 1 × OgreSevere · 120 XP");
+    await waitFor(() => expect(onPreview).toHaveBeenCalledTimes(2));
+    expect(heading).toHaveTextContent("After adding 1 × OgreSevere · 120 XP");
+    await act(async () => finish({ ...current, total_xp: 160, rating: "Extreme" }));
+    await within(bar).findByText("After adding 2 × Ogre");
+    fireEvent.click(screen.getByRole("button", { name: "Choose trap" }));
+    expect(heading).toHaveTextContent("After adding 2 × OgreExtreme · 160 XP");
+    await act(async () =>
+      finish({ ...current, total_xp: 200, rating: "Above Extreme" }),
+    );
+    await within(bar).findByText("After adding 2 × Trap");
+    expect(frames.length).toBeGreaterThan(1);
+    for (const frame of frames) {
+      expect([
+        "After adding 1 × OgreSevere · 120 XP",
+        "After adding 2 × OgreExtreme · 160 XP",
+        "After adding 2 × TrapAbove Extreme · 200 XP",
+      ]).toContain(frame);
+    }
+  } finally {
+    observer.disconnect();
+  }
 });
 
 it("starts a new selection immediately and ignores its late superseded response", async () => {

@@ -49,7 +49,9 @@ export function RecordBrowseSummary({
             gridColumn: "1 / -1",
             alignItems: "stretch",
             gap: 7,
-            padding: "14px 16px 10px",
+            padding: "14px var(--browse-pane-inset) 10px",
+            // Include the parent's selection border inside the pane gutter.
+            paddingInlineStart: "calc(var(--browse-pane-inset) - 3px)",
             borderRadius: 0,
             textAlign: "left",
             color: selected ? "var(--selection-text)" : undefined,

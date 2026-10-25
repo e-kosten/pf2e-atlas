@@ -48,7 +48,7 @@ export function EncounterDifficultyMeter({
       ? token.colorSuccess
       : value.rating === "Moderate"
         ? token.colorWarning
-        : token.colorError;
+        : "var(--hp-critical)";
   const text =
     value.total_xp === null
       ? "Difficulty incomplete"

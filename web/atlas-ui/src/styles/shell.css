@@ -164,6 +164,7 @@
 }
 
 .encounter-detail-view .pane-header {
+  padding-inline: var(--encounter-pane-inset);
   border: 0;
   border-bottom: 1px solid var(--line);
   border-radius: 0;
