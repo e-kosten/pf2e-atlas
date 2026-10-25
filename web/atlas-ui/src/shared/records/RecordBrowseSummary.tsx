@@ -47,12 +47,13 @@ export function RecordBrowseSummary({
             padding: "14px 16px 10px",
             borderRadius: 0,
             textAlign: "left",
+            color: selected ? "var(--selection-text)" : undefined,
           },
         }}
         data-record-key={record.record_key}
         href={recordHref}
         block
-        color={selected ? "primary" : "default"}
+        color="default"
         variant="text"
         disabled={disabled}
         aria-current={selected ? "true" : undefined}

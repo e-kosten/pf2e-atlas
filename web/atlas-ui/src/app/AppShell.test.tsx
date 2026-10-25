@@ -2,7 +2,10 @@ import { readinessFixture } from "../test/fixtures";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { AppShell } from "./AppShell";
 
-function renderShell(errorMessage: string | null = null) {
+function renderShell(
+  errorMessage: string | null = null,
+  resolvedColorScheme: "light" | "dark" = "light",
+) {
   const navigate = {
     search: vi.fn(),
     encounters: vi.fn(),
@@ -14,7 +17,7 @@ function renderShell(errorMessage: string | null = null) {
     <AppShell
       activeView="search"
       colorScheme="light"
-      resolvedColorScheme="light"
+      resolvedColorScheme={resolvedColorScheme}
       onColorSchemeChange={changeTheme}
       onNavigateSearch={navigate.search}
       onNavigateEncounters={navigate.encounters}
@@ -35,6 +38,9 @@ function renderShell(errorMessage: string | null = null) {
 describe("application navigation and accessibility", () => {
   it("provides native destinations and handles ordinary navigation once", () => {
     const { navigate } = renderShell();
+    const brand = screen.getByRole("link", { name: "PF2e Atlas" });
+    expect(brand).toHaveAttribute("href", "/search");
+    expect(brand).toHaveStyle({ color: "var(--brand-text)" });
     const encounters = screen.getByRole("link", { name: "Encounters" });
     expect(encounters).toHaveAttribute("href", "/encounters");
     expect(screen.getByRole("link", { name: "Lists" })).toHaveAttribute(
@@ -69,6 +75,13 @@ describe("application navigation and accessibility", () => {
     item.focus();
     fireEvent.keyDown(item, { key: "Enter", code: "Enter", keyCode: 13 });
     expect(navigate.encounters).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives Ant navigation the resolved shell appearance", () => {
+    renderShell(null, "dark");
+    expect(screen.getByRole("menu", { name: "Atlas views" })).toHaveClass(
+      "ant-menu-dark",
+    );
   });
 
   it("skips to the content without creating a second main landmark", () => {

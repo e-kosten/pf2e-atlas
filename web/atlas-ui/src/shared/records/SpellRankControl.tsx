@@ -1,7 +1,28 @@
 import { Button, Dropdown } from "antd";
-import { ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { SpellPresentationView } from "../../generated/atlas";
+
+const tabbableSelector = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
+function moveFocusFromTrigger(trigger: HTMLButtonElement, reverse: boolean) {
+  const root =
+    trigger.closest<HTMLElement>('[role="dialog"]') ?? trigger.ownerDocument.body;
+  const candidates = [...root.querySelectorAll<HTMLElement>(tabbableSelector)].filter(
+    (candidate) => !candidate.closest('[hidden],[aria-hidden="true"]'),
+  );
+  const index = candidates.indexOf(trigger);
+  if (index < 0 || candidates.length < 2) return;
+  const destination =
+    candidates[(index + (reverse ? -1 : 1) + candidates.length) % candidates.length];
+  destination?.focus({ preventScroll: true });
+}
 
 export function SpellRankControl({
   spell,
@@ -65,9 +86,15 @@ export function SpellRankControl({
             closeOnEscape(event);
             if (event.key === "Enter") event.preventDefault();
             if (event.key === "Tab") {
+              event.preventDefault();
               event.stopPropagation();
               setOpen(false);
-              trigger.current?.focus({ preventScroll: true });
+              const button = trigger.current;
+              if (button) {
+                requestAnimationFrame(() =>
+                  moveFocusFromTrigger(button, event.shiftKey),
+                );
+              }
             }
           },
           items: [
@@ -89,10 +116,9 @@ export function SpellRankControl({
           ref={trigger}
           type="text"
           size="small"
+          className="spell-rank-control__trigger"
           aria-haspopup="menu"
           aria-expanded={open}
-          icon={<ChevronDown size={14} aria-hidden="true" />}
-          iconPlacement="end"
           onKeyDown={(event) => {
             closeOnEscape(event);
             if (event.key === "ArrowDown") {

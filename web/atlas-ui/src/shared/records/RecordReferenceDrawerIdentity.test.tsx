@@ -61,7 +61,10 @@ it("groups identity facts in the Drawer header without duplicating the title or 
   const source = header.getByText("Pathfinder Player Core").parentElement;
   expect(source).toBeVisible();
   expect(source).toHaveTextContent("Source: Pathfinder Player Core");
-  expect(header.getByText("passive")).toBeVisible();
+  expect(header.queryByText("passive")).toBeNull();
+  expect(screen.getByText("Activation").closest(".record-fact")).toHaveTextContent(
+    "Activation passive",
+  );
   expect(screen.getAllByText("passive")).toHaveLength(1);
   expect(header.queryByRole("heading", { name: "Description" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Description" })).toBeNull();

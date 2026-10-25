@@ -266,6 +266,7 @@ it("previews the whole summary without selecting on focus or inventing radio con
     ),
   );
   expect(link).toHaveAttribute("aria-current", "true");
+  expect(link.closest(".reference-result")).toHaveClass("reference-result--selected");
 });
 it.each([{ metaKey: true }, { ctrlKey: true }, { button: 1 }])(
   "preserves native modified summary navigation %j",
