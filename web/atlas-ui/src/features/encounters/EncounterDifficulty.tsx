@@ -6,7 +6,12 @@ import type {
   EncounterDifficultyReferenceView,
   EncounterDifficultyView,
   SetEncounterDifficultyRequest,
+  RecordNavigationView,
 } from "../../generated/atlas";
+import { EncounterDifficultyMeter } from "./EncounterDifficultyMeter";
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
+import type { RecordReferenceHandler } from "../../shared/records/PreparedContent";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 
 interface Props {
@@ -17,6 +22,7 @@ interface Props {
   onPreview: (
     request: SetEncounterDifficultyRequest,
   ) => Promise<EncounterDifficultyView>;
+  onReference: RecordReferenceHandler;
   onSave: (reference: EncounterDifficultyReferenceView) => Promise<void>;
 }
 function summary(value: EncounterDifficultyView) {
@@ -27,10 +33,14 @@ function summary(value: EncounterDifficultyView) {
 }
 export function EncounterDifficulty(props: Props) {
   const [open, setOpen] = useState(false);
+  const [ruleDraft, setRuleDraft] = useState<EncounterDifficultyReferenceView>();
   const button = useRef<HTMLButtonElement>(null);
   const content = useRef<HTMLDivElement>(null);
   function changeOpen(next: boolean) {
-    if (!next) restoreOverlayFocus(button.current, content.current);
+    if (!next) {
+      setRuleDraft(undefined);
+      restoreOverlayFocus(button.current, content.current);
+    }
     setOpen(next);
   }
   return (
@@ -59,7 +69,20 @@ export function EncounterDifficulty(props: Props) {
             // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- A bounded reading region needs keyboard scrolling in WebKit.
             tabIndex={0}
           >
-            <DifficultyReference {...props} onClose={() => changeOpen(false)} />
+            <DifficultyReference
+              {...props}
+              onClose={() => changeOpen(false)}
+              initialReference={ruleDraft ?? props.value.reference}
+              onReadRule={(selection, anchor, draft) => {
+                changeOpen(false);
+                setRuleDraft(draft);
+                props.onReference(
+                  selection.record_key,
+                  button.current ?? anchor,
+                  selection,
+                );
+              }}
+            />
           </div>
         }
       >
@@ -91,11 +114,21 @@ function DifficultyReference({
   disabled,
   onSave,
   onPreview,
+  onReadRule,
+  initialReference,
   onClose,
-}: Props & { onClose: () => void }) {
+}: Props & {
+  onClose: () => void;
+  initialReference: EncounterDifficultyReferenceView;
+  onReadRule: (
+    selection: RecordNavigationView,
+    anchor: HTMLElement,
+    draft: EncounterDifficultyReferenceView,
+  ) => void;
+}) {
   const levelId = useId();
   const sizeId = useId();
-  const [draft, setDraft] = useState(value.reference);
+  const [draft, setDraft] = useState(initialReference);
   const [debounced, setDebounced] = useState(draft);
   const [saveError, setSaveError] = useState<Error | null>(null);
   const [saving, setSaving] = useState(false);
@@ -180,7 +213,9 @@ function DifficultyReference({
               min={1}
               max={20}
               precision={0}
-              value={draft.party_level}
+              value={draft.party_level ?? display.party_level}
+              formatter={automaticFormatter(draft.party_level)}
+              parser={parseReferenceNumber}
               placeholder={
                 display.party_level === null ? "Choose" : `Auto: ${display.party_level}`
               }
@@ -189,7 +224,7 @@ function DifficultyReference({
             />
           </label>
           <label htmlFor={sizeId}>
-            Budget PCs
+            Party size
             <InputNumber
               className="encounter-difficulty__input"
               id={sizeId}
@@ -197,7 +232,9 @@ function DifficultyReference({
               min={1}
               max={100}
               precision={0}
-              value={draft.party_size}
+              value={draft.party_size ?? display.party_size}
+              formatter={automaticFormatter(draft.party_size)}
+              parser={parseReferenceNumber}
               placeholder={
                 display.party_size === null ? "Choose" : `Auto: ${display.party_size}`
               }
@@ -261,16 +298,7 @@ function DifficultyReference({
         {display.total_xp === null && display.party_level !== null && (
           <p>{display.known_xp} known XP · missing contributions below</p>
         )}
-        {display.budgets.length > 0 && (
-          <div className="encounter-difficulty__budgets" aria-label="XP budgets">
-            {display.budgets.map((budget) => (
-              <div key={budget.label}>
-                <span>{budget.label}</span>
-                <strong>{budget.xp}</strong>
-              </div>
-            ))}
-          </div>
-        )}
+        <EncounterDifficultyMeter value={display} />
         {display.opposition.length > 0 ? (
           <Table
             size="small"
@@ -308,26 +336,41 @@ function DifficultyReference({
           <p>No enemy creatures or hazards.</p>
         )}
       </div>
-      <p className="encounter-difficulty__basis">
-        Includes defeated and disabled opponents. Allies and neutral participants are
-        excluded.
-      </p>
       <div className="encounter-difficulty__sources">
-        <Typography.Link
-          href="https://2e.aonprd.com/Rules.aspx?ID=2716"
-          target="_blank"
-          rel="noreferrer"
-        >
-          XP budgets
-        </Typography.Link>
-        <Typography.Link
-          href="https://2e.aonprd.com/Rules.aspx?ID=2653"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Mixed-level parties
-        </Typography.Link>
+        {display.rules.map((rule) => (
+          <Typography.Link
+            key={rule.title}
+            href={destinationHref(
+              recordDestination({
+                recordKey: rule.navigation.record_key,
+                selection: rule.navigation,
+              }),
+            )}
+            onClick={(event) => {
+              if (!isPrimaryActivation(event)) return;
+              event.preventDefault();
+              onReadRule(rule.navigation, event.currentTarget, draft);
+            }}
+          >
+            {rule.title}
+          </Typography.Link>
+        ))}
       </div>
     </>
   );
+}
+
+function automaticFormatter(override: number | null) {
+  return (value: number | undefined, info: { userTyping: boolean; input: string }) =>
+    info.userTyping
+      ? info.input
+      : value === undefined
+        ? ""
+        : override === null
+          ? `Auto: ${value}`
+          : String(value);
+}
+function parseReferenceNumber(value: string | undefined): number {
+  const text = value?.replace(/^Auto:\s*/, "").trim();
+  return text ? Number(text) : Number.NaN;
 }

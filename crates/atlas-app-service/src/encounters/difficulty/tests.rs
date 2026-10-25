@@ -261,3 +261,40 @@ fn party_snapshots_supply_mixed_references_and_unknown_levels_stay_unknown() {
         unknown.difficulty
     );
 }
+
+#[test]
+fn curated_rules_open_the_exact_journal_pages() {
+    use atlas_search::test_support::{open_source_fixture, record};
+    use serde_json::json;
+    let f = crate::test_support::fixture_worker_with_executor(
+        crate::executor::RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+            Ok(open_source_fixture(
+                vec![record(
+                    "journals",
+                    "JournalEntry",
+                    json!({"_id":"S55aqwWIzpQRFhcq","name":"GM Screen","pages":[{"_id":"WZgFEMDSP9TvYc4u","name":"Encounter Budget","type":"text","text":{"content":"<p>Budget rules.</p>","format":1}},{"_id":"ZcddTU02joqYuuoV","name":"XP Awards","type":"text","text":{"content":"<p>XP rules.</p>","format":1}}]}),
+                )],
+                false,
+            )?)
+        }),
+    );
+    for rule in rule_references() {
+        let selected = f
+            .worker
+            .record_detail_at(atlas_app_model::RecordDetailRequest {
+                spell_rank: None,
+                record_key: rule.navigation.record_key,
+                owners: rule.navigation.owners.clone(),
+                fields: vec![],
+                passage: None,
+                source_fingerprint: None,
+            })
+            .unwrap();
+        assert!(matches!(
+            selected.presentation.body,
+            atlas_app_model::RecordBodyView::JournalPage(_)
+        ));
+        assert_eq!(selected.presentation.identity.title, rule.title);
+        assert_eq!(selected.selected.owners, rule.navigation.owners);
+    }
+}

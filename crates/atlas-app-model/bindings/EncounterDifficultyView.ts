@@ -2,8 +2,9 @@
 import type { EncounterDifficultyBudgetView } from "./EncounterDifficultyBudgetView";
 import type { EncounterDifficultyOpponentView } from "./EncounterDifficultyOpponentView";
 import type { EncounterDifficultyReferenceView } from "./EncounterDifficultyReferenceView";
+import type { EncounterDifficultyRuleView } from "./EncounterDifficultyRuleView";
 
-export type EncounterDifficultyView = { reference: EncounterDifficultyReferenceView, party_level: number | null,
+export type EncounterDifficultyView = { rules: Array<EncounterDifficultyRuleView>, reference: EncounterDifficultyReferenceView, party_level: number | null,
 /**
  * Effective budget count, including any supported mixed-level adjustment.
  */

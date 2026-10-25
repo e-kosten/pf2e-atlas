@@ -14,6 +14,7 @@ pub struct SetEncounterDifficultyRequest {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterDifficultyView {
+    pub rules: Vec<EncounterDifficultyRuleView>,
     pub reference: EncounterDifficultyReferenceView,
     pub party_level: Option<u32>,
     /// Effective budget count, including any supported mixed-level adjustment.
@@ -40,4 +41,11 @@ pub struct EncounterDifficultyOpponentView {
     pub level: Option<i32>,
     pub xp: Option<u32>,
     pub unavailable_reason: Option<String>,
+}
+
+/// Curated pinned rules destinations, like the source-linked condition catalog.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct EncounterDifficultyRuleView {
+    pub title: String,
+    pub navigation: crate::RecordNavigationView,
 }

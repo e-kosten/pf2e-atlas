@@ -1919,6 +1919,7 @@ fn encounter_detail(
 ) -> EncounterDetailView {
     EncounterDetailView {
         difficulty: atlas_app_model::EncounterDifficultyView {
+            rules: vec![],
             reference: Default::default(),
             party_level: None,
             party_size: None,
