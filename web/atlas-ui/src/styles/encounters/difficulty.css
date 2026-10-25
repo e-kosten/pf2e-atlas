@@ -69,3 +69,34 @@
 .encounter-difficulty__opponent-kind {
   overflow-wrap: anywhere;
 }
+
+.encounter-difficulty-meter {
+  display: grid;
+  gap: var(--space-control);
+}
+.encounter-difficulty-meter__track {
+  position: relative;
+}
+.encounter-difficulty-meter__progress {
+  display: block;
+  line-height: 1;
+}
+.encounter-difficulty-meter__unavailable {
+  height: 10px;
+  border-radius: var(--radius-pill);
+}
+.encounter-difficulty-meter__ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.encounter-difficulty-meter__ticks > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-inline-start: 1px solid var(--panel);
+  transform: translateX(-1px);
+}
+.encounter-difficulty-meter__current {
+  color: var(--difficulty-color);
+}

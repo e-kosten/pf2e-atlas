@@ -212,6 +212,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                   revision={encounter.data.revision}
                   value={encounter.data.difficulty}
                   onPreview={mutations.previewDifficulty}
+                  onReference={recordPreview.open}
                   disabled={mutationDisabled}
                   onSave={async (reference) => {
                     await mutations.run({

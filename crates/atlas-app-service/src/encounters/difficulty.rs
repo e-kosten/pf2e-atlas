@@ -194,6 +194,7 @@ pub(super) fn project(
         .try_fold(0u32, |sum, xp| sum.checked_add(xp?));
     let rating = total_xp.zip(party_size).map(|(xp, _)| rating(xp, &budgets));
     EncounterDifficultyView {
+        rules: rule_references(),
         reference: EncounterDifficultyReferenceView {
             party_level: reference.party_level,
             party_size: reference.party_size,
@@ -209,6 +210,31 @@ pub(super) fn project(
         budgets,
         opposition,
     }
+}
+
+// Pinned Foundry GM Screen pages; stable owned identities preserve native links.
+// Navigation is optional reading, not an assertion that a partial corpus contains it.
+fn rule_references() -> Vec<atlas_app_model::EncounterDifficultyRuleView> {
+    [
+        ("Encounter Budget", "WZgFEMDSP9TvYc4u"),
+        ("XP Awards", "ZcddTU02joqYuuoV"),
+    ]
+    .into_iter()
+    .map(|(title, id)| atlas_app_model::EncounterDifficultyRuleView {
+        title: title.into(),
+        navigation: atlas_app_model::RecordNavigationView {
+            spell_rank: None,
+            record_key: "journals:S55aqwWIzpQRFhcq".into(),
+            owners: vec![atlas_domain::OwnedContentLocator {
+                collection: "/pages".into(),
+                identity: atlas_domain::OwnedContentIdentity::Stable(id.into()),
+            }],
+            field: None,
+            passage: None,
+            source_fingerprint: None,
+        },
+    })
+    .collect()
 }
 
 fn suggest_level(levels: Option<&[u32]>) -> (Option<u32>, String) {
@@ -230,13 +256,16 @@ fn suggest_level(levels: Option<&[u32]>) -> (Option<u32>, String) {
     if behind <= 2 && levels.len() - behind >= 2 {
         return (
             Some(highest),
-            "Suggested highest level; only one or two PCs are behind.".into(),
+            format!("Suggested level {highest} · highest PC level."),
         );
     }
     let sum = levels.iter().map(|&l| u64::from(l)).sum::<u64>();
     let count = levels.len() as u64;
     let average = ((sum + count / 2) / count) as u32;
-    (Some(average), "Suggested average of PC levels, rounded to the nearest level. Choose the level that best represents this party.".into())
+    (
+        Some(average),
+        format!("Suggested level {average} · rounded party average."),
+    )
 }
 fn outlier_bonus(levels: &[u32], reference: u32) -> u32 {
     // Apply only the unambiguous GM Core case: one outlier above a uniform group.

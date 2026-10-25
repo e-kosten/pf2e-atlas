@@ -2910,6 +2910,7 @@ function encounterDetailFixture(
 ): EncounterDetailViewDto {
   return {
     difficulty: {
+      rules: [],
       reference: { party_level: null, party_size: null },
       party_level: null,
       party_size: null,

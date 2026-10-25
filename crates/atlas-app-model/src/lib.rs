@@ -2,7 +2,8 @@
 mod encounter_difficulty;
 pub use encounter_difficulty::{
     EncounterDifficultyBudgetView, EncounterDifficultyOpponentView,
-    EncounterDifficultyReferenceView, EncounterDifficultyView, SetEncounterDifficultyRequest,
+    EncounterDifficultyReferenceView, EncounterDifficultyRuleView, EncounterDifficultyView,
+    SetEncounterDifficultyRequest,
 };
 mod turn_resources;
 pub use dice::{FlatCheckRollView, RollFlatCheckRequest};
