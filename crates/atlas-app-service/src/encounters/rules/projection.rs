@@ -587,6 +587,28 @@ pub(in crate::encounters) fn scope_applies(
     }
 }
 
+/// The same effective level drives runtime statistics and planned encounter XP.
+/// Retain nonintegral authored values for display; arithmetic consumers require integers.
+pub(in crate::encounters) fn effective_participant_level(
+    participant: &EncounterParticipant,
+    authored: Option<&Number>,
+    adjustment_applicable: bool,
+) -> Option<Number> {
+    if let Some(level) = participant.level_override {
+        return Some(level.into());
+    }
+    if !adjustment_applicable {
+        return authored.cloned();
+    }
+    if participant.variant_origin == atlas_local_state::ParticipantVariantOrigin::InheritedUnknown {
+        return None;
+    }
+    authored
+        .and_then(integer)
+        .map(|level| Number::from(adjusted_npc_level(level, participant.participant_variant)))
+        .or_else(|| authored.cloned())
+}
+
 fn prepare_participant(
     participant: &EncounterParticipant,
     baseline: &StatBlockView,
@@ -630,9 +652,6 @@ fn prepare_participant(
         && participant.variant_origin
             != atlas_local_state::ParticipantVariantOrigin::InheritedUnknown
     {
-        if let Some(level) = block.level.as_ref().and_then(integer) {
-            block.adjusted_level = Some(adjusted_npc_level(level, variant).into());
-        }
         for value in &mut block.values {
             let amount = if value.target == StatisticTarget::HitPointMaximum {
                 None
@@ -722,14 +741,8 @@ fn prepare_participant(
     } else if adjustment_applicable {
         block.unapplied_effects.push(UnappliedEffectView{condition_id:None,source:"npc-adjustment".into(),label:"Source adjustment unavailable".into(),reason:"Missing or invalid adjustment does not establish Normal; choose an explicit variant to apply an adjustment.".into()});
     }
-    if let Some(level) = participant.level_override {
-        block.adjusted_level = Some(level.into());
-    } else if adjustment_applicable
-        && participant.variant_origin
-            == atlas_local_state::ParticipantVariantOrigin::InheritedUnknown
-    {
-        block.adjusted_level = None;
-    }
+    block.adjusted_level =
+        effective_participant_level(participant, baseline.level.as_ref(), adjustment_applicable);
     block
 }
 

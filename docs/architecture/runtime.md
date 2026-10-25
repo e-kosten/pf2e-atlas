@@ -518,6 +518,16 @@ Record detail projects the resolved encounter adjustment using that same source
 default owner. The picker shows Normal/Elite/Weak when known and retains inherited
 intent until the user changes the selector; unavailable defaults stay unknown.
 
+Encounter difficulty is an app-service projection of the planned roster, typed
+source levels/complexity and the existing effective-level owner. PC levels copied
+from parties remain encounter-owned snapshots. Local-state stores only nullable GM
+reference level/count overrides, guarded by the encounter revision; it does not
+persist calculated XP or ratings. A read-only preview calculates an edited reference
+within one workspace snapshot before submission. Defeated/disabled state does not
+change the planned rating; sides, participant membership, level/adjustment and the
+chosen reference do. Missing facts and levels outside the published XP table do not
+become zero. Mixed-level suggestions are explained and remain GM choices.
+
 Encounter HP actions carry participant identity, expected revision and one explicit
 operation: damage, heal, exact current/temporary/maximum correction, or derived
 maximum reset. App-service interprets raw integer addition/subtraction input against

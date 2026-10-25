@@ -38,6 +38,20 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
         })
         .and_then(|receipt| worker.encounter(&receipt.encounter_key))
         .unwrap();
+    let preview = worker
+        .preview_encounter_difficulty(
+            &encounter.encounter_key,
+            SetEncounterDifficultyRequest {
+                expected_revision: detail.revision,
+                reference: EncounterDifficultyReferenceView {
+                    party_level: Some(5),
+                    party_size: Some(4),
+                },
+            },
+        )
+        .unwrap();
+    assert_eq!(preview.total_xp, Some(0));
+    assert_eq!(preview.party_level, Some(5));
     assert_eq!(detail.artifact_generation, None);
     assert_eq!(
         detail.participants[0].status,

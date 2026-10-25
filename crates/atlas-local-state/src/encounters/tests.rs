@@ -2199,3 +2199,70 @@ fn failed_boundary_evaluation_does_not_consume_claim() -> Result<(), Box<dyn std
     tx.commit()?;
     Ok(())
 }
+
+#[test]
+fn difficulty_reference_is_guarded_persistent_and_does_not_overwrite_encounter_metadata()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("difficulty-override")?;
+    let initial = store.encounters().get("test")?.unwrap();
+    let mut connection = store.connection()?;
+    let tx = connection.transaction()?;
+    let saved = EncountersWrite::from_connection(&tx).set_difficulty_reference(
+        "test",
+        initial.revision,
+        EncounterDifficultyReference {
+            party_level: Some(5),
+            party_size: Some(4),
+        },
+    )?;
+    tx.commit()?;
+    assert_eq!(saved.name, initial.name);
+    assert_eq!(saved.revision, initial.revision + 1);
+    assert_eq!(
+        store
+            .encounters()
+            .get("test")?
+            .unwrap()
+            .difficulty_reference,
+        saved.difficulty_reference
+    );
+    let tx = connection.transaction()?;
+    let state = EncountersWrite::from_connection(&tx);
+    assert!(matches!(
+        state.set_difficulty_reference("test", initial.revision, Default::default()),
+        Err(crate::LocalStateError::StaleEncounterRevision { .. })
+    ));
+    for reference in [
+        EncounterDifficultyReference {
+            party_level: Some(0),
+            party_size: None,
+        },
+        EncounterDifficultyReference {
+            party_level: None,
+            party_size: Some(101),
+        },
+    ] {
+        assert!(matches!(
+            state.set_difficulty_reference("test", saved.revision, reference),
+            Err(crate::LocalStateError::InvalidDifficultyReference(_))
+        ));
+    }
+    tx.commit()?;
+    assert_eq!(store.encounters().get("test")?.unwrap(), saved);
+    let tx = connection.transaction()?;
+    EncountersWrite::from_connection(&tx).set_difficulty_reference(
+        "test",
+        saved.revision,
+        Default::default(),
+    )?;
+    tx.commit()?;
+    assert_eq!(
+        store
+            .encounters()
+            .get("test")?
+            .unwrap()
+            .difficulty_reference,
+        Default::default()
+    );
+    Ok(())
+}

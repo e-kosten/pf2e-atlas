@@ -38,6 +38,8 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             "/api/encounters/condition-definitions",
             get(encounter_condition_definitions),
         )
+        .route("/api/encounters/{encounter_ref}/difficulty", axum::routing::patch(crate::handlers::set_encounter_difficulty))
+        .route("/api/encounters/{encounter_ref}/difficulty/preview", post(crate::handlers::preview_encounter_difficulty))
         .route(
             "/api/encounters/{encounter_ref}",
             get(encounter).patch(update_encounter).delete(delete_encounter),
