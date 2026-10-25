@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
 import type { RollOutcome } from "../../generated/atlas";
-import { RollResult } from "./RollResult";
+import { RollResult, UnrolledRoll } from "./RollResult";
 import { DieFace } from "./DieFace";
 
 it("omits decorative parentheses but retains arithmetic grouping", () => {
@@ -78,4 +78,45 @@ it("preserves draw order and only reveals discarded state after settling", () =>
   expect(dice[1]).toHaveAccessibleName("d20: 17");
   expect(dice[1]).not.toHaveClass("atlas-die--discarded");
   expect(screen.getByRole("status")).toHaveAccessibleName("2d20kh1: 17");
+});
+
+it("distinguishes an unrolled die from a rolling die and a recorded value", () => {
+  const { rerender } = render(<DieFace sides={6} motion="none" />);
+  expect(screen.getByLabelText("Unrolled d6")).toBeVisible();
+  rerender(<DieFace sides={6} pending motion="none" />);
+  expect(screen.getByLabelText("Rolling d6")).toBeVisible();
+  rerender(<DieFace sides={6} value={4} motion="none" />);
+  expect(screen.getByLabelText("d6: 4")).toBeVisible();
+  expect(screen.queryByLabelText("Unrolled d6")).toBeNull();
+});
+
+it("shows arithmetic beside blank dice without reporting a roll outcome", () => {
+  render(
+    <UnrolledRoll
+      formula="2d6+3"
+      expression={{
+        kind: "binary",
+        operator: "add",
+        left: { kind: "dice", sides: [6, 6] },
+        right: { kind: "number", value: 3 },
+      }}
+    >
+      <button type="button">Roll</button>
+    </UnrolledRoll>,
+  );
+  const preview = screen.getByRole("group", { name: "Unrolled 2d6+3" });
+  expect(preview.textContent).toBe("+3=Roll");
+  expect(screen.getAllByLabelText("Unrolled d6")).toHaveLength(2);
+  expect(screen.queryByRole("status")).toBeNull();
+});
+
+it("animates the supplied blank expression before a roll result exists", () => {
+  render(
+    <UnrolledRoll pending formula="1d6" expression={{ kind: "dice", sides: [6] }}>
+      <button type="button">Roll</button>
+    </UnrolledRoll>,
+  );
+  expect(screen.getByRole("status", { name: "Rolling 1d6" })).toBeVisible();
+  expect(screen.getByLabelText("Rolling d6")).toBeVisible();
+  expect(screen.queryByLabelText("Unrolled d6")).toBeNull();
 });

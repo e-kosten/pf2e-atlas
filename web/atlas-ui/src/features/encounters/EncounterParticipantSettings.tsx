@@ -55,7 +55,6 @@ export function EncounterParticipantSettings({
   return (
     <>
       <Button
-        size="small"
         type="text"
         aria-label="Participant settings"
         title="Participant settings"

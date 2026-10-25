@@ -46,11 +46,17 @@ pub(super) fn encounter_detail_from_records(
         artifact_generation,
         encounter: encounter_summary(encounter, participant_count),
         note,
-        current_turn_participant_key,
+        current_turn_participant_key: current_turn_participant_key.clone(),
         participants: participants
             .iter()
             .map(|participant| {
-                participant_view(participant.clone(), &records_by_key, &participants)
+                let mut view =
+                    participant_view(participant.clone(), &records_by_key, &participants);
+                view.turn_resources = super::turn_resources::view(
+                    participant,
+                    current_turn_participant_key.as_deref(),
+                );
+                view
             })
             .collect(),
     }
@@ -177,6 +183,7 @@ pub(super) fn participant_view(
         vec![]
     };
     EncounterParticipantView {
+        turn_resources: None,
         knockout_options,
         knockout_unavailable_reason,
         effective_max_hp,

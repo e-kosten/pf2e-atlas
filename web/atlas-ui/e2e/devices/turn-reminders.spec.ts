@@ -135,6 +135,14 @@ for (const outcome of [
         ).toBeVisible();
       }
       await expect(reminders).not.toBeVisible();
+      const turn = page.getByRole("region", { name: "Turn", exact: true });
+      await expect(turn).toBeVisible();
+      await expect(turn.getByRole("button", { name: /Actions:/ })).toHaveCount(0);
+      await expect(turn.getByText("Actions", { exact: true })).toHaveJSProperty(
+        "tagName",
+        "STRONG",
+      );
+      await expect(turn.getByRole("button", { name: /^Spend action / })).toHaveCount(3);
       await page
         .getByRole("button", { name: "Next turn", exact: true })
         .filter({ visible: true })
@@ -153,13 +161,11 @@ for (const outcome of [
         reminders.getByRole("button", { name: "Handled at table", exact: true }),
       ).toHaveCount(0);
       if (outcome !== "table") {
-        await reminders.getByText("Table result", { exact: true }).click();
+        await reminders.getByText("Table results", { exact: true }).click();
         await reminders
           .getByRole("spinbutton", { name: "Fire damage amount", exact: true })
           .fill("2");
-        await reminders
-          .getByRole("button", { name: "Apply persistent damage", exact: true })
-          .click();
+        await reminders.getByRole("button", { name: /^Apply \d+ damage$/ }).click();
         await expect(
           reminders.getByText("Total: 2 damage applied", { exact: true }),
         ).toBeVisible();
@@ -184,13 +190,16 @@ for (const outcome of [
           name: "Roll Fire recovery",
           exact: true,
         });
+        const retainedAnchor = await anchor.elementHandle();
         const before = await anchor.boundingBox();
         const completed = page.waitForResponse(
           (response) =>
             response.url().endsWith("/persistent-recovery") &&
             response.request().method() === "POST",
         );
-        await page.getByRole("button", { name: "Roll", exact: true }).click();
+        const roll = page.getByRole("button", { name: "Roll", exact: true });
+        await roll.focus();
+        await roll.press("Enter");
         const response = await completed;
         expect(response.ok()).toBeTruthy();
         const receipt = await response.json();
@@ -203,16 +212,21 @@ for (const outcome of [
         }
         await expect(
           page.getByText(
-            `${receipt.success ? "Recovered" : "Still active"} · DC ${receipt.dc}`,
+            `${receipt.success ? "Recovered" : "Recovery failed"} · DC ${receipt.dc}`,
             { exact: true },
           ),
         ).toBeVisible();
         await expect(reminders).toBeVisible();
-        const after = await anchor.boundingBox();
+        expect(await retainedAnchor!.evaluate((node) => node.isConnected)).toBe(true);
+        await expect(
+          reminders.getByRole("button", { name: "View Fire recovery", exact: true }),
+        ).toBeFocused();
+        const after = await retainedAnchor!.boundingBox();
         expect(before).not.toBeNull();
         expect(after).not.toBeNull();
         expect(Math.abs(after!.x - before!.x)).toBeLessThanOrEqual(1);
         expect(Math.abs(after!.y - before!.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(after!.width - before!.width)).toBeLessThanOrEqual(1);
         await page.screenshot({
           path: info.outputPath("persistent-shared-dice.png"),
           fullPage: true,
@@ -224,6 +238,12 @@ for (const outcome of [
           )
         ).json();
         expect(result.recovery_results[0]).toEqual(receipt);
+        await page.keyboard.press("Escape");
+        await expect(page.locator(".ant-popover:visible")).toHaveCount(0);
+        await expect(
+          reminders.getByRole("button", { name: "View Fire recovery", exact: true }),
+        ).toBeFocused();
+        await expect(reminders).toBeVisible();
         expect(receipt.dc).toBe(
           outcome === "roll" ? 15 : outcome === "automatic success" ? 0 : 100,
         );

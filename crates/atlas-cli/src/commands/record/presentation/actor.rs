@@ -129,6 +129,7 @@ pub(super) fn render(
     iwr(out, "Weaknesses", &actor.weaknesses);
     iwr(out, "Resistances", &actor.resistances);
     line(out, "");
+    optional_text(out, "Movement details", &actor.movement_details);
     optional_number(out, "Speed", &actor.land_speed, false, " feet");
     if let Some(movements) = collection(out, "Other speeds", &actor.movement) {
         for movement in movements {
@@ -262,6 +263,12 @@ pub(super) fn activity_facts(out: &mut String, activity: &ActorActivityView, sho
         "  Attack"
     };
     optional_number(out, attack_label, &activity.attack, true, "");
+    if let Some(range) = &activity.strike_range.value {
+        optional_number(out, "  Range increment", &range.increment, false, " feet");
+        optional_number(out, "  Maximum range", &range.maximum, false, " feet");
+    } else if activity.strike_range.state == QueryFieldState::Invalid {
+        fact(out, "  Range", &activity.strike_range, |_| String::new());
+    }
     optional_number(out, "  DC", &activity.difficulty_class, false, "");
     optional_number(out, "  Lore modifier", &activity.lore_modifier, true, "");
     optional_text(out, "  Tradition", &activity.casting_tradition);
@@ -283,7 +290,13 @@ pub(super) fn activity_facts(out: &mut String, activity: &ActorActivityView, sho
             out,
             "  Attack effects",
             &activity.strike_effects,
-            |effects| effects.join(", "),
+            |effects| {
+                effects
+                    .iter()
+                    .map(|effect| fact_string(&effect.name, Clone::clone))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            },
         );
     }
     if !matches!(

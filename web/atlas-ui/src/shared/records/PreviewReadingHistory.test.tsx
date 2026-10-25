@@ -41,7 +41,12 @@ it.each([
       md: host === "desktop",
       xs: host === "narrow",
     });
-    const activity = { ...activityFixture("Jaws", "actors:ghoul"), kind };
+    const activity = {
+      ...activityFixture("Jaws", "actors:ghoul"),
+      kind,
+      family: kind === "ability" ? "action" : "melee",
+      ability_group: kind === "ability" ? ("primary" as const) : null,
+    };
     const parent = detailFixture(
       "actors:ghoul",
       "Ghoul",

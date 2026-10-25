@@ -13,10 +13,13 @@ pub struct EmbeddedReadingRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EmbeddedReadingSelection {
+    /// Root authored actor text; effective runtime facts remain in the encounter.
+    ActorContent,
     TableResults {
         cursor: Option<EmbeddedReadingCursor>,
     },
     Abilities {
+        group: Option<crate::ActorAbilityGroupView>,
         cursor: Option<EmbeddedReadingCursor>,
         target: Option<RecordNavigationView>,
     },

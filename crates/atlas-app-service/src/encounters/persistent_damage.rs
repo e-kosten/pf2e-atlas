@@ -65,7 +65,9 @@ impl AtlasAppService {
                         && let Some(receipt) =
                             store.boundary_receipt(&snapshot.encounter.encounter_key, claim)?
                     {
-                        recovery_results.push(recovery_view(receipt)?);
+                        let mut matching = receipt;
+                        matching.outcomes.retain(|outcome|matches!(outcome,ConditionEventOutcome::PersistentRecovery{episode_id,..} if episode_id==&claim.scope_key));
+                        recovery_results.push(recovery_view(matching)?);
                     }
                 }
                 Ok((
@@ -97,6 +99,71 @@ impl AtlasAppService {
             )
             .ok()
         });
+        let generation = self
+            .with_workspace(&crate::ReadExecutionContext::uncancellable(), |session| {
+                session
+                    .retrieval_mut()
+                    .artifact_generation()
+                    .map_err(Into::into)
+            })
+            .ok();
+        let preparation_context = atlas_local_state::PersistentPreparationContext {
+            participant_key: participant.participant_key.clone(),
+            record_key: participant.record_key.clone(),
+            boundary_key: boundary_key.map(str::to_owned),
+            artifact_generation: generation,
+        };
+        let mut prepared_damage = Vec::new();
+        let mut prepared_recovery = Vec::new();
+        for claim in &claims {
+            if !matches!(
+                claim.kind,
+                atlas_local_state::EncounterBoundaryKind::PreparedPersistentDamage
+                    | atlas_local_state::EncounterBoundaryKind::PreparedPersistentRecovery
+            ) {
+                continue;
+            }
+            let prefix = format!("{}:", boundary_key.unwrap_or("current"));
+            let Some(prepared_episode) = claim.scope_key.strip_prefix(&prefix) else {
+                continue;
+            };
+            let receipt = self.with_state(|session| {
+                Ok(session
+                    .local_state()
+                    .encounters()
+                    .boundary_receipt(&snapshot.encounter.encounter_key, claim)?)
+            })?;
+            if let Some(receipt) = receipt {
+                let id = receipt.request_id.clone();
+                if let Ok((groups, _, recovery)) =
+                    super::persistent_preparation::prepared(receipt, &preparation_context)
+                {
+                    if claim.kind
+                        == atlas_local_state::EncounterBoundaryKind::PreparedPersistentDamage
+                    {
+                        prepared_damage.extend(
+                            groups
+                                .into_iter()
+                                .filter(|g| g.episode_id == prepared_episode)
+                                .map(|group| atlas_app_model::PreparedPersistentDamageGroupView {
+                                    request_id: id.clone(),
+                                    group: super::persistent_damage_resolution::outcome_view(group),
+                                }),
+                        );
+                    } else if let Some(recovery) = recovery {
+                        prepared_recovery.push(atlas_app_model::PersistentRecoveryResultView {
+                            encounter_key: snapshot.encounter.encounter_key.clone(),
+                            request_id: id,
+                            episode_id: recovery.episode_id,
+                            damage_type: recovery.damage_type,
+                            dc: Some(recovery.dc),
+                            roll: recovery.roll,
+                            success: recovery.success,
+                        });
+                    }
+                }
+            }
+        }
         let recorded = frozen.as_ref().unwrap_or(participant);
         let episodes = super::rules::persistent_damage::participant_groups(recorded)
             .into_iter()
@@ -159,6 +226,8 @@ impl AtlasAppService {
             episodes,
             damage_result,
             recovery_results,
+            prepared_damage,
+            prepared_recovery,
         })
     }
 
@@ -367,6 +436,9 @@ pub(super) fn group_views(
                     Some(PersistentDamageSourceView {
                         condition_id: condition.condition_id,
                         formula: formula.clone(),
+                        roll_preview: atlas_dice::prepare(formula)
+                            .ok()
+                            .and_then(|dice| dice.preview_expression().ok()),
                         multiplier: match multiplier {
                             DamageMultiplier::Normal => DamageMultiplierView::Normal,
                             DamageMultiplier::Double => DamageMultiplierView::Double,

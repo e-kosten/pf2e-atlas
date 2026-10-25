@@ -129,12 +129,31 @@ consume that same selection. Damage and recovery requests identify episodes;
 the guarded backend snapshot supplies their active source. Source comparison and ordering
 belong in Add/Edit, with no second source picker in damage or recovery. Storage resolves typed addition references after
 allocating their IDs in the event transaction; there is no intermediate write. Apply active
-damage types simultaneously through one HP event, then resolve recovery separately.
+damage types simultaneously through one HP event before condition removal. The
+turn reminder can prepare each damage roll and optional recovery check first.
+Unrolled expression shapes are projected from the existing validated Rust dice AST;
+they consume no randomness and contain no result or kept/discarded claim. Arithmetic structure is preserved; the
+original formula retains keep-filter context. The browser renders
+these shapes without parsing formulas or constructing fictional roll outcomes.
+Receipt-only preparation preserves HP, conditions and encounter revision, with
+separate per-type preparation claims. Manual amounts and Clear choices remain
+frontend drafts. The final guarded damage command consumes prepared receipt IDs,
+checks exact boundary/source/formula/generation identity, recalculates current
+protections from retained raw dice, applies shared Hardness and HP consequences
+once, and then commits queued recovery/removal in the same event. A changed HP
+value does not require rerolling damage. An altered formula or selected source
+cannot reuse unrelated dice; table resolution remains available. Actual recovery
+checks retain their rolled DC and once-per-boundary claim; they are not simulated
+as table outcomes or silently omitted at final submission. Ordinary recovery after
+applied damage remains an independent guarded action.
 Successful recovery clears its episode; individual expiry/removal can reveal a
-weaker source. Physical-table recovery has a direct per-type Clear intent beside the recovery
-roller. It ends the recorded episode's matching current sources without a DC,
-source-selection form, simulated roll, HP change or turn-recovery claim. It
-preserves other types and sources added after the outgoing boundary. The review
+weaker source. Physical-table recovery has a per-type Clear intent beside the recovery roller.
+Before damage application it queues removal, visibly retaining this turn's damage;
+the final command records that table outcome with the batch's recovery claims.
+After damage application, or outside the prepared batch, direct Clear ends the
+recorded episode's matching current sources without a DC, source-selection form,
+simulated roll, HP change or turn-recovery claim. Both forms preserve other types
+and sources added after the outgoing boundary. The review
 and damage command share an executable-source projection intersecting the recorded
 sources with current episode membership, so ended sources cannot be charged later.
 Review responses pair those groups with their encounter revision so clearing a
@@ -157,13 +176,32 @@ remain unchanged; resource-only refreshes preserve the anchored spell view.
 
 Next turn advances atomically before the browser presents one notification for the
 turn just completed. Closing by Escape, backdrop or the close icon finishes the
-interaction without changing HP, conditions or initiative. Reads and refreshes do
+interaction without changing HP, conditions or initiative. The browser pins the outgoing
+participant inspector while reminders are open, retaining live canonical updates
+for that participant. Dismissal follows the saved current turn; a quiet boundary
+follows immediately. This display choice does not defer the atomic turn advance.
+Reads and refreshes do
 not reopen it. There is no acknowledgment, past-turn queue, selector or pagination.
 Durable advance receipts retain the original participant and frozen source context
 for retry safety while the current notification is open. Only the latest completed
-boundary is actionable; advancing again supersedes it. Receipts remain storage
-history, not a reminder inbox. Start-turn Dying and Stunned recovery remain
-explicit inspector actions, not silently replayed outgoing events. Waking from
+boundary is actionable; advancing again supersedes it. Completed condition reminders
+remain as typed Resolved results derived from current source membership or recorded
+boundary claims. Removed participants are distinguished from removed effects.
+Persistent type cards own their existing damage/recovery results; ordinary duration,
+timing and end-turn recovery rows follow the same retained-result policy. Reads
+neither recreate actions nor infer successful writes from frontend drafts. Receipts remain storage
+history, not a reminder inbox. Incoming deterministic regain changes are retained
+as concise results beneath Turn controls in the runtime lane; ordinary starts remain quiet.
+Dying recovery remains an explicit inspector action and defers regain. Supported
+numeric Stunned is consumed at actual regain in the atomic advance; a new numeric
+Stunned applied during an open current turn invokes that same pure reducer within
+the condition application event against recorded remaining actions. The before/
+after preview and commit use one plan. A source consumed before insertion has no
+saved row ID; the application receipt and retained turn result preserve the event
+without persisting the preview subject's temporary ID. Surviving sources retain
+their notes, scope, origin and actual saved identity. Neither path is replayed by
+reading an outgoing event.
+Waking from
 noise is guidance alongside the existing Perception roller, not a DC-entry form.
 
 Observer-relative effects derive directly from active condition sources and their
@@ -185,7 +223,10 @@ Recovery offers are action-specific data, not a nullable field bag plus a parall
 required-input schema. Rust associates offers with saved condition source IDs;
 one browser recovery owner presents hints and meaningful actions in condition
 rows. Pending HP decisions stay beside HP controls.
-There is no generic action/disclosure slot between participant identity and HP.
+The compact manual Turn controls and their retained results share the runtime
+lane with conditions beside HP and defenses. In a single column they follow
+defenses and precede statistics. Condition-specific recovery stays in its condition
+row rather than becoming an unrelated action/disclosure collection there.
 Recovery hints/results remain anchored to the requested action, including while
 successful resolution removes the associated condition. Listing and check
 submission share the offered source facts. Known checks use the shared dice

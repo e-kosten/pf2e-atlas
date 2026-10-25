@@ -22,14 +22,14 @@ const receipt: PersistentRecoveryResultView = {
   roll: null,
   success: true,
 };
-function setup(current = group) {
+function setup(current = group, mode: "explicit" | "end_turn" = "explicit") {
   const onRecover = vi.fn().mockResolvedValue(receipt);
   const onResult = vi.fn();
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <EncounterPersistentRecovery
         group={current}
-        mode="explicit"
+        mode={mode}
         available={true}
         participantKey="actor"
         encounterRevision={11n}
@@ -109,4 +109,100 @@ it("uses the edited DC and keeps the previous result's DC when preparing another
     target: { value: "7" },
   });
   expect(screen.getByText("Still active · DC 10")).toBeVisible();
+});
+
+it("presents a recorded end-turn check as a result without asserting the effect is still active", async () => {
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterPersistentRecovery
+        group={group}
+        mode="end_turn"
+        available={false}
+        recordedResult={{ ...receipt, success: false }}
+        participantKey="actor"
+        encounterRevision={12n}
+        disabled={false}
+        pending={false}
+        damageType="Fire"
+        onRecover={vi.fn()}
+      />
+    </ConfigProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "View Fire recovery" }));
+  await waitFor(() =>
+    expect(screen.getByText("Recovery failed · DC 15")).toBeVisible(),
+  );
+  expect(screen.queryByRole("spinbutton", { name: "Recovery DC" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Roll" })).toBeNull();
+});
+
+it.each([true, false])(
+  "hands focus from the submitted form to its retained end-turn result (success=%s)",
+  async (success) => {
+    const { onRecover } = setup(group, "end_turn");
+    onRecover.mockResolvedValueOnce({ ...receipt, success, dc: success ? 0n : 100n });
+    const roll = await screen.findByRole("button", { name: /^Roll$/ });
+    roll.focus();
+    fireEvent.click(roll);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "View Fire recovery" })).toHaveFocus(),
+    );
+    expect(roll).not.toBeInTheDocument();
+  },
+);
+
+it("preserves a focus destination chosen while end-turn recovery is pending", async () => {
+  const { onRecover } = setup(group, "end_turn");
+  let resolve!: (result: PersistentRecoveryResultView) => void;
+  onRecover.mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        resolve = done;
+      }),
+  );
+  const roll = await screen.findByRole("button", { name: /^Roll$/ });
+  roll.focus();
+  fireEvent.click(roll);
+  await waitFor(() => expect(onRecover).toHaveBeenCalledTimes(1));
+  render(<button>Another task</button>);
+  const outside = screen.getByRole("button", { name: "Another task" });
+  outside.focus();
+  resolve({ ...receipt, dc: 0n });
+  await screen.findByRole("button", { name: "View Fire recovery" });
+  expect(outside).toHaveFocus();
+});
+
+it("waits for the canonical update to enable the retained result before restoring focus", async () => {
+  let resolve!: (result: PersistentRecoveryResultView) => void;
+  const onRecover = vi.fn(
+    () => new Promise<PersistentRecoveryResultView>((done) => (resolve = done)),
+  );
+  const content = (pending: boolean) => (
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterPersistentRecovery
+        group={group}
+        mode="end_turn"
+        available={true}
+        participantKey="actor"
+        encounterRevision={11n}
+        disabled={pending}
+        pending={pending}
+        damageType="Fire"
+        onRecover={onRecover}
+      />
+    </ConfigProvider>
+  );
+  const view = render(content(false));
+  fireEvent.click(screen.getByRole("button", { name: "Roll Fire recovery" }));
+  const roll = await screen.findByRole("button", { name: /^Roll$/ });
+  roll.focus();
+  fireEvent.click(roll);
+  await waitFor(() => expect(onRecover).toHaveBeenCalledTimes(1));
+  view.rerender(content(true));
+  resolve(receipt);
+  const result = await screen.findByRole("button", { name: "View Fire recovery" });
+  expect(result).toBeDisabled();
+  expect(result).not.toHaveFocus();
+  view.rerender(content(false));
+  await waitFor(() => expect(result).toHaveFocus());
 });

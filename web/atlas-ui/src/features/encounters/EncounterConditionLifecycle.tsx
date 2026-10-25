@@ -4,7 +4,7 @@ import { createContext, use, useState, type ReactNode } from "react";
 import { Dice5, HeartPulse } from "lucide-react";
 import { RollResult } from "../../shared/dice/RollResult";
 import { useDiceRoll } from "../../shared/dice/useDiceRoll";
-import { getEncounterConditionLifecycleActions } from "../../api/atlasApi";
+import { conditionLifecycleQuery } from "./conditionLifecycleQuery";
 import type {
   ApplyConditionLifecycleRequest,
   ConditionLifecycleActionView,
@@ -25,7 +25,13 @@ const RecoveryContext = createContext<RecoveryControls>({
 });
 export const useConditionRecoveryControls = () => use(RecoveryContext);
 export function EncounterTurnRecoveryActions() {
-  return useConditionRecoveryControls().turnActions;
+  const controls = useConditionRecoveryControls();
+  return (
+    <>
+      {controls.notice}
+      {controls.turnActions}
+    </>
+  );
 }
 const optionKey = (option: ConditionLifecycleOptionView) =>
   `${option.kind}:${"condition_id" in option ? option.condition_id : ""}:${"consequence_key" in option ? option.consequence_key : ""}`;
@@ -34,6 +40,7 @@ const optionKey = (option: ConditionLifecycleOptionView) =>
 export function EncounterConditionRecovery({
   encounterRef,
   boundaryKey = null,
+  contextualTurnActions = false,
   revision,
   participant,
   disabled,
@@ -42,6 +49,7 @@ export function EncounterConditionRecovery({
 }: {
   encounterRef: string;
   boundaryKey?: string | null;
+  contextualTurnActions?: boolean;
   revision: bigint;
   participant: EncounterParticipantView;
   disabled: boolean;
@@ -50,33 +58,22 @@ export function EncounterConditionRecovery({
     request: Omit<ApplyConditionLifecycleRequest, "request_id">,
   ) => Promise<ConditionLifecycleResultView>;
 }) {
-  const query = useQuery({
-    queryKey: [
-      "condition-lifecycle-actions",
+  const query = useQuery(
+    conditionLifecycleQuery(
       encounterRef,
       participant.participant_key,
-      revision.toString(),
+      revision,
       boundaryKey,
-    ],
-    queryFn: () =>
-      getEncounterConditionLifecycleActions(
-        encounterRef,
-        participant.participant_key,
-        boundaryKey,
-      ),
-    placeholderData: (previous, query) =>
-      query?.queryKey[1] === encounterRef &&
-      query.queryKey[2] === participant.participant_key &&
-      query.queryKey[4] === boundaryKey
-        ? previous
-        : undefined,
-  });
+    ),
+  );
   const [selected, setSelected] = useState<{
     anchor: string;
     option?: ConditionLifecycleOptionView;
     revision: bigint;
     condition?: EncounterParticipantConditionView;
   } | null>(null);
+  const [pendingTurnOption, setPendingTurnOption] =
+    useState<ConditionLifecycleOptionView>();
   const options = query.data?.actions ?? [];
   const renderActions = (
     anchor: string,
@@ -196,11 +193,14 @@ export function EncounterConditionRecovery({
       </Popover>
     );
   };
+  // Keep an in-flight action mounted until its owner's canonical refresh finishes.
+  const retainedTurnOption =
+    pendingTurnOption ??
+    (selected?.anchor.startsWith("turn:") ? selected.option : undefined);
   const turnOptions =
-    selected?.anchor.startsWith("turn:") &&
-    selected.option &&
-    !options.some((option) => optionKey(option) === optionKey(selected.option!))
-      ? [...options, selected.option]
+    retainedTurnOption &&
+    !options.some((option) => optionKey(option) === optionKey(retainedTurnOption))
+      ? [...options, retainedTurnOption]
       : options;
   const controls: RecoveryControls = {
     conditionActions: (id) =>
@@ -225,16 +225,22 @@ export function EncounterConditionRecovery({
             <TurnFrightenedReduction
               key={optionKey(option)}
               option={option}
+              label={contextualTurnActions ? "Reduce by 1" : option.label}
               disabled={disabled || query.isFetching}
               onApply={async () => {
-                await onApply({
-                  boundary_key: boundaryKey,
-                  expected_encounter_revision:
-                    query.data?.encounter_revision ?? revision,
-                  participant_key: participant.participant_key,
-                  action: { kind: "frightened_end_turn" },
-                });
-                void query.refetch();
+                setPendingTurnOption(option);
+                try {
+                  await onApply({
+                    boundary_key: boundaryKey,
+                    expected_encounter_revision:
+                      query.data?.encounter_revision ?? revision,
+                    participant_key: participant.participant_key,
+                    action: { kind: "frightened_end_turn" },
+                  });
+                  void query.refetch();
+                } finally {
+                  setPendingTurnOption(undefined);
+                }
               }}
             />
           ) : (
@@ -250,9 +256,13 @@ export function EncounterConditionRecovery({
     ),
     notice: query.error ? (
       <Alert
-        type="error"
-        title="Could not load recovery actions"
-        action={<Button onClick={() => void query.refetch()}>Retry</Button>}
+        type="warning"
+        title="Recovery choices unavailable"
+        action={
+          <Button size="small" onClick={() => void query.refetch()}>
+            Retry
+          </Button>
+        }
       />
     ) : null,
   };
@@ -415,10 +425,12 @@ function RecoveryContent({
 
 function TurnFrightenedReduction({
   option,
+  label,
   disabled,
   onApply,
 }: {
   option: ConditionLifecycleOptionView;
+  label: string;
   disabled: boolean;
   onApply: () => Promise<void>;
 }) {
@@ -428,7 +440,6 @@ function TurnFrightenedReduction({
     <>
       <Tooltip title={option.unavailable_reason}>
         <Button
-          size="small"
           disabled={disabled || pending || !option.available}
           loading={pending}
           onClick={async () => {
@@ -445,7 +456,7 @@ function TurnFrightenedReduction({
             }
           }}
         >
-          {option.label}
+          {label}
         </Button>
       </Tooltip>
       {error && <Alert type="error" title={error} />}

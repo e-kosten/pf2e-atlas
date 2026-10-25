@@ -94,6 +94,7 @@ pub struct ActorPresentationView {
     pub abilities: FactView<Vec<ActorModifierView>>,
     pub skills: FactView<Vec<ActorSkillView>>,
     pub movement: FactView<Vec<ActorMovementView>>,
+    pub movement_details: FactView<String>,
     pub land_speed: NumberFactView,
     pub immunities: FactView<Vec<IwrEntryView>>,
     pub weaknesses: FactView<Vec<IwrEntryView>>,
@@ -193,15 +194,34 @@ pub enum ActorActivityKindView {
     Gear,
     Other,
 }
+/// Reading groups derived from authored activation/category, never prose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ActorAbilityGroupView {
+    Activation,
+    Primary,
+    Reaction,
+    Supporting,
+    Unclassified,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct StrikeRangeView {
+    pub increment: NumberFactView,
+    pub maximum: NumberFactView,
+}
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorActivityView {
+    /// Display order within a reading group; never the runtime item ordinal.
+    pub reading_order: usize,
+    pub ability_group: Option<ActorAbilityGroupView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub first_level_only: Option<FactView<bool>>,
     pub is_ranged: FactView<bool>,
+    pub strike_range: FactView<StrikeRangeView>,
     pub effect_duration: FactView<EffectDurationView>,
     pub self_effect: FactView<ActivityEffectReferenceView>,
-    pub strike_effects: FactView<Vec<String>>,
+    pub strike_effects: FactView<Vec<ActivityEffectReferenceView>>,
     pub focus_capacity: NumberFactView,
     pub frequency: FactView<ActivityFrequencyView>,
     pub casting_ranks: Vec<u8>,

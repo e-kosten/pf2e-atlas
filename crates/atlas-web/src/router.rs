@@ -3,6 +3,7 @@ use axum::Router;
 use axum::routing::{get, post};
 
 use crate::assets::{root, static_asset};
+use crate::handlers::update_turn_resources;
 use crate::handlers::{
     add_encounter_manual_participant, add_encounter_participant_condition,
     add_encounter_record_participant, add_saved_list_item, advance_encounter_turn,
@@ -80,6 +81,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/encounters/{encounter_ref}/condition-lifecycle-actions",get(crate::handlers::condition_lifecycle_actions))
         .route("/api/encounters/{encounter_ref}/condition-recoveries",get(crate::handlers::pending_condition_recoveries))
         .route("/api/encounters/{encounter_ref}/persistent-review",get(crate::handlers::persistent_damage_review))
+        .route("/api/encounters/{encounter_ref}/persistent-preparation",post(crate::handlers::prepare_persistent_damage))
         .route("/api/encounters/{encounter_ref}/persistent-damage",post(crate::handlers::apply_persistent_damage))
         .route("/api/encounters/{encounter_ref}/persistent-recovery",post(crate::handlers::recover_persistent_damage))
         .route("/api/encounters/{encounter_ref}/condition-consequences",get(crate::handlers::pending_encounter_condition_consequences))
@@ -97,6 +99,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         )
         .route("/api/encounters/{encounter_ref}/turn-review", get(encounter_turn_review))
         .route("/api/encounters/{encounter_ref}/advance", post(advance_encounter_turn))
+        .route("/api/encounters/{encounter_ref}/participants/{participant_key}/turn-resources", post(update_turn_resources))
         .route(
             "/api/encounters/{encounter_ref}/turn",
             post(set_encounter_turn),

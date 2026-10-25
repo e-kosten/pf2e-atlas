@@ -1,8 +1,8 @@
 import type { RecordPresentationView } from "../../generated/atlas";
 
-/** Keep wide actor layouts until their separate presentation review. */
+/** Creature task composition earns width independently of prose-only documents. */
 export function recordLayout(
   presentation?: RecordPresentationView,
-): "document" | "workspace" {
-  return presentation?.body.kind === "creature" ? "workspace" : "document";
+): "document" | "creature" {
+  return presentation?.body.kind === "creature" ? "creature" : "document";
 }

@@ -43,7 +43,7 @@ impl EncountersWrite<'_> {
         request_id: &str,
         intent: &serde_json::Value,
         expected_revision: i64,
-        choose: impl FnOnce(&EncounterWithParticipants) -> (EncounterTurnUpdate, bool),
+        choose: impl FnOnce(&EncounterWithParticipants) -> LocalStateResult<(EncounterTurnUpdate, bool)>,
     ) -> LocalStateResult<Option<Encounter>> {
         super::initiative_rolls::validate_request(request_id, intent)?;
         crate::atomic_action::run(self.connection, || {
@@ -67,7 +67,7 @@ impl EncountersWrite<'_> {
                     actual_revision: snapshot.encounter.revision,
                 });
             }
-            let (update, review_needed) = choose(&snapshot);
+            let (update, review_needed) = choose(&snapshot)?;
             let saved = SavedOutgoingTurn {
                 boundary_key: format!("turn_{:016x}", rand::random::<u64>()),
                 next_participant_key: update.turn.participant_key.clone(),
@@ -85,6 +85,21 @@ impl EncountersWrite<'_> {
                 Some(update.turn.round_number),
                 update.turn.mark_running,
             )?;
+            if let Some(start) = update.start_event {
+                let current = storage::get(self.connection, encounter_ref)?
+                    .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_ref.into()))?;
+                self.apply_claimed_condition_event(
+                    &current.encounter_key,
+                    &format!("start:{}", saved.boundary_key),
+                    intent,
+                    current.revision,
+                    super::ConditionEventBoundary {
+                        claims: &update.start_claims,
+                        outgoing_boundary_key: None,
+                    },
+                    start,
+                )?;
+            }
             storage::get(self.connection, encounter_ref)
         })
     }

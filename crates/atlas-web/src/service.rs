@@ -208,6 +208,11 @@ pub(crate) trait AtlasWebService: Send + Sync {
         encounter_ref: &str,
         request: atlas_app_model::ResolveEncounterHpLifecycleRequest,
     ) -> Result<EncounterMutationView, AppServiceError>;
+    fn prepare_persistent_damage(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreparePersistentDamageRequest,
+    ) -> Result<atlas_app_model::PreparedPersistentDamageView, AppServiceError>;
     fn apply_persistent_damage(
         &self,
         encounter_ref: &str,
@@ -330,6 +335,11 @@ pub(crate) trait AtlasWebService: Send + Sync {
         &self,
         encounter_ref: &str,
     ) -> Result<EncounterTurnReviewView, AppServiceError>;
+    fn update_turn_resources(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::UpdateTurnResourcesRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
     fn advance_encounter_turn(
         &self,
         encounter_ref: &str,
@@ -625,6 +635,13 @@ impl AtlasWebService for AtlasAppService {
     ) -> Result<EncounterMutationView, AppServiceError> {
         self.resolve_encounter_hp_lifecycle(encounter_ref, request)
     }
+    fn prepare_persistent_damage(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreparePersistentDamageRequest,
+    ) -> Result<atlas_app_model::PreparedPersistentDamageView, AppServiceError> {
+        self.prepare_persistent_damage(encounter_ref, request)
+    }
     fn apply_persistent_damage(
         &self,
         encounter_ref: &str,
@@ -798,6 +815,13 @@ impl AtlasWebService for AtlasAppService {
         encounter_ref: &str,
     ) -> Result<EncounterTurnReviewView, AppServiceError> {
         self.encounter_turn_review(encounter_ref)
+    }
+    fn update_turn_resources(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::UpdateTurnResourcesRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.update_turn_resources(encounter_ref, request)
     }
     fn advance_encounter_turn(
         &self,

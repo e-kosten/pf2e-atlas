@@ -72,7 +72,7 @@ pub(crate) fn authored_actor(
                 .collect()
         })
         .unwrap_or_default();
-    let (senses, perception_details, languages, language_details) = match node {
+    let (senses, perception_details, language_details) = match node {
         SourceNodeView::Actor(ActorSourcePF2e::NPCSource(s)) => {
             let sys = SourceFieldView::from(&s.system);
             let p = sys.and_then(|s| (&s.perception).into());
@@ -90,11 +90,10 @@ pub(crate) fn authored_actor(
                         .collect()
                 })),
                 text(p.and_then(|p| (&p.details).into())),
-                identifiers(l.and_then(|l| (&l.value).into())),
                 text(l.and_then(|l| (&l.details).into())),
             )
         }
-        _ => (unavailable(), unavailable(), unavailable(), unavailable()),
+        _ => (unavailable(), unavailable(), unavailable()),
     };
     ActorPresentationView {
         size: fact(a.size().map(super::facts::size_label)),
@@ -120,13 +119,17 @@ pub(crate) fn authored_actor(
         abilities: fact(a.npc_abilities().map(|_| abilities)),
         skills: fact(a.npc_skills().map(|_| skills)),
         movement: fact(a.speeds().map(|_| movement)),
+        movement_details: fact(a.movement_details().map(str::to_owned)),
         land_speed: number(a.land_speed()),
         immunities: iwr(a.iwr(ActorIwrKind::Immunity)),
         weaknesses: iwr(a.iwr(ActorIwrKind::Weakness)),
         resistances: iwr(a.iwr(ActorIwrKind::Resistance)),
         senses,
         perception_details,
-        languages,
+        languages: fact(
+            a.languages()
+                .map(|languages| languages.iter().filter_map(token).collect()),
+        ),
         language_details,
         activities: authored_activities(record, node, fingerprint),
         runtime: None,
@@ -158,6 +161,7 @@ pub(crate) fn authored_activities(
         }
     });
     let mut activities = vec![];
+    let mut primary_order = vec![];
     record.visit_immediate_actor_items(|_, o, i| {
         let owners = vec![o.clone()];
         let navigation = RecordNavigationView {
@@ -169,6 +173,7 @@ pub(crate) fn authored_activities(
             passage: None,
         };
         let mut activity = authored_activity(i, navigation);
+        activity.ability_group = ability_group_in_actor(node, i);
         if activity.preparation.value.as_deref() == Some("focus") {
             activity.focus_capacity = number(
                 SourceQueryView {
@@ -208,8 +213,18 @@ pub(crate) fn authored_activities(
                 }
             }
         }
+        activity.reading_order = activities.len();
+        if activity.ability_group == Some(ActorAbilityGroupView::Primary) {
+            let passive = item_is_passive(i);
+            primary_order.push((passive, activities.len()));
+        }
         activities.push(activity);
     });
+    primary_order.sort_by_key(|(passive, _)| *passive);
+    for (order, (_, source_index)) in primary_order.into_iter().enumerate() {
+        activities[source_index].reading_order = order;
+    }
+    super::activity_references::resolve_owned_strike_effects(record, &mut activities, fingerprint);
     let items = SourceQueryView {
         source: node,
         pack_id: "",
@@ -313,6 +328,53 @@ fn qualifiers<T>(
         value: Some(labels),
     }
 }
+fn item_is_passive(item: ItemSourceView<'_>) -> bool {
+    item.action_type().value() == Some(&atlas_foundry_model::generated::AbilitySystemSourceActionTypeSourceFromSchemaValue::Passive)
+}
+
+pub(super) fn ability_group_in_actor(
+    node: SourceNodeView<'_>,
+    item: ItemSourceView<'_>,
+) -> Option<ActorAbilityGroupView> {
+    use atlas_foundry_model::generated::AbilitySystemSourceActionTypeSourceFromSchemaValue as Activation;
+    let group = ability_group(item);
+    if group.is_some()
+        && matches!(
+            node,
+            SourceNodeView::Actor(atlas_foundry_model::generated::ActorSourcePF2e::HazardSource(_))
+        )
+        && matches!(
+            item.action_type().value(),
+            Some(Activation::Reaction | Activation::Free)
+        )
+    {
+        Some(ActorAbilityGroupView::Activation)
+    } else {
+        group
+    }
+}
+
+fn ability_group(item: ItemSourceView<'_>) -> Option<ActorAbilityGroupView> {
+    use atlas_foundry_model::generated::{
+        AbilitySystemSourceActionTypeSourceFromSchemaValue as Activation,
+        AbilitySystemSourceCategory as Category,
+    };
+    if !matches!(item.family(), "action" | "feat" | "effect") {
+        return None;
+    }
+    Some(match item.action_type().value() {
+        Some(Activation::Reaction) => ActorAbilityGroupView::Reaction,
+        Some(Activation::Action | Activation::Free) => ActorAbilityGroupView::Primary,
+        Some(Activation::Passive)
+            if item.action_category().value() == Some(&Category::Offensive) =>
+        {
+            ActorAbilityGroupView::Primary
+        }
+        Some(Activation::Passive) => ActorAbilityGroupView::Supporting,
+        _ => ActorAbilityGroupView::Unclassified,
+    })
+}
+
 pub(super) fn authored_activity(
     item: ItemSourceView<'_>,
     navigation: RecordNavigationView,
@@ -379,6 +441,8 @@ pub(super) fn authored_activity(
         ),
     };
     let mut activity = ActorActivityView {
+        reading_order: 0,
+        ability_group: ability_group(item),
         first_level_only: match item {
             ItemSourceView::FeatSource(source) => Some(fact(
                 SourceFieldView::from(&source.system)
@@ -397,6 +461,27 @@ pub(super) fn authored_activity(
             }
             _ => SourceFieldView::NotApplicable,
         }),
+        strike_range: fact(match item {
+            ItemSourceView::MeleeSource(s) => {
+                let range = SourceFieldView::from(&s.system).and_then(|s| (&s.range).into());
+                match range {
+                    SourceFieldView::Null => SourceFieldView::NotApplicable,
+                    other => other.map(|range| {
+                        let component = |value| {
+                            number(match value {
+                                SourceFieldView::Null => SourceFieldView::NotApplicable,
+                                other => other,
+                            })
+                        };
+                        StrikeRangeView {
+                            increment: component((&range.increment).into()),
+                            maximum: component((&range.max).into()),
+                        }
+                    }),
+                }
+            }
+            _ => SourceFieldView::NotApplicable,
+        }),
         effect_duration: item_reference::effect_duration(item),
         self_effect: fact(
             match item.self_effect() {
@@ -409,7 +494,16 @@ pub(super) fn authored_activity(
                 navigation: None,
             }),
         ),
-        strike_effects: fact(item.strike_effects().map(Clone::clone)),
+        strike_effects: fact(item.strike_effects().map(|effects| {
+            effects
+                .iter()
+                .map(|slug| ActivityEffectReferenceView {
+                    name: text(SourceFieldView::Value(slug)),
+                    authored_target: text(SourceFieldView::Value(slug)),
+                    navigation: None,
+                })
+                .collect()
+        })),
         focus_capacity: number(SourceFieldView::NotApplicable),
         frequency: activity_frequency(item),
         casting_ranks: vec![],
@@ -768,6 +862,7 @@ pub(crate) fn manual_presentation(
             abilities: unavailable(),
             skills: unavailable(),
             movement: unavailable(),
+            movement_details: unavailable(),
             land_speed: unknown(),
             immunities: unavailable(),
             weaknesses: unavailable(),

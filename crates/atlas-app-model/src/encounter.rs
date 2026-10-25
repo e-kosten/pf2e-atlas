@@ -91,11 +91,21 @@ pub struct EncounterTurnReviewView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EncounterTurnReminderView {
+    /// Confirmed current-state or boundary-receipt result for a retained reminder.
+    Resolved {
+        participant_key: String,
+        participant_name: String,
+        condition_id: i64,
+        condition_name: String,
+        result: String,
+    },
     ConditionRecovery {
         participant_key: String,
         participant_name: String,
         condition_ids: Vec<i64>,
         condition_name: String,
+        /// Current effective value; unavailable if any contributing source is unknown.
+        condition_value: Option<i64>,
     },
     PersistentDamage {
         participant_key: String,
@@ -442,6 +452,9 @@ pub struct EncounterMutationView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterParticipantView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub turn_resources: Option<crate::TurnResourcesView>,
     pub knockout_options: Vec<crate::KnockoutOptionView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

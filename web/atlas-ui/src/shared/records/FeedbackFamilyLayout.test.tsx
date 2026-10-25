@@ -92,8 +92,8 @@ it.each([false, true])(
         encounter
       />,
     );
-    expect(screen.queryByText("Living embodiments of harrow cards.")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Source description" }));
+    expect(screen.getByText("Living embodiments of harrow cards.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Source description" })).toBeNull();
     expect(
       screen
         .getByRole("heading", { name: "Defenses" })
@@ -293,7 +293,7 @@ it.each([false, true])(
 );
 
 it.each([false, true])(
-  "preserves hazard condition explanations without creature facts or repeated budgets (hasBudget=%s)",
+  "keeps hazard condition explanations inline without generic creature budgets (hasBudget=%s)",
   async (hasBudget) => {
     const actor = actorFixture();
     const count = (label: string, value: bigint) => ({
@@ -350,26 +350,11 @@ it.each([false, true])(
         onReference={vi.fn()}
       />,
     );
-    expect(screen.queryByText(/hazard condition penalty/)).toBeNull();
-    if (hasBudget) {
-      expect(screen.getByText("Actions").parentElement).toHaveTextContent("0");
-      expect(screen.getByText("Reactions").parentElement).toHaveTextContent("0");
-      expect(screen.getByText("Can act").parentElement).toHaveTextContent(
-        "No · Unconscious blocks actions",
-      );
-      expect(screen.getByText("Can react").parentElement).toHaveTextContent(
-        "No · Unconscious blocks reactions",
-      );
-    }
-    fireEvent.click(screen.getByRole("button", { name: "Runtime details" }));
-    await waitFor(() =>
-      expect(screen.getByText(/hazard condition penalty/)).toBeVisible(),
-    );
-    if (hasBudget) {
-      expect(screen.getByText(/supplied action budget/)).toBeVisible();
-      for (const label of ["Actions", "Reactions", "Can act", "Can react"])
-        expect(screen.getAllByText(label)).toHaveLength(1);
-    }
+    expect(screen.getByText(/hazard condition penalty/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Runtime details" })).toBeNull();
+    for (const label of ["Actions", "Reactions", "Can act", "Can react"])
+      expect(screen.queryByText(label)).toBeNull();
+    expect(screen.queryByText(/supplied action budget/)).toBeNull();
     expect(screen.getAllByText("AC")).toHaveLength(1);
     expect(screen.queryByText("Languages")).toBeNull();
     expect(screen.queryByText("Perception details")).toBeNull();
@@ -389,6 +374,7 @@ it.each([false, true])(
         onReference={vi.fn()}
       />,
     );
+    expect(screen.queryByText(/hazard condition penalty/)).toBeNull();
     expect(screen.queryByRole("button", { name: "Runtime details" })).toBeNull();
   },
 );
@@ -560,9 +546,9 @@ it("groups turn-start actions and reactions with the extra-action restriction", 
       onReference={vi.fn()}
     />,
   );
-  const block = within(screen.getByRole("region", { name: "At turn start" }));
-  expect(block.getByText("Actions")).toBeVisible();
-  expect(block.getByText("Reactions")).toBeVisible();
+  const block = within(screen.getByRole("region", { name: "Turn" }));
+  expect(block.getByText("At turn start").parentElement).toHaveTextContent("4 actions");
+  expect(block.getByText("Reactions now").parentElement).toHaveTextContent("1");
   expect(block.getByText("Unrestricted")).toBeVisible();
   expect(block.queryByText(/Next regain|allowance/)).toBeNull();
 });

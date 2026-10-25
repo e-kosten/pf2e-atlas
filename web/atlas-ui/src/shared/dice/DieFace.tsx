@@ -66,7 +66,9 @@ export function DieFace({
       aria-label={
         pending
           ? `Rolling d${sides}`
-          : `d${sides}: ${display}${kept ? "" : ", discarded"}`
+          : value === undefined
+            ? `Unrolled d${sides}`
+            : `d${sides}: ${display}${kept ? "" : ", discarded"}`
       }
     >
       <span ref={ref} className="atlas-die__drawing" aria-hidden="true">

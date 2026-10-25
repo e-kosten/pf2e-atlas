@@ -20,6 +20,7 @@ mod tests;
 mod timing;
 #[cfg(test)]
 mod timing_tests;
+mod turn_resources;
 mod turns;
 mod workflow;
 
@@ -37,6 +38,7 @@ mod event_execution;
 mod hp_events;
 
 mod persistent_damage_resolution;
+mod persistent_preparation;
 
 #[cfg(test)]
 mod persistent_damage_tests;
@@ -49,3 +51,6 @@ mod strike_context;
 mod condition_recovery;
 
 pub(crate) use rules::attack_progression;
+
+#[cfg(test)]
+mod turn_resource_tests;

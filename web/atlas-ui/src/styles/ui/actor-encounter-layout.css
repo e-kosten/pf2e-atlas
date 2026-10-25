@@ -1,0 +1,52 @@
+.actor-reference-flow {
+  display: grid;
+  gap: var(--space-section);
+  min-width: 0;
+}
+.actor-encounter-host {
+  container: actor-encounter / inline-size;
+  min-width: 0;
+}
+.actor-encounter-layout {
+  display: grid;
+  gap: var(--space-section);
+  align-items: start;
+  grid-template-areas: "durability" "runtime";
+}
+.actor-encounter-layout--with-rules {
+  grid-template-areas: "durability" "runtime" "rules";
+}
+.actor-encounter-layout__durability {
+  grid-area: durability;
+  min-width: 0;
+}
+.actor-encounter-layout__runtime {
+  grid-area: runtime;
+  display: grid;
+  gap: var(--space-section);
+  min-width: 0;
+}
+.actor-encounter-layout__runtime .actor-reference__combat-budget {
+  padding: 0;
+  border: 0;
+}
+.actor-encounter-layout__rules {
+  grid-area: rules;
+  min-width: 0;
+}
+@container actor-encounter (min-width: 48rem) {
+  .actor-encounter-layout {
+    grid-template-areas: "durability runtime";
+    grid-template-columns: minmax(0, 1fr) clamp(22rem, 35%, 26rem);
+  }
+  .actor-encounter-layout--with-rules {
+    grid-template-areas: "durability runtime" "rules runtime";
+    /* Runtime growth belongs to the second row; it must not stretch the HP row. */
+    grid-template-rows: min-content 1fr;
+    column-gap: var(--space-section);
+  }
+  .actor-encounter-layout__runtime {
+    border-inline-start: 1px solid var(--line);
+    padding-inline-start: var(--space-group);
+  }
+}

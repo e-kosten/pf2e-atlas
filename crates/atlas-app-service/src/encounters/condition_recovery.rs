@@ -78,6 +78,19 @@ impl AtlasAppService {
             .find(|p| p.participant_key == request.participant_key)
             .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?
             .clone();
+        if matches!(
+            request.action,
+            ConditionLifecycleActionView::StunnedActionsLost { .. }
+        ) && participant.turn_resources.as_ref().is_some_and(|r| {
+            r.pending_reason.is_some()
+                || !r.actions_open
+                || snapshot.encounter.current_turn_participant_key.as_deref()
+                    != Some(&participant.participant_key)
+        }) {
+            return Err(AppServiceError::invalid_request(
+                "Resolve Stunned during this creature's action regain or active turn.",
+            ));
+        }
         if let Some(saved) = &saved_boundary {
             retain_outgoing_frightened(&mut participant, saved);
         }
@@ -103,15 +116,26 @@ impl AtlasAppService {
             selected_pending,
             &request.request_id,
         )?;
-        let claims = lifecycle_claims(
-            &participant,
-            &request.action,
-            saved_boundary
-                .as_ref()
-                .map_or(snapshot.encounter.round_number, |saved| {
-                    saved.snapshot.encounter.round_number
-                }),
-        );
+        let claims = if matches!(
+            request.action,
+            ConditionLifecycleActionView::StunnedActionsLost { .. }
+        ) && participant
+            .turn_resources
+            .as_ref()
+            .is_some_and(|r| r.pending_reason.is_none())
+        {
+            vec![]
+        } else {
+            lifecycle_claims(
+                &participant,
+                &request.action,
+                saved_boundary
+                    .as_ref()
+                    .map_or(snapshot.encounter.round_number, |saved| {
+                        saved.snapshot.encounter.round_number
+                    }),
+            )
+        };
         let receipt = EncounterEvent {
             encounter_key: &snapshot.encounter.encounter_key,
             request_id: &request.request_id,
@@ -227,8 +251,42 @@ impl AtlasAppService {
             retain_outgoing_frightened(&mut participant, saved);
         }
         let participant = &participant;
+        let effective_claims: Vec<_> = claims
+            .iter()
+            .filter(|claim| {
+                !(claim.scope_key == "stunned-actions"
+                    && participant
+                        .turn_resources
+                        .as_ref()
+                        .is_some_and(|r| r.pending_reason.is_none() && r.actions_open))
+            })
+            .cloned()
+            .collect();
         let options = |source: &workflow::ConditionSubjectContext| {
-            rules::lifecycle::available_actions(participant, source.fortitude, &pending, &claims)
+            let mut options = rules::lifecycle::available_actions(
+                participant,
+                source.fortitude,
+                &pending,
+                &effective_claims,
+            );
+            for option in &mut options {
+                if matches!(
+                    option.action,
+                    ConditionRecoveryOfferView::StunnedActionsLost { .. }
+                ) && participant.turn_resources.as_ref().is_some_and(|r| {
+                    r.pending_reason.is_some()
+                        || !r.actions_open
+                        || snapshot.encounter.current_turn_participant_key.as_deref()
+                            != Some(&participant.participant_key)
+                }) {
+                    option.available = false;
+                    option.unavailable_reason = Some(
+                        "Resolve Stunned during this creature's action regain or active turn."
+                            .into(),
+                    );
+                }
+            }
+            options
         };
         let mut actions = options(&workflow::ConditionSubjectContext::from_saved(participant));
         let needs_source = actions

@@ -1,5 +1,10 @@
 #![deny(unsafe_code)]
+mod turn_resources;
 pub use dice::{FlatCheckRollView, RollFlatCheckRequest};
+pub use turn_resources::{
+    TurnResourceAction, TurnResourceKind, TurnResourceResultView, TurnResourcesView,
+    UpdateTurnResourcesRequest,
+};
 mod encounter_action;
 pub use encounter_action::{EncounterStrikeActionContextView, EncounterTargetingRequirementsView};
 pub use encounter_action::{EncounterStrikeContextRequest, EncounterStrikeContextView};
@@ -13,7 +18,9 @@ mod persistent_damage;
 pub use persistent_damage::{
     ApplyPersistentDamageRequest, PersistentDamageGroupInput, PersistentDamageInput,
     PersistentDamageOutcomeView, PersistentDamageProtectionView, PersistentDamageResolutionView,
-    PersistentDamageResultView,
+    PersistentDamageResultView, PersistentRecoveryInput, PreparePersistentDamageRequest,
+    PreparedPersistentDamageGroupView, PreparedPersistentDamageView,
+    PreparedPersistentRecoveryInput,
 };
 pub use persistent_damage::{
     PersistentDamageGroupView, PersistentDamageSourceView, PersistentEpisodeReviewView,
@@ -148,19 +155,19 @@ pub use prepared_content::{
 };
 pub use presentation::{
     ActionCostView, ActionGlyphView, ActivityEffectReferenceView, ActivityFrequencyView,
-    ActorActivityKindView, ActorActivityView, ActorDefenseNotesView, ActorModifierView,
-    ActorMovementView, ActorPresentationView, ActorRuntimeView, ActorSavesView, ActorSenseView,
-    ActorSkillView, AmmunitionReferenceView, ArmorReferenceView, CastingEntryContextView,
-    ConditionalSkillView, ConsumableDamageView, ConsumablePresentationView, ContainerReferenceView,
-    DamageComponentView, EffectDurationView, EmbeddedRecordLinkView,
-    EncounterContextualArmorClassView, EncounterSenseView, FactView, HazardPresentationView,
-    HeighteningDamageView, IwrEntryView, JournalPagePresentationView, JournalPresentationView,
-    KitEntryReferenceView, KitReferenceView, NumberAdjustmentView, NumberFactView,
-    PhysicalDetailsView, PhysicalMaterialReferenceView, PhysicalPresentationView,
+    ActorAbilityGroupView, ActorActivityKindView, ActorActivityView, ActorDefenseNotesView,
+    ActorModifierView, ActorMovementView, ActorPresentationView, ActorRuntimeView, ActorSavesView,
+    ActorSenseView, ActorSkillView, AmmunitionReferenceView, ArmorReferenceView,
+    CastingEntryContextView, ConditionalSkillView, ConsumableDamageView,
+    ConsumablePresentationView, ContainerReferenceView, DamageComponentView, EffectDurationView,
+    EmbeddedRecordLinkView, EncounterContextualArmorClassView, EncounterSenseView, FactView,
+    HazardPresentationView, HeighteningDamageView, IwrEntryView, JournalPagePresentationView,
+    JournalPresentationView, KitEntryReferenceView, KitReferenceView, NumberAdjustmentView,
+    NumberFactView, PhysicalDetailsView, PhysicalMaterialReferenceView, PhysicalPresentationView,
     PhysicalPriceView, RecordBodyView, RecordPresentationView, RitualCastingView,
     RollTablePresentationView, RollTableRowView, ShieldReferenceView, SpellAreaView,
     SpellChangeView, SpellDefenseView, SpellFixedLevelView, SpellFormView,
-    SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView,
+    SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView, StrikeRangeView,
     TableResultPresentationView, WeaponAmmunitionReferenceView, WeaponDamageReferenceView,
     WeaponMeleeReferenceView, WeaponPersistentReferenceView, WeaponReferenceView,
     WeaponRuneReferenceView,
@@ -218,6 +225,8 @@ mod tests {
     }
 
     fn export_bindings_to(path: &Path) {
+        UpdateTurnResourcesRequest::export_all_to(path).expect("turn resource request");
+        TurnResourcesView::export_all_to(path).expect("turn resources");
         EncounterStrikeContextRequest::export_all_to(path).expect("strike attempt preview request");
         FlatCheckRollView::export_all_to(path).expect("flat check result");
         RollFlatCheckRequest::export_all_to(path).expect("flat check request");
@@ -254,6 +263,9 @@ mod tests {
         RollEncounterStrikeRequest::export_all_to(path).expect("strike request");
         EncounterStrikeRollView::export_all_to(path).expect("strike result");
         fs::create_dir_all(path).expect("binding export directory should be creatable");
+        PreparePersistentDamageRequest::export_all_to(path)
+            .expect("persistent preparation request");
+        PreparedPersistentDamageView::export_all_to(path).expect("persistent preparation result");
         ApplyPersistentDamageRequest::export_all_to(path).expect("persistent damage request");
         PersistentDamageResultView::export_all_to(path).expect("persistent damage result");
         RecoverPersistentDamageRequest::export_all_to(path).expect("persistent recovery request");

@@ -1394,8 +1394,11 @@ fn reference_self_effect_navigation_survives_storage_and_selected_activity_readi
         "effects:bbbbbbbbbbbbbbbb"
     );
     assert_eq!(
-        activities[1].strike_effects.value.as_ref().unwrap(),
-        &["unresolved-poison"]
+        activities[1].strike_effects.value.as_ref().unwrap()[0]
+            .authored_target
+            .value
+            .as_deref(),
+        Some("unresolved-poison")
     );
     let selected = f
         .worker
@@ -2098,4 +2101,111 @@ fn reference_profiles_use_vehicle_defenses_and_army_maximum_not_current_hp() {
     assert_eq!(v.hit_points.value.unwrap().as_u64(), Some(4));
     assert_eq!(v.rout_threshold.value.unwrap().as_u64(), Some(2));
     assert_eq!(v.ranged_weapon.state, QueryFieldState::Null);
+}
+
+#[test]
+fn creature_reading_preserves_supplied_movement_languages_and_exact_owned_effects() {
+    let npc = json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Source creature",
+    "system":{"attributes":{"speed":{"value":20,"details":"suction","otherSpeeds":[{"type":"climb","value":20}]}},"details":{"languages":{"value":["common"]}}},
+    "items":[
+      {"_id":"passive0000000000","name":"Passive ward","type":"action","system":{"actionType":{"value":"passive"},"category":"defensive"}},
+      {"_id":"aura000000000000","name":"Offensive aura","type":"action","system":{"actionType":{"value":"passive"},"category":"offensive"}},
+      {"_id":"reaction00000000","name":"React","type":"action","system":{"actionType":{"value":"reaction"},"category":"defensive"}},
+      {"_id":"active00000000000","name":"Siphon Life","type":"action","system":{"slug":"siphon-life","actionType":{"value":"action"},"actions":{"value":1},"category":"offensive"}},
+      {"_id":"unknown000000000","name":"Unclassified","type":"action","system":{}},
+      {"_id":"duplicate0000000","name":"First copy","type":"action","system":{"slug":"ambiguous"}},
+      {"_id":"duplicate0000001","name":"Second copy","type":"action","system":{"slug":"ambiguous"}},
+      {"_id":"strike0000000000","name":"Hand","type":"melee","system":{"range":{"increment":100,"max":null},"attackEffects":{"value":["siphon-life","ambiguous","unresolved"]}}}
+    ]});
+    let pc = json!({"_id":"bbbbbbbbbbbbbbbb","type":"character","name":"Character",
+      "system":{"details":{"languages":{"value":["aklo","common"]}}}});
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        move || {
+            Ok(open_source_fixture(
+                vec![
+                    record("actors", "Actor", npc.clone()),
+                    record("actors", "Actor", pc.clone()),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let detail = f.worker.record_detail("actors:aaaaaaaaaaaaaaaa").unwrap();
+    let RecordBodyView::Creature(actor) = &detail.presentation.body else {
+        panic!("actor")
+    };
+    assert_eq!(actor.movement_details.value.as_deref(), Some("suction"));
+    let activities = actor.activities.value.as_ref().unwrap();
+    assert_eq!(
+        activities
+            .iter()
+            .take(5)
+            .map(|a| a.ability_group)
+            .collect::<Vec<_>>(),
+        vec![
+            Some(ActorAbilityGroupView::Supporting),
+            Some(ActorAbilityGroupView::Primary),
+            Some(ActorAbilityGroupView::Reaction),
+            Some(ActorAbilityGroupView::Primary),
+            Some(ActorAbilityGroupView::Unclassified)
+        ]
+    );
+    assert_eq!(
+        activities[1].title, "Offensive aura",
+        "source order is retained"
+    );
+    assert_eq!(activities[3].title, "Siphon Life");
+    assert!(
+        activities[3].reading_order < activities[1].reading_order,
+        "active choices precede offensive passives in the reading group"
+    );
+    let range = activities[7].strike_range.value.as_ref().unwrap();
+    assert_eq!(range.increment.value, Some(100.into()));
+    assert_eq!(
+        range.maximum.state,
+        atlas_domain::QueryFieldState::NotApplicable
+    );
+    let effects = activities[7].strike_effects.value.as_ref().unwrap();
+    assert_eq!(effects[0].name.value.as_deref(), Some("Siphon Life"));
+    assert_eq!(
+        effects[0].navigation.as_ref(),
+        Some(&activities[3].navigation)
+    );
+    assert_eq!(
+        effects[1].authored_target.value.as_deref(),
+        Some("ambiguous")
+    );
+    assert!(effects[1].navigation.is_none());
+    assert!(effects[2].navigation.is_none());
+    let selected = f
+        .worker
+        .record_detail_at(RecordDetailRequest {
+            record_key: "actors:aaaaaaaaaaaaaaaa".into(),
+            owners: activities[7].navigation.owners.clone(),
+            spell_rank: None,
+            fields: vec![],
+            passage: None,
+            source_fingerprint: activities[7].navigation.source_fingerprint.clone(),
+        })
+        .unwrap();
+    let RecordBodyView::Activity(strike) = selected.presentation.body else {
+        panic!("strike")
+    };
+    assert_eq!(strike.strike_effects.value, Some(effects.clone()));
+    assert_eq!(strike.strike_range.value.as_ref(), Some(range));
+    let character = f.worker.record_detail("actors:bbbbbbbbbbbbbbbb").unwrap();
+    let RecordBodyView::Creature(character) = character.presentation.body else {
+        panic!("character")
+    };
+    assert_eq!(
+        character.languages.value,
+        Some(vec!["aklo".into(), "common".into()])
+    );
+    assert_ne!(
+        character.maximum_hp.value,
+        Some(0.into()),
+        "authored language support must not invent derived PC stats"
+    );
 }

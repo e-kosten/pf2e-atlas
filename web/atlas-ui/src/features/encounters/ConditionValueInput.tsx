@@ -6,6 +6,8 @@ export function ConditionValueInput({
   onRemove,
   removeLabel,
   disabled,
+  readOnly = false,
+  size = "middle",
   name,
   onBlur,
   onKeyDown,
@@ -16,15 +18,17 @@ export function ConditionValueInput({
   onRemove?: () => void;
   removeLabel?: string;
   disabled?: boolean;
+  readOnly?: boolean;
+  size?: "small" | "middle";
   name: string;
   onStep?: (value: number) => void;
   onBlur?: () => void;
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
 }) {
   return (
-    <Space.Compact>
+    <Space.Compact size={size}>
       <Button
-        disabled={disabled || (value === 1 && !onRemove) || value == null}
+        disabled={disabled || readOnly || (value === 1 && !onRemove) || value == null}
         icon={value === 1 && onRemove ? <X size={14} /> : <Minus size={14} />}
         aria-label={
           value === 1 && onRemove
@@ -44,15 +48,16 @@ export function ConditionValueInput({
         min={1}
         controls={false}
         value={value}
-        disabled={disabled}
+        disabled={disabled && !readOnly}
+        readOnly={readOnly}
         onChange={onChange}
         onBlur={onBlur}
         onKeyDown={onKeyDown}
-        style={{ width: 64 }}
+        style={{ width: size === "small" ? 44 : 64 }}
         styles={{ input: { textAlign: "center" } }}
       />
       <Button
-        disabled={disabled}
+        disabled={disabled || readOnly}
         icon={<Plus size={14} />}
         aria-label={`Increase ${name}`}
         onClick={() => {

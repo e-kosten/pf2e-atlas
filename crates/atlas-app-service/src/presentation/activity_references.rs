@@ -45,3 +45,55 @@ pub(super) fn resolve(
     }
     Ok(())
 }
+
+/// Resolve explicit owned-ability slugs without glossary guesses or name matching.
+pub(super) fn resolve_owned_strike_effects(
+    record: &SourceBackedRecord,
+    activities: &mut [ActorActivityView],
+    fingerprint: &str,
+) {
+    if !activities.iter().any(|a| {
+        a.strike_effects
+            .value
+            .as_ref()
+            .is_some_and(|v| !v.is_empty())
+    }) {
+        return;
+    }
+    let mut targets =
+        std::collections::BTreeMap::<String, Option<(String, RecordNavigationView)>>::new();
+    record.visit_immediate_actor_items(|_, owner, item| {
+        if let Some(slug) = item.ability_slug().value() {
+            let owners = vec![owner.clone()];
+            targets
+                .entry(slug.to_owned())
+                .and_modify(|target| *target = None)
+                .or_insert_with(|| {
+                    Some((
+                        node_title(SourceNodeView::Item(item)),
+                        RecordNavigationView {
+                            spell_rank: None,
+                            record_key: record.key().to_string(),
+                            source_fingerprint: navigation_fingerprint(&owners, fingerprint),
+                            owners,
+                            field: None,
+                            passage: None,
+                        },
+                    ))
+                });
+        }
+    });
+    for activity in activities {
+        for effect in activity.strike_effects.value.iter_mut().flatten() {
+            if let Some(Some((name, navigation))) = effect
+                .authored_target
+                .value
+                .as_ref()
+                .and_then(|slug| targets.get(slug))
+            {
+                effect.name = text(SourceFieldView::Value(name));
+                effect.navigation = Some(navigation.clone());
+            }
+        }
+    }
+}

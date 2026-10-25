@@ -852,3 +852,184 @@ fn latest_turn_replaces_old_reminders_and_retries_never_advance_twice() {
         "a quiet new turn does not expose an older reminder"
     );
 }
+
+#[test]
+fn completed_reminders_are_canonical_results_until_the_next_boundary() {
+    let (f, key, a, _) = fixture();
+    let ids = [
+        add(&f, &a, None, rounds(1, Some(&a), LocalEvent::End)),
+        add(&f, &a, None, rounds(0, Some(&a), LocalEvent::End)),
+        add(&f, &a, None, rounds(3, None, LocalEvent::End)),
+        add(
+            &f,
+            &a,
+            None,
+            Some(ConditionDuration {
+                amount: 3,
+                unit: LocalUnit::Minutes,
+                timing: None,
+            }),
+        ),
+    ];
+    set(&f, &key, &a);
+    next(&f, &key);
+    let before = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .outgoing
+        .unwrap();
+    assert_eq!(before.reminders.len(), 4);
+    // A rejected stale removal cannot turn an instruction into a success row.
+    assert!(
+        f.worker
+            .remove_encounter_participant_condition(
+                &key,
+                &a,
+                ids[0],
+                RemoveEncounterParticipantConditionRequest {
+                    request_id: "stale-reminder-remove".into(),
+                    expected_encounter_revision: 0,
+                    intent: ConditionRemovalIntentView::RemoveEffect,
+                }
+            )
+            .is_err()
+    );
+    assert_eq!(
+        f.worker
+            .encounter_turn_review(&key)
+            .unwrap()
+            .outgoing
+            .unwrap(),
+        before
+    );
+    for id in ids {
+        f.worker
+            .remove_encounter_participant_condition(
+                &key,
+                &a,
+                id,
+                RemoveEncounterParticipantConditionRequest {
+                    request_id: format!("reminder-remove-{id}"),
+                    expected_encounter_revision: snapshot(&f, &key).encounter.revision,
+                    intent: ConditionRemovalIntentView::RemoveEffect,
+                },
+            )
+            .unwrap();
+        let review = f
+            .worker
+            .encounter_turn_review(&key)
+            .unwrap()
+            .outgoing
+            .unwrap();
+        assert!(review.reminders.iter().any(|r| matches!(r, EncounterTurnReminderView::Resolved { condition_id, result, .. } if *condition_id == id && result == "Removed")));
+    }
+    let snapshot_before_read = snapshot(&f, &key);
+    let retained = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .outgoing
+        .unwrap();
+    assert_eq!(retained.boundary_key, before.boundary_key);
+    assert_eq!(retained.reminders.len(), 4);
+    assert!(
+        retained
+            .reminders
+            .iter()
+            .all(|r| matches!(r, EncounterTurnReminderView::Resolved { .. }))
+    );
+    assert_eq!(
+        snapshot(&f, &key),
+        snapshot_before_read,
+        "reading completed rows has no gameplay effect"
+    );
+    next(&f, &key);
+    assert!(
+        f.worker
+            .encounter_turn_review(&key)
+            .unwrap()
+            .outgoing
+            .is_none()
+    );
+}
+
+#[test]
+fn recorded_frightened_recovery_remains_a_result_without_claiming_the_effect_ended() {
+    let (f, key, a, _) = fixture();
+    let frightened =
+        super::conditions::modeled_condition_by_rule(super::conditions::ConditionRule::Frightened)
+            .unwrap();
+    add(&f, &a, Some(frightened.condition_ref), None);
+    set(&f, &key, &a);
+    next(&f, &key);
+    let outgoing = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .outgoing
+        .unwrap();
+    assert!(matches!(
+        &outgoing.reminders[..],
+        [EncounterTurnReminderView::ConditionRecovery {
+            condition_value: Some(2),
+            ..
+        }]
+    ));
+    f.worker
+        .apply_condition_lifecycle(
+            &key,
+            ApplyConditionLifecycleRequest {
+                boundary_key: Some(outgoing.boundary_key.clone()),
+                request_id: "retained-frightened-recovery".into(),
+                expected_encounter_revision: snapshot(&f, &key).encounter.revision,
+                participant_key: a.clone(),
+                action: ConditionLifecycleActionView::FrightenedEndTurn,
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        snapshot(&f, &key).participants[0].conditions[0].value,
+        Some(1)
+    );
+    let result = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .outgoing
+        .unwrap();
+    assert_eq!(result.boundary_key, outgoing.boundary_key);
+    assert!(
+        matches!(&result.reminders[..], [EncounterTurnReminderView::Resolved { result, .. }] if result == "End-of-turn recovery recorded")
+    );
+}
+
+#[test]
+fn frightened_reminder_value_uses_known_effective_sources_without_guessing_unknown_values() {
+    let (f, key, a, _) = fixture();
+    let frightened =
+        super::conditions::modeled_condition_by_rule(super::conditions::ConditionRule::Frightened)
+            .unwrap();
+    add(&f, &a, Some(frightened.condition_ref), None);
+    add(&f, &a, Some(frightened.condition_ref), None);
+    set(&f, &key, &a);
+    let mut state = snapshot(&f, &key);
+    state.participants[0].conditions[1].value = Some(4);
+    let value = |state: &atlas_local_state::EncounterWithParticipants| {
+        let review = super::timing::turn_review(state);
+        match review
+            .reminders
+            .into_iter()
+            .find(|r| matches!(r, EncounterTurnReminderView::ConditionRecovery { .. }))
+            .unwrap()
+        {
+            EncounterTurnReminderView::ConditionRecovery {
+                condition_value, ..
+            } => condition_value,
+            _ => unreachable!(),
+        }
+    };
+    assert_eq!(value(&state), Some(4));
+    state.participants[0].conditions[0].value = None;
+    assert_eq!(value(&state), None);
+}

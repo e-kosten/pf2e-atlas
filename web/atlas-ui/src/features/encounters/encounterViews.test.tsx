@@ -32,6 +32,8 @@ import type {
   RecordSummaryView,
   SearchResultsPage,
   SearchResultsRequest,
+  RuntimeCountView,
+  TurnResourcesView,
 } from "../../generated/atlas";
 import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
@@ -43,6 +45,7 @@ const apiMocks = vi.hoisted(() => ({
   applyEncounterSpellAction: vi.fn(),
   applyEncounterHpAction: vi.fn(),
   getEncounterPersistentReview: vi.fn(),
+  prepareEncounterPersistentDamage: vi.fn(),
   applyEncounterPersistentDamage: vi.fn(),
   recoverEncounterPersistentDamage: vi.fn(),
   getEncounterConditionLifecycleActions: vi.fn(),
@@ -80,6 +83,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   applyEncounterSpellAction: apiMocks.applyEncounterSpellAction,
   applyEncounterHpAction: apiMocks.applyEncounterHpAction,
   getEncounterPersistentReview: apiMocks.getEncounterPersistentReview,
+  prepareEncounterPersistentDamage: apiMocks.prepareEncounterPersistentDamage,
   applyEncounterPersistentDamage: apiMocks.applyEncounterPersistentDamage,
   recoverEncounterPersistentDamage: apiMocks.recoverEncounterPersistentDamage,
   getEncounterConditionLifecycleActions: apiMocks.getEncounterConditionLifecycleActions,
@@ -159,6 +163,24 @@ function setupPersistentReview(damageApplied = false) {
       },
     ],
   };
+  apiMocks.prepareEncounterPersistentDamage.mockImplementation(
+    async (_ref, request) => ({
+      complete: request.groups.length === 1,
+      recovery: null,
+      damage: {
+        ...damageResult,
+        total: request.groups[0]?.damage.amount ?? 0n,
+        groups: request.groups.length
+          ? [
+              {
+                ...damageResult.groups[0],
+                amount: request.groups[0].damage.amount ?? 0n,
+              },
+            ]
+          : [],
+      },
+    }),
+  );
   const state: {
     damageApplied: boolean;
     recoveryResults: import("../../generated/atlas").PersistentRecoveryResultView[];
@@ -256,12 +278,12 @@ function setupPersistentReview(damageApplied = false) {
   return state;
 }
 async function submitPersistentDamage(review: HTMLElement, amount: string) {
-  fireEvent.click(await within(review).findByText("Table result"));
+  fireEvent.click(await within(review).findByText("Table results"));
   fireEvent.change(await within(review).findByLabelText("fire damage amount"), {
     target: { value: amount },
   });
   fireEvent.click(
-    within(review).getByRole("button", { name: "Apply persistent damage" }),
+    await within(review).findByRole("button", { name: /^Apply \d+ damage$/ }),
   );
   await within(review).findByText(/Total: .* damage applied/);
 }
@@ -283,6 +305,19 @@ describe("encounter views", () => {
     vi.clearAllMocks();
     Object.values(apiMocks).forEach((mock) => mock.mockReset());
     apiMocks.getParties.mockResolvedValue({ parties: [] });
+    apiMocks.getEmbeddedReading.mockImplementation(
+      async ({ parent, artifact_generation }) => ({
+        parent,
+        artifact_generation,
+        availability: "value",
+        total: 0,
+        start: 0,
+        end: 0,
+        entries: [],
+        previous: null,
+        next: null,
+      }),
+    );
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true, xl: true });
     history.replaceState(null, "", "/encounters");
     apiMocks.getEncounters.mockResolvedValue(encounterIndexFixture());
@@ -820,24 +855,36 @@ describe("encounter views", () => {
   });
 
   it("renders runtime action budget and speed projections", async () => {
+    const initial = encounterDetailFixture();
+    const body = initial.participants[0].presentation!.body;
+    if (body.kind !== "creature") throw new Error("Expected creature fixture");
+    initial.participants[0].turn_resources = turnResourcesFixture(
+      2n,
+      body.value.runtime!.action_budget!.actions,
+    );
+    setEncounterDetail(initial);
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
-    await screen.findByText("Actions");
-    const runtimeSection = screen
-      .getByText("Actions")
-      .closest(".actor-reference__combat-budget");
-    if (!(runtimeSection instanceof HTMLElement)) {
-      throw new Error("Combat action budget was not rendered");
-    }
-
-    expect(within(runtimeSection).getAllByText("Actions").length).toBeGreaterThan(0);
-    expect(within(runtimeSection).getByText("2")).toBeInTheDocument();
+    const runtimeSection = await screen.findByRole("region", { name: "Turn" });
     expect(
-      within(runtimeSection).getByLabelText("Show explanation for Actions"),
-    ).toBeInTheDocument();
-    expect(within(runtimeSection).getAllByText("Reactions").length).toBeGreaterThan(0);
+      within(runtimeSection).getByRole("button", { name: "Spend action 1" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(runtimeSection).getByRole("button", { name: "Spend action 2" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(runtimeSection).queryByRole("button", { name: "Spend action 3" }),
+    ).toBeNull();
+    expect(
+      within(runtimeSection).getByRole("button", {
+        name: "Actions: calculation details",
+      }),
+    ).toBeVisible();
+    expect(
+      within(runtimeSection).getByRole("button", { name: "Spend reaction" }),
+    ).toBeVisible();
     const movementSection = screen.getByText("Speed").closest(".record-fact-list");
     if (!(movementSection instanceof HTMLElement)) {
       throw new Error("Movement section was not rendered");
@@ -848,7 +895,7 @@ describe("encounter views", () => {
       within(movementSection).getByLabelText("Show explanation for Speed"),
     ).toBeInTheDocument();
     const activitiesSection = screen
-      .getByText("Strikes")
+      .getByRole("heading", { name: "Strikes" })
       .closest(".actor-reference__activities");
     if (!(activitiesSection instanceof HTMLElement)) {
       throw new Error("Activities section was not rendered");
@@ -861,22 +908,28 @@ describe("encounter views", () => {
   });
 
   it("renders manual PC runtime state without inferred speed rows", async () => {
+    const initial = encounterDetailFixture();
+    const body = initial.participants[1].presentation!.body;
+    if (body.kind !== "creature") throw new Error("Expected creature fixture");
+    initial.participants[1].turn_resources = turnResourcesFixture(
+      3n,
+      body.value.runtime!.action_budget!.actions,
+      false,
+    );
+    setEncounterDetail(initial);
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
     fireEvent.click((await screen.findByText("Kyra")).closest("button")!);
 
-    await screen.findByText("Actions");
-    const runtimeSection = screen
-      .getByText("Actions")
-      .closest(".actor-reference__combat-budget");
-    if (!(runtimeSection instanceof HTMLElement)) {
-      throw new Error("Combat action budget was not rendered");
-    }
-    expect(within(runtimeSection).getAllByText("Actions").length).toBeGreaterThan(0);
-    expect(within(runtimeSection).getByText("3")).toBeInTheDocument();
-    expect(within(runtimeSection).getAllByText("Reactions").length).toBeGreaterThan(0);
+    const runtimeSection = await screen.findByRole("region", { name: "Turn" });
+    expect(
+      within(runtimeSection).getByRole("button", { name: "Spend action 3" }),
+    ).toBeDisabled();
+    expect(
+      within(runtimeSection).getByRole("button", { name: "Spend reaction" }),
+    ).toBeEnabled();
     expect(screen.queryByText("Speed")).not.toBeInTheDocument();
   });
 
@@ -916,8 +969,9 @@ describe("encounter views", () => {
     expect(screen.queryByLabelText("HP")).toBeNull();
     expect(screen.queryByLabelText("Participant name")).toBeNull();
     expect(
-      summary.compareDocumentPosition(screen.getByText("Strikes")) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      summary.compareDocumentPosition(
+        screen.getByRole("heading", { name: "Strikes" }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     fireEvent.click(
       await screen.findByRole("button", { name: "Participant settings" }),
@@ -1085,7 +1139,9 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click(await screen.findByRole("link", { name: "Original record" }));
+    fireEvent.click(
+      await screen.findByRole("link", { name: "View creature reference" }),
+    );
     const linkedRuleButton = (await screen.findByText("Linked Rule")).closest(
       "a[href]",
     );
@@ -1118,7 +1174,9 @@ describe("encounter views", () => {
       }),
     );
 
-    fireEvent.click(await screen.findByRole("link", { name: "Original record" }));
+    fireEvent.click(
+      await screen.findByRole("link", { name: "View creature reference" }),
+    );
     const linkedRuleButtonAfterReselect = (
       await screen.findByText("Linked Rule")
     ).closest("a[href]");
@@ -1141,7 +1199,9 @@ describe("encounter views", () => {
     render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-    fireEvent.click(await screen.findByRole("link", { name: "Original record" }));
+    fireEvent.click(
+      await screen.findByRole("link", { name: "View creature reference" }),
+    );
     const linkedRule = (await screen.findByText("Linked Rule")).closest("a[href]");
     if (!linkedRule) throw new Error("Linked Rule native link was not rendered");
     fireEvent.click(linkedRule);
@@ -1252,7 +1312,12 @@ describe("encounter views", () => {
       within(preview).getByText("Elite: Current source adjustment retained."),
     ).toBeVisible();
     expect(apiMocks.getEncounterReference).toHaveBeenCalledTimes(2);
-    expect(apiMocks.getEmbeddedReading).not.toHaveBeenCalled();
+    expect(apiMocks.getEmbeddedReading).toHaveBeenCalledTimes(1);
+    expect(
+      apiMocks.getEmbeddedReading.mock.calls.every(
+        ([request]) => request.selection.kind === "actor_content",
+      ),
+    ).toBe(true);
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
   });
 
@@ -1350,11 +1415,11 @@ describe("encounter views", () => {
     expect(currentSegment).not.toHaveClass("encounter-hp-meter__current--critical");
     expect(currentSegment).toHaveStyle({ width: "35.294117647058826%" });
     expect(missingSegment).toHaveStyle({
-      left: "35.294117647058826%",
+      left: "64.70588235294119%",
       width: "35.294117647058826%",
     });
     expect(temporarySegment).toHaveStyle({
-      left: "70.58823529411765%",
+      left: "35.294117647058826%",
       width: "29.411764705882355%",
     });
 
@@ -1658,6 +1723,42 @@ describe("encounter views", () => {
     expect(apiMocks.applyEncounterPersistentDamage.mock.calls[0][1].boundary_key).toBe(
       "original-turn",
     );
+  });
+
+  it("keeps the outgoing creature visible through reminder updates and follows the current turn on dismissal", async () => {
+    setupPersistentReview();
+    apiMocks.advanceEncounterTurn.mockImplementation(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        current_turn_participant_key: "participant_b",
+      };
+      return { encounter_key: "encounter_ambush" };
+    });
+    render(<EncounterDetailView route={{ kind: "encounter", slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    await screen.findByRole("button", { name: "Next turn" });
+    // A different manually inspected participant must not become the reminder context.
+    fireEvent.click(document.querySelector('[data-participant-key="participant_b"]')!);
+    fireEvent.click(screen.getAllByRole("button", { name: "Next turn" })[0]);
+    const review = await screen.findByRole("dialog", { name: "Turn reminders" });
+    const selected = () =>
+      document
+        .querySelector('[data-participant-key="participant_a"]')
+        ?.closest(".encounter-roster__row");
+    expect(serverEncounter.current_turn_participant_key).toBe("participant_b");
+    expect(selected()).toHaveClass("encounter-roster__row--selected");
+    await submitPersistentDamage(review, "4");
+    expect(selected()).toHaveClass("encounter-roster__row--selected");
+    fireEvent.click(within(review).getByRole("button", { name: "Close" }));
+    await waitFor(() =>
+      expect(
+        document
+          .querySelector('[data-participant-key="participant_b"]')
+          ?.closest(".encounter-roster__row"),
+      ).toHaveClass("encounter-roster__row--selected"),
+    );
+    expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledOnce();
   });
 
   it("closing persistent reminders keeps saved damage and never advances twice", async () => {
@@ -2339,9 +2440,14 @@ describe("encounter views", () => {
     expect(await screen.findByText("Encounter could not load")).toBeInTheDocument();
     expect(screen.getByLabelText("Settings")).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Retry encounter" }));
-    expect(await screen.findByText("Conditions could not load")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Condition choices unavailable"),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Condition" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Retry conditions" }));
+    const choicesAlert = screen
+      .getByText("Condition choices unavailable")
+      .closest<HTMLElement>('[role="alert"]')!;
+    fireEvent.click(within(choicesAlert).getByRole("button", { name: "Retry" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Add Condition" })).not.toBeDisabled(),
     );
@@ -2758,6 +2864,33 @@ async function clickConditionApply(dialog?: HTMLElement) {
   const apply = scope.getByRole("button", { name: "Apply" });
   await waitFor(() => expect(apply).toBeEnabled());
   fireEvent.click(apply);
+}
+
+function turnResourcesFixture(
+  actions: bigint,
+  forecast: RuntimeCountView,
+  current = true,
+): TurnResourcesView {
+  return {
+    turn_key: "turn:test",
+    round_number: 1n,
+    regular_total: actions,
+    regular_remaining: actions,
+    extra_total: 0n,
+    extra_remaining: 0n,
+    extra_uses: [],
+    reactions_total: 1n,
+    reactions_remaining: 1n,
+    start_results: [],
+    pending_reason: null,
+    forecast,
+    can_edit_actions: current,
+    can_spend_actions: {
+      available: current,
+      reason: current ? undefined : "This creature's turn has not started.",
+    },
+    can_spend_reactions: { available: true },
+  };
 }
 
 function encounterDetailFixture(

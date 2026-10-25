@@ -210,6 +210,9 @@
   padding-block: 6px;
   border-bottom: 1px solid var(--line);
 }
+.actor-activity--selected {
+  display: contents;
+}
 .actor-activity p,
 .record-damage p {
   margin: 4px 0;
@@ -476,9 +479,72 @@
   gap: 8px;
 }
 
-.record-reference__original {
-  align-self: flex-start;
-  padding-inline: 0;
+.hazard-reference__rules {
+  display: grid;
+  gap: var(--space-section);
+  min-width: 0;
+}
+.actor-activity__name {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px var(--space-control);
+  min-width: 0;
+}
+.actor-activity__usage {
+  color: var(--muted);
+  font-size: 13px;
+}
+.actor-reference__activities--strike,
+.actor-reference__activities--gear {
+  container: activity-list / inline-size;
+  gap: 0;
+}
+.actor-reference__activities--strike > .actor-activity,
+.actor-reference__activities--gear > .actor-activity {
+  display: grid;
+  gap: var(--space-control) var(--space-group);
+  padding-block: var(--space-group);
+  border-block-end: 1px solid var(--line);
+  margin: 0;
+}
+.actor-reference__activities--strike > .actor-activity:last-child,
+.actor-reference__activities--gear > .actor-activity:last-child {
+  border: 0;
+  padding-block-end: 0;
+}
+.actor-reference__activities--strike > h3,
+.actor-reference__activities--gear > h3 {
+  margin: 0 0 var(--space-control);
+}
+.actor-reference__activities--strike > .actor-activity:first-of-type,
+.actor-reference__activities--gear > .actor-activity:first-of-type {
+  padding-block-start: 0;
+}
+.actor-activity__identity,
+.actor-activity__facts {
+  min-width: 0;
+}
+.actor-activity__identity > .badge-row {
+  margin-block: var(--space-control) 0;
+}
+.actor-activity__identity > .badge-row:empty,
+.actor-activity__facts:empty {
+  display: none;
+}
+.strike-inline-rolls {
+  display: grid;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.strike-inline-rolls > div {
+  overflow-wrap: anywhere;
+}
+@container activity-list (min-width: 35rem) {
+  .actor-reference__activities--strike > .actor-activity {
+    grid-template-columns: 16rem minmax(0, 1fr);
+    align-items: start;
+  }
 }
 .prepared-content a,
 .prepared-content a:visited {
@@ -537,9 +603,7 @@
   grid-column: 1 / -1;
 }
 
-/* Actor workspace composition is reviewed separately from single-column records. */
-.record-view__pane--workspace .prepared-content,
-.reference-reader--workspace .prepared-content,
+/* Non-creature encounter reference prose retains its ordinary document width. */
 .record-reference--encounter .prepared-content {
   max-width: var(--document-measure);
 }

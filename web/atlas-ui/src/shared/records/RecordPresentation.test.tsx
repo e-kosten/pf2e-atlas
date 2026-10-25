@@ -95,6 +95,22 @@ it("labels journal children as Pages even when the product kind is lore", () => 
 });
 
 describe("semantic family presentation", () => {
+  it("omits inapplicable spell attack and DC while retaining unavailable values", () => {
+    const spell = spellFixture();
+    spell.runtime_attack = { state: "not_applicable", value: null, adjustment: null };
+    spell.runtime_difficulty_class = {
+      state: "not_applicable",
+      value: null,
+      adjustment: null,
+    };
+    const { rerender } = render(<SpellReference spell={spell} />);
+    expect(screen.queryByText("Spell attack")).toBeNull();
+    expect(screen.queryByText("Spell DC")).toBeNull();
+    spell.runtime_attack = { state: "missing", value: null, adjustment: null };
+    rerender(<SpellReference spell={spell} />);
+    expect(screen.getByText("Spell attack")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Value is unavailable." })).toBeVisible();
+  });
   it.each([
     { compact: false, encounter: false },
     { compact: true, encounter: false },
@@ -144,7 +160,7 @@ describe("semantic family presentation", () => {
     expect(onReference).not.toHaveBeenCalled();
   });
 
-  it("offers the explicit original record separately from the customized embedded copy", () => {
+  it("keeps general-entry lookup secondary to the customized item with native navigation", async () => {
     const onReference = vi.fn();
     const detail = detailFixture(
       "actors:caster",
@@ -157,6 +173,7 @@ describe("semantic family presentation", () => {
       origin: "structured",
       kind: "CompendiumProvenance",
       status: "resolved_record",
+      target_title: "Staff",
     };
     const view = (available = true) => (
       <RecordPresentation
@@ -173,7 +190,10 @@ describe("semantic family presentation", () => {
     );
     const { rerender } = render(view());
     expect(screen.getByRole("heading", { name: "Customized staff" })).toBeVisible();
-    const original = screen.getByRole("link", { name: "View original" });
+    expect(screen.queryByRole("link", { name: "General entry: Staff" })).toBeNull();
+    const info = screen.getByRole("button", { name: "Record information" });
+    fireEvent.click(info);
+    const original = await screen.findByRole("link", { name: "General entry: Staff" });
     const destination = new URL(original.getAttribute("href")!, window.location.origin);
     expect(destination.pathname).toBe("/records/equipment:catalog-staff");
     expect(JSON.parse(destination.searchParams.get("selection")!)).toEqual(
@@ -182,14 +202,24 @@ describe("semantic family presentation", () => {
     fireEvent.click(original);
     expect(onReference).toHaveBeenCalledWith(
       "equipment:catalog-staff",
-      original,
+      info,
       relationship.target,
     );
     onReference.mockClear();
+    fireEvent.click(info);
+    await screen.findByRole("link", { name: "General entry: Staff" });
     fireEvent.click(original, { ctrlKey: true });
     expect(onReference).not.toHaveBeenCalled();
+    fireEvent.click(info);
+    const item = await screen.findByRole("menuitem", { name: "General entry: Staff" });
+    fireEvent.keyDown(item, { key: "Enter", keyCode: 13, which: 13 });
+    expect(onReference).toHaveBeenCalledExactlyOnceWith(
+      "equipment:catalog-staff",
+      info,
+      relationship.target,
+    );
     rerender(view(false));
-    expect(screen.queryByRole("link", { name: "View original" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Record information" })).toBeNull();
   });
 
   it("shows selected activity traits once in its identity and retains traits on embedded activities", () => {
@@ -270,7 +300,7 @@ describe("semantic family presentation", () => {
       render(
         <RecordPresentation
           presentation={{
-            classification: "Reference",
+            classification: "Hazard 0",
             identity: summaryFixture("hazards:pit", "Hidden Spiked Pit"),
             content: fields,
             embedded: [],
@@ -290,7 +320,7 @@ describe("semantic family presentation", () => {
           compact={compact}
         />,
       );
-      expect(screen.getByText("Simple")).toBeVisible();
+      expect(screen.getByText("Simple Hazard 0")).toBeVisible();
       expect(
         within(screen.getByText("Stealth").parentElement!).getByText("+0"),
       ).toBeVisible();
@@ -311,12 +341,12 @@ describe("semantic family presentation", () => {
       const hardness = screen.getByText("Hardness");
       const routine = screen.getByText("routine instructions");
       expect(
-        disable.compareDocumentPosition(hardness) & Node.DOCUMENT_POSITION_FOLLOWING,
+        hardness.compareDocumentPosition(disable) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
       expect(
-        screen
-          .getByRole("heading", { name: "Strikes" })
-          .compareDocumentPosition(routine) & Node.DOCUMENT_POSITION_FOLLOWING,
+        routine.compareDocumentPosition(
+          screen.getByRole("heading", { name: "Strikes" }),
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Reset" })).toBeVisible();
     },
@@ -1059,7 +1089,13 @@ it("opens verified self effects through the shared preview and leaves unverified
     authored_target: knownFact("Compendium.pf2e.effects.Item.ward"),
     navigation: target,
   });
-  activity.strike_effects = knownFact(["unresolved-poison"]);
+  activity.strike_effects = knownFact([
+    {
+      name: knownFact("unresolved-poison"),
+      authored_target: knownFact("unresolved-poison"),
+      navigation: null,
+    },
+  ]);
   actor.activities = knownFact([activity]);
   const onReference = vi.fn();
   const { rerender } = render(
@@ -1174,4 +1210,71 @@ it("presents consumable spell semantics, exact navigation, package prices and so
   expect(screen.queryByText("Quantity")).toBeNull();
   expect(screen.queryByText("Category")).toBeNull();
   expect(screen.getByRole("link", { name: "Wand" })).toBeVisible();
+});
+
+it("lets creature browse introductions lead directly into prose while keeping later notes and encounter headings", () => {
+  const presentation = actorPresentation();
+  presentation.content = [
+    {
+      locator: {
+        record: "actors:ghoul",
+        embedded_path: [],
+        field: "/system/details/publicNotes",
+      },
+      role: "notes",
+      source_fingerprint: null,
+      body: {
+        kind: "html",
+        html: "<p>Complete creature introduction.</p><h4>Authored lore heading</h4>",
+        controls: [],
+        inclusions: [],
+      },
+    },
+    {
+      locator: {
+        record: "actors:ghoul",
+        embedded_path: [],
+        field: "/system/details/privateNotes",
+      },
+      role: "notes",
+      source_fingerprint: null,
+      body: { kind: "plain", text: "Separate permitted notes." },
+    },
+  ];
+  const { rerender } = render(
+    <RecordPresentation presentation={presentation} onReference={vi.fn()} />,
+  );
+  const intro = screen.getByText("Complete creature introduction.");
+  expect(
+    within(intro.closest("section")!).queryByRole("heading", { name: "Notes" }),
+  ).toBeNull();
+  expect(screen.getByRole("heading", { name: "Authored lore heading" })).toBeVisible();
+  expect(
+    within(screen.getByText("Separate permitted notes.").closest("section")!).getByRole(
+      "heading",
+      { name: "Notes" },
+    ),
+  ).toBeVisible();
+  rerender(
+    <RecordPresentation presentation={presentation} onReference={vi.fn()} encounter />,
+  );
+  expect(screen.getAllByRole("heading", { name: "Notes" })).toHaveLength(2);
+});
+
+it("keeps the Notes heading when the opening creature field is unavailable", () => {
+  const presentation = actorPresentation();
+  presentation.content = [
+    {
+      locator: {
+        record: "actors:ghoul",
+        embedded_path: [],
+        field: "/system/details/publicNotes",
+      },
+      role: "notes",
+      source_fingerprint: null,
+      body: { kind: "unavailable", state: "invalid" },
+    },
+  ];
+  render(<RecordPresentation presentation={presentation} onReference={vi.fn()} />);
+  expect(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
 });

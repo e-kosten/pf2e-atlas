@@ -3,5 +3,6 @@ import type { PersistentDamageGroupView } from "./PersistentDamageGroupView";
 import type { PersistentDamageResultView } from "./PersistentDamageResultView";
 import type { PersistentEpisodeReviewView } from "./PersistentEpisodeReviewView";
 import type { PersistentRecoveryResultView } from "./PersistentRecoveryResultView";
+import type { PreparedPersistentDamageGroupView } from "./PreparedPersistentDamageGroupView";
 
-export type PersistentReviewView = { encounter_revision: bigint, damage_groups: Array<PersistentDamageGroupView>, round_number: bigint, damage_applied: boolean, episodes: Array<PersistentEpisodeReviewView>, damage_result: PersistentDamageResultView | null, recovery_results: Array<PersistentRecoveryResultView>, };
+export type PersistentReviewView = { encounter_revision: bigint, damage_groups: Array<PersistentDamageGroupView>, round_number: bigint, damage_applied: boolean, episodes: Array<PersistentEpisodeReviewView>, damage_result: PersistentDamageResultView | null, recovery_results: Array<PersistentRecoveryResultView>, prepared_damage: Array<PreparedPersistentDamageGroupView>, prepared_recovery: Array<PersistentRecoveryResultView>, };

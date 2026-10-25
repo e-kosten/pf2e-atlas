@@ -53,6 +53,7 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
         .embedded_reading(request(
             &detail.artifact_generation,
             EmbeddedReadingSelection::Abilities {
+                group: None,
                 cursor: None,
                 target: None,
             },
@@ -90,6 +91,7 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
         .embedded_reading(request(
             &detail.artifact_generation,
             EmbeddedReadingSelection::Abilities {
+                group: None,
                 cursor: None,
                 target: Some(last.clone()),
             },
@@ -113,6 +115,7 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
             .embedded_reading(request(
                 generation,
                 EmbeddedReadingSelection::Abilities {
+                    group: None,
                     cursor: first.next.clone(),
                     target: None,
                 },
@@ -149,6 +152,7 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
             .embedded_reading(request(
                 &detail.artifact_generation,
                 EmbeddedReadingSelection::Abilities {
+                    group: None,
                     cursor: Some(EmbeddedReadingCursor {
                         artifact_generation: detail.artifact_generation.clone(),
                         offset: 600
@@ -190,11 +194,26 @@ fn heavy_reference_fields_are_explicitly_bounded_without_breaking_other_fields()
             .any(|field| matches!(&field.body, PreparedFieldBodyView::Bounded { .. }))
     );
     assert!(detail.relationships_truncated);
+    let root = f
+        .worker
+        .embedded_reading(request(
+            &detail.artifact_generation,
+            EmbeddedReadingSelection::ActorContent,
+        ))
+        .unwrap();
+    assert!(
+        root.entries[0]
+            .content
+            .iter()
+            .any(|field| matches!(&field.body, PreparedFieldBodyView::Bounded { .. }))
+    );
+    assert!(root.entries[0].relationships.is_empty());
     let reading = f
         .worker
         .embedded_reading(request(
             &detail.artifact_generation,
             EmbeddedReadingSelection::Abilities {
+                group: None,
                 cursor: None,
                 target: None,
             },
@@ -389,6 +408,7 @@ fn embedded_feat_prerequisites_keep_addresses_links_and_unavailable_members() {
         .embedded_reading(request(
             &detail.artifact_generation,
             EmbeddedReadingSelection::Abilities {
+                group: None,
                 cursor: None,
                 target: None,
             },
@@ -420,4 +440,274 @@ fn embedded_feat_prerequisites_keep_addresses_links_and_unavailable_members() {
                 .as_ref()
                 .is_some_and(|t| t.record_key == "actions:testAction100000")
     }));
+}
+
+#[test]
+fn ability_groups_filter_before_paging_and_target_the_same_source_identity() {
+    let children: Vec<_> = (0..100)
+        .map(|i| {
+            json!({
+                "type":"action", "name":format!("Ability {i}"),
+                "system":{"actionType":{"value":if i % 2 == 0 {"passive"} else {"action"}},
+                  "category":"defensive", "description":{"value":format!("<p>Owned {i}</p>")}}
+            })
+        })
+        .collect();
+    let source =
+        json!({"_id":"testCreature1000","type":"npc","name":"Grouped actor","items":children});
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        move || {
+            Ok(open_source_fixture(
+                vec![record("actors", "Actor", source.clone())],
+                false,
+            )?)
+        },
+    ));
+    let detail = f.worker.record_detail(ACTOR).unwrap();
+    let RecordBodyView::Creature(actor) = &detail.presentation.body else {
+        panic!("actor")
+    };
+    let activities = actor.activities.value.as_ref().unwrap();
+    assert_eq!(
+        activities[0].title, "Ability 0",
+        "reading groups cannot reorder source-indexed runtime facts"
+    );
+    assert_eq!(activities[1].title, "Ability 1");
+    let read = |cursor, target| {
+        f.worker
+            .embedded_reading(request(
+                &detail.artifact_generation,
+                EmbeddedReadingSelection::Abilities {
+                    group: Some(ActorAbilityGroupView::Primary),
+                    cursor,
+                    target,
+                },
+            ))
+            .unwrap()
+    };
+    let first = read(None, None);
+    assert_eq!((first.total, first.start, first.end), (50, 0, 32));
+    assert_eq!(first.entries[0].navigation, activities[1].navigation);
+    assert_eq!(first.entries[31].navigation, activities[63].navigation);
+    let next = read(first.next, None);
+    assert_eq!((next.start, next.end), (32, 50));
+    assert_eq!(
+        next.entries.last().unwrap().navigation,
+        activities[99].navigation
+    );
+    let target = read(None, Some(activities[99].navigation.clone()));
+    assert_eq!(target.start, 32);
+    assert_eq!(
+        target.entries.last().unwrap().navigation,
+        activities[99].navigation
+    );
+    assert!(
+        f.worker
+            .embedded_reading(request(
+                &detail.artifact_generation,
+                EmbeddedReadingSelection::Abilities {
+                    group: Some(ActorAbilityGroupView::Supporting),
+                    cursor: None,
+                    target: Some(activities[99].navigation.clone())
+                }
+            ))
+            .is_err()
+    );
+}
+
+#[test]
+fn hazard_free_actions_and_reactions_share_exact_bounded_activation_reading() {
+    let source = json!({"_id":"testCreature1000","type":"hazard","name":"Complex hazard",
+    "items":[
+        {"_id":"hazardFree1000000","type":"action","name":"Free activation","system":{"actionType":{"value":"free"},"description":{"value":"<p>Initial free effect</p>"}}},
+        {"_id":"hazardAct10000000","type":"action","name":"Routine action","system":{"actionType":{"value":"action"},"actions":{"value":1},"description":{"value":"<p>Routine action effect</p>"}}},
+        {"_id":"hazardReact10000","type":"action","name":"Reaction activation","system":{"actionType":{"value":"reaction"},"description":{"value":"<p>Reaction trigger and effect</p>"}}}
+    ]});
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        move || {
+            Ok(open_source_fixture(
+                vec![record("actors", "Actor", source.clone())],
+                false,
+            )?)
+        },
+    ));
+    let detail = f.worker.record_detail(ACTOR).unwrap();
+    let RecordBodyView::Hazard(hazard) = &detail.presentation.body else {
+        panic!("hazard")
+    };
+    let activities = hazard.actor.activities.value.as_ref().unwrap();
+    assert_eq!(
+        activities
+            .iter()
+            .map(|a| a.ability_group)
+            .collect::<Vec<_>>(),
+        vec![
+            Some(ActorAbilityGroupView::Activation),
+            Some(ActorAbilityGroupView::Primary),
+            Some(ActorAbilityGroupView::Activation)
+        ]
+    );
+    let reading = f
+        .worker
+        .embedded_reading(request(
+            &detail.artifact_generation,
+            EmbeddedReadingSelection::Abilities {
+                group: Some(ActorAbilityGroupView::Activation),
+                cursor: None,
+                target: None,
+            },
+        ))
+        .unwrap();
+    assert_eq!(reading.total, 2);
+    assert_eq!(
+        reading
+            .entries
+            .iter()
+            .map(|e| &e.navigation)
+            .collect::<Vec<_>>(),
+        vec![&activities[0].navigation, &activities[2].navigation]
+    );
+    let selected = f
+        .worker
+        .record_detail_at(RecordDetailRequest {
+            record_key: ACTOR.into(),
+            owners: activities[0].navigation.owners.clone(),
+            spell_rank: None,
+            fields: vec![],
+            passage: None,
+            source_fingerprint: activities[0].navigation.source_fingerprint.clone(),
+        })
+        .unwrap();
+    let RecordBodyView::Activity(selected) = selected.presentation.body else {
+        panic!("selected activity")
+    };
+    assert_eq!(
+        selected.ability_group,
+        Some(ActorAbilityGroupView::Activation)
+    );
+}
+
+#[test]
+fn actor_root_text_is_bounded_attributed_and_independent_of_owned_items() {
+    let source = json!({"_id":"testCreature1000","type":"hazard","name":"Pillar",
+    "system":{"details":{
+        "description":"<p>Complete operating rules @UUID[Compendium.pf2e.actions.Item.testAction100000]</p>",
+        "disable":"<p>Disable the pillar</p>","routine":"<p>Three strikes</p>",
+        "reset":"<p>Reset after a minute</p>"
+    }}});
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        move || {
+            Ok(open_source_fixture(
+                vec![
+                    record("actors", "Actor", source.clone()),
+                    record(
+                        "actions",
+                        "Item",
+                        json!({"_id":"testAction100000","type":"action","name":"Target"}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let detail = f.worker.record_detail(ACTOR).unwrap();
+    let reading = f
+        .worker
+        .embedded_reading(request(
+            &detail.artifact_generation,
+            EmbeddedReadingSelection::ActorContent,
+        ))
+        .unwrap();
+    assert_eq!(reading.availability, atlas_domain::QueryFieldState::Value);
+    assert_eq!((reading.total, reading.start, reading.end), (1, 0, 1));
+    assert!(reading.next.is_none() && reading.previous.is_none());
+    let entry = &reading.entries[0];
+    assert!(entry.navigation.owners.is_empty());
+    let roles: Vec<_> = entry
+        .content
+        .iter()
+        .map(|field| field.role.as_str())
+        .collect();
+    assert_eq!(roles, ["description", "disable", "routine", "reset"]);
+    assert!(
+        entry
+            .content
+            .iter()
+            .all(|field| field.locator.owners.is_empty())
+    );
+    assert_eq!(entry.relationships.len(), 1);
+    assert!(entry.relationships[0].source.owners.is_empty());
+    assert_eq!(
+        entry.relationships[0].source.field,
+        "/system/details/description"
+    );
+    let metrics = f.worker.last_read_metrics();
+    assert_eq!(
+        (
+            metrics.source_body_decodes,
+            metrics.prepared_content_batches
+        ),
+        (1, 1)
+    );
+    assert!(metrics.sql_statements <= 6, "{metrics:?}");
+    let mut stale = request("stale", EmbeddedReadingSelection::ActorContent);
+    assert_eq!(
+        f.worker
+            .embedded_reading(stale.clone())
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::ArtifactGenerationChanged
+    );
+    stale.artifact_generation = detail.artifact_generation;
+    stale.parent.field = Some("/system/details/routine".into());
+    assert!(f.worker.embedded_reading(stale).is_err());
+}
+
+#[test]
+fn actor_root_text_uses_existing_visibility_and_keeps_plain_blurb() {
+    let source = json!({"_id":"testCreature1000","type":"npc","name":"Reader",
+        "system":{"details":{"publicNotes":"<p>Public lore</p>","privateNotes":"<p>Private lore</p>","blurb":"Authored summary"}}});
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        move || {
+            Ok(open_source_fixture(
+                vec![record("actors", "Actor", source.clone())],
+                false,
+            )?)
+        },
+    ));
+    let detail = f.worker.record_detail(ACTOR).unwrap();
+    let reading = f
+        .worker
+        .embedded_reading(request(
+            &detail.artifact_generation,
+            EmbeddedReadingSelection::ActorContent,
+        ))
+        .unwrap();
+    // The same admitted prepared selection and audience policy owns both surfaces.
+    let expected: Vec<_> = detail
+        .presentation
+        .content
+        .into_iter()
+        .filter(|f| {
+            f.role != "name"
+                && !matches!(
+                    f.body,
+                    PreparedFieldBodyView::Unavailable {
+                        state: atlas_domain::QueryFieldState::Missing
+                            | atlas_domain::QueryFieldState::NotApplicable
+                    }
+                )
+        })
+        .collect();
+    assert_eq!(reading.entries[0].content, expected);
+    assert!(reading.entries[0].content.iter().any(|field| matches!(&field.body, PreparedFieldBodyView::Plain { text } if text == "Authored summary")));
 }

@@ -1,6 +1,6 @@
 import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Grid } from "antd";
 import { Edit2 } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -33,6 +33,7 @@ export function EncounterDetailView({ route }: EncounterDetailViewProps) {
   return <EncounterDetail key={route.slug} route={route} />;
 }
 function EncounterDetail({ route }: EncounterDetailViewProps) {
+  const client = useQueryClient();
   const confirmDangerAction = useConfirmDangerAction();
   const screens = Grid.useBreakpoint();
   const narrow = screens.md === false;
@@ -79,7 +80,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     participants: encounter.data?.participants ?? [],
     mutations,
   });
-  const disabled =
+  const mutationDisabled =
     mutations.pending ||
     !!mutations.refreshError ||
     !!encounter.error ||
@@ -98,11 +99,18 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
       "encounter-condition-definitions",
       route.slug,
       selected?.participant_key,
+      encounter.data?.artifact_generation,
       encounter.data?.revision.toString(),
     ],
     queryFn: () =>
       getEncounterConditionDefinitions(route.slug, selected!.participant_key),
     enabled: !!selected,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === route.slug &&
+      previousQuery.queryKey[2] === selected?.participant_key &&
+      previousQuery.queryKey[3] === encounter.data?.artifact_generation
+        ? previous
+        : undefined,
   });
   const recordPreview = useRecordPreview({
     encounterRef: encounter.data?.encounter.encounter_key ?? route.slug,
@@ -137,11 +145,14 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     }
   };
   const advanceTurn = async (expectedRevision: bigint) => {
+    // Pin the outgoing inspector before the canonical current turn changes.
+    if (encounter.data?.current_turn_participant_key)
+      setSelectedParticipantKey(encounter.data.current_turn_participant_key);
     followAfterRefresh.current = true;
     try {
       const result = await mutations.run({ kind: "advance", expectedRevision });
       if (result.active && result.refreshed) {
-        followTurn(result.view);
+        followAfterRefresh.current = false;
         return true;
       }
     } catch {
@@ -154,8 +165,11 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     encounterRef: encounter.data?.encounter.encounter_key ?? route.slug,
     mutations,
     onAdvance: advanceTurn,
+    onFinish: () =>
+      followTurn(client.getQueryData<typeof encounter.data>(["encounter", route.slug])),
     expectedRevision: encounter.data?.revision ?? 0n,
   });
+  const disabled = mutationDisabled || turnReview.preparing;
   const encounterSummary = encounter.data?.encounter ?? null;
 
   const recovery = mutations.refreshError ? (
@@ -269,6 +283,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             </Button>
             <Button
               disabled={disabled || !!turnReview.data?.next_turn_unavailable_reason}
+              loading={turnReview.preparing ? { delay: 200 } : false}
               onClick={() => void turnReview.begin()}
             >
               Next turn
@@ -306,6 +321,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 return result.active && result.refreshed;
               }}
               advanceDisabled={!!turnReview.data?.next_turn_unavailable_reason}
+              advanceLoading={turnReview.preparing}
               onAdvanceTurn={() => void turnReview.begin()}
               onRemove={(participant) =>
                 confirmDangerAction({
@@ -351,6 +367,18 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           results={
             <EncounterInspectorPane
               currentTurnKey={encounter.data?.current_turn_participant_key}
+              onTurnResources={async (participant, action) => {
+                if (!encounter.data) return;
+                await mutations.run({
+                  kind: "turn-resources",
+                  request: {
+                    participant_key: participant.participant_key,
+                    expected_encounter_revision: encounter.data.revision,
+                    turn_key: participant.turn_resources?.turn_key ?? null,
+                    action,
+                  },
+                });
+              }}
               onBeginStrike={strikes.launch}
               renderStrikeContext={strikes.renderContext}
               onConditionRecovery={async (request) => {
@@ -405,7 +433,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               }}
               disabled={disabled}
               conditionsDisabled={
-                conditionDefinitions.isPending || !!conditionDefinitions.error
+                conditionDefinitions.isPending ||
+                conditionDefinitions.isPlaceholderData ||
+                !!conditionDefinitions.error
               }
               conditionError={conditionDefinitions.error}
               onRetryConditions={() => void conditionDefinitions.refetch()}
@@ -525,10 +555,10 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           generation={encounter.data?.artifact_generation ?? null}
           damageTypes={conditionDefinitions.data?.damage_types ?? []}
           onLifecycle={async (request) => {
-            const receipt = await turnReview.execute(
-              { kind: "condition-lifecycle", request },
-              "Condition updated.",
-            );
+            const receipt = await turnReview.execute({
+              kind: "condition-lifecycle",
+              request,
+            });
             if (!receipt || !("check" in receipt))
               throw new Error("Condition result unavailable.");
             return receipt;

@@ -49,6 +49,9 @@
 }
 
 .encounter-detail-view {
+  width: 100%;
+  max-width: 100rem;
+  margin-inline: auto;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
@@ -114,4 +117,53 @@
 .encounter-pane__header p {
   color: var(--muted);
   margin: 4px 0 0;
+}
+.encounter-actor-reading {
+  position: relative;
+}
+.encounter-actor-reading__status {
+  margin-block-end: var(--space-section);
+}
+
+.encounter-turn-resources {
+  display: grid;
+  gap: var(--space-control);
+}
+.encounter-turn-resources__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-group) var(--space-section);
+  align-items: center;
+}
+.encounter-turn-resources__actions,
+.encounter-turn-resources__group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+  align-items: center;
+}
+.encounter-turn-resources p {
+  margin: 0;
+}
+.encounter-turn-resources__result {
+  color: var(--muted);
+}
+
+.encounter-runtime-stack {
+  display: grid;
+  gap: var(--space-section);
+}
+.encounter-turn-resources .action-cost__glyph::before {
+  color: inherit;
+}
+
+.encounter-turn-resource-details {
+  display: grid;
+  gap: var(--space-group);
+  /* Leave room for the title and trigger on either side of the anchor. */
+  max-block-size: min(24rem, calc(50dvh - 6rem));
+  overflow-y: auto;
+}
+.encounter-turn-resource-details p {
+  margin: 0;
 }

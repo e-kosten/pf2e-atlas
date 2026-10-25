@@ -243,12 +243,39 @@ content and facts; compact density does not suppress sections. Immediate
 Ability-class action/effect/feat content reads inline by default through a
 separate generation-bound embedded-reading response. Each explicit batch checks one
 parent and reads one prepared batch, limited to 32 activities and 256 fields.
+An actor-content selection reads only the parent actor's existing authored text
+selections and exact attributed relationships. Its availability is independent of
+the owned-item collection. The encounter reader caches this text by source address
+and artifact generation, adding it to the live presentation without replacing
+effective stats, activities, roll context or mutation ownership. Audience and
+unavailable/bounded field policy remain with prepared content. This avoids sending
+all participants' root prose on every canonical encounter refresh.
 The response carries authored content and exact per-activity relationships,
 without recursive detail envelopes or duplicated activity facts. Index owns
 combined exact-locator prepared/relationship SQL. Every delivered rich field has
 complete occurrence attribution; an oversized field is explicitly bounded rather
 than shown with missing interactive links. Non-content relationship discovery
 remains separate. No artifact schema or admission policy changes.
+
+App-service projects creature ability reading groups from typed authored activation
+and category: active/free abilities and explicitly offensive passives are primary,
+reactions are separate, and other passives are supporting. Hazard reactions and
+free actions form an activation group before routine/additional actions. The same
+group is projected for the parent and exact selected owned activity. Missing or
+invalid classification remains unclassified. Active/free choices precede offensive passives;
+relative source order is retained within those classes. Reading order is separate
+metadata: the activity array and checked owner addresses retain source order,
+including the ordinals used by runtime modifier composition. Bounded ability reads
+filter and order the requested group before cursor/target pagination; an ungrouped
+request retains source order. This changes neither stored content nor mechanics.
+
+Owned strike-effect identifiers resolve only to a unique explicitly supplied slug
+among that actor's immediate abilities. The projection retains the authored target
+alongside its readable name and exact checked navigation. Ambiguous and unresolved
+identifiers remain unresolved; neither name matching nor a glossary guess supplies
+a destination. Parent and selected-strike projections use the same resolver.
+Optional strike range facts preserve authored increment and maximum independently;
+a null component means no supplied bound, not an inferred effective distance.
 
 Reading progression follows actual container scrolling near continuation, with
 bounded concurrency and identity cancellation. Idle visibility cannot drain a

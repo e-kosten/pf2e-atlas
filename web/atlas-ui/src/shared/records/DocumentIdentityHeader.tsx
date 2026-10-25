@@ -7,7 +7,7 @@ export function DocumentIdentityHeader({
   navigation,
   identityActions,
   classificationControl,
-  stacked = false,
+  stacked = true,
   headingRef,
   headingId,
   actions,

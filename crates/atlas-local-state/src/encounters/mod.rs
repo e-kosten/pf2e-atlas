@@ -1,3 +1,5 @@
+mod turn_resources;
+pub use turn_resources::{TurnResourceEffect, TurnResources};
 mod outgoing_turns;
 pub use outgoing_turns::SavedOutgoingTurn;
 mod persistent_precedence;
@@ -9,7 +11,8 @@ pub use event_model::{
     ConditionEventSource, DamageLethality, EncounterBoundaryClaim, EncounterBoundaryKind,
     EncounterEventReceipt, LifecycleCheckPurpose, ParticipantEventChange, PendingConsequence,
     PersistentDamageOutcome, PersistentDamageProtection, PersistentPrecedenceChange,
-    PreparedConditionEvent, SavedHpEventContext, SavedPendingConsequence,
+    PersistentPreparationContext, PreparedConditionEvent, PreparedPersistentRecovery,
+    SavedHpEventContext, SavedPendingConsequence,
 };
 mod condition_parameters;
 pub use condition_parameters::{

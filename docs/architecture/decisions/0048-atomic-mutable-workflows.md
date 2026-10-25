@@ -109,7 +109,7 @@ same hydration snapshot that resolves the roll. Saved-receipt recovery precedes
 this guard, so publication of a new artifact cannot reroll a committed request.
 Explicit manual-modifier requests remain source-free and need no generation.
 
-Local-state schema 12 stores encounter roll receipts. A canonical encounter key
+The condition-system schema stores encounter roll receipts. A canonical encounter key
 and request ID identify an operation; the original intent is saved alongside the
 resolved inputs and outcomes. Matching retries recover the receipt before source
 hydration and revision checks. Reusing an ID with different intent conflicts.
@@ -117,6 +117,14 @@ The immediate write transaction repeats recovery, validates the complete batch,
 evaluates and saves each initiative using existing tie-order policy, then stores
 the receipt. Any failure rolls back the whole batch. Source/artifact I/O remains
 outside that transaction. Current turn, HP and spell resources are unchanged.
+
+Persistent damage/recovery preparation uses the same guarded receipt storage with
+an explicit receipt-only write. Its callback can return outcomes only, so it
+cannot change HP, conditions, pending consequences or the encounter revision.
+Independent preparation claims deduplicate per-type rolls, while the ordinary
+damage/recovery claims remain unconsumed until final application. Read-only draft
+previews do not write receipts or roll dice. ADR0055 owns source binding and the
+single final HP/recovery event.
 
 Receipts are retained for the encounter lifetime and cascade on encounter deletion;
 there is no automatic time-based pruning and no recovery guarantee after deletion.
@@ -265,14 +273,38 @@ participant's position even if that participant has become inactive. No fallback
 selects defeated PCs when everyone is inactive. Reactivation never heals or
 executes authored Reset instructions.
 
-App-service owns the shared condition and action policy described in ADR0055. Current capability is separate
-from the next-regain forecast; Atlas does not track actions remaining. Quickened
-adds at most one restricted action before losses. Stunned losses overlap Slowed
-losses; the explanations identify the additional and overlapping portions. Which
-actions are lost remains a table decision. Numeric Stunned is an explicit value;
-a missing value with a duration means duration Stunned. Missing both is unresolved,
-never a default numeric one. Reads and turn advancement never consume numeric stun.
-Existing pending-expiry review and explicit removal govern duration stun.
+App-service owns the shared condition and action policy described in ADR0055.
+A genuine Next turn allocates incoming creature/PC resources and consumes supported
+numeric Stunned in the same transaction as outgoing context, duration updates and
+turn selection. The recorded initial allowance remains after Stunned decreases or
+clears; live condition forecasts never refill that turn. Unknown inputs and pending
+Dying recovery defer allocation. Hazards retain their authored routine rather than
+receiving generic creature resources. Manual Set turn remains position-only.
+
+Explicit manual spend, restore and exact correction use encounter revision, actual
+turn identity and durable request receipts. Attack rolls, spell-use recording and
+other mechanics never spend actions or reactions implicitly. Actions expire at the
+end of their turn. Reaction stock survives other actors' turns and is replaced only
+at its owner's actual regain; permission restrictions do not change spent/unspent
+stock. Action edits require that actor's open current turn. Reaction bookkeeping
+remains available off turn. Existing encounters begin with unknown allocations;
+migration must not invent a past regain or expenditure.
+
+Quickened adds at most one restricted extra action before losses. The existing
+extra-first default for Stunned/Slowed is retained; restriction facts remain attached
+to that action. Mid-turn Quickened/Slowed change the next-regain forecast. Applying numeric
+Stunned during an open current turn uses recorded remaining
+actions and atomically reduces both that pool and condition sources in the same
+condition event. The GM finishes the current activity before submitting its
+condition application. Preview shows both the action loss and remaining Stunned;
+matching retries never repeat either change. Correction and off-turn application
+do not consume actions. Explicit Stunned recovery remains available for deliberate
+resolution of recorded sources. It never reruns a three-action regain. Missing
+Stunned value with a duration
+is duration Stunned; missing both is unresolved. Pending-expiry review and explicit
+removal govern duration Stunned. Reads never consume conditions or resources.
+The timing and permission distinction follows [Start Your Turn](https://2e.aonprd.com/Rules.aspx?ID=2428)
+and [Gaining and Losing Actions](https://2e.aonprd.com/Rules.aspx?ID=2455).
 
 Evaluated casting uses the backend action judgments and relevant exception facts.
 The ordinary spell popover records table-resolved use with source, resource and revision

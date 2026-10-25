@@ -91,6 +91,32 @@ pub(in crate::encounters) fn numeric_stunned_actions_lost(p: &EncounterParticipa
         Some(forecast.lost_to_stun)
     }
 }
+/// Explicit Stunned resolution uses a recorded remaining pool when this turn has begun.
+pub(in crate::encounters) fn stunned_resolution_loss(p: &EncounterParticipant) -> Option<i64> {
+    if p.defeated || p.hazard_disabled || p.mortality == atlas_local_state::MortalityState::Dead {
+        return Some(0);
+    }
+    if let Some(resources) = p
+        .turn_resources
+        .as_ref()
+        .filter(|r| r.pending_reason.is_none() && r.actions_open)
+    {
+        let remaining = resources.regular_remaining + resources.extra_remaining;
+        let mut stunned = 0;
+        for cause in super::causes::condition_causes(p, None)
+            .into_iter()
+            .filter(|c| c.rule == ConditionRule::Stunned)
+        {
+            match cause.value {
+                Some(v) if v >= 0 => stunned = stunned.max(v),
+                None if cause.source.duration.is_some() => return Some(remaining),
+                _ => return None,
+            }
+        }
+        return Some(stunned.min(remaining));
+    }
+    numeric_stunned_actions_lost(p)
+}
 pub(in crate::encounters) fn action_budget(p: &EncounterParticipant) -> ActionBudgetView {
     let RegainForecast {
         slowed,
@@ -254,6 +280,7 @@ mod tests {
 
     fn participant() -> EncounterParticipant {
         EncounterParticipant {
+            turn_resources: None,
             level_override: None,
             base_death_threshold: 4,
             persistent_precedence: vec![],

@@ -837,6 +837,22 @@ async fn turn_review_and_advance_use_explicit_revision_path_and_typed_failures()
 }
 
 #[tokio::test]
+async fn turn_resource_route_preserves_intent_and_uses_participant_path_identity() {
+    let path = "/api/encounters/ambush/participants/participant_a/turn-resources";
+    let mut request = json!({"request_id":"manual-reaction","participant_key":"ignored","turn_key":"turn:1","expected_encounter_revision":7,"action":{"kind":"spend","resource":"reaction"}});
+    let (status, body) = route_json(Method::POST, path, Some(request.clone())).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, json!({"encounter_key":"ambush"}));
+    request["expected_encounter_revision"] = json!(6);
+    let (status, body) = route_json(Method::POST, path, Some(request.clone())).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["code"], "encounter_turn_conflict");
+    request["action"] = json!({"kind":"spend","resource":"anything"});
+    let (status, _) = route_json(Method::POST, path, Some(request)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
 async fn hp_actions_require_explicit_contract_and_use_path_identity_and_receipt() {
     let path = "/api/encounters/ambush/participants/participant_a/hp";
     let mut request = json!({"request_id":"hp-action","participant_key":"ignored_body_identity","action":{"kind":"damage","amount":"10+2"}});
@@ -1265,6 +1281,15 @@ impl AtlasWebService for MockService {
             encounter_key: encounter_ref.into(),
         })
     }
+    fn prepare_persistent_damage(
+        &self,
+        _encounter_ref: &str,
+        _request: atlas_app_model::PreparePersistentDamageRequest,
+    ) -> Result<atlas_app_model::PreparedPersistentDamageView, AppServiceError> {
+        Err(AppServiceError::invalid_request(
+            "persistent preparation fixture is not configured",
+        ))
+    }
     fn apply_persistent_damage(
         &self,
         _encounter_ref: &str,
@@ -1604,6 +1629,30 @@ impl AtlasWebService for MockService {
             reminders: vec![],
         })
     }
+    fn update_turn_resources(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::UpdateTurnResourcesRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        assert_eq!(request.participant_key, "participant_a");
+        assert_eq!(request.turn_key.as_deref(), Some("turn:1"));
+        assert_eq!(request.request_id, "manual-reaction");
+        assert_eq!(
+            request.action,
+            atlas_app_model::TurnResourceAction::Spend {
+                resource: atlas_app_model::TurnResourceKind::Reaction
+            }
+        );
+        if request.expected_encounter_revision != 7 {
+            return Err(AppServiceError::new(
+                AppErrorCode::EncounterTurnConflict,
+                "encounter changed",
+            ));
+        }
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
+        })
+    }
     fn advance_encounter_turn(
         &self,
         encounter_ref: &str,
@@ -1872,6 +1921,7 @@ fn encounter_participant(
     include_condition: bool,
 ) -> EncounterParticipantView {
     EncounterParticipantView {
+        turn_resources: None,
         knockout_options: vec![],
         knockout_unavailable_reason: None,
         effective_max_hp: atlas_app_model::NumberFactView {
