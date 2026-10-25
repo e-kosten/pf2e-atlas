@@ -38,6 +38,10 @@ export function EncounterDifficulty(props: Props) {
       <Popover
         trigger="click"
         placement="bottomLeft"
+        align={{
+          overflow: { adjustX: true, adjustY: true, shiftX: true, shiftY: true },
+          htmlRegion: "visible",
+        }}
         open={open}
         onOpenChange={changeOpen}
         afterOpenChange={(next) => {
