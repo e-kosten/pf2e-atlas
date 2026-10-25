@@ -39,6 +39,7 @@ export function EncounterDifficulty(props: Props) {
         trigger="click"
         placement="bottomLeft"
         align={{
+          offset: [0, 0],
           overflow: { adjustX: true, adjustY: true, shiftX: true, shiftY: true },
           htmlRegion: "visible",
         }}
