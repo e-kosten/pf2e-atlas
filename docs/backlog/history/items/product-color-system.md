@@ -15,6 +15,7 @@ distinct semantic treatments. Selected, navigation, table and workbench surfaces
 consume complete theme roles rather than feature-local color overrides.
 
 The finishing brand pass adds the Lora `PF2e Atlas` wordmark, the theme-driven
-ring-compass/d20 mark, simplified light and dark favicons and a dedicated
-high-contrast action-glyph role. The durable role mappings and editing rules live
-in `web/atlas-ui/docs/theme-design.md` and the frontend guidelines.
+ring-compass/d20 mark, simplified light and dark favicons and high-contrast
+encounter resource controls. Inline reference glyphs retain their surrounding
+text color. The durable role mappings and editing rules live in
+`web/atlas-ui/docs/theme-design.md` and the frontend guidelines.
