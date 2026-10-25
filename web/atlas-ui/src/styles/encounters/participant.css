@@ -113,7 +113,7 @@
 
 .encounter-hp-meter__temporary {
   background: var(--hp-temp);
-  opacity: 0.75;
+  border-inline-start: 2px solid var(--panel);
 }
 
 .encounter-hp-control {
@@ -147,7 +147,7 @@
 }
 
 .encounter-record-pane:focus-visible {
-  outline: 2px solid var(--active-border);
+  outline: 2px solid var(--selection-border);
   outline-offset: -2px;
 }
 

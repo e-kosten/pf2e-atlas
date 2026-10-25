@@ -1413,14 +1413,19 @@ describe("encounter views", () => {
     expect(temporarySegment).not.toBeNull();
     expect(currentSegment).toHaveClass("encounter-hp-meter__current--bloodied");
     expect(currentSegment).not.toHaveClass("encounter-hp-meter__current--critical");
+    expect([...meter.children].map((segment) => segment.className)).toEqual([
+      "encounter-hp-meter__current encounter-hp-meter__current--bloodied",
+      "encounter-hp-meter__temporary",
+      "encounter-hp-meter__missing",
+    ]);
     expect(currentSegment).toHaveStyle({ width: "35.294117647058826%" });
-    expect(missingSegment).toHaveStyle({
-      left: "64.70588235294119%",
-      width: "35.294117647058826%",
-    });
     expect(temporarySegment).toHaveStyle({
       left: "35.294117647058826%",
       width: "29.411764705882355%",
+    });
+    expect(missingSegment).toHaveStyle({
+      left: "64.70588235294119%",
+      width: "35.294117647058826%",
     });
 
     unmount();

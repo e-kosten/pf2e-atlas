@@ -20,3 +20,17 @@ it("renders the server's fractional unit-price label verbatim", () => {
   );
   expect(screen.queryByText(/gp each/)).toBeNull();
 });
+
+it("uses the selected-text role instead of the primary action color", () => {
+  render(
+    <RecordBrowseSummary
+      record={summaryFixture("actors:selected", "Selected creature")}
+      selected
+      onPreview={vi.fn()}
+    />,
+  );
+
+  expect(screen.getByRole("link", { name: /Selected creature/ })).toHaveStyle({
+    color: "var(--selection-text)",
+  });
+});

@@ -88,17 +88,17 @@
 }
 
 .encounter-roster__row--selected {
-  outline: 1px solid var(--active-border);
+  outline: 1px solid var(--selection-border);
   outline-offset: -1px;
 }
 
 .encounter-roster__row--current {
-  box-shadow: inset 3px 0 0 var(--active-border);
-  background: var(--active-bg);
+  box-shadow: inset 3px 0 0 var(--selection-border);
+  background: var(--selection-bg);
 }
 
 .encounter-roster__row--current.encounter-roster__row--selected {
-  background: var(--active-bg);
+  background: var(--selection-bg);
 }
 
 .encounter-roster__select {
@@ -164,7 +164,7 @@
 
 .encounter-roster__drag-preview {
   background: var(--panel);
-  border: 1px solid var(--active-border);
+  border: 1px solid var(--selection-border);
 }
 
 .encounter-roster__drag-handle:active {

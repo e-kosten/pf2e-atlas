@@ -3,26 +3,24 @@ import { sentenceCase } from "../ui/labels";
 
 export function RecordRarity({ rarity }: { rarity: string | null | undefined }) {
   const { token } = theme.useToken();
-  if (!rarity?.trim() || rarity === "common") return null;
-  const accented = rarity === "rare" || rarity === "unique";
+  const normalized = rarity?.trim().toLowerCase();
+  if (!normalized) return null;
+  const role = ["common", "uncommon", "rare", "unique"].includes(normalized)
+    ? normalized
+    : null;
   return (
     <Tag
-      aria-label={`Rarity: ${sentenceCase(rarity)}`}
+      aria-label={`Rarity: ${sentenceCase(normalized)}`}
       styles={{
         root: {
-          color: accented ? token.colorPrimaryText : token.colorTextSecondary,
-          background: accented ? token.colorPrimaryBg : token.colorFillAlter,
-          borderColor:
-            rarity === "unique"
-              ? token.colorPrimaryBorderHover
-              : accented
-                ? token.colorPrimaryBorder
-                : token.colorBorder,
-          fontWeight: rarity === "unique" ? 600 : undefined,
+          color: role ? `var(--rarity-${role}-text)` : token.colorTextSecondary,
+          background: role ? `var(--rarity-${role}-bg)` : token.colorFillAlter,
+          borderColor: role ? `var(--rarity-${role}-border)` : token.colorBorder,
+          fontWeight: normalized === "unique" ? 600 : undefined,
         },
       }}
     >
-      {sentenceCase(rarity)}
+      {sentenceCase(normalized)}
     </Tag>
   );
 }

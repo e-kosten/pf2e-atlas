@@ -2,7 +2,7 @@
 
 The Atlas web UI is a React frontend over generated Rust app DTOs. It uses Ant Design for general application UI and a small first-party shared UI layer for Atlas-specific interaction patterns.
 
-The application shell owns navigation, system-following appearance, and reference availability. It receives readiness facts, not the search workspace. Healthy availability needs no status control. Connection failures show an actionable error with Retry; search failures and generation recovery belong beside search results.
+The application shell owns navigation, product theme, system-following appearance, and reference availability. It receives readiness facts, not the search workspace. Healthy availability needs no status control. Connection failures show an actionable error with Retry; search failures and generation recovery belong beside search results.
 
 AtlasApp owns one tab-local search-profile selection from the generated readiness
 catalog. An explicit `search_profile` URL parameter wins over the browser's launch
@@ -220,12 +220,72 @@ types and contextual notes alongside their cause.
 
 ## Styling
 
+[Theme design](theme-design.md) records the product palette and semantic roles.
+Atlas has one identity with independent system/light/dark appearance: Parchment
+and Oxblood in light appearance, and warmer Oxblood and Brass in dark appearance.
+Use flat surfaces, subtle separators, the existing interface typography and the
+shared 6px base radius. Generic controls retain Ant component/token ownership.
+
+`themeDefinitions.ts` owns the authored light/dark anchors and shared semantic
+roles. `atlasTheme.ts` projects them into the Ant configuration and document-level
+CSS variables. Use the root provider so portaled content receives the same colors.
+The shell stores only the optional appearance preference; changing it must preserve
+the active route, reader and drafts. Native `color-scheme` follows the resolved
+appearance. Pass that resolved appearance to Ant components with documented
+light/dark modes, including the shell `Menu`; their component tokens own hover,
+focus and selected states.
+
+Every application color comes from `themeDefinitions.ts` or Ant's derivation from
+those roles. The small startup fallback in `styles/theme.css` mirrors light-mode
+anchors before React applies the resolved appearance, and a parity test keeps that
+fallback aligned with the runtime projection. The style guard rejects raw literals,
+named colors and undefined CSS-variable references elsewhere. Authored rules, table
+borders and highlights use shared reading tokens.
+
+The central color definitions own status foreground/background/border sets, solid-control foregrounds,
+HP current/bloodied/critical/temporary/missing fills, shadows and overlay masks as
+well as neutral and interaction roles. HP presentation consumes its dedicated
+variables, never a fixed green/red or a generic primary accent. Temporary HP is
+opaque and separated from the adjacent fill; labels and values retain meaning
+without color. Dice, encounter selection and portaled controls use the same
+semantic variables/provider. Shaded dice express facets with fill contrast and
+draw the visible silhouette once; do not stroke every face and double shared
+edges at small sizes. Do not add component-local palettes. Rarity uses
+dedicated text/background/border roles for neutral common, copper uncommon,
+oxblood rare and purple unique, independently of primary interaction colors.
+Keep every known rarity label visible and unknown rarities neutral. Success,
+warning and error retain their semantic meanings through theme-owned Ant tokens.
+
 - Use Atlas CSS variables and Ant Design theme tokens; avoid raw color values.
 - Atlas CSS variables should describe semantic app states, such as active background, active border, active text, muted text, and panel surfaces. They should be derived from Ant semantic tokens rather than raw brand tokens where possible.
 - Put shared primitive styles under `src/styles/ui`.
 - Keep feature-specific styles in the feature stylesheet.
 - Do not create nested cards or duplicate pane/index/table styles in feature modules.
 - Prefer stable layout dimensions for repeated controls so dynamic labels, icons, loading states, and validation text do not shift the page.
+
+### Page and workspace composition
+
+Choose one of three shared layout hosts according to the user's task. Entity
+indexes use the inset `EntityIndexPage` composition: identity and actions, an
+optional control row, and one restrained table surface. Reading and editing pages
+use one bounded document column, with hierarchy supplied by typography, spacing
+and rules rather than a card around each section.
+
+Search, saved-list browsing and encounter runtime are full-bleed workbenches.
+Their context or filter strip is separated from the workspace by a rule, and the
+workspace panes form one continuous surface. Pane headers inherit that surface
+and use a bottom rule; pane boundaries use a visible divider while preserving a
+larger resize target. Do not give persistent workbench panes an outer gutter,
+rounded card frame, shadow or separately filled heading cap. A card remains
+appropriate for a genuinely independent object or transient elevated surface,
+not for the primary regions of a split workspace.
+
+The host types share semantic surfaces, spacing roles and header hierarchy, but
+they do not have identical geometry. Do not make an entity index edge-to-edge
+merely to resemble Search, and do not put Search or the encounter runtime inside
+an inset index sheet. Verify the selected host in both appearances and at wide,
+intermediate and phone widths; inspect scroll ownership, divider alignment and
+resize/focus behavior as well as the static screenshot.
 
 Give single-column record pages one document width, including their toolbar,
 identity, traits, facts, prose, lists and horizontal rules. Bound the whole sheet
@@ -452,6 +512,9 @@ Common categorical controls cycle each value through neutral, included and
 excluded in a compact searchable Ant Popover or mobile Drawer, allowing both
 included and excluded values in one field. Menu rows show a name and a small
 plus/minus marker; their accessible name states the current value and next action.
+Included states use the theme's sage filter roles and excluded states use its
+error/oxblood filter roles; do not collapse polarity into the generic primary
+interaction color.
 Closed controls show only active choices with individually removable selections.
 Keep the menu open and its native button nodes stable during edits; changing a
 row's Ant variant between text and filled remounts its node, so use a consistent

@@ -52,6 +52,15 @@ it("uses the shaded d10 fallback without changing the actual die or outcome", ()
   expect(container.querySelector(".atlas-die__sides")).toBeNull();
 });
 
+it("draws shaded dice with quiet faces and one explicit silhouette", () => {
+  const { container } = render(<DieFace sides={20} value={17} motion="none" />);
+
+  expect(container.querySelectorAll(".atlas-die__face")).toHaveLength(10);
+  expect(container.querySelectorAll(".atlas-die__outline")).toHaveLength(1);
+  expect(container.querySelector(".atlas-die__facet")).toBeNull();
+  expect(container.querySelector(".atlas-die__value")).toHaveTextContent("17");
+});
+
 it("preserves draw order and only reveals discarded state after settling", () => {
   const outcome: RollOutcome = {
     formula: "2d20kh1",
