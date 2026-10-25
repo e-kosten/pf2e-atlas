@@ -3,7 +3,7 @@
   width: 40px;
   height: 40px;
   flex: 0 0 40px;
-  color: var(--accent-text);
+  color: var(--link);
   font-variant-numeric: tabular-nums;
 }
 .atlas-die__drawing,
@@ -13,24 +13,39 @@
   height: 100%;
 }
 .atlas-die svg {
-  fill: var(--active-bg);
-  stroke: var(--active-border);
-  stroke-width: 1.2;
-}
-.atlas-die__shade {
-  fill: var(--accent-text);
+  fill: var(--selection-bg);
   stroke: none;
 }
-.atlas-die__edge {
+.atlas-die__face {
+  stroke: none;
+}
+.atlas-die__shade {
+  fill: var(--link);
+  stroke: none;
+}
+.atlas-die__outline,
+.atlas-die__facet {
   fill: none;
-  stroke-width: 0.9;
-  opacity: 0.8;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.atlas-die__outline {
+  stroke-width: 1.35;
+  opacity: 0.92;
+}
+.atlas-die__facet {
+  stroke-width: 0.75;
+  opacity: 0.55;
 }
 .atlas-die__value {
   fill: var(--text);
-  stroke: none;
-  font-size: 13px;
-  font-weight: 650;
+  stroke: var(--selection-bg);
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+  paint-order: stroke fill;
+  font-size: 14px;
+  font-weight: 750;
 }
 .atlas-die--discarded {
   opacity: 0.45;

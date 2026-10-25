@@ -18,6 +18,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Define a party once and add its members to encounters without repeatedly
   entering their details. Name-only implementation in progress; awaiting UX review. Status: in_progress.
 
+- [Product color system](items/product-color-system.md)
+  Apply the accepted Parchment and Oxblood light identity and warmer Oxblood and
+  Brass dark identity, with theme-owned rarity and HP semantics. Status: in_progress.
+
 - [Reusable development baseline](items/development-baseline.md)
   Publish validated executable/workspace seeds and initialize independent
   development copies without per-workstream ingest. Status: in_progress.
@@ -95,10 +99,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Standardize accessible labels and form semantics across Ant Design forms and compact editable controls. Status: proposed.
 
 ## Later
-
-- [Product color system](items/product-color-system.md)
-  Review rarity, semantic states and visual hierarchy across light/dark themes.
-  Status: proposed.
 
 - [Source query catalog expansion](items/source-query-catalog-expansion.md)
   Add useful authored fields and collection scopes with shared catalog semantics

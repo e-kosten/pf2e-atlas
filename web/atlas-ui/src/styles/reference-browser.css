@@ -76,10 +76,15 @@ body:has(:is(.search-workspace, .list-workspace)) {
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: auto auto auto;
   position: relative;
+  border-inline-start: 3px solid transparent;
   border-bottom: 1px solid var(--line);
   padding-bottom: 4px;
   content-visibility: auto;
   contain-intrinsic-size: auto 135px;
+}
+.reference-result--selected {
+  background: var(--selection-bg);
+  border-inline-start-color: var(--selection-border);
 }
 .reference-result__summary {
   display: flex;
@@ -168,7 +173,7 @@ body:has(:is(.search-workspace, .list-workspace)) {
   gap: 14px;
   padding: 20px 24px 16px;
   border-bottom: 1px solid var(--line);
-  background: var(--panel);
+  background: var(--context-bar-bg);
 }
 .filter-toolbar .filter-controls__search-row {
   max-width: 1024px;
@@ -189,8 +194,8 @@ body:has(:is(.search-workspace, .list-workspace)) {
 }
 @keyframes reference-landing {
   from {
-    background: var(--active-bg);
-    outline: 2px solid var(--active-border);
+    background: var(--selection-bg);
+    outline: 2px solid var(--selection-border);
   }
   to {
     background: transparent;

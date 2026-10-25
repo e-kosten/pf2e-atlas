@@ -14,10 +14,10 @@
   cursor: pointer;
 }
 .result-row--selected > td {
-  background: var(--active-bg);
+  background: var(--selection-bg);
 }
 .result-row:focus-visible {
-  outline: 2px solid var(--active-border);
+  outline: 2px solid var(--selection-border);
   outline-offset: -2px;
 }
 
@@ -100,7 +100,7 @@
 }
 
 .page-jump input:focus-visible {
-  outline: 2px solid var(--active-border);
+  outline: 2px solid var(--selection-border);
   outline-offset: 2px;
 }
 

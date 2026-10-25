@@ -181,7 +181,7 @@ export function RecordIdentity({
   ) => void;
 }) {
   const traits = identity?.traits.filter((trait) => trait.kind !== "rarity") ?? [];
-  const hasRarity = Boolean(identity?.rarity?.trim() && identity.rarity !== "common");
+  const hasRarity = Boolean(identity?.rarity?.trim());
   const secondaryActions = referenceRecord ? (
     <RecordProvenanceAction
       navigation={referenceRecord}

@@ -19,6 +19,30 @@ const edges: Record<number, string> = {
   12: "M24 10 L38 20 L33 36 L15 36 L10 20 Z M24 2 V10",
   20: "M24 2 L4 35 H44 Z",
 };
+const projectedOutlines = Object.fromEntries(
+  Object.entries(projectedDice).map(([sides, solid]) => [
+    Number(sides),
+    boundaryPath(solid.faces.map((face) => face.points)),
+  ]),
+) as Record<number, string>;
+
+function boundaryPath(faces: string[]): string {
+  const edges = new Map<string, { start: string; end: string; count: number }>();
+  for (const face of faces) {
+    const points = face.trim().split(/\s+/);
+    points.forEach((start, index) => {
+      const end = points[(index + 1) % points.length];
+      const key = [start, end].sort().join("|");
+      const edge = edges.get(key);
+      if (edge) edge.count += 1;
+      else edges.set(key, { start, end, count: 1 });
+    });
+  }
+  return [...edges.values()]
+    .filter((edge) => edge.count === 1)
+    .map(({ start, end }) => `M${start.replace(",", " ")}L${end.replace(",", " ")}`)
+    .join(" ");
+}
 const media = () => window.matchMedia("(prefers-reduced-motion: reduce)");
 function subscribe(listener: () => void) {
   const query = media();
@@ -77,7 +101,7 @@ export function DieFace({
             <>
               {solid.faces.map((face, i) => (
                 <g key={i}>
-                  <polygon points={face.points} />
+                  <polygon className="atlas-die__face" points={face.points} />
                   <polygon
                     className="atlas-die__shade"
                     points={face.points}
@@ -85,6 +109,10 @@ export function DieFace({
                   />
                 </g>
               ))}
+              <path
+                className="atlas-die__outline"
+                d={projectedOutlines[drawingSides]}
+              />
               <text
                 className="atlas-die__value"
                 style={sides >= 100 ? { fontSize: sides >= 1000 ? 9 : 11 } : undefined}
@@ -98,9 +126,9 @@ export function DieFace({
             </>
           ) : (
             <>
-              <path d={outlines[drawingSides]} />
+              <path className="atlas-die__outline" d={outlines[drawingSides]} />
               {edges[drawingSides] && (
-                <path className="atlas-die__edge" d={edges[drawingSides]} />
+                <path className="atlas-die__facet" d={edges[drawingSides]} />
               )}
               <text
                 className="atlas-die__value"

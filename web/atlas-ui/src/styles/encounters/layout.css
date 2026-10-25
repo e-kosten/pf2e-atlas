@@ -61,7 +61,7 @@
 
 .encounter-detail-header {
   align-items: flex-start;
-  background: var(--panel);
+  background: var(--context-bar-bg);
   border-bottom: 1px solid var(--line);
   display: flex;
   gap: 12px;

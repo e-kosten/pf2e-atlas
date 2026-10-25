@@ -211,7 +211,7 @@
   touch-action: none;
 }
 .list-member__drag-preview {
-  background: var(--surface);
+  background: var(--panel);
   box-shadow: var(--shadow);
 }
 .list-member__remove {

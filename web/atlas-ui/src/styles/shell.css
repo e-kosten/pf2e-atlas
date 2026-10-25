@@ -22,7 +22,7 @@
   overflow: visible;
 }
 .atlas-app__content:focus-visible {
-  outline: 2px solid var(--active-border);
+  outline: 2px solid var(--selection-border);
   outline-offset: -2px;
 }
 .atlas-app > .skip-link {
@@ -32,14 +32,14 @@
   transform: translateY(-200%);
   display: block;
   padding: 8px 12px;
-  border: 1px solid var(--active-border);
+  border: 1px solid var(--selection-border);
   border-radius: var(--radius-sm);
   background: var(--panel);
-  color: var(--accent-text);
+  color: var(--link);
 }
 .atlas-app > .skip-link:focus-visible {
   transform: none;
-  outline: 2px solid var(--active-border);
+  outline: 2px solid var(--selection-border);
   outline-offset: 2px;
 }
 
@@ -51,16 +51,26 @@
   gap: 16px;
   min-height: 56px;
   padding: 0 20px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
+  border-bottom: 1px solid var(--shell-border);
+  background: var(--shell-bg);
+  color: var(--shell-text);
 }
 
 .topbar__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
   font-size: 20px;
   line-height: 1.15;
   font-weight: 700;
   white-space: nowrap;
+  color: var(--brand-text);
+}
+
+.topbar__brand img {
+  width: 20px;
+  height: 23px;
 }
 
 .topbar__nav {
@@ -148,6 +158,41 @@
   font-weight: 700;
 }
 
+.encounter-detail-view .workspace-grid {
+  padding: 0;
+  background: var(--panel);
+}
+
+.encounter-detail-view .pane-header {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--panel);
+}
+
+.encounter-detail-view
+  .workspace-pane
+  > :is(.filter-panel, .results-panel, .detail-panel),
+.encounter-detail-view .pane-rail {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.encounter-detail-view .pane-resizer {
+  background: var(--panel);
+}
+
+.encounter-detail-view .pane-resizer::after {
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--line);
+  content: "";
+  pointer-events: none;
+}
+
 .pane-header span {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -214,7 +259,7 @@
 
 .pane-toggle:hover,
 .pane-toggle:focus-visible {
-  color: var(--accent-text);
+  color: var(--link);
 }
 
 .workspace-pane > .filter-panel,
@@ -259,7 +304,7 @@
 
 .pane-resizer:hover::before,
 .pane-resizer:focus-visible::before {
-  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  background: color-mix(in srgb, var(--primary) 24%, transparent);
 }
 
 .pane-resizer[aria-disabled="true"] {
@@ -268,8 +313,8 @@
 
 .pane-rail:hover,
 .pane-rail:focus-visible {
-  color: var(--accent-text);
-  border-color: var(--accent);
+  color: var(--link);
+  border-color: var(--primary);
 }
 
 .filter-panel,

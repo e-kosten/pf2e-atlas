@@ -1,6 +1,6 @@
 import { usePageTitle } from "../shared/browser/usePageTitle";
 import { ConfigProvider, Alert, App } from "antd";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useState } from "react";
 import {
   COLOR_SCHEME_STORAGE_KEY,
   antDesignTheme,
@@ -90,8 +90,9 @@ export function AtlasApp() {
       !searchProfile.storedVectors,
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.dataset.theme = resolvedColorScheme;
+    document.documentElement.style.colorScheme = resolvedColorScheme;
     Object.entries(atlasCssVariables(resolvedColorScheme)).forEach(
       ([property, value]) => {
         document.documentElement.style.setProperty(property, String(value));
