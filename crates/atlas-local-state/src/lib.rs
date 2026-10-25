@@ -31,7 +31,10 @@ pub use encounters::{
     StoredStrikeOutcome, StoredStrikeReceipt, StoredStrikeRoll, UpdateEncounter,
     UpdateEncounterParticipant, UpdateEncounterParticipantCondition, WakingRule,
 };
-pub use encounters::{SavedOutgoingTurn, TurnResourceEffect, TurnResources};
+pub use encounters::{
+    SavedOutgoingTurn, TurnActionAdjustment, TurnActionAllocation, TurnResourceEffect,
+    TurnResources,
+};
 pub use error::{LocalStateError, LocalStateResult};
 pub use saved_lists::{
     AddSavedListItemOutcome, HydratedSavedListItem, ImportSavedList, ImportSavedListItem,

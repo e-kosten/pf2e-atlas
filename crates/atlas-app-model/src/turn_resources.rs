@@ -4,6 +4,7 @@ use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct TurnResourcesView {
+    pub action_calculation: TurnActionCalculationView,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub inherent_conditions: Option<InherentActionConditionsView>,
@@ -22,6 +23,17 @@ pub struct TurnResourcesView {
     pub can_edit_actions: bool,
     pub can_spend_actions: crate::RuntimeCapabilityView,
     pub can_spend_reactions: crate::RuntimeCapabilityView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TurnActionCalculationView {
+    ThisTurn {
+        count: Option<crate::RuntimeCountView>,
+        changes: Vec<crate::RuntimeAdjustmentView>,
+    },
+    NextTurn {
+        count: crate::RuntimeCountView,
+    },
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct InherentActionConditionsView {

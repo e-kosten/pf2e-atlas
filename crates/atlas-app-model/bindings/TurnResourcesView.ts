@@ -3,6 +3,7 @@ import type { ConditionExtraActionView } from "./ConditionExtraActionView";
 import type { InherentActionConditionsView } from "./InherentActionConditionsView";
 import type { RuntimeCapabilityView } from "./RuntimeCapabilityView";
 import type { RuntimeCountView } from "./RuntimeCountView";
+import type { TurnActionCalculationView } from "./TurnActionCalculationView";
 import type { TurnResourceResultView } from "./TurnResourceResultView";
 
-export type TurnResourcesView = { inherent_conditions?: InherentActionConditionsView, turn_key: string | null, round_number: bigint | null, regular_total: bigint | null, regular_remaining: bigint | null, extra_total: bigint | null, extra_remaining: bigint | null, extra_uses: Array<ConditionExtraActionView>, reactions_total: bigint | null, reactions_remaining: bigint | null, start_results: Array<TurnResourceResultView>, pending_reason: string | null, forecast: RuntimeCountView, can_edit_actions: boolean, can_spend_actions: RuntimeCapabilityView, can_spend_reactions: RuntimeCapabilityView, };
+export type TurnResourcesView = { action_calculation: TurnActionCalculationView, inherent_conditions?: InherentActionConditionsView, turn_key: string | null, round_number: bigint | null, regular_total: bigint | null, regular_remaining: bigint | null, extra_total: bigint | null, extra_remaining: bigint | null, extra_uses: Array<ConditionExtraActionView>, reactions_total: bigint | null, reactions_remaining: bigint | null, start_results: Array<TurnResourceResultView>, pending_reason: string | null, forecast: RuntimeCountView, can_edit_actions: boolean, can_spend_actions: RuntimeCapabilityView, can_spend_reactions: RuntimeCapabilityView, };
