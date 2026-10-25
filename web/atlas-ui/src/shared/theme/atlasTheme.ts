@@ -20,12 +20,14 @@ export const atlasTheme = {
 
 const FONT_FAMILY =
   'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+const WORDMARK_FONT_FAMILY = '"Lora Variable", Lora, Georgia, serif';
 
 export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
   const palette = resolveAtlasPalette(scheme);
   const token = antTheme.getDesignToken(antDesignTheme(scheme));
   return {
     "--theme-font": FONT_FAMILY,
+    "--wordmark-font": WORDMARK_FONT_FAMILY,
     "--heading-color": palette.text,
     "--record-kind-text": palette.recordKind.text,
     "--record-kind-bg": palette.recordKind.background,
@@ -35,6 +37,22 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     "--shell-text": palette.shell.text,
     "--shell-border": palette.shell.border,
     "--brand-text": palette.brand.text,
+    "--brand-mark-ring": palette.brand.mark.ring,
+    "--brand-mark-inner": palette.brand.mark.inner,
+    "--brand-mark-cardinal": palette.brand.mark.cardinal,
+    "--brand-mark-shade": palette.brand.mark.shade,
+    "--brand-mark-outline": palette.brand.mark.outline,
+    "--brand-mark-secondary": palette.brand.mark.secondary,
+    "--brand-mark-tick": palette.brand.mark.tick,
+    "--brand-mark-die-rim": palette.brand.mark.dieRim,
+    "--brand-mark-die-field": palette.brand.mark.dieField,
+    ...Object.fromEntries(
+      palette.brand.mark.dieFaces.map((color, index) => [
+        `--brand-mark-die-face-${index}`,
+        color,
+      ]),
+    ),
+    "--action-glyph": palette.actionGlyph,
     "--filter-include-text": palette.filter.include.text,
     "--filter-include-bg": palette.filter.include.background,
     "--filter-include-border": palette.filter.include.border,
@@ -86,6 +104,20 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     "--panel-gap": `${atlasTheme.density.panelGap}px`,
     "--panel-padding": `${atlasTheme.density.panelPadding}px`,
   } as CSSProperties;
+}
+
+export function applyAtlasDocumentTheme(
+  document: Document,
+  scheme: ResolvedColorScheme,
+) {
+  document.documentElement.dataset.theme = scheme;
+  document.documentElement.style.colorScheme = scheme;
+  Object.entries(atlasCssVariables(scheme)).forEach(([property, value]) => {
+    document.documentElement.style.setProperty(property, String(value));
+  });
+  document
+    .querySelector<HTMLLinkElement>("link[data-atlas-favicon]")
+    ?.setAttribute("href", `/favicon-${scheme}.svg`);
 }
 
 export function antDesignTheme(scheme: ResolvedColorScheme): ThemeConfig {
