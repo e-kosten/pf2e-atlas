@@ -14,6 +14,11 @@ pub enum ConditionEventChange {
     },
 }
 #[derive(Debug, Clone)]
+pub struct ConsumedConditionApplication {
+    pub participant_key: String,
+    pub origin: super::ConditionOrigin,
+}
+#[derive(Debug, Clone)]
 pub struct ParticipantEventChange {
     pub level_override: Option<i64>,
     pub base_death_threshold: i64,
@@ -66,6 +71,7 @@ pub struct SavedPendingConsequence {
 }
 #[derive(Debug, Clone, Default)]
 pub struct PreparedConditionEvent {
+    pub consumed_applications: Vec<ConsumedConditionApplication>,
     pub turn_resources: Vec<super::TurnResources>,
     pub condition_changes: Vec<ConditionEventChange>,
     pub participant_changes: Vec<ParticipantEventChange>,

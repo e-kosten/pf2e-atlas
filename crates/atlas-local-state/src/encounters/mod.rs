@@ -8,11 +8,11 @@ mod event_model;
 mod events;
 pub use event_model::{
     CheckDegree, ConditionEventBoundary, ConditionEventChange, ConditionEventOutcome,
-    ConditionEventSource, DamageLethality, EncounterBoundaryClaim, EncounterBoundaryKind,
-    EncounterEventReceipt, LifecycleCheckPurpose, ParticipantEventChange, PendingConsequence,
-    PersistentDamageOutcome, PersistentDamageProtection, PersistentPrecedenceChange,
-    PersistentPreparationContext, PreparedConditionEvent, PreparedPersistentRecovery,
-    SavedHpEventContext, SavedPendingConsequence,
+    ConditionEventSource, ConsumedConditionApplication, DamageLethality, EncounterBoundaryClaim,
+    EncounterBoundaryKind, EncounterEventReceipt, LifecycleCheckPurpose, ParticipantEventChange,
+    PendingConsequence, PersistentDamageOutcome, PersistentDamageProtection,
+    PersistentPrecedenceChange, PersistentPreparationContext, PreparedConditionEvent,
+    PreparedPersistentRecovery, SavedHpEventContext, SavedPendingConsequence,
 };
 mod condition_parameters;
 pub use condition_parameters::{
