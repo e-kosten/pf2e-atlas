@@ -1,10 +1,12 @@
-import { atlasRouter } from "./router";
+import { atlasRouter, type AtlasRouter } from "./router";
 import { selectedNavigation } from "./urlState";
 import type { SearchPageInput } from "./destinations";
 
-export function currentSearchLocation(): SearchPageInput | null {
-  const location = atlasRouter.latestLocation;
-  const matches = atlasRouter.matchRoutes(location.pathname, location.search);
+export function currentSearchLocation(
+  router: AtlasRouter = atlasRouter,
+): SearchPageInput | null {
+  const location = router.latestLocation;
+  const matches = router.matchRoutes(location.pathname, location.search);
   const match = matches.find((match) => match.staticData.section === "search");
   if (!match) return null;
   try {

@@ -1,10 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { TraitView } from "../features/records/TraitView";
-import {
-  stringifySearchParams,
-  selectedNavigation,
-  validateReadingSearch,
-} from "../app/urlState";
+import { stringifySearchParams } from "../app/urlState";
 export const Route = createFileRoute("/traits/$traitKey")({
   staticData: { section: "reference" },
   component: Page,

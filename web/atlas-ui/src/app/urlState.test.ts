@@ -1,3 +1,4 @@
+import { documentSection } from "./urlState";
 import { describe, expect, it } from "vitest";
 import {
   parseSearchParams,
@@ -62,4 +63,13 @@ describe("Router URL transport", () => {
       "Invalid record navigation URL",
     );
   });
+});
+
+it.each([
+  ["/records/a#creature-a%3Ab-casting", "creature-a:b-casting"],
+  ["/records/a#literal%2523-%E9%9B%AA", "literal%23-雪"],
+  ["/records/a#%", "%"],
+  ["/records/a", undefined],
+])("restores document section from %s exactly once", (href, expected) => {
+  expect(documentSection(href)).toBe(expected);
 });

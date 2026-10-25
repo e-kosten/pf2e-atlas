@@ -25,6 +25,7 @@ export function useFilterUrlRecovery(
     delete next.relationships;
     void atlasRouter.navigate({
       to: ".",
+      hash: true,
       search: next,
       replace: true,
       resetScroll: false,

@@ -1,7 +1,7 @@
 import { createFileRoute, useLocation } from "@tanstack/react-router";
 import { RecordView } from "../features/records/RecordViews";
 import {
-  stringifySearchParams,
+  documentSection,
   selectedNavigation,
   validateReadingSearch,
 } from "../app/urlState";
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/records/$recordKey")({
 function Page() {
   const params = Route.useParams();
   const search = Route.useSearch();
-  const section = useLocation({ select: (location) => location.hash });
+  const section = useLocation({ select: (location) => documentSection(location.href) });
   return (
     <RecordView
       key={params.recordKey}

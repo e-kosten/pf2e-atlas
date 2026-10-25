@@ -1,9 +1,3 @@
-import { navigateDestination } from "./navigation";
-import {
-  searchDestination,
-  encountersDestination,
-  listsDestination,
-} from "./destinations";
 import { usePageTitle } from "../shared/browser/usePageTitle";
 import { ConfigProvider, Alert, App } from "antd";
 import { Activity, Suspense, lazy, useEffect, useLayoutEffect, useState } from "react";
@@ -88,15 +82,6 @@ export function AtlasLayout() {
               activeView={section}
               colorScheme={colorScheme}
               onColorSchemeChange={updateColorScheme}
-              onNavigateSearch={() =>
-                navigateDestination(
-                  searchDestination({
-                    selectedRecordKey: null,
-                  }),
-                )
-              }
-              onNavigateEncounters={() => navigateDestination(encountersDestination())}
-              onNavigateLists={() => navigateDestination(listsDestination())}
               resolvedColorScheme={resolvedColorScheme}
               readiness={readiness.data}
               readinessError={readiness.error}

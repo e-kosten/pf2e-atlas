@@ -1,7 +1,10 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook as renderHookDom } from "@testing-library/react";
 import { readinessFixture } from "../../test/fixtures";
 import type { AppReadinessView } from "../../generated/atlas";
-import { ATLAS_ROUTE_CHANGE_EVENT } from "../../app/routes";
+import { RouterTestContext } from "../../test/router";
+import { createAtlasRouter } from "../../app/router";
+import { createBrowserHistory, createMemoryHistory } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import {
   SEARCH_PROFILE_PREFERENCE_KEY,
   useSearchProfileSelection,
@@ -40,19 +43,19 @@ it.each([
   },
 );
 
-it("uses the server launch default and keeps unavailable explicit choices visible", () => {
+it("uses the server launch default and keeps unavailable explicit choices visible", async () => {
   const readiness = readinessFixture();
   readiness.default_search_profile = "embeddinggemma";
   const launch = renderHook(() => useSearchProfileSelection(readiness));
   expect(launch.result.current.id).toBe("embeddinggemma");
-  act(() => {
+  await act(async () => {
     history.replaceState(null, "", "/search?search_profile=unknown");
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
   expect(launch.result.current.id).toBe("unknown");
   expect(launch.result.current.error).toContain("not stored");
   expect(launch.result.current.storedVectors).toBe(false);
-  act(() => launch.result.current.select("embeddinggemma"));
+  await act(async () => launch.result.current.select("embeddinggemma"));
   readiness.search_profiles[1] = {
     ...readiness.search_profiles[1],
     assets_ready: false,
@@ -65,10 +68,24 @@ it("uses the server launch default and keeps unavailable explicit choices visibl
   expect(launch.result.current.error).toContain("unavailable for text search");
 });
 
-it("keeps live tabs independent, retains route changes, and honors explicit Back URLs", () => {
-  const first = renderHook(() => useSearchProfileSelection(readinessFixture()));
-  const otherTab = renderHook(() => useSearchProfileSelection(readinessFixture()));
-  act(() => first.result.current.select("embeddinggemma"));
+it("keeps live tabs independent, retains route changes, and honors explicit Back URLs", async () => {
+  const firstRouter = createAtlasRouter(
+    createMemoryHistory({ initialEntries: ["/search"] }),
+  );
+  const otherRouter = createAtlasRouter(
+    createMemoryHistory({ initialEntries: ["/search"] }),
+  );
+  const first = renderHookDom(() => useSearchProfileSelection(readinessFixture()), {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <RouterTestContext router={firstRouter}>{children}</RouterTestContext>
+    ),
+  });
+  const otherTab = renderHookDom(() => useSearchProfileSelection(readinessFixture()), {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <RouterTestContext router={otherRouter}>{children}</RouterTestContext>
+    ),
+  });
+  await act(async () => first.result.current.select("embeddinggemma"));
   expect(otherTab.result.current.id).toBe("bge-base");
   act(() =>
     window.dispatchEvent(
@@ -79,14 +96,15 @@ it("keeps live tabs independent, retains route changes, and honors explicit Back
     ),
   );
   expect(otherTab.result.current.id).toBe("bge-base");
-  act(() => {
-    history.replaceState(null, "", "/encounters");
-    window.dispatchEvent(new Event(ATLAS_ROUTE_CHANGE_EVENT));
+  await act(async () => {
+    await firstRouter.navigate({ to: "/encounters" });
   });
   expect(first.result.current.id).toBe("embeddinggemma");
-  act(() => {
-    history.replaceState(null, "", "/search?search_profile=bge-base");
-    window.dispatchEvent(new PopStateEvent("popstate"));
+  await act(async () => {
+    await firstRouter.navigate({
+      to: "/search",
+      search: { search_profile: "bge-base" },
+    });
   });
   expect(first.result.current.id).toBe("bge-base");
 });
@@ -119,3 +137,13 @@ it.each(["missing-profile", "embeddinggemma"])(
     expect(result.current.error).toBeNull();
   },
 );
+
+const renderHook: typeof renderHookDom = (callback, options) => {
+  const router = createAtlasRouter(createBrowserHistory());
+  return renderHookDom(callback, {
+    ...options,
+    wrapper: ({ children }) => (
+      <RouterTestContext router={router}>{children}</RouterTestContext>
+    ),
+  });
+};
