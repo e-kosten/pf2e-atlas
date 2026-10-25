@@ -74,13 +74,14 @@
 }
 .record-reference__title {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 8px 16px;
 }
 .record-reference__classification {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-inline-start: auto;
 }
@@ -96,7 +97,10 @@
   line-height: 1.2;
   text-wrap: pretty;
 }
-.record-reference__header .record-reference__kind {
+.record-reference__header p {
+  margin: 6px 0 0;
+}
+.record-reference__kind {
   margin: 0 0 0 auto;
   text-align: right;
   color: var(--record-kind-text);
@@ -107,9 +111,6 @@
   font-size: 0.9rem;
   font-weight: 600;
 }
-.record-reference__header p {
-  margin: 6px 0 0;
-}
 .record-reference__header--stacked .record-reference__title {
   align-items: flex-start;
   gap: var(--space-control) var(--space-group);
@@ -118,18 +119,6 @@
   display: grid;
   gap: var(--space-control);
   margin-top: var(--space-control);
-}
-.record-reference__header--stacked .record-reference__classification {
-  margin: 0;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-control);
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-.record-reference__header--stacked .record-reference__kind {
-  margin: 0;
-  text-align: start;
 }
 .record-reference__metadata .badge-row {
   margin: 0;
@@ -273,6 +262,19 @@
   margin: 0;
 }
 @container record-pane (max-width: 420px) {
+  .record-reference__title .record-reference__actions {
+    order: 1;
+  }
+  .record-reference__title .record-reference__classification {
+    flex: 1 0 100%;
+    justify-content: flex-start;
+    margin-inline-start: 0;
+    order: 2;
+  }
+  .record-reference__title .record-reference__classification > .record-reference__kind {
+    margin-inline-start: 0;
+    text-align: start;
+  }
   .prepared-content :is(th, td) {
     padding-inline: var(--space-control);
   }
