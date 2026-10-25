@@ -1,3 +1,4 @@
+import { RouterTestContext } from "../../test/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -77,11 +78,13 @@ function setup(initial: SearchFormState = DEFAULT_SEARCH_STATE) {
       <QueryClientProvider
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
-        <SearchProfileProvider>
-          <LinkPickerContext value={LinkConditionPicker}>
-            <Harness />
-          </LinkPickerContext>
-        </SearchProfileProvider>
+        <RouterTestContext>
+          <SearchProfileProvider>
+            <LinkPickerContext value={LinkConditionPicker}>
+              <Harness />
+            </LinkPickerContext>
+          </SearchProfileProvider>
+        </RouterTestContext>
       </QueryClientProvider>
     </ConfigProvider>,
   );

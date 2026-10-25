@@ -1,10 +1,10 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import type { AppReadinessView, SearchProfileId } from "../../generated/atlas";
-import { ATLAS_ROUTE_CHANGE_EVENT } from "../../app/routes";
-
+import { useRouter, useRouterState } from "@tanstack/react-router";
+import { searchParam } from "../../app/urlState";
+import { currentSearchLocation } from "../../app/searchLocation";
 export const SEARCH_PROFILE_PREFERENCE_KEY = "atlas.search.profile.v1";
 export const SEARCH_PROFILE_PARAM = "search_profile";
-
 export type SearchProfileSelection = {
   id: SearchProfileId | null;
   pendingUrlProfile: string | null;
@@ -17,7 +17,6 @@ export type SearchProfileSelection = {
   resetLink: () => void;
   select: (id: SearchProfileId) => void;
 };
-
 export const SearchProfileContext = createContext<SearchProfileSelection>({
   id: null,
   pendingUrlProfile: null,
@@ -30,15 +29,9 @@ export const SearchProfileContext = createContext<SearchProfileSelection>({
   resetLink: () => {},
   select: () => {},
 });
-
 export function useSearchProfile() {
   return useContext(SearchProfileContext);
 }
-
-function urlProfile() {
-  return new URLSearchParams(window.location.search).get(SEARCH_PROFILE_PARAM);
-}
-
 function storedProfile() {
   try {
     return localStorage.getItem(SEARCH_PROFILE_PREFERENCE_KEY);
@@ -46,13 +39,11 @@ function storedProfile() {
     return null;
   }
 }
-
 type ProfileChoice = {
   id: string;
   source: "url" | "preference" | "default" | "selection";
 };
-function initialChoice(): ProfileChoice | null {
-  const explicit = urlProfile();
+function initialChoice(explicit: string | null): ProfileChoice | null {
   if (explicit !== null) return { id: explicit, source: "url" };
   const preference = storedProfile();
   return preference === null ? null : { id: preference, source: "preference" };
@@ -67,12 +58,19 @@ function defaultChoice(readiness: AppReadinessView): ProfileChoice {
     (stored.length === 1 ? stored[0].id : readiness.default_search_profile);
   return { id, source: "default" };
 }
-
 /** AtlasApp owns this tab's choice; storage is consulted only on initial launch. */
 export function useSearchProfileSelection(
   readiness: AppReadinessView | undefined,
 ): SearchProfileSelection {
-  const [choice, setChoice] = useState(initialChoice);
+  const router = useRouter();
+  const [choice, setChoice] = useState(() =>
+    initialChoice(
+      searchParam(router.latestLocation.search, SEARCH_PROFILE_PARAM) ?? null,
+    ),
+  );
+  const explicitProfile = useRouterState({
+    select: (state) => searchParam(state.location.search, SEARCH_PROFILE_PARAM),
+  });
   const preferred = readiness?.search_profiles.find(
     (profile) => profile.id === choice?.id,
   );
@@ -84,18 +82,12 @@ export function useSearchProfileSelection(
         : defaultChoice(readiness)
       : choice;
   if (resolved !== choice) setChoice(resolved);
-  useEffect(() => {
-    const restore = () => {
-      const explicit = urlProfile();
-      if (explicit !== null) setChoice({ id: explicit, source: "url" });
-    };
-    window.addEventListener("popstate", restore);
-    window.addEventListener(ATLAS_ROUTE_CHANGE_EVENT, restore);
-    return () => {
-      window.removeEventListener("popstate", restore);
-      window.removeEventListener(ATLAS_ROUTE_CHANGE_EVENT, restore);
-    };
-  }, []);
+  const [observedProfile, setObservedProfile] = useState(explicitProfile);
+  if (observedProfile !== explicitProfile) {
+    setObservedProfile(explicitProfile);
+    if (explicitProfile !== undefined && choice?.id !== explicitProfile)
+      setChoice({ id: explicitProfile, source: "url" });
+  }
   const id = readiness ? resolved!.id : null;
   const profiles = readiness?.search_profiles ?? [];
   const selected = profiles.find((profile) => profile.id === id);
@@ -126,13 +118,18 @@ export function useSearchProfileSelection(
     resetLink: () => {
       if (!readiness) return;
       setChoice(defaultChoice(readiness));
-      const url = new URL(window.location.href);
-      url.searchParams.delete(SEARCH_PROFILE_PARAM);
-      history.replaceState(
-        { ...history.state, atlasSearchPage: 1 },
-        "",
-        url.pathname + url.search,
-      );
+      void router.navigate({
+        to: ".",
+        hash: true,
+        search: (search) => {
+          const next = { ...search };
+          delete next[SEARCH_PROFILE_PARAM];
+          return next;
+        },
+        replace: true,
+        resetScroll: false,
+        state: (state) => ({ ...state, atlasSearchPage: 1 }),
+      });
     },
     select: (next) => {
       setChoice({ id: next, source: "selection" });
@@ -141,15 +138,15 @@ export function useSearchProfileSelection(
       } catch {
         // Optional preferences never prevent a deliberate selection.
       }
-      if (window.location.pathname.startsWith("/search")) {
-        const url = new URL(window.location.href);
-        url.searchParams.set(SEARCH_PROFILE_PARAM, next);
-        history.replaceState(
-          { ...history.state, atlasSearchPage: 1 },
-          "",
-          url.pathname + url.search,
-        );
-      }
+      if (currentSearchLocation(router))
+        void router.navigate({
+          to: ".",
+          hash: true,
+          search: (search) => ({ ...search, [SEARCH_PROFILE_PARAM]: next }),
+          replace: true,
+          resetScroll: false,
+          state: (state) => ({ ...state, atlasSearchPage: 1 }),
+        });
     },
   };
 }

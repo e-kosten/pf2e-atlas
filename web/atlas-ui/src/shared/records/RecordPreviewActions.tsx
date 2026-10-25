@@ -1,8 +1,7 @@
+import { isPrimaryActivation } from "../../app/navigation";
 import { Button, Tooltip } from "antd";
 import { ArrowLeft, ExternalLink, X } from "lucide-react";
 import type { RecordPreviewContentProps } from "./recordPreviewTypes";
-import { shouldHandleAtlasRouteClick } from "../../app/routes";
-
 export function RecordPreviewActions({
   actions,
   secondaryActions,
@@ -38,7 +37,7 @@ export function RecordPreviewActions({
             icon={<ExternalLink size={14} />}
             href={fullPageHref}
             onClick={(event) => {
-              if (fullPageHref && !shouldHandleAtlasRouteClick(event)) return;
+              if (fullPageHref && !isPrimaryActivation(event)) return;
               event.preventDefault();
               onOpenFullPage();
             }}

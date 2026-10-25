@@ -1,3 +1,10 @@
+import { Link, useRouter } from "@tanstack/react-router";
+import { AtlasLink } from "./AtlasLink";
+import {
+  searchDestination,
+  listsDestination,
+  encountersDestination,
+} from "./destinations";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useRef } from "react";
 import { Alert, Button, Menu, Popover, Segmented, Space, Typography } from "antd";
@@ -8,21 +15,11 @@ import type {
   ColorSchemePreference,
   ResolvedColorScheme,
 } from "../shared/theme/atlasTheme";
-import {
-  encountersPath,
-  listsPath,
-  searchPath,
-  shouldHandleAtlasRouteClick,
-  type AtlasRoute,
-} from "./routes";
 
 type AppShellProps = {
-  activeView: AtlasRoute["kind"];
+  activeView: "search" | "lists" | "encounters" | "reference";
   colorScheme: ColorSchemePreference;
   onColorSchemeChange: (preference: ColorSchemePreference) => void;
-  onNavigateLists: () => void;
-  onNavigateEncounters: () => void;
-  onNavigateSearch: () => void;
   resolvedColorScheme: ResolvedColorScheme;
   readiness: AppReadinessView | undefined;
   readinessError: Error | null;
@@ -30,14 +27,10 @@ type AppShellProps = {
   onCheckReadiness: () => void;
   children: React.ReactNode;
 };
-
 export function AppShell({
   activeView,
   colorScheme,
   onColorSchemeChange,
-  onNavigateLists,
-  onNavigateEncounters,
-  onNavigateSearch,
   resolvedColorScheme,
   readiness,
   readinessError,
@@ -45,34 +38,38 @@ export function AppShell({
   onCheckReadiness,
   children,
 }: AppShellProps) {
+  const router = useRouter();
   const contentRef = useRef<HTMLDivElement>(null);
   const themeTrigger = useRef<HTMLButtonElement>(null);
   const themeContent = useRef<HTMLDivElement>(null);
-  const selectedView = topLevelView(activeView);
+  const selectedView = activeView;
   const destinations = [
-    { key: "search", label: "Search", href: searchPath(), navigate: onNavigateSearch },
-    { key: "lists", label: "Lists", href: listsPath(), navigate: onNavigateLists },
+    {
+      key: "search",
+      label: "Search",
+      destination: searchDestination(),
+    },
+    {
+      key: "lists",
+      label: "Lists",
+      destination: listsDestination(),
+    },
     {
       key: "encounters",
       label: "Encounters",
-      href: encountersPath(),
-      navigate: onNavigateEncounters,
+      destination: encountersDestination(),
     },
   ];
   const navItems: MenuProps["items"] = destinations.map((destination) => ({
     key: destination.key,
     label: (
-      <a
-        href={destination.href}
+      <Link
+        {...destination.destination}
         aria-current={selectedView === destination.key ? "page" : undefined}
-        onClick={(event) => {
-          if (!shouldHandleAtlasRouteClick(event)) return;
-          event.preventDefault();
-          destination.navigate();
-        }}
+        activeProps={{ "aria-current": undefined }}
       >
         {destination.label}
-      </a>
+      </Link>
     ),
   }));
   const onNavClick: MenuProps["onClick"] = ({ key, domEvent }) => {
@@ -85,14 +82,17 @@ export function AppShell({
       domEvent.shiftKey
     )
       return;
-    destinations.find((destination) => destination.key === key)?.navigate();
+    const destination = destinations.find(
+      (destination) => destination.key === key,
+    )?.destination;
+    if (destination) void router.navigate(destination);
   };
   const availabilityError =
     readinessError?.message ??
     (readiness?.status === "blocked" ? readiness.message : null);
   return (
     <div
-      className={`atlas-app${activeView === "record" || activeView === "trait" ? " atlas-app--document" : ""}`}
+      className={`atlas-app${activeView === "reference" ? " atlas-app--document" : activeView === "search" ? " atlas-app--search" : ""}`}
       data-theme={resolvedColorScheme}
     >
       <Typography.Link
@@ -103,20 +103,15 @@ export function AppShell({
         Skip to main content
       </Typography.Link>
       <header className="topbar">
-        <Typography.Link
+        <AtlasLink
+          {...searchDestination()}
           className="topbar__brand"
           style={{ color: "var(--brand-text)" }}
           aria-label="PF2e Atlas"
-          href={searchPath()}
-          onClick={(event) => {
-            if (!shouldHandleAtlasRouteClick(event)) return;
-            event.preventDefault();
-            onNavigateSearch();
-          }}
         >
           <img src="/favicon.svg" alt="" />
           <span className="topbar__brand-prefix">PF2e </span>Atlas
-        </Typography.Link>
+        </AtlasLink>
         <Menu
           aria-label="Atlas views"
           className="topbar__nav"
@@ -195,10 +190,4 @@ export function AppShell({
       </div>
     </div>
   );
-}
-
-function topLevelView(activeView: AtlasRoute["kind"]): string {
-  if (activeView === "encounter" || activeView === "encounterEdit") return "encounters";
-  if (activeView === "list" || activeView === "listEdit") return "lists";
-  return activeView;
 }

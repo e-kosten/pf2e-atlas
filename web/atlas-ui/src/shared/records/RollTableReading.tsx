@@ -1,7 +1,8 @@
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { Alert, Button, Space, Table, Typography } from "antd";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import { getEmbeddedReading } from "../../api/atlasApi";
 import type {
   EmbeddedReadingEntryView,
@@ -14,11 +15,9 @@ import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent"
 import type { EmbeddedReadingContext } from "./EmbeddedAbilityReading";
 import { TableRollControl } from "./TableRollControl";
 import "../../styles/ui/roll-table.css";
-
 function address(navigation: RecordNavigationView) {
   return JSON.stringify(navigation.embedded_path);
 }
-
 export function RollTableReading({
   table,
   selection,
@@ -161,7 +160,6 @@ export function RollTableReading({
     </Space>
   );
 }
-
 function TableResultContent({
   entry,
   onReference,
@@ -177,13 +175,14 @@ function TableResultContent({
     const target = links[0].target!;
     return (
       <Typography.Link
-        href={atlasRoutePath({
-          kind: "record",
-          recordKey: target.record_key,
-          selection: target,
-        })}
+        href={destinationHref(
+          recordDestination({
+            recordKey: target.record_key,
+            selection: target,
+          }),
+        )}
         onClick={(event) => {
-          if (!shouldHandleAtlasRouteClick(event)) return;
+          if (!isPrimaryActivation(event)) return;
           event.preventDefault();
           onReference(target.record_key, event.currentTarget, target);
         }}
@@ -208,13 +207,14 @@ function TableResultContent({
           <Button
             key={index}
             type="link"
-            href={atlasRoutePath({
-              kind: "record",
-              recordKey: target.record_key,
-              selection: target,
-            })}
+            href={destinationHref(
+              recordDestination({
+                recordKey: target.record_key,
+                selection: target,
+              }),
+            )}
             onClick={(event) => {
-              if (!shouldHandleAtlasRouteClick(event)) return;
+              if (!isPrimaryActivation(event)) return;
               event.preventDefault();
               onReference(target.record_key, event.currentTarget, target);
             }}
@@ -226,7 +226,6 @@ function TableResultContent({
     </>
   );
 }
-
 // Plain table labels become the reference link itself. Rich prose keeps its existing renderer.
 function simpleResultLabel(entry: EmbeddedReadingEntryView): string | undefined {
   if (entry.content.length !== 1) return undefined;

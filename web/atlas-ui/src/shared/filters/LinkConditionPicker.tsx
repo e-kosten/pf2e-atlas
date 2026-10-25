@@ -1,3 +1,9 @@
+import {
+  isPrimaryActivation,
+  navigateDestination,
+  destinationHref,
+} from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { QuestionCircleOutlined } from "@ant-design/icons";
 import { Button, Form, Popover, Radio, Select, Typography, theme } from "antd";
 import { useRef, useState, type KeyboardEvent } from "react";
@@ -10,17 +16,10 @@ import { rootNavigation } from "../records/useReferenceReading";
 import { SearchPickerModal } from "../ui/pickers/SearchPickerModal";
 import type { PickerSelection } from "../ui/pickers/SearchPickerModal";
 import type { LinkPickerProps } from "./LinkPickerContext";
-import {
-  atlasRoutePath,
-  navigateToAtlasRoute,
-  shouldHandleAtlasRouteClick,
-} from "../../app/routes";
-
 type LinkFilterForm = {
   direction: QueryRelationshipDirection;
   includeContents: boolean;
 };
-
 export function LinkConditionPicker({
   open,
   initial,
@@ -88,23 +87,26 @@ export function LinkConditionPicker({
       {(candidate || initial) && (
         <Typography.Link
           onClick={(event) => {
-            if (!shouldHandleAtlasRouteClick(event)) return;
+            if (!isPrimaryActivation(event)) return;
             event.preventDefault();
-            navigateToAtlasRoute({
-              kind: "record",
+            navigateDestination(
+              recordDestination({
+                recordKey:
+                  candidate?.record.record_key ?? initial!.selection.record_key,
+                selection: candidate
+                  ? rootNavigation(candidate.record.record_key)
+                  : initial!.selection,
+              }),
+            );
+          }}
+          href={destinationHref(
+            recordDestination({
               recordKey: candidate?.record.record_key ?? initial!.selection.record_key,
               selection: candidate
                 ? rootNavigation(candidate.record.record_key)
                 : initial!.selection,
-            });
-          }}
-          href={atlasRoutePath({
-            kind: "record",
-            recordKey: candidate?.record.record_key ?? initial!.selection.record_key,
-            selection: candidate
-              ? rootNavigation(candidate.record.record_key)
-              : initial!.selection,
-          })}
+            }),
+          )}
         >
           {candidate?.record.title ?? initialTitle ?? "Record unavailable"}
         </Typography.Link>

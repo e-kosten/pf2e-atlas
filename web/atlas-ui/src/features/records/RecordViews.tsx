@@ -1,3 +1,7 @@
+import { atlasRouter } from "../../app/router";
+import type { RecordPageInput } from "../../app/destinations";
+import { navigateDestination } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { recordLayout } from "../../shared/records/recordLayout";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
@@ -7,21 +11,23 @@ import { RecordPresentationIdentity } from "../../shared/records/RecordPresentat
 import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
-import { navigateToAtlasRoute, type AtlasRoute } from "../../app/routes";
-
 type RecordViewProps = {
-  route: Extract<AtlasRoute, { kind: "record" }>;
+  route: RecordPageInput;
 };
-
 export function RecordView({ route }: RecordViewProps) {
   const detail = useRecordDetail(route.recordKey, route.selection);
   usePageTitle(detail.data?.presentation.identity.title ?? "Record");
   const preview = useRecordPreview();
   const changeRank = (spell_rank: number | undefined) => {
     if (detail.data)
-      navigateToAtlasRoute({
-        ...route,
-        selection: { ...detail.data.selected, spell_rank },
+      void atlasRouter.navigate({
+        ...recordDestination({
+          ...route,
+          selection: { ...detail.data.selected, spell_rank },
+        }),
+        replace: true,
+        resetScroll: false,
+        state: true,
       });
   };
   return (
@@ -75,12 +81,13 @@ export function RecordView({ route }: RecordViewProps) {
           onReference={preview.open}
           onRankChange={preview.changeRank}
           onOpenFullPage={() => {
-            navigateToAtlasRoute({
-              kind: "record",
-              recordKey: preview.recordKey!,
-              selection: preview.selection,
-              landing: preview.landing,
-            });
+            navigateDestination(
+              recordDestination({
+                recordKey: preview.recordKey!,
+                selection: preview.selection,
+                landing: preview.landing,
+              }),
+            );
             preview.close();
           }}
         />

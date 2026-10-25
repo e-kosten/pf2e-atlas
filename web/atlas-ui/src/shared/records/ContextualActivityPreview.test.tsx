@@ -26,7 +26,8 @@ import {
 } from "../../test/fixtures";
 import { useRecordPreview } from "./useRecordPreview";
 import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
-import { atlasRoutePath } from "../../app/routes";
+import { destinationHref } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { AtlasApiError } from "../../api/atlasApi";
 
 const api = vi.hoisted(() => ({
@@ -137,11 +138,12 @@ function Flow({
           onClose={preview.close}
           onOpenFullPage={vi.fn()}
           onReference={preview.open}
-          fullPageHref={atlasRoutePath({
-            kind: "record",
-            recordKey: jaws.navigation.record_key,
-            selection: preview.selection,
-          })}
+          fullPageHref={destinationHref(
+            recordDestination({
+              recordKey: jaws.navigation.record_key,
+              selection: preview.selection,
+            }),
+          )}
         />
       )}
     </>

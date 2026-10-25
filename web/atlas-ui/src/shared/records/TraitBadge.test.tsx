@@ -1,10 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TraitBadge } from "./TraitBadge";
-import { currentAtlasRoute } from "../../app/routes";
 import { RecordBrowseSummary } from "./RecordBrowseSummary";
 import { summaryFixture } from "../../test/fixtures";
 
-it("opens exact variant definitions without triggering record selection", () => {
+it("opens exact variant definitions without triggering record selection", async () => {
   history.replaceState(null, "", "/search");
   const preview = vi.fn();
   const record = summaryFixture("weapons:dagger", "Dagger");
@@ -22,7 +21,7 @@ it("opens exact variant definitions without triggering record selection", () => 
   expect(link.parentElement?.closest("a")).toBeNull();
   fireEvent.click(link);
   expect(preview).not.toHaveBeenCalled();
-  expect(currentAtlasRoute()).toEqual({ kind: "trait", traitKey: "trait:deadly-d12" });
+  await waitFor(() => expect(location.pathname).toBe("/traits/trait:deadly-d12"));
 });
 
 it("retains plain labels for namespaces without a definition destination", () => {
@@ -46,5 +45,5 @@ it("preserves native modified clicks", () => {
     />,
   );
   fireEvent.click(screen.getByRole("link"), { ctrlKey: true });
-  expect(currentAtlasRoute().kind).toBe("search");
+  expect(location.pathname).toBe("/search");
 });

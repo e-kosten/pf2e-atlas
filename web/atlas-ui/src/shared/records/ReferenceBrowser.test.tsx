@@ -21,7 +21,7 @@ import {
 } from "../../test/fixtures";
 import { ReferenceBrowser } from "./ReferenceBrowser";
 import type { BrowsePositions } from "./useBrowsePositions";
-import { ATLAS_ROUTE_CHANGE_EVENT } from "../../app/routes";
+import { atlasRouter } from "../../app/router";
 import { parentShowsActivity, useReferenceReading } from "./useReferenceReading";
 import type {
   EmbeddedReadingBatchView,
@@ -329,7 +329,9 @@ it.each([true, false])(
     const reader = document.querySelector(".reference-reader__scroll")!;
     list.scrollTop = 211;
     reader.scrollTop = 400;
-    fireEvent(window, new Event(ATLAS_ROUTE_CHANGE_EVENT));
+    await act(async () => {
+      await atlasRouter.navigate({ to: "/lists" });
+    });
     if (desktop) expect(positions.saveList).toHaveBeenLastCalledWith(211);
     else expect(positions.saveList).not.toHaveBeenCalled();
     expect(positions.saveReader).toHaveBeenLastCalledWith(

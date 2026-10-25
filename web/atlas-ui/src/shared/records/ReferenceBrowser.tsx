@@ -1,7 +1,8 @@
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { Button, Empty, Popover, Spin } from "antd";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import type {
   RelationshipClauseSummaryView,
   RecordNavigationView,
@@ -9,11 +10,9 @@ import type {
 } from "../../generated/atlas";
 import { type BrowsePositions } from "./useBrowsePositions";
 import { rootNavigation, type ReferenceReading } from "./useReferenceReading";
-
 import { BrowseReader } from "./BrowseReader";
 import { RelationshipEvidence } from "./RelationshipEvidence";
 import { RecordBrowseSummary } from "./RecordBrowseSummary";
-
 export function ReferenceBrowser({
   rows,
   loading,
@@ -96,7 +95,6 @@ export function ReferenceBrowser({
     </BrowseReader>
   );
 }
-
 function ReferenceResult({
   row,
   selected,
@@ -191,13 +189,14 @@ function ReferenceResult({
                       justifyContent: "flex-start",
                     },
                   }}
-                  href={atlasRoutePath({
-                    kind: "record",
-                    recordKey: match.navigation.record_key,
-                    selection: match.navigation,
-                  })}
+                  href={destinationHref(
+                    recordDestination({
+                      recordKey: match.navigation.record_key,
+                      selection: match.navigation,
+                    }),
+                  )}
                   onClick={(event) => {
-                    if (!shouldHandleAtlasRouteClick(event)) return;
+                    if (!isPrimaryActivation(event)) return;
                     event.preventDefault();
                     setMatchesOpen(false);
                     onMatch(match.navigation, trigger.current ?? event.currentTarget);

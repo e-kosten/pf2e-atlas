@@ -2,7 +2,8 @@ import {
   decodeSearchStateFromParams,
   type SearchFormState,
 } from "../../shared/filters/searchState";
-import { currentAtlasRoute } from "../../app/routes";
+import { currentSearchLocation } from "../../app/searchLocation";
+import { atlasRouter } from "../../app/router";
 import type { QueryFieldDefinition, QueryPredicate } from "../../generated/atlas";
 import {
   commonCondition,
@@ -10,9 +11,11 @@ import {
   conditionValues,
   isExcluded,
 } from "../../shared/filters/filterControls";
-
 export const KIND_PREFERENCE_KEY = "atlas.search.kind-default.v1";
-type KindPreference = { include: string[]; exclude: string[] };
+type KindPreference = {
+  include: string[];
+  exclude: string[];
+};
 function readKindPreference(): KindPreference | null {
   try {
     const value: unknown = JSON.parse(
@@ -84,14 +87,12 @@ function preferredKindPredicate(): QueryPredicate | null {
   }
   return children.length > 1 ? { kind: "all_of", children } : (children[0] ?? null);
 }
-
 export type WorkspaceInteractionState = {
   search: SearchFormState;
   selectedRecordKey: string | null;
   pageNumber: number;
   activeSearch: SearchFormState;
 };
-
 export type WorkspaceInteractionEvent =
   | {
       type: "url.restored";
@@ -99,29 +100,44 @@ export type WorkspaceInteractionEvent =
       search: SearchFormState;
       selectedRecordKey: string | null;
     }
-  | { type: "search.changed"; search: SearchFormState }
-  | { type: "search.executionCommitted"; search: SearchFormState }
-  | { type: "resultPage.changed"; pageNumber: number }
-  | { type: "record.selected"; recordKey: string | null };
-
+  | {
+      type: "search.changed";
+      search: SearchFormState;
+    }
+  | {
+      type: "search.executionCommitted";
+      search: SearchFormState;
+    }
+  | {
+      type: "resultPage.changed";
+      pageNumber: number;
+    }
+  | {
+      type: "record.selected";
+      recordKey: string | null;
+    };
 export function initialWorkspaceInteractionState(): WorkspaceInteractionState {
-  let search = decodeSearchStateFromParams(new URLSearchParams(window.location.search));
-  const route = currentAtlasRoute();
-  if (window.location.pathname === "/search" && !window.location.search)
+  let search = decodeSearchStateFromParams(
+    new URLSearchParams(atlasRouter.latestLocation.searchStr),
+  );
+  const route = currentSearchLocation();
+  if (
+    atlasRouter.latestLocation.pathname === "/search" &&
+    !atlasRouter.latestLocation.searchStr
+  )
     search = { ...search, filter: preferredKindPredicate() };
   return {
     search,
-    selectedRecordKey: route.kind === "search" ? route.selectedRecordKey : null,
+    selectedRecordKey: route?.selectedRecordKey ?? null,
     pageNumber:
       !search.filterWasReset &&
-      Number.isSafeInteger(history.state?.atlasSearchPage) &&
-      history.state.atlasSearchPage > 0
-        ? history.state.atlasSearchPage
+      Number.isSafeInteger(atlasRouter.latestLocation.state.atlasSearchPage) &&
+      (atlasRouter.latestLocation.state.atlasSearchPage ?? 0) > 0
+        ? atlasRouter.latestLocation.state.atlasSearchPage!
         : 1,
     activeSearch: search,
   };
 }
-
 export function workspaceInteractionReducer(
   state: WorkspaceInteractionState,
   event: WorkspaceInteractionEvent,

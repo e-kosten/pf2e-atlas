@@ -1,3 +1,4 @@
+import { atlasRouter } from "../../app/router";
 import { App } from "antd";
 import { useEffect, useRef } from "react";
 import type { SearchFormState } from "./searchState";
@@ -19,14 +20,17 @@ export function useFilterUrlRecovery(
     }
     if (handled.current) return;
     handled.current = true;
-    const url = new URL(window.location.href);
-    url.searchParams.delete("filter");
-    url.searchParams.delete("relationships");
-    history.replaceState(
-      { ...history.state, atlasSearchPage: 1 },
-      "",
-      url.pathname + url.search + url.hash,
-    );
+    const next = { ...atlasRouter.latestLocation.search };
+    delete next.filter;
+    delete next.relationships;
+    void atlasRouter.navigate({
+      to: ".",
+      hash: true,
+      search: next,
+      replace: true,
+      resetScroll: false,
+      state: (state) => ({ ...state, atlasSearchPage: 1 }),
+    });
     const { filterWasReset: _reset, ...restored } = search;
     onRecovered(restored);
     void message.info({ key: "filter-url-reset", content: FILTER_URL_RESET_NOTICE });
