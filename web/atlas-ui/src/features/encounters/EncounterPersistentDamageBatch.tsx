@@ -361,11 +361,11 @@ export function EncounterPersistentDamageBatch({
               (source) => source.condition_id === group.selected_source_id,
             );
             const resolution = resolutions[group.episode_id];
-            const protection =
-              saved?.protection ??
-              currentOutcome?.protection ??
-              (resolution?.kind === "known" ? resolution.protection : undefined) ??
-              rolled?.protection;
+            const protection = saved
+              ? saved.protection
+              : (currentOutcome?.protection ??
+                (resolution?.kind === "known" ? resolution.protection : undefined) ??
+                rolled?.protection);
             const note = protection?.immune
               ? `Immune to ${label.toLowerCase()}`
               : protection

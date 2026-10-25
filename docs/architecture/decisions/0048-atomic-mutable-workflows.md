@@ -125,6 +125,9 @@ Independent preparation claims deduplicate per-type rolls, while the ordinary
 damage/recovery claims remain unconsumed until final application. Read-only draft
 previews do not write receipts or roll dice. ADR0055 owns source binding and the
 single final HP/recovery event.
+Final application reads and validates preparation claims in its workspace write
+snapshot after receipt recovery. Encounter revision alone cannot detect a new
+receipt-only preparation; no earlier read can authorize omitting that result.
 
 Receipts are retained for the encounter lifetime and cascade on encounter deletion;
 there is no automatic time-based pruning and no recovery guarantee after deletion.
@@ -197,8 +200,12 @@ plan HP and condition consequences. Local-state commits the complete prepared
 changes, typed outcomes, pending decisions and receipt atomically. Boundary claims
 prevent a second accepted end-turn batch or recovery under a different request ID.
 Matching retries recover the saved receipt before source/revision checks and RNG.
-Independent condition sources retain parameters and application provenance;
-aggregate mortality counters normalize their active contributors on actual counter
+Independent condition sources retain parameters and application provenance.
+Application identity remains claimed after removal or consumption before source
+insertion. The latter uses a typed consumed-application write with no source row
+ID. Local-state claims both forms through the same atomic identity guard, so a new
+request ID cannot repeat one application's consequences.
+Aggregate mortality counters normalize their active contributors on actual counter
 changes. Unconscious entry can create lasting Prone; removing its source does not
 undo that consequence. Correction intents do not replay application consequences.
 Unknown facts remain pending or require input before a dependent check; they never
