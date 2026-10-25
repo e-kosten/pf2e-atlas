@@ -176,7 +176,7 @@
   scroll-margin-block-start: var(--space-section);
 }
 .creature-reference [tabindex="-1"]:focus-visible {
-  outline: 2px solid var(--active-border);
+  outline: 2px solid var(--selection-border);
   outline-offset: var(--space-control);
 }
 .creature-reference__rules {

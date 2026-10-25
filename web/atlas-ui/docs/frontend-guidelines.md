@@ -271,19 +271,22 @@ optional control row, and one restrained table surface. Reading and editing page
 use one bounded document column, with hierarchy supplied by typography, spacing
 and rules rather than a card around each section.
 
-Search, saved-list browsing and encounter runtime are full-bleed workbenches.
+Search, saved-list browsing and encounter runtime are continuous workbenches.
 Their context or filter strip is separated from the workspace by a rule, and the
-workspace panes form one continuous surface. Pane headers inherit that surface
-and use a bottom rule; pane boundaries use a visible divider while preserving a
-larger resize target. Do not give persistent workbench panes an outer gutter,
-rounded card frame, shadow or separately filled heading cap. A card remains
-appropriate for a genuinely independent object or transient elevated surface,
-not for the primary regions of a split workspace.
+workspace panes form one continuous surface. Search and encounter workbenches
+may center and cap the complete pane system at 100rem on very wide displays; the
+cap applies to the whole workspace, never to each pane or reader independently.
+Pane headers inherit that surface and use a bottom rule; pane boundaries use a
+visible divider while preserving a larger resize target. Do not give persistent
+workbench panes an inset card frame, shadow or separately filled heading cap. A
+card remains appropriate for a genuinely independent object or transient
+elevated surface, not for the primary regions of a split workspace.
 
 The host types share semantic surfaces, spacing roles and header hierarchy, but
 they do not have identical geometry. Do not make an entity index edge-to-edge
 merely to resemble Search, and do not put Search or the encounter runtime inside
-an inset index sheet. Verify the selected host in both appearances and at wide,
+an inset index sheet. A wide-screen workbench cap is whitespace management, not
+a card treatment. Verify the selected host in both appearances and at wide,
 intermediate and phone widths; inspect scroll ownership, divider alignment and
 resize/focus behavior as well as the static screenshot.
 

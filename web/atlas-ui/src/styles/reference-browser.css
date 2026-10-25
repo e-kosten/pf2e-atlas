@@ -1,8 +1,11 @@
 .search-workspace {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100rem;
   height: 100%;
   min-height: 0;
+  margin-inline: auto;
 }
 .atlas-app:has(:is(.search-workspace, .list-workspace)) {
   position: fixed;

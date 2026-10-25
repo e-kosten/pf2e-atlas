@@ -52,6 +52,9 @@
   --hp-current: #2e7d32;
   --hp-bloodied: #c46a00;
   --hp-critical: #b12a37;
+  --hp-current-text: #2e6b32;
+  --hp-bloodied-text: #855000;
+  --hp-critical-text: #8c2934;
   --hp-temp: #74877d;
   --hp-missing: #f0e8dc;
   --radius-sm: 4px;

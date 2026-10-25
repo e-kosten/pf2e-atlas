@@ -96,7 +96,7 @@
   line-height: 1.2;
   text-wrap: pretty;
 }
-.record-reference__title .record-reference__kind {
+.record-reference__header .record-reference__kind {
   margin: 0 0 0 auto;
   text-align: right;
   color: var(--record-kind-text);
