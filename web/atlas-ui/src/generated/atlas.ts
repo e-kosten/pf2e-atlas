@@ -1,3 +1,5 @@
+export type { EncounterDifficultyAddition } from "../../../../crates/atlas-app-model/bindings/EncounterDifficultyAddition";
+export type { PreviewEncounterDifficultyRequest } from "../../../../crates/atlas-app-model/bindings/PreviewEncounterDifficultyRequest";
 export type { TurnResourceResultView } from "../../../../crates/atlas-app-model/bindings/TurnResourceResultView";
 export type { TurnResourceAction } from "../../../../crates/atlas-app-model/bindings/TurnResourceAction";
 export type { TurnResourceKind } from "../../../../crates/atlas-app-model/bindings/TurnResourceKind";

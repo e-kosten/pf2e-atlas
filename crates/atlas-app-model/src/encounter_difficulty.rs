@@ -13,6 +13,18 @@ pub struct SetEncounterDifficultyRequest {
     pub reference: EncounterDifficultyReferenceView,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct PreviewEncounterDifficultyRequest {
+    pub expected_revision: i64,
+    pub reference: EncounterDifficultyReferenceView,
+    pub addition: Option<EncounterDifficultyAddition>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct EncounterDifficultyAddition {
+    pub record_ref: String,
+    pub quantity: u32,
+    pub participant_variant: Option<crate::EncounterParticipantVariantView>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterDifficultyView {
     pub rules: Vec<EncounterDifficultyRuleView>,
     pub reference: EncounterDifficultyReferenceView,
@@ -24,6 +36,9 @@ pub struct EncounterDifficultyView {
     pub reference_note: Option<String>,
     pub total_xp: Option<u32>,
     pub known_xp: u32,
+    /// Suggested award normalized to a four-PC party; not persisted or distributed.
+    pub xp_per_pc: Option<u32>,
+    pub award_note: Option<String>,
     pub rating: Option<String>,
     pub budgets: Vec<EncounterDifficultyBudgetView>,
     pub opposition: Vec<EncounterDifficultyOpponentView>,
@@ -35,7 +50,8 @@ pub struct EncounterDifficultyBudgetView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterDifficultyOpponentView {
-    pub participant_key: String,
+    /// None for a prospective addition, which has no saved participant identity.
+    pub participant_key: Option<String>,
     pub name: String,
     pub kind: String,
     pub level: Option<i32>,

@@ -8,4 +8,8 @@ export type EncounterDifficultyView = { rules: Array<EncounterDifficultyRuleView
 /**
  * Effective budget count, including any supported mixed-level adjustment.
  */
-party_size: number | null, pc_count: number, basis: string, reference_note: string | null, total_xp: number | null, known_xp: number, rating: string | null, budgets: Array<EncounterDifficultyBudgetView>, opposition: Array<EncounterDifficultyOpponentView>, };
+party_size: number | null, pc_count: number, basis: string, reference_note: string | null, total_xp: number | null, known_xp: number,
+/**
+ * Suggested award normalized to a four-PC party; not persisted or distributed.
+ */
+xp_per_pc: number | null, award_note: string | null, rating: string | null, budgets: Array<EncounterDifficultyBudgetView>, opposition: Array<EncounterDifficultyOpponentView>, };

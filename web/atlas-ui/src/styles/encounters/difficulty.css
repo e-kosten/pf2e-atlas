@@ -1,10 +1,15 @@
 .encounter-difficulty {
+  display: grid;
+  gap: var(--space-control);
+}
+.encounter-difficulty__heading {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-control);
-  margin-top: var(--space-control);
+  justify-content: space-between;
 }
+
 .encounter-difficulty__reference,
 .encounter-difficulty__basis,
 .encounter-difficulty__opponent-kind,
@@ -99,4 +104,34 @@
 }
 .encounter-difficulty-meter__current {
   color: var(--difficulty-color);
+}
+
+.encounter-difficulty__award,
+.encounter-add-difficulty__heading,
+.encounter-add-difficulty__status {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+  justify-content: space-between;
+}
+.encounter-difficulty__award {
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-control);
+}
+.encounter-add-difficulty {
+  display: grid;
+  gap: var(--space-control);
+}
+.encounter-add-difficulty__heading > span,
+.encounter-add-difficulty__status {
+  color: var(--muted);
+  font-size: 12px;
+}
+.encounter-add-difficulty__heading > span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.encounter-add-difficulty__status {
+  align-items: center;
 }

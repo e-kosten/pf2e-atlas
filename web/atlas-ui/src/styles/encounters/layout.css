@@ -79,11 +79,6 @@
   overflow-wrap: anywhere;
 }
 
-.encounter-detail-header p {
-  color: var(--muted);
-  margin: 4px 0 0;
-}
-
 .encounter-pane {
   background: var(--panel);
   min-height: 100%;

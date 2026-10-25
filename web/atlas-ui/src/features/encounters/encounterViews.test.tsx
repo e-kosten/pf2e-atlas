@@ -2919,6 +2919,8 @@ function encounterDetailFixture(
       reference_note: null,
       total_xp: null,
       known_xp: 0,
+      xp_per_pc: null,
+      award_note: null,
       rating: null,
       budgets: [],
       opposition: [],

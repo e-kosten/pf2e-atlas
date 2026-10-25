@@ -224,6 +224,16 @@ are independent of names; no live HP, conditions, initiative or reference record
 are stored on parties. Web exposes party management through shared app contracts.
 Foundry import and character sheets remain separate future capabilities.
 
+Encounter difficulty is an app-service projection of planned opposition, effective
+source levels and typed hazard complexity against the encounter PC snapshot and
+optional guarded level/count overrides. Defeated/disabled state does not change
+planned XP. Missing source facts remain unavailable. The add-record footer uses a
+read-only revision-guarded projection; prospective entries have no saved participant
+identity. Actual addition and its preview share source/default preparation and the
+same effective-level and XP owners. Suggested XP per PC is separate from encounter
+budget XP: the pinned Foundry normalization is floor(XP × 4 / effective party size),
+with normally zero for trivial encounters. It does not award or persist character XP.
+
 Local-state owns complete atomic user actions and coherent aggregate reads.
 Participant replacements require the revision the caller read; stale writes
 receive a conflict without changing state. App-service owns pure turn selection

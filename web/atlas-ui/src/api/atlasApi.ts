@@ -1439,7 +1439,7 @@ export async function setEncounterDifficulty(
 }
 export async function previewEncounterDifficulty(
   encounterRef: string,
-  request: import("../generated/atlas").SetEncounterDifficultyRequest,
+  request: import("../generated/atlas").PreviewEncounterDifficultyRequest,
 ): Promise<import("../generated/atlas").EncounterDifficultyView> {
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/difficulty/preview`,

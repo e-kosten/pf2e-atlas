@@ -423,7 +423,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     },
   });
   const previewDifficulty = async (
-    request: import("../../generated/atlas").SetEncounterDifficultyRequest,
+    request: import("../../generated/atlas").PreviewEncounterDifficultyRequest,
   ) => {
     try {
       return await previewEncounterDifficulty(currentRef, request);

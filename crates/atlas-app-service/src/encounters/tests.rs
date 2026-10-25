@@ -41,7 +41,8 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
     let preview = worker
         .preview_encounter_difficulty(
             &encounter.encounter_key,
-            SetEncounterDifficultyRequest {
+            PreviewEncounterDifficultyRequest {
+                addition: None,
                 expected_revision: detail.revision,
                 reference: EncounterDifficultyReferenceView {
                     party_level: Some(5),

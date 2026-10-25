@@ -19,7 +19,6 @@ import type {
   AddEncounterManualParticipantRequest,
   AddEncounterRecordParticipantRequest,
   EncounterParticipantView,
-  EncounterParticipantVariantView,
   SearchResultsRequest,
   RecordDetailView,
   UpdateEncounterParticipantRequest,
@@ -31,11 +30,14 @@ import { participantUpdate } from "./participantEdits";
 import { InitiativePopover } from "./InitiativeRollModal";
 import { SearchPickerModal } from "../../shared/ui/pickers/SearchPickerModal";
 
-type AddRecordForm = {
-  quantity?: number | null;
-  initiative?: number | null;
-  adjustment?: EncounterParticipantVariantView;
-};
+import {
+  EncounterDifficulty,
+  type EncounterDifficultyProps,
+} from "./EncounterDifficulty";
+import {
+  EncounterAddDifficulty,
+  type EncounterRecordAddForm as AddRecordForm,
+} from "./EncounterAddDifficulty";
 
 type AddPcForm = {
   name: string;
@@ -45,6 +47,8 @@ type AddPcForm = {
 
 export function EncounterRosterPane({
   currentTurnParticipantKey,
+  encounterSummary,
+  difficulty,
   loading,
   onAddRecord,
   onAddManual,
@@ -67,6 +71,8 @@ export function EncounterRosterPane({
   slug,
 }: {
   currentTurnParticipantKey: string | null;
+  encounterSummary?: import("../../generated/atlas").EncounterSummaryView;
+  difficulty?: EncounterDifficultyProps;
   loading: boolean;
   onAddRecord: (request: AddEncounterRecordParticipantRequest) => Promise<boolean>;
   onAddParty: (
@@ -278,7 +284,11 @@ export function EncounterRosterPane({
       <header className="encounter-roster__header">
         <PrimaryToolbar className="encounter-roster__turn-bar">
           <div className="encounter-roster__turn-summary">
-            <span className="encounter-roster__turn-caption">Current turn</span>
+            <span className="encounter-roster__turn-caption">
+              {encounterSummary
+                ? `${encounterSummary.status} · Round ${encounterSummary.round_number}`
+                : "Current turn"}
+            </span>
             <strong>
               {currentParticipant?.display_name ??
                 (loading ? "Loading…" : "Not started")}
@@ -322,6 +332,7 @@ export function EncounterRosterPane({
             </Button>
           )}
         </PrimaryToolbar>
+        {difficulty && <EncounterDifficulty {...difficulty} />}
       </header>
       {loading ? (
         <div className="detail-empty">Loading encounter...</div>
@@ -389,6 +400,18 @@ export function EncounterRosterPane({
         selectedRecordKey={selectedRecordKey}
         title="Add creature or hazard"
         dismissLabel="Done"
+        summary={
+          difficulty && recordOpen ? (
+            <EncounterAddDifficulty
+              {...difficulty}
+              form={recordForm}
+              selectedRecordKey={selectedRecordKey}
+              creature={selectedIsCreature}
+              recordName={candidateName}
+              disabled={disabled}
+            />
+          ) : undefined
+        }
         status={
           added || (!disabled && committedAdd) ? (
             <span role="status" className="encounter-add-receipt">
@@ -638,7 +661,12 @@ function EncounterRecordAdjustment({
       form.setFields([{ name: "adjustment", value: resolved, touched: false }]);
   }, [form, matches, resolved]);
   return (
-    <Form.Item name="adjustment" label="Adjustment" preserve={false}>
+    <Form.Item
+      className="encounter-add-adjustment"
+      name="adjustment"
+      label="Adjustment"
+      preserve={false}
+    >
       <Select
         aria-label="Adjustment"
         placeholder="Unknown"

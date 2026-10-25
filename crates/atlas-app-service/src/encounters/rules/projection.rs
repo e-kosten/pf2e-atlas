@@ -594,18 +594,34 @@ pub(in crate::encounters) fn effective_participant_level(
     authored: Option<&Number>,
     adjustment_applicable: bool,
 ) -> Option<Number> {
-    if let Some(level) = participant.level_override {
+    effective_level(
+        participant.level_override,
+        participant.participant_variant,
+        participant.variant_origin,
+        authored,
+        adjustment_applicable,
+    )
+}
+
+pub(in crate::encounters) fn effective_level(
+    level_override: Option<i64>,
+    variant: atlas_local_state::ParticipantVariant,
+    origin: atlas_local_state::ParticipantVariantOrigin,
+    authored: Option<&Number>,
+    adjustment_applicable: bool,
+) -> Option<Number> {
+    if let Some(level) = level_override {
         return Some(level.into());
     }
     if !adjustment_applicable {
         return authored.cloned();
     }
-    if participant.variant_origin == atlas_local_state::ParticipantVariantOrigin::InheritedUnknown {
+    if origin == atlas_local_state::ParticipantVariantOrigin::InheritedUnknown {
         return None;
     }
     authored
         .and_then(integer)
-        .map(|level| Number::from(adjusted_npc_level(level, participant.participant_variant)))
+        .map(|level| Number::from(adjusted_npc_level(level, variant)))
         .or_else(|| authored.cloned())
 }
 

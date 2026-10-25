@@ -1,4 +1,3 @@
-import { EncounterDifficulty } from "./EncounterDifficulty";
 import { navigateDestination } from "../../app/navigation";
 import { recordDestination, encountersDestination } from "../../app/destinations";
 import { EncounterModalProvider } from "./EncounterModal";
@@ -201,30 +200,6 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           <section className="encounter-detail-header">
             <div>
               <h2>{encounterSummary?.name ?? route.slug}</h2>
-              <p>
-                {encounterSummary
-                  ? `${encounterSummary.status} - round ${encounterSummary.round_number ?? 1} - ${encounterSummary.participant_count} participants`
-                  : "Loading encounter"}
-              </p>
-              {encounter.data && (
-                <EncounterDifficulty
-                  encounterKey={encounter.data.encounter.encounter_key}
-                  revision={encounter.data.revision}
-                  value={encounter.data.difficulty}
-                  onPreview={mutations.previewDifficulty}
-                  onReference={recordPreview.open}
-                  disabled={mutationDisabled}
-                  onSave={async (reference) => {
-                    await mutations.run({
-                      kind: "difficulty",
-                      request: {
-                        expected_revision: encounter.data!.revision,
-                        reference,
-                      },
-                    });
-                  }}
-                />
-              )}
             </div>
             <Button
               aria-label="Settings"
@@ -307,6 +282,29 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
         <WorkspaceLayout
           filter={
             <EncounterRosterPane
+              encounterSummary={encounterSummary ?? undefined}
+              difficulty={
+                encounter.data
+                  ? {
+                      encounterKey: encounter.data.encounter.encounter_key,
+                      artifactGeneration: encounter.data.artifact_generation,
+                      revision: encounter.data.revision,
+                      value: encounter.data.difficulty,
+                      onPreview: mutations.previewDifficulty,
+                      onReference: recordPreview.open,
+                      disabled: mutationDisabled,
+                      onSave: async (reference) => {
+                        await mutations.run({
+                          kind: "difficulty",
+                          request: {
+                            expected_revision: encounter.data!.revision,
+                            reference,
+                          },
+                        });
+                      },
+                    }
+                  : undefined
+              }
               onRoll={async (request) => {
                 const result = await mutations.run({ kind: "initiative", request });
                 if (!("rolls" in result.receipt))
@@ -546,7 +544,12 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             />
           }
           collapsiblePanes={["filter"]}
-          labels={{ filter: "Roster", results: "Participant" }}
+          labels={{
+            filter: encounterSummary
+              ? `Roster (${encounterSummary.participant_count})`
+              : "Roster",
+            results: "Participant",
+          }}
           selectedRecordKey={selected?.record_key ?? selected?.participant_key ?? null}
           widthSpecs={ENCOUNTER_WIDTH_SPECS}
         />

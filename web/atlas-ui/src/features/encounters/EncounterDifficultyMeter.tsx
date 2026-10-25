@@ -5,8 +5,10 @@ import type { EncounterDifficultyView } from "../../generated/atlas";
 /** XP positions are linear; the published Extreme budget is the full scale. */
 export function EncounterDifficultyMeter({
   value,
+  showBudgets = true,
 }: {
   value: EncounterDifficultyView;
+  showBudgets?: boolean;
 }) {
   const { token } = theme.useToken();
   const maximum = Math.max(0, ...value.budgets.map((budget) => budget.xp));
@@ -58,21 +60,23 @@ export function EncounterDifficultyMeter({
             ))}
         </div>
       </div>
-      <div className="encounter-difficulty__budgets" aria-label="XP budgets">
-        {value.budgets.map((budget) => (
-          <div
-            key={budget.label}
-            className={
-              value.rating === budget.label
-                ? "encounter-difficulty-meter__current"
-                : undefined
-            }
-          >
-            <span>{budget.label}</span>
-            <strong>{budget.xp}</strong>
-          </div>
-        ))}
-      </div>
+      {showBudgets && (
+        <div className="encounter-difficulty__budgets" aria-label="XP budgets">
+          {value.budgets.map((budget) => (
+            <div
+              key={budget.label}
+              className={
+                value.rating === budget.label
+                  ? "encounter-difficulty-meter__current"
+                  : undefined
+              }
+            >
+              <span>{budget.label}</span>
+              <strong>{budget.xp}</strong>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

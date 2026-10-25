@@ -117,7 +117,14 @@ fn source_effective_levels_hazard_xp_and_saved_overrides_are_projected_together(
     };
     let preview = f
         .worker
-        .preview_encounter_difficulty(&encounter.slug, request.clone())
+        .preview_encounter_difficulty(
+            &encounter.slug,
+            PreviewEncounterDifficultyRequest {
+                expected_revision: request.expected_revision,
+                reference: request.reference,
+                addition: None,
+            },
+        )
         .unwrap();
     assert_eq!(
         preview.opposition.iter().map(|o| o.xp).collect::<Vec<_>>(),
@@ -243,7 +250,8 @@ fn party_snapshots_supply_mixed_references_and_unknown_levels_stay_unknown() {
         .worker
         .preview_encounter_difficulty(
             &key,
-            SetEncounterDifficultyRequest {
+            PreviewEncounterDifficultyRequest {
+                addition: None,
                 expected_revision: unknown.revision,
                 reference: EncounterDifficultyReferenceView {
                     party_level: Some(5),
@@ -297,4 +305,183 @@ fn curated_rules_open_the_exact_journal_pages() {
         assert_eq!(selected.presentation.identity.title, rule.title);
         assert_eq!(selected.selected.owners, rule.navigation.owners);
     }
+}
+
+#[test]
+fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing() {
+    use atlas_app_model::*;
+    use atlas_search::test_support::{open_source_fixture, record};
+    use serde_json::json;
+    let f = crate::test_support::fixture_worker_with_executor(
+        crate::executor::RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"elite00000000000","name":"Elite creature","type":"npc","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":"elite","hp":{"max":60}}}}),
+                    ),
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"simple0000000000","name":"Simple trap","type":"hazard","system":{"details":{"level":{"value":5},"isComplex":false}}}),
+                    ),
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"unknown000000000","name":"Unknown trap","type":"hazard","system":{"details":{"level":{"value":5}}}}),
+                    ),
+                ],
+                false,
+            )?)
+        }),
+    );
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Add preview".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    let before = f.worker.encounter(&encounter.encounter_key).unwrap();
+    let reference = EncounterDifficultyReferenceView {
+        party_level: Some(5),
+        party_size: Some(5),
+    };
+    for (key, variant, expected) in [
+        ("actors:elite00000000000", None, Some(120)),
+        (
+            "actors:elite00000000000",
+            Some(EncounterParticipantVariantView::Normal),
+            Some(80),
+        ),
+        (
+            "actors:elite00000000000",
+            Some(EncounterParticipantVariantView::Weak),
+            Some(60),
+        ),
+        ("actors:simple0000000000", None, Some(16)),
+        ("actors:unknown000000000", None, None),
+    ] {
+        let preview = f
+            .worker
+            .preview_encounter_difficulty(
+                &encounter.encounter_key,
+                PreviewEncounterDifficultyRequest {
+                    expected_revision: before.revision,
+                    reference,
+                    addition: Some(EncounterDifficultyAddition {
+                        record_ref: key.into(),
+                        quantity: 2,
+                        participant_variant: variant,
+                    }),
+                },
+            )
+            .unwrap();
+        assert_eq!(preview.total_xp, expected);
+        assert_eq!(preview.opposition[0].participant_key, None);
+        assert_eq!(
+            f.worker.encounter(&encounter.encounter_key).unwrap(),
+            before
+        );
+    }
+    let mut request = PreviewEncounterDifficultyRequest {
+        expected_revision: before.revision,
+        reference,
+        addition: Some(EncounterDifficultyAddition {
+            record_ref: "actors:elite00000000000".into(),
+            quantity: 2,
+            participant_variant: None,
+        }),
+    };
+    let preview = f
+        .worker
+        .preview_encounter_difficulty(&encounter.encounter_key, request.clone())
+        .unwrap();
+    assert_eq!(preview.xp_per_pc, Some(96));
+    assert!(!preview.award_note.as_deref().unwrap().contains("Trivial"));
+    request.addition.as_mut().unwrap().quantity = 0;
+    assert!(
+        f.worker
+            .preview_encounter_difficulty(&encounter.encounter_key, request.clone())
+            .is_err()
+    );
+    request.addition.as_mut().unwrap().quantity = 51;
+    assert!(
+        f.worker
+            .preview_encounter_difficulty(&encounter.encounter_key, request.clone())
+            .is_err()
+    );
+    request.addition.as_mut().unwrap().quantity = 2;
+    f.worker
+        .set_encounter_difficulty(
+            &encounter.encounter_key,
+            SetEncounterDifficultyRequest {
+                expected_revision: before.revision,
+                reference,
+            },
+        )
+        .unwrap();
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.encounter_key.clone(),
+            record_ref: "actors:elite00000000000".into(),
+            quantity: 2,
+            participant_variant: None,
+            initiative: None,
+        })
+        .unwrap();
+    let after = f.worker.encounter(&encounter.encounter_key).unwrap();
+    assert_eq!(
+        (
+            after.difficulty.total_xp,
+            after.difficulty.rating,
+            after.difficulty.xp_per_pc
+        ),
+        (preview.total_xp, preview.rating, preview.xp_per_pc)
+    );
+    assert_eq!(after.participants.len(), 2);
+    assert_eq!(
+        f.worker
+            .preview_encounter_difficulty(&encounter.encounter_key, request)
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::EncounterTurnConflict
+    );
+}
+
+#[test]
+fn awards_are_size_adjusted_suggestions_separate_from_difficulty_budgets() {
+    for (size, encounter_xp, expected) in [
+        (5, 100, 80),
+        (3, 60, 80),
+        (4, 80, 80),
+        (6, 103, 68),
+        (3, 10, 0),
+    ] {
+        let mut view = project(
+            EncounterDifficultyReference {
+                party_level: Some(5),
+                party_size: Some(size),
+            },
+            &[],
+            &Default::default(),
+        );
+        view.opposition.push(EncounterDifficultyOpponentView {
+            participant_key: None,
+            name: "Opposition".into(),
+            kind: "Creature".into(),
+            level: Some(5),
+            xp: Some(encounter_xp),
+            unavailable_reason: None,
+        });
+        recalculate(&mut view, &[]);
+        assert_eq!(view.xp_per_pc, Some(expected));
+        assert_eq!(view.total_xp, Some(encounter_xp));
+    }
+    let unknown = project(Default::default(), &[], &Default::default());
+    assert_eq!(unknown.xp_per_pc, None);
 }
