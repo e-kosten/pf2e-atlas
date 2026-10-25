@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn xp_table_distinguishes_creatures_and_hazards_without_clamping() {
+fn xp_table_preserves_supported_values_and_floors_lower_level_creatures() {
     for (relative, expected) in [
         (-4, 10),
         (-3, 15),
@@ -18,7 +18,9 @@ fn xp_table_distinguishes_creatures_and_hazards_without_clamping() {
         assert_eq!(xp(relative, true, Some(false)), Ok(expected / 5));
     }
     assert!(xp(5, false, None).is_err());
-    assert!(xp(-5, false, None).is_err());
+    assert_eq!(xp(-5, false, None), Ok(10));
+    assert_eq!(xp(-20, false, None), Ok(10));
+    assert!(xp(-5, true, None).is_err());
     assert_eq!(xp(-5, true, Some(true)), Ok(0));
     assert!(xp(0, true, None).is_err());
 }
@@ -324,6 +326,11 @@ fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing()
                     record(
                         "actors",
                         "Actor",
+                        json!({"_id":"low0000000000000","name":"Low-level creature","type":"npc","system":{"details":{"level":{"value":0}},"attributes":{"hp":{"max":6}}}}),
+                    ),
+                    record(
+                        "actors",
+                        "Actor",
                         json!({"_id":"simple0000000000","name":"Simple trap","type":"hazard","system":{"details":{"level":{"value":5},"isComplex":false}}}),
                     ),
                     record(
@@ -362,6 +369,7 @@ fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing()
             Some(EncounterParticipantVariantView::Weak),
             Some(60),
         ),
+        ("actors:low0000000000000", None, Some(20)),
         ("actors:simple0000000000", None, Some(16)),
         ("actors:unknown000000000", None, None),
     ] {
@@ -451,6 +459,37 @@ fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing()
             .code,
         AppErrorCode::EncounterTurnConflict
     );
+    let low_addition = EncounterDifficultyAddition {
+        record_ref: "actors:low0000000000000".into(),
+        quantity: 3,
+        participant_variant: None,
+    };
+    let low_preview = f
+        .worker
+        .preview_encounter_difficulty(
+            &encounter.encounter_key,
+            PreviewEncounterDifficultyRequest {
+                expected_revision: after.revision,
+                reference,
+                addition: Some(low_addition.clone()),
+            },
+        )
+        .unwrap();
+    assert_eq!(low_preview.total_xp, Some(150));
+    assert_eq!(low_preview.opposition.last().unwrap().xp, Some(30));
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.encounter_key.clone(),
+            record_ref: low_addition.record_ref,
+            quantity: low_addition.quantity,
+            participant_variant: None,
+            initiative: None,
+        })
+        .unwrap();
+    let committed = f.worker.encounter(&encounter.encounter_key).unwrap();
+    assert_eq!(committed.difficulty.total_xp, low_preview.total_xp);
+    assert_eq!(committed.difficulty.rating, low_preview.rating);
+    assert_eq!(committed.difficulty.xp_per_pc, low_preview.xp_per_pc);
 }
 
 #[test]

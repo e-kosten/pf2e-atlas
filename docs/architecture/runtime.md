@@ -525,8 +525,12 @@ reference level/count overrides, guarded by the encounter revision; it does not
 persist calculated XP or ratings. A read-only preview calculates an edited reference
 within one workspace snapshot before submission. Defeated/disabled state does not
 change the planned rating; sides, participant membership, level/adjustment and the
-chosen reference do. Missing facts and levels outside the published XP table do not
-become zero. Mixed-level suggestions are explained and remain GM choices.
+chosen reference do. Missing facts and creatures above party level +4 remain
+unavailable. Creatures below party level −4 use the pinned Foundry calculator's
+10 XP floor, including each copy in a prospective addition; this is an explicit
+Atlas calculation policy beyond the published table. Hazards keep their existing
+zero-XP lower-range policy, while unknown complexity stays unavailable. Mixed-level
+suggestions are explained and remain GM choices.
 
 Encounter HP actions carry participant identity, expected revision and one explicit
 operation: damage, heal, exact current/temporary/maximum correction, or derived
