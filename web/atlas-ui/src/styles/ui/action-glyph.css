@@ -28,11 +28,12 @@
 .action-cost__glyph::before,
 .prepared-content [data-atlas-action-glyph]::before {
   font-family: "Pathfinder 2e Actions", sans-serif;
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-style: normal;
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1;
   color: var(--action-glyph);
+  -webkit-text-stroke: 0.25px currentColor;
   vertical-align: -0.08em;
 }
 
