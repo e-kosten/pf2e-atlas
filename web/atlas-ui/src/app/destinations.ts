@@ -38,7 +38,7 @@ export function recordDestination(input: RecordPageInput) {
     to: "/records/$recordKey",
     params: { recordKey: input.recordKey },
     search: readingSearch(input),
-    hash: input.section ?? "",
+    hash: input.section ? encodeURIComponent(input.section) : "",
   });
 }
 export function searchDestination(input: SearchPageInput = {}) {
