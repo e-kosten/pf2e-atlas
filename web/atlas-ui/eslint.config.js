@@ -14,7 +14,13 @@ const browserGlobals = {
 
 export default [
   {
-    ignores: ["dist/**", "node_modules/**", "src/generated/**", "vite.config.ts"],
+    ignores: [
+      "src/routeTree.gen.ts",
+      "dist/**",
+      "node_modules/**",
+      "src/generated/**",
+      "vite.config.ts",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

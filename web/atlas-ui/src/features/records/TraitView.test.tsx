@@ -63,7 +63,7 @@ function setup() {
   render(
     <QueryClientProvider client={client}>
       <SearchProfileProvider id="embeddinggemma">
-        <TraitView route={{ kind: "trait", traitKey: "trait:agile" }} />
+        <TraitView route={{ traitKey: "trait:agile" }} />
       </SearchProfileProvider>
     </QueryClientProvider>,
   );
@@ -262,7 +262,6 @@ it("restores the Similar tab/order from its URL and keeps other association requ
       <SearchProfileProvider id="embeddinggemma">
         <TraitView
           route={{
-            kind: "trait",
             traitKey: "trait:agile",
             query: "?tab=similar&sort=level_desc",
           }}
@@ -338,7 +337,6 @@ it.each([
         <SearchProfileProvider id="embeddinggemma">
           <TraitView
             route={{
-              kind: "trait",
               traitKey: "trait:agile",
               query: "?tab=similar&" + query,
             }}

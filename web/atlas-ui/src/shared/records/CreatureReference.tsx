@@ -1,3 +1,5 @@
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Typography } from "antd";
 import type {
@@ -5,7 +7,6 @@ import type {
   ActorPresentationView,
   FactView,
 } from "../../generated/atlas";
-import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import {
   ActorActivities,
   ActorCombatBudget,
@@ -25,7 +26,6 @@ import {
   ActorEncounterLayout,
   type ActorEncounterContent,
 } from "./ActorEncounterLayout";
-
 /** Shared source reading with host-owned encounter controls. No rules are inferred here. */
 export function CreatureReference({
   actor,
@@ -112,7 +112,15 @@ export function CreatureReference({
     ...(encounter && prose ? [["description", "Description"]] : []),
   ];
   const sectionHref = (name: string) =>
-    `${encounter ? location.pathname + location.search : atlasRoutePath({ kind: "record", recordKey })}#${encodeURIComponent(id(name))}`;
+    `${
+      encounter
+        ? location.pathname + location.search
+        : destinationHref(
+            recordDestination({
+              recordKey,
+            }),
+          )
+    }#${encodeURIComponent(id(name))}`;
   return (
     <div
       ref={container}
@@ -131,7 +139,7 @@ export function CreatureReference({
                   <Typography.Link
                     href={sectionHref(name)}
                     onClick={(event) => {
-                      if (!shouldHandleAtlasRouteClick(event)) return;
+                      if (!isPrimaryActivation(event)) return;
                       event.preventDefault();
                       const section = Array.from(
                         container.current?.querySelectorAll<HTMLElement>("[id]") ?? [],

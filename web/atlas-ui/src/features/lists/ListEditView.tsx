@@ -1,3 +1,9 @@
+import {
+  navigateDestination,
+  destinationHref,
+  isPrimaryActivation,
+} from "../../app/navigation";
+import { listDestination, listsDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Form, Input, Select } from "antd";
@@ -5,12 +11,6 @@ import { ArrowLeft, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { deleteSavedList, getSavedList, updateSavedList } from "../../api/atlasApi";
 import type { UpdateSavedListRequest } from "../../generated/atlas";
-import {
-  listPath,
-  navigateToAtlasRoute,
-  shouldHandleAtlasRouteClick,
-  type AtlasRoute,
-} from "../../app/routes";
 import {
   InlineError,
   normalizeOptionalText,
@@ -21,17 +21,14 @@ import {
 import { useSavedLists } from "./savedListQueries";
 import { formatDate } from "../../shared/ui/formatDate";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
-
 type ListEditViewProps = {
-  route: Extract<AtlasRoute, { kind: "listEdit" }>;
+  route: { slug: string };
 };
-
 type EditListFormValues = {
   name: string;
   description?: string;
   tags?: string[];
 };
-
 export function ListEditView({ route }: ListEditViewProps) {
   const [form] = Form.useForm<EditListFormValues>();
   const queryClient = useQueryClient();
@@ -55,21 +52,21 @@ export function ListEditView({ route }: ListEditViewProps) {
       await queryClient.invalidateQueries({ queryKey: ["saved-lists"] });
       await queryClient.invalidateQueries({ queryKey: ["saved-list", route.slug] });
       await queryClient.invalidateQueries({ queryKey: ["saved-list", view.list.slug] });
-      navigateToAtlasRoute({
-        kind: "list",
-        slug: view.list.slug,
-        selectedRecordKey: null,
-      });
+      navigateDestination(
+        listDestination({
+          slug: view.list.slug,
+          selectedRecordKey: null,
+        }),
+      );
     },
   });
   const deleteListMutation = useMutation({
     mutationFn: () => deleteSavedList(list.data!.list.list_key),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["saved-lists"] });
-      navigateToAtlasRoute({ kind: "lists" });
+      navigateDestination(listsDestination());
     },
   });
-
   const initializedKey = useRef<string | null>(null);
   useEffect(() => {
     if (!list.data) {
@@ -96,22 +93,24 @@ export function ListEditView({ route }: ListEditViewProps) {
       }
     }
   }, [form, list.data]);
-
   return (
     <main className="list-edit-view">
       <section className="list-edit-view__header">
         <Button
           type="link"
-          href={listPath(route.slug)}
+          href={destinationHref(
+            listDestination({ slug: route.slug, selectedRecordKey: null }),
+          )}
           icon={<ArrowLeft size={15} />}
           onClick={(event) => {
-            if (!shouldHandleAtlasRouteClick(event)) return;
+            if (!isPrimaryActivation(event)) return;
             event.preventDefault();
-            navigateToAtlasRoute({
-              kind: "list",
-              slug: route.slug,
-              selectedRecordKey: null,
-            });
+            navigateDestination(
+              listDestination({
+                slug: route.slug,
+                selectedRecordKey: null,
+              }),
+            );
           }}
         >
           Back to list
@@ -176,17 +175,23 @@ export function ListEditView({ route }: ListEditViewProps) {
                   Save
                 </Button>
                 <Button
-                  href={listPath(list.data.list.slug)}
+                  href={destinationHref(
+                    listDestination({
+                      slug: list.data.list.slug,
+                      selectedRecordKey: null,
+                    }),
+                  )}
                   onClick={(event) => {
-                    if (!shouldHandleAtlasRouteClick(event)) {
+                    if (!isPrimaryActivation(event)) {
                       return;
                     }
                     event.preventDefault();
-                    navigateToAtlasRoute({
-                      kind: "list",
-                      slug: list.data!.list.slug,
-                      selectedRecordKey: null,
-                    });
+                    navigateDestination(
+                      listDestination({
+                        slug: list.data!.list.slug,
+                        selectedRecordKey: null,
+                      }),
+                    );
                   }}
                 >
                   Done

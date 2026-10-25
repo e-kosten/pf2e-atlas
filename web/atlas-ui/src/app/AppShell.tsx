@@ -1,3 +1,9 @@
+import { destinationHref, isPrimaryActivation } from "./navigation";
+import {
+  searchDestination,
+  listsDestination,
+  encountersDestination,
+} from "./destinations";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useRef } from "react";
 import { Alert, Button, Menu, Popover, Segmented, Space, Typography } from "antd";
@@ -8,16 +14,9 @@ import type {
   ColorSchemePreference,
   ResolvedColorScheme,
 } from "../shared/theme/atlasTheme";
-import {
-  encountersPath,
-  listsPath,
-  searchPath,
-  shouldHandleAtlasRouteClick,
-  type AtlasRoute,
-} from "./routes";
 
 type AppShellProps = {
-  activeView: AtlasRoute["kind"];
+  activeView: "search" | "lists" | "encounters" | "reference";
   colorScheme: ColorSchemePreference;
   onColorSchemeChange: (preference: ColorSchemePreference) => void;
   onNavigateLists: () => void;
@@ -30,7 +29,6 @@ type AppShellProps = {
   onCheckReadiness: () => void;
   children: React.ReactNode;
 };
-
 export function AppShell({
   activeView,
   colorScheme,
@@ -48,14 +46,24 @@ export function AppShell({
   const contentRef = useRef<HTMLDivElement>(null);
   const themeTrigger = useRef<HTMLButtonElement>(null);
   const themeContent = useRef<HTMLDivElement>(null);
-  const selectedView = topLevelView(activeView);
+  const selectedView = activeView;
   const destinations = [
-    { key: "search", label: "Search", href: searchPath(), navigate: onNavigateSearch },
-    { key: "lists", label: "Lists", href: listsPath(), navigate: onNavigateLists },
+    {
+      key: "search",
+      label: "Search",
+      href: destinationHref(searchDestination({ selectedRecordKey: null })),
+      navigate: onNavigateSearch,
+    },
+    {
+      key: "lists",
+      label: "Lists",
+      href: destinationHref(listsDestination()),
+      navigate: onNavigateLists,
+    },
     {
       key: "encounters",
       label: "Encounters",
-      href: encountersPath(),
+      href: destinationHref(encountersDestination()),
       navigate: onNavigateEncounters,
     },
   ];
@@ -66,7 +74,7 @@ export function AppShell({
         href={destination.href}
         aria-current={selectedView === destination.key ? "page" : undefined}
         onClick={(event) => {
-          if (!shouldHandleAtlasRouteClick(event)) return;
+          if (!isPrimaryActivation(event)) return;
           event.preventDefault();
           destination.navigate();
         }}
@@ -92,7 +100,7 @@ export function AppShell({
     (readiness?.status === "blocked" ? readiness.message : null);
   return (
     <div
-      className={`atlas-app${activeView === "record" || activeView === "trait" ? " atlas-app--document" : ""}`}
+      className={`atlas-app${activeView === "reference" ? " atlas-app--document" : ""}`}
       data-theme={resolvedColorScheme}
     >
       <Typography.Link
@@ -107,9 +115,9 @@ export function AppShell({
           className="topbar__brand"
           style={{ color: "var(--brand-text)" }}
           aria-label="PF2e Atlas"
-          href={searchPath()}
+          href={destinationHref(searchDestination({ selectedRecordKey: null }))}
           onClick={(event) => {
-            if (!shouldHandleAtlasRouteClick(event)) return;
+            if (!isPrimaryActivation(event)) return;
             event.preventDefault();
             onNavigateSearch();
           }}
@@ -195,10 +203,4 @@ export function AppShell({
       </div>
     </div>
   );
-}
-
-function topLevelView(activeView: AtlasRoute["kind"]): string {
-  if (activeView === "encounter" || activeView === "encounterEdit") return "encounters";
-  if (activeView === "list" || activeView === "listEdit") return "lists";
-  return activeView;
 }

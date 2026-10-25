@@ -1,3 +1,5 @@
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import type { ReactNode } from "react";
 import { PhysicalDetails } from "./PhysicalDetails";
 import { Button } from "antd";
@@ -7,7 +9,6 @@ import type {
   PhysicalPriceView,
   RecordSummaryView,
 } from "../../generated/atlas";
-import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import {
   FactLine,
@@ -16,7 +17,6 @@ import {
   factText,
   hasReadingFact,
 } from "./presentationFacts";
-
 /** Item facts precede the complete authored rules in every reading host. */
 export function PhysicalReference({
   item,
@@ -79,13 +79,14 @@ export function PhysicalReference({
             <Button
               type="link"
               size="small"
-              href={atlasRoutePath({
-                kind: "record",
-                recordKey: spell.navigation.record_key,
-                selection: spell.navigation,
-              })}
+              href={destinationHref(
+                recordDestination({
+                  recordKey: spell.navigation.record_key,
+                  selection: spell.navigation,
+                }),
+              )}
               onClick={(event) => {
-                if (!shouldHandleAtlasRouteClick(event)) return;
+                if (!isPrimaryActivation(event)) return;
                 event.preventDefault();
                 onReference(
                   spell.navigation.record_key,
@@ -167,7 +168,6 @@ export function PhysicalReference({
     </div>
   );
 }
-
 function PhysicalPrice({
   fact,
   label,

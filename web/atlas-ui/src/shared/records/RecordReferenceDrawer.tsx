@@ -1,7 +1,8 @@
+import { destinationHref, navigateDestination } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { usePreviewReadingPosition } from "./usePreviewReadingPosition";
 import { ConfigProvider, Drawer } from "antd";
 import { useId, useRef, useState } from "react";
-import { atlasRoutePath, navigateToAtlasRoute } from "../../app/routes";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import type {
@@ -11,10 +12,8 @@ import type {
 import { usePreviewContentFocus } from "./usePreviewContentFocus";
 import { RecordPresentationIdentity } from "./RecordPresentation";
 import type { RecordNavigationView } from "../../generated/atlas";
-
 const getPopupContainer = (trigger?: HTMLElement) =>
   trigger?.closest<HTMLElement>(".record-preview-drawer-root") ?? document.body;
-
 export function RecordReferenceDrawer({
   context = "reference",
   actions: recordActions,
@@ -45,21 +44,23 @@ export function RecordReferenceDrawer({
   const href =
     fullPageHref ??
     (detail
-      ? atlasRoutePath({
-          kind: "record",
-          recordKey: detail.selected.record_key,
-          selection: detail.selected,
-          landing,
-        })
+      ? destinationHref(
+          recordDestination({
+            recordKey: detail.selected.record_key,
+            selection: detail.selected,
+            landing,
+          }),
+        )
       : undefined);
   const openFullPage = () => {
     if (landing && detail)
-      navigateToAtlasRoute({
-        kind: "record",
-        recordKey: detail.selected.record_key,
-        selection: detail.selected,
-        landing,
-      });
+      navigateDestination(
+        recordDestination({
+          recordKey: detail.selected.record_key,
+          selection: detail.selected,
+          landing,
+        }),
+      );
     else onOpenFullPage();
   };
   const readingRef = usePreviewReadingPosition(detail, readingHistory, open, landing);

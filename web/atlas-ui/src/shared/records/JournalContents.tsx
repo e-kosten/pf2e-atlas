@@ -1,10 +1,10 @@
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { recordDestination } from "../../app/destinations";
 import { Input, Typography } from "antd";
 import { useState } from "react";
 import type { EmbeddedRecordLinkView, FactView } from "../../generated/atlas";
-import { atlasRoutePath, shouldHandleAtlasRouteClick } from "../../app/routes";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import "../../styles/ui/journal-reading.css";
-
 export function JournalContents({
   pages,
   onReference,
@@ -39,13 +39,14 @@ export function JournalContents({
         {visible.map((page) => (
           <li key={JSON.stringify(page.navigation.embedded_path)}>
             <Typography.Link
-              href={atlasRoutePath({
-                kind: "record",
-                recordKey: page.navigation.record_key,
-                selection: page.navigation,
-              })}
+              href={destinationHref(
+                recordDestination({
+                  recordKey: page.navigation.record_key,
+                  selection: page.navigation,
+                }),
+              )}
               onClick={(event) => {
-                if (!shouldHandleAtlasRouteClick(event)) return;
+                if (!isPrimaryActivation(event)) return;
                 event.preventDefault();
                 onReference(
                   page.navigation.record_key,
