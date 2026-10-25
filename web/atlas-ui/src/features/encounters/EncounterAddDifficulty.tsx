@@ -66,68 +66,90 @@ export function EncounterAddDifficulty({
     addition.quantity <= 50;
   const [debounced, setDebounced] = useState(addition);
   useEffect(() => {
-    const timer = setTimeout(() => setDebounced(addition), 250);
+    const timer = setTimeout(() => setDebounced(addition), 125);
     return () => clearTimeout(timer);
   }, [addition]);
-  const settled = JSON.stringify(addition) === JSON.stringify(debounced);
+  // A different selection starts immediately; only edits to the same candidate
+  // wait for typing to settle. The query key still owns each exact projection.
+  const requested =
+    addition?.record_ref !== debounced?.record_ref ? addition : debounced;
+  const settled = JSON.stringify(addition) === JSON.stringify(requested);
   const preview = useQuery({
     queryKey: [
       "encounter-add-difficulty",
       encounterKey,
       revision.toString(),
       value.reference,
-      debounced,
+      requested,
       artifactGeneration,
     ],
     queryFn: async () => ({
       value: await onPreview({
         expected_revision: revision,
         reference: value.reference,
-        addition: debounced,
+        addition: requested,
       }),
-      quantity: debounced!.quantity,
+      addition: requested!,
       name: recordName,
     }),
     enabled: valid && settled && !disabled,
     retry: false,
-    // Retain only the same encounter revision/reference and selected source identity.
-    // Another selected creature must never inherit this creature's projected XP.
-    placeholderData: (previous, previousQuery) => {
-      const key = previousQuery?.queryKey;
-      const previousAddition = key?.[4] as EncounterDifficultyAddition | undefined;
-      return key?.[1] === encounterKey &&
-        key?.[2] === revision.toString() &&
-        key?.[5] === artifactGeneration &&
-        JSON.stringify(key?.[3]) === JSON.stringify(value.reference) &&
-        previousAddition?.record_ref === selectedRecordKey
-        ? previous
-        : undefined;
-    },
   });
-  const matches = valid && debounced?.record_ref === selectedRecordKey;
+  // The last what-if belongs to this encounter basis, with its own candidate
+  // identity. Keep that complete scenario while another is requested; never
+  // relabel its values as the new selection or carry it across a saved revision.
   const identity = JSON.stringify([
     encounterKey,
     revision.toString(),
     artifactGeneration,
     value.reference,
-    selectedRecordKey,
   ]);
   const [retained, setRetained] = useState<{
     identity: string;
     data: typeof preview.data;
   }>();
-  const received = matches ? preview.data : undefined;
+  const received = valid && settled ? preview.data : undefined;
   if (received && (retained?.identity !== identity || retained.data !== received))
     setRetained({ identity, data: received });
-  const shown = valid
+  const shown = selectedRecordKey
     ? (received ?? (retained?.identity === identity ? retained.data : undefined))
     : undefined;
   const display = shown?.value ?? value;
-  const error = valid && settled && matches ? preview.error : null;
+  const error = valid && settled ? preview.error : null;
   const pending = valid && (!settled || preview.isFetching);
-  const context = shown
-    ? `After adding ${shown.quantity} × ${shown.name}`
-    : "Current encounter";
+  const requestIdentity = JSON.stringify([identity, addition]);
+  const [feedback, setFeedback] = useState({
+    identity: requestIdentity,
+    pending,
+    slow: false,
+  });
+  if (feedback.identity !== requestIdentity || feedback.pending !== pending)
+    setFeedback({ identity: requestIdentity, pending, slow: false });
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setTimeout(
+      () =>
+        setFeedback((current) =>
+          current.identity === requestIdentity && current.pending
+            ? { ...current, slow: true }
+            : current,
+        ),
+      200,
+    );
+    return () => clearTimeout(timer);
+  }, [pending, requestIdentity]);
+  const slowPending = pending && feedback.identity === requestIdentity && feedback.slow;
+  const previous = shown && JSON.stringify(shown.addition) !== JSON.stringify(addition);
+  const scenario = shown ? `${shown.addition.quantity} × ${shown.name}` : null;
+  const context = error
+    ? `Update failed · ${scenario ? `previous: ${scenario}` : "current encounter"}`
+    : addition && !valid
+      ? "Enter quantity 1–50 · previous preview"
+      : previous
+        ? `Previous: ${scenario}`
+        : scenario
+          ? `After adding ${scenario}`
+          : "Current encounter";
   return (
     <section
       className="encounter-add-difficulty"
@@ -140,13 +162,7 @@ export function EncounterAddDifficulty({
         style={{ minHeight: token.controlHeightSM }}
       >
         <span className="encounter-add-difficulty__context">
-          {error
-            ? `Update failed · ${shown ? "previous preview" : "current encounter"}`
-            : pending
-              ? "Updating preview…"
-              : addition && !valid
-                ? "Enter quantity 1–50"
-                : context}
+          {slowPending ? `Updating · ${context}` : context}
         </span>
         <strong>{difficultySummary(display)}</strong>
         {error && (

@@ -1417,6 +1417,15 @@ Whole-list deletion and saved-member removal use the shared contextual danger
 confirmation and await their action. Keep membership/order semantics in the list
 owner; do not reconstruct undo from a partial display snapshot.
 
+An encounter's Add-preview meter can retain its last complete, named what-if
+scenario while the next selection loads. Label it as Previous with its original
+name and quantity; never relabel those values as the new candidate or reset the
+bar to the saved total between selections. Start selection requests immediately,
+debounce typing, and delay slow-operation feedback without moving controls. Retain
+only within the same encounter revision, artifact generation and party settings;
+a new basis must not reuse an older calculation. A completed unavailable result
+remains unavailable rather than retaining a previous total as if it were current.
+
 Encounter detail and edit routes use `useEncounterMutations` as their route-local
 command owner. Keep controls pending through the write and canonical-key refresh;
 do not maintain optimistic HP, condition, or participant copies. A successful
@@ -1439,9 +1448,12 @@ gameplay derivation in Rust; the browser submits explicit edit intent and revisi
 
 ### Encounter reading context
 
-Encounter composition permits collapsing the roster only; its participant reader
-stays available and fills the remaining pane. Shared `WorkspaceLayout` accepts
-explicit collapsible pane identities without changing other browsing defaults.
+Encounter roster and participant panes stay available without collapse controls;
+the splitter still resizes them. Use the shared pane-header action slot for the
+compact text-button difficulty summary, with party settings inside its calculator.
+The roster owns one inset around its turn area, scrolling participant region and
+persistent Add/Roll initiative footer. Shared `WorkspaceLayout` keeps other
+workspaces' explicit collapse choices and browsing defaults.
 Encounter reference Drawers explicitly carry encounter context and omit
 owner-return captions and Related records; actual
 reading-history Back and Original record provenance remain independent. Direct

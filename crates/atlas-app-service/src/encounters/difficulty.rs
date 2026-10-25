@@ -296,8 +296,10 @@ fn xp(relative: i32, hazard: bool, complex: Option<bool>) -> Result<u32, &'stati
     if hazard && complex.is_none() {
         return Err("Hazard complexity is unavailable.");
     }
-    if relative < -4 && hazard {
-        return Ok(0);
+    if relative < -4 {
+        // Match pinned Foundry's creature XP floor below the table. Hazards keep
+        // their existing below-range policy; unknown complexity was checked above.
+        return Ok(if hazard { 0 } else { 10 });
     }
     let value = match relative {
         -4 => 10,

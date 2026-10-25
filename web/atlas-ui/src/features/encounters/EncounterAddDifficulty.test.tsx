@@ -1,6 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider, Form, InputNumber, Select } from "antd";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { useState } from "react";
 import type {
   EncounterDifficultyView,
@@ -120,7 +127,7 @@ it("shows current difficulty, then previews quantity and adjustment without an e
   expect(within(bar).queryByRole("spinbutton")).toBeNull();
   expect(within(bar).queryByRole("button")).toBeNull();
 });
-it("labels a retained failed preview, retries, and isolates another record and revision", async () => {
+it("retains a named previous scenario across selections and failures, but not revisions", async () => {
   const onPreview = vi
     .fn()
     .mockResolvedValue({ ...current, total_xp: 120, rating: "Severe" });
@@ -132,7 +139,7 @@ it("labels a retained failed preview, retries, and isolates another record and r
     target: { value: "2" },
   });
   await waitFor(() =>
-    expect(within(bar).getByText("Update failed · previous preview")).toBeVisible(),
+    expect(within(bar).getByText("Update failed · previous: 1 × Ogre")).toBeVisible(),
   );
   expect(within(bar).getByText("Severe · 120 XP")).toBeVisible();
   onPreview.mockResolvedValue({ ...current, total_xp: 160, rating: "Extreme" });
@@ -143,9 +150,70 @@ it("labels a retained failed preview, retries, and isolates another record and r
   expect(within(bar).getByText("Extreme · 160 XP")).toBeVisible();
   onPreview.mockImplementation(() => new Promise(() => {}));
   fireEvent.click(screen.getByRole("button", { name: "Choose trap" }));
-  expect(within(bar).getByText("Updating preview…")).toBeVisible();
-  expect(within(bar).getByText("Moderate · 80 XP")).toBeVisible();
-  expect(within(bar).queryByText("Extreme · 160 XP")).toBeNull();
+  expect(within(bar).getByText("Previous: 2 × Ogre")).toBeVisible();
+  expect(within(bar).getByText("Extreme · 160 XP")).toBeVisible();
+  expect(within(bar).queryByText("Moderate · 80 XP")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Refresh encounter" }));
   expect(within(bar).getByText("Moderate · 80 XP")).toBeVisible();
+});
+
+it("starts a new selection immediately and ignores its late superseded response", async () => {
+  let finishOgre!: (value: EncounterDifficultyView) => void;
+  let finishTrap!: (value: EncounterDifficultyView) => void;
+  const onPreview = vi.fn(
+    (request: PreviewEncounterDifficultyRequest) =>
+      new Promise<EncounterDifficultyView>((resolve) => {
+        if (request.addition?.record_ref === "actors:ogre") finishOgre = resolve;
+        else finishTrap = resolve;
+      }),
+  );
+  const bar = setup(onPreview);
+  await act(async () =>
+    fireEvent.click(screen.getByRole("button", { name: "Choose ogre" })),
+  );
+  expect(onPreview).toHaveBeenCalledOnce();
+  await act(async () =>
+    fireEvent.click(screen.getByRole("button", { name: "Choose trap" })),
+  );
+  expect(onPreview).toHaveBeenCalledTimes(2);
+  await act(async () => finishTrap({ ...current, total_xp: 160, rating: "Extreme" }));
+  await waitFor(() =>
+    expect(within(bar).getByText("After adding 1 × Trap")).toBeVisible(),
+  );
+  expect(within(bar).getByText("Extreme · 160 XP")).toBeVisible();
+  await act(async () => finishOgre({ ...current, total_xp: 120, rating: "Severe" }));
+  await waitFor(() =>
+    expect(within(bar).getByText("After adding 1 × Trap")).toBeVisible(),
+  );
+  expect(within(bar).getByText("Extreme · 160 XP")).toBeVisible();
+  expect(within(bar).queryByText("Severe · 120 XP")).toBeNull();
+});
+
+it("shows a completed unavailable result instead of masking it with a retained total", async () => {
+  const onPreview = vi
+    .fn()
+    .mockResolvedValue({ ...current, total_xp: 120, rating: "Severe" });
+  const bar = setup(onPreview);
+  fireEvent.click(screen.getByRole("button", { name: "Choose ogre" }));
+  await within(bar).findByText("Severe · 120 XP");
+  onPreview.mockResolvedValue({
+    ...current,
+    total_xp: null,
+    rating: null,
+    opposition: [
+      {
+        participant_key: null,
+        name: "Trap",
+        kind: "Hazard",
+        level: 5,
+        xp: null,
+        unavailable_reason: "Hazard complexity is unavailable.",
+      },
+    ],
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Choose trap" }));
+  await within(bar).findByText("After adding 1 × Trap");
+  expect(within(bar).getByText("Difficulty incomplete")).toBeVisible();
+  expect(within(bar).queryByText("Severe · 120 XP")).toBeNull();
+  expect(within(bar).queryByRole("progressbar")).toBeNull();
 });
