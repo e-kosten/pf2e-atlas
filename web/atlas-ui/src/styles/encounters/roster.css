@@ -75,7 +75,7 @@
 .encounter-roster__columns,
 .encounter-roster__row {
   display: grid;
-  grid-template-columns: 24px 36px minmax(0, 1fr) 40px 28px;
+  grid-template-columns: 24px 36px minmax(0, 1fr) 40px 56px;
   align-items: center;
   gap: 4px;
   padding: 6px 4px;
@@ -186,4 +186,19 @@
 .party-menu-entry__members {
   color: var(--muted);
   font-size: 12px;
+}
+
+.encounter-roster__actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.encounter-roster__hp--healthy {
+  color: var(--hp-current-text, var(--text));
+}
+.encounter-roster__hp--bloodied {
+  color: var(--hp-bloodied-text, var(--text));
+}
+.encounter-roster__hp--critical {
+  color: var(--hp-critical-text, var(--text));
 }

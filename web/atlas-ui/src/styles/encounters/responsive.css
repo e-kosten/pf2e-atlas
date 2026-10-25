@@ -17,6 +17,14 @@
 
   .encounter-detail-view .workspace-grid {
     height: 100%;
+    /* The roster width is owned by the splitter, including below 1180px.
+       Shrinking it at a second breakpoint makes the inner runtime lane reappear. */
+    grid-template-columns: var(--pane-columns);
+    column-gap: 0;
+  }
+
+  .encounter-detail-view .pane-resizer {
+    display: block;
   }
 }
 

@@ -4,6 +4,13 @@ import { activate, noPageOverflow } from "./reading";
 
 async function checkpoint(page: Page, info: TestInfo, name: string) {
   await noPageOverflow(page);
+  if (name === "precedence-sources.png" || name === "precedence-fallback.png") {
+    // These compare the document after an edit/removal, with passive hints
+    // dismissed. Touch-synthesized hover must not define the reference state.
+    await page.mouse.move(0, 0);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+  }
   await expect(page).toHaveScreenshot(name, {
     animations: "disabled",
     maxDiffPixels: 0,
@@ -172,6 +179,10 @@ test("precedence survives source removal and recovery retains its anchor after c
         .filter({ visible: true }),
       info,
     );
+    if (info.project.name.startsWith("phone")) await expect(back).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Next turn", exact: true }),
+    ).toBeEnabled();
     await activate(
       page
         .getByRole("button", { name: "Next turn", exact: true })
@@ -179,17 +190,18 @@ test("precedence survives source removal and recovery retains its anchor after c
       info,
     );
     const reminders = page.getByRole("dialog", { name: "Turn reminders", exact: true });
+    await activate(reminders.getByText("Table results", { exact: true }), info);
     await expect(
       reminders.getByRole("spinbutton", { name: "Fire damage amount", exact: true }),
     ).toBeVisible();
     await reminders
       .getByRole("spinbutton", { name: "Fire damage amount", exact: true })
       .fill("2");
+    await expect(
+      reminders.getByRole("button", { name: "Apply 2 damage", exact: true }),
+    ).toBeEnabled();
     await checkpoint(page, info, "turn-damage.png");
-    await activate(
-      reminders.getByRole("button", { name: "Apply persistent damage", exact: true }),
-      info,
-    );
+    await activate(reminders.getByRole("button", { name: /^Apply \d+ damage$/ }), info);
     await expect(
       reminders.getByText("Total: 2 damage applied", { exact: true }),
     ).toBeVisible();

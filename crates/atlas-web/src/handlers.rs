@@ -739,6 +739,21 @@ pub(crate) async fn resolve_encounter_hp_lifecycle(
     ))
 }
 
+pub(crate) async fn prepare_persistent_damage(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+    payload: Result<Json<atlas_app_model::PreparePersistentDamageRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.prepare_persistent_damage(&encounter_ref, request)
+        })
+        .await?,
+    ))
+}
+
 pub(crate) async fn apply_persistent_damage(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
@@ -930,6 +945,22 @@ pub(crate) async fn relationship_occurrences(
     Ok(Json(
         call_read_service(state, move |execution| {
             service.relationship_occurrences(request, &execution)
+        })
+        .await?,
+    ))
+}
+
+pub(crate) async fn update_turn_resources(
+    State(state): State<AtlasWebState>,
+    Path((encounter_ref, participant_key)): Path<(String, String)>,
+    payload: Result<Json<atlas_app_model::UpdateTurnResourcesRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
+    request.participant_key = participant_key;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.update_turn_resources(&encounter_ref, request)
         })
         .await?,
     ))

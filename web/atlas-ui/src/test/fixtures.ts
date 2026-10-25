@@ -67,6 +67,7 @@ export function actorFixture(): ActorPresentationView {
     skills: knownFact([]),
     land_speed: numberFact(25),
     movement: knownFact([]),
+    movement_details: knownFact(""),
     immunities: knownFact([]),
     weaknesses: knownFact([]),
     resistances: knownFact([]),
@@ -84,7 +85,10 @@ export function activityFixture(
 ): ActorActivityView {
   const na: NumberFactView = { state: "not_applicable", value: null, adjustment: null };
   return {
+    ability_group: null,
+    reading_order: 0,
     is_ranged: unavailableFact("missing"),
+    strike_range: unavailableFact("not_applicable"),
     effect_duration: unavailableFact("not_applicable"),
     self_effect: { state: "not_applicable", value: null },
     strike_effects: { state: "not_applicable", value: null },

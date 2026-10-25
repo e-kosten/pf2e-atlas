@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 10;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 12;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -67,6 +67,18 @@ const MIGRATIONS: &[Migration] = &[
             apply: atlas_index::backfill_embedding_storage,
         }),
     },
+    Migration {
+        version: 11,
+        name: "persistent-preparation",
+        sql: atlas_local_state::PERSISTENT_PREPARATION_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 12,
+        name: "turn-resources",
+        sql: atlas_local_state::TURN_RESOURCES_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -99,6 +111,102 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewEncounter, NewSavedList};
+
+    #[test]
+    fn turn_resource_upgrade_preserves_state_without_inventing_an_allocation() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("resources.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..11], |_| Ok(())).unwrap();
+        let write = workspace.write(11).unwrap();
+        write.connection().execute_batch(r#"
+            INSERT INTO encounters(id,encounter_key,slug,name,status,current_turn_participant_key,round_number,revision,created_at,updated_at)
+            VALUES(1,'kept','kept','Kept','running','actor',4,7,'before','before');
+            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,current_hp,max_hp,temporary_hp,revision,created_at,updated_at)
+            VALUES(1,1,'actor','pc',0,'PC',0,13,20,3,5,'before','before');
+            INSERT INTO encounter_participant_conditions(participant_id,name,value,note,created_at,updated_at)
+            VALUES(1,'Slowed',1,'Keep note','before','before');
+            INSERT INTO encounter_event_receipts VALUES(1,'kept-request','{}','{"version":1,"payload":{}}');
+        "#).unwrap();
+        write.commit().unwrap();
+        let workspace = initialize_workspace(&path).unwrap();
+        let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let detail = LocalStateRead::new(&read)
+            .encounters()
+            .get_with_participants("kept")
+            .unwrap()
+            .unwrap();
+        assert_eq!(detail.encounter.revision, 7);
+        assert_eq!(detail.encounter.round_number, 4);
+        assert_eq!(
+            detail.encounter.current_turn_participant_key.as_deref(),
+            Some("actor")
+        );
+        let p = &detail.participants[0];
+        assert_eq!(
+            (p.current_hp, p.max_hp, p.temporary_hp, p.revision),
+            (Some(13), Some(20), 3, 5)
+        );
+        assert!(p.turn_resources.is_none());
+        assert_eq!(p.conditions[0].note.as_deref(), Some("Keep note"));
+        let receipt: String = read
+            .connection()
+            .query_row(
+                "SELECT receipt_json FROM encounter_event_receipts WHERE request_id='kept-request'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(receipt, r#"{"version":1,"payload":{}}"#);
+        // Older outgoing snapshots have no resource field. They must still be
+        // readable, and absence must remain unknown rather than fabricated 3/1.
+        let mut old_snapshot = serde_json::to_value(&detail).unwrap();
+        old_snapshot["participants"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("turn_resources");
+        let decoded: atlas_local_state::EncounterWithParticipants =
+            serde_json::from_value(old_snapshot).unwrap();
+        assert_eq!(decoded, detail);
+    }
+
+    #[test]
+    fn persistent_preparation_upgrade_preserves_old_claims_hp_and_receipts() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("preparation.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..10], |_| Ok(())).unwrap();
+        let write = workspace.write(10).unwrap();
+        let encounter = LocalStateWrite::new(&write)
+            .encounters()
+            .create(NewEncounter {
+                slug: "retained".into(),
+                name: "Retained".into(),
+                description: None,
+                note: None,
+            })
+            .unwrap();
+        write.connection().execute("INSERT INTO encounter_participants (encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,temporary_hp,created_at,updated_at) SELECT id,'retained-actor','pc',1,'PC',1,20,13,3,'now','now' FROM encounters WHERE encounter_key=?1",[&encounter.encounter_key]).unwrap();
+        write.connection().execute("INSERT INTO encounter_event_receipts SELECT id,'retained-request','{}','{\"version\":1,\"payload\":{}}' FROM encounters WHERE encounter_key=?1",[&encounter.encounter_key]).unwrap();
+        write.connection().execute("INSERT INTO encounter_boundary_claims SELECT id,'retained-actor',4,'persistent_damage','','retained-request' FROM encounters WHERE encounter_key=?1",[&encounter.encounter_key]).unwrap();
+        write.commit().unwrap();
+        let workspace = initialize_workspace(&path).unwrap();
+        let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let row=read.connection().query_row("SELECT p.current_hp,p.temporary_hp,c.round_number,c.kind,c.request_id,r.receipt_json FROM encounter_participants p JOIN encounter_boundary_claims c ON c.participant_key=p.participant_key JOIN encounter_event_receipts r ON r.encounter_id=c.encounter_id AND r.request_id=c.request_id",[],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,i64>(2)?,r.get::<_,String>(3)?,r.get::<_,String>(4)?,r.get::<_,String>(5)?))).unwrap();
+        assert_eq!(
+            row,
+            (
+                13,
+                3,
+                4,
+                "persistent_damage".into(),
+                "retained-request".into(),
+                r#"{"version":1,"payload":{}}"#.into()
+            )
+        );
+    }
 
     #[test]
     fn version_two_workspace_upgrade_preserves_saved_domains() {

@@ -400,6 +400,16 @@ fn preview(prepared: Prepared) -> ConditionEventPreviewView {
     consequences.extend(prepared.consequences.effects.into_iter().map(|effect| {
         let participant_key = prepared.consequences.participant_key.clone();
         match effect {
+            ConditionConsequence::StunnedActionsLost {
+                before,
+                after,
+                stunned_after,
+            } => ConditionEventConsequenceView::StunnedActionsLost {
+                participant_key,
+                before,
+                after,
+                stunned_after,
+            },
             ConditionConsequence::DirectHpLoss(amount) => {
                 ConditionEventConsequenceView::DirectHpLoss {
                     participant_key,
@@ -504,6 +514,16 @@ fn prepare_add(
         subject.level,
         &request.request_id,
     )?;
+    if request.event_intent == ConditionEventIntentView::Apply
+        && snapshot.encounter.current_turn_participant_key.as_deref()
+            == Some(subject.participant.participant_key.as_str())
+    {
+        super::rules::stunned_arrival::apply(
+            &subject.participant,
+            &mut consequences,
+            &request.request_id,
+        )?;
+    }
     consequences.changes.precedence_changes.extend(selection);
     Ok(Prepared {
         persistent_precedence,
@@ -633,6 +653,16 @@ fn prepare_update(
         subject.level,
         &request.request_id,
     )?;
+    if request.event_intent == ConditionEventIntentView::Apply
+        && snapshot.encounter.current_turn_participant_key.as_deref()
+            == Some(subject.participant.participant_key.as_str())
+    {
+        super::rules::stunned_arrival::apply(
+            &subject.participant,
+            &mut consequences,
+            &request.request_id,
+        )?;
+    }
     consequences.changes.precedence_changes.extend(selection);
     Ok(Prepared {
         persistent_precedence,

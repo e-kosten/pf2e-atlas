@@ -540,6 +540,7 @@ fn unavailable_spell_parents_remain_unknown_and_empty_damage_remains_known() {
 
 fn actor() -> ActorPresentationView {
     ActorPresentationView {
+        movement_details: missing(),
         size: missing(),
         hardness: absent_number(),
         ritual_difficulty_class: absent_number(),
@@ -597,6 +598,9 @@ fn actor() -> ActorPresentationView {
         languages: known(vec!["common".into()]),
         language_details: missing(),
         activities: known(vec![ActorActivityView {
+            ability_group: None,
+            reading_order: 0,
+            strike_range: missing(),
             first_level_only: None,
             is_ranged: missing(),
             effect_duration: FactView {

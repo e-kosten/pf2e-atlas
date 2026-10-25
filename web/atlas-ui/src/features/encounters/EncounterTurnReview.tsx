@@ -13,7 +13,7 @@ import {
 } from "./EncounterConditionLifecycle";
 import { EncounterPersistentTurnReview } from "./EncounterPersistentTurnReview";
 import { DeleteOutlined } from "@ant-design/icons";
-import { type ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 
 export function EncounterTurnReview({
   open,
@@ -79,7 +79,33 @@ export function EncounterTurnReview({
   const candidate = data?.outgoing;
   const outgoing =
     candidate && candidate.boundary_key === boundaryKey ? candidate : undefined;
-  const reminders = outgoing?.reminders ?? [];
+  const reminders = useMemo(() => outgoing?.reminders ?? [], [outgoing]);
+  const reminderRows = useRef<HTMLDivElement>(null);
+  const removalFocus = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const identity = removalFocus.current;
+    if (
+      !identity ||
+      !reminders.some(
+        (r) =>
+          r.kind === "resolved" &&
+          `${r.participant_key}:${r.condition_id}` === identity,
+      )
+    )
+      return;
+    const row = Array.from(
+      reminderRows.current?.querySelectorAll<HTMLElement>("[data-reminder-identity]") ??
+        [],
+    ).find((el) => el.dataset.reminderIdentity === identity);
+    if (
+      document.activeElement === document.body ||
+      row?.contains(document.activeElement)
+    )
+      row
+        ?.querySelector<HTMLElement>('[role="status"]')
+        ?.focus({ preventScroll: true });
+    removalFocus.current = null;
+  }, [reminders]);
   const hasPersistentDamage = !!outgoing?.persistent_damage_groups.length;
   const meaningful =
     reminders.length > 0 ||
@@ -92,6 +118,7 @@ export function EncounterTurnReview({
   return (
     <EncounterModal
       title="Turn reminders"
+      width={640}
       open={open && meaningful}
       footer={null}
       onCancel={onCancel}
@@ -120,9 +147,10 @@ export function EncounterTurnReview({
         />
       )}
       {outgoing && (
-        <p>
-          {outgoing.participant_name} · Round {outgoing.round_number.toString()}
-        </p>
+        <header className="encounter-turn-review__identity">
+          <h3>{outgoing.participant_name}</h3>
+          <span className="muted">Round {outgoing.round_number.toString()}</span>
+        </header>
       )}
       {outgoing?.participant_removed && (
         <>
@@ -143,30 +171,7 @@ export function EncounterTurnReview({
           {outgoing.damage_applied && <p>Persistent damage applied</p>}
         </>
       )}
-      {outgoing &&
-        !outgoing.participant_removed &&
-        reminders.some((reminder) => reminder.kind === "condition_recovery") &&
-        participants.find(
-          (participant) => participant.participant_key === outgoing.participant_key,
-        ) && (
-          <EncounterConditionRecovery
-            key={outgoing.boundary_key}
-            encounterRef={encounterRef}
-            boundaryKey={outgoing.boundary_key}
-            revision={data!.expected_revision}
-            participant={
-              participants.find(
-                (participant) =>
-                  participant.participant_key === outgoing.participant_key,
-              )!
-            }
-            disabled={disabled || pending}
-            onApply={onLifecycle}
-          >
-            <EncounterTurnRecoveryActions />
-          </EncounterConditionRecovery>
-        )}
-      <div className="encounter-turn-review">
+      <div className="encounter-turn-review" ref={reminderRows}>
         {hasPersistentDamage && (
           <PersistentParticipants
             data={data}
@@ -182,7 +187,6 @@ export function EncounterTurnReview({
           />
         )}
         {reminders
-          .filter((reminder) => reminder.kind !== "condition_recovery")
           .filter(
             (reminder) =>
               reminder.kind !== "persistent_damage" ||
@@ -193,33 +197,110 @@ export function EncounterTurnReview({
               ),
           )
           .map((reminder) => {
+            if (reminder.kind === "condition_recovery") {
+              const participant = participants.find(
+                (p) => p.participant_key === reminder.participant_key,
+              );
+              const identity = `${reminder.participant_key}:${reminder.condition_ids[0]}`;
+              return (
+                <section
+                  key={identity}
+                  data-reminder-identity={identity}
+                  className="encounter-turn-reminder encounter-turn-reminder--condition"
+                >
+                  <div className="encounter-turn-reminder__heading">
+                    <h3>
+                      {reminder.participant_key !== outgoing?.participant_key &&
+                        `${reminder.participant_name}: `}
+                      {reminder.condition_name}
+                      {reminder.condition_value != null
+                        ? ` ${reminder.condition_value}`
+                        : ""}
+                    </h3>
+                  </div>
+                  {participant ? (
+                    <div className="encounter-turn-reminder__actions">
+                      <EncounterConditionRecovery
+                        key={outgoing!.boundary_key}
+                        encounterRef={encounterRef}
+                        boundaryKey={outgoing!.boundary_key}
+                        revision={data!.expected_revision}
+                        participant={participant}
+                        disabled={disabled || pending || loading || !!error}
+                        contextualTurnActions
+                        onApply={async (request) => {
+                          const row = Array.from(
+                            reminderRows.current?.querySelectorAll<HTMLElement>(
+                              "[data-reminder-identity]",
+                            ) ?? [],
+                          ).find((el) => el.dataset.reminderIdentity === identity);
+                          if (row?.contains(document.activeElement))
+                            removalFocus.current = identity;
+                          try {
+                            return await onLifecycle(request);
+                          } catch (cause) {
+                            removalFocus.current = null;
+                            throw cause;
+                          }
+                        }}
+                      >
+                        <EncounterTurnRecoveryActions />
+                      </EncounterConditionRecovery>
+                    </div>
+                  ) : (
+                    <p>Participant unavailable</p>
+                  )}
+                </section>
+              );
+            }
+            const removable =
+              reminder.kind === "duration_ending" ||
+              reminder.kind === "duration_ended" ||
+              reminder.kind === "persistent_damage";
+            const present = participants.some(
+              (participant) =>
+                participant.participant_key === reminder.participant_key &&
+                participant.conditions.some(
+                  (condition) => condition.condition_id === reminder.condition_id,
+                ),
+            );
             return (
               <section
-                key={`${reminder.kind}:${reminder.participant_key}:${reminder.condition_id}`}
-                className="encounter-turn-reminder"
+                key={`${reminder.participant_key}:${reminder.condition_id}`}
+                data-reminder-identity={`${reminder.participant_key}:${reminder.condition_id}`}
+                className="encounter-turn-reminder encounter-turn-reminder--condition"
               >
                 <div className="encounter-turn-reminder__heading">
                   <h3>
-                    {reminder.participant_name}: {reminder.condition_name}
+                    {reminder.participant_key !== outgoing?.participant_key &&
+                      `${reminder.participant_name}: `}
+                    {reminder.condition_name}
                   </h3>
-                  {(reminder.kind === "duration_ending" ||
-                    reminder.kind === "duration_ended" ||
-                    reminder.kind === "persistent_damage") && (
-                    <Button
-                      disabled={disabled || loading || !!error}
-                      size="small"
-                      type="text"
-                      icon={<DeleteOutlined />}
-                      aria-label={`Remove ${reminder.condition_name} from ${reminder.participant_name}`}
-                      onClick={() => {
-                        void onRemove(reminder, outgoing!.boundary_key).catch(() => {
-                          // The mutation owner shows the failure and retains retry state.
-                        });
-                      }}
-                    />
-                  )}
                 </div>
-                <p>{reminderText(reminder, participants)}</p>
+                <p
+                  role={reminder.kind === "resolved" ? "status" : undefined}
+                  tabIndex={reminder.kind === "resolved" ? -1 : undefined}
+                >
+                  {reminderText(reminder, participants)}
+                </p>
+                {removable && (
+                  <Button
+                    style={{ justifySelf: "start" }}
+                    disabled={disabled || pending || loading || !!error || !present}
+                    icon={<DeleteOutlined />}
+                    aria-label={`Remove ${reminder.condition_name} from ${reminder.participant_name}`}
+                    onClick={(event) => {
+                      if (document.activeElement === event.currentTarget)
+                        removalFocus.current = `${reminder.participant_key}:${reminder.condition_id}`;
+                      void onRemove(reminder, outgoing!.boundary_key).catch(() => {
+                        removalFocus.current = null;
+                        // The mutation owner shows the failure and retains retry state.
+                      });
+                    }}
+                  >
+                    Remove condition
+                  </Button>
+                )}
               </section>
             );
           })}
@@ -234,6 +315,8 @@ function reminderText(
   participants: EncounterParticipantView[],
 ): string {
   switch (reminder.kind) {
+    case "resolved":
+      return reminder.result;
     case "condition_recovery":
       return "";
     case "persistent_damage":

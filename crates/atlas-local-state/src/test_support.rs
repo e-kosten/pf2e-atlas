@@ -19,6 +19,7 @@ impl TestStore {
             conn.execute_batch(ENCOUNTER_STATUS_SCHEMA_SQL)?;
             conn.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
             conn.execute_batch(CONDITION_SYSTEM_SCHEMA_SQL)?;
+            conn.execute_batch(TURN_RESOURCES_SCHEMA_SQL)?;
         }
         Ok(store)
     }
@@ -392,7 +393,7 @@ impl TestEncounters<'_> {
         request_id: &str,
         intent: &serde_json::Value,
         expected_revision: i64,
-        choose: impl FnOnce(&EncounterWithParticipants) -> (EncounterTurnUpdate, bool),
+        choose: impl FnOnce(&EncounterWithParticipants) -> LocalStateResult<(EncounterTurnUpdate, bool)>,
     ) -> LocalStateResult<Option<Encounter>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;

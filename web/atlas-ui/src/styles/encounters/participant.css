@@ -29,20 +29,13 @@
   margin: 0;
 }
 
-.encounter-reference__variant {
-  margin-inline-start: 8px;
-}
-
 .encounter-reference__actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-
-.encounter-reference__controls {
-  display: grid;
-  gap: 20px;
-  align-items: start;
+.encounter-reference > .actor-encounter-host {
+  max-width: 52rem;
 }
 
 .encounter-conditions {
@@ -53,6 +46,7 @@
 .encounter-hp-panel {
   display: grid;
   gap: 8px;
+  max-width: 32rem;
 }
 
 .encounter-hp-panel__header {
@@ -137,7 +131,8 @@
   align-items: center;
   display: grid;
   gap: 8px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(5rem, 10rem) auto;
+  justify-content: start;
   min-width: 0;
 }
 
@@ -149,20 +144,6 @@
 
 .encounter-hp-actions > button {
   min-width: 48px;
-}
-
-.encounter-hp-control--wide {
-  grid-column: 1 / -1;
-}
-
-@container encounter-inspector (min-width: 760px) {
-  .encounter-reference__controls:not(.encounter-reference__controls--without-hp) {
-    grid-template-columns: minmax(0, 1.2fr) minmax(280px, 1fr);
-  }
-}
-
-.encounter-hp-control--wide .encounter-hp-control__row {
-  grid-template-columns: minmax(80px, 1fr) auto;
 }
 
 .encounter-record-pane:focus-visible {
@@ -186,6 +167,27 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+.encounter-reference__durability {
+  display: grid;
+  gap: var(--space-group);
+  max-width: 36rem;
+}
+.encounter-reference__durability .actor-reference__defenses {
+  padding: 0;
+  border: 0;
+}
+.encounter-reference__durability .actor-reference__defenses h3 {
+  font-size: 14px;
+  margin: 0 0 var(--space-control);
+}
+.encounter-reference__durability .record-fact-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--space-group);
+}
+.encounter-reference__identity > .badge-row {
+  margin: 0;
 }
 .encounter-reference__name h2 {
   min-width: 0;

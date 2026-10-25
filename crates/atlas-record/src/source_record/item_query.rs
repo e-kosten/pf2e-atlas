@@ -32,6 +32,15 @@ macro_rules! family_field {
     };
 }
 impl<'a> ItemSourceView<'a> {
+    family_field!(
+        ability_slug,
+        &'a str,
+        [AbilitySource, FeatSource, EffectSource],
+        source,
+        SourceFieldView::from(&source.system)
+            .and_then(|system| (&system.slug).into())
+            .map(String::as_str)
+    );
     /// Explicit core provenance in the declared open flag namespace.
     pub fn core_source_id(self) -> SourceFieldView<'a, &'a String> {
         use atlas_foundry_model::SourceValue;

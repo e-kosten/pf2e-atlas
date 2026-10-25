@@ -66,12 +66,16 @@ impl AtlasAppService {
                 node,
                 r.source_fingerprint(),
             );
-            let availability = if let SourceNodeView::Table(table) = node {
+            let actor_content = matches!(request.selection, EmbeddedReadingSelection::ActorContent);
+            let availability = if actor_content {
+                atlas_domain::QueryFieldState::Value
+            } else if let SourceNodeView::Table(table) = node {
                 crate::projection::field_state(SourceFieldView::from(&table.results).availability())
             } else {
                 activities.state
             };
             let (candidates, start, single) = match &request.selection {
+                EmbeddedReadingSelection::ActorContent => (vec![request.parent.clone()], 0, true),
                 EmbeddedReadingSelection::TableResults { cursor } => {
                     let candidates: Vec<_> = crate::presentation::owned_links(
                         &detail.source,
@@ -101,19 +105,29 @@ impl AtlasAppService {
                     }
                     (candidates, start, false)
                 }
-                EmbeddedReadingSelection::Abilities { cursor, target } => {
+                EmbeddedReadingSelection::Abilities {
+                    group,
+                    cursor,
+                    target,
+                } => {
                     if cursor.is_some() && target.is_some() {
                         return Err(AppServiceError::invalid_request(
                             "select a reading cursor or target, not both",
                         ));
                     }
-                    let candidates: Vec<_> = activities
+                    let mut selected: Vec<_> = activities
                         .value
                         .unwrap_or_default()
                         .into_iter()
-                        .filter(|a| a.kind == ActorActivityKindView::Ability)
-                        .map(|a| a.navigation)
+                        .filter(|a| {
+                            a.kind == ActorActivityKindView::Ability
+                                && group.is_none_or(|group| a.ability_group == Some(group))
+                        })
                         .collect();
+                    if group.is_some() {
+                        selected.sort_by_key(|a| a.reading_order);
+                    }
+                    let candidates: Vec<_> = selected.into_iter().map(|a| a.navigation).collect();
                     let start = if let Some(target) = target {
                         checked_activity(target, &key, r.source_fingerprint())?;
                         let index = candidates
@@ -177,6 +191,11 @@ impl AtlasAppService {
                     .filter(|s| {
                         s.role != SourceContentRole::Name
                             && (matches!(s.text, SourceFieldView::Value(_))
+                                || actor_content
+                                    && !matches!(
+                                        s.text,
+                                        SourceFieldView::Missing | SourceFieldView::NotApplicable
+                                    )
                                 || s.role == SourceContentRole::Prerequisite)
                     })
                     .collect();

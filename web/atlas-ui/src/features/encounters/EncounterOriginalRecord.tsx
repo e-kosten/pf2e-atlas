@@ -1,4 +1,6 @@
-import { Button } from "antd";
+import { Tooltip } from "antd";
+import { BookOpen } from "lucide-react";
+import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
 import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
 import {
@@ -7,22 +9,29 @@ import {
   shouldHandleAtlasRouteClick,
 } from "../../app/routes";
 
-export function EncounterOriginalRecord({ recordKey }: { recordKey: string }) {
+export function EncounterOriginalRecord({
+  recordKey,
+  label,
+}: {
+  recordKey: string;
+  label: string;
+}) {
   const preview = useRecordPreview();
   return (
     <>
-      <Button
-        type="link"
-        size="small"
-        href={atlasRoutePath({ kind: "record", recordKey })}
-        onClick={(event) => {
-          if (!shouldHandleAtlasRouteClick(event)) return;
-          event.preventDefault();
-          preview.open(recordKey, event.currentTarget);
-        }}
-      >
-        Original record
-      </Button>
+      <Tooltip title={label} trigger={["hover", "focus"]}>
+        <PaneIconLink
+          title=""
+          label={label}
+          icon={<BookOpen size={16} aria-hidden="true" />}
+          href={atlasRoutePath({ kind: "record", recordKey })}
+          onClick={(event) => {
+            if (!shouldHandleAtlasRouteClick(event)) return;
+            event.preventDefault();
+            preview.open(recordKey, event.currentTarget);
+          }}
+        />
+      </Tooltip>
       {preview.recordKey && (
         <RecordReferenceDrawer
           anchor={preview.anchor}

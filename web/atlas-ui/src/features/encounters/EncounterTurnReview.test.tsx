@@ -2,6 +2,7 @@ import { ConfigProvider } from "antd";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { EncounterTurnReview } from "./EncounterTurnReview";
 import type { EncounterTurnReviewView } from "../../generated/atlas";
+import { encounterParticipant } from "./encounterTestFixtures";
 function outgoing(boundary_key: string, participant_name: string) {
   return {
     participant_removed: false,
@@ -113,4 +114,101 @@ it("keeps removed participants' original identity and sources accessible without
   ).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   expect(onHandled).not.toHaveBeenCalled();
+});
+
+it("offers direct removal beside an expired condition and retains its notice after removal", () => {
+  const { props, view } = setup();
+  const reminder = {
+    kind: "duration_ended" as const,
+    participant_key: "latest",
+    participant_name: "Latest",
+    condition_id: 5n,
+    condition_name: "Blinded",
+  };
+  const onRemove = vi.fn().mockResolvedValue(undefined);
+  const participant = encounterParticipant({
+    participant_key: "latest",
+    conditions: [
+      {
+        condition_id: 5n,
+        name: "Blinded",
+        scope: { kind: "everyone" },
+        extra_action: { kind: "unspecified" },
+        immunity_override: false,
+        parameters: { kind: "none" },
+        created_at: "",
+        updated_at: "",
+      },
+    ],
+  });
+  const renderNotice = (present: boolean, pending = false) => (
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnReview
+        {...props}
+        onRemove={onRemove}
+        pending={pending}
+        participants={[
+          { ...participant, conditions: present ? participant.conditions : [] },
+        ]}
+        data={{
+          ...props.data,
+          outgoing: {
+            ...props.data.outgoing!,
+            reminders: present
+              ? [reminder]
+              : [{ ...reminder, kind: "resolved", result: "Removed" }],
+          },
+        }}
+      />
+    </ConfigProvider>
+  );
+  view.rerender(renderNotice(true));
+  const remove = screen.getByRole("button", { name: "Remove Blinded from Latest" });
+  expect(remove).toHaveTextContent("Remove condition");
+  expect(screen.getByText("Duration ended")).toBeVisible();
+  remove.focus();
+  fireEvent.click(remove);
+  expect(onRemove).toHaveBeenCalledExactlyOnceWith(reminder, "latest");
+  view.rerender(renderNotice(true, true));
+  expect(remove).toBeDisabled();
+  view.rerender(renderNotice(false));
+  expect(screen.queryByText("Duration ended")).toBeNull();
+  expect(screen.getByRole("status")).toHaveTextContent("Removed");
+  expect(screen.getByRole("status")).toHaveFocus();
+  expect(screen.getByText("Blinded")).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Remove Blinded from Latest" }),
+  ).toBeNull();
+});
+
+it("shows the supplied current Frightened value without guessing an unavailable value", () => {
+  const { props, view } = setup();
+  const renderValue = (condition_value: bigint | null) => (
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnReview
+        {...props}
+        data={{
+          ...props.data,
+          outgoing: {
+            ...props.data.outgoing!,
+            reminders: [
+              {
+                kind: "condition_recovery",
+                participant_key: "latest",
+                participant_name: "Latest",
+                condition_ids: [1n],
+                condition_name: "Frightened",
+                condition_value,
+              },
+            ],
+          },
+        }}
+      />
+    </ConfigProvider>
+  );
+  view.rerender(renderValue(2n));
+  expect(screen.getByRole("heading", { name: "Frightened 2" })).toBeVisible();
+  view.rerender(renderValue(null));
+  expect(screen.getByRole("heading", { name: "Frightened" })).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "Frightened 0" })).toBeNull();
 });

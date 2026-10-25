@@ -298,7 +298,7 @@ test("life status stays compact and stable while saving, without replacing the s
     expect(geometry.trailing).toBeLessThan(8);
     expect(geometry.width - geometry.optionWidth).toBeLessThan(12);
     await expect(
-      dialog.getByRole("link", { name: "Original record", exact: true }),
+      dialog.getByRole("link", { name: "View creature reference", exact: true }),
     ).toHaveCount(0);
     await dead.scrollIntoViewIfNeeded();
     const nameNode = await name.elementHandle();
@@ -343,7 +343,10 @@ test("life status stays compact and stable while saving, without replacing the s
     });
     await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
     await expect(dialog).toBeHidden();
-    const original = page.getByRole("link", { name: "Original record", exact: true });
+    const original = page.getByRole("link", {
+      name: "View creature reference",
+      exact: true,
+    });
     await expect(original).toBeVisible();
     expect(await original.getAttribute("href")).toContain(
       "/records/browser-actors:sentinel00000001",

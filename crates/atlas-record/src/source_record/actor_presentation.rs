@@ -11,6 +11,20 @@ pub enum SourceNpcAdjustment {
 }
 
 impl<'a> ActorQueryView<'a> {
+    /// Qualifications on the authored NPC movement, not an additional speed.
+    pub fn movement_details(self) -> SourceFieldView<'a, &'a str> {
+        match self.source {
+            super::SourceNodeView::Actor(atlas_foundry_model::ActorSourcePF2e::NPCSource(s)) => {
+                SourceFieldView::from(&s.system)
+                    .and_then(|s| (&s.attributes).into())
+                    .and_then(|a| (&a.speed).into())
+                    .and_then(|speed| (&speed.details).into())
+                    .map(String::as_str)
+            }
+            _ => SourceFieldView::NotApplicable,
+        }
+    }
+
     /// Authored NPC hardness, retained outside the upstream declaration.
     pub fn creature_hardness(self) -> SourceFieldView<'a, &'a Number> {
         let super::SourceNodeView::Actor(atlas_foundry_model::ActorSourcePF2e::NPCSource(s)) =

@@ -173,6 +173,15 @@ export function useConditionEventPreview(
           />
         )}
         {displayed.consequences.map((c, index) => {
+          if (c.kind === "stunned_actions_lost")
+            return (
+              <p key={index}>
+                Actions {String(c.before)} → {String(c.after)} ·{" "}
+                {c.stunned_after === 0n
+                  ? "Stunned clears"
+                  : `Stunned ${c.stunned_after} remains`}
+              </p>
+            );
           if (c.kind === "become_prone")
             return (
               <p key={index}>

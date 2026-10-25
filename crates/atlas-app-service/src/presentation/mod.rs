@@ -319,6 +319,16 @@ pub(crate) fn record_presentation(
         }
         RecordBodyView::Activity(activity) => {
             label_traits(activity);
+            if owners.len() == 1 {
+                if let (Some(parent), SourceNodeView::Item(item)) = (record.node_at(&[]), node) {
+                    activity.ability_group = actor::ability_group_in_actor(parent, item);
+                }
+                activity_references::resolve_owned_strike_effects(
+                    record,
+                    std::slice::from_mut(activity.as_mut()),
+                    retrieval.source_fingerprint(),
+                );
+            }
             if matches!(node, SourceNodeView::Item(item) if matches!(selected_item_body(item), SelectedItemBody::Activity { casting_context: true }))
                 && owners.len() == 1
                 && let Some(parent_node @ SourceNodeView::Actor(_)) = record.node_at(&[])

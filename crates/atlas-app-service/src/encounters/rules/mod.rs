@@ -22,6 +22,7 @@ pub(super) mod action_context;
 pub(super) mod persistent_damage;
 
 pub(super) mod events;
+pub(super) mod stunned_arrival;
 
 pub(super) mod relationships;
 

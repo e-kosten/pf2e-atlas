@@ -44,6 +44,8 @@ impl EncountersRead<'_> {
         rows.map(|row| {
             let (kind, scope_key) = row?;
             let kind = match kind.as_str() {
+                "prepared_persistent_damage" => EncounterBoundaryKind::PreparedPersistentDamage,
+                "prepared_persistent_recovery" => EncounterBoundaryKind::PreparedPersistentRecovery,
                 "persistent_damage" => EncounterBoundaryKind::PersistentDamage,
                 "persistent_recovery" => EncounterBoundaryKind::PersistentRecovery,
                 "turn_start" => EncounterBoundaryKind::TurnStart,
@@ -159,6 +161,57 @@ impl EncountersWrite<'_> {
         intent: &serde_json::Value,
         expected_revision: i64,
         boundary: ConditionEventBoundary<'_>,
+        evaluate: impl FnOnce() -> LocalStateResult<PreparedConditionEvent>,
+    ) -> LocalStateResult<EncounterEventReceipt> {
+        self.write_condition_event(
+            encounter_key,
+            request_id,
+            intent,
+            expected_revision,
+            boundary,
+            true,
+            evaluate,
+        )
+    }
+
+    /// Store actual preparation outcomes and claims without changing gameplay or its revision.
+    pub fn prepare_condition_event_with_claims(
+        &self,
+        encounter_key: &str,
+        request_id: &str,
+        intent: &serde_json::Value,
+        expected_revision: i64,
+        boundary: ConditionEventBoundary<'_>,
+        evaluate: impl FnOnce() -> LocalStateResult<Vec<ConditionEventOutcome>>,
+    ) -> LocalStateResult<EncounterEventReceipt> {
+        self.write_condition_event(
+            encounter_key,
+            request_id,
+            intent,
+            expected_revision,
+            boundary,
+            false,
+            || {
+                Ok(PreparedConditionEvent {
+                    outcomes: evaluate()?,
+                    ..Default::default()
+                })
+            },
+        )
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "shared atomic event guards for writes and receipt-only preparation"
+    )]
+    fn write_condition_event(
+        &self,
+        encounter_key: &str,
+        request_id: &str,
+        intent: &serde_json::Value,
+        expected_revision: i64,
+        boundary: ConditionEventBoundary<'_>,
+        advances_revision: bool,
         evaluate: impl FnOnce() -> LocalStateResult<PreparedConditionEvent>,
     ) -> LocalStateResult<EncounterEventReceipt> {
         let ConditionEventBoundary {
@@ -315,6 +368,9 @@ impl EncountersWrite<'_> {
                     }
                 }
             }
+            for resources in &changes.turn_resources {
+                self.save_turn_resources(encounter_key, resources)?;
+            }
             for change in changes.participant_changes {
                 self.connection.execute("UPDATE encounter_participants SET current_hp=?2,temporary_hp=?3,track_dying=?4,mortality=?5,defeated=?6,hazard_disabled=?7,level_override=?8,base_death_threshold=?9,hp_origin=CASE WHEN current_hp IS NOT ?2 AND hp_origin='derived_pristine' THEN 'derived_edited' ELSE hp_origin END,revision=revision+1 WHERE participant_key=?1",params![change.participant_key,change.current_hp,change.temporary_hp,change.track_dying,match change.mortality {super::MortalityState::Alive=>"alive",super::MortalityState::Dead=>"dead"},change.defeated,change.hazard_disabled,change.level_override,change.base_death_threshold])?;
             }
@@ -397,7 +453,9 @@ impl EncountersWrite<'_> {
             for key in changes.resolved_pending_keys {
                 self.connection.execute("DELETE FROM encounter_pending_consequences WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND consequence_key=?2",params![encounter_key,key])?;
             }
-            self.connection.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE encounter_key=?1",[encounter_key])?;
+            if advances_revision {
+                self.connection.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE encounter_key=?1",[encounter_key])?;
+            }
             let receipt = EncounterEventReceipt {
                 encounter_key: encounter_key.into(),
                 request_id: request_id.into(),

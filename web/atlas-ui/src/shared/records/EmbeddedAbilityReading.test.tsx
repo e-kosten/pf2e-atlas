@@ -31,6 +31,8 @@ vi.mock("../../api/atlasApi", async (original) => ({
 const abilities = Array.from({ length: 600 }, (_, index) => ({
   ...activityFixture(`Ability ${index}`, "actors:large"),
   kind: "ability" as const,
+  ability_group: "reaction" as const,
+  reading_order: index,
   navigation: {
     ...activityFixture().navigation,
     record_key: "actors:large",
@@ -163,7 +165,7 @@ it("reads a finite default batch inline, preserves native permalinks and never s
       recordDetailQueryOptions("actors:large", abilities[0].navigation).queryKey,
     ),
   ).toBeUndefined();
-  const link = screen.getByRole("link", { name: "Open Ability 0 full reference" });
+  const link = screen.getByRole("link", { name: "Ability 0" });
   expect(link).toHaveAttribute(
     "href",
     atlasRoutePath({

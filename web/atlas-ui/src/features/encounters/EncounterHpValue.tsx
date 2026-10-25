@@ -16,6 +16,7 @@ export function EncounterHpValue({
   onCommit: (input: string) => Promise<boolean>;
 }) {
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
   const valueButton = useRef<HTMLButtonElement>(null);
   const editor = useRef<HTMLSpanElement>(null);
@@ -44,7 +45,8 @@ export function EncounterHpValue({
         size="small"
         inputMode="numeric"
         value={value?.toString() ?? ""}
-        disabled={disabled}
+        disabled={disabled && !saving}
+        readOnly={saving}
         onCommit={async (input) => {
           if (
             input.trim() &&
@@ -54,8 +56,13 @@ export function EncounterHpValue({
             throw new Error("Invalid HP");
           }
           setError(undefined);
-          await onCommit(input);
-          finishEditing();
+          setSaving(true);
+          try {
+            await onCommit(input);
+            finishEditing();
+          } finally {
+            setSaving(false);
+          }
         }}
       />
       {error && <span role="alert">{error}</span>}

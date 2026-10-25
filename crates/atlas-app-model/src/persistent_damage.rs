@@ -6,6 +6,10 @@ use ts_rs::TS;
 pub struct PersistentDamageSourceView {
     pub condition_id: i64,
     pub formula: String,
+    /// Validated expression for unrolled dice; never random outcomes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub roll_preview: Option<atlas_dice::RollPreviewExpression>,
     pub multiplier: DamageMultiplierView,
     pub recovery_dc: Option<i64>,
 }
@@ -62,6 +66,8 @@ pub struct PersistentReviewView {
     pub episodes: Vec<PersistentEpisodeReviewView>,
     pub damage_result: Option<PersistentDamageResultView>,
     pub recovery_results: Vec<PersistentRecoveryResultView>,
+    pub prepared_damage: Vec<PreparedPersistentDamageGroupView>,
+    pub prepared_recovery: Vec<PersistentRecoveryResultView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -90,6 +96,45 @@ pub struct PersistentRecoveryResultView {
 pub enum PersistentDamageInput {
     Roll,
     TableResult { amount: i64 },
+    Prepared { request_id: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PreparedPersistentRecoveryInput {
+    pub episode_id: String,
+    pub dc_override: Option<i64>,
+}
+
+/// A partial damage draft. At most one new damage roll or recovery check per request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PreparePersistentDamageRequest {
+    pub request_id: String,
+    pub expected_encounter_revision: i64,
+    pub participant_key: String,
+    pub boundary_key: Option<String>,
+    pub artifact_generation: Option<String>,
+    pub groups: Vec<PersistentDamageGroupInput>,
+    pub recovery: Option<PreparedPersistentRecoveryInput>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PreparedPersistentDamageView {
+    pub damage: PersistentDamageResultView,
+    pub complete: bool,
+    pub recovery: Option<PersistentRecoveryResultView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PersistentRecoveryInput {
+    Clear {
+        episode_id: String,
+    },
+    Prepared {
+        episode_id: String,
+        request_id: String,
+    },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentDamageGroupInput {
@@ -105,6 +150,8 @@ pub struct ApplyPersistentDamageRequest {
     pub participant_key: String,
     pub artifact_generation: Option<String>,
     pub groups: Vec<PersistentDamageGroupInput>,
+    #[serde(default)]
+    pub recoveries: Vec<PersistentRecoveryInput>,
     pub context: crate::HpEventContextView,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -143,4 +190,10 @@ pub struct PersistentDamageProtectionView {
     pub immune: bool,
     pub weakness: i64,
     pub resistance: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PreparedPersistentDamageGroupView {
+    pub request_id: String,
+    pub group: PersistentDamageOutcomeView,
 }

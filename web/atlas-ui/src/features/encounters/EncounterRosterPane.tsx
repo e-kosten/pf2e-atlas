@@ -1,5 +1,5 @@
 import { EncounterModal } from "./EncounterModal";
-import { Alert, Button, Dropdown, Form, Input, InputNumber } from "antd";
+import { Alert, Button, Dropdown, Form, Input, InputNumber, Tooltip } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableRow, useSortableList } from "../../shared/ui/sortable/SortableList";
@@ -41,6 +41,7 @@ export function EncounterRosterPane({
   recovery,
   onAdvanceTurn,
   advanceDisabled = false,
+  advanceLoading = false,
   onRollInitiative,
   onRemove,
   onReorder,
@@ -64,6 +65,7 @@ export function EncounterRosterPane({
   recovery?: React.ReactNode;
   onAdvanceTurn: () => void;
   advanceDisabled?: boolean;
+  advanceLoading?: boolean;
   onRollInitiative?: (participantKey?: string) => void;
   onRemove: (participant: EncounterParticipantView) => void;
   onReorder: (
@@ -233,7 +235,7 @@ export function EncounterRosterPane({
               )}
             </Button>
             <span
-              className="encounter-roster__hp"
+              className={`encounter-roster__hp ${rosterHpTone(participant)}`}
               aria-label={`${participant.display_name} HP`}
             >
               {participant.current_hp == null
@@ -267,6 +269,7 @@ export function EncounterRosterPane({
             disabled={
               disabled || advanceDisabled || loading || participants.length === 0
             }
+            loading={advanceLoading ? { delay: 200 } : false}
             icon={<Play size={14} aria-hidden="true" />}
             type="primary"
             onClick={onAdvanceTurn}
@@ -333,7 +336,9 @@ export function EncounterRosterPane({
                 <span className="encounter-roster__name">
                   {sortable.activeItem.display_name}
                 </span>
-                <span className="encounter-roster__hp">
+                <span
+                  className={`encounter-roster__hp ${rosterHpTone(sortable.activeItem)}`}
+                >
                   {sortable.activeItem.current_hp == null
                     ? "—"
                     : (
@@ -517,46 +522,68 @@ function ParticipantActions({
 }) {
   const trigger = useRef<HTMLButtonElement>(null);
   return (
-    <Dropdown
-      trigger={["click"]}
-      menu={{
-        "aria-label": `${participant.display_name} actions`,
-        items: [
-          {
-            key: "turn",
-            label: `Set turn to ${participant.display_name}`,
-            icon: <Play size={14} aria-hidden="true" />,
-            disabled,
-            onClick: () => {
-              trigger.current?.focus();
-              onSetTurn();
+    <div className="encounter-roster__actions">
+      <Dropdown
+        trigger={["click"]}
+        menu={{
+          "aria-label": `${participant.display_name} actions`,
+          items: [
+            {
+              key: "turn",
+              label: `Set turn to ${participant.display_name}`,
+              icon: <Play size={14} aria-hidden="true" />,
+              disabled,
+              onClick: () => {
+                trigger.current?.focus();
+                onSetTurn();
+              },
             },
-          },
-          { type: "divider" },
-          {
-            key: "remove",
-            label: `Remove ${participant.display_name}`,
-            icon: <Trash2 size={14} aria-hidden="true" />,
-            danger: true,
-            disabled,
-            onClick: () => {
-              trigger.current?.focus();
-              onRemove();
-            },
-          },
-        ],
-      }}
-    >
-      <Button
-        ref={trigger}
-        type="text"
-        size="small"
-        disabled={disabled}
-        className="encounter-roster__more"
-        aria-label={`Actions for ${participant.display_name}`}
-        aria-haspopup="menu"
-        icon={<Ellipsis size={16} aria-hidden="true" />}
-      />
-    </Dropdown>
+          ],
+        }}
+      >
+        <Button
+          ref={trigger}
+          type="text"
+          size="small"
+          disabled={disabled}
+          className="encounter-roster__more"
+          aria-label={`Actions for ${participant.display_name}`}
+          aria-haspopup="menu"
+          icon={<Ellipsis size={16} aria-hidden="true" />}
+        />
+      </Dropdown>
+      <Tooltip
+        title={`Remove ${participant.display_name}`}
+        trigger={["hover", "focus"]}
+      >
+        <Button
+          type="text"
+          size="small"
+          danger
+          disabled={disabled}
+          aria-label={`Remove ${participant.display_name}`}
+          icon={<Trash2 size={14} aria-hidden="true" />}
+          onClick={onRemove}
+        />
+      </Tooltip>
+    </div>
   );
+}
+
+function rosterHpTone(participant: EncounterParticipantView): string {
+  const maximum = participant.effective_max_hp;
+  if (
+    participant.current_hp == null ||
+    maximum.state !== "value" ||
+    maximum.value == null ||
+    maximum.value <= 0
+  )
+    return "";
+  const ratio =
+    (Number(participant.current_hp) + Number(participant.temporary_hp)) / maximum.value;
+  return ratio <= 0.25
+    ? "encounter-roster__hp--critical"
+    : ratio <= 0.5
+      ? "encounter-roster__hp--bloodied"
+      : "encounter-roster__hp--healthy";
 }

@@ -15,7 +15,7 @@
   vertical-align: baseline;
 }
 
-.actor-activity > .action-cost,
+.actor-activity__facts > .action-cost,
 .record-reference__embedded .action-cost {
   margin-inline: 8px;
 }

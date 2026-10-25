@@ -17,6 +17,7 @@ export function EncounterConditionValue({
 }) {
   const [draft, setDraft] = useState<number | null | undefined>(undefined);
   const [error, setError] = useState<string>();
+  const [saving, setSaving] = useState(false);
   const inFlight = useRef(false);
   const shown =
     draft === undefined ? (value === undefined ? null : Number(value)) : draft;
@@ -29,12 +30,14 @@ export function EncounterConditionValue({
     setError(undefined);
     if (BigInt(input) === value) return;
     inFlight.current = true;
+    setSaving(true);
     try {
       if (await onCommit(BigInt(input))) setDraft(undefined);
     } catch {
       /* The mutation owner supplies the server error beside the row. */
     } finally {
       inFlight.current = false;
+      setSaving(false);
     }
   };
   return (
@@ -44,10 +47,12 @@ export function EncounterConditionValue({
       help={error}
     >
       <ConditionValueInput
+        size="small"
         name={`${name} value`}
         removeLabel={`Remove ${name}`}
         value={shown}
         disabled={disabled}
+        readOnly={saving}
         onChange={(input) => {
           setDraft(input);
           setError(undefined);
@@ -65,12 +70,14 @@ export function EncounterConditionValue({
             ? async () => {
                 if (disabled || inFlight.current) return;
                 inFlight.current = true;
+                setSaving(true);
                 try {
                   if (await onClear()) setDraft(undefined);
                 } catch {
                   /* Mutation owner reports failure. */
                 } finally {
                   inFlight.current = false;
+                  setSaving(false);
                 }
               }
             : undefined

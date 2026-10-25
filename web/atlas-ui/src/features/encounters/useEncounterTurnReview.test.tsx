@@ -2,11 +2,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { flushSync } from "react-dom";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
-import { getEncounterTurnReview } from "../../api/atlasApi";
+import {
+  getEncounterTurnReview,
+  getEncounterPersistentReview,
+  getEncounterConditionLifecycleActions,
+} from "../../api/atlasApi";
 import { useEncounterTurnReview } from "./useEncounterTurnReview";
 import type { useEncounterMutations } from "./useEncounterMutations";
 vi.mock("../../api/atlasApi", () => ({
   getEncounterTurnReview: vi.fn(),
+  getEncounterPersistentReview: vi.fn(),
+  getEncounterConditionLifecycleActions: vi.fn(),
 }));
 const review: import("../../generated/atlas").EncounterTurnReviewView = {
   encounter_key: "encounter",
@@ -37,7 +43,7 @@ const review: import("../../generated/atlas").EncounterTurnReviewView = {
 
   next_turn_unavailable_reason: null,
 };
-function setup(onAdvance: (revision: bigint) => Promise<boolean>) {
+function setup(onAdvance: (revision: bigint) => Promise<boolean>, onFinish = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const run = vi.fn().mockResolvedValue({
     active: true,
@@ -51,6 +57,8 @@ function setup(onAdvance: (revision: bigint) => Promise<boolean>) {
   } as unknown as ReturnType<typeof useEncounterMutations>;
   return {
     run,
+    client,
+    onFinish,
     ...renderHook(
       () =>
         useEncounterTurnReview({
@@ -58,6 +66,7 @@ function setup(onAdvance: (revision: bigint) => Promise<boolean>) {
           expectedRevision: 7n,
           mutations,
           onAdvance,
+          onFinish,
         }),
       {
         wrapper: ({ children }: PropsWithChildren) => (
@@ -78,7 +87,7 @@ it("advances once before opening context; dismissing never advances again", asyn
         complete = resolve;
       }),
   );
-  const { result } = setup(advance);
+  const { result, onFinish } = setup(advance);
   await waitFor(() => expect(result.current.loading).toBe(false));
   let pending!: Promise<void>;
   act(() => {
@@ -96,20 +105,23 @@ it("advances once before opening context; dismissing never advances again", asyn
     await pending;
   });
   expect(result.current.open).toBe(true);
+  expect(onFinish).not.toHaveBeenCalled();
   act(() => result.current.close());
+  expect(onFinish).toHaveBeenCalledOnce();
   expect(result.current.open).toBe(false);
   expect(advance).toHaveBeenCalledTimes(1);
 });
 it("keeps a failed advance separate from reminder loading", async () => {
-  const { result } = setup(vi.fn().mockResolvedValue(false));
+  const { result, onFinish } = setup(vi.fn().mockResolvedValue(false));
   await act(async () => {
     await result.current.begin();
   });
   expect(result.current.open).toBe(false);
+  expect(onFinish).not.toHaveBeenCalled();
 });
 it("a reminder read failure after a saved advance does not undo progression", async () => {
   const advance = vi.fn().mockResolvedValue(true);
-  const { result } = setup(advance);
+  const { result, onFinish } = setup(advance);
   await waitFor(() => expect(result.current.loading).toBe(false));
   vi.mocked(getEncounterTurnReview).mockRejectedValue(
     new Error("Reminder read failed"),
@@ -118,6 +130,7 @@ it("a reminder read failure after a saved advance does not undo progression", as
     await result.current.begin();
   });
   expect(result.current.open).toBe(false);
+  expect(onFinish).toHaveBeenCalledOnce();
   expect(result.current.error?.message).toBe("Reminder read failed");
   expect(advance).toHaveBeenCalledTimes(1);
 });
@@ -128,12 +141,13 @@ it("advances without opening an empty reminder surface", async () => {
     outgoing: null,
   });
   const advance = vi.fn().mockResolvedValue(true);
-  const { result } = setup(advance);
+  const { result, onFinish } = setup(advance);
   await act(async () => {
     await result.current.begin();
   });
   expect(advance).toHaveBeenCalledTimes(1);
   expect(result.current.open).toBe(false);
+  expect(onFinish).toHaveBeenCalledOnce();
 });
 
 it("closing finishes the interaction without a mutation or reopening on refresh", async () => {
@@ -364,6 +378,7 @@ it("keeps persistent dice results out of the generic modal footer", async () => 
     await result.current.execute({
       kind: "persistent-damage",
       request: {
+        recoveries: [],
         participant_key: "actor",
         expected_encounter_revision: 8n,
         boundary_key: "outgoing",
@@ -388,4 +403,126 @@ it("keeps persistent dice results out of the generic modal footer", async () => 
     await result.current.begin();
   });
   expect(result.current.outcomes).toEqual([]);
+});
+
+it("loads the new boundary's dependent models before revealing reminders and never repeats the advance", async () => {
+  let resolvePersistent!: () => void;
+  vi.mocked(getEncounterPersistentReview).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolvePersistent = () =>
+          resolve({
+            encounter_revision: 8n,
+            round_number: 1n,
+            damage_groups: [],
+            episodes: [],
+            damage_applied: false,
+            damage_result: null,
+            recovery_results: [],
+            prepared_damage: [],
+            prepared_recovery: [],
+          });
+      }),
+  );
+  vi.mocked(getEncounterConditionLifecycleActions).mockResolvedValue({
+    encounter_key: "encounter",
+    participant_key: "actor",
+    encounter_revision: 8n,
+    actions: [],
+  });
+  const advance = vi.fn().mockResolvedValue(true);
+  const { result } = setup(advance);
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  vi.mocked(getEncounterTurnReview).mockResolvedValue({
+    ...review,
+    outgoing: {
+      ...review.outgoing!,
+      boundary_key: "new",
+      persistent_damage_groups: [
+        {
+          episode_id: "fire",
+          damage_type: "fire",
+          selected_source_id: 1n,
+          sources: [],
+        },
+      ],
+      reminders: [
+        {
+          kind: "condition_recovery",
+          participant_key: "actor",
+          participant_name: "Actor",
+          condition_ids: [2n],
+          condition_name: "Frightened",
+          condition_value: 2n,
+        },
+      ],
+    },
+  });
+  let pending!: Promise<void>;
+  act(() => {
+    pending = result.current.begin();
+  });
+  await waitFor(() =>
+    expect(getEncounterPersistentReview).toHaveBeenCalledWith(
+      "encounter",
+      "actor",
+      "new",
+    ),
+  );
+  expect(getEncounterConditionLifecycleActions).toHaveBeenCalledWith(
+    "encounter",
+    "actor",
+    "new",
+  );
+  expect(result.current.preparing).toBe(true);
+  expect(result.current.open).toBe(false);
+  act(() => {
+    void result.current.begin();
+  });
+  await act(async () => {
+    resolvePersistent();
+    await pending;
+  });
+  expect(result.current.open).toBe(true);
+  expect(result.current.preparing).toBe(false);
+  expect(advance).toHaveBeenCalledOnce();
+});
+
+it("opens a retryable dependent-read failure without turning it into a turn-advance failure", async () => {
+  vi.mocked(getEncounterPersistentReview).mockRejectedValue(
+    new Error("Read unavailable"),
+  );
+  const advance = vi.fn().mockResolvedValue(true);
+  const { result, client } = setup(advance);
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  vi.mocked(getEncounterTurnReview).mockResolvedValue({
+    ...review,
+    outgoing: {
+      ...review.outgoing!,
+      boundary_key: "failed-read",
+      persistent_damage_groups: [
+        {
+          episode_id: "fire",
+          damage_type: "fire",
+          selected_source_id: 1n,
+          sources: [],
+        },
+      ],
+    },
+  });
+  await act(async () => {
+    await result.current.begin();
+  });
+  expect(result.current.open).toBe(true);
+  expect(result.current.preparing).toBe(false);
+  expect(
+    client.getQueryState([
+      "persistent-review",
+      "encounter",
+      "actor",
+      "8",
+      "failed-read",
+    ])?.error?.message,
+  ).toBe("Read unavailable");
+  expect(advance).toHaveBeenCalledOnce();
 });

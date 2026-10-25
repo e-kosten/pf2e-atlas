@@ -15,6 +15,11 @@ pub(in crate::encounters) struct ConditionConsequences {
 
 pub(in crate::encounters) enum ConditionConsequence {
     DirectHpLoss(i64),
+    StunnedActionsLost {
+        before: i64,
+        after: i64,
+        stunned_after: i64,
+    },
     BecomeProne,
     DropHeldItems,
     DrainedLevelRequired(i64),

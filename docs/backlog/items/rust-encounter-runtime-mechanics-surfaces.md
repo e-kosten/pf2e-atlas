@@ -3,14 +3,19 @@
 Status: proposed
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-24
 
 ## Problem
 
 Encounters already expose authored movement speeds and bounded condition-derived
 action counts/capabilities. Additional effect targets and richer explanations
 need explicit source and rule evidence. Traits such as minion affect action
-economy independently of conditions; turn-timed effects require a lifecycle model.
+economy independently of conditions. The current lifecycle records actual regained
+allowances, explicit manual expenditure, separate reaction stock/permission and
+Stunned consumption (ADR0048/0055; PR #105 remains under review). Source-owned
+conditions/grants and source-specific reaction restrictions still need reviewed
+projection support; do not guess these from actor names or silently treat Slowed
+as a no-reaction rule.
 
 ## Desired Outcome
 
@@ -22,7 +27,7 @@ The implementation should:
 - derive action budget in app-service encounter projection;
 - model action counts separately from action/reaction capability, so effects such as stunned do not become misleading reaction-count math;
 - support chained modeled condition effects, so a condition such as encumbered can reuse the canonical clumsy rule while also applying its own runtime speed effect;
-- keep local-state limited to participant state and condition rows;
+- keep local-state limited to saved participant state, conditions and actual turn resources;
 - render speed/action surfaces in the encounter UI;
 - apply only deterministic condition effects;
 - keep ambiguous or actor-vs-actor effects as tracked/reference notes.
@@ -30,12 +35,14 @@ The implementation should:
 ## Constraints
 
 - Do not parse raw Foundry JSON in `atlas-app-service` or `web/atlas-ui`.
-- Do not persist derived speed/action values in local-state rows.
+- Do not persist passive speed/action projections as caches in local-state; the actual
+  regained allowance and explicit expenditure are durable turn state, not a live forecast.
 - Keep browser condition logic presentation-only.
 - Do not fold actor-vs-actor visibility or targeting into this work.
-- Keep persistent damage as tracked/freeform until it has a dedicated damage-over-time model.
+- Use the existing dedicated persistent-damage/recovery model rather than adding a parallel path.
 - Speed penalties with floors, such as encumbered's 5-foot minimum, must be represented explicitly rather than approximated with ordinary additive stat modifiers.
-- Treat own-turn stunned application as later runtime mutation work: after the current action/activity finishes, remaining actions should be lost immediately to reduce the stunned value.
+- Preserve explicit own-turn Stunned resolution after the current action/activity
+  finishes; use recorded remaining actions, never a new three-action forecast.
 
 ## Related
 

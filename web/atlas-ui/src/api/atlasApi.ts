@@ -449,14 +449,17 @@ function persistentDamageResult(
     ...value,
     total: toBigInt(value.total),
     hardness_absorbed: toBigInt(value.hardness_absorbed),
-    groups: value.groups.map((group) => ({
-      ...group,
-      source_condition_id: toBigInt(group.source_condition_id),
-      amount: toBigInt(group.amount),
-      ...(group.protection
-        ? { protection: persistentProtection(group.protection) }
-        : {}),
-    })),
+    groups: value.groups.map(persistentDamageOutcome),
+  };
+}
+function persistentDamageOutcome(
+  group: import("../generated/atlas").PersistentDamageOutcomeView,
+): import("../generated/atlas").PersistentDamageOutcomeView {
+  return {
+    ...group,
+    source_condition_id: toBigInt(group.source_condition_id),
+    amount: toBigInt(group.amount),
+    ...(group.protection ? { protection: persistentProtection(group.protection) } : {}),
   };
 }
 function persistentRecoveryResult(
@@ -493,8 +496,30 @@ export async function getEncounterPersistentReview(
     damage_result:
       value.damage_result === null ? null : persistentDamageResult(value.damage_result),
     recovery_results: value.recovery_results.map(persistentRecoveryResult),
+    prepared_damage: value.prepared_damage.map((prepared) => ({
+      ...prepared,
+      group: persistentDamageOutcome(prepared.group),
+    })),
+    prepared_recovery: value.prepared_recovery.map(persistentRecoveryResult),
   };
 }
+export async function prepareEncounterPersistentDamage(
+  encounterRef: string,
+  request: import("../generated/atlas").PreparePersistentDamageRequest,
+): Promise<import("../generated/atlas").PreparedPersistentDamageView> {
+  const value = await atlasFetch<
+    import("../generated/atlas").PreparedPersistentDamageView
+  >(`/api/encounters/${encodeURIComponent(encounterRef)}/persistent-preparation`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
+  return {
+    ...value,
+    damage: persistentDamageResult(value.damage),
+    recovery: value.recovery ? persistentRecoveryResult(value.recovery) : null,
+  };
+}
+
 export async function applyEncounterPersistentDamage(
   encounterRef: string,
   request: import("../generated/atlas").ApplyPersistentDamageRequest,
@@ -1010,7 +1035,16 @@ async function atlasFetchEncounter<T>(
     result.consequences = result.consequences.map((value) => {
       if (!isRecord(value))
         throw new AtlasApiError(200, "Invalid condition consequence");
-      return { ...value, ...optionalIntegers(value, ["amount", "magnitude_increase"]) };
+      return {
+        ...value,
+        ...optionalIntegers(value, [
+          "amount",
+          "magnitude_increase",
+          "before",
+          "after",
+          "stunned_after",
+        ]),
+      };
     });
   if (Array.isArray(result.encounters))
     result.encounters = result.encounters.map(summary);
@@ -1382,4 +1416,14 @@ export async function getTraitRecords(
       "The Similar response does not match the selected search model. Retry.",
     );
   return result;
+}
+
+export async function updateTurnResources(
+  encounterRef: string,
+  request: import("../generated/atlas").UpdateTurnResourcesRequest,
+): Promise<import("../generated/atlas").EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/turn-resources`,
+    { method: "POST", body: jsonBody(request) },
+  );
 }

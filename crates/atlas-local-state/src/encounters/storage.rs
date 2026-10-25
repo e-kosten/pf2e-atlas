@@ -557,7 +557,7 @@ fn participants(
                 participant.record_title_snapshot, participant.record_kind_snapshot, participant.side, participant.initiative,
                 participant.initiative_order, participant.max_hp, participant.current_hp,
                 participant.temporary_hp, participant.defeated, participant.hidden,
-                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision, participant.hazard_disabled, participant.track_dying, participant.mortality, participant.level_override, participant.base_death_threshold
+                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision, participant.hazard_disabled, participant.track_dying, participant.mortality, participant.level_override, participant.base_death_threshold, participant.turn_resources_json
          FROM encounter_participants participant
          JOIN encounters encounter ON encounter.id = participant.encounter_id
          WHERE encounter.encounter_key = ?1
@@ -602,7 +602,20 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
     let participant_kind: String = row.get(2)?;
     let participant_variant: String = row.get(3)?;
     let side: String = row.get(8)?;
+    let turn_resources = row
+        .get::<_, Option<String>>(27)?
+        .map(|json| {
+            super::receipt_codec::decode(&json).map_err(|error| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    27,
+                    rusqlite::types::Type::Text,
+                    Box::new(error),
+                )
+            })
+        })
+        .transpose()?;
     Ok(EncounterParticipant {
+        turn_resources,
         persistent_precedence: Vec::new(),
         track_dying: row.get(23)?,
         level_override: row.get(25)?,
@@ -651,7 +664,7 @@ pub(crate) fn participant(
                 participant.record_title_snapshot, participant.record_kind_snapshot, participant.side, participant.initiative,
                 participant.initiative_order, participant.max_hp, participant.current_hp,
                 participant.temporary_hp, participant.defeated, participant.hidden,
-                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision, participant.hazard_disabled, participant.track_dying, participant.mortality, participant.level_override, participant.base_death_threshold
+                participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision, participant.hazard_disabled, participant.track_dying, participant.mortality, participant.level_override, participant.base_death_threshold, participant.turn_resources_json
          FROM encounter_participants participant
          WHERE participant.participant_key = ?1",
     )?;

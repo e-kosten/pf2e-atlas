@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { App } from "antd";
 import { useEffect, useRef, useState } from "react";
 import {
+  updateTurnResources,
   applyEncounterHpAction,
   applyEncounterConditionLifecycle,
   rollInitiative,
@@ -41,6 +42,13 @@ import type {
 } from "../../generated/atlas";
 
 export type EncounterMutationCommand =
+  | {
+      kind: "turn-resources";
+      request: Omit<
+        import("../../generated/atlas").UpdateTurnResourcesRequest,
+        "request_id"
+      >;
+    }
   | {
       kind: "condition-lifecycle";
       request: Omit<
@@ -147,6 +155,8 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
         return `${command.kind}:${command.participantKey}:${command.request.condition_id}`;
       case "remove-condition":
         return `${command.kind}:${command.participantKey}:${command.conditionId}`;
+      case "turn-resources":
+        return `${command.kind}:${command.request.participant_key}`;
       case "hp":
         return `${command.kind}:${command.request.participant_key}`;
       case "life-settings":
@@ -232,6 +242,11 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       | import("../../generated/atlas").ConditionLifecycleResultView
     > => {
       switch (command.kind) {
+        case "turn-resources":
+          return updateTurnResources(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
         case "initiative":
           return rollInitiative(currentRef, command.request);
         case "spell":

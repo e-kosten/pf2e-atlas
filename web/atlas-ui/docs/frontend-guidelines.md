@@ -620,6 +620,12 @@ Reject unsafe integer input before creating numeric literals.
 
 ### Choosing an interaction surface
 
+Noninteractive icon tooltips must not intercept pointer/touch input. Close the
+initiating tooltip when opening its editor; for example, a condition's Edit hint
+must not remain above the modal's Apply button. Use Ant's documented `open` and
+semantic `styles.root` API, preserving the button's accessible name and keyboard
+focus behavior. Verify with actual touch activation as well as mouse and keyboard.
+
 Condition actions belong beside their condition's edit/remove controls. Keep
 recovery rolls and results anchored to those controls, including when success
 clears the condition. Do not introduce general action groups or disclosures
@@ -731,11 +737,13 @@ fingerprint, selected spell rank and separate landing. Rank changes update the
 current document through their own callback. The page/reading host passes its
 landing explicitly; reusable detail content must not reparse the current URL on
 local renders and restart landing when a linked Drawer opens or closes.
-Original record follows verified
-structured provenance for an embedded copy; an encounter participant's root
-Original record opens its indexed baseline. Neither replaces a customized copy
-nor guesses a destination by name. Unavailable references remain explicit inert
-labels, without invented links.
+Opening the full page retains the exact document currently being read, including
+its owner and selected rank. Reference navigation follows verified structured
+provenance to the general entry; an encounter participant's reference opens its
+indexed baseline. Keep these destinations distinguishable without asking users
+to understand embedded storage or an "original record" concept. Neither action
+replaces a customized copy or guesses a destination by name. Unavailable
+references remain explicit inert labels, without invented links.
 
 The Drawer uses the same RecordDetailPane and family renderer as full pages.
 Its header shows the document title once and its consistent action group remains
@@ -744,7 +752,7 @@ title/actions, grouped classification and textual action cost, traits, then sour
 Keep these facts left aligned; do not leave an empty full-page title slot or
 push type to a detached right edge. Action glyphs stay beside the title; textual
 costs such as Treat Wounds' supplied "passive" belong with metadata, not in its
-heading. Keep rank selection and exact owner/original links in this shared
+heading. Keep rank selection and exact owner/reference links in this shared
 identity, without duplicating them in the body. Phone action groups wrap by row;
 substantial header details can scroll within a bounded header so the document
 body remains reachable. Transient references omit Related sections;
@@ -970,15 +978,87 @@ the search row, toolbar height and results origin should remain stable.
 
 Reference composition prioritizes the current reading task and groups related
 facts/mechanics without separating essential qualifiers. Spell casting facts and
-current damage precede prose as described above; creature reference order needs
-its own review. Encounter composition puts current HP, conditions and actions first;
-participant edits and maximum-HP configuration live in secondary disclosures.
-Hazard detection, disable instructions, defenses, triggers/effects, routine and
-reset are essential reference material and stay inline when supplied. Hidden Pit's
+current damage precede prose as described above. Creature references put complete
+permitted descriptive prose early; encounters retain it after equipment. Both use
+the same mechanical sequence: defenses; Perception/senses; ability modifiers;
+skills/Lore with qualifications; movement; languages/communication; strikes;
+active/free special abilities then offensive passives; spellcasting; reactions;
+supporting passives; unclassified abilities; equipment. For example, Rat Swarm's
+statistics stay above Swarming Bites, and Swarming Bites precedes Putrid Plague.
+The opening creature notes field reads directly as prose in browsing; omit its
+redundant generic Notes heading. Preserve authored subheadings, separate later
+notes headings and unavailable/bounded-field labels. This does not remove the
+Description outline destination or move encounter lore before mechanics.
+Do not move the statistics block below actions to make those actions easier to find.
+On wide encounter panes, turn context/conditions occupy an adjacent lane; in a
+single column they follow HP/defenses and precede statistics and combat choices.
+Conditions
+must not stretch nearby HP/stat rows during value edits. Participant edits and
+maximum-HP configuration remain secondary tasks.
+
+Hazards keep description early in both contexts because it can contain operating
+rules. Follow detection → defenses → disable → initial activation → routine →
+strikes/additional active abilities → other abilities → reset → equipment. Only
+applicable sections appear; unavailable facts retain their honest state. Shared
+app-service metadata groups authored hazard reactions/free actions as activation
+before bounded pagination. Do not sort prose or only currently loaded pages to
+recover this order. Hazard detection, disable instructions, defenses,
+triggers/effects, routine and reset are essential material and stay inline when supplied. Hidden Pit's
 Pitfall reaction must not require opening an Abilities accordion. Secondary
 provenance may be disclosed; that does not make all owned records or a long spell
 catalog essential inline content. Keep bounded continuation for substantial
 content instead of clipping it or requiring an unrelated disclosure.
+Do not show the generic creature Turn budget for any hazard. Simple hazards keep
+their supplied reaction/free action, trigger, effect and reset; complex hazards
+keep their complete Routine, including its authored action allotment. The
+structured simple/complex flag does not supply a numeric allotment; do not assume
+three actions or extract counts from prose in React. For example, Spinning Blade
+Pillar's (3 actions) stays in Routine rather than becoming a generic forecast.
+Conditions and live HP remain available independently of that budget.
+
+Manual Turn controls share the existing runtime lane with Conditions beside HP
+and defenses; in one column they follow defenses and precede statistics. Use the
+backend's recorded allowance and remaining resources; a live condition forecast
+belongs in Next turn and must not replace them. Keep deterministic regain results
+there for the actual turn (Stunned 2 cleared), without an acknowledgment or
+ordinary-turn notification. Condition-specific recovery remains beside its condition.
+After Stunned is consumed, retain its rules link in the existing action-loss
+summary for that turn. Keep cleared effects out of the active Conditions list;
+do not preserve an editable inactive row just to make its rules reachable. The
+server supplies the rule identity separately from the outcome text.
+Do not move the condition lane, HP controls or reading position when a count changes.
+
+Use explicit, compact action spending and correction controls; attacks and spell-use
+buttons never spend actions implicitly. In Turn, available action/reaction chips spend
+on activation and spent chips restore; retain the clicked chip's position and focus.
+Keep a restricted extra action in that row across a small gap, with its permitted
+uses visible below; it must still spend/restore the extra resource. It does not
+need a second label menu. Keep Actions as plain text for an unmodified three-action
+allowance. When the recorded allowance or forecast differs, or supplied modifiers,
+restrictions or uncertainty need explaining, the label opens the backend's Next
+turn calculation. Modifiers that cancel to three still need that explanation.
+Keep the label aligned with adjacent text. The popover shows the Next turn
+calculation; this turn's chips already show its allowance. Do not repeat that count
+or add a remaining-actions input inside the explanation.
+Reaction stock and permission are independent: a spent reaction remains spent under
+Stunned, and an unspent blocked reaction does not appear usable.
+Off-turn reactions remain editable. Missing past allocation is unknown, not a successful
+3-action/1-reaction regain. Hazards keep their complete authored routines instead.
+Keep pending controls mounted and preserve focus through canonical refresh; failure
+stays beside Turn and a committed write with failed refresh must not invite spending
+again. Verify spend/restore, off-turn reaction, Stunned clear, mid-turn Quickened,
+keyboard correction and phone layout with actual transitions.
+
+A workspace has one owner for pane widths at each topology. Within the desktop
+encounter topology, shrinking the viewport must not widen its participant pane
+and make the runtime lane return to the side. Keep the splitter's roster width
+through desktop breakpoints; collapse its own controls inside that width. Do not
+apply the search workspace's fixed-width roster override to encounters. For
+example, changing the roster from 360px to 290px at 1180px makes the conditions lane
+stack, reappear and stack again. Phone roster/participant navigation is a deliberate
+topology change. Verify a continuous width sweep as well as fixed viewport samples,
+with manually resized and collapsed rosters; a screenshot at each endpoint cannot
+establish that intermediate layouts behave predictably.
 
 For inline record inclusions, prioritize reading over occasional source navigation.
 Reuse a meaningful existing rule heading or authored prose reference as the link;
@@ -993,6 +1073,21 @@ content still needs local status and a useful recovery/destination link. This ru
 does not suppress essential actions or change existing owned-ability permalinks.
 Verify the body-only, named-heading, prose-link and unavailable cases when changing
 shared inclusion presentation.
+
+A selected ability's metadata and prepared prose form one document. The metadata
+renderer contributes no separate boundary before its own prose; when the identity
+already supplies every metadata fact, it contributes no empty padded row or rule.
+Putrid Plague starts with its first source paragraph in a Drawer. Its authored rule
+between the saving throw and disease stages remains intact. Preserve real frequency,
+duration and other metadata rather than suppressing the whole renderer.
+
+Encounter root actor text uses the actor-content selection in the shared bounded
+reading workflow. Add only its prepared fields and exact relationships to the
+live presentation; never replace effective encounter facts with reference values.
+Cache by full source address and artifact generation, retain same-source text on
+transient failures, and discard it on retirement or generation mismatch. Keep
+loading feedback out of flow and failure/Retry local; HP, rolls and conditions
+remain mounted and usable. A missing read is not an empty description or routine.
 
 Immediate Ability-class activities use the shared bounded embedded-reading
 workflow; the optional whole-section Collapse in creature reading is not the
@@ -1023,9 +1118,9 @@ without baseline-detail fallback. Keep the native full reference link,
 ready-lifecycle initial focus, nested source-modal Escape and original trigger
 focus recovery. Later encounter facts use visible Languages and compact Ability
 modifiers before Skills, with the shared family availability/empty-value policy.
-Keep these useful reference facts after combat actions without an opaque
-catch-all disclosure. Selected casting entries show their checked parent and
-associated customized spells; base and authored cast ranks do not imply executed
+Place these useful reference facts in the early statistics sequence above,
+without an opaque catch-all disclosure. Selected casting entries show their checked
+parent and associated customized spells; base and authored cast ranks do not imply executed
 rank or form changes. A hazard's backend defense-block fact controls its primary
 AC/HP/hardness display; keep independent zero saves and unavailable facts intact.
 
@@ -1191,7 +1286,8 @@ Preserve a request ID and unchanged intent for retry after an uncertain response
 A new deliberate roll gets a new ID. A batch shows participant-attributed results;
 there is no combined batch total. Ordinary manual initiative entry remains valid.
 
-Source content in an encounter loads only on explicit request. HP mutations
+Essential creature ability and hazard rules remain inline through the shared
+bounded reading owner; additional reference navigation is explicit. HP mutations
 carry an explicit action, raw integer/addition/subtraction input and the read
 participant revision. Rust interprets formulas, damage/healing and correction
 intent. Damage and Heal accept signed raw amounts; Rust reverses the operation
@@ -1274,7 +1370,15 @@ conflict, explicit Reload condition replaces the draft with canonical remaining
 duration and a fresh revision. Do not silently refresh a retained draft's guard.
 
 Next turn commits eligible progression once, then presents one non-blocking
-notification for the just-completed turn. Closing, Escape and backdrop clicks finish
+notification for the just-completed turn. Keep that outgoing participant visible
+behind the notification through canonical HP/condition refreshes; follow the saved
+current participant after dismissal. Quiet boundaries follow immediately. Load the
+new boundary’s required damage/recovery read models before revealing the dialog;
+do not open a short spinner shell and then recenter a larger form. Slow reads show
+delayed progress at Next turn, while failed sections open with their local Retry.
+Retain canonical refreshes and revision/source guards after opening. Do not
+delay the saved progression or freeze stale participant facts to preserve context.
+Closing, Escape and backdrop clicks finish
 that interaction without changing HP, conditions or initiative. There is no reminder
 queue, acknowledgment, selector or reopen action. The browser never ticks durations,
 chooses timing anchors or invents outcomes. A failed advance shows its actual failure;
@@ -1290,14 +1394,18 @@ members writes their persisted positions, including unavailable records, without
 changing their snapshots or notes. Drag previews retain the complete member layout.
 Current turn uses the strong filled row treatment with `aria-current` and
 an accessible label; preview selection uses a separate outline. Each row's
-actions menu offers Set turn and confirmed removal. Cancelling a secondary dialog
+actions menu offers Set turn; the adjacent removal control retains confirmation.
+Cancelling a secondary dialog
 returns focus to its visible menu trigger. Fade defeated and disabled-hazard names and facts without dimming
 controls. Hazard Active/Disabled controls live beside the same participant HP/status
 controls; no HP display is required to disable or reactivate a hazard. Encounter-owned section spacing belongs under encounter styles; shared
 record CSS must not override HP borders, padding or encounter control spacing.
-HP and Conditions share a row when the reader has room and stack on narrow panes;
-HP identity/value and action groups align left and right. Creature-level facts,
-including ability modifiers/skills, precede embedded activities. In encounters,
+`ActorEncounterLayout` composes durability, condition/turn context and mechanics
+across creatures, hazards and PCs. Each feature owns its controls and requests;
+the shared layout owns the responsive tracks and section gaps. A taller runtime
+column must not stretch the HP row or move strikes on wide panes. Sparse PCs do
+not reserve empty mechanics sections. Creature-level facts, including ability
+modifiers before skills, precede embedded activities. In encounters,
 the Rust-owned has_reference_details flag controls activity-title links: known
 complete summaries stay plain, while additional content/richer views open the
 shared preview. Condition-specific manual notices attach by exact condition ID;
@@ -1316,8 +1424,62 @@ reference checks. Keep the original attack dice and expanded view geometry stabl
 Persistent damage and recovery render the backend's ordered sources and active
 source; source comparisons are edited only in Add/Edit precedence. Do not add
 another source-selection form to damage or recovery.
-Recovery uses an anchored DC reminder and Roll; render its outcome in that popover,
-including after successful condition removal. Table recovery uses ordinary clear.
+Persistent damage uses one roll/table-results selector above its damage types and
+one Apply submission below them. Each type owns one labeled damage-control row:
+unrolled dice with Roll, the recorded result, or a manual amount. Render the
+validated expression supplied by Rust before rolling, with blank dice and visible
+arithmetic; never parse the formula in the browser or fabricate a RollOutcome.
+Keep a common footprint for the formula, action/loading state and result. Table
+inputs retain that formula's natural footprint, not an arbitrary large empty area.
+Use one card inset and control-sized internal gaps. Each type has three rows:
+identity/formula, Damage, then recovery. Keep related controls together when they
+wrap and retain normal action sizes.
+State labels on the same action share an intrinsic footprint: Roll recovery and
+View result reserve the wider label's width. Do not let a result label wrap its
+neighboring Clear effect action and recenter the entire modal.
+Manual drafts and prepared dice survive method switches.
+
+Resolve each type's damage before optionally preparing its recovery. Successful
+recovery and Clear effect show Clears after Apply; their damage remains in this
+turn's total. Recovery is optional, and can also follow damage application. Show
+the running Rust preview total as Total: N damage, adding named missing types:
+Fire, Acid not rolled in Atlas mode, or not entered in table mode. Omit the missing
+context once complete. Apply N damage uses that same authoritative total. Its hover/focus tooltip explains the
+single simultaneous damage event. Keep the button concise; when recovery or Clear
+will remove effects, show Clear plus their damage-type names beside the total.
+Do not include failed recoveries or independent expired-condition actions in that
+summary. The final command applies HP consequences once,
+then queued recoveries, atomically. Do not simulate prepared rolls as table totals
+or write HP per row. Rust owns IWR, shared Hardness, Dying, source/generation guards
+and durable roll receipts. Retain a prepared raw roll when only protections change;
+recalculate protections in Rust rather than rerolling. Changed formulas or active
+sources need review and an explicit table result, not reuse of unrelated dice.
+If a supplied protection requires table resolution, the shared selector uses table
+results and the affected type retains its specific server-provided reason.
+Completed reminders retain their identity and confirmed result, replacing obsolete
+instructions and actions. Removed conditions show Removed from the canonical
+boundary projection, not from a click or an optimistic assumption. Retain results
+through refreshes within that boundary; advancing again supersedes them. Return
+keyboard focus to the retained result control when its submitted form disappears,
+waiting until the canonical update enables that control. Do not leave focus on
+the document body or replace a destination the user selected while the write was
+pending. Failed actions retain their available retry path.
+Damage applied and effect ended are separate facts: an active persistent effect
+keeps its permitted recovery/Clear actions after Apply, using the fresh revision.
+Recovery uses an anchored DC reminder and Roll; a recorded end-turn check becomes
+Recovery result with its actual outcome in the popover, including after successful
+condition removal. A completed check does not retain a disabled entry form. Table recovery uses Clear effect.
+Support built-in rollers and physical dice equally: adjacent Roll recovery and
+Clear effect actions use normal-size buttons with the same outlined emphasis. A table outcome
+does not require a DC, a raw die result, or invented roll history. Do not demote
+the table path to a faint icon or place it behind the built-in roller. This does
+not give every action equal emphasis: Apply damage still submits the displayed
+damage entries, and existing timing and one-attempt guards remain in force.
+Place general guidance at its broadest useful scope; repeat it beside a selected
+action only when it adds a consequence for that task. Confused's attack and
+random-target guidance belongs beside Confused, while Stupefied's casting
+flat-check DC belongs with the selected spell. Do not repeat the Confused
+paragraph on every spell or classify offensive spells in the browser.
 Creature dying settings belong at the bottom, revealing compact fields directly
 when enabled; avoid nested disclosures and additional save forms.
 
@@ -1358,14 +1520,14 @@ the mounted consequence preview while values are recalculated; stale previews
 may remain visible during loading, but must not authorize Apply.
 
 Persistent turn reminders show all sources directly, with the active source first
-and superseded entries muted. Recovery and per-type clear icons share one aligned
+and superseded entries muted. Recovery and per-type Clear effect buttons share one aligned
 action row. Clear records the table outcome without a DC form or dice roll; it
 ends that turn's applicable sources and leaves later sources intact. Table damage
 is labeled Damage taken with an After IWR tooltip. Incomplete persistent entries
 show only supplied details, without an internal Reminder prefix or empty metadata.
 
 Keep persistent turn review organized by damage type: sources, damage entry or
-result, then a labelled Recovery row with adjacent roll/clear icons. Do not
+result, then a labelled Recovery row with equally prominent roll/clear buttons. Do not
 repeat the types in separate damage and recovery lists. Keep receipts and dice
 outcomes with their section/popover rather than adding duplicate modal banners
 or footer rolls. Add/Edit presents a compact Damage precedence list using the shared sortable
@@ -1379,5 +1541,8 @@ Damage review shows why a defense changes the amount, including known immunity
 before applying damage and recorded defense facts alongside the result. When an
 unresolved protection requires table damage, explain it before submission and
 select the table-result input. Deterministic turn actions such as reducing
-Frightened are direct labelled buttons; a dice icon must initiate a dice/check
+Frightened are direct labelled buttons. Within its named reminder, show the supplied
+current value (Frightened 2) and Reduce by 1; retain the condition name on actions
+without that visible context. Do not infer a missing effective value in the browser.
+A dice icon must initiate a dice/check
 interaction rather than hide a plain counter action.
