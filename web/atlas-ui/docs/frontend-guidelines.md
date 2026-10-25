@@ -321,8 +321,10 @@ Atlas chooses the responsive fit and keeps its established reading hosts.
 In a reference Drawer the document fills its body.
 Simple records use one identity flow: title/action glyph with classification/rank
 at the trailing edge, followed by document actions, then traits on their own row
-and source attribution. At narrow pane widths classification/rank wraps beneath
-the title and aligns to its leading edge rather than squeezing it. Use this
+and source attribution. A control that changes classification, such as spell
+rank, sits below the classification without moving it; text-only activation facts
+belong in the document body. At narrow pane widths the classification stack wraps
+beneath the title and aligns to its leading edge rather than squeezing it. Use this
 identity structure across non-creature kinds and reading hosts, rather than
 maintaining spell/equipment exceptions. Put this default in
 DocumentIdentityHeader, not a family-name allowlist or a remembered opt-in flag.
@@ -816,11 +818,12 @@ references remain explicit inert labels, without invented links.
 The Drawer uses the same RecordDetailPane and family renderer as full pages.
 Its header shows the document title once and its consistent action group remains
 reachable while the body scrolls. Use the shared identity composition: title and
-glyph, trailing classification and textual action cost, document actions, traits,
-then source attribution. Classification is a scan anchor within the title row,
-not a detached pane control; it wraps beneath the title and aligns left when the
-pane is narrow. Action glyphs stay beside the title; textual costs such as Treat
-Wounds' supplied "passive" belong with classification, not in its heading. Keep
+glyph, trailing classification, document actions, traits, then source attribution.
+Classification is a scan anchor within the title row, not a detached pane control;
+controls that change it sit directly below it, and the stack wraps beneath the
+title and aligns left when the pane is narrow. Action glyphs stay beside the title;
+textual activation facts such as Treat Wounds' supplied "passive" belong in the
+document body, not in its heading or classification. Keep
 rank selection and exact owner/reference links in this shared identity, without
 duplicating them in the body. Phone action groups wrap by row; substantial header
 details can scroll within a bounded header so the document body remains
@@ -940,10 +943,10 @@ Physical prices format the supplied currency number facts without inferring free
 from empty prices; table results use their one fact-owned link collection.
 
 `DocumentIdentityHeader` supplies shared identity structure for records and traits.
-Simple records keep classification and its optional control together at the
-trailing edge of the title row, with traits on their own row. Keep the name and
-selected activity glyph together and wrap classification to the leading edge of
-the next row at narrow pane widths. Record classification labels come from the
+Simple records keep classification and an optional classification-changing action
+in a trailing vertical stack, with traits on their own row. Keep the name and
+selected activity glyph together and wrap the classification stack to the leading
+edge of the next row at narrow pane widths. Record classification labels come from the
 service; the trait document uses the title-cased Trait classification.
 `DocumentPagePane` provides their common page layout without a generic Reference bar. Record-only actions
 such as Add to list stay in the record composition. Full pages use

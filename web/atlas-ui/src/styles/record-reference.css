@@ -80,9 +80,9 @@
 }
 .record-reference__classification {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 2px;
   margin-inline-start: auto;
 }
 .record-reference__identity {
@@ -266,8 +266,8 @@
     order: 1;
   }
   .record-reference__title .record-reference__classification {
+    align-items: flex-start;
     flex: 1 0 100%;
-    justify-content: flex-start;
     margin-inline-start: 0;
     order: 2;
   }
@@ -441,8 +441,13 @@
 .spell-rank-control {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-control);
+  justify-content: flex-end;
+}
+.spell-rank-control__trigger {
+  height: auto;
+  min-height: 24px;
+  padding-block: 0;
+  padding-inline: var(--space-control);
 }
 .detail-panel {
   position: relative;
