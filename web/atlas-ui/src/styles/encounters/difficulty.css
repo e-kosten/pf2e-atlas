@@ -1,16 +1,3 @@
-.encounter-difficulty {
-  display: grid;
-  gap: var(--space-control);
-}
-.encounter-difficulty__heading {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-control);
-  justify-content: space-between;
-}
-
-.encounter-difficulty__reference,
 .encounter-difficulty__basis,
 .encounter-difficulty__opponent-kind,
 .encounter-difficulty__total > span {
@@ -59,8 +46,10 @@
 .encounter-difficulty__budgets {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 4px var(--space-control);
+  gap: var(--space-control) var(--space-group);
+  margin: 0;
+  padding-block-start: var(--space-control);
+  border-block-start: 1px solid var(--line);
   font-size: 12px;
 }
 .encounter-difficulty__budgets > div {
@@ -68,6 +57,13 @@
   align-items: baseline;
   gap: 4px;
   white-space: nowrap;
+}
+.encounter-difficulty__budgets dt {
+  color: var(--muted);
+}
+.encounter-difficulty__budgets dd {
+  margin: 0;
+  font-weight: 600;
 }
 .encounter-difficulty__opponent-kind {
   display: block;
@@ -105,8 +101,23 @@
   border-inline-start: 1px solid var(--panel);
   transform: translateX(-1px);
 }
-.encounter-difficulty-meter__current {
-  color: var(--difficulty-color);
+.encounter-difficulty-meter__axis {
+  position: relative;
+  height: 1.4em;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.encounter-difficulty-meter__axis > span {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.encounter-difficulty-meter__axis > span:first-child {
+  transform: none;
+}
+.encounter-difficulty-meter__axis > span:last-child {
+  transform: translateX(-100%);
 }
 
 .encounter-difficulty__award {
@@ -139,9 +150,5 @@
   white-space: nowrap;
 }
 .encounter-difficulty-meter--compact {
-  gap: 4px;
-}
-.encounter-difficulty-meter--compact .encounter-difficulty__budgets {
-  font-size: 11px;
   gap: 4px;
 }

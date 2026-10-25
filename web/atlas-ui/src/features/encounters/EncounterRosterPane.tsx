@@ -31,10 +31,7 @@ import { participantUpdate } from "./participantEdits";
 import { InitiativePopover } from "./InitiativeRollModal";
 import { SearchPickerModal } from "../../shared/ui/pickers/SearchPickerModal";
 
-import {
-  EncounterDifficulty,
-  type EncounterDifficultyProps,
-} from "./EncounterDifficulty";
+import type { EncounterDifficultyProps } from "./EncounterDifficulty";
 import {
   EncounterAddDifficulty,
   type EncounterRecordAddForm as AddRecordForm,
@@ -307,6 +304,64 @@ export function EncounterRosterPane({
             {currentTurnParticipantKey ? "Next turn" : "Start turn"}
           </Button>
         </PrimaryToolbar>
+      </header>
+      <div
+        className="encounter-roster__participants"
+        role="region"
+        aria-label="Encounter participants"
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The bounded roster needs keyboard scrolling, including in WebKit.
+        tabIndex={0}
+      >
+        {loading ? (
+          <div className="detail-empty">Loading encounter...</div>
+        ) : participants.length === 0 ? (
+          <div className="detail-empty">Add a creature, hazard, or PC.</div>
+        ) : (
+          <DndContext {...sortable.context}>
+            <SortableContext
+              items={sortable.items.map((p) => p.participant_key)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="encounter-roster__list">
+                <div className="encounter-roster__columns" aria-hidden="true">
+                  <span />
+                  <span className="encounter-roster__initiative-heading">Init</span>
+                  <span className="encounter-roster__name-heading">Participant</span>
+                  <span className="encounter-roster__hp-heading">HP</span>
+                  <span />
+                </div>
+                {sortable.items.map(renderParticipant)}
+              </div>
+            </SortableContext>
+            <DragOverlay dropAnimation={null}>
+              {sortable.activeItem && (
+                <div
+                  className="encounter-roster__row encounter-roster__drag-preview"
+                  aria-hidden
+                >
+                  <GripVertical size={16} />
+                  <span>{inputNumberValue(sortable.activeItem.initiative) || "—"}</span>
+                  <span className="encounter-roster__name">
+                    {sortable.activeItem.display_name}
+                  </span>
+                  <span
+                    className={`encounter-roster__hp ${rosterHpTone(sortable.activeItem)}`}
+                  >
+                    {sortable.activeItem.current_hp == null
+                      ? "—"
+                      : (
+                          sortable.activeItem.current_hp +
+                          sortable.activeItem.temporary_hp
+                        ).toString()}
+                  </span>
+                  <Ellipsis size={16} />
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
+        )}
+      </div>
+      <footer className="encounter-roster__footer">
         <PrimaryToolbar className="encounter-roster__management">
           <EncounterAddMenu
             onAdd={onAddParty}
@@ -333,56 +388,7 @@ export function EncounterRosterPane({
             </Button>
           )}
         </PrimaryToolbar>
-        {difficulty && <EncounterDifficulty {...difficulty} />}
-      </header>
-      {loading ? (
-        <div className="detail-empty">Loading encounter...</div>
-      ) : participants.length === 0 ? (
-        <div className="detail-empty">Add a creature, hazard, or PC.</div>
-      ) : (
-        <DndContext {...sortable.context}>
-          <SortableContext
-            items={sortable.items.map((p) => p.participant_key)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="encounter-roster__list">
-              <div className="encounter-roster__columns" aria-hidden="true">
-                <span />
-                <span className="encounter-roster__initiative-heading">Init</span>
-                <span className="encounter-roster__name-heading">Participant</span>
-                <span className="encounter-roster__hp-heading">HP</span>
-                <span />
-              </div>
-              {sortable.items.map(renderParticipant)}
-            </div>
-          </SortableContext>
-          <DragOverlay dropAnimation={null}>
-            {sortable.activeItem && (
-              <div
-                className="encounter-roster__row encounter-roster__drag-preview"
-                aria-hidden
-              >
-                <GripVertical size={16} />
-                <span>{inputNumberValue(sortable.activeItem.initiative) || "—"}</span>
-                <span className="encounter-roster__name">
-                  {sortable.activeItem.display_name}
-                </span>
-                <span
-                  className={`encounter-roster__hp ${rosterHpTone(sortable.activeItem)}`}
-                >
-                  {sortable.activeItem.current_hp == null
-                    ? "—"
-                    : (
-                        sortable.activeItem.current_hp +
-                        sortable.activeItem.temporary_hp
-                      ).toString()}
-                </span>
-                <Ellipsis size={16} />
-              </div>
-            )}
-          </DragOverlay>
-        </DndContext>
-      )}
+      </footer>
       <SearchPickerModal<AddRecordForm>
         buildRequest={encounterRecordPickerRequest}
         emptyPrompt="Search for a creature or hazard"

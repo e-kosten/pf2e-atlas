@@ -686,7 +686,9 @@ describe("encounter views", () => {
         wrapper: queryClientWrapper(),
       });
       await screen.findByLabelText("HP summary");
-      const roster = container.querySelector<HTMLElement>(".encounter-roster")!;
+      const roster = container.querySelector<HTMLElement>(
+        ".encounter-roster__participants",
+      )!;
       roster.scrollTop = 85;
       fireEvent.click(roster.querySelector('[data-participant-key="participant_a"]')!);
       const back = await screen.findByRole("button", { name: "Back to roster" });
@@ -1120,7 +1122,7 @@ describe("encounter views", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     const dialog = await screen.findByRole("dialog", { name: "Settings" });
-    await selectOption(within(dialog).getByRole("combobox"), "complete");
+    await selectOption(within(dialog).getByRole("combobox"), "Complete");
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(apiMocks.updateEncounter).toHaveBeenCalled());
@@ -1583,9 +1585,7 @@ describe("encounter views", () => {
     );
     expect(within(dialog).getByLabelText("Initiative")).toHaveValue("");
     expect(search).toHaveValue("goblin");
-    expect(within(dialog).getByRole("status")).toHaveTextContent(
-      "Added 2 × Goblin Warrior.",
-    );
+    expect(within(dialog).getByText("Added 2 × Goblin Warrior.")).toBeVisible();
     expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled();
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "3" },
@@ -1653,9 +1653,7 @@ describe("encounter views", () => {
       expect(within(dialog).getByLabelText("Quantity")).toHaveValue("1"),
     );
     expect(within(dialog).getByLabelText("Initiative")).toHaveValue("");
-    expect(within(dialog).getByRole("status")).toHaveTextContent(
-      "Added 2 × Goblin Warrior.",
-    );
+    expect(within(dialog).getByText("Added 2 × Goblin Warrior.")).toBeVisible();
     expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledOnce();
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "4" },
