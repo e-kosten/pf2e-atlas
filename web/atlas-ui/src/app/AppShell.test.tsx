@@ -39,6 +39,11 @@ describe("application navigation and accessibility", () => {
     const brand = screen.getByRole("link", { name: "PF2e Atlas" });
     expect(brand).toHaveAttribute("href", "/search");
     expect(brand).toHaveStyle({ color: "var(--brand-text)" });
+    expect(brand.querySelector("svg.atlas-mark")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    expect(brand).toHaveTextContent("PF2e Atlas");
     const encounters = screen.getByRole("link", { name: "Encounters" });
     expect(encounters).toHaveAttribute("href", "/encounters");
     expect(screen.getByRole("link", { name: "Lists" })).toHaveAttribute(

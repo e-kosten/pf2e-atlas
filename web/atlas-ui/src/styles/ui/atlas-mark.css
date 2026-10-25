@@ -1,0 +1,101 @@
+@font-face {
+  font-family: "Lora Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 700;
+  src: url("@fontsource-variable/lora/files/lora-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00ff, U+0131, U+0152-0153, U+02bb-02bc, U+02c6, U+02da, U+02dc, U+0304,
+    U+0308, U+0329, U+2000-206f, U+20ac, U+2122, U+2191, U+2193, U+2212, U+2215, U+feff,
+    U+fffd;
+}
+
+.atlas-mark {
+  display: block;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  overflow: visible;
+}
+
+.atlas-mark__ring {
+  fill: var(--brand-mark-ring);
+}
+
+.atlas-mark__ring-inner {
+  fill: var(--brand-mark-inner);
+}
+
+.atlas-mark__ticks {
+  fill: none;
+  stroke: var(--brand-mark-tick);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.atlas-mark__secondary-points {
+  fill: var(--brand-mark-secondary);
+  stroke: var(--brand-mark-outline);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.atlas-mark__cardinal-points {
+  fill: var(--brand-mark-cardinal);
+  stroke: var(--brand-mark-outline);
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+
+.atlas-mark__cardinal-shading {
+  fill: var(--brand-mark-shade);
+}
+
+.atlas-mark__die-rim {
+  fill: var(--brand-mark-die-rim);
+}
+
+.atlas-mark__die-field {
+  fill: var(--brand-mark-die-field);
+}
+
+.atlas-mark__die-face--0 {
+  fill: var(--brand-mark-die-face-0);
+}
+
+.atlas-mark__die-face--1 {
+  fill: var(--brand-mark-die-face-1);
+}
+
+.atlas-mark__die-face--2 {
+  fill: var(--brand-mark-die-face-2);
+}
+
+.atlas-mark__die-face--3 {
+  fill: var(--brand-mark-die-face-3);
+}
+
+.atlas-mark__die-face--4 {
+  fill: var(--brand-mark-die-face-4);
+}
+
+.atlas-mark__die-face--5 {
+  fill: var(--brand-mark-die-face-5);
+}
+
+.atlas-mark__die-face--6 {
+  fill: var(--brand-mark-die-face-6);
+}
+
+.atlas-mark__die-face--7 {
+  fill: var(--brand-mark-die-face-7);
+}
+
+.atlas-mark__die-face--8 {
+  fill: var(--brand-mark-die-face-8);
+}
+
+.atlas-mark__die-face--9 {
+  fill: var(--brand-mark-die-face-9);
+}

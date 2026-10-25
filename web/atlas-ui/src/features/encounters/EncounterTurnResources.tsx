@@ -144,7 +144,7 @@ export function EncounterTurnResources({
                   aria-label={Number(stock) > 0 ? "Spend reaction" : "Restore reaction"}
                   aria-pressed={Number(stock) > 0}
                   color={Number(stock) > 0 ? "primary" : "default"}
-                  variant={Number(stock) > 0 ? "filled" : "outlined"}
+                  variant={Number(stock) > 0 ? "solid" : "outlined"}
                   icon={
                     <span
                       className="action-cost__glyph"
@@ -381,7 +381,7 @@ function ResourceCounter({
                 pending || disabled || !canEdit || (available && !canSpend)
               }
               color={available ? "primary" : "default"}
-              variant={available ? "filled" : "outlined"}
+              variant={available ? "solid" : "outlined"}
               icon={
                 <span
                   className="action-cost__glyph"

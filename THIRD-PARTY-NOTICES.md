@@ -11,6 +11,14 @@ It is intended as release hygiene and is not legal advice.
 
 PF2E Atlas Third-Party Notices
 
+Lora variable font
+
+Source project: Lora
+Package: @fontsource-variable/lora 5.3.0
+Attribution: Copyright 2011 The Lora Project Authors
+License: SIL Open Font License, Version 1.1
+Complete license text: licenses/lora-ofl.txt
+
 PF2e-derived source models and trait metadata
 
 Source project: Pathfinder 2nd Edition system for Foundry Virtual Tabletop
