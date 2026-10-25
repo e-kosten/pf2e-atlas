@@ -260,6 +260,7 @@ pub struct UpdateEncounter {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AddEncounterParticipant {
+    pub level_override: Option<i64>,
     pub spell_resources: Vec<SpellResource>,
     pub participant_variant: ParticipantVariant,
     pub hp_origin: ParticipantHpOrigin,

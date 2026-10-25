@@ -268,6 +268,7 @@ impl AtlasAppService {
                 )
             };
             participants.push(AddEncounterParticipant {
+                level_override: None,
                 spell_resources: super::spell_catalog::initial_resources(&record.source),
                 participant_variant: variant,
                 variant_origin,
@@ -323,6 +324,7 @@ impl AtlasAppService {
             session.local_state().encounters().add_participant(
                 &receipt.encounter_key,
                 AddEncounterParticipant {
+                    level_override: None,
                     spell_resources: Vec::new(),
                     participant_variant: atlas_local_state::ParticipantVariant::Normal,
                     variant_origin: atlas_local_state::ParticipantVariantOrigin::Explicit,

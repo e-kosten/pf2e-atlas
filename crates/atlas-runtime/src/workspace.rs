@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 13;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 14;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -83,6 +83,12 @@ const MIGRATIONS: &[Migration] = &[
         version: 13,
         name: "consumed-condition-applications",
         sql: atlas_local_state::CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 14,
+        name: "party-member-levels",
+        sql: atlas_local_state::PARTY_LEVELS_SCHEMA_SQL,
         backfill: None,
     },
 ];
@@ -470,6 +476,7 @@ mod tests {
             .create(
                 "Party",
                 &[atlas_local_state::PartyMemberInput {
+                    level: None,
                     member_key: None,
                     name: "PC".into(),
                 }],
@@ -497,16 +504,18 @@ mod tests {
             .unwrap();
         workspace.migrate(&MIGRATIONS[..index], |_| Ok(())).unwrap();
         let write = workspace.write(MIGRATIONS[index - 1].version).unwrap();
-        let party = LocalStateWrite::new(&write)
-            .parties()
-            .create(
-                "Kept party",
-                &[atlas_local_state::PartyMemberInput {
-                    member_key: None,
-                    name: "Kept PC".into(),
-                }],
-            )
-            .unwrap();
+        // Seed the old schema directly; current services require the current migration.
+        write.connection().execute_batch("INSERT INTO parties(party_key,name) VALUES('kept-party','Kept party'); INSERT INTO party_members(member_key,party_key,position,name) VALUES('kept-member','kept-party',0,'Kept PC');").unwrap();
+        let party = atlas_local_state::Party {
+            party_key: "kept-party".into(),
+            name: "Kept party".into(),
+            revision: 0,
+            members: vec![atlas_local_state::PartyMember {
+                member_key: "kept-member".into(),
+                name: "Kept PC".into(),
+                level: None,
+            }],
+        };
         write.connection().execute_batch("INSERT INTO encounters(id,encounter_key,slug,name,status,note,created_at,updated_at) VALUES(1,'kept','kept','Kept encounter','running','Keep encounter note','before','before');
             INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,created_at,updated_at) VALUES(1,1,'pc','pc',0,'Kept PC',0,20,13,'before','before');
             INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,created_at,updated_at) VALUES(2,1,'creature','creature',1,'Kept creature',1,'before','before');

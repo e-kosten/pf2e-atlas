@@ -10,10 +10,12 @@ pub struct Party {
 pub struct PartyMember {
     pub member_key: String,
     pub name: String,
+    pub level: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PartyMemberInput {
     pub member_key: Option<String>,
     pub name: String,
+    pub level: Option<i64>,
 }

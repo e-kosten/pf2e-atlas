@@ -99,6 +99,11 @@ fn validate(
     }
     let mut keys = HashSet::new();
     for member in members {
+        if member.level.is_some_and(|level| !(1..=20).contains(&level)) {
+            return Err(LocalStateError::InvalidParty(
+                "Enter a PC level from 1 to 20, or leave it blank.",
+            ));
+        }
         if !valid_name(&member.name) {
             return Err(LocalStateError::InvalidParty(
                 "Enter a PC name of 1 to 255 characters.",

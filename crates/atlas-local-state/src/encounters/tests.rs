@@ -250,6 +250,7 @@ fn encounters_support_manual_pc_participants() -> Result<(), Box<dyn std::error:
     let pc = encounters.add_participant(
         "boss-fight",
         AddEncounterParticipant {
+            level_override: None,
             spell_resources: Vec::new(),
             hp_origin: crate::ParticipantHpOrigin::Explicit,
             variant_origin: crate::ParticipantVariantOrigin::Explicit,
@@ -942,6 +943,7 @@ fn edit(participant: &EncounterParticipant) -> UpdateEncounterParticipant {
 
 fn creature(name: &str, initiative: Option<i64>, hp: i64) -> AddEncounterParticipant {
     AddEncounterParticipant {
+        level_override: None,
         spell_resources: Vec::new(),
         hp_origin: crate::ParticipantHpOrigin::Explicit,
         variant_origin: crate::ParticipantVariantOrigin::Explicit,

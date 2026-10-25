@@ -5,6 +5,9 @@ use ts_rs::TS;
 pub struct PartyMemberView {
     pub member_key: String,
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "number")]
+    pub level: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -27,6 +30,9 @@ pub struct PartyMemberInput {
     #[ts(optional)]
     pub member_key: Option<String>,
     pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "number")]
+    pub level: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
