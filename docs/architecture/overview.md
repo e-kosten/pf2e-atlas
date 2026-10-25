@@ -199,8 +199,8 @@ Encounter Damage/Heal and exact HP correction inputs are explicit revision-check
 actions interpreted by app-service; the browser sends raw integer formulas and
 does not calculate persisted HP. Enter sends a signed Heal action; negative Damage
 or Heal amounts reverse the operation in Rust and use its complete HP policy.
-The bounded addition/subtraction shortcut permits one initial sign and is not
-a general expression or dice engine. The HP editor saves its supplied corrections
+The bounded integer addition/subtraction shortcut supports parentheses and one
+initial sign per grouped expression. It is not a general expression or dice engine. The HP editor saves its supplied corrections
 in one guarded action, preserving omitted fields and explicit unknowns. Condition
 manual-effect notes carry their exact condition ID; unrelated diagnostics remain
 separate from condition cards.

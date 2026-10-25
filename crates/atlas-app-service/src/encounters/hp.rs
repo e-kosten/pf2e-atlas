@@ -137,60 +137,100 @@ fn evaluate_formula(input: &str) -> AppServiceResult<i128> {
         return Err(AppServiceError::invalid_request("HP formula is too long"));
     }
     let mut chars = input.trim().chars().peekable();
-    let mut result = 0_i128;
-    let mut subtract = match chars.peek() {
-        Some('+') => {
-            chars.next();
-            false
-        }
+    let result = formula_sum(&mut chars, 0)?;
+    if chars.next().is_some() {
+        return Err(invalid_formula());
+    }
+    Ok(result)
+}
+
+const MAX_FORMULA_DEPTH: usize = 64;
+type FormulaChars<'a> = std::iter::Peekable<std::str::Chars<'a>>;
+
+fn invalid_formula() -> AppServiceError {
+    AppServiceError::invalid_request("Use whole numbers, +, -, and parentheses")
+}
+
+fn skip_formula_space(chars: &mut FormulaChars<'_>) {
+    while chars
+        .peek()
+        .is_some_and(|character| character.is_whitespace())
+    {
+        chars.next();
+    }
+}
+
+fn formula_sum(chars: &mut FormulaChars<'_>, depth: usize) -> AppServiceResult<i128> {
+    skip_formula_space(chars);
+    let negative = match chars.peek() {
         Some('-') => {
             chars.next();
             true
         }
+        Some('+') => {
+            chars.next();
+            false
+        }
         _ => false,
     };
-    while chars.peek().is_some_and(|c| c.is_whitespace()) {
-        chars.next();
+    let mut result = formula_term(chars, depth)?;
+    if negative {
+        result = result
+            .checked_neg()
+            .ok_or_else(|| AppServiceError::invalid_request("HP formula overflow"))?;
     }
     loop {
-        let mut term = 0_i128;
-        let mut has_digit = false;
-        while let Some(digit) = chars.peek().and_then(|c| c.to_digit(10)) {
-            // Only ASCII decimal input is part of the shortcut grammar.
-            if !chars.peek().is_some_and(char::is_ascii_digit) {
-                break;
-            }
-            chars.next();
-            has_digit = true;
-            term = term
-                .checked_mul(10)
-                .and_then(|value| value.checked_add(i128::from(digit)))
-                .ok_or_else(|| AppServiceError::invalid_request("HP formula overflow"))?;
-        }
-        if !has_digit {
-            return Err(AppServiceError::invalid_request(
-                "Enter a whole number or an integer addition/subtraction formula",
-            ));
-        }
+        skip_formula_space(chars);
+        let subtract = match chars.peek() {
+            Some('+') => false,
+            Some('-') => true,
+            None | Some(')') => return Ok(result),
+            _ => return Err(invalid_formula()),
+        };
+        chars.next();
+        let term = formula_term(chars, depth)?;
         result = if subtract {
             result.checked_sub(term)
         } else {
             result.checked_add(term)
         }
         .ok_or_else(|| AppServiceError::invalid_request("HP formula overflow"))?;
-        while chars.peek().is_some_and(|c| c.is_whitespace()) {
-            chars.next();
-        }
-        match chars.next() {
-            None => return Ok(result),
-            Some('+') => subtract = false,
-            Some('-') => subtract = true,
-            _ => return Err(AppServiceError::invalid_request("Invalid HP formula")),
-        }
-        while chars.peek().is_some_and(|c| c.is_whitespace()) {
-            chars.next();
-        }
     }
+}
+
+fn formula_term(chars: &mut FormulaChars<'_>, depth: usize) -> AppServiceResult<i128> {
+    skip_formula_space(chars);
+    if chars.peek() == Some(&'(') {
+        if depth >= MAX_FORMULA_DEPTH {
+            return Err(AppServiceError::invalid_request(
+                "Use at most 64 nested parentheses",
+            ));
+        }
+        chars.next();
+        let result = formula_sum(chars, depth + 1)?;
+        if chars.next() != Some(')') {
+            return Err(invalid_formula());
+        }
+        return Ok(result);
+    }
+    let mut term = 0_i128;
+    let mut has_digit = false;
+    while let Some(digit) = chars
+        .peek()
+        .filter(|character| character.is_ascii_digit())
+        .and_then(|character| character.to_digit(10))
+    {
+        chars.next();
+        has_digit = true;
+        term = term
+            .checked_mul(10)
+            .and_then(|value| value.checked_add(i128::from(digit)))
+            .ok_or_else(|| AppServiceError::invalid_request("HP formula overflow"))?;
+    }
+    if !has_digit {
+        return Err(invalid_formula());
+    }
+    Ok(term)
 }
 
 pub(super) fn formula_value(input: &str, correction: bool) -> AppServiceResult<i64> {
@@ -231,6 +271,36 @@ mod tests {
     }
 
     #[test]
+    fn parenthesized_shortcuts_preserve_exact_arithmetic_and_signed_correction_policy() {
+        for (input, expected) in [
+            ("-(10+5-2)", -13),
+            ("(1)", 1),
+            ("10-(5-2)", 7),
+            (" (10 + (5 - 2)) ", 13),
+            ("10+(-5)", 5),
+            ("-(10-(5-2))", -7),
+            ("9007199254740991+(2-2)", 9_007_199_254_740_991),
+        ] {
+            assert_eq!(formula_value(input, false).unwrap(), expected, "{input}");
+        }
+        assert_eq!(formula_value("-(10+5-2)", true).unwrap(), 0);
+        assert!(formula_value("9007199254740991+(2-1)", false).is_err());
+        assert!(formula_value(&format!("-(-{}-1)", i128::MAX), false).is_err());
+        let nested = |depth| format!("{}1{}", "(".repeat(depth), ")".repeat(depth));
+        assert_eq!(formula_value(&nested(64), false).unwrap(), 1);
+        assert!(formula_value(&nested(65), false).is_err());
+    }
+
+    #[test]
+    fn malformed_groups_never_become_partial_success_or_dice_execution() {
+        for input in [
+            "()", "(1", "1)", "(1))", "1+(2))", "(1+)", "1+()", "1+(-)", "1(2)", "2*(3)", "(1d6)",
+        ] {
+            assert!(formula_value(input, false).is_err(), "accepted {input}");
+        }
+    }
+
+    #[test]
     fn formula_grammar_and_bounds_are_explicit() {
         for input in [
             "",
@@ -240,7 +310,6 @@ mod tests {
             "+-1",
             "1+-2",
             "1-+2",
-            "(1)",
             "−1",
             "1.5",
             "1d6",
