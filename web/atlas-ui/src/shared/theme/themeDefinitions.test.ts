@@ -4,9 +4,16 @@ import { readFileSync } from "node:fs";
 import {
   antDesignTheme,
   applyAtlasDocumentTheme,
+  atlasPopoverStyles,
   atlasCssVariables,
 } from "./atlasTheme";
-import { atlasPalettes, darkNeutralRamp } from "./themeDefinitions";
+import {
+  DEFAULT_DARK_TEXT_PALETTE,
+  atlasPalettes,
+  darkTextPalettes,
+  darkNeutralRamps,
+  resolveAtlasPalette,
+} from "./themeDefinitions";
 
 function luminance(hex: string) {
   const channels = hex
@@ -145,56 +152,140 @@ describe("Atlas product palette", () => {
         itemHoverColor: palette.navigation.hoverText,
         itemSelectedColor: palette.navigation.activeText,
       });
+      expect(config.components?.Segmented).toMatchObject({
+        trackBg: palette.surface,
+        itemColor: palette.muted,
+        itemSelectedBg: palette.primary,
+        itemSelectedColor: palette.onPrimary,
+      });
       expect(config.components?.Table?.headerBg).toBe(palette.surface);
+      expect(atlasPopoverStyles(scheme).root.filter).toContain(palette.border);
+      expect(atlasPopoverStyles(scheme).root.filter).toContain(palette.shadow);
+      expect(atlasPopoverStyles(scheme).container.boxShadow).toBe("none");
     });
   }
 
-  it("maps one ordered warm-umber ramp through every dark structural role", () => {
-    const ramp = darkNeutralRamp;
-    const palette = atlasPalettes.dark;
-    const config = antDesignTheme("dark");
-    const tokens = antTheme.getDesignToken(config);
-    const variables = atlasCssVariables("dark");
-    const orderedColors = [
-      ramp.shell,
-      ramp.background,
-      ramp.surface,
-      ramp.elevated,
-      ramp.subtle,
-      ramp.separator,
-      ramp.border,
-    ];
+  it("maps each ordered warm-umber level through every dark structural role", () => {
+    for (const level of Object.keys(darkNeutralRamps) as Array<
+      keyof typeof darkNeutralRamps
+    >) {
+      const ramp = darkNeutralRamps[level];
+      const palette = resolveAtlasPalette("dark", level);
+      const config = antDesignTheme("dark", level);
+      const tokens = antTheme.getDesignToken(config);
+      const variables = atlasCssVariables("dark", level);
+      const orderedColors = [
+        ramp.shell,
+        ramp.background,
+        ramp.surface,
+        ramp.elevated,
+        ramp.subtle,
+        ramp.separator,
+        ramp.border,
+      ];
 
-    expect(antDesignTheme("dark")).toBe(config);
-    orderedColors.slice(1).forEach((color, index) => {
-      expect(luminance(color)).toBeGreaterThan(luminance(orderedColors[index]));
-    });
-    expect(palette).toMatchObject({
-      background: ramp.background,
-      surface: ramp.surface,
-      elevated: ramp.elevated,
-      subtle: ramp.subtle,
-      separator: ramp.separator,
-      border: ramp.border,
-      contextBar: ramp.surface,
-      shell: { background: ramp.shell, border: ramp.separator },
-    });
-    expect(tokens.colorBgLayout.toLowerCase()).toBe(ramp.background.toLowerCase());
-    expect(tokens.colorBgContainer.toLowerCase()).toBe(ramp.surface.toLowerCase());
-    expect(tokens.colorFillAlter.toLowerCase()).toBe(ramp.subtle.toLowerCase());
-    expect(variables["--panel-subtle" as keyof typeof variables]).toBe(
-      tokens.colorFillAlter,
-    );
-    for (const surface of [
-      ramp.shell,
-      ramp.background,
-      ramp.surface,
-      ramp.elevated,
-      ramp.subtle,
-    ]) {
-      expect(contrast(palette.text, surface)).toBeGreaterThanOrEqual(7);
-      expect(contrast(palette.muted, surface)).toBeGreaterThanOrEqual(4.5);
+      expect(antDesignTheme("dark", level)).toBe(config);
+      orderedColors.slice(1).forEach((color, index) => {
+        expect(luminance(color)).toBeGreaterThan(luminance(orderedColors[index]));
+      });
+      expect(palette).toMatchObject({
+        background: ramp.background,
+        surface: ramp.surface,
+        elevated: ramp.elevated,
+        subtle: ramp.subtle,
+        separator: ramp.separator,
+        border: ramp.border,
+        contextBar: ramp.surface,
+        shell: { background: ramp.shell, border: ramp.separator },
+        brand: { mark: { inner: ramp.background } },
+        tooltip: { background: ramp.shell },
+      });
+      expect(tokens.colorBgLayout.toLowerCase()).toBe(ramp.background.toLowerCase());
+      expect(tokens.colorBgContainer.toLowerCase()).toBe(ramp.surface.toLowerCase());
+      expect(tokens.colorFillAlter.toLowerCase()).toBe(ramp.subtle.toLowerCase());
+      expect(variables["--panel-subtle" as keyof typeof variables]).toBe(
+        tokens.colorFillAlter,
+      );
+      expect(variables["--brand-mark-inner" as keyof typeof variables]).toBe(
+        ramp.background,
+      );
+      for (const surface of [
+        ramp.shell,
+        ramp.background,
+        ramp.surface,
+        ramp.elevated,
+        ramp.subtle,
+      ]) {
+        expect(contrast(palette.text, surface)).toBeGreaterThanOrEqual(7);
+        expect(contrast(palette.muted, surface)).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(contrast(palette.primary, ramp.surface)).toBeGreaterThanOrEqual(3);
+      expect(contrast(palette.selection.border, ramp.surface)).toBeGreaterThanOrEqual(
+        3,
+      );
+      expect(contrast(ramp.border, ramp.surface)).toBeGreaterThanOrEqual(3);
+
+      for (const textPalette of Object.keys(darkTextPalettes) as Array<
+        keyof typeof darkTextPalettes
+      >) {
+        const palette = resolveAtlasPalette("dark", level, textPalette);
+        expect(palette.text).toBe(darkTextPalettes[textPalette].text);
+        expect(palette.muted).toBe(darkTextPalettes[textPalette].muted);
+        for (const surface of [
+          ramp.shell,
+          ramp.background,
+          ramp.surface,
+          ramp.elevated,
+          ramp.subtle,
+        ]) {
+          expect(contrast(palette.text, surface)).toBeGreaterThanOrEqual(7);
+          expect(contrast(palette.muted, surface)).toBeGreaterThanOrEqual(4.5);
+        }
+      }
     }
+  });
+
+  it("keeps the quiet dark rarity boundaries visible on the default surface", () => {
+    const palette = atlasPalettes.dark;
+
+    for (const role of ["common", "unique"] as const) {
+      expect(
+        contrast(palette.rarity[role].border, palette.surface),
+      ).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("projects the bright dark text palette through shared text roles", () => {
+    const palette = resolveAtlasPalette("dark", "ink", "bright");
+    const config = antDesignTheme("dark", "ink", "bright");
+    const tokens = antTheme.getDesignToken(config);
+    const variables = atlasCssVariables("dark", "ink", "bright");
+
+    expect(palette.text).toBe(darkTextPalettes.bright.text);
+    expect(palette.muted).toBe(darkTextPalettes.bright.muted);
+    expect(palette.selection.text).toBe(darkTextPalettes.bright.text);
+    expect(palette.shell.text).toBe(darkTextPalettes.bright.text);
+    expect(tokens.colorText).toBe(darkTextPalettes.bright.text);
+    expect(tokens.colorTextDescription).toBe(darkTextPalettes.bright.muted);
+    expect(variables["--text" as keyof typeof variables]).toBe(
+      darkTextPalettes.bright.text,
+    );
+    expect(variables["--muted" as keyof typeof variables]).toBe(
+      darkTextPalettes.bright.muted,
+    );
+    expect(variables["--shell-text" as keyof typeof variables]).toBe(
+      darkTextPalettes.bright.text,
+    );
+    expect(variables["--selection-text" as keyof typeof variables]).toBe(
+      darkTextPalettes.bright.text,
+    );
+    expect(resolveAtlasPalette("dark")).toBe(atlasPalettes.dark);
+    expect(atlasPalettes.dark.text).toBe(
+      darkTextPalettes[DEFAULT_DARK_TEXT_PALETTE].text,
+    );
+    expect(atlasPalettes.dark.muted).toBe(
+      darkTextPalettes[DEFAULT_DARK_TEXT_PALETTE].muted,
+    );
   });
 
   it("keeps the pre-React light fallback aligned with runtime variables", () => {

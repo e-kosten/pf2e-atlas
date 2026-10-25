@@ -4,11 +4,22 @@ import { Activity, Suspense, lazy, useEffect, useLayoutEffect, useState } from "
 import { Outlet, useRouterState } from "@tanstack/react-router";
 import {
   COLOR_SCHEME_STORAGE_KEY,
+  DARK_NEUTRAL_LEVEL_SESSION_KEY,
+  DARK_TEXT_PALETTE_SESSION_KEY,
   applyAtlasDocumentTheme,
+  atlasPopoverStyles,
   antDesignTheme,
   type ColorSchemePreference,
+  type DarkNeutralLevel,
+  type DarkTextPalette,
   type ResolvedColorScheme,
 } from "../shared/theme/atlasTheme";
+import {
+  DEFAULT_DARK_NEUTRAL_LEVEL,
+  DEFAULT_DARK_TEXT_PALETTE,
+  isDarkNeutralLevel,
+  isDarkTextPalette,
+} from "../shared/theme/themeDefinitions";
 import { AppShell } from "./AppShell";
 import { LinkPickerContext } from "../shared/filters/LinkPickerContext";
 import { LinkConditionPicker } from "../shared/filters/LinkConditionPicker";
@@ -29,6 +40,12 @@ const SearchView = lazy(() =>
 export function AtlasLayout() {
   const [colorScheme, setColorScheme] =
     useState<ColorSchemePreference>(readStoredColorScheme);
+  const [darkNeutralLevel, setDarkNeutralLevel] = useState<DarkNeutralLevel>(
+    readStoredDarkNeutralLevel,
+  );
+  const [darkTextPalette, setDarkTextPalette] = useState<DarkTextPalette>(
+    readStoredDarkTextPalette,
+  );
   const section = useRouterState({
     select: (state) =>
       [...state.matches].reverse().find((match) => match.staticData.section)?.staticData
@@ -50,8 +67,13 @@ export function AtlasLayout() {
       !searchProfile.storedVectors,
   });
   useLayoutEffect(() => {
-    applyAtlasDocumentTheme(document, resolvedColorScheme);
-  }, [resolvedColorScheme]);
+    applyAtlasDocumentTheme(
+      document,
+      resolvedColorScheme,
+      darkNeutralLevel,
+      darkTextPalette,
+    );
+  }, [resolvedColorScheme, darkNeutralLevel, darkTextPalette]);
   const updateColorScheme = (preference: ColorSchemePreference) => {
     setColorScheme(preference);
     try {
@@ -60,9 +82,28 @@ export function AtlasLayout() {
       // Browser preferences are optional, including when storage is unavailable.
     }
   };
+  const updateDarkNeutralLevel = (level: DarkNeutralLevel) => {
+    setDarkNeutralLevel(level);
+    try {
+      sessionStorage.setItem(DARK_NEUTRAL_LEVEL_SESSION_KEY, level);
+    } catch {
+      // A temporary comparison remains usable when storage is unavailable.
+    }
+  };
+  const updateDarkTextPalette = (palette: DarkTextPalette) => {
+    setDarkTextPalette(palette);
+    try {
+      sessionStorage.setItem(DARK_TEXT_PALETTE_SESSION_KEY, palette);
+    } catch {
+      // A temporary comparison remains usable when storage is unavailable.
+    }
+  };
   return (
     <ConfigProvider
-      theme={antDesignTheme(resolvedColorScheme)}
+      theme={antDesignTheme(resolvedColorScheme, darkNeutralLevel, darkTextPalette)}
+      popover={{
+        styles: atlasPopoverStyles(resolvedColorScheme, darkNeutralLevel),
+      }}
       select={{
         classNames: {
           popup: { root: "atlas-select-popup", listItem: "atlas-select-option" },
@@ -76,6 +117,14 @@ export function AtlasLayout() {
               activeView={section}
               colorScheme={colorScheme}
               onColorSchemeChange={updateColorScheme}
+              darkNeutralStudy={{
+                value: darkNeutralLevel,
+                onChange: updateDarkNeutralLevel,
+              }}
+              darkTextPaletteStudy={{
+                value: darkTextPalette,
+                onChange: updateDarkTextPalette,
+              }}
               resolvedColorScheme={resolvedColorScheme}
               readiness={readiness.data}
               readinessError={readiness.error}
@@ -109,6 +158,22 @@ function readStoredColorScheme(): ColorSchemePreference {
       : "system";
   } catch {
     return "system";
+  }
+}
+function readStoredDarkNeutralLevel(): DarkNeutralLevel {
+  try {
+    const value = sessionStorage.getItem(DARK_NEUTRAL_LEVEL_SESSION_KEY);
+    return isDarkNeutralLevel(value) ? value : DEFAULT_DARK_NEUTRAL_LEVEL;
+  } catch {
+    return DEFAULT_DARK_NEUTRAL_LEVEL;
+  }
+}
+function readStoredDarkTextPalette(): DarkTextPalette {
+  try {
+    const value = sessionStorage.getItem(DARK_TEXT_PALETTE_SESSION_KEY);
+    return isDarkTextPalette(value) ? value : DEFAULT_DARK_TEXT_PALETTE;
+  } catch {
+    return DEFAULT_DARK_TEXT_PALETTE;
   }
 }
 function useSystemColorScheme(): ResolvedColorScheme {

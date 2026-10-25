@@ -9,12 +9,16 @@ function renderShell(
 ) {
   const refresh = vi.fn();
   const changeTheme = vi.fn();
+  const changeDarkNeutrals = vi.fn();
+  const changeDarkTextPalette = vi.fn();
   render(
     <AppShell
       activeView="search"
       colorScheme="light"
       resolvedColorScheme={resolvedColorScheme}
       onColorSchemeChange={changeTheme}
+      darkNeutralStudy={{ value: "deep", onChange: changeDarkNeutrals }}
+      darkTextPaletteStudy={{ value: "warm", onChange: changeDarkTextPalette }}
       readiness={readinessFixture()}
       readinessError={errorMessage ? new Error(errorMessage) : null}
       checkingReadiness={false}
@@ -26,7 +30,7 @@ function renderShell(
     </AppShell>,
     { wrapper: RouterTestContext },
   );
-  return { refresh, changeTheme };
+  return { refresh, changeTheme, changeDarkNeutrals, changeDarkTextPalette };
 }
 
 describe("application navigation and accessibility", () => {
@@ -116,5 +120,23 @@ describe("application navigation and accessibility", () => {
     fireEvent.click(screen.getByRole("button", { name: "Theme" }));
     fireEvent.click(screen.getByText("System"));
     expect(changeTheme).toHaveBeenCalledWith("system");
+  });
+
+  it("offers dark neutral levels only for a dark resolved appearance", () => {
+    const { changeDarkNeutrals, changeDarkTextPalette } = renderShell(null, "dark");
+    fireEvent.click(screen.getByRole("button", { name: "Theme" }));
+    expect(screen.getByRole("radiogroup", { name: "Appearance" })).toBeInTheDocument();
+    expect(screen.getByText("Dark neutrals")).toBeInTheDocument();
+    expect(
+      screen.getByRole("radiogroup", { name: "Dark neutrals" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Standard"));
+    expect(changeDarkNeutrals).toHaveBeenCalledWith("standard");
+    expect(screen.getByText("Text palette")).toBeInTheDocument();
+    expect(
+      screen.getByRole("radiogroup", { name: "Text palette" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Bright"));
+    expect(changeDarkTextPalette).toHaveBeenCalledWith("bright");
   });
 });

@@ -13,6 +13,8 @@ import { restoreOverlayFocus } from "../shared/ui/overlays/restoreOverlayFocus";
 import type { AppReadinessView } from "../generated/atlas";
 import type {
   ColorSchemePreference,
+  DarkNeutralLevel,
+  DarkTextPalette,
   ResolvedColorScheme,
 } from "../shared/theme/atlasTheme";
 import { AtlasMark } from "../shared/branding/AtlasMark";
@@ -21,6 +23,14 @@ type AppShellProps = {
   activeView: "search" | "lists" | "encounters" | "reference";
   colorScheme: ColorSchemePreference;
   onColorSchemeChange: (preference: ColorSchemePreference) => void;
+  darkNeutralStudy: {
+    value: DarkNeutralLevel;
+    onChange: (level: DarkNeutralLevel) => void;
+  };
+  darkTextPaletteStudy: {
+    value: DarkTextPalette;
+    onChange: (palette: DarkTextPalette) => void;
+  };
   resolvedColorScheme: ResolvedColorScheme;
   readiness: AppReadinessView | undefined;
   readinessError: Error | null;
@@ -32,6 +42,8 @@ export function AppShell({
   activeView,
   colorScheme,
   onColorSchemeChange,
+  darkNeutralStudy,
+  darkTextPaletteStudy,
   resolvedColorScheme,
   readiness,
   readinessError,
@@ -136,6 +148,7 @@ export function AppShell({
               <div ref={themeContent}>
                 <Space orientation="vertical" size="small">
                   <Segmented
+                    aria-label="Appearance"
                     value={colorScheme}
                     onChange={onColorSchemeChange}
                     options={[
@@ -144,6 +157,60 @@ export function AppShell({
                       { value: "dark", label: "Dark" },
                     ]}
                   />
+                  {resolvedColorScheme === "dark" && (
+                    <>
+                      <Space orientation="vertical" size={4}>
+                        <Typography.Text id="dark-neutral-level-label" strong>
+                          Dark neutrals
+                        </Typography.Text>
+                        <div role="group" aria-labelledby="dark-neutral-level-label">
+                          <Segmented<DarkNeutralLevel>
+                            aria-labelledby="dark-neutral-level-label"
+                            block
+                            name="dark-neutral-level"
+                            orientation="vertical"
+                            value={darkNeutralStudy.value}
+                            onChange={darkNeutralStudy.onChange}
+                            options={[
+                              {
+                                value: "standard",
+                                label: "Standard",
+                              },
+                              {
+                                value: "deep",
+                                label: "Deep",
+                              },
+                              {
+                                value: "dark",
+                                label: "Darker",
+                              },
+                              {
+                                value: "ink",
+                                label: "Ink",
+                              },
+                            ]}
+                          />
+                        </div>
+                      </Space>
+                      <Space orientation="vertical" size={4}>
+                        <Typography.Text id="dark-text-palette-label" strong>
+                          Text palette
+                        </Typography.Text>
+                        <div role="group" aria-labelledby="dark-text-palette-label">
+                          <Segmented<DarkTextPalette>
+                            aria-labelledby="dark-text-palette-label"
+                            name="dark-text-palette"
+                            value={darkTextPaletteStudy.value}
+                            onChange={darkTextPaletteStudy.onChange}
+                            options={[
+                              { value: "warm", label: "Warm" },
+                              { value: "bright", label: "Bright" },
+                            ]}
+                          />
+                        </div>
+                      </Space>
+                    </>
+                  )}
                 </Space>
               </div>
             }
