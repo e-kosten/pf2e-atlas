@@ -1,3 +1,4 @@
+import { EncounterDifficulty } from "./EncounterDifficulty";
 import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -211,6 +212,24 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                     } - ${encounterSummary.participant_count} participants`
                   : "Loading encounter"}
               </p>
+              {encounter.data && (
+                <EncounterDifficulty
+                  encounterKey={encounter.data.encounter.encounter_key}
+                  revision={encounter.data.revision}
+                  value={encounter.data.difficulty}
+                  onPreview={mutations.previewDifficulty}
+                  disabled={mutationDisabled}
+                  onSave={async (reference) => {
+                    await mutations.run({
+                      kind: "difficulty",
+                      request: {
+                        expected_revision: encounter.data!.revision,
+                        reference,
+                      },
+                    });
+                  }}
+                />
+              )}
             </div>
             <Button
               aria-label="Settings"

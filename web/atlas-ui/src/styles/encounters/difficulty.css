@@ -1,0 +1,71 @@
+.encounter-difficulty {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+  margin-top: var(--space-control);
+}
+.encounter-difficulty__reference,
+.encounter-difficulty__basis,
+.encounter-difficulty__opponent-kind,
+.encounter-difficulty__total > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.encounter-difficulty__popover {
+  display: grid;
+  gap: var(--space-group);
+  max-height: min(42rem, calc(100dvh - 6rem));
+  overflow: auto;
+  width: min(32rem, calc(100vw - 3rem));
+}
+.encounter-difficulty__popover h3,
+.encounter-difficulty__popover p {
+  margin: 0;
+}
+.encounter-difficulty__fields {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+}
+.encounter-difficulty__fields label {
+  display: grid;
+  flex: 1 1 5rem;
+  gap: var(--space-control);
+  min-width: 0;
+}
+.encounter-difficulty__input {
+  width: 100%;
+}
+.encounter-difficulty__popover form,
+.encounter-difficulty__calculation {
+  display: grid;
+  gap: var(--space-control);
+}
+.encounter-difficulty__total,
+.encounter-difficulty__sources {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+  justify-content: space-between;
+}
+.encounter-difficulty__budgets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-control);
+  font-size: 12px;
+}
+.encounter-difficulty__budgets > div {
+  display: grid;
+  gap: var(--space-control);
+}
+.encounter-difficulty__opponent-kind {
+  display: block;
+}
+
+.encounter-difficulty__opponent-name,
+.encounter-difficulty__opponent-kind {
+  overflow-wrap: anywhere;
+}
