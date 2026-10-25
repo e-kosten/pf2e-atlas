@@ -1,5 +1,14 @@
 import { EncounterModal } from "./EncounterModal";
-import { Alert, Button, Dropdown, Form, Input, InputNumber, Tooltip } from "antd";
+import {
+  Alert,
+  Button,
+  Dropdown,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Tooltip,
+} from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableRow, useSortableList } from "../../shared/ui/sortable/SortableList";
@@ -9,6 +18,7 @@ import type {
   AddEncounterManualParticipantRequest,
   AddEncounterRecordParticipantRequest,
   EncounterParticipantView,
+  EncounterParticipantVariantView,
   SearchResultsRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
@@ -22,6 +32,7 @@ import { SearchPickerModal } from "../../shared/ui/pickers/SearchPickerModal";
 type AddRecordForm = {
   quantity?: number | null;
   initiative?: number | null;
+  adjustment?: "as_listed" | EncounterParticipantVariantView;
 };
 
 type AddPcForm = {
@@ -101,6 +112,7 @@ export function EncounterRosterPane({
   const [recordOpen, setRecordOpen] = useState(false);
   const [pcOpen, setPcOpen] = useState(false);
   const [selectedRecordKey, setSelectedRecordKey] = useState<string | null>(null);
+  const [selectedIsCreature, setSelectedIsCreature] = useState(false);
   const [recordForm] = Form.useForm<AddRecordForm>();
   const [pcForm] = Form.useForm<AddPcForm>();
   useEffect(() => {
@@ -123,6 +135,9 @@ export function EncounterRosterPane({
         encounter_ref: slug,
         record_ref: selectedRecordKey ?? "",
         quantity: values.quantity ?? 1,
+        ...(selectedIsCreature && values.adjustment && values.adjustment !== "as_listed"
+          ? { participant_variant: values.adjustment }
+          : {}),
         ...(values.initiative == null ? {} : { initiative: BigInt(values.initiative) }),
       });
       if (saved) {
@@ -363,6 +378,7 @@ export function EncounterRosterPane({
         onFinish={(values) => void addRecord(values)}
         onSelectionChange={(selection) => {
           setSelectedRecordKey(selection?.record.record_key ?? null);
+          setSelectedIsCreature(selection?.record.kind === "creature");
           if (selection) setCandidateName(selection.record.title);
         }}
         open={recordOpen}
@@ -384,6 +400,24 @@ export function EncounterRosterPane({
             title="Participant could not be added"
             description={error}
           />
+        )}
+        {selectedIsCreature && (
+          <Form.Item
+            name="adjustment"
+            label="Adjustment"
+            initialValue="as_listed"
+            preserve={false}
+          >
+            <Select
+              aria-label="Adjustment"
+              options={[
+                { value: "as_listed", label: "As listed" },
+                { value: "normal", label: "Normal" },
+                { value: "elite", label: "Elite" },
+                { value: "weak", label: "Weak" },
+              ]}
+            />
+          </Form.Item>
         )}
         <Form.Item
           name="quantity"

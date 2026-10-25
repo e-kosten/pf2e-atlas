@@ -552,6 +552,10 @@ pub struct AddEncounterRecordParticipantRequest {
     pub encounter_ref: String,
     pub record_ref: String,
     pub quantity: u32,
+    /// Omitted inherits the source adjustment; a supplied choice replaces it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub participant_variant: Option<EncounterParticipantVariantView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub initiative: Option<i64>,

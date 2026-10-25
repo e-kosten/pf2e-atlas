@@ -147,6 +147,7 @@ mod tests {
         fixture
             .worker
             .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                participant_variant: None,
                 encounter_ref: encounter.encounter_key.clone(),
                 record_ref: "Test Creature 1".into(),
                 quantity: 2,

@@ -539,6 +539,7 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
     let d = f
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: e.encounter_key,
             record_ref: ACTOR.into(),
             quantity: 1,

@@ -28,6 +28,7 @@ fn casting_fixture(items: serde_json::Value) -> (crate::test_support::FixtureWor
     fixture
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: encounter.slug.clone(),
             record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
             quantity: 1,
@@ -204,6 +205,7 @@ fn recorded_use_is_persistent_shared_within_entry_and_isolated_between_participa
         .encounter;
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: encounter.slug.clone(),
             record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
             quantity: 2,
@@ -354,6 +356,7 @@ fn missing_innate_counts_use_rank_independent_markers_without_inventing_limits()
         .encounter;
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: encounter.slug.clone(),
             record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
             quantity: 2,
@@ -460,6 +463,7 @@ fn resource_editor_saves_one_complete_entry_atomically() {
         .encounter;
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: encounter.slug.clone(),
             record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
             quantity: 1,
