@@ -896,8 +896,11 @@ Its header shows the document title once and its consistent action group remains
 reachable while the body scrolls. Use the shared identity composition: title and
 glyph, trailing classification, document actions, traits, then source attribution.
 Classification is a scan anchor within the title row, not a detached pane control;
-controls that change it sit directly below it, and the stack wraps beneath the
-title and aligns left when the pane is narrow. Action glyphs stay beside the title;
+the classification and document icon actions share one aligned row. Controls that
+change classification sit in a separate row below: Spell 2, Explore and Add to
+list align together, with Change rank underneath. Align the title with that first
+row; never center it or the icon actions against the combined chip/picker height.
+The tools wrap beneath the title when necessary on narrow panes. Action glyphs stay beside the title;
 textual activation facts such as Treat Wounds' supplied "passive" belong in the
 document body, not in its heading or classification. Keep
 rank selection and exact owner/reference links in this shared identity, without

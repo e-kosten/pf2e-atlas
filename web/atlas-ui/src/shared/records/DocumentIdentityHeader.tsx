@@ -26,16 +26,14 @@ export function DocumentIdentityHeader({
   attribution?: ReactNode;
   children?: ReactNode;
 }) {
-  const kind =
-    classification || classificationAction ? (
-      <div className="record-reference__classification">
-        {classification && <p className="record-reference__kind">{classification}</p>}
-        {classificationAction}
-      </div>
-    ) : null;
+  const kind = classification ? (
+    <div className="record-reference__classification">
+      <p className="record-reference__kind">{classification}</p>
+    </div>
+  ) : null;
   return (
     <header
-      className={`record-reference__header${stacked ? " record-reference__header--stacked" : ""}`}
+      className={`record-reference__header${stacked ? " record-reference__header--stacked" : ""}${classificationAction ? " record-reference__header--with-classification-action" : ""}`}
     >
       {navigation && <div className="record-reference__navigation">{navigation}</div>}
       <div className="record-reference__title">
@@ -45,10 +43,19 @@ export function DocumentIdentityHeader({
           </h2>
           {identityActions}
         </div>
-        {(kind || actions) && (
+        {(kind || actions || classificationAction) && (
           <div className="record-reference__tools">
-            {kind}
-            {actions && <div className="record-reference__actions">{actions}</div>}
+            {(kind || actions) && (
+              <div className="record-reference__tools-row">
+                {kind}
+                {actions && <div className="record-reference__actions">{actions}</div>}
+              </div>
+            )}
+            {classificationAction && (
+              <div className="record-reference__classification-action">
+                {classificationAction}
+              </div>
+            )}
           </div>
         )}
       </div>
