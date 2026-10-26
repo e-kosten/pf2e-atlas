@@ -611,6 +611,7 @@ impl AtlasAppService {
         }
         let snapshot =
             super::event_execution::snapshot(self, encounter_ref, request.expected_revision)?;
+        let encounter_key = snapshot.encounter.encounter_key.clone();
         let next = super::turns::next_turn(&snapshot);
         let (source_actions, reference_revision) = if let Some(participant) = snapshot
             .participants
@@ -624,7 +625,7 @@ impl AtlasAppService {
         self.with_write(move |session| {
             // A concurrent matching request still recovers before the source guard.
             if let Some(encounter) = session.local_state().encounters().advance_turn_receipt(
-                encounter_ref,
+                &encounter_key,
                 &request.request_id,
                 &intent,
             )? {
@@ -639,7 +640,7 @@ impl AtlasAppService {
                 .local_state()
                 .encounters()
                 .advance_turn_once(
-                    encounter_ref,
+                    &encounter_key,
                     &request.request_id,
                     &intent,
                     request.expected_revision,
@@ -686,7 +687,7 @@ impl AtlasAppService {
                         Ok((update, !turn_review(snapshot).reminders.is_empty()))
                     },
                 )?
-                .ok_or_else(|| encounter_not_found(encounter_ref))?;
+                .ok_or_else(|| encounter_not_found(&encounter_key))?;
             Ok(EncounterMutationView {
                 encounter_key: encounter.encounter_key,
             })
