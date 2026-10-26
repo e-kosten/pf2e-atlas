@@ -225,8 +225,11 @@ action has been resolved. Unknown table facts remain reminders instead of a requ
 questionnaire. No action-attempt API or persistence is retained for an unused
 workflow. Casting reminders read against the encounter revision because condition-only
 changes do not advance the participant resource/settings revision. Retained advice
-is valid only while the spell, source generation, participant conditions and status
-remain unchanged; resource-only refreshes preserve the anchored spell view.
+is valid only while the spell, source generation, participant conditions, source
+option states and status remain unchanged. Source options retain checked owner,
+rule ordinal and fingerprint identity. Switching a condition-granting option retires
+previous advice immediately, including during failed refreshes; spending an ability
+use or a spell resource preserves still-valid advice and the anchored spell view.
 
 Next turn advances atomically before the browser presents one notification for the
 turn just completed. Closing by Escape, backdrop or the close icon finishes the
