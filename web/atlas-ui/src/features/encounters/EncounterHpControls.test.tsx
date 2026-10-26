@@ -96,7 +96,10 @@ it("sets current and temporary HP directly, with Escape cancelling and no damage
       <EncounterHpControls current={current} onAction={onAction} />
     </ConfigProvider>,
   );
-  expect(screen.getByLabelText("HP summary")).toHaveTextContent("12/20");
+  expect(screen.getByLabelText("HP summary")).toHaveTextContent("12/");
+  expect(
+    screen.getByRole("button", { name: "Show explanation for Maximum HP: 20" }),
+  ).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Edit Current HP" }));
   const input = screen.getByRole("textbox", { name: "Current HP" });
   fireEvent.change(input, { target: { value: "9" } });

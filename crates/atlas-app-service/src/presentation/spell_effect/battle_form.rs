@@ -168,6 +168,29 @@ fn title(key: &str) -> String {
         c.to_uppercase().collect::<String>() + chars.as_str()
     })
 }
+// Exact English labels at model pin 28d9d156, static/lang/{en,re-en}.json.
+// Other authored labels remain literal; an unknown localization key uses the
+// authored strike key rather than leaking an internal catalog address.
+fn strike_label(label: &str, key: &str) -> String {
+    match label {
+        "PF2E.BattleForm.Attack.FlamingSword" => "Flaming Sword".into(),
+        "PF2E.BattleForm.Attack.PiercingHymn" => "Piercing Hymn".into(),
+        "PF2E.Weapon.Base.bastard-sword" => "Bastard Sword".into(),
+        "PF2E.Weapon.Base.composite-longbow" => "Composite Longbow".into(),
+        "PF2E.Weapon.Base.composite-shortbow" => "Composite Shortbow".into(),
+        "PF2E.Weapon.Base.fist" => "Fist".into(),
+        "PF2E.Weapon.Base.glaive" => "Glaive".into(),
+        "PF2E.Weapon.Base.longspear" => "Longspear".into(),
+        "PF2E.Weapon.Base.longsword" => "Longsword".into(),
+        "PF2E.Weapon.Base.morningstar" => "Morningstar".into(),
+        "PF2E.Weapon.Base.scimitar" => "Scimitar".into(),
+        "PF2E.Weapon.Base.scythe" => "Scythe".into(),
+        "PF2E.Weapon.Base.trident" => "Trident".into(),
+        "PF2E.Weapon.Base.whip" => "Whip".into(),
+        label if label.starts_with("PF2E.") => title(key),
+        label => label.into(),
+    }
+}
 fn size(size: &SourcePresence<String>) -> FactView<String> {
     fact(SourceFieldView::from(size).map(|v| match v.as_str() {
         "med" | "medium" => "Medium".into(),
@@ -278,6 +301,36 @@ fn damage(source: &SourcePresence<WeaponDamage>) -> FactView<String> {
     }))
 }
 
+fn attack_qualifier(strike: &BattleFormStrike) -> Option<String> {
+    let mut notes = Vec::new();
+    if strike.own_if_higher.as_value() != Some(&false) {
+        notes.push("Use your own unarmed attack modifier if higher.".into());
+    }
+    match &strike.range {
+        SourcePresence::Value(range) => {
+            if let Some(increment) = range.increment.as_value() {
+                notes.push(format!("Range increment {increment} feet."));
+            }
+            if let Some(max) = range.max.as_value() {
+                notes.push(format!("Maximum range {max} feet."));
+            }
+            if matches!(range.increment, SourcePresence::Invalid(_))
+                || matches!(range.max, SourcePresence::Invalid(_))
+                || !range.additional_fields.fields().is_empty()
+            {
+                notes.push("Additional range details are listed in Rules.".into());
+            }
+        }
+        SourcePresence::Invalid(_) => notes.push("Range unavailable; see Rules.".into()),
+        // Missing or null range denotes no authored ranged-strike statistic.
+        SourcePresence::Missing | SourcePresence::Null => {}
+    }
+    if let Some(ability) = strike.ability.as_value().and_then(token) {
+        notes.push(format!("{} based.", title(&ability)));
+    }
+    (!notes.is_empty()).then(|| notes.join(" "))
+}
+
 pub(super) fn project(
     rule: &BattleFormRule,
     rank: u8,
@@ -292,6 +345,18 @@ pub(super) fn project(
         return Err("This form depends on additional conditions; read its rules.".into());
     }
     let current = at_rank(rule, rank)?;
+    if rule.own_unarmed.as_value() == Some(&true)
+        || current.strikes.as_value().is_some_and(|strikes| {
+            strikes.entries.iter().any(|(_, strike)| {
+                !matches!(strike.predicate, SourcePresence::Missing)
+                    && !strike.predicate.as_value().is_some_and(Vec::is_empty)
+            })
+        })
+    {
+        return Err(
+            "This form's attacks depend on your character or a choice; read its rules.".into(),
+        );
+    }
     let base = at_rank(rule, base_rank)?;
     add(
         &mut preview.facts,
@@ -341,7 +406,11 @@ pub(super) fn project(
         "Senses",
         senses(&current.senses),
         senses(&base.senses),
-        None,
+        current
+            .senses
+            .as_value()
+            .filter(|s| !s.additional_fields.fields().is_empty())
+            .map(|_| "Additional senses are listed in Rules.".into()),
     );
     add(
         &mut preview.facts,
@@ -391,15 +460,14 @@ pub(super) fn project(
                 title: strike
                     .label
                     .as_value()
-                    .cloned()
+                    .map(|label| strike_label(label, key))
                     .unwrap_or_else(|| title(key)),
                 traits,
                 attack: rank_fact(
                     "Attack",
                     modifier(&strike.modifier),
                     old_attack.as_ref(),
-                    (strike.own_if_higher.as_value() != Some(&false))
-                        .then(|| "Use your own unarmed attack modifier if higher.".into()),
+                    attack_qualifier(strike),
                 ),
                 damage: rank_fact("Damage", damage(&strike.damage), old_damage.as_ref(), None),
             });
