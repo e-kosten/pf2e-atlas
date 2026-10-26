@@ -216,7 +216,12 @@ overrides with the baseline, never accumulating every preceding bracket. It comp
 against the effect's authored base for per-fact explanation provenance. Known
 Foundry defaults such as own-if-higher and armor penalty exemptions are presentation
 qualifiers, not changes to a stored actor. Caster-dependent expressions remain
-symbolic. No arbitrary rule execution, effect application or source mutation occurs.
+symbolic. Conditional strikes and forms using the character's own unarmed attacks
+remain unavailable without that context. Strike range and ability qualifiers stay
+beside their attack; unmodeled sense members retain a local Rules reference rather
+than implying the displayed senses are complete. Exact pinned localization labels
+are presentation vocabulary; unknown labels never become inferred mechanics.
+No arbitrary rule execution, effect application or source mutation occurs.
 
 Explicit ChoiceSet values can supply read-only alternatives through their typed
 CreatureSize and FlatModifier bindings. Only bounded parent-rank predicates determine

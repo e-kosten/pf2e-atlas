@@ -172,3 +172,99 @@ fn invalid_rank_brackets_and_actor_dependent_choices_remain_unavailable() {
     assert!(preview(&detail).unavailable.is_some());
     assert!(preview(&detail).choices.is_empty());
 }
+
+#[test]
+fn conditional_strikes_and_own_unarmed_forms_do_not_claim_unconditional_attacks() {
+    for own_unarmed in [false, true] {
+        let mut source = bear();
+        if own_unarmed {
+            source["system"]["rules"][0]["ownUnarmed"] = json!(true);
+        } else {
+            source["system"]["rules"][0]["overrides"]["strikes"]["jaws"]["predicate"] =
+                json!(["self:choice:moon"]);
+        }
+        let fixture = worker(source);
+        let detail = fixture
+            .worker
+            .record_detail_at(request("effects:gQnDKDeBTtjwOWAk", Some(4)))
+            .unwrap();
+        assert!(
+            preview(&detail)
+                .unavailable
+                .as_ref()
+                .unwrap()
+                .contains("attacks depend")
+        );
+        assert!(preview(&detail).strikes.is_empty());
+        assert!(!detail.presentation.content.is_empty());
+    }
+}
+
+#[test]
+fn battle_form_strike_names_use_exact_localized_labels_or_authored_keys() {
+    let mut source = bear();
+    source["system"]["rules"][0]["overrides"]["strikes"]["jaws"]["label"] =
+        json!("PF2E.Weapon.Base.fist");
+    source["system"]["rules"][0]["overrides"]["strikes"]["claw"]["label"] =
+        json!("PF2E.Unknown.Attack");
+    let fixture = worker(source);
+    let detail = fixture
+        .worker
+        .record_detail_at(request("effects:gQnDKDeBTtjwOWAk", Some(4)))
+        .unwrap();
+    let strikes = &preview(&detail).strikes;
+    assert_eq!(
+        strikes.iter().find(|s| s.id == "jaws").unwrap().title,
+        "Fist"
+    );
+    assert_eq!(
+        strikes.iter().find(|s| s.id == "claw").unwrap().title,
+        "Claw"
+    );
+}
+
+#[test]
+fn retained_unmodeled_senses_are_not_silently_presented_as_complete() {
+    let mut source = bear();
+    source["system"]["rules"][0]["overrides"]["senses"]["lowLightVision"] = json!({});
+    let fixture = worker(source);
+    let detail = fixture
+        .worker
+        .record_detail_at(request("effects:gQnDKDeBTtjwOWAk", Some(4)))
+        .unwrap();
+    let senses = preview(&detail)
+        .facts
+        .iter()
+        .find(|f| f.label == "Senses")
+        .unwrap();
+    assert!(senses.value.value.as_ref().unwrap().contains("Scent"));
+    assert_eq!(
+        senses.qualifier.as_deref(),
+        Some("Additional senses are listed in Rules.")
+    );
+}
+
+#[test]
+fn ranged_strikes_preserve_range_increment_maximum_and_ability_qualifiers() {
+    let mut source = bear();
+    let jaws = &mut source["system"]["rules"][0]["overrides"]["strikes"]["jaws"];
+    jaws["range"] = json!({"increment":60,"max":240});
+    jaws["ability"] = json!("dex");
+    let fixture = worker(source);
+    let detail = fixture
+        .worker
+        .record_detail_at(request("effects:gQnDKDeBTtjwOWAk", Some(4)))
+        .unwrap();
+    let note = preview(&detail)
+        .strikes
+        .iter()
+        .find(|s| s.id == "jaws")
+        .unwrap()
+        .attack
+        .qualifier
+        .as_ref()
+        .unwrap();
+    assert!(note.contains("Range increment 60 feet."));
+    assert!(note.contains("Maximum range 240 feet."));
+    assert!(note.contains("Dex based."));
+}
