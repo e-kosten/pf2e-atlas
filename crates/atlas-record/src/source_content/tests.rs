@@ -877,3 +877,19 @@ fn literal_damage_respects_an_authored_noun_and_short_label() {
         "1 fire damage damageable"
     );
 }
+
+#[test]
+fn literal_damage_marks_the_formula_boundary_without_accepting_authored_markers() {
+    let content = prepare("@Damage[(4d8+10)[bludgeoning]] damage");
+    assert!(
+        content
+            .html
+            .contains("data-atlas-damage-formula=\"\">4d8+10</span> bludgeoning")
+    );
+    assert_eq!(content.text, "4d8+10 bludgeoning damage");
+    let labeled = prepare("@Damage[4d8[bludgeoning]]{Impact}");
+    assert!(!labeled.html.contains("data-atlas-damage-formula"));
+    assert_eq!(labeled.text, "Impact");
+    let spoofed = prepare("<span data-atlas-damage-formula=''>Fake</span>");
+    assert!(!spoofed.html.contains("data-atlas-damage-formula"));
+}

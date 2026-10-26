@@ -12,7 +12,7 @@ vi.mock("../../api/atlasApi", async (original) => ({
   rollContentDamage: vi.fn(),
 }));
 const request: RollContentDamageRequest = {
-  content_interpretation_version: "foundry-content/v11",
+  content_interpretation_version: "foundry-content/v12",
   source: {
     record: "items:example",
     embedded_path: [],

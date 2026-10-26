@@ -116,7 +116,10 @@ pub(super) fn sanitizer() -> ammonia::Builder<'static> {
             "data-atlas-interaction",
             "data-atlas-interaction-kind",
         ])
-        .add_tag_attributes("span", ["data-atlas-action-glyph"])
+        .add_tag_attributes(
+            "span",
+            ["data-atlas-action-glyph", "data-atlas-damage-formula"],
+        )
         .add_tag_attributes("ol", ["start"])
         .add_tag_attributes("li", ["value"])
         .add_tag_attributes("td", ["colspan", "rowspan"])
@@ -582,6 +585,7 @@ impl Projection<'_> {
             )
         });
         let mut interaction = None;
+        let mut derived_html = None;
         let text = match node {
             ParsedMacro::Check {
                 statistic, options, ..
@@ -625,17 +629,23 @@ impl Projection<'_> {
                 super::literal_damage(formula).map_or_else(
                     || formula.clone(),
                     |parts| {
-                        let text = parts
+                        let fragments: Vec<_> = parts
                             .iter()
                             .map(|p| if options.contains_key("shortLabel") { p.formula.clone() } else { format!("{} {}", p.formula, p.label) })
-                            .collect::<Vec<_>>()
-                            .join(" + ");
+                            .collect();
+                        let text = fragments.join(" + ");
                         // The macro supplies its type; preserve an immediately authored
                         // damage noun rather than producing "fire damage damage".
                         let noun_follows = matches!(following, Some(ParsedNode::Text { text }) if text.starts_with(char::is_whitespace) && text.trim_start().strip_prefix("damage").is_some_and(|tail| tail.is_empty() || !tail.starts_with(char::is_alphanumeric)));
-                        if noun_follows && !options.contains_key("shortLabel") {
+                        let text = if noun_follows && !options.contains_key("shortLabel") {
                             text.strip_suffix(" damage").unwrap_or(&text).to_owned()
-                        } else { text }
+                        } else { text };
+                        if let Some(index) = parts.iter().position(|p| p.has_dice) {
+                            let start = fragments[..index].iter().map(String::len).sum::<usize>() + 3 * index;
+                            let end = start + parts[index].formula.len();
+                            derived_html = Some(format!("{}<span data-atlas-damage-formula=\"\">{}</span>{}", escape(&text[..start]), escape(&text[start..end]), escape(&text[end..])));
+                        }
+                        text
                     },
                 )
             }
@@ -716,7 +726,7 @@ impl Projection<'_> {
         let body = if unknown {
             escape(&text)
         } else {
-            label_html.unwrap_or_else(|| escape(&text))
+            label_html.unwrap_or_else(|| derived_html.unwrap_or_else(|| escape(&text)))
         };
         format!("<span{marker}>{body}</span>")
     }

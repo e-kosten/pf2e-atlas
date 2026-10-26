@@ -601,14 +601,14 @@ it("keeps fixed damage plain and retains a roll only while its exact source rema
   const request = {
     source: field.locator,
     source_fingerprint: "current",
-    content_interpretation_version: "foundry-content/v11",
+    content_interpretation_version: "foundry-content/v12",
     ordinal: 1,
     authored_formula: "1d6[fire]",
   };
   field.body = {
     kind: "html",
     inclusions: [],
-    html: '<p><span data-atlas-interaction="0">1 fire damage</span>; <span data-atlas-interaction="1">1d6 fire damage</span></p>',
+    html: '<p><span data-atlas-interaction="0">1 fire damage</span>; <span data-atlas-interaction="1"><span data-atlas-damage-formula="">1d6</span> fire damage</span></p>',
     controls: [
       {
         ordinal: 0,
@@ -651,7 +651,10 @@ it("keeps fixed damage plain and retains a roll only while its exact source rema
     </ConfigProvider>,
   );
   expect(screen.getByText("1 fire damage")).not.toHaveAttribute("role", "button");
-  fireEvent.click(screen.getByRole("button", { name: "Roll 1d6 fire damage" }));
+  const formula = screen.getByText("1d6", { selector: "[data-atlas-damage-formula]" });
+  const roller = screen.getByRole("button", { name: "Roll 1d6 fire damage" });
+  expect(formula.nextElementSibling).toContainElement(roller);
+  fireEvent.click(roller);
   await screen.findByRole("status", { name: "1d6: 4" });
   rerender(
     <ConfigProvider theme={{ token: { motion: false } }}>
@@ -705,7 +708,7 @@ it("gives repeated inclusions of the same authored damage independent roll contr
       roll: {
         source,
         source_fingerprint: "current",
-        content_interpretation_version: "foundry-content/v11",
+        content_interpretation_version: "foundry-content/v12",
         ordinal: 0,
         authored_formula: "1d6[fire]",
       },
