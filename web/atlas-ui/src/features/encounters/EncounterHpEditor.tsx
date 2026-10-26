@@ -101,17 +101,7 @@ export function EncounterHpEditor({
         >
           <Input aria-label="Maximum HP" placeholder="Unknown" />
         </Form.Item>
-        <Form.Item
-          name="temporary"
-          label="Temporary HP"
-          rules={[
-            {
-              required: true,
-              whitespace: true,
-              message: "Enter temporary HP, or 0 to clear it.",
-            },
-          ]}
-        >
+        <Form.Item name="temporary" label="Temporary HP">
           <Input aria-label="Temporary HP" />
         </Form.Item>
         <Space wrap>

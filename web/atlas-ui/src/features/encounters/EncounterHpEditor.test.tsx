@@ -67,6 +67,28 @@ it("sends one atomic raw correction for all edited fields and Cancel does not wr
   expect(onAction).toHaveBeenCalledOnce();
 });
 
+it("allows clearing temporary HP while leaving untouched fields out of the correction", async () => {
+  const onAction = vi.fn().mockResolvedValue(true);
+  render(
+    <EncounterHpEditor
+      current={current}
+      disabled={false}
+      pending={false}
+      onAction={onAction}
+      onCommitted={vi.fn()}
+      onCancel={vi.fn()}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("Temporary HP"), { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() =>
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({
+      kind: "set_values",
+      temporary: "",
+    }),
+  );
+});
+
 it("closes an untouched form without writing and preserves explicit same-value intent", async () => {
   const onAction = vi.fn().mockResolvedValue(true);
   const onCancel = vi.fn();
