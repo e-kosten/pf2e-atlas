@@ -134,12 +134,14 @@ export function FactLine<T>({
   format,
   patch = false,
   required = false,
+  after,
 }: {
   label: string;
   fact: FactView<T>;
   format?: (value: T) => string;
   patch?: boolean;
   required?: boolean;
+  after?: ReactNode;
 }) {
   if (!hasReadingFact(fact, { patch, required })) return null;
   return (
@@ -149,6 +151,7 @@ export function FactLine<T>({
       ) : (
         factText(fact, format, { patch, required })
       )}
+      {after}
     </FactRow>
   );
 }

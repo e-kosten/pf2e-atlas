@@ -275,6 +275,10 @@ pub struct SpellPresentationView {
     pub rank_note: Option<String>,
     // Original rank, before the selected read-time heightening.
     pub base_rank: NumberFactView,
+    /// Verified differences from this owned spell's authored base, not coverage claims.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub rank_changes: Option<Vec<SpellRankChangeView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub runtime_notes: Option<Vec<crate::RuntimeEffectNoteView>>,
@@ -294,6 +298,31 @@ pub struct SpellPresentationView {
     pub forms: FactView<Vec<SpellFormView>>,
     pub casting_entry: Option<FactView<String>>,
     pub authored_cast_rank: NumberFactView,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum SpellRankFactView {
+    Cast,
+    Requirements,
+    Cost,
+    Range,
+    Target,
+    Area,
+    Defense,
+    Duration,
+    Sustained,
+    Traits,
+    Traditions,
+    Rarity,
+    Counteraction,
+    Damage { component_id: String },
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct SpellRankChangeView {
+    pub fact: SpellRankFactView,
+    pub base_rank: u8,
+    pub base_value: String,
+    pub explanation: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SpellAreaView {
@@ -357,6 +386,15 @@ pub struct SpellFormView {
     pub name: FactView<String>,
     pub sort: NumberFactView,
     pub changes: FactView<SpellChangeView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub rank_changes: Option<Vec<SpellRankChangeView>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub rank_note: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub effective_rank: Option<u8>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct PhysicalPresentationView {

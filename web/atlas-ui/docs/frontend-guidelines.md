@@ -374,7 +374,21 @@ Spell reading order is identity, supplied casting facts and damage, authored pro
 then structured heightening/forms. For example, Allfood's Cast and Target are
 available before its description and authored Heightened paragraphs. Preserve
 both authored prose and typed heightening; do not parse or deduplicate one against
-the other. Omit the renderer-added Description heading when a simple record has
+the other.
+
+Use `SpellRankMarker` beside facts with backend-supplied rank-change provenance.
+Its persistent small marker opens an Ant Tooltip on hover, keyboard focus or tap;
+Escape dismisses that explanation before a surrounding Drawer. Keep the current
+fact inline and put its base value and useful scaling context in the tooltip.
+For Fireball at rank 5, mark 10d6 fire with base rank 3: 6d6 fire and +2d6 per rank.
+Allfood marks its changed target. Compare against the selected copy's base, not
+the previously viewed rank or a replacement compendium record. Do not mark a row
+merely because rank was selected, imply completeness through color, or hide an
+unavailable fact or unresolved choice in a tooltip. Prose remains authored even
+when a nearby structured fact changes. Casting-form differences use the selected
+rank; raw form patches with an unavailable preview retain their local explanation.
+
+Omit the renderer-added Description heading when a simple record has
 one principal description field. Battle Medicine then reads Prerequisites,
 authored Requirements and prose without a competing generic heading. Keep all
 authored headings and other content-field labels, and label multiple description
