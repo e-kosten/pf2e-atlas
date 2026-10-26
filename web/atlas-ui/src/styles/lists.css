@@ -210,8 +210,8 @@
   min-height: 44px;
   grid-column: 1;
   grid-row: 1;
-  align-self: start;
-  margin-top: 8px;
+  align-self: center;
+  justify-self: center;
   touch-action: none;
 }
 .list-member__drag-preview {
@@ -223,8 +223,8 @@
   min-height: 44px;
   grid-column: 3;
   grid-row: 1;
-  align-self: start;
-  margin: 8px 12px 0 0;
+  align-self: center;
+  margin-inline-end: 12px;
 }
 .list-member__unresolved {
   display: grid;
