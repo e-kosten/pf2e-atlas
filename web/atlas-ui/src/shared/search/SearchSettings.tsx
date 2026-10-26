@@ -856,29 +856,33 @@ function PartChoices({
           .filter((part) => part.has_vectors)
           .map((part) => part.selector);
         const count = selectors.filter((selector) => chosen.has(selector)).length;
+        const singleSection = entries.length === 1;
         return (
           <div key={key} className="search-settings__part-group">
-            <div className="search-settings__part-choice">
-              <Checkbox
-                aria-label={`All sections in ${owner}`}
-                checked={selectors.length > 0 && count === selectors.length}
-                indeterminate={count > 0 && count < selectors.length}
-                disabled={!selectors.length}
-                onChange={(event) => toggle(selectors, event.target.checked)}
-              />
-              <strong>{owner}</strong>
-            </div>
-            <div className="search-settings__part-fields">
+            {!singleSection && (
+              <div className="search-settings__part-choice">
+                <Checkbox
+                  aria-label={`All sections in ${owner}`}
+                  checked={selectors.length > 0 && count === selectors.length}
+                  indeterminate={count > 0 && count < selectors.length}
+                  disabled={!selectors.length}
+                  onChange={(event) => toggle(selectors, event.target.checked)}
+                />
+                <strong>{owner}</strong>
+              </div>
+            )}
+            <div className={singleSection ? undefined : "search-settings__part-fields"}>
               {entries.map((part) => (
                 <div key={part.selector} className="search-settings__part-choice">
                   <Checkbox
-                    aria-label={part.label}
+                    aria-label={singleSection ? `${owner}: ${part.label}` : part.label}
                     checked={chosen.has(part.selector)}
                     disabled={!part.has_vectors}
                     onChange={(event) => toggle([part.selector], event.target.checked)}
                   />
                   <span>
                     <Typography.Link
+                      strong={singleSection}
                       href={destinationHref(
                         seed.kind === "trait"
                           ? traitDestination({ traitKey: seed.trait_key })
@@ -893,8 +897,14 @@ function PartChoices({
                         onReference(part, event.currentTarget);
                       }}
                     >
-                      {part.label}
+                      {singleSection ? owner : part.label}
                     </Typography.Link>
+                    {singleSection && (
+                      <>
+                        {" "}
+                        <Typography.Text type="secondary">{part.label}</Typography.Text>
+                      </>
+                    )}
                     {!part.has_vectors ? " (no stored vector)" : ""}
                   </span>
                 </div>
