@@ -65,6 +65,28 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   flex-wrap: wrap;
   justify-content: space-between;
 }
+.reference-reader__heading,
+.reference-selection-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-control);
+  min-width: 0;
+}
+.reference-reader__heading {
+  flex: 1;
+}
+.reference-reader__heading > :first-child,
+.reference-selection-status > button {
+  flex-shrink: 0;
+}
+.reference-selection-status > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
 .reference-results__scroll,
 .reference-reader__scroll {
   flex: 1;

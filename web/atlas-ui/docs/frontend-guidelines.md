@@ -1018,6 +1018,18 @@ fingerprint, artifact refresh epoch or encounter-context change. An explicit
 generation mismatch invalidates retained content. `RelatedRecords` is the shared
 secondary disclosure inside that pane.
 
+Record pickers prepare a new candidate through the shared exact reading query,
+then commit its selection and displayed document together. Keep Goblin selected
+and readable while Ogre loads; disable Add until the swap completes. Do not select
+Ogre while showing Goblin's facts or borrow Goblin into Ogre's cache. Fast swaps
+have no blank loading frame; slow requests show Loading plus the requested name
+inside the existing header without changing its height. A local failure offers
+Retry and Cancel, which restores access to the current candidate. Preserve form
+drafts and deliberately focused inputs through completion. Abandoned, closed or
+retired requests cannot commit later; validate the expected collection generation
+before caching a prepared document. Ordinary direct navigation still uses its
+own initial loading state rather than retaining an unrelated page.
+
 Spell headers show the supplied classification/rank as static text, with a muted
 Change rank button and an anchored Ant menu. The menu identifies the base rank;
 do not repeat a Base rank caption beside the trigger. For an owned spell it exposes
