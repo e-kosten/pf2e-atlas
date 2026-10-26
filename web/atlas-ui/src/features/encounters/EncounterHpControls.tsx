@@ -3,7 +3,7 @@ import { NumberFact } from "../../shared/records/presentationFacts";
 import { EncounterModal } from "./EncounterModal";
 import { Button, Tooltip } from "antd";
 import { Pencil } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type {
   EncounterParticipantView,
   EncounterHpAction,
@@ -31,6 +31,15 @@ export function EncounterHpControls({
 }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [committed, setCommitted] = useState(false);
+  const addTemporaryButton = useRef<HTMLButtonElement>(null);
+  const [temporaryFocusRequest, setTemporaryFocusRequest] = useState(0);
+  const restoredTemporaryFocus = useRef(0);
+  useLayoutEffect(() => {
+    if (restoredTemporaryFocus.current === temporaryFocusRequest || disabled) return;
+    restoredTemporaryFocus.current = temporaryFocusRequest;
+    if (document.activeElement === document.body)
+      addTemporaryButton.current?.focus({ preventScroll: true });
+  }, [disabled, temporaryFocusRequest]);
   const hpKnown = current.current_hp !== undefined;
   const maxKnown = current.effective_max_hp.state === "value";
   const currentHp = asNumber(current.current_hp);
@@ -73,16 +82,32 @@ export function EncounterHpControls({
             <span className="encounter-hp-maximum">
               <NumberFact fact={current.effective_max_hp} label="Maximum HP" />
             </span>
-            {current.temporary_hp > 0n && <span>+</span>}
+            {current.temporary_hp > 0n && (
+              <>
+                <span>+</span>
+                <EncounterHpValue
+                  label="Temporary HP"
+                  value={current.temporary_hp}
+                  disabled={disabled}
+                  onCommit={(input) => onAction({ kind: "set_temporary", input })}
+                  onRestoreFocus={() =>
+                    setTemporaryFocusRequest((request) => request + 1)
+                  }
+                />
+                <span>temp</span>
+              </>
+            )}
+          </span>
+          {current.temporary_hp === 0n && (
             <EncounterHpValue
               label="Temporary HP"
-              value={current.temporary_hp}
-              addLabel={current.temporary_hp === 0n ? "Add temp HP" : undefined}
+              value={0n}
+              addLabel="Add temp HP"
+              buttonRef={addTemporaryButton}
               disabled={disabled}
               onCommit={(input) => onAction({ kind: "set_temporary", input })}
             />
-            {current.temporary_hp > 0n && <span>temp</span>}
-          </span>
+          )}
         </div>
         <div className="encounter-hp-panel__actions">
           {statusControl}

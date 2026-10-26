@@ -48,14 +48,15 @@ it("keeps focus in a pending Enter edit, then returns it to the value", async ()
   expect(screen.getByRole("button", { name: "Edit Current HP" })).toHaveFocus();
 });
 
-it("keeps invalid input focused and available for correction", async () => {
+it("keeps a rejected formula focused and available for correction", async () => {
   const { open, onCommit } = mount();
+  onCommit.mockRejectedValueOnce(new Error("Invalid HP formula"));
   const input = open();
-  fireEvent.change(input, { target: { value: "-1" } });
+  fireEvent.change(input, { target: { value: "300-" } });
   fireEvent.keyDown(input, { key: "Enter" });
-  await screen.findByRole("alert");
-  expect(onCommit).not.toHaveBeenCalled();
-  expect(input).toHaveValue("-1");
+  await waitFor(() => expect(input).not.toHaveAttribute("readonly"));
+  expect(onCommit).toHaveBeenCalledExactlyOnceWith("300-");
+  expect(input).toHaveValue("300-");
   expect(input).toHaveFocus();
 });
 
