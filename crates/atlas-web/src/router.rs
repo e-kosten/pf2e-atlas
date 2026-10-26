@@ -103,6 +103,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/encounters/{encounter_ref}/turn-review", get(encounter_turn_review))
         .route("/api/encounters/{encounter_ref}/advance", post(advance_encounter_turn))
         .route("/api/encounters/{encounter_ref}/participants/{participant_key}/turn-resources", post(update_turn_resources))
+        .route("/api/encounters/{encounter_ref}/participants/{participant_key}/ability-state", post(crate::handlers::update_encounter_ability_state))
         .route(
             "/api/encounters/{encounter_ref}/turn",
             post(set_encounter_turn),

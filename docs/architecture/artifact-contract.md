@@ -47,6 +47,13 @@ row ID when the application is consumed before insertion. It preserves existing
 markers, including those whose source was removed, and all saved state and receipts.
 The application identity remains claimed without creating an inactive condition.
 
+Workspace migration 16 adds participant-owned ability-state rows for authored
+switches, finite choices and limited-use expenditure. Values use the existing
+versioned saved-state codec; exact owner/rule/source identity prevents applying
+one ability's state to another. Derived conditions remain reads, rather than
+materialized saved condition rows. Existing reference data, HP, saved conditions,
+action stock and receipts are preserved.
+
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
 a consistent backup before structural changes, and transaction-scoped validation.

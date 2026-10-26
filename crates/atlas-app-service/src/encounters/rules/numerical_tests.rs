@@ -6,6 +6,7 @@ use serde_json::json;
 
 pub(super) fn participant() -> EncounterParticipant {
     EncounterParticipant {
+        ability_states: vec![],
         turn_resources: None,
         level_override: None,
         base_death_threshold: 4,
@@ -194,7 +195,7 @@ fn petrified_replacement_does_not_require_or_invent_authored_defenses() {
             .iter()
             .any(|value| value.target == StatisticTarget::ArmorClass)
     );
-    assert_eq!(projected.replacements[0].condition_id, 7);
+    assert_eq!(projected.replacements[0].source, "condition:7");
 }
 #[test]
 fn scoped_restrained_suppresses_only_the_overlapping_grabbed_cause() {
@@ -204,19 +205,27 @@ fn scoped_restrained_suppresses_only_the_overlapping_grabbed_cause() {
         participant_keys: vec!["a".into()],
     };
     participant.conditions = vec![condition(1, ConditionRule::Grabbed, None), restrained];
-    let general = super::causes::condition_causes(&participant, None);
-    assert!(
-        general
-            .iter()
-            .any(|cause| cause.source.condition_id == 1 && cause.rule == ConditionRule::OffGuard)
+    let general = super::causes::condition_causes(
+        &participant,
+        None,
+        crate::encounters::rules::source_conditions::SourceConditions::empty(),
     );
-    let targeted = super::causes::condition_causes(&participant, Some("a"));
-    assert!(!targeted.iter().any(|cause| cause.source.condition_id == 1));
-    assert!(
-        targeted
-            .iter()
-            .any(|cause| cause.source.condition_id == 2 && cause.rule == ConditionRule::OffGuard)
+    assert!(general.iter().any(
+        |cause| cause.source.condition_id() == Some(1) && cause.rule == ConditionRule::OffGuard
+    ));
+    let targeted = super::causes::condition_causes(
+        &participant,
+        Some("a"),
+        crate::encounters::rules::source_conditions::SourceConditions::empty(),
     );
+    assert!(
+        !targeted
+            .iter()
+            .any(|cause| cause.source.condition_id() == Some(1))
+    );
+    assert!(targeted.iter().any(
+        |cause| cause.source.condition_id() == Some(2) && cause.rule == ConditionRule::OffGuard
+    ));
 }
 
 #[test]
@@ -239,7 +248,14 @@ fn explicit_effective_level_controls_drained_without_second_variant_adjustment()
             .and_then(serde_json::Number::as_i64),
         Some(46)
     );
-    assert_eq!(effective_hp_maximum(&participant, Some(4)), Some(46));
+    assert_eq!(
+        effective_hp_maximum(
+            &participant,
+            crate::encounters::rules::source_conditions::SourceConditions::empty(),
+            Some(4)
+        ),
+        Some(46)
+    );
 }
 
 #[test]
@@ -359,12 +375,24 @@ fn dazzled_targeting_uses_usable_precision_and_blinded_suppresses_it() {
 #[test]
 fn confused_keeps_action_guidance_without_a_target_selection_workflow() {
     let mut actor = participant();
-    assert!(!super::action_context::is_confused(&actor));
+    assert!(!super::action_context::is_confused(
+        &actor,
+        crate::encounters::rules::source_conditions::SourceConditions::empty()
+    ));
     actor.conditions = vec![condition(1, ConditionRule::Confused, None)];
-    assert!(super::action_context::is_confused(&actor));
+    assert!(super::action_context::is_confused(
+        &actor,
+        crate::encounters::rules::source_conditions::SourceConditions::empty()
+    ));
     assert!(matches!(
-        &super::super::retch::evaluate(&actor).issues[..],
-        [super::action_context::ActionIssue::NeedsConfusion { source_id: 1 }]
+        &super::super::retch::evaluate(
+            &actor,
+            crate::encounters::rules::source_conditions::SourceConditions::empty()
+        )
+        .issues[..],
+        [super::action_context::ActionIssue::NeedsConfusion {
+            source_id: super::causes::ConditionSourceKey::Saved(1)
+        }]
     ));
 }
 
@@ -384,6 +412,7 @@ fn fascination_requires_its_subject() {
     let evaluate = |participant: &EncounterParticipant| {
         evaluate_action(
             participant,
+            crate::encounters::rules::source_conditions::SourceConditions::empty(),
             &ActionContext {
                 kind: ActionKind::Retch,
                 reaction: Some(false),
@@ -427,6 +456,7 @@ fn fleeing_requires_its_explicit_subject() {
     let evaluate = |participant: &EncounterParticipant, kind| {
         evaluate_action(
             participant,
+            crate::encounters::rules::source_conditions::SourceConditions::empty(),
             &ActionContext {
                 kind,
                 reaction: Some(false),
@@ -449,10 +479,11 @@ fn fleeing_requires_its_explicit_subject() {
     assert!(evaluate(&actor, ActionKind::Retch).issues.is_empty());
     let issue = crate::encounters::action_projection::issue_view(
         ActionIssue::NeedsFact {
-            source_id: 1,
+            source_id: super::causes::ConditionSourceKey::Saved(1),
             fact: ActionFact::FurthersEscape,
         },
         &actor,
+        crate::encounters::rules::source_conditions::SourceConditions::empty(),
     );
     assert!(
         matches!(issue.subject, Some(atlas_app_model::ConditionSubjectView::Other { description }) if description == "the spreading fire")
@@ -622,19 +653,51 @@ fn controller_instructions_derive_from_active_sources_and_conflicts_stay_unknown
     controlled.note = Some("Defend the door".into());
     actor.conditions.push(controlled.clone());
     assert_eq!(
-        control_direction(&actor, &controlled),
+        control_direction(
+            &actor,
+            &controlled,
+            crate::encounters::rules::source_conditions::SourceConditions::empty()
+        ),
         Some(("controller".into(), Some("Defend the door".into())))
     );
     let mut competing = controlled.clone();
     competing.condition_id = 2;
     actor.conditions.push(competing);
-    assert!(control_direction(&actor, &controlled).is_some());
+    assert!(
+        control_direction(
+            &actor,
+            &controlled,
+            crate::encounters::rules::source_conditions::SourceConditions::empty()
+        )
+        .is_some()
+    );
     actor.conditions[1].note = Some("Leave the door".into());
-    assert!(control_direction(&actor, &controlled).is_none());
+    assert!(
+        control_direction(
+            &actor,
+            &controlled,
+            crate::encounters::rules::source_conditions::SourceConditions::empty()
+        )
+        .is_none()
+    );
     actor.conditions[1].source_participant_key = None;
-    assert!(control_direction(&actor, &controlled).is_none());
+    assert!(
+        control_direction(
+            &actor,
+            &controlled,
+            crate::encounters::rules::source_conditions::SourceConditions::empty()
+        )
+        .is_none()
+    );
     actor.conditions.pop();
-    assert!(control_direction(&actor, &controlled).is_some());
+    assert!(
+        control_direction(
+            &actor,
+            &controlled,
+            crate::encounters::rules::source_conditions::SourceConditions::empty()
+        )
+        .is_some()
+    );
 }
 
 #[test]
@@ -645,7 +708,10 @@ fn retch_exposes_independent_source_restrictions_without_collecting_answers() {
         condition(2, ConditionRule::Fleeing, None),
         condition(3, ConditionRule::Controlled, None),
     ];
-    let result = super::super::retch::evaluate(&actor);
+    let result = super::super::retch::evaluate(
+        &actor,
+        crate::encounters::rules::source_conditions::SourceConditions::empty(),
+    );
     assert_eq!(result.issues.len(), 3);
 }
 

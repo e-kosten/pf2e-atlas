@@ -47,5 +47,10 @@ export function actionIssueSourceLabel(
   source: EncounterActionIssueView,
   participants: EncounterParticipantView[],
 ): string {
-  return `${source.condition_name} · ${actionIssueContextLabel(source, participants) ?? `Source ${source.source_condition_id}`}`;
+  const context =
+    actionIssueContextLabel(source, participants) ??
+    (source.source_condition_id === null
+      ? null
+      : `Source ${source.source_condition_id}`);
+  return context ? `${source.condition_name} · ${context}` : source.condition_name;
 }

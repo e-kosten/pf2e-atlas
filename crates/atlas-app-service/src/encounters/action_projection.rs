@@ -5,6 +5,7 @@ use atlas_app_model::*;
 pub(super) fn issue_view(
     issue: ActionIssue,
     participant: &atlas_local_state::EncounterParticipant,
+    sources: &super::rules::source_conditions::SourceConditions,
 ) -> EncounterActionIssueView {
     let (source, kind, fact, reason) = match issue {
         ActionIssue::Prohibited { source_id, rule } => (
@@ -41,13 +42,15 @@ pub(super) fn issue_view(
     let source_condition = participant
         .conditions
         .iter()
-        .find(|condition| condition.condition_id == source);
+        .find(|condition| Some(condition.condition_id) == source.saved_id());
     let (controller_key, instructions) = source_condition
         .filter(|condition| {
             super::conditions::condition_rule_for_key(condition.condition_key.as_deref())
                 == Some(super::conditions::ConditionRule::Controlled)
         })
-        .and_then(|source| super::rules::action_context::control_direction(participant, source))
+        .and_then(|source| {
+            super::rules::action_context::control_direction(participant, source, sources)
+        })
         .map(|(key, instructions)| (Some(key), instructions))
         .unwrap_or((None, None));
     let subject = source_condition.and_then(|condition| match &condition.parameters {
@@ -72,10 +75,11 @@ pub(super) fn issue_view(
         subject,
         controller_key,
         instructions,
-        source_condition_id: source,
+        source_key: source.key(),
+        source_condition_id: source.saved_id(),
         condition_name: source_condition
             .map(|condition| condition.name.clone())
-            .unwrap_or_default(),
+            .unwrap_or_else(|| source.label(std::slice::from_ref(participant))),
         kind,
         fact,
         reason,
@@ -192,21 +196,25 @@ pub(super) fn inactive_issue(
         || participant.mortality == atlas_local_state::MortalityState::Dead)
         .then(|| EncounterActionIssueView {
             subject: None,
-            source_condition_id: 0,
+            source_key: "participant-status".into(),
+            source_condition_id: None,
             condition_name: "Participant".into(),
             controller_key: None,
             instructions: None,
             kind: EncounterActionIssueKindView::Prohibited,
             fact: None,
-            reason: super::rules::capabilities::cannot_act_reason(participant)
-                .unwrap_or("This participant cannot act.")
-                .into(),
+            reason: super::rules::capabilities::cannot_act_reason(
+                participant,
+                super::rules::source_conditions::SourceConditions::empty(),
+            )
+            .unwrap_or("This participant cannot act.")
+            .into(),
         })
 }
 
 pub(super) fn check_view(
     dc: i64,
-    source_ids: Vec<i64>,
+    source_ids: Vec<super::rules::causes::ConditionSourceKey>,
     participants: &[atlas_local_state::EncounterParticipant],
 ) -> EncounterActionCheckView {
     EncounterActionCheckView {
@@ -214,13 +222,9 @@ pub(super) fn check_view(
         sources: source_ids
             .into_iter()
             .map(|id| EncounterActionCheckSourceView {
-                condition_id: id,
-                name: participants
-                    .iter()
-                    .flat_map(|participant| &participant.conditions)
-                    .find(|source| source.condition_id == id)
-                    .map(|source| source.name.clone())
-                    .unwrap_or_default(),
+                condition_id: id.saved_id(),
+                source_key: id.key(),
+                name: id.label(participants),
             })
             .collect(),
     }

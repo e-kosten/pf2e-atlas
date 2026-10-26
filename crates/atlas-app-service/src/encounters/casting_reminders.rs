@@ -100,8 +100,13 @@ fn reminders(
             _ => None,
         });
 
+    let sources =
+        super::hydration::source_baseline(&source.source, workspace.retrieval_mut(), None)?
+            .map(|baseline| baseline.source_conditions)
+            .unwrap_or_default();
     let evaluated = evaluate_action(
         participant,
+        &sources,
         &ActionContext {
             kind: ActionKind::Cast,
             reaction,
@@ -112,7 +117,7 @@ fn reminders(
     let issues = evaluated
         .issues
         .into_iter()
-        .map(|issue| super::action_projection::issue_view(issue, participant))
+        .map(|issue| super::action_projection::issue_view(issue, participant, &sources))
         .collect::<Vec<_>>();
     let check = evaluated.disruption.map(|check| {
         super::action_projection::check_view(
@@ -143,7 +148,7 @@ fn casting_advisories(
             && participant
                 .conditions
                 .iter()
-                .find(|condition| condition.condition_id == issue.source_condition_id)
+                .find(|condition| Some(condition.condition_id) == issue.source_condition_id)
                 .is_some_and(|condition| {
                     super::conditions::condition_rule_for_key(condition.condition_key.as_deref())
                         == Some(R::Stupefied)
@@ -170,7 +175,7 @@ fn casting_advisories(
         let Some(condition) = participant
             .conditions
             .iter()
-            .find(|condition| condition.condition_id == issue.source_condition_id)
+            .find(|condition| Some(condition.condition_id) == issue.source_condition_id)
         else {
             continue;
         };

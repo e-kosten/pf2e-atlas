@@ -1,7 +1,8 @@
 import { Button, ConfigProvider, Dropdown } from "antd";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { ChevronDown } from "lucide-react";
 import type { SpellPresentationView } from "../../generated/atlas";
+import { useMenuFocus } from "../ui/overlays/useMenuFocus";
 
 const tabbableSelector = [
   "a[href]",
@@ -42,23 +43,7 @@ export function SpellRankControl({
   const trigger = useRef<HTMLButtonElement>(null);
   const popup = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    const focusMenu = () => {
-      const document = trigger.current?.ownerDocument;
-      if (!document) return;
-      const active = document.activeElement;
-      if (active !== trigger.current && active !== document.body) return;
-      const item = popup.current?.querySelector<HTMLElement>(
-        '[role="menuitem"]:not([aria-disabled="true"])',
-      );
-      item?.focus({ preventScroll: true });
-      if (!item || document.activeElement !== item)
-        frame = requestAnimationFrame(focusMenu);
-    };
-    let frame = requestAnimationFrame(focusMenu);
-    return () => cancelAnimationFrame(frame);
-  }, [open]);
+  useMenuFocus(open, trigger, popup);
   const chooseRank = (nextRank: number) => {
     setOpen(false);
     if (nextRank !== rank) onChange(nextRank);

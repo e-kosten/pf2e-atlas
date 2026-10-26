@@ -108,6 +108,15 @@ impl EncountersWrite<'_> {
         })
     }
 
+    /// Complete source-derived HP initialization inside the participant creation transaction.
+    pub fn initialize_participant_hp(
+        &self,
+        participant_key: &str,
+        current_hp: Option<i64>,
+    ) -> LocalStateResult<()> {
+        storage::initialize_participant_hp(self.connection, participant_key, current_hp)
+    }
+
     pub fn update_participant(
         &self,
         participant: UpdateEncounterParticipant,

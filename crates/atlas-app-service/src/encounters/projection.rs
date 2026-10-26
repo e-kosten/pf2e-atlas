@@ -61,7 +61,7 @@ pub(super) fn encounter_detail_from_records(
                 view.turn_resources = super::turn_resources::view(
                     participant,
                     current_turn_participant_key.as_deref(),
-                    &super::hydration::participant_source_actions(participant, &records_by_key),
+                    &super::hydration::participant_source_conditions(participant, &records_by_key),
                 );
                 view
             })
@@ -141,8 +141,13 @@ pub(super) fn participant_view(
                 .as_ref()
                 .map(|block| crate::presentation::actor::manual_presentation(&participant, block))
         });
+    let sources = record_detail
+        .and_then(|record| record.arithmetic_baseline.as_ref())
+        .map(|baseline| &baseline.source_conditions)
+        .unwrap_or_else(|| super::rules::source_conditions::SourceConditions::empty());
     let effective_max_hp = super::rules::hp_maximum_stat(
         &participant,
+        sources,
         stat_block
             .as_ref()
             .and_then(|block| block.adjusted_level.as_ref())
@@ -190,6 +195,14 @@ pub(super) fn participant_view(
         vec![]
     };
     EncounterParticipantView {
+        ability_states: Some(super::ability_state::views(
+            &participant,
+            sources,
+            stat_block
+                .as_ref()
+                .and_then(|block| block.adjusted_level.as_ref())
+                .and_then(serde_json::Number::as_i64),
+        )),
         turn_resources: None,
         knockout_options,
         knockout_unavailable_reason,
@@ -205,8 +218,11 @@ pub(super) fn participant_view(
             &participant,
             record_detail.map(|record| &record.detail.source),
         ),
-        cast_unavailable_reason: super::rules::capabilities::cannot_act_reason(&participant)
-            .map(str::to_owned),
+        cast_unavailable_reason: super::rules::capabilities::cannot_act_reason(
+            &participant,
+            sources,
+        )
+        .map(str::to_owned),
         spellcasting: record_detail.map(|r| {
             super::spell_catalog::catalog(
                 &r.detail.source,

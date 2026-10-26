@@ -52,10 +52,15 @@ Behavioral subjects, such as a fascination or threat, are distinct from the sour
 that applied the condition. Missing subjects require context only when an action
 depends on them; the causal source is not an implicit substitute.
 
-Source-owned action-allotment conditions are distinct, read-only causes. Checked
-owned Slowed/Quickened and supported unconditional, passive in-memory grants feed
-the same regain forecast as saved temporary causes. They retain the checked owner,
-rule ordinal and reference generation, not synthetic saved condition IDs. A higher
+Source-owned conditions are distinct, read-only causes. Checked owned conditions,
+maintained in-memory grants and unlimited owned effects feed the same cause
+resolver as temporary saved conditions. Statistics, HP limits, senses, action
+restrictions and regain forecasts consume those resolved causes. They retain the
+participant, root, checked owner, rule ordinal and source fingerprint; they never
+receive synthetic saved condition IDs. Constant badge overrides preserve supplied
+magnitudes. Missing values and uncertain activation remain explicit. Conditions
+owned by a creature, such as Sickened Doprillu's Sickened, remain source-linked
+and read-only; a separate temporary condition remains independently editable. A higher
 temporary Slowed value does not erase the inherent source; removing it exposes
 the inherited value again. Turn-start and explicit regain prepare reference facts
 before the guarded write and check the reference revision before allocating stock.
@@ -68,10 +73,35 @@ recorded separately from the initial allotment; manual spending/restoring does n
 rewrite it. When the turn ends, the explanation returns to the live regain forecast.
 Older turns without allocation facts retain usable stock and explicitly unavailable
 historical detail; reads never reconstruct that history from current conditions.
-Grant immunity uses the shared checked immunity policy. Conditional, equipment-
-dependent, altered or unsupported-lifetime grants remain unautomated authored
-rules. Prose-only restrictions, including Zombie Slow's reaction prohibition, are
+Grant immunity uses the shared checked immunity policy. Bounded condition
+predicates and supported authored RollOption switches/finite condition choices
+select maintained causes. Participant overrides persist separately from derived
+conditions with exact source identity and guarded writes. The pinned finite-choice
+preparer supplies its first authored choice when no selection is stored; toggles
+use the authored value or pinned default. Equipment requirements, context-dependent
+expressions and unsupported effect lifetimes remain authored rules. Prose-only restrictions, including Zombie Slow's reaction prohibition, are
 not inferred from condition identity, creature names or traits.
+
+Structured ability frequency exposes authored capacity/interval and independently
+saved encounter expenditure. Use and Restore are explicit, independent of dice and
+action/reaction tracking. Initiative advancement refreshes per-turn frequencies
+for all participants and per-round frequencies at their owner's turn start, matching
+the pinned Foundry recharge policy. Longer intervals restore explicitly because
+Atlas has no game clock. Reads and source refreshes do not reset expenditure.
+Turn advancement prepares incoming source conditions and frequency refreshes in
+one reference snapshot before the guarded write; it never re-resolves a mutable
+encounter slug between preparations. Ordinary resolved damage that needs no
+source lifecycle facts, and removal of an unmodeled custom condition, remain
+state-local operations. Healing still resolves source conditions to preserve
+effective maximum HP.
+A source-option transition that increases effective Drained charges the increase
+once through the existing guarded HP event; switching it off does not heal HP.
+New source-derived participants start at their effective capacity while retaining
+baseline maximum HP. Initialization completes inside the creation transaction and
+never rewrites an existing participant. Source-derived capacity is never charged
+again by reading or refreshing a record.
+Breath recharge prose and inline roll labels do not establish structured cooldown
+semantics; no cooldown or reset trigger is inferred from names or descriptions.
 
 Unknown facts stay unknown. An unavailable calculation does not silently use an
 authored subtotal, assume a missing trait is false, or substitute an unheightened

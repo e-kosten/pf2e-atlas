@@ -15,7 +15,7 @@ pub(super) fn prepare_start(
     round: i64,
     id: &str,
     dying_completed: bool,
-    sources: &rules::source_action_conditions::SourceActionConditions,
+    sources: &rules::source_conditions::SourceConditions,
 ) -> AppServiceResult<(Option<PreparedConditionEvent>, Vec<EncounterBoundaryClaim>)> {
     if participant.participant_kind == ParticipantKind::Hazard {
         return Ok((None, vec![]));
@@ -126,8 +126,8 @@ pub(super) fn prepare_start(
             .map(|c| c.extra_action.clone())
             .chain(
                 sources
-                    .entries
-                    .iter()
+                    .active_entries(participant)
+                    .into_iter()
                     .filter(|c| c.rule == ConditionRule::Quickened)
                     .map(|_| atlas_local_state::ConditionExtraAction::Unspecified),
             )
@@ -142,7 +142,7 @@ pub(super) fn prepare_start(
 pub(super) fn view(
     participant: &EncounterParticipant,
     current: Option<&str>,
-    sources: &rules::source_action_conditions::SourceActionConditions,
+    sources: &rules::source_conditions::SourceConditions,
 ) -> Option<TurnResourcesView> {
     if participant.participant_kind == ParticipantKind::Hazard {
         return None;
@@ -185,9 +185,23 @@ pub(super) fn view(
             InherentActionConditionsView {
                 unavailable_reason: sources.unavailable_reason.clone(),
                 entries: sources
-                    .entries
-                    .iter()
+                    .active_entries(participant)
+                    .into_iter()
+                    .chain(sources.unresolved_entries(participant))
                     .map(|condition| InherentActionConditionView {
+                        unavailable_reason: condition.activation_unavailable.clone().or_else(
+                            || {
+                                if sources.unresolved_entries(participant).contains(&condition) {
+                                    Some("Activation needs context; check the source rule.".into())
+                                } else if condition.rule.definition().has_value
+                                    && condition.value.is_none()
+                                {
+                                    Some("Source condition value is unavailable.".into())
+                                } else {
+                                    None
+                                }
+                            },
+                        ),
                         name: condition.rule.definition().name.into(),
                         has_value: condition.rule.definition().has_value,
                         value: condition.value,
@@ -293,7 +307,7 @@ impl AtlasAppService {
             ));
         }
         let mut claims = vec![];
-        let (source_actions, reference_revision) =
+        let (source_conditions, reference_revision) =
             if matches!(request.action, TurnResourceAction::Regain) {
                 source_action_context(self, participant)?
             } else {
@@ -333,7 +347,7 @@ impl AtlasAppService {
                     snapshot.encounter.round_number,
                     &request.request_id,
                     dying_completed,
-                    &source_actions,
+                    &source_conditions,
                 )?;
                 claims = start_claims;
                 if let Some(reason) = changes
@@ -357,7 +371,7 @@ impl AtlasAppService {
                 let projection = view(
                     participant,
                     snapshot.encounter.current_turn_participant_key.as_deref(),
-                    &source_actions,
+                    &source_conditions,
                 )
                 .ok_or_else(|| AppServiceError::invalid_request("Resources unavailable."))?;
                 let permission = if resource == TurnResourceKind::Reaction {
@@ -433,15 +447,12 @@ impl AtlasAppService {
 pub(super) fn source_action_context(
     service: &AtlasAppService,
     participant: &EncounterParticipant,
-) -> AppServiceResult<(
-    rules::source_action_conditions::SourceActionConditions,
-    Option<u64>,
-)> {
+) -> AppServiceResult<(rules::source_conditions::SourceConditions, Option<u64>)> {
     if participant.record_key.is_none() || participant.participant_kind == ParticipantKind::Hazard {
         return Ok((Default::default(), None));
     }
     match super::workflow::condition_subject_context(service, participant) {
-        Ok(subject) => Ok((subject.source_actions, subject.reference_revision)),
+        Ok(subject) => Ok((subject.source_conditions, subject.reference_revision)),
         Err(error) => {
             let error = error.into_app_error();
             if matches!(
@@ -453,7 +464,7 @@ pub(super) fn source_action_context(
                     | AppErrorCode::ArtifactNotReady
             ) {
                 Ok((
-                    rules::source_action_conditions::SourceActionConditions::unavailable(),
+                    rules::source_conditions::SourceConditions::unavailable(),
                     None,
                 ))
             } else {

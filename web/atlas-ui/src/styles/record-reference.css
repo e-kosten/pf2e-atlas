@@ -498,6 +498,12 @@
   color: var(--muted);
   font-size: 13px;
 }
+.actor-activity__activation {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-control);
+  vertical-align: middle;
+}
 .actor-reference__activities--strike,
 .actor-reference__activities--gear {
   container: activity-list / inline-size;

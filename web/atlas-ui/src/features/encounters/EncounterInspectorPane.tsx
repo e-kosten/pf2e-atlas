@@ -1,3 +1,8 @@
+import {
+  EncounterAbilityControls,
+  type AbilityStateHandler,
+} from "./EncounterAbilityControls";
+import { EncounterAbilityStates } from "./EncounterAbilityStates";
 import { destinationHref } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import {
@@ -9,7 +14,7 @@ import { EncounterLifeStatus } from "./EncounterLifeStatus";
 import { EncounterConditionRecovery } from "./EncounterConditionLifecycle";
 import { FactRow, factText } from "../../shared/records/presentationFacts";
 import { EncounterStrikeControl } from "./EncounterStrikeControl";
-import { Alert, Button } from "antd";
+import { Alert, Button, Space } from "antd";
 import { ActorEncounterLayout } from "../../shared/records/ActorEncounterLayout";
 import { HazardDefenses } from "../../shared/records/HazardDefenses";
 import { ActorDefenses } from "../../shared/records/ActorReference";
@@ -61,6 +66,7 @@ export function EncounterInspectorPane({
   onResolveDrained,
   onPreviewCondition,
   onTurnResources,
+  onAbilityState,
   onHpAction,
   onSpellAction,
   onConditionRecovery,
@@ -87,6 +93,7 @@ export function EncounterInspectorPane({
   previewSelection,
   onPreviewRankChange,
 }: {
+  onAbilityState?: AbilityStateHandler;
   disabled: boolean;
   encounterRevision: bigint;
   currentTurnKey?: string | null;
@@ -225,6 +232,7 @@ export function EncounterInspectorPane({
           onResolveDrained={onResolveDrained}
           onPreviewCondition={onPreviewCondition}
           onTurnResources={onTurnResources}
+          onAbilityState={onAbilityState}
           onHpAction={onHpAction}
           onSpellAction={onSpellAction}
           onUpdateCondition={onUpdateCondition}
@@ -308,6 +316,7 @@ function EncounterParticipantSurface({
   onResolveDrained,
   onPreviewCondition,
   onTurnResources,
+  onAbilityState,
   onHpAction,
   onSpellAction,
   onUpdateCondition,
@@ -318,6 +327,7 @@ function EncounterParticipantSurface({
   requestedConditionEdit,
   participants,
 }: {
+  onAbilityState?: AbilityStateHandler;
   disabled: boolean;
   encounterRevision: bigint;
   currentTurnKey?: string | null;
@@ -492,6 +502,13 @@ function EncounterParticipantSurface({
         onResolveDrained={onResolveDrained}
         participants={participants}
       />
+      <EncounterAbilityStates
+        participantKey={participant.participant_key}
+        abilities={participant.ability_states}
+        disabled={disabled}
+        onChange={onAbilityState}
+        onReference={onReference}
+      />
     </div>
   );
   const contextualDefenses = (
@@ -603,6 +620,32 @@ function EncounterParticipantSurface({
             artifactGeneration && participant.record_key
               ? {
                   generation: artifactGeneration,
+                  renderAbilityControls: (navigation) => {
+                    const abilities =
+                      participant.ability_states?.filter(
+                        (ability) =>
+                          JSON.stringify(ability.navigation.embedded_path) ===
+                          JSON.stringify(navigation.embedded_path),
+                      ) ?? [];
+                    const render = (kind: "option" | "uses") => {
+                      const matching = abilities.filter(
+                        (ability) => ability.state.kind === kind,
+                      );
+                      return matching.length ? (
+                        <Space wrap>
+                          {matching.map((ability) => (
+                            <EncounterAbilityControls
+                              key={`${participant.participant_key}:${String(ability.rule_ordinal)}`}
+                              ability={ability}
+                              disabled={disabled}
+                              onChange={onAbilityState}
+                            />
+                          ))}
+                        </Space>
+                      ) : null;
+                    };
+                    return { activation: render("option"), usage: render("uses") };
+                  },
                   parent: {
                     record_key: participant.record_key,
                     embedded_path: [],

@@ -15,6 +15,10 @@ import { activityAnchor, activityAddress } from "./embeddedNavigation";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
 
 export type EmbeddedReadingContext = {
+  renderAbilityControls?: (navigation: RecordNavigationView) => {
+    activation?: import("react").ReactNode;
+    usage?: import("react").ReactNode;
+  };
   generation: string;
   parent: RecordNavigationView;
   landing?: RecordNavigationView;
@@ -227,18 +231,30 @@ function OwnedAbilityBatch({
           (candidate) =>
             activityAnchor(candidate.navigation) === activityAnchor(entry.navigation),
         );
+        const controls = activity
+          ? context.renderAbilityControls?.(activity.navigation)
+          : undefined;
         return activity ? (
           <section
             key={activityAnchor(entry.navigation)}
             className="embedded-ability-reading__entry"
           >
-            <ActorActivity activity={activity} onReference={onReference} inline />
+            <ActorActivity
+              activity={activity}
+              onReference={onReference}
+              inline
+              activationControls={controls?.activation}
+              hideFrequency={Boolean(controls?.usage)}
+            />
             <ContentFields
               inlineAbility
               fields={entry.content}
               relationships={entry.relationships}
               onReference={onReference}
             />
+            {controls?.usage && (
+              <div className="embedded-ability-reading__usage">{controls.usage}</div>
+            )}
           </section>
         ) : (
           <Alert
