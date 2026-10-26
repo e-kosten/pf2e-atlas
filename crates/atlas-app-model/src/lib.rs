@@ -194,8 +194,9 @@ pub use record::{
 pub use search::{
     RelationshipClausePresentationView, RelationshipClauseSummaryView, RelationshipEvidenceView,
     RelationshipOccurrencesPage, RelationshipOccurrencesRequest, RetrievalModeView,
-    SearchCoverageView, SearchCriteria, SearchLaneView, SearchModeSummary, SearchPageRequest,
-    SearchPageView, SearchResultRow, SearchResultsPage, SearchResultsRequest, SearchWitnessView,
+    SearchCoverageView, SearchCriteria, SearchLaneView, SearchMatchSectionView, SearchModeSummary,
+    SearchPageRequest, SearchPageView, SearchResultRow, SearchResultsPage, SearchResultsRequest,
+    SearchWitnessView,
 };
 
 #[cfg(test)]

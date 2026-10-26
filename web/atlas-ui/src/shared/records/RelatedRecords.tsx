@@ -196,12 +196,14 @@ function SearchPreviewRows({
             onRefreshResults={async () => {
               onReload?.();
             }}
-            matchesOpen={open === row.record.record_key}
-            onMatchesOpenChange={(show) => setOpen(show ? row.record.record_key : null)}
+
             onPreview={(anchor) => onReference(row.record.record_key, anchor)}
-            onMatch={(selection, anchor) =>
-              onReference(selection.record_key, anchor, selection)
-            }
+            matchNavigation={{
+              open: open === row.record.record_key,
+              onOpenChange: (show) => setOpen(show ? row.record.record_key : null),
+              onNavigate: (selection, anchor) =>
+                onReference(selection.record_key, anchor, selection),
+            }}
           />
         </div>
       ))}
@@ -360,12 +362,7 @@ function VersionCard({
         row={{ record, matches: [], relationship_evidence: [] }}
         selected={false}
         disabled={false}
-        matchesOpen={false}
-        onMatchesOpenChange={() => {}}
         onPreview={(anchor) => onReference(record.record_key, anchor)}
-        onMatch={(selection, anchor) =>
-          onReference(selection.record_key, anchor, selection)
-        }
         context={context}
         actions={
           <Button size="small" onClick={onCompare}>
