@@ -11,6 +11,7 @@ pub(crate) struct SourceOption {
     pub owner: OwnedContentLocator,
     pub ordinal: usize,
     pub label: String,
+    pub authored_label: Option<String>,
     pub option: String,
     pub always_active: bool,
     pub initial_active: bool,
@@ -179,6 +180,7 @@ pub(super) fn options(
             owner: owner.clone(),
             ordinal,
             label: label.into(),
+            authored_label: rule.label.as_value().cloned(),
             option: option.clone(),
             always_active: rule.always_active == SourcePresence::Value(true),
             initial_active,
@@ -221,4 +223,94 @@ pub(super) fn uses(
         initial,
         per: *frequency.per.as_value()?,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::encounters::{ability_state, rules::source_conditions};
+    use atlas_record::source_record::SourceBackedRecord;
+    use serde_json::{Value, json};
+
+    fn views(labels: &[&str]) -> Vec<atlas_app_model::EncounterAbilityStateView> {
+        let mut rules: Vec<Value> = labels
+            .iter()
+            .enumerate()
+            .map(|(ordinal, label)| {
+                json!({"key":"RollOption","label":label,"option":format!("star-{ordinal}"),"toggleable":true})
+            })
+            .collect();
+        rules.push(json!({"key":"GrantItem","inMemoryOnly":true,
+            "uuid":"Compendium.pf2e.conditionitems.Item.Slowed",
+            "predicate":(0..labels.len()).map(|ordinal|format!("star-{ordinal}")).collect::<Vec<_>>() }));
+        let source = atlas_foundry_model::admit_document_source(
+            "Actor",
+            SourceContext::new("test", "fixture", "$"),
+            &serde_json::to_vec(&json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc",
+                "system":{"traits":{"value":[]},"attributes":{"immunities":[]}},
+                "items":[{"_id":"bbbbbbbbbbbbbbbb","name":"Aeon Stars","type":"action",
+                    "system":{"actionType":{"value":"passive"},"rules":rules}}]}))
+            .unwrap(),
+        )
+        .unwrap()
+        .model
+        .unwrap();
+        let record = SourceBackedRecord::new("test", source).unwrap();
+        let mut sources = source_conditions::source_conditions(&record, |uuid| {
+            Ok((uuid == "Compendium.pf2e.conditionitems.Item.Slowed")
+                .then_some(ConditionRule::Slowed))
+        })
+        .unwrap();
+        sources.source_fingerprint = Some("test-source".into());
+        let mut participant = super::super::numerical_tests::participant();
+        participant.record_key = Some(record.key().to_string());
+        ability_state::views(&participant, &sources, Some(5))
+    }
+
+    #[test]
+    fn multiple_switches_project_authored_labels_with_exact_owner_and_ordinals() {
+        let abilities = views(&[
+            "PF2E.NPCAbility.SanctumKnight.AeonStar.Black.RollOptionLabel",
+            "PF2E.NPCAbility.SanctumKnight.AeonStar.Gold.RollOptionLabel",
+            "PF2E.NPCAbility.SanctumKnight.AeonStar.Green.RollOptionLabel",
+            "PF2E.NPCAbility.SanctumKnight.AeonStar.White.RollOptionLabel",
+        ]);
+        assert_eq!(
+            abilities
+                .iter()
+                .map(|ability| (ability.label.as_str(), ability.rule_ordinal))
+                .collect::<Vec<_>>(),
+            [
+                ("Black Aeon Star used", Some(0)),
+                ("Gold Aeon Star used", Some(1)),
+                ("Green Aeon Star used", Some(2)),
+                ("White Aeon Star used", Some(3)),
+            ]
+        );
+        let expected_owner = OwnedContentLocator {
+            collection: "/items".into(),
+            identity: atlas_domain::OwnedContentIdentity::Stable("bbbbbbbbbbbbbbbb".into()),
+        };
+        assert!(abilities.iter().all(|ability| {
+            ability.navigation.record_key == "test:aaaaaaaaaaaaaaaa"
+                && ability.navigation.owners == [expected_owner.clone()]
+                && ability.navigation.source_fingerprint.as_deref() == Some("test-source")
+        }));
+    }
+
+    #[test]
+    fn multiple_switches_retain_literal_authored_labels() {
+        assert_eq!(
+            views(&["First star used", "Second star used"])
+                .iter()
+                .map(|ability| ability.label.as_str())
+                .collect::<Vec<_>>(),
+            ["First star used", "Second star used"]
+        );
+    }
+
+    #[test]
+    fn single_switch_keeps_its_owning_ability_label() {
+        assert_eq!(views(&["One star used"])[0].label, "Aeon Stars");
+    }
 }
