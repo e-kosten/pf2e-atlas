@@ -1,6 +1,7 @@
 import { DownOutlined, UndoOutlined } from "@ant-design/icons";
 import { Button, Dropdown, Space, Switch, Tooltip } from "antd";
 import { useLayoutEffect, useRef, useState } from "react";
+import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import type {
   EncounterAbilityStateAction,
   EncounterAbilityStateView,
@@ -100,6 +101,7 @@ export function EncounterAbilityControls({
               <div className="encounter-ability-controls__choice-label">
                 <span>Effect</span>
                 <Dropdown
+                  // eslint-disable-next-line jsx-a11y/no-autofocus -- Focus enters the menu only after the user opens it.
                   autoFocus
                   trigger={["click"]}
                   open={choiceOpen && !unavailable}
@@ -107,6 +109,15 @@ export function EncounterAbilityControls({
                   disabled={unavailable}
                   menu={{
                     "aria-label": `${ability.label} effect`,
+                    onKeyDown: (event) => {
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        restoreOverlayFocus(choiceTrigger.current, event.currentTarget);
+                        setChoiceOpen(false);
+                        choiceTrigger.current?.focus({ preventScroll: true });
+                      }
+                    },
                     selectable: true,
                     selectedKeys: [state.active ? (state.selection ?? "") : "__off"],
                     items: [

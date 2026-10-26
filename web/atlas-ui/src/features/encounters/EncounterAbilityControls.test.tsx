@@ -144,6 +144,13 @@ it("selects an authored choice directly from Off in one update", async () => {
   expect(selected).toBe(trigger);
   await waitFor(() => expect(selected).toHaveFocus());
   expect(selected).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(selected);
+  const menuChoice = await screen.findByRole("menuitem", { name: "Hidden" });
+  menuChoice.focus();
+  fireEvent.keyDown(menuChoice, { key: "Escape", keyCode: 27 });
+  await waitFor(() => expect(selected).toHaveAttribute("aria-expanded", "false"));
+  await waitFor(() => expect(selected).toHaveFocus());
+  expect(onChange).toHaveBeenCalledTimes(1);
 });
 
 it("omits the ability states section when no configurable ability is supplied", () => {
