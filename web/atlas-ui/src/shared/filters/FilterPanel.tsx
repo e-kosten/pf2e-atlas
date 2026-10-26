@@ -69,7 +69,7 @@ import {
   type FilterPanelState,
 } from "./filterControls";
 import { FilterValueInput } from "./FilterValueInput";
-import { SearchEntry } from "./SearchEntry";
+import { SearchEntry, type SimilarSearchCriterion } from "./SearchEntry";
 import { CommonChoicePicker } from "./CommonChoicePicker";
 import { PrimaryToolbar } from "../ui/PrimaryToolbar";
 import { useFilterEditor } from "./useFilterEditor";
@@ -110,7 +110,7 @@ export function FilterControls({
   includeSearch?: boolean;
   layout?: "panel" | "toolbar" | "inline-toolbar";
   searchRowEnd?: ReactNode;
-  similarSearch?: { title: string; onClear: () => void; onSearch: () => void };
+  similarSearch?: SimilarSearchCriterion;
   additionalFilters?: ReactNode;
   children?: ReactNode;
 }) {

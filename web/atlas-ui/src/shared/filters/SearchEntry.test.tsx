@@ -1,6 +1,23 @@
 import { ConfigProvider } from "antd";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { detailFixture } from "../../test/fixtures";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SearchEntry } from "./SearchEntry";
+
+const api = vi.hoisted(() => ({ detail: vi.fn() }));
+vi.mock("../../api/atlasApi", async (original) => ({
+  ...(await original<typeof import("../../api/atlasApi")>()),
+  getRecordDetail: api.detail,
+}));
+const seed = { kind: "record", record_key: "items:leather-armor" } as const;
+function wrapper({ children }: { children: React.ReactNode }) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <QueryClientProvider client={client}>
+      <ConfigProvider theme={{ token: { motion: false } }}>{children}</ConfigProvider>
+    </QueryClientProvider>
+  );
+}
 
 it("keeps keyword edits local until Enter, then restores incoming committed criteria", () => {
   const commit = vi.fn();
@@ -30,63 +47,58 @@ it("clears committed criteria when the last character is deleted", () => {
   expect(commit).toHaveBeenCalledWith("");
 });
 
-it("replaces text entry with a selectable Similar title and restores focus after clearing", () => {
+it("opens the seed reference through a native link and restores text-entry focus after Clear", async () => {
+  api.detail.mockResolvedValue(detailFixture(seed.record_key, "Leather Armor"));
   const clear = vi.fn();
+  const refresh = vi.fn();
+  const commit = vi.fn();
   const view = render(
     <SearchEntry
       query=""
-      onSearch={vi.fn()}
-      similar={{ title: "Leather Armor", onClear: clear, onSearch: vi.fn() }}
+      onSearch={commit}
+      similar={{ seed, title: "Leather Armor", onClear: clear, onSearch: refresh }}
     />,
+    { wrapper },
   );
-  const input = screen.getByRole("searchbox", { name: "Similar search" });
-  expect(input).toHaveValue("Leather Armor");
-  expect(input).toHaveAttribute("readonly");
-  expect(screen.getByText("Similar to")).toBeVisible();
+  const link = screen.getByRole("link", { name: "Leather Armor" });
+  expect(link).toHaveAttribute("href", expect.stringContaining("leather-armor"));
+  expect(screen.queryByRole("searchbox")).toBeNull();
+  const modified = new MouseEvent("click", {
+    bubbles: true,
+    cancelable: true,
+    metaKey: true,
+  });
+  link.dispatchEvent(modified);
+  expect(modified.defaultPrevented).toBe(false);
+  expect(api.detail).not.toHaveBeenCalled();
+  fireEvent.click(link);
+  expect(await screen.findByRole("dialog", { name: "Leather Armor" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
+  await waitFor(() => expect(link).toHaveFocus());
+  fireEvent.click(screen.getByRole("button", { name: "Run similar search" }));
+  expect(refresh).toHaveBeenCalledOnce();
+  expect(commit).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Clear similar criterion" }));
   expect(clear).toHaveBeenCalledOnce();
-  view.rerender(<SearchEntry query="" onSearch={vi.fn()} />);
-  expect(screen.getByRole("searchbox")).toBe(input);
-  expect(input).toHaveFocus();
+  view.rerender(<SearchEntry query="" onSearch={commit} />);
+  expect(screen.getByRole("searchbox")).toHaveFocus();
 });
 
-it("keeps Similar title read-only and reruns Similar without submitting its title as text", () => {
-  const commit = vi.fn();
-  const refresh = vi.fn();
+it("keeps trait seed links on the native trait destination", () => {
   render(
     <SearchEntry
       query=""
-      onSearch={commit}
-      similar={{ title: "Leather Armor", onClear: vi.fn(), onSearch: refresh }}
+      onSearch={vi.fn()}
+      similar={{
+        seed: { kind: "trait", trait_key: "trait:fire" },
+        title: "Fire",
+        onClear: vi.fn(),
+        onSearch: vi.fn(),
+      }}
     />,
   );
-  const input = screen.getByRole("searchbox", { name: "Similar search" });
-  fireEvent.change(input, { target: { value: "modified title" } });
-  expect(input).toHaveValue("Leather Armor");
-  fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
-  expect(refresh).toHaveBeenCalledOnce();
-  expect(commit).not.toHaveBeenCalled();
+  expect(screen.getByRole("link", { name: "Fire" })).toHaveAttribute(
+    "href",
+    "/traits/trait:fire",
+  );
 });
-
-it.each([{ metaKey: true }, { ctrlKey: true }])(
-  "selects the complete readonly Similar title with the select-all modifier %o",
-  (modifier) => {
-    render(
-      <SearchEntry
-        query=""
-        onSearch={vi.fn()}
-        similar={{ title: "Leather Armor", onClear: vi.fn(), onSearch: vi.fn() }}
-      />,
-    );
-    const input = screen.getByRole("searchbox", {
-      name: "Similar search",
-    }) as HTMLInputElement;
-    input.focus();
-    input.setSelectionRange(0, 0);
-    fireEvent.keyDown(input, { key: "a", ...modifier });
-    expect(input.selectionStart).toBe(0);
-    expect(input.selectionEnd).toBe("Leather Armor".length);
-    expect(input).toHaveAttribute("readonly");
-    expect(input).toHaveValue("Leather Armor");
-  },
-);

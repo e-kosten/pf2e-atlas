@@ -106,6 +106,14 @@ impl ConfigurableSimilarRequest<'_> {
 }
 
 impl crate::AtlasRetrievalService {
+    pub fn similarity_part_addresses(
+        &self,
+        record: &RecordKey,
+    ) -> Result<BTreeMap<SimilarityPartSelector, atlas_domain::SourcePassageAddress>, SearchError>
+    {
+        Ok(self.index.similarity_part_addresses(record)?)
+    }
+
     pub fn similarity_parts(
         &self,
         seed: &SimilaritySeed,

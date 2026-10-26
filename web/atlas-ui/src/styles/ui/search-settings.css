@@ -52,3 +52,100 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.reference-search-entry--similar {
+  min-width: 0;
+}
+.reference-search-entry__criterion {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-control);
+  min-width: 0;
+  border: 1px solid;
+}
+.reference-search-entry__source {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.search-settings-dialog__body {
+  max-height: min(70dvh, 650px);
+  overflow-y: auto;
+}
+.search-settings-dialog__body--source {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-group);
+  height: min(74dvh, 780px);
+  max-height: min(74dvh, 780px);
+  overflow: hidden;
+}
+.search-settings__workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: var(--space-section);
+  min-height: 0;
+  flex: 1;
+}
+.search-settings__controls,
+.search-settings__document {
+  min-width: 0;
+  min-height: 0;
+}
+.search-settings__workspace > .search-settings__controls {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.search-settings__document,
+.search-settings__record-source {
+  height: 100%;
+}
+.search-settings__record-source {
+  display: flex;
+  min-height: 0;
+  container: similarity-source / inline-size;
+}
+.search-settings__source-context {
+  overflow-wrap: anywhere;
+}
+.search-settings__trait-source {
+  height: 100%;
+  overflow-y: auto;
+}
+.search-settings__part-choice {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-control);
+}
+@media (max-width: 991px) {
+  .search-settings__workspace {
+    display: flex;
+    flex-direction: column;
+  }
+  .search-settings__workspace > :not([hidden]) {
+    flex: 1;
+  }
+}
+.search-settings__record-source > .reference-reader {
+  flex: 1;
+  min-width: 0;
+}
+
+@container similarity-source (max-width: 500px) {
+  .search-settings__record-source .browse-pane-header__content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-settings__record-source .reference-reader__heading {
+    flex: none;
+    flex-wrap: wrap;
+    align-items: baseline;
+  }
+  .search-settings__source-context {
+    flex: 1;
+    min-width: 0;
+  }
+}

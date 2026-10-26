@@ -19,6 +19,20 @@ impl AtlasAppService {
             let inventory =
                 retrieval.similarity_parts(&request.seed, request.search_profile.as_ref())?;
             projection_execution.check()?;
+            let addresses = part_addresses(&inventory.seed, retrieval)?;
+            projection_execution.check()?;
+            let parts = inventory
+                .parts
+                .into_iter()
+                .map(|part| {
+                    part_view(
+                        part,
+                        &inventory.seed,
+                        &addresses,
+                        retrieval.source_fingerprint(),
+                    )
+                })
+                .collect();
             Ok(SimilarityPartsView {
                 supports_corresponding_parts: matches!(
                     inventory.seed,
@@ -27,7 +41,7 @@ impl AtlasAppService {
                 artifact_generation: generation,
                 search_profile: profile,
                 seed: inventory.seed,
-                parts: inventory.parts.into_iter().map(part_view).collect(),
+                parts,
                 role_recipe: inventory.role_recipe,
             })
         })
@@ -66,6 +80,7 @@ fn check_generation(expected: Option<&str>, actual: &str) -> AppServiceResult<()
 pub(crate) fn configured_results(
     retrieval: &atlas_search::AtlasRetrievalService,
     request: atlas_search::ConfigurableSimilarRequest<'_>,
+    execution: &ReadExecutionContext,
 ) -> AppServiceResult<(
     atlas_app_model::SearchModeSummary,
     atlas_app_model::SearchResultsView,
@@ -79,6 +94,7 @@ pub(crate) fn configured_results(
     let result = retrieval.configurable_similar(request)?.ok_or_else(|| {
         AppServiceError::new(missing_code, "the selected similarity seed is unavailable")
     })?;
+    execution.check()?;
     let mode = match &result.seed {
         SimilaritySeed::Record { record_key } => {
             let summaries = retrieval.get_records(atlas_search::GetRecordsRequest {
@@ -103,13 +119,25 @@ pub(crate) fn configured_results(
             }
         }
     };
+    execution.check()?;
+    let addresses = if result.evidence.is_empty() {
+        Default::default()
+    } else {
+        part_addresses(&result.seed, retrieval)?
+    };
+    execution.check()?;
     let mut evidence = result
         .evidence
         .into_iter()
         .map(|(key, evidence)| {
             (
                 key.to_string(),
-                evidence_view(evidence, retrieval.source_fingerprint()),
+                evidence_view(
+                    evidence,
+                    &result.seed,
+                    &addresses,
+                    retrieval.source_fingerprint(),
+                ),
             )
         })
         .collect::<std::collections::BTreeMap<_, _>>();
@@ -136,6 +164,8 @@ pub(crate) fn configured_results(
 
 fn evidence_view(
     evidence: atlas_search::SimilarityEvidence,
+    seed: &SimilaritySeed,
+    addresses: &PartAddresses,
     fingerprint: &str,
 ) -> atlas_app_model::SimilarityEvidenceView {
     atlas_app_model::SimilarityEvidenceView {
@@ -149,7 +179,7 @@ fn evidence_view(
             .parts
             .into_iter()
             .map(|part| atlas_app_model::SimilarityPartScoreView {
-                part: part_view(part.part),
+                part: part_view(part.part, seed, addresses, fingerprint),
                 score: part.score,
                 weight: part.weight,
                 comparable: part.comparable,
@@ -182,10 +212,61 @@ fn evidence_view(
     }
 }
 
-fn part_view(part: atlas_domain::SimilarityPart) -> atlas_app_model::SimilarityPartView {
+type PartAddresses = std::collections::BTreeMap<
+    atlas_domain::SimilarityPartSelector,
+    atlas_domain::SourcePassageAddress,
+>;
+
+fn part_addresses(
+    seed: &SimilaritySeed,
+    retrieval: &atlas_search::AtlasRetrievalService,
+) -> AppServiceResult<PartAddresses> {
+    Ok(match seed {
+        SimilaritySeed::Record { record_key } => retrieval.similarity_part_addresses(record_key)?,
+        SimilaritySeed::Trait { .. } => Default::default(),
+    })
+}
+
+fn part_view(
+    part: atlas_domain::SimilarityPart,
+    seed: &SimilaritySeed,
+    addresses: &PartAddresses,
+    fingerprint: &str,
+) -> atlas_app_model::SimilarityPartView {
+    let address = addresses.get(&part.selector);
+    let label = match seed {
+        SimilaritySeed::Trait { .. } => part.label,
+        SimilaritySeed::Record { .. } => address
+            .and_then(|address| match address {
+                atlas_domain::SourcePassageAddress::HtmlSection { label, .. }
+                | atlas_domain::SourcePassageAddress::PlainSection { label, .. } => label.clone(),
+                atlas_domain::SourcePassageAddress::Identity {} => None,
+            })
+            .unwrap_or_else(|| match part.field.as_str() {
+                "/system/details/publicNotes" => "Description".into(),
+                "/system/details/privateNotes" => "Private notes".into(),
+                "/system/details/blurb" => "Blurb".into(),
+                _ => part.role.label().into(),
+            }),
+    };
+    let navigation = match seed {
+        SimilaritySeed::Record { record_key } => Some(atlas_app_model::RecordNavigationView {
+            spell_rank: None,
+            record_key: record_key.to_string(),
+            owners: part.owners.clone(),
+            field: Some(part.field.clone()),
+            passage: address.cloned(),
+            source_fingerprint: crate::projection::navigation_fingerprint(
+                &part.owners,
+                fingerprint,
+            ),
+        }),
+        SimilaritySeed::Trait { .. } => None,
+    };
     atlas_app_model::SimilarityPartView {
+        navigation,
         selector: part.selector,
-        label: part.label,
+        label,
         owner_label: part.owner_label,
         owners: part.owners,
         field: part.field,
@@ -201,6 +282,50 @@ fn part_view(part: atlas_domain::SimilarityPart) -> atlas_app_model::SimilarityP
 mod tests {
     use super::*;
     use atlas_domain::{SimilarityCandidateParts, SimilarityPartSelector};
+
+    #[test]
+    fn configured_similarity_observes_abandonment_before_presentation_reads() {
+        let (retrieval, _artifact) = atlas_search::test_support::open_source_fixture(
+            ["0000000000000000", "1111111111111111"]
+                .into_iter()
+                .map(|id| atlas_search::test_support::record("items", "Item", serde_json::json!({
+                    "_id":id,"name":id,"type":"effect","system":{"description":{"value":"<p>Shared prose</p>"}}
+                })))
+                .collect(),
+            true,
+        ).unwrap();
+        let execution = ReadExecutionContext::tracked();
+        // Let retrieval complete while the app caller abandons its response.
+        let cancelled = || {
+            execution.abandon();
+            false
+        };
+        let seed = SimilaritySeed::Record {
+            record_key: "items:0000000000000000".parse().unwrap(),
+        };
+        let options = SimilarityOptions::default();
+        let error = configured_results(
+            &retrieval,
+            atlas_search::ConfigurableSimilarRequest {
+                seed: &seed,
+                options: &options,
+                search_profile: None,
+                filter: None,
+                scope: atlas_search::RecordScope::All,
+                page: Default::default(),
+                sort: atlas_domain::ResultSort::Relevance {},
+                prefer_remaster: false,
+                cancelled: Some(&cancelled),
+            },
+            &execution,
+        )
+        .unwrap_err()
+        .into_app_error();
+        assert_eq!(
+            error.code,
+            atlas_app_model::AppErrorCode::OperationCancelled
+        );
+    }
 
     #[test]
     fn explicit_part_selection_requires_a_generation_guard() {

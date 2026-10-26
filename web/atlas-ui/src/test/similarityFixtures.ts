@@ -41,6 +41,7 @@ export function similarityPartsFixture(
         role_label: "Description",
         has_vectors: true,
         label_only: false,
+        navigation: null,
       },
       {
         selector: "reset-b",
@@ -53,6 +54,7 @@ export function similarityPartsFixture(
         role_label: "Reset",
         has_vectors: true,
         label_only: false,
+        navigation: null,
       },
     ],
   };

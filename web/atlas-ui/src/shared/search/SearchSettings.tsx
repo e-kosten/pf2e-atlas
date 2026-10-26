@@ -8,9 +8,11 @@ import {
   Checkbox,
   Collapse,
   Form,
+  Grid,
   InputNumber,
   Modal,
   Select,
+  Segmented,
   Slider,
   Space,
   Spin,
@@ -29,7 +31,7 @@ import {
   UNKNOWN_SEARCH_RANKING,
   type SearchFormState,
 } from "../filters/searchState";
-import { getSimilarityParts } from "../../api/atlasApi";
+import { AtlasApiError, getSimilarityParts } from "../../api/atlasApi";
 import { useSearchProfile } from "./SearchProfileContext";
 import {
   DEFAULT_SIMILARITY_PREFERENCES,
@@ -42,9 +44,16 @@ import {
   similarityPreferences,
 } from "./similarityState";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { recordDestination, traitDestination } from "../../app/destinations";
+import {
+  SimilaritySourceDocument,
+  type SimilaritySourceTarget,
+} from "./SimilaritySourceDocument";
 import { HelpTooltip } from "../ui/HelpTooltip";
 
 type SettingsDraft = {
+  seedIdentity: string;
   model: string | null;
   ranking: SearchRanking;
   similarity: SimilarityPreferences;
@@ -71,6 +80,9 @@ export function SearchSettings({
   const { message } = App.useApp();
   const { token } = theme.useToken();
   const id = useId();
+  const wide = Boolean(Grid.useBreakpoint().lg);
+  const [sourceView, setSourceView] = useState("sections");
+  const [sourceTarget, setSourceTarget] = useState<SimilaritySourceTarget>(null);
   const trait = seed?.kind === "trait";
   const preferredSimilarity = trait
     ? profile.preferences.traitSimilarity
@@ -85,13 +97,22 @@ export function SearchSettings({
   const ranking = search.ranking ?? profile.preferences.ranking;
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
   const [partsOpen, setPartsOpen] = useState(false);
-  const [reloadInventory, setReloadInventory] = useState(false);
+  const [sourceVisited, setSourceVisited] = useState(false);
+  const [sourceSnapshot, setSourceSnapshot] = useState<{
+    seedIdentity: string;
+    generation: string;
+  } | null>(null);
+  const seedIdentity = JSON.stringify(seed);
+  if (draft && draft.seedIdentity !== seedIdentity) setDraft(null);
+  const [reloadInventory, setReloadInventory] = useState(0);
+  const [sourceRetired, setSourceRetired] = useState(false);
   const inventory = useQuery({
     queryKey: [
       "similarity-parts",
       seed,
       draft?.model,
       reloadInventory ? null : (draft?.generation ?? generation),
+      reloadInventory,
     ],
     enabled:
       draft !== null &&
@@ -100,8 +121,8 @@ export function SearchSettings({
       (partsOpen || draft.parts !== null) &&
       draft.model !== null,
     staleTime: Infinity,
-    queryFn: ({ signal }) =>
-      getSimilarityParts(
+    queryFn: async ({ signal }) => {
+      const value = await getSimilarityParts(
         {
           seed: seed!,
           search_profile: draft!.model!,
@@ -110,12 +131,55 @@ export function SearchSettings({
             : (draft!.generation ?? generation),
         },
         signal,
-      ),
+      );
+      if (
+        JSON.stringify(value.seed) !== JSON.stringify(seed) ||
+        value.search_profile !== draft!.model
+      )
+        throw new Error("The comparison sections do not match this source. Retry.");
+      const expected = reloadInventory ? null : (draft!.generation ?? generation);
+      if (expected && value.artifact_generation !== expected)
+        throw new AtlasApiError(409, "The reference collection changed.", {
+          code: "artifact_generation_changed",
+          message: "The reference collection changed.",
+          recoverable_action: "refresh_results",
+        });
+      return value;
+    },
   });
+  const inventoryRetired =
+    sourceRetired || isArtifactGenerationChanged(inventory.error);
+  if (isArtifactGenerationChanged(inventory.error) && !sourceRetired) {
+    setSourceRetired(true);
+    setSourceSnapshot(null);
+    setSourceTarget(null);
+  }
   const allParts = inventory.data?.parts ?? [];
   const available = allParts.filter((part) => part.has_vectors);
   const selectedCount = draft?.parts === null ? available.length : draft?.parts.length;
   const usesParts = draft !== null && draft.similarity.method !== "baseline";
+  const showingSource = Boolean(seed && usesParts && partsOpen);
+  if (
+    draft &&
+    !inventoryRetired &&
+    inventory.data &&
+    (sourceSnapshot?.seedIdentity !== seedIdentity ||
+      sourceSnapshot.generation !== inventory.data.artifact_generation)
+  )
+    setSourceSnapshot({ seedIdentity, generation: inventory.data.artifact_generation });
+  const sourceGeneration = inventoryRetired
+    ? null
+    : reloadInventory > 0
+      ? (inventory.data?.artifact_generation ?? null)
+      : (inventory.data?.artifact_generation ??
+        (sourceSnapshot?.seedIdentity === seedIdentity
+          ? sourceSnapshot.generation
+          : null) ??
+        draft?.generation ??
+        generation);
+  const sourceIdentity = JSON.stringify([seed, sourceGeneration]);
+  const [targetIdentity, setTargetIdentity] = useState<string | null>(null);
+  const currentTarget = targetIdentity === sourceIdentity ? sourceTarget : null;
   const invalidParts = usesParts && draft?.parts?.length === 0;
   const staleParts =
     usesParts &&
@@ -129,7 +193,10 @@ export function SearchSettings({
     draft !== null &&
     draft.similarity.method !== "baseline" &&
     draft.parts !== null &&
-    (!inventory.data || inventory.isFetching || inventory.error !== null);
+    (inventoryRetired ||
+      !inventory.data ||
+      inventory.isFetching ||
+      inventory.error !== null);
   const invalidDecay =
     draft?.similarity.method === "passages" &&
     (!Number.isFinite(draft.similarity.decay) ||
@@ -166,15 +233,37 @@ export function SearchSettings({
     .filter(Boolean)
     .join("; ");
   function openSettings() {
+    setSourceView("sections");
+    setSourceTarget(null);
+    setSourceSnapshot(null);
     setPartsOpen(appliedParts !== null);
-    setReloadInventory(false);
+    setSourceVisited(appliedParts !== null);
+    setReloadInventory(0);
+    setSourceRetired(false);
     setDraft({
+      seedIdentity,
       model: profile.id,
       ranking,
       similarity: appliedPreferences,
       parts: appliedParts,
       generation: search.similarityGeneration,
     });
+  }
+  function reloadSections() {
+    setSourceRetired(false);
+    setSourceTarget(null);
+    setTargetIdentity(null);
+    setSourceSnapshot(null);
+    setReloadInventory((current) => current + 1);
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            parts: current.parts === null ? null : [],
+            generation: undefined,
+          }
+        : null,
+    );
   }
   function apply() {
     if (
@@ -269,9 +358,17 @@ export function SearchSettings({
         onCancel={() => setDraft(null)}
         onOk={apply}
         okText="Apply"
-        width="min(560px, calc(100vw - 32px))"
+        width={
+          showingSource
+            ? "min(1180px, calc(100vw - 32px))"
+            : "min(560px, calc(100vw - 32px))"
+        }
         destroyOnHidden
-        styles={{ body: { maxHeight: "min(70dvh, 650px)", overflowY: "auto" } }}
+        classNames={{
+          body: showingSource
+            ? "search-settings-dialog__body search-settings-dialog__body--source"
+            : "search-settings-dialog__body",
+        }}
         footer={(_, { OkBtn, CancelBtn }) => (
           <div className="search-settings__footer">
             <Button
@@ -309,291 +406,372 @@ export function SearchSettings({
         }}
       >
         {draft && (
-          <Form layout="vertical" component="div" className="search-settings">
-            {profile.error && draft.model === profile.id && (
-              <Alert type="error" title={profile.error} />
-            )}
-            {!validModel && !(profile.error && draft.model === profile.id) && (
-              <Alert
-                type="error"
-                title={
-                  modelOptions.length
-                    ? "Choose an available embedding model, or use Reset."
-                    : "No search model is stored in this collection. Check setup to continue."
-                }
+          <>
+            {showingSource && !wide && (
+              <Segmented
+                aria-label="Search settings view"
+                block
+                value={sourceView}
+                options={[
+                  { label: "Sections", value: "sections" },
+                  { label: "Document", value: "document" },
+                ]}
+                onChange={setSourceView}
               />
             )}
-            {profile.profiles.filter((item) => item.stored_vectors).length > 1 && (
-              <Form.Item
-                label={
-                  <SettingLabel
-                    label="Embedding model"
-                    help="Changes which embedding model is used for search and document ranking."
-                  />
-                }
-                htmlFor={`${id}-model`}
+            <div className={showingSource ? "search-settings__workspace" : undefined}>
+              <div
+                className="search-settings__controls"
+                hidden={showingSource && !wide && sourceView !== "sections"}
               >
-                <Select
-                  id={`${id}-model`}
-                  aria-label="Search model"
-                  value={draft.model}
-                  options={modelOptions}
-                  onChange={(model) => setDraft({ ...draft, model })}
-                />
-              </Form.Item>
-            )}
-            {!seed ? (
-              <Form.Item
-                label={
-                  <SettingLabel
-                    label="Ranking"
-                    help="Search combines word matches with meaning matches. Score-based considers how strongly each record matches. Rank-based considers how high each record appears in those two lists."
-                  />
-                }
-                htmlFor={`${id}-ranking`}
-              >
-                <Select
-                  id={`${id}-ranking`}
-                  aria-label="Search ranking"
-                  value={draft.ranking}
-                  options={[
-                    { value: "score", label: "Score-based" },
-                    { value: "rrf", label: "Rank-based" },
-                  ]}
-                  onChange={(next) => setDraft({ ...draft, ranking: next })}
-                />
-              </Form.Item>
-            ) : (
-              <>
-                <Form.Item
-                  label={<SettingLabel label="Comparison method" help={methodHelp} />}
-                  htmlFor={`${id}-method`}
+                <Form layout="vertical" component="div" className="search-settings">
+                  {profile.error && draft.model === profile.id && (
+                    <Alert type="error" title={profile.error} />
+                  )}
+                  {!validModel && !(profile.error && draft.model === profile.id) && (
+                    <Alert
+                      type="error"
+                      title={
+                        modelOptions.length
+                          ? "Choose an available embedding model, or use Reset."
+                          : "No search model is stored in this collection. Check setup to continue."
+                      }
+                    />
+                  )}
+                  {profile.profiles.filter((item) => item.stored_vectors).length >
+                    1 && (
+                    <Form.Item
+                      label={
+                        <SettingLabel
+                          label="Embedding model"
+                          help="Changes which embedding model is used for search and document ranking."
+                        />
+                      }
+                      htmlFor={`${id}-model`}
+                    >
+                      <Select
+                        id={`${id}-model`}
+                        aria-label="Search model"
+                        value={draft.model}
+                        options={modelOptions}
+                        onChange={(model) => setDraft({ ...draft, model })}
+                      />
+                    </Form.Item>
+                  )}
+                  {!seed ? (
+                    <Form.Item
+                      label={
+                        <SettingLabel
+                          label="Ranking"
+                          help="Search combines word matches with meaning matches. Score-based considers how strongly each record matches. Rank-based considers how high each record appears in those two lists."
+                        />
+                      }
+                      htmlFor={`${id}-ranking`}
+                    >
+                      <Select
+                        id={`${id}-ranking`}
+                        aria-label="Search ranking"
+                        value={draft.ranking}
+                        options={[
+                          { value: "score", label: "Score-based" },
+                          { value: "rrf", label: "Rank-based" },
+                        ]}
+                        onChange={(next) => setDraft({ ...draft, ranking: next })}
+                      />
+                    </Form.Item>
+                  ) : (
+                    <>
+                      <Form.Item
+                        label={
+                          <SettingLabel label="Comparison method" help={methodHelp} />
+                        }
+                        htmlFor={`${id}-method`}
+                      >
+                        <Select
+                          id={`${id}-method`}
+                          aria-label="Comparison method"
+                          value={draft.similarity.method}
+                          options={[
+                            { value: "passages", label: "Passage matches" },
+                            { value: "content-average", label: "Content average" },
+                            {
+                              value: "baseline",
+                              label: trait ? "Trait definition" : "Name and identity",
+                            },
+                          ]}
+                          onChange={(method) =>
+                            setDraft({
+                              ...draft,
+                              similarity: { ...draft.similarity, method },
+                            })
+                          }
+                        />
+                      </Form.Item>
+                      {draft.similarity.method === "passages" && (
+                        <Form.Item
+                          label={
+                            <SettingLabel
+                              label="Match decay"
+                              help="Sections are ordered by match strength for each result. 0 uses only the strongest section; 1 gives all selected sections equal weight. Values in between give each additional section less weight."
+                            />
+                          }
+                          validateStatus={invalidDecay ? "error" : undefined}
+                          help={
+                            invalidDecay
+                              ? "Enter a number from 0 through 1."
+                              : undefined
+                          }
+                        >
+                          <div className="search-settings__decay">
+                            <Slider
+                              aria-label="Match decay slider"
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              value={invalidDecay ? 0 : draft.similarity.decay}
+                              onChange={(decay) =>
+                                setDraft({
+                                  ...draft,
+                                  similarity: { ...draft.similarity, decay },
+                                })
+                              }
+                            />
+                            <InputNumber
+                              aria-label="Match decay"
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              value={
+                                Number.isFinite(draft.similarity.decay)
+                                  ? draft.similarity.decay
+                                  : null
+                              }
+                              onInput={(text) => {
+                                setDraft({
+                                  ...draft,
+                                  similarity: {
+                                    ...draft.similarity,
+                                    decay: text.trim() ? Number(text) : Number.NaN,
+                                  },
+                                });
+                              }}
+                              onChange={(decay) => {
+                                setDraft({
+                                  ...draft,
+                                  similarity: {
+                                    ...draft.similarity,
+                                    decay:
+                                      typeof decay === "number" ? decay : Number.NaN,
+                                  },
+                                });
+                              }}
+                            />
+                          </div>
+                          <div className="search-settings__scale">
+                            <span>Strongest section</span>
+                            <span>All sections equally</span>
+                          </div>
+                          {!invalidDecay && (
+                            <Typography.Text type="secondary">
+                              {selectedCount === 1
+                                ? "One section selected; decay has no effect."
+                                : `Contributions: 1, ${Number(draft.similarity.decay.toFixed(4))}, ${Number((draft.similarity.decay ** 2).toFixed(4))}…`}
+                            </Typography.Text>
+                          )}
+                        </Form.Item>
+                      )}
+                      {draft.similarity.method !== "baseline" && (
+                        <Collapse
+                          activeKey={partsOpen ? ["parts"] : []}
+                          onChange={(keys) => {
+                            setPartsOpen(keys.includes("parts"));
+                            if (keys.includes("parts")) setSourceVisited(true);
+                          }}
+                          items={[
+                            {
+                              key: "parts",
+                              label: (
+                                <SettingLabel
+                                  label="Sections to compare"
+                                  help={partsHelp}
+                                />
+                              ),
+                              extra: (
+                                <Typography.Text type="secondary">
+                                  {selectionSummary}
+                                </Typography.Text>
+                              ),
+                              children: (
+                                <>
+                                  {inventory.isPending && <Spin size="small" />}
+                                  {(inventory.error || inventoryRetired) && (
+                                    <Alert
+                                      type="error"
+                                      title="Unable to load comparison sections"
+                                      description={
+                                        inventory.error?.message ??
+                                        "The reference collection changed."
+                                      }
+                                      action={
+                                        <Button
+                                          onClick={() => {
+                                            if (inventoryRetired) {
+                                              reloadSections();
+                                            } else void inventory.refetch();
+                                          }}
+                                        >
+                                          {inventoryRetired
+                                            ? "Reload sections"
+                                            : "Retry"}
+                                        </Button>
+                                      }
+                                    />
+                                  )}
+                                  {inventory.data && (
+                                    <>
+                                      <Checkbox
+                                        checked={draft.parts === null}
+                                        indeterminate={
+                                          draft.parts !== null &&
+                                          draft.parts.length > 0 &&
+                                          draft.parts.length < available.length
+                                        }
+                                        onChange={(event) =>
+                                          setDraft({
+                                            ...draft,
+                                            parts: event.target.checked ? null : [],
+                                            generation:
+                                              inventory.data.artifact_generation,
+                                          })
+                                        }
+                                      >
+                                        All sections
+                                      </Checkbox>
+                                      <PartChoices
+                                        parts={allParts}
+                                        seed={seed!}
+                                        onReference={(part, opener) => {
+                                          setSourceTarget((current) => ({
+                                            part,
+                                            opener,
+                                            visit: (current?.visit ?? 0) + 1,
+                                          }));
+                                          setTargetIdentity(sourceIdentity);
+                                          setSourceView("document");
+                                        }}
+                                        selected={draft.parts}
+                                        onChange={(parts) =>
+                                          setDraft({
+                                            ...draft,
+                                            parts,
+                                            generation:
+                                              inventory.data.artifact_generation,
+                                          })
+                                        }
+                                      />
+                                      {(invalidParts || staleParts) && (
+                                        <Typography.Paragraph
+                                          type="danger"
+                                          role="alert"
+                                        >
+                                          {staleParts
+                                            ? "Some selected sections are unavailable. Choose the sections again."
+                                            : "Select at least one section."}
+                                        </Typography.Paragraph>
+                                      )}
+                                      {allParts.some((part) => part.label_only) && (
+                                        <Typography.Paragraph type="secondary">
+                                          This trait has no definition text; comparison
+                                          uses its label.
+                                        </Typography.Paragraph>
+                                      )}
+                                    </>
+                                  )}
+                                  {!trait && (
+                                    <Form.Item
+                                      label={
+                                        <SettingLabel
+                                          label="Candidate content"
+                                          help={
+                                            draft.similarity.candidateParts ===
+                                            "corresponding"
+                                              ? "Only sections with matching purposes can contribute, including across record kinds. For example, descriptions compare with descriptions. If a result lacks that type of section, it contributes no match."
+                                              : "Any selected section can match any content in a result, even when the sections serve different purposes."
+                                          }
+                                        />
+                                      }
+                                      htmlFor={`${id}-candidate`}
+                                    >
+                                      <Select
+                                        id={`${id}-candidate`}
+                                        aria-label="Candidate content"
+                                        value={draft.similarity.candidateParts}
+                                        options={[
+                                          { value: "any", label: "Any content" },
+                                          {
+                                            value: "corresponding",
+                                            label: "Corresponding sections",
+                                          },
+                                        ]}
+                                        onChange={(candidateParts) =>
+                                          setDraft({
+                                            ...draft,
+                                            similarity: {
+                                              ...draft.similarity,
+                                              candidateParts,
+                                            },
+                                          })
+                                        }
+                                      />
+                                    </Form.Item>
+                                  )}
+                                </>
+                              ),
+                            },
+                          ]}
+                        />
+                      )}
+                    </>
+                  )}
+                </Form>
+              </div>
+              {seed && (
+                <div
+                  className="search-settings__document"
+                  hidden={!showingSource || (!wide && sourceView !== "document")}
                 >
-                  <Select
-                    id={`${id}-method`}
-                    aria-label="Comparison method"
-                    value={draft.similarity.method}
-                    options={[
-                      { value: "passages", label: "Passage matches" },
-                      { value: "content-average", label: "Content average" },
-                      {
-                        value: "baseline",
-                        label: trait ? "Trait definition" : "Name and identity",
-                      },
-                    ]}
-                    onChange={(method) =>
-                      setDraft({
-                        ...draft,
-                        similarity: { ...draft.similarity, method },
-                      })
-                    }
-                  />
-                </Form.Item>
-                {draft.similarity.method === "passages" && (
-                  <Form.Item
-                    label={
-                      <SettingLabel
-                        label="Match decay"
-                        help="Sections are ordered by match strength for each result. 0 uses only the strongest section; 1 gives all selected sections equal weight. Values in between give each additional section less weight."
+                  {sourceVisited &&
+                    sourceGeneration !== null &&
+                    !isArtifactGenerationChanged(inventory.error) && (
+                      <SimilaritySourceDocument
+                        key={sourceIdentity}
+                        seed={seed}
+                        generation={sourceGeneration}
+                        target={currentTarget}
+                        active={showingSource && (wide || sourceView === "document")}
+                        onReloadSections={reloadSections}
                       />
-                    }
-                    validateStatus={invalidDecay ? "error" : undefined}
-                    help={invalidDecay ? "Enter a number from 0 through 1." : undefined}
-                  >
-                    <div className="search-settings__decay">
-                      <Slider
-                        aria-label="Match decay slider"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={invalidDecay ? 0 : draft.similarity.decay}
-                        onChange={(decay) =>
-                          setDraft({
-                            ...draft,
-                            similarity: { ...draft.similarity, decay },
-                          })
-                        }
-                      />
-                      <InputNumber
-                        aria-label="Match decay"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={
-                          Number.isFinite(draft.similarity.decay)
-                            ? draft.similarity.decay
-                            : null
-                        }
-                        onInput={(text) => {
-                          setDraft({
-                            ...draft,
-                            similarity: {
-                              ...draft.similarity,
-                              decay: text.trim() ? Number(text) : Number.NaN,
-                            },
-                          });
-                        }}
-                        onChange={(decay) => {
-                          setDraft({
-                            ...draft,
-                            similarity: {
-                              ...draft.similarity,
-                              decay: typeof decay === "number" ? decay : Number.NaN,
-                            },
-                          });
-                        }}
-                      />
-                    </div>
-                    <div className="search-settings__scale">
-                      <span>Strongest section</span>
-                      <span>All sections equally</span>
-                    </div>
-                    {!invalidDecay && (
-                      <Typography.Text type="secondary">
-                        {selectedCount === 1
-                          ? "One section selected; decay has no effect."
-                          : `Contributions: 1, ${Number(draft.similarity.decay.toFixed(4))}, ${Number((draft.similarity.decay ** 2).toFixed(4))}…`}
-                      </Typography.Text>
                     )}
-                  </Form.Item>
-                )}
-                {draft.similarity.method !== "baseline" && (
-                  <Collapse
-                    activeKey={partsOpen ? ["parts"] : []}
-                    onChange={(keys) => setPartsOpen(keys.includes("parts"))}
-                    items={[
-                      {
-                        key: "parts",
-                        label: (
-                          <SettingLabel label="Sections to compare" help={partsHelp} />
-                        ),
-                        extra: (
-                          <Typography.Text type="secondary">
-                            {selectionSummary}
-                          </Typography.Text>
-                        ),
-                        children: (
-                          <>
-                            {inventory.isPending && <Spin size="small" />}
-                            {inventory.error && (
-                              <Alert
-                                type="error"
-                                title="Unable to load comparison sections"
-                                description={inventory.error.message}
-                                action={
-                                  <Button
-                                    onClick={() => {
-                                      if (
-                                        isArtifactGenerationChanged(inventory.error)
-                                      ) {
-                                        setReloadInventory(true);
-                                        setDraft({
-                                          ...draft,
-                                          parts: draft.parts === null ? null : [],
-                                          generation: undefined,
-                                        });
-                                      } else void inventory.refetch();
-                                    }}
-                                  >
-                                    {isArtifactGenerationChanged(inventory.error)
-                                      ? "Reload sections"
-                                      : "Retry"}
-                                  </Button>
-                                }
-                              />
-                            )}
-                            {inventory.data && (
-                              <>
-                                <Checkbox
-                                  checked={draft.parts === null}
-                                  indeterminate={
-                                    draft.parts !== null &&
-                                    draft.parts.length > 0 &&
-                                    draft.parts.length < available.length
-                                  }
-                                  onChange={(event) =>
-                                    setDraft({
-                                      ...draft,
-                                      parts: event.target.checked ? null : [],
-                                      generation: inventory.data.artifact_generation,
-                                    })
-                                  }
-                                >
-                                  All sections
-                                </Checkbox>
-                                <PartChoices
-                                  parts={allParts}
-                                  selected={draft.parts}
-                                  onChange={(parts) =>
-                                    setDraft({
-                                      ...draft,
-                                      parts,
-                                      generation: inventory.data.artifact_generation,
-                                    })
-                                  }
-                                />
-                                {(invalidParts || staleParts) && (
-                                  <Typography.Paragraph type="danger" role="alert">
-                                    {staleParts
-                                      ? "Some selected sections are unavailable. Choose the sections again."
-                                      : "Select at least one section."}
-                                  </Typography.Paragraph>
-                                )}
-                                {allParts.some((part) => part.label_only) && (
-                                  <Typography.Paragraph type="secondary">
-                                    This trait has no definition text; comparison uses
-                                    its label.
-                                  </Typography.Paragraph>
-                                )}
-                              </>
-                            )}
-                            {!trait && (
-                              <Form.Item
-                                label={
-                                  <SettingLabel
-                                    label="Candidate content"
-                                    help={
-                                      draft.similarity.candidateParts ===
-                                      "corresponding"
-                                        ? "Only sections with matching purposes can contribute, including across record kinds. For example, descriptions compare with descriptions. If a result lacks that type of section, it contributes no match."
-                                        : "Any selected section can match any content in a result, even when the sections serve different purposes."
-                                    }
-                                  />
-                                }
-                                htmlFor={`${id}-candidate`}
-                              >
-                                <Select
-                                  id={`${id}-candidate`}
-                                  aria-label="Candidate content"
-                                  value={draft.similarity.candidateParts}
-                                  options={[
-                                    { value: "any", label: "Any content" },
-                                    {
-                                      value: "corresponding",
-                                      label: "Corresponding sections",
-                                    },
-                                  ]}
-                                  onChange={(candidateParts) =>
-                                    setDraft({
-                                      ...draft,
-                                      similarity: {
-                                        ...draft.similarity,
-                                        candidateParts,
-                                      },
-                                    })
-                                  }
-                                />
-                              </Form.Item>
-                            )}
-                          </>
-                        ),
-                      },
-                    ]}
-                  />
-                )}
-              </>
-            )}
-          </Form>
+                  {showingSource &&
+                    !wide &&
+                    sourceView === "document" &&
+                    inventoryRetired && (
+                      <Alert
+                        type="error"
+                        title="Reference collection changed"
+                        description="Reload the sections to read the current source."
+                        action={
+                          <Button onClick={reloadSections}>Reload sections</Button>
+                        }
+                      />
+                    )}
+                  {showingSource && inventory.isPending && (
+                    <Spin delay={500} description="Loading document…" />
+                  )}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </Modal>
     </>
@@ -613,7 +791,11 @@ function PartChoices({
   parts,
   selected,
   onChange,
+  onReference,
+  seed,
 }: {
+  seed: SimilaritySeed;
+  onReference: (part: SimilarityPartView, opener: HTMLElement) => void;
   parts: SimilarityPartView[];
   selected: string[] | null;
   onChange: (parts: string[] | null) => void;
@@ -644,25 +826,46 @@ function PartChoices({
         const count = selectors.filter((selector) => chosen.has(selector)).length;
         return (
           <div key={key} className="search-settings__part-group">
-            <Checkbox
-              checked={selectors.length > 0 && count === selectors.length}
-              indeterminate={count > 0 && count < selectors.length}
-              disabled={!selectors.length}
-              onChange={(event) => toggle(selectors, event.target.checked)}
-            >
+            <div className="search-settings__part-choice">
+              <Checkbox
+                aria-label={`All sections in ${owner}`}
+                checked={selectors.length > 0 && count === selectors.length}
+                indeterminate={count > 0 && count < selectors.length}
+                disabled={!selectors.length}
+                onChange={(event) => toggle(selectors, event.target.checked)}
+              />
               <strong>{owner}</strong>
-            </Checkbox>
+            </div>
             <div className="search-settings__part-fields">
               {entries.map((part) => (
-                <Checkbox
-                  key={part.selector}
-                  checked={chosen.has(part.selector)}
-                  disabled={!part.has_vectors}
-                  onChange={(event) => toggle([part.selector], event.target.checked)}
-                >
-                  {part.label}
-                  {!part.has_vectors ? " (no stored vector)" : ""}
-                </Checkbox>
+                <div key={part.selector} className="search-settings__part-choice">
+                  <Checkbox
+                    aria-label={part.label}
+                    checked={chosen.has(part.selector)}
+                    disabled={!part.has_vectors}
+                    onChange={(event) => toggle([part.selector], event.target.checked)}
+                  />
+                  <span>
+                    <Typography.Link
+                      href={destinationHref(
+                        seed.kind === "trait"
+                          ? traitDestination({ traitKey: seed.trait_key })
+                          : recordDestination({
+                              recordKey: seed.record_key,
+                              selection: part.navigation ?? undefined,
+                            }),
+                      )}
+                      onClick={(event) => {
+                        if (!isPrimaryActivation(event)) return;
+                        event.preventDefault();
+                        onReference(part, event.currentTarget);
+                      }}
+                    >
+                      {part.label}
+                    </Typography.Link>
+                    {!part.has_vectors ? " (no stored vector)" : ""}
+                  </span>
+                </div>
               ))}
             </div>
           </div>

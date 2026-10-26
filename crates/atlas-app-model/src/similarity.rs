@@ -43,6 +43,9 @@ pub struct SimilarityDiagnosticsView {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SimilarityPartView {
+    /// Record source navigation; passage selects the full section when metadata
+    /// provides its canonical address, otherwise the containing field is selected.
+    pub navigation: Option<crate::RecordNavigationView>,
     pub selector: SimilarityPartSelector,
     pub label: String,
     pub owner_label: String,

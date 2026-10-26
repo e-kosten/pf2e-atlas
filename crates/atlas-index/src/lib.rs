@@ -34,6 +34,7 @@ mod publication_delta;
 pub mod query;
 mod read_content;
 mod read_similarity;
+mod read_similarity_sections;
 pub use read_similarity::SourceSimilarityUnit;
 mod read_units;
 mod reader;
