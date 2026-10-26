@@ -674,12 +674,15 @@ remain shared, while compiler targets stay checkout-local. See
 [the contributor baseline workflow](../../CONTRIBUTING.md#reusable-development-baseline).
 
 
-### Authored damage reference rolls
+### Authored content reference rolls
 
 App-service resolves a selected source field and interaction ordinal from the
-checked record, verifies its source fingerprint, interpretation version and exact authored formula, then
+checked record, verifies its source fingerprint, interpretation version, authored
+command mode and exact formula, then
 validates every supported literal instance before rolling. Only complete bounded
-static expressions with recognized options receive a roll offer. These are authored
+static damage expressions with recognized options receive a roll offer. Literal
+`/r`, `/gmr` and `/br` commands share the same source-bound endpoint and transient
+local result surface, retaining their original modes without Foundry chat routing. These are authored
 base-formula reference rolls: known traits/domains/roll options stay attributed
 metadata and never trigger actor synthetics. Unknown options or dynamic option
 values receive no roll offer. Mixed types
@@ -688,3 +691,8 @@ writes, HP changes or actor/item expression evaluation. The reader holds transie
 results, reuses them when reopening the popover, and replaces them only on explicit
 Reroll; there is no persistent roll history. The browser renders supplied previews
 and outcomes using the shared dice surface rather than parsing formulas.
+
+Derived action references back to the containing root action retain their verified
+destination in the app projection and carry a self-action fact. Reader surfaces
+render those labels without navigation, so a source command such as Seek's
+`[[/act seek]]{Perception}` cannot reopen the current action as another reference.

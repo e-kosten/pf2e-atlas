@@ -1,15 +1,15 @@
 //! Stateless reference dice: resolve checked source, validate the whole pool, then roll.
 use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
 use atlas_app_model::{
-    ContentControlKindView, ContentDamageRollComponentView, ContentDamageRollView,
-    PreparedFieldBodyView, RecordDetailRequest, RollContentDamageRequest,
+    ContentControlKindView, ContentRollComponentResultView, ContentRollResultView,
+    PreparedFieldBodyView, RecordDetailRequest, RollContentRequest,
 };
 
 impl AtlasAppService {
-    pub fn roll_content_damage(
+    pub fn roll_content(
         &self,
-        request: RollContentDamageRequest,
-    ) -> AppServiceResult<ContentDamageRollView> {
+        request: RollContentRequest,
+    ) -> AppServiceResult<ContentRollResultView> {
         self.with_retrieval(&ReadExecutionContext::uncancellable(), move |retrieval| {
             if request.source_fingerprint != retrieval.source_fingerprint() {
                 return Err(AppServiceError::invalid_request(
@@ -40,22 +40,29 @@ impl AtlasAppService {
                 })
                 .ok_or_else(|| {
                     AppServiceError::invalid_request(
-                        "This damage expression is unavailable. Reopen the record.",
+                        "This roll expression is unavailable. Reopen the record.",
                     )
                 })?;
-            let ContentControlKindView::Damage {
-                roll: Some(current),
-                literal: Some(parts),
-                ..
-            } = &control.control
-            else {
-                return Err(AppServiceError::invalid_request(
-                    "This damage expression cannot be rolled as a reference.",
-                ));
+            let (current, parts) = match &control.control {
+                ContentControlKindView::Damage {
+                    roll: Some(current),
+                    literal: Some(parts),
+                    ..
+                }
+                | ContentControlKindView::Command {
+                    roll: Some(current),
+                    literal: Some(parts),
+                    ..
+                } => (current, parts),
+                _ => {
+                    return Err(AppServiceError::invalid_request(
+                        "This roll expression cannot be rolled as a reference.",
+                    ));
+                }
             };
             if current != &request {
                 return Err(AppServiceError::invalid_request(
-                    "This damage expression changed. Reopen the record before rolling.",
+                    "This roll expression changed. Reopen the record before rolling.",
                 ));
             }
             // Validate every instance before consuming randomness; no partial mixed-type result.
@@ -71,11 +78,11 @@ impl AtlasAppService {
                 .into_iter()
                 .map(|(label, roll)| {
                     roll.roll()
-                        .map(|outcome| ContentDamageRollComponentView { label, outcome })
+                        .map(|outcome| ContentRollComponentResultView { label, outcome })
                         .map_err(|e| AppServiceError::invalid_request(e.to_string()))
                 })
                 .collect::<AppServiceResult<Vec<_>>>()?;
-            Ok(ContentDamageRollView { components })
+            Ok(ContentRollResultView { components })
         })
     }
 }
@@ -129,7 +136,7 @@ mod tests {
             panic!("roll offer")
         };
         for _ in 0..2 {
-            let result = fixture.worker.roll_content_damage(request.clone()).unwrap();
+            let result = fixture.worker.roll_content(request.clone()).unwrap();
             assert_eq!(result.components.len(), 3);
             assert_eq!(result.components[0].label, "bludgeoning damage");
             assert!((14..=42).contains(&result.components[0].outcome.total));
@@ -142,7 +149,7 @@ mod tests {
         else {
             panic!("literal reference with retained metadata")
         };
-        assert!(fixture.worker.roll_content_damage(area.clone()).is_ok());
+        assert!(fixture.worker.roll_content(area.clone()).is_ok());
         for control in controls.iter().skip(1).filter(|c| c.ordinal != 5) {
             assert!(matches!(
                 control.control,
@@ -150,19 +157,81 @@ mod tests {
             ));
             let mut invalid = request.clone();
             invalid.ordinal = control.ordinal;
-            assert!(fixture.worker.roll_content_damage(invalid).is_err());
+            assert!(fixture.worker.roll_content(invalid).is_err());
         }
         let mut old_policy = request.clone();
         old_policy.content_interpretation_version = "foundry-content/v10".into();
-        assert!(fixture.worker.roll_content_damage(old_policy).is_err());
+        assert!(fixture.worker.roll_content(old_policy).is_err());
         let mut stale = request.clone();
         stale.source_fingerprint = "old".into();
-        assert!(fixture.worker.roll_content_damage(stale).is_err());
+        assert!(fixture.worker.roll_content(stale).is_err());
         let mut changed = request.clone();
         changed.authored_formula = "100d100[fire]".into();
-        assert!(fixture.worker.roll_content_damage(changed).is_err());
+        assert!(fixture.worker.roll_content(changed).is_err());
         let mut missing = request.clone();
         missing.source.field = "/not-content".into();
-        assert!(fixture.worker.roll_content_damage(missing).is_err());
+        assert!(fixture.worker.roll_content(missing).is_err());
+    }
+    #[test]
+    fn inline_modes_roll_the_checked_formula_and_reject_command_or_source_changes() {
+        let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+            1,
+            16,
+            || {
+                Ok(open_source_fixture(
+                    vec![record(
+                        "items",
+                        "Item",
+                        json!({
+                            "_id":"inlineRoll100000", "name":"Inline rolls", "type":"equipment",
+                            "system":{"description":{"value":"<p>[[/r 2d6+3 #rounds]] [[/gmr 2d6+3 #rounds]] [[/br 2d6+3 #rounds]] [[/r @actor.level+2d6]] [[/r 4 #rounds]] [[/act seek]] [[/r 2d6kh]]</p>"}}
+                        }),
+                    )],
+                    false,
+                )?)
+            },
+        ));
+        let detail = fixture
+            .worker
+            .record_detail("items:inlineRoll100000")
+            .unwrap();
+        let PreparedFieldBodyView::Html { controls, .. } = &detail
+            .presentation
+            .content
+            .iter()
+            .find(|field| field.locator.field == "/system/description/value")
+            .unwrap()
+            .body
+        else {
+            panic!("html")
+        };
+        for (index, mode) in ["r", "gmr", "br"].iter().enumerate() {
+            let ContentControlKindView::Command {
+                roll: Some(request),
+                ..
+            } = &controls[index].control
+            else {
+                panic!("roll offer")
+            };
+            assert_eq!(request.authored_command.as_deref(), Some(*mode));
+            let result = fixture.worker.roll_content(request.clone()).unwrap();
+            assert_eq!(result.components[0].label, "rounds");
+            assert!((5..=15).contains(&result.components[0].outcome.total));
+            let mut changed = request.clone();
+            changed.authored_command = Some("different".into());
+            assert!(fixture.worker.roll_content(changed).is_err());
+            let mut changed = request.clone();
+            changed.source_fingerprint = "stale".into();
+            assert!(fixture.worker.roll_content(changed).is_err());
+            for unrollable in controls.iter().skip(3) {
+                assert!(matches!(
+                    unrollable.control,
+                    ContentControlKindView::Command { roll: None, .. }
+                ));
+                let mut changed = request.clone();
+                changed.ordinal = unrollable.ordinal;
+                assert!(fixture.worker.roll_content(changed).is_err());
+            }
+        }
     }
 }

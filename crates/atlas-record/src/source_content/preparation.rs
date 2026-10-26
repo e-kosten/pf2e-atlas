@@ -29,12 +29,14 @@ pub fn prepare_source_content(
         <sha2::Sha256 as sha2::Digest>::digest(markup.as_bytes())
     );
     let parsed = parse_foundry_content_with_localization(markup, localization);
-    let resolve =
-        |target: &str| references.and_then(|resolver| resolver.resolve_reference(&locator, target));
+    let resolve = |kind: &ContentReferenceKind, target: &str| {
+        references.and_then(|resolver| resolver.resolve_reference(&locator, kind, target))
+    };
     let mut projection = Projection {
         origin: PreparationOrigin::Record(&locator),
         authored_hash: &authored_hash,
         audience,
+        localization,
         resolver: Some(&resolve),
         references: Vec::new(),
         interactions: Vec::new(),
@@ -86,6 +88,7 @@ pub fn prepare_trait_definition(
         origin: PreparationOrigin::Trait(&key),
         authored_hash: &authored_hash,
         audience,
+        localization,
         resolver: references,
         references: Vec::new(),
         interactions: Vec::new(),
@@ -118,7 +121,7 @@ pub(super) fn sanitizer() -> ammonia::Builder<'static> {
         ])
         .add_tag_attributes(
             "span",
-            ["data-atlas-action-glyph", "data-atlas-damage-formula"],
+            ["data-atlas-action-glyph", "data-atlas-roll-formula"],
         )
         .add_tag_attributes("ol", ["start"])
         .add_tag_attributes("li", ["value"])
@@ -138,6 +141,7 @@ struct Projection<'a> {
     origin: PreparationOrigin<'a>,
     authored_hash: &'a str,
     audience: ContentAudience,
+    localization: Option<&'a dyn LocalizationResolver>,
     resolver: Option<&'a super::ContentReferenceLookup<'a>>,
     references: Vec<ContentReferenceOccurrence>,
     interactions: Vec<ContentInteraction>,
@@ -410,7 +414,7 @@ impl Projection<'_> {
         let resolved = if matches!(kind, ContentReferenceKind::HtmlLink) {
             None
         } else {
-            self.resolver.and_then(|resolver| resolver(target))
+            self.resolver.and_then(|resolver| resolver(&kind, target))
         };
         let display = resolved
             .as_ref()
@@ -575,7 +579,7 @@ impl Projection<'_> {
             _ => None,
         };
         let unknown = matches!(node, ParsedMacro::UnknownFoundry { .. });
-        let label_html = label.map(|nodes| {
+        let mut label_html = label.map(|nodes| {
             self.nodes(
                 nodes,
                 &format!("{path}/label"),
@@ -586,6 +590,9 @@ impl Projection<'_> {
         });
         let mut interaction = None;
         let mut derived_html = None;
+        let mut action_cost = String::new();
+        let mut action_reference = None;
+        let mut action_suffix = String::new();
         let text = match node {
             ParsedMacro::Check {
                 statistic, options, ..
@@ -643,7 +650,7 @@ impl Projection<'_> {
                         if let Some(index) = parts.iter().position(|p| p.has_dice) {
                             let start = fragments[..index].iter().map(String::len).sum::<usize>() + 3 * index;
                             let end = start + parts[index].formula.len();
-                            derived_html = Some(format!("{}<span data-atlas-damage-formula=\"\">{}</span>{}", escape(&text[..start]), escape(&text[start..end]), escape(&text[end..])));
+                            derived_html = Some(format!("{}<span data-atlas-roll-formula=\"\">{}</span>{}", escape(&text[..start]), escape(&text[start..end]), escape(&text[end..])));
                         }
                         text
                     },
@@ -661,7 +668,58 @@ impl Projection<'_> {
                     arguments: arguments.clone(),
                     options: options.clone(),
                 });
-                format!("/{command} {arguments}")
+                if command == "act" {
+                    if let Some(action) = super::inline_action::inline_action(
+                        arguments,
+                        options,
+                        self.localization,
+                        self.audience,
+                    ) {
+                        if let Some(cost) = action.cost {
+                            action_cost = format!(" {}", self.action_markup(path, cost));
+                        }
+                        let target = format!("Compendium.pf2e.actionspf2e.Item.{}", action.name);
+                        let (ordinal, _, _) = self.reference(
+                            path,
+                            audiences,
+                            visible,
+                            ContentReferenceKind::Action { slug: action.slug },
+                            &target,
+                            label.is_some(),
+                        );
+                        action_reference = Some(ordinal);
+                        action_suffix = action.details;
+                        action.label
+                    } else {
+                        format!("/{command} {arguments}")
+                    }
+                } else if let Some(roll) = super::literal_content_roll(command, arguments) {
+                    // Plain authored labels often repeat the literal formula with a
+                    // unit. Mark its exact prefix without parsing label mechanics.
+                    if let Some([ParsedNode::Text { text }]) = label
+                        && let Some(suffix) = text.strip_prefix(&roll.formula)
+                        && (suffix.is_empty() || !suffix.starts_with(char::is_alphanumeric))
+                    {
+                        label_html = Some(format!(
+                            "<span data-atlas-roll-formula=\"\">{}</span>{}",
+                            escape(&roll.formula),
+                            escape(suffix)
+                        ));
+                    }
+                    let caption = if roll.caption.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" {}", roll.caption)
+                    };
+                    derived_html = Some(format!(
+                        "<span data-atlas-roll-formula=\"\">{}</span>{}",
+                        escape(&roll.formula),
+                        escape(&caption)
+                    ));
+                    format!("{}{caption}", roll.formula)
+                } else {
+                    format!("/{command} {arguments}")
+                }
             }
             ParsedMacro::Template { shape, options, .. } => {
                 let distance = options.get("distance").map(String::as_str).unwrap_or("");
@@ -727,6 +785,15 @@ impl Projection<'_> {
             escape(&text)
         } else {
             label_html.unwrap_or_else(|| derived_html.unwrap_or_else(|| escape(&text)))
+        };
+        let body = format!("{body}{action_cost}{}", escape(&action_suffix));
+        let body = if let Some(ordinal) = action_reference {
+            let binding = self.reference_binding(ordinal);
+            format!(
+                "<span data-atlas-reference=\"{ordinal}\" data-atlas-reference-binding=\"{binding}\">{body}</span>"
+            )
+        } else {
+            body
         };
         format!("<span{marker}>{body}</span>")
     }

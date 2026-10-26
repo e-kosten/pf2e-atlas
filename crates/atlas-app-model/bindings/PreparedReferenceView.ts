@@ -5,4 +5,9 @@ import type { RecordNavigationView } from "./RecordNavigationView";
 /**
  * An attributed marker destination within one already-selected prepared body.
  */
-export type PreparedReferenceView = { ordinal: number, status: string, target: RecordNavigationView | null, url: string | null, effect_label?: EffectReferenceLabelView, contextual_target?: RecordNavigationView, };
+export type PreparedReferenceView = { ordinal: number, status: string, target: RecordNavigationView | null, url: string | null, effect_label?: EffectReferenceLabelView, contextual_target?: RecordNavigationView,
+/**
+ * Derived action command targets its containing root action; readers retain
+ * the label without offering redundant navigation. Target evidence remains.
+ */
+self_action_reference?: boolean, };

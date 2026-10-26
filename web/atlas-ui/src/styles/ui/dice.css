@@ -71,6 +71,12 @@
   gap: 6px;
   font-variant-numeric: tabular-nums;
 }
+.atlas-roll__result {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
 .atlas-roll__total {
   min-width: 4ch;
 }
@@ -84,4 +90,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+/* Shared intrinsic sizing for reader, initiative, strike and recovery rollers. */
+.atlas-dice-popover {
+  width: max-content;
+  max-width: min(var(--dice-popover-max-width, 640px), calc(100vw - 48px));
+  overflow-wrap: anywhere;
+}
+
+.atlas-dice-popover > * {
+  min-width: 0;
 }

@@ -30,10 +30,6 @@
   gap: 8px;
   padding-top: 12px;
 }
-.initiative-popover {
-  width: max-content;
-  max-width: calc(100vw - 48px);
-}
 .initiative-selection {
   display: flex;
   align-items: center;
@@ -102,8 +98,7 @@
 .strike-roll-control {
   display: grid;
   gap: 12px;
-  width: max-content;
-  max-width: min(480px, calc(100vw - 48px));
+  --dice-popover-max-width: 480px;
   max-height: calc(100dvh - 96px);
   overflow-y: auto;
 }
@@ -114,7 +109,8 @@
   gap: 8px;
 }
 
-.strike-roll-control--expanded {
+.strike-roll-control--expanded.atlas-dice-popover {
+  --dice-popover-max-width: 520px;
   width: min(520px, calc(100vw - 48px));
   height: min(560px, calc(100dvh - 96px));
   grid-template-rows: auto auto;

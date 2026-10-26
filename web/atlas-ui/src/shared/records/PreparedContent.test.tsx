@@ -274,7 +274,14 @@ describe("prepared source HTML", () => {
       controls: [
         {
           ordinal: 0,
-          control: { kind: "command", command: "Mystery", arguments: "", options: {} },
+          control: {
+            kind: "command",
+            command: "Mystery",
+            arguments: "",
+            options: {},
+            literal: null,
+            roll: null,
+          },
         },
       ],
     };
@@ -580,7 +587,7 @@ it.each([false, true])(
 );
 
 it("keeps fixed damage plain and retains a roll only while its exact source remains selected", async () => {
-  const roll = vi.spyOn(api, "rollContentDamage").mockResolvedValue({
+  const roll = vi.spyOn(api, "rollContent").mockResolvedValue({
     components: [
       {
         label: "fire damage",
@@ -604,11 +611,12 @@ it("keeps fixed damage plain and retains a roll only while its exact source rema
     content_interpretation_version: "foundry-content/v12",
     ordinal: 1,
     authored_formula: "1d6[fire]",
+    authored_command: null,
   };
   field.body = {
     kind: "html",
     inclusions: [],
-    html: '<p><span data-atlas-interaction="0">1 fire damage</span>; <span data-atlas-interaction="1"><span data-atlas-damage-formula="">1d6</span> fire damage</span></p>',
+    html: '<p><span data-atlas-interaction="0">1 fire damage</span>; <span data-atlas-interaction="1"><span data-atlas-roll-formula="">1d6</span> fire damage</span></p>',
     controls: [
       {
         ordinal: 0,
@@ -651,7 +659,7 @@ it("keeps fixed damage plain and retains a roll only while its exact source rema
     </ConfigProvider>,
   );
   expect(screen.getByText("1 fire damage")).not.toHaveAttribute("role", "button");
-  const formula = screen.getByText("1d6", { selector: "[data-atlas-damage-formula]" });
+  const formula = screen.getByText("1d6", { selector: "[data-atlas-roll-formula]" });
   const roller = screen.getByRole("button", { name: "Roll 1d6 fire damage" });
   expect(formula.nextElementSibling).toContainElement(roller);
   fireEvent.click(roller);
@@ -711,6 +719,7 @@ it("gives repeated inclusions of the same authored damage independent roll contr
         content_interpretation_version: "foundry-content/v12",
         ordinal: 0,
         authored_formula: "1d6[fire]",
+        authored_command: null,
       },
     },
   };
@@ -729,4 +738,105 @@ it("gives repeated inclusions of the same authored damage independent roll contr
   expect(screen.getAllByRole("button", { name: "Roll 1d6 fire damage" })).toHaveLength(
     2,
   );
+});
+
+it.each(["r", "gmr", "br"])(
+  "renders /%s captions with the shared source-bound inline roller",
+  async (command) => {
+    const roll = vi.spyOn(api, "rollContent").mockResolvedValue({
+      components: [
+        {
+          label: "rounds",
+          outcome: {
+            formula: "1d4",
+            total: 3,
+            expression: {
+              kind: "dice",
+              dice: [{ sides: 4, value: 3, kept: true }],
+              total: 3,
+            },
+          },
+        },
+      ],
+    });
+    const field = detailFixture("items:source", "Source", "rules:other").presentation
+      .content[0];
+    const request = {
+      source: field.locator,
+      source_fingerprint: "current",
+      content_interpretation_version: "foundry-content/v13",
+      ordinal: 0,
+      authored_formula: "1d4 #rounds",
+      authored_command: command,
+    };
+    field.body = {
+      kind: "html",
+      inclusions: [],
+      html: '<p>Wait <span data-atlas-interaction="0"><span data-atlas-roll-formula="">1d4</span> rounds</span>.</p>',
+      controls: [
+        {
+          ordinal: 0,
+          control: {
+            kind: "command",
+            command,
+            arguments: "1d4 #rounds",
+            options: {},
+            literal: [
+              {
+                formula: "1d4",
+                label: "rounds",
+                expression: { kind: "dice", sides: [4] },
+              },
+            ],
+            roll: request,
+          },
+        },
+      ],
+    };
+    render(
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <PreparedContent content={field} onReference={vi.fn()} />
+      </ConfigProvider>,
+    );
+    const button = screen.getByRole("button", { name: "Roll 1d4 rounds" });
+    expect(
+      screen.getByText("1d4", { selector: "[data-atlas-roll-formula]" })
+        .nextElementSibling,
+    ).toContainElement(button);
+    fireEvent.click(button);
+    expect(await screen.findByRole("status", { name: "1d4: 3" })).toBeVisible();
+    expect(roll).toHaveBeenCalledWith(request);
+    roll.mockRestore();
+  },
+);
+
+it("keeps an authored self-action label readable without reopening the same action", () => {
+  const detail = detailFixture("actions:seek", "Seek", "actions:seek");
+  const content = detail.presentation.content[0];
+  content.body = {
+    kind: "html",
+    inclusions: [],
+    html: '<p>A secret <span data-atlas-reference="0">Perception <span data-atlas-action-glyph="one_action">one action</span></span> check.</p>',
+    controls: [],
+  };
+  const reference = { ...detail.relationships[0], self_action_reference: true };
+  const onReference = vi.fn();
+  render(
+    <PreparedContent
+      content={content}
+      relationships={[reference]}
+      onReference={onReference}
+    />,
+  );
+  const label = screen.getByText("Perception", {
+    exact: false,
+    selector: "[data-atlas-reference]",
+  });
+  expect(label).not.toHaveAttribute("aria-disabled");
+  expect(label).not.toHaveAttribute("tabindex");
+  expect(screen.queryByRole("link", { name: /Perception/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Perception/ })).toBeNull();
+  fireEvent.click(label);
+  expect(onReference).not.toHaveBeenCalled();
+  expect(reference.target?.record_key).toBe("actions:seek");
 });

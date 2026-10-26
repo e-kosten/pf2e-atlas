@@ -70,6 +70,10 @@ fn reference_binding_origin(
     text(&mut hash, &reference.ordinal.to_string());
     text(&mut hash, &reference.path);
     match &reference.kind {
+        ContentReferenceKind::Action { slug } => {
+            text(&mut hash, "action");
+            text(&mut hash, slug);
+        }
         ContentReferenceKind::Uuid => text(&mut hash, "uuid"),
         ContentReferenceKind::Compendium => text(&mut hash, "compendium"),
         ContentReferenceKind::HtmlLink => text(&mut hash, "html_link"),

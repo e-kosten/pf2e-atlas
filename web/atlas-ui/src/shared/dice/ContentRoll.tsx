@@ -1,30 +1,32 @@
 import { Button, Popover } from "antd";
 import { Dices, X } from "lucide-react";
 import { useState } from "react";
-import { rollContentDamage } from "../../api/atlasApi";
+import { rollContent } from "../../api/atlasApi";
 import type {
-  ContentDamageComponentView,
-  ContentDamageRollView,
-  RollContentDamageRequest,
+  ContentRollComponentView,
+  ContentRollResultView,
+  RollContentRequest,
 } from "../../generated/atlas";
 import { RollResult, UnrolledRoll } from "./RollResult";
 import { useDicePopoverFocus } from "./useDicePopoverFocus";
 import { useDiceRoll } from "./useDiceRoll";
-import "../../styles/ui/content-damage-roll.css";
+import "../../styles/ui/content-roll.css";
 
 /** Transient reader dice. Reopening shows the result; only Reroll replaces it. */
-export function ContentDamageRoll({
+export function ContentRoll({
   request,
   components,
 }: {
-  request: RollContentDamageRequest;
-  components: ContentDamageComponentView[];
+  request: RollContentRequest;
+  components: ContentRollComponentView[];
 }) {
   const [open, setOpen] = useState(false);
-  const roll = useDiceRoll<ContentDamageRollView>({ retainResultOnError: true });
+  const roll = useDiceRoll<ContentRollResultView>({ retainResultOnError: true });
   const { trigger, content, afterOpenChange } = useDicePopoverFocus(open);
-  const label = components.map((c) => `${c.formula} ${c.label}`).join(" + ");
-  const act = () => void roll.run(() => rollContentDamage(request));
+  const label = components
+    .map((c) => `${c.formula}${c.label ? ` ${c.label}` : ""}`)
+    .join(" + ");
+  const act = () => void roll.run(() => rollContent(request));
   return (
     <Popover
       trigger="click"
@@ -42,7 +44,7 @@ export function ContentDamageRoll({
           tabIndex={-1}
           role="dialog"
           aria-label={label}
-          className="content-damage-roll"
+          className="atlas-dice-popover content-roll"
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               event.stopPropagation();
@@ -50,7 +52,7 @@ export function ContentDamageRoll({
             }
           }}
         >
-          <div className="content-damage-roll__toolbar">
+          <div className="content-roll__toolbar">
             <strong>Roll result</strong>
             <Button
               type="text"
@@ -60,8 +62,8 @@ export function ContentDamageRoll({
             />
           </div>
           {components.map((part, index) => (
-            <div key={index} className="content-damage-roll__component">
-              <span>{part.label}</span>
+            <div key={index} className="content-roll__component">
+              {part.label && <span>{part.label}</span>}
               {roll.result?.components[index] ? (
                 <RollResult
                   outcome={roll.result.components[index].outcome}
@@ -85,7 +87,7 @@ export function ContentDamageRoll({
             </span>
           )}
           <Button
-            disabled={roll.busy}
+            aria-disabled={roll.busy}
             loading={roll.busy && !roll.animating ? { delay: 300 } : false}
             onClick={act}
           >

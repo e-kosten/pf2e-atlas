@@ -548,23 +548,39 @@ fn ambiguous_names_missing_ids_and_duplicate_roots_never_pick_a_winner() {
     };
     assert!(
         index
-            .resolve_reference(&locator, "pf2e.test.Same")
+            .resolve_reference(
+                &locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
+                "pf2e.test.Same"
+            )
             .is_none()
     );
     assert!(
         index
-            .resolve_reference(&locator, "Compendium.pf2e.test.Item.Same")
+            .resolve_reference(
+                &locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
+                "Compendium.pf2e.test.Item.Same"
+            )
             .is_none()
     );
     assert!(
         index
-            .resolve_reference(&locator, "Compendium.pf2e.test.Item.aaaaaaaaaaaaaaaa")
+            .resolve_reference(
+                &locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
+                "Compendium.pf2e.test.Item.aaaaaaaaaaaaaaaa"
+            )
             .is_some()
     );
     index.insert_source(&key, &source);
     assert!(
         index
-            .resolve_reference(&locator, "Compendium.pf2e.test.Item.aaaaaaaaaaaaaaaa")
+            .resolve_reference(
+                &locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
+                "Compendium.pf2e.test.Item.aaaaaaaaaaaaaaaa"
+            )
             .is_none()
     );
 }
@@ -602,6 +618,7 @@ fn journal_page_fragments_resolve_identity_and_retain_authored_navigation() {
         index
             .resolve_reference(
                 locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
                 &format!(
                     "Compendium.pf2e.journals.JournalEntry.{ROOT}.JournalEntryPage.{OTHER}#heading"
                 )
@@ -612,12 +629,21 @@ fn journal_page_fragments_resolve_identity_and_retain_authored_navigation() {
         index
             .resolve_reference(
                 locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
                 &format!("Compendium.pf2e.journals.JournalEntry.{ROOT}#heading")
             )
             .is_none()
     );
     index.insert_source(&key, record.source());
-    assert!(index.resolve_reference(locator, &target).is_none());
+    assert!(
+        index
+            .resolve_reference(
+                locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
+                &target
+            )
+            .is_none()
+    );
 }
 
 #[test]
@@ -656,17 +682,29 @@ fn relative_page_ids_use_the_current_journal_and_never_guess_other_scopes() {
     };
     assert!(
         index
-            .resolve_reference(&root_locator, &format!(".{OTHER}"))
+            .resolve_reference(
+                &root_locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
+                &format!(".{OTHER}")
+            )
             .is_none()
     );
     assert!(
         index
-            .resolve_reference(&prepared.locator, ".dddddddddddddddd")
+            .resolve_reference(
+                &prepared.locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
+                ".dddddddddddddddd"
+            )
             .is_none()
     );
     assert!(
         index
-            .resolve_reference(&prepared.locator, &format!("..{OTHER}"))
+            .resolve_reference(
+                &prepared.locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
+                &format!("..{OTHER}")
+            )
             .is_none()
     );
 
@@ -678,7 +716,11 @@ fn relative_page_ids_use_the_current_journal_and_never_guess_other_scopes() {
     index.insert_source(&root_locator.record, &duplicate);
     assert!(
         index
-            .resolve_reference(&prepared.locator, &format!(".{OTHER}"))
+            .resolve_reference(
+                &prepared.locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
+                &format!(".{OTHER}")
+            )
             .is_none()
     );
 }
@@ -794,13 +836,17 @@ fn qualified_authored_names_resolve_and_names_never_poison_ids() {
     };
     assert!(
         index
-            .resolve_reference(&locator, &format!("Compendium.pf2e.test.{ROOT}"))
+            .resolve_reference(
+                &locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
+                &format!("Compendium.pf2e.test.{ROOT}")
+            )
             .is_some()
     );
     let other = admitted("Item", json!({"_id":OTHER,"type":"spell","name":ROOT}));
     index.insert_source(&source_record_key("test", &other).unwrap(), &other);
     assert!(
-        matches!(index.resolve_reference(&locator,&format!("Compendium.pf2e.test.{ROOT}")).unwrap().target,ContentReferenceTarget::Record {key:k} if k==key)
+        matches!(index.resolve_reference(&locator, &crate::source_content::ContentReferenceKind::Uuid,&format!("Compendium.pf2e.test.{ROOT}")).unwrap().target,ContentReferenceTarget::Record {key:k} if k==key)
     );
     let named = admitted(
         "Item",
@@ -809,12 +855,20 @@ fn qualified_authored_names_resolve_and_names_never_poison_ids() {
     index.insert_source(&source_record_key("test", &named).unwrap(), &named);
     assert!(
         index
-            .resolve_reference(&locator, "Compendium.pf2e.test.Item.Name with. punctuation")
+            .resolve_reference(
+                &locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
+                "Compendium.pf2e.test.Item.Name with. punctuation"
+            )
             .is_some()
     );
     assert!(
         index
-            .resolve_reference(&locator, "pf2e.test.Item.Name with. punctuation")
+            .resolve_reference(
+                &locator,
+                &crate::source_content::ContentReferenceKind::Uuid,
+                "pf2e.test.Item.Name with. punctuation"
+            )
             .is_some()
     );
 }
@@ -1228,4 +1282,129 @@ fn trait_definition_references_resolve_only_qualified_record_targets() {
             .is_none()
     );
     assert!(index.resolve_global_reference("Known Spell").is_none());
+}
+
+#[test]
+fn action_navigation_requires_an_exact_unique_admitted_action_name() {
+    struct English;
+    impl crate::source_content::LocalizationResolver for English {
+        fn localized_value(&self, key: &str) -> Option<&str> {
+            (key == "PF2E.Actions.Seek.Title").then_some("Seek")
+        }
+    }
+    let record = source_record(
+        "Item",
+        json!({"_id":ROOT,"name":"Attire","type":"spell",
+        "system":{"description":{"value":"<p>uses [[/act seek]]</p>"}}}),
+    );
+    let action = SourceBackedRecord::new(
+        "actionspf2e",
+        admitted("Item", json!({"_id":OTHER,"name":"Seek","type":"action"})),
+    )
+    .unwrap();
+    let duplicate = SourceBackedRecord::new(
+        "actionspf2e",
+        admitted("Item", json!({"_id":CHILD,"name":"Seek","type":"action"})),
+    )
+    .unwrap();
+    let mut index = SourceReferenceIndex::default();
+    for expected in [false, true, false] {
+        if expected {
+            index.insert_source(action.key(), action.source());
+        } else if index
+            .resolve_global_reference("Compendium.pf2e.actionspf2e.Item.Seek")
+            .is_some()
+        {
+            index.insert_source(duplicate.key(), duplicate.source());
+        }
+        let prepared = prepare_record_content(&record, public(), Some(&English), Some(&index));
+        let SourceContentStatus::Prepared(content) = &prepared
+            .iter()
+            .find(|field| field.locator().field == "/system/description/value")
+            .unwrap()
+            .status
+        else {
+            panic!("prepared")
+        };
+        assert!(content.text.contains("Seek one action"));
+        assert_eq!(
+            matches!(
+                content.references[0].resolution,
+                ContentReferenceResolution::Resolved(_)
+            ),
+            expected
+        );
+    }
+}
+
+#[test]
+fn derived_action_names_allow_only_unique_ascii_case_matches_in_the_action_pack() {
+    use crate::source_content::ContentReferenceKind;
+    let kind = ContentReferenceKind::Action {
+        slug: "grab-an-edge".into(),
+    };
+    let target = "Compendium.pf2e.actionspf2e.Item.Grab An Edge";
+    let action = SourceBackedRecord::new(
+        "actionspf2e",
+        admitted(
+            "Item",
+            json!({"_id":ROOT,"name":"Grab an Edge","type":"action"}),
+        ),
+    )
+    .unwrap();
+    let mut index = SourceReferenceIndex::default();
+    index.insert_source(action.key(), action.source());
+    assert!(
+        index.resolve_global_reference(target).is_none(),
+        "Authored UUID-name references remain exact"
+    );
+    assert_eq!(
+        index
+            .resolve_global_content_reference(&kind, target)
+            .unwrap()
+            .target,
+        ContentReferenceTarget::Record {
+            key: action.key().clone()
+        }
+    );
+    assert!(
+        index
+            .resolve_global_content_reference(&kind, "Compendium.pf2e.actionspf2e.Item.Grab Edge")
+            .is_none()
+    );
+    assert!(
+        index
+            .resolve_global_content_reference(&kind, "Compendium.pf2e.other.Item.Grab An Edge")
+            .is_none()
+    );
+    let collision = SourceBackedRecord::new(
+        "actionspf2e",
+        admitted(
+            "Item",
+            json!({"_id":OTHER,"name":"Grab An Edge","type":"action"}),
+        ),
+    )
+    .unwrap();
+    index.insert_source(collision.key(), collision.source());
+    assert!(
+        index
+            .resolve_global_content_reference(&kind, target)
+            .is_none(),
+        "Even an exact-case candidate cannot win a case-fold collision"
+    );
+    let mut wrong_family = SourceReferenceIndex::default();
+    let feat = SourceBackedRecord::new(
+        "actionspf2e",
+        admitted(
+            "Item",
+            json!({"_id":ROOT,"name":"Grab an Edge","type":"feat"}),
+        ),
+    )
+    .unwrap();
+    wrong_family.insert_source(feat.key(), feat.source());
+    assert!(
+        wrong_family
+            .resolve_global_content_reference(&kind, target)
+            .is_none()
+    );
 }

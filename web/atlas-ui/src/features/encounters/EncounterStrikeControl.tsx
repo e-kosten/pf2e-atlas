@@ -219,7 +219,7 @@ function StrikeRollPopover({
         <div
           ref={content}
           tabIndex={-1}
-          className={`strike-roll-control${contextOpen ? " strike-roll-control--expanded" : ""}`}
+          className={`atlas-dice-popover strike-roll-control${contextOpen ? " strike-roll-control--expanded" : ""}`}
           role="dialog"
           aria-label={actionLabel}
         >

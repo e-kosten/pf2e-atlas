@@ -5,7 +5,7 @@ use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 
 /// Interpretation identity, independent of source DTO or artifact versions.
-pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v12";
+pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v16";
 
 /// A source field, never an output hash, display label or HTML node ordinal.
 /// Callers establish identity from their admitted source and retain this locator
@@ -63,12 +63,14 @@ pub trait ContentReferenceResolver {
     fn resolve_reference(
         &self,
         source: &SourceContentLocator,
+        kind: &ContentReferenceKind,
         authored_target: &str,
     ) -> Option<ResolvedContentReference>;
 }
 
-/// Source-independent lookup for explicit authored reference targets.
-pub type ContentReferenceLookup<'a> = dyn Fn(&str) -> Option<ResolvedContentReference> + 'a;
+/// Source-independent lookup retains authored versus derived reference policy.
+pub type ContentReferenceLookup<'a> =
+    dyn Fn(&ContentReferenceKind, &str) -> Option<ResolvedContentReference> + 'a;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedContentReference {
@@ -155,6 +157,7 @@ pub enum ContentReferenceKind {
     Compendium,
     Embed { options: BTreeMap<String, String> },
     HtmlLink,
+    Action { slug: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

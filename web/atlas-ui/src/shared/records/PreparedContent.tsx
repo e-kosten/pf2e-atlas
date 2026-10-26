@@ -15,7 +15,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { EffectReferenceLink } from "./EffectReferenceLink";
-import { ContentDamageRoll } from "../dice/ContentDamageRoll";
+import { ContentRoll } from "../dice/ContentRoll";
 import type {
   PreparedContentFieldView,
   PreparedFieldBodyView,
@@ -93,7 +93,7 @@ export function PreparedContentBody({
   const [modal, contextHolder] = Modal.useModal();
   const container = useRef<HTMLDivElement>(null);
   const [effectLinks, setEffectLinks] = useState<ReactPortal[]>([]);
-  const damageHosts = useRef(new Map<string, HTMLElement>());
+  const rollHosts = useRef(new Map<string, HTMLElement>());
   const referenceHandler = useRef(onReference);
   useLayoutEffect(() => {
     referenceHandler.current = onReference;
@@ -174,7 +174,7 @@ export function PreparedContentBody({
     );
     const listeners: Array<() => void> = [];
     const effects: ReactPortal[] = [];
-    const activeDamage = new Set<string>();
+    const activeRolls = new Set<string>();
     markers?.forEach((originalMarker) => {
       let marker = originalMarker;
       const namespace = marker
@@ -198,24 +198,35 @@ export function PreparedContentBody({
                 c.ordinal === Number(marker.getAttribute("data-atlas-interaction")),
             )?.control
           : null;
-      if (control?.kind === "damage" && control.literal) {
+      if (fact?.self_action_reference) {
+        marker.removeAttribute("href");
+        marker.removeAttribute("role");
+        marker.removeAttribute("tabindex");
+        marker.removeAttribute("aria-disabled");
+        marker.removeAttribute("title");
+        return;
+      }
+      if (
+        (control?.kind === "damage" || control?.kind === "command") &&
+        control.literal
+      ) {
         marker.removeAttribute("role");
         marker.removeAttribute("tabindex");
         if (control.roll) {
           const identity = `${namespace ?? "host"}:${JSON.stringify(control.roll)}`;
-          activeDamage.add(identity);
-          let host = damageHosts.current.get(identity);
+          activeRolls.add(identity);
+          let host = rollHosts.current.get(identity);
           if (!host) {
             host = document.createElement("span");
-            damageHosts.current.set(identity, host);
+            rollHosts.current.set(identity, host);
           }
           const formula = Array.from(
-            marker.querySelectorAll<HTMLElement>("[data-atlas-damage-formula]"),
+            marker.querySelectorAll<HTMLElement>("[data-atlas-roll-formula]"),
           ).find((node) => node.closest("[data-atlas-interaction]") === marker);
           (formula ?? marker).after(host);
           effects.push(
             createPortal(
-              <ContentDamageRoll request={control.roll} components={control.literal} />,
+              <ContentRoll request={control.roll} components={control.literal} />,
               host,
               identity,
             ),
@@ -361,10 +372,10 @@ export function PreparedContentBody({
         marker.removeEventListener("keydown", keyboard);
       });
     });
-    for (const [identity, host] of damageHosts.current) {
-      if (!activeDamage.has(identity)) {
+    for (const [identity, host] of rollHosts.current) {
+      if (!activeRolls.has(identity)) {
         host.remove();
-        damageHosts.current.delete(identity);
+        rollHosts.current.delete(identity);
       }
     }
     setEffectLinks(effects);

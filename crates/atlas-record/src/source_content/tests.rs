@@ -249,6 +249,7 @@ impl ContentReferenceResolver for Context {
     fn resolve_reference(
         &self,
         _source: &SourceContentLocator,
+        _kind: &crate::source_content::ContentReferenceKind,
         target: &str,
     ) -> Option<ResolvedContentReference> {
         (target == "Compendium.pf2e.spells-srd.Item.abcdefghijklmnop").then(|| {
@@ -271,7 +272,7 @@ fn preserves_html_unicode_and_mechanics_without_a_persisted_tree() {
     assert!(content.text.contains("DC 21 basic reflex"));
     assert!(content.text.contains("30-foot cone (width 5 feet)"));
     assert!(content.text.contains("2d6 fire damage"));
-    assert!(content.text.contains("/r 1d20+4"));
+    assert!(content.text.contains("1d20+4"));
     assert_eq!(content.interactions.len(), 4);
     assert_eq!(content.locator, locator());
     let ContentInteractionKind::Check { statistic, options } = &content.interactions[0].kind else {
@@ -753,7 +754,7 @@ fn trait_definitions_share_localization_sanitization_and_explicit_reference_evid
             (key == "definition").then_some("<strong>Localized definition</strong> @UUID[Compendium.pf2e.spells-srd.Item.abc]{Spell}")
         }
     }
-    let resolve = |_: &str| {
+    let resolve = |_: &ContentReferenceKind, _: &str| {
         Some(ResolvedContentReference {
             target: ContentReferenceTarget::Record {
                 key: "spells-srd:abc".parse().unwrap(),
@@ -884,12 +885,97 @@ fn literal_damage_marks_the_formula_boundary_without_accepting_authored_markers(
     assert!(
         content
             .html
-            .contains("data-atlas-damage-formula=\"\">4d8+10</span> bludgeoning")
+            .contains("data-atlas-roll-formula=\"\">4d8+10</span> bludgeoning")
     );
     assert_eq!(content.text, "4d8+10 bludgeoning damage");
     let labeled = prepare("@Damage[4d8[bludgeoning]]{Impact}");
-    assert!(!labeled.html.contains("data-atlas-damage-formula"));
+    assert!(!labeled.html.contains("data-atlas-roll-formula"));
     assert_eq!(labeled.text, "Impact");
-    let spoofed = prepare("<span data-atlas-damage-formula=''>Fake</span>");
-    assert!(!spoofed.html.contains("data-atlas-damage-formula"));
+    let spoofed = prepare("<span data-atlas-roll-formula=''>Fake</span>");
+    assert!(!spoofed.html.contains("data-atlas-roll-formula"));
+}
+
+#[test]
+fn action_commands_use_registry_labels_glyphs_variants_and_checked_references() {
+    struct English;
+    impl LocalizationResolver for English {
+        fn localized_value(&self, key: &str) -> Option<&str> {
+            match key {
+                "PF2E.Actions.Seek.Title" => Some("Seek"),
+                "PF2E.Actions.AdministerFirstAid.Title" => Some("Administer First Aid"),
+                "PF2E.Actions.AdministerFirstAid.StopBleeding.Title" => Some("Stop Bleeding"),
+                _ => None,
+            }
+        }
+    }
+    struct References;
+    impl ContentReferenceResolver for References {
+        fn resolve_reference(
+            &self,
+            _: &SourceContentLocator,
+            _kind: &crate::source_content::ContentReferenceKind,
+            target: &str,
+        ) -> Option<ResolvedContentReference> {
+            (target == "Compendium.pf2e.actionspf2e.Item.Seek").then(|| ResolvedContentReference {
+                target: ContentReferenceTarget::Record {
+                    key: "actionspf2e:BlAOM2X92SI6HMtJ".parse().unwrap(),
+                },
+                display_name: Some("Seek".into()),
+                item_family: Some("action".into()),
+            })
+        }
+    }
+    let content = prepare_source_content(locator(),
+        "<p>uses [[/act seek]]; [[/act seek dc=20]]{Perception}; [[/act administer-first-aid variant=stop-bleeding]]; [[/act seek variant=made-up]]; [[/act unknown]]. [[/br 1d4 #rounds]] [[/r @actor.level+1d6]]</p>",
+        audience(), ContentVisibilityRule::All, Some(&English), Some(&References)).unwrap();
+    assert!(content.text.contains("Seek one action"));
+    assert!(content.text.contains("Perception one action (DC 20)"));
+    assert!(
+        content
+            .text
+            .contains("Administer First Aid - Stop Bleeding two actions")
+    );
+    assert!(content.text.contains("/act seek variant=made-up"));
+    assert!(content.text.contains("/act unknown"));
+    assert!(content.text.contains("1d4 rounds"));
+    assert!(content.text.contains("/r @actor.level+1d6"));
+    assert!(matches!(
+        content.references[0].resolution,
+        ContentReferenceResolution::Resolved(_)
+    ));
+    assert!(matches!(
+        content.references[2].resolution,
+        ContentReferenceResolution::Unresolved
+    ));
+    assert_eq!(
+        content.references[0].kind,
+        ContentReferenceKind::Action {
+            slug: "seek".into()
+        }
+    );
+    assert!(
+        matches!(&content.interactions[2].kind, ContentInteractionKind::Command { command, arguments, options } if command=="act" && arguments=="administer-first-aid variant=stop-bleeding" && options["variant"]=="stop-bleeding")
+    );
+    validate_prepared_reference_bindings(
+        &content.html,
+        &content.locator,
+        &content.authored_markup_sha256,
+        &content.references,
+    )
+    .unwrap();
+}
+
+#[test]
+fn literal_roll_labels_keep_authored_text_and_mark_only_an_exact_formula_prefix() {
+    let content = prepare(
+        "<p>[[/r 1d4 #rounds]]{1d4 rounds}; [[/gmr 1d4]]{Recharge}; [[/br 1d4]]{1d40 rounds}</p>",
+    );
+    assert_eq!(content.text, "1d4 rounds; Recharge; 1d40 rounds");
+    assert_eq!(content.html.matches("data-atlas-roll-formula").count(), 1);
+    assert!(
+        content
+            .html
+            .contains("data-atlas-roll-formula=\"\">1d4</span> rounds")
+    );
+    assert_eq!(content.interactions.len(), 3);
 }

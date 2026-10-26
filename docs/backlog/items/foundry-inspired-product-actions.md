@@ -24,14 +24,16 @@ Do not infer executable mechanics from trait-description prose.
 Define bounded action contracts and tests before adding UI behavior. Keep
 readiness, display, dice execution and contextual gameplay adjudication distinct.
 
-## Authored damage reference rolls
+## Authored content reference rolls
 
 Supported literal damage expressions use the shared bounded dice engine and an
 inline one-click roll control. Results stay in the current reader with explicit
 Reroll; no persistent history, encounter mutation or contextual modifier evaluation
 is involved. Unknown runtime expressions/options remain authored data. This bounded
-workflow does not authorize general Macro execution or the remaining check/command
-work below.
+workflow also covers bounded literal `/r`, `/gmr` and `/br` formulas with the
+same transient local result surface. `/act` supplies readable action labels and
+references. General Macro execution, actor action execution and contextual
+checks/formulas remain separate work below.
 
 ## Runtime callback research
 

@@ -59,8 +59,10 @@ does not execute commands, predicates, formulas or Foundry document preparation.
 
 Reference recognition precedes display/graph/search policy. Hidden occurrences
 remain identifiable with explicit visibility; unresolved and sanitizer-blocked
-destinations remain evidence, not usable links. Resolver output carries identities
-and optional display names, never hard-coded web/CLI routes or copied destination
+destinations remain evidence, not usable links. Derived action references carry
+their registry identity and permit only unique ASCII case-only name matches
+within the admitted action pack. Authored UUID/name references keep their existing
+exact policy. Resolver output carries identities and optional display names, never hard-coded web/CLI routes or copied destination
 prose. Preparation retains Embed targets/options as occurrences without expanding
 stored HTML or retrieval text. Selected application reading may compose the
 supported inline Item descriptions from checked prepared fields in one snapshot.

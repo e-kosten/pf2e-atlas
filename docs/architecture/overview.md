@@ -32,7 +32,7 @@ and [ADR index](./decisions/README.md) for the relevant owner.
 | `atlas-tags` | File-owned tag definitions/assignment DTOs and structural validation. Assessment and product filtering are deferred pending demonstrated retrieval gaps (ADR0054). |
 | `atlas-sqlite-vec` | sqlite-vec registration and capability probing. |
 
-`atlas-record` uses atlas-dice's pure preparation for bounded literal damage
+`atlas-record` uses atlas-dice's pure preparation for bounded literal damage and inline-roll
 arithmetic. App-service owns random reference rolls from these prepared controls.
 
 `web/atlas-ui` renders generated app contracts with React and Ant Design. Private

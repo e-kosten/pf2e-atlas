@@ -1,7 +1,7 @@
 #![deny(unsafe_code)]
 
 mod completions;
-mod content_damage;
+mod content_roll;
 mod contextual_references;
 mod physical_labels;
 

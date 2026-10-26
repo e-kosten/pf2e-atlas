@@ -427,11 +427,18 @@ fn setup_reprepares_known_old_content_policy_but_readers_remain_blocked_until_pu
         "foundry-content/v6",
         "foundry-content/v10",
         "foundry-content/v11",
+        "foundry-content/v12",
+        "foundry-content/v15",
     ] {
         let directory = tempfile::tempdir().unwrap();
         let paths = paths(directory.path());
         source(&paths);
         assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
+        let current_content_policy = open_reader(&paths.index_path)
+            .unwrap()
+            .context()
+            .content_interpretation_version
+            .clone();
         let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
         let before = workspace
             .read(crate::WORKSPACE_SCHEMA_VERSION)
@@ -462,7 +469,7 @@ fn setup_reprepares_known_old_content_policy_but_readers_remain_blocked_until_pu
         );
         assert_eq!(
             reader.context().content_interpretation_version,
-            "foundry-content/v12"
+            current_content_policy
         );
         assert!(!paths.embedding_cache_root.exists());
     }

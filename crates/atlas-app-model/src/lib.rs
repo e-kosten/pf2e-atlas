@@ -157,9 +157,9 @@ pub use list::{
     UpdateSavedListRequest,
 };
 pub use prepared_content::{
-    ContentControlKindView, ContentControlView, ContentDamageComponentView,
-    ContentDamageRollComponentView, ContentDamageRollView, PreparedContentFieldView,
-    PreparedFieldBodyView, PreparedInclusionView, PreparedReferenceView, RollContentDamageRequest,
+    ContentControlKindView, ContentControlView, ContentRollComponentResultView,
+    ContentRollComponentView, ContentRollResultView, PreparedContentFieldView,
+    PreparedFieldBodyView, PreparedInclusionView, PreparedReferenceView, RollContentRequest,
 };
 pub use presentation::{
     ActionCostView, ActionGlyphView, ActivityEffectReferenceView, ActivityFrequencyView,
@@ -234,8 +234,8 @@ mod tests {
     }
 
     fn export_bindings_to(path: &Path) {
-        RollContentDamageRequest::export_all_to(path).expect("content damage request bindings");
-        ContentDamageRollView::export_all_to(path).expect("content damage result bindings");
+        RollContentRequest::export_all_to(path).expect("content roll request bindings");
+        ContentRollResultView::export_all_to(path).expect("content roll result bindings");
         UpdateTurnResourcesRequest::export_all_to(path).expect("turn resource request");
         TurnResourcesView::export_all_to(path).expect("turn resources");
         EncounterStrikeContextRequest::export_all_to(path).expect("strike attempt preview request");
