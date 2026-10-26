@@ -111,13 +111,18 @@ export function ReferenceReader({
     [active, address, saved],
   );
   const inspect = reading.inspect;
+  const openReference = preview.open;
   const navigateToMatch = useCallback(
     (navigation: RecordNavigationView, anchor: HTMLElement) => {
       rememberPosition(anchor);
+      if (selectedRecordKey && navigation.record_key !== selectedRecordKey) {
+        openReference(navigation.record_key, anchor, navigation);
+        return;
+      }
       matchOpener.current = anchor;
       inspect({ navigation: rootNavigation(navigation.record_key), match: navigation });
     },
-    [rememberPosition, inspect],
+    [rememberPosition, inspect, selectedRecordKey, openReference],
   );
   useLayoutEffect(() => {
     const snapshot = () => rememberPosition();
@@ -245,7 +250,6 @@ export function ReferenceReader({
     const target = reading.request?.match;
     if (
       !active ||
-      !matchOpener.current ||
       !detail ||
       !target ||
       reading.landing ||
@@ -254,10 +258,14 @@ export function ReferenceReader({
     )
       return;
     const content =
+      readerRef.current?.querySelector<HTMLElement>("[data-atlas-passage-target]") ??
       readerRef.current?.querySelector<HTMLElement>(".record-reference__content") ??
       readerRef.current?.querySelector<HTMLElement>(".record-workspace__reading");
     if (!content) return;
     content.classList.add("reference-landing-highlight");
+    if (!reading.restoringHistory && readerRef.current) {
+      landReadingTarget(content, readerRef.current);
+    }
     focusMatchTarget(content);
     const timer = setTimeout(
       () => content.classList.remove("reference-landing-highlight"),
@@ -267,7 +275,14 @@ export function ReferenceReader({
       clearTimeout(timer);
       content.classList.remove("reference-landing-highlight");
     };
-  }, [active, reading.detail, reading.request, reading.landing, focusMatchTarget]);
+  }, [
+    active,
+    reading.detail,
+    reading.request,
+    reading.landing,
+    reading.restoringHistory,
+    focusMatchTarget,
+  ]);
   const detail = reading.detail;
   const fullNavigation = detail?.selected ?? reading.request?.navigation;
   const fullRoute = fullNavigation

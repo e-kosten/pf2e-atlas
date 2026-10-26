@@ -207,7 +207,7 @@ pub(crate) fn read_record_detail(
                 ));
             }
             let field = fields
-                .iter()
+                .iter_mut()
                 .find(|f| f.locator.field == request.fields[0])
                 .ok_or_else(|| {
                     AppServiceError::invalid_request("selected passage field is unavailable")
@@ -228,6 +228,12 @@ pub(crate) fn read_record_detail(
             recover_source_passage(html, plain, address).map_err(|e| {
                 AppServiceError::invalid_request(format!("stale or invalid passage: {e}"))
             })?;
+            if let atlas_app_model::PreparedFieldBodyView::Html { html, .. } = &mut field.body {
+                *html = atlas_record::source_record::mark_source_html_passage(html, address)
+                    .map_err(|e| {
+                        AppServiceError::invalid_request(format!("stale or invalid passage: {e}"))
+                    })?;
+            }
         }
     }
     crate::inline_content::compose_inline_content(r, fields.iter_mut(), &content.relationships)?;

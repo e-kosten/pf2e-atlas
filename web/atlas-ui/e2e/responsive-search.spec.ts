@@ -320,46 +320,91 @@ test("Back keeps page, selected result and nonzero list/reader positions", async
   await expect(page.locator('[data-record-key][aria-current="true"]')).toBeFocused();
 });
 
-test("match popovers retain row layout and land inline without scrolling the app chrome", async ({
+test("reader matches keep result rows stable and navigate without scrolling app chrome", async ({
   page,
 }) => {
-  await page.goto("/search?q=fire&mode=text_search");
+  await page.goto("/search?q=fire&search_profile=bge-base");
   const row = page.locator(".reference-result").filter({
-    has: page.locator("[data-record-key]").filter({ hasText: "Imeckus Stroon" }),
+    has: page.locator('[data-record-key="pathfinder-monster-core:MX2cLbODuo4gECPJ"]'),
   });
-  const trigger = row.getByRole("button", {
-    name: "3 matches in Imeckus Stroon",
-    exact: true,
-  });
-  await expect(trigger).toBeVisible();
+  await expect(row).toBeVisible();
+  // Offscreen rows use an estimated intrinsic height until actionability renders them.
+  await row.locator("[data-record-key]").click({ trial: true });
   const before = await row.boundingBox();
-  await trigger.click();
-  const popup = page.locator(".reference-match-list:visible");
+  await row.locator("[data-record-key]").click();
+  const preview = page.getByRole("region", { name: "Record preview", exact: true });
+  const matches = preview.getByRole("region", { name: "Search matches", exact: true });
   await expect(
-    popup.getByRole("link", { name: "Staff of Fire (Major)", exact: true }),
-  ).toBeFocused();
+    matches.getByRole("link", { name: "Breath Fire", exact: true }),
+  ).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /matches in/ })).toHaveCount(0);
   expect((await row.boundingBox())!.height).toBe(before!.height);
-  await page.keyboard.press("Escape");
-  await expect(trigger).toBeFocused();
-  await trigger.click();
-  await popup.getByRole("link", { name: "Staff of Fire (Major)", exact: true }).click();
-  await expect(popup).toBeHidden();
-  await expect(page.locator(".reference-landing-highlight")).toContainText(
-    "Staff of Fire",
-  );
+  await expect
+    .poll(() => page.locator(".reference-reader__scroll").evaluate((e) => e.scrollTop))
+    .toBe(0);
+  await matches.getByRole("link", { name: "Fire Mote", exact: true }).click();
+  await expect(page.locator(".reference-landing-highlight")).toContainText("Fire Mote");
   expect(await page.evaluate(() => scrollY)).toBe(0);
   await expect(
-    page.getByRole("heading", { name: "Imeckus Stroon", exact: true }),
+    preview.getByRole("heading", { name: "Firewyrm", exact: true }),
   ).toHaveCount(1);
-  await trigger.click();
-  await popup.getByRole("link", { name: "Fire Shield", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Fire Shield", exact: true }),
-  ).toBeVisible();
-  await expect(page.locator(".reference-landing-highlight")).toHaveCount(0);
-  await expect(
-    page.getByRole("link", { name: "Return to Imeckus Stroon", exact: true }),
-  ).toBeVisible();
+  await preview
+    .getByRole("button", { name: "Return to selection", exact: true })
+    .click();
+  await matches.getByRole("link", { name: "Breath Fire", exact: true }).click();
+  await expect(preview.getByRole("heading", { name: /^Breath Fire/ })).toBeVisible();
+  await expect(page.locator(".reference-landing-highlight")).toContainText(
+    "The firewyrm breathes",
+  );
+  await expect(page.locator(".record-reference__content")).toBeFocused();
+  expect(await page.evaluate(() => scrollY)).toBe(0);
+  await preview
+    .getByRole("button", { name: "Return to selection", exact: true })
+    .click();
+  await expect(matches).toBeVisible();
+});
+
+test("long match excerpts stay within two lines at desktop and phone widths", async ({
+  page,
+}) => {
+  await page.goto(
+    "/search/records/sky-kings-tomb-bestiary:RVdRHveFJmeCscI6?search_profile=bge-base&q=wriggly+bug",
+  );
+  const matches = page.getByRole("region", { name: "Search matches", exact: true });
+  const excerpts = matches.getByText(
+    /^(The cave worm flings|Brood Variance The cave worms|When a juvenile cave worm)/,
+  );
+  await expect(excerpts).toHaveCount(3);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(excerpts).toHaveCount(3);
+    for (const excerpt of await excerpts.all()) {
+      await expect(excerpt).toBeVisible();
+      await expect
+        .poll(() =>
+          excerpt.evaluate(
+            (e) =>
+              e.getBoundingClientRect().height /
+              parseFloat(getComputedStyle(e).lineHeight),
+          ),
+        )
+        .toBeLessThanOrEqual(2.01);
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+    ).toBe(0);
+  }
+  await matches.getByRole("link", { name: "Brood Variance", exact: true }).click();
+  const section = page.locator("[data-atlas-passage-target]");
+  await expect(section).toHaveText("Brood Variance");
+  await expect(section).toBeInViewport();
+  await expect(section).toBeFocused();
+  await page.getByRole("button", { name: "Return to selection", exact: true }).click();
+  await matches.getByRole("link", { name: "Clumsy Leap", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /^Clumsy Leap/ })).toBeVisible();
+  await expect(page.locator(".record-reference__content")).toContainText(
+    "The cave worm flings its body",
+  );
 });
 
 test("relationship scope stays tappable within a phone viewport and preserves exact selection", async ({

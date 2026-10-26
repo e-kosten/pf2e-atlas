@@ -388,7 +388,10 @@ it.each([true, false])(
 
 it("shows text and reference-link evidence in the selected reader without a result-row menu", async () => {
   getDetail.mockImplementation((key) =>
-    Promise.resolve({ ...detailFixture(key), artifact_generation: "generation-a" }),
+    Promise.resolve({
+      ...detailFixture(key, key === "items:armor" ? "Leather Armor" : undefined),
+      artifact_generation: "generation-a",
+    }),
   );
   const target = {
     record_key: "items:armor",
@@ -459,4 +462,22 @@ it("shows text and reference-link evidence in the selected reader without a resu
   expect(within(context).getByRole("link", { name: "Jaws" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Leather Armor" })).toBeVisible();
   expect(view.container).not.toHaveTextContent("Text reference");
+  const targetLink = screen.getByRole("link", { name: "Leather Armor" });
+  fireEvent.click(targetLink);
+  const reference = await screen.findByRole("dialog", {
+    name: "Reference",
+  });
+  expect(
+    await within(reference).findByRole("heading", { name: "Leather Armor" }),
+  ).toBeVisible();
+  fireEvent.click(
+    within(reference).getByRole("button", {
+      name: "Close reference preview",
+    }),
+  );
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(screen.getByRole("region", { name: "Search matches" })).toBeVisible();
+  expect(
+    view.container.querySelector('[data-record-key="actors:ghoul"]'),
+  ).toHaveAttribute("aria-current", "true");
 });
