@@ -47,13 +47,81 @@ fn body(detail: &RecordDetailView) -> (&str, &[PreparedInclusionView]) {
     (html, inclusions)
 }
 #[test]
+fn section_sidecar_preserves_original_body_without_inclusions() {
+    let html = "<div><h2>First</h2><p>Text</p><h2>Second</h2><ul><li>Tail</li></ul></div>";
+    let fixture = fixture(html, "<p>Unused target</p>");
+    let detail = fixture
+        .worker
+        .record_detail("spells:hostSpell1000000")
+        .unwrap();
+    let field = detail
+        .presentation
+        .content
+        .iter()
+        .find(|field| field.role == "description")
+        .unwrap();
+    let PreparedFieldBodyView::Html {
+        html: original,
+        inclusions,
+        ..
+    } = &field.body
+    else {
+        panic!("html")
+    };
+    assert_eq!(original, html);
+    assert!(inclusions.is_empty());
+    let rendering = field.section_rendering.as_ref().unwrap();
+    assert_eq!(
+        rendering.selection_version,
+        atlas_record::source_record::SOURCE_CONTENT_SELECTION_VERSION
+    );
+    assert!(rendering.html.contains("data-atlas-source-section=\"0\""));
+    assert!(rendering.html.contains("data-atlas-source-section=\"1\""));
+    assert_eq!(field.locator.record.to_string(), "spells:hostSpell1000000");
+    assert_eq!(field.locator.field, "/system/description/value");
+    assert!(field.locator.owners.is_empty());
+    assert_eq!(fixture.worker.last_read_metrics().source_body_decodes, 1);
+}
+
+#[test]
 fn inline_content_composes_nested_occurrences_with_exact_binding_sources() {
     let f = fixture(
         "<h2>Host rules</h2><p>@UUID[Compendium.pf2e.features.Item.featTarget100000]</p><p>@Embed[Compendium.pf2e.features.Item.featTarget100000 inline header traits publication journalLink=false]</p><p>@Embed[Compendium.pf2e.features.Item.featTarget100000 inline hr=false]</p><p>Host ends.</p>",
-        "<p>Feature introduction.</p><p>@Embed[Compendium.pf2e.actions.Item.actionTarget1000 inline]</p><p>@UUID[Compendium.pf2e.actions.Item.actionTarget1000]</p>",
+        "<p data-atlas-source-section=\"999\">Feature introduction.</p><p>@Embed[Compendium.pf2e.actions.Item.actionTarget1000 inline]</p><p>@UUID[Compendium.pf2e.actions.Item.actionTarget1000]</p>",
     );
     let detail = f.worker.record_detail("spells:hostSpell1000000").unwrap();
     let (html, bindings) = body(&detail);
+    let rendering = detail
+        .presentation
+        .content
+        .iter()
+        .find(|field| field.role == "description")
+        .unwrap()
+        .section_rendering
+        .as_ref()
+        .unwrap();
+    assert!(!html.contains("data-atlas-source-section"));
+    assert!(!rendering.html.contains("999"));
+    assert!(
+        rendering
+            .html
+            .contains("<h2 data-atlas-source-section=\"0\">")
+    );
+    assert!(
+        rendering
+            .html
+            .contains("<p data-atlas-source-section=\"0\">Host ends.</p>")
+    );
+    // Included target prose remains unannotated, retaining its original namespaces
+    // and interaction/reference binding identities. No extra source read occurs.
+    assert!(rendering.html.contains("<p>Feature introduction.</p>"));
+    assert_eq!(rendering.html.matches("Feature introduction.").count(), 2);
+    assert_eq!(rendering.html.matches("Trigger: enemy moves.").count(), 2);
+    assert_eq!(
+        rendering.html.matches("data-atlas-inclusion=").count(),
+        html.matches("data-atlas-inclusion=").count()
+    );
+
     assert_eq!(html.matches("Feature introduction.").count(), 2, "{html}");
     assert_eq!(html.matches("Trigger: enemy moves.").count(), 2);
     assert_eq!(html.matches("Test Source").count(), 1);

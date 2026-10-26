@@ -13,6 +13,10 @@ import { recordDestination } from "../../app/destinations";
 import { navigateDestination } from "../../app/navigation";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
 import { recordReadingIdentity, useRetainedRecord } from "../records/useRetainedRecord";
+import {
+  SourceSectionSelectionContext,
+  type SourceSectionSelection,
+} from "../records/SourceSectionSelectionContext";
 
 export type SimilaritySourceTarget = {
   part: SimilarityPartView;
@@ -34,12 +38,14 @@ export function SimilaritySourceDocument({
   generation,
   target,
   active,
+  selection = null,
   onReloadSections,
 }: {
   seed: SimilaritySeed;
   generation: string | null;
   target: SimilaritySourceTarget;
   active: boolean;
+  selection?: SourceSectionSelection | null;
   onReloadSections: () => void;
 }) {
   return seed.kind === "record" ? (
@@ -48,6 +54,7 @@ export function SimilaritySourceDocument({
       recordKey={seed.record_key}
       generation={generation}
       target={target}
+      selection={selection}
       active={active}
       onReloadSections={onReloadSections}
     />
@@ -57,6 +64,7 @@ export function SimilaritySourceDocument({
       traitKey={seed.trait_key}
       generation={generation}
       target={target}
+      selection={selection}
       active={active}
       onReloadSections={onReloadSections}
     />
@@ -68,12 +76,14 @@ function RecordSourceDocument({
   generation,
   target,
   active,
+  selection = null,
   onReloadSections,
 }: {
   recordKey: string;
   generation: string | null;
   target: SimilaritySourceTarget;
   active: boolean;
+  selection?: SourceSectionSelection | null;
   onReloadSections: () => void;
 }) {
   const reading = useReferenceReading(
@@ -122,28 +132,37 @@ function RecordSourceDocument({
   }, [target, active, reading.loading, reading.detail, reading.request, recordKey]);
   return (
     <div ref={root} className="search-settings__record-source">
-      <ReferenceReader
-        reading={
-          isArtifactGenerationChanged(reading.error)
-            ? { ...reading, retry: onReloadSections }
-            : reading
+      <SourceSectionSelectionContext
+        value={
+          reading.detail?.artifact_generation === generation &&
+          reading.detail.selected.record_key === recordKey
+            ? { seed: { kind: "record", record_key: recordKey }, generation, selection }
+            : null
         }
-        retryLabel={
-          isArtifactGenerationChanged(reading.error) ? "Reload sections" : "Retry"
-        }
-        selectedRecordKey={recordKey}
-        active={active}
-        label="Document"
-        returnToSelectionLabel="Whole document"
-        showRelated={false}
-        status={
-          reading.detail && (
-            <span className="search-settings__source-context">
-              {reading.detail.record.title}
-            </span>
-          )
-        }
-      />
+      >
+        <ReferenceReader
+          reading={
+            isArtifactGenerationChanged(reading.error)
+              ? { ...reading, retry: onReloadSections }
+              : reading
+          }
+          retryLabel={
+            isArtifactGenerationChanged(reading.error) ? "Reload sections" : "Retry"
+          }
+          selectedRecordKey={recordKey}
+          active={active}
+          label="Document"
+          returnToSelectionLabel="Whole document"
+          showRelated={false}
+          status={
+            reading.detail && (
+              <span className="search-settings__source-context">
+                {reading.detail.record.title}
+              </span>
+            )
+          }
+        />
+      </SourceSectionSelectionContext>
     </div>
   );
 }
@@ -153,12 +172,14 @@ function TraitSourceDocument({
   generation,
   target,
   active,
+  selection = null,
   onReloadSections,
 }: {
   traitKey: string;
   generation: string | null;
   target: SimilaritySourceTarget;
   active: boolean;
+  selection?: SourceSectionSelection | null;
   onReloadSections: () => void;
 }) {
   const query = useQuery({
@@ -229,11 +250,25 @@ function TraitSourceDocument({
           />
           {query.isFetching && <Spin delay={500} size="small" />}
           {detail.content ? (
-            <PreparedContentBody
-              body={detail.content.body}
-              references={detail.content.references}
-              onReference={preview.open}
-            />
+            <SourceSectionSelectionContext
+              value={
+                detail.artifact_generation === generation
+                  ? {
+                      seed: { kind: "trait", trait_key: traitKey },
+                      generation,
+                      selection,
+                    }
+                  : null
+              }
+            >
+              <PreparedContentBody
+                body={detail.content.body}
+                sourceLocation={{ trait_key: traitKey }}
+                sectionRendering={detail.content.section_rendering}
+                references={detail.content.references}
+                onReference={preview.open}
+              />
+            </SourceSectionSelectionContext>
           ) : (
             <Alert
               type="info"

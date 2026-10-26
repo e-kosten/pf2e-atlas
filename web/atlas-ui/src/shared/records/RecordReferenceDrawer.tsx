@@ -12,6 +12,7 @@ import type {
 import { usePreviewContentFocus } from "./usePreviewContentFocus";
 import { RecordPresentationIdentity } from "./RecordPresentation";
 import type { RecordNavigationView } from "../../generated/atlas";
+import { SourceSectionSelectionContext } from "./SourceSectionSelectionContext";
 const getPopupContainer = (trigger?: HTMLElement) =>
   trigger?.closest<HTMLElement>(".record-preview-drawer-root") ?? document.body;
 export function RecordReferenceDrawer({
@@ -101,7 +102,9 @@ export function RecordReferenceDrawer({
       push={false}
       className="record-preview-drawer"
       drawerRender={(panel) => (
-        <ConfigProvider getPopupContainer={getPopupContainer}>{panel}</ConfigProvider>
+        <SourceSectionSelectionContext value={null}>
+          <ConfigProvider getPopupContainer={getPopupContainer}>{panel}</ConfigProvider>
+        </SourceSectionSelectionContext>
       )}
       closable={false}
       open={open}

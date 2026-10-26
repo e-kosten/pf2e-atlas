@@ -32,8 +32,8 @@ Unbuilt catalog entries are never offered as choices in the comparison UI.
 `FilterControls` owns the input row and its trailing control slot; the row wraps
 when space requires it without covering the existing `Input.Search` control.
 The settings icon has a normal-sized button target, accessible Search settings
-name and a tooltip summarizing effective values. A customized marker has a text
-equivalent. Model and method controls live inside the shared dialog; ordinary
+name and a tooltip summarizing effective values. Model and method controls live
+inside the shared dialog; ordinary
 filters and result order remain in the main search flow.
 Search without committed criteria shows “Search or choose filters.”; committed
 text, a Similar seed or a non-null predicate uses the shared executable-search
