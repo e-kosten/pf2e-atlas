@@ -61,7 +61,11 @@ export function SearchMatchContext({
                   {section.label}
                 </Typography.Link>
                 {section.snippet && (
-                  <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
+                  <Typography.Paragraph
+                    type="secondary"
+                    ellipsis={{ rows: 2 }}
+                    style={{ margin: 0 }}
+                  >
                     {section.snippet}
                   </Typography.Paragraph>
                 )}
