@@ -676,3 +676,187 @@ fn relationship_predicate(
         expression: atlas_domain::QueryExpression::Relationship { relationship },
     }
 }
+
+fn trait_search_fixture(semantic: bool, reference_count: u32) -> FixtureWorker {
+    let executor = RetrievalExecutor::from_test_fixture_factory(2, 16, move || {
+        let mut fixture = input(
+            (0..=reference_count).map(|i| record("items", "Item", json!({
+                "_id": format!("{i:016}"), "name": format!("Record {i}"), "type": "effect",
+                "system": {"level": {"value": i}, "description": {"value":
+                    if i < reference_count { "@Localize[PF2E.TraitAgile] @Localize[PF2E.TraitAgile]" } else { "Unrelated" }
+                }}
+            }))).collect(), semantic,
+        );
+        let key = atlas_domain::TraitKey::new("agile").unwrap();
+        fixture.traits.push(atlas_search::TraitDefinition {
+            key: key.clone(),
+            label: "Agile".into(),
+            label_key: None,
+            description_key: None,
+            description_html: None,
+            authored_markup: None,
+            prepared: None,
+            catalogs: vec![],
+            source_locations: vec![],
+            source_revision: fixture.context.source_revision.clone(),
+            indexing_locale: fixture.context.indexing_locale.clone(),
+        });
+        if semantic {
+            let mut vector = vec![0.; 768];
+            vector[0] = 1.;
+            let chunk_hash = atlas_search::test_support::hash(b"Agile\n");
+            fixture
+                .trait_vectors
+                .push(atlas_search::test_support::TraitVectorInput {
+                    key,
+                    profile_id: atlas_domain::SearchProfileId::new("bge-base"),
+                    input_hash: atlas_search::test_support::hash(
+                        format!("trait-definition-centroid/v1:{chunk_hash}").as_bytes(),
+                    ),
+                    vector: vector.clone(),
+                    chunks: vec![atlas_search::test_support::TraitSeedChunk {
+                        input: "Agile\n".into(),
+                        input_hash: chunk_hash.clone(),
+                        token_count: 2,
+                        vector,
+                        address: atlas_domain::SourcePassageAddress::PlainSection {
+                            source_text_sha256: chunk_hash,
+                            selection_version: "trait-definition-centroid/v1".into(),
+                            section_ordinal: 0,
+                            label: Some("Agile".into()),
+                            chunk_bytes: atlas_domain::SourceByteRange { start: 0, end: 6 },
+                        },
+                    }],
+                });
+        }
+        Ok(open_input_fixture(fixture)?)
+    });
+    fixture_worker_with_executor(executor)
+}
+
+#[test]
+fn trait_reference_search_deduplicates_roots_and_filters_before_paging() {
+    let fixture = trait_search_fixture(false, 3);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let mut search = request(
+        SearchCriteria::TraitReferences {
+            trait_key: "trait:agile".into(),
+            query: None,
+            filter: None,
+        },
+        1,
+    );
+    let first = fixture
+        .worker
+        .search_page(search.clone(), &execution)
+        .unwrap();
+    assert_eq!(
+        first.mode,
+        SearchModeSummary::TraitReferences {
+            trait_key: "trait:agile".into(),
+            title: "Agile".into(),
+        }
+    );
+    assert_eq!(first.page.total, 3);
+    search.page.number = 3;
+    let last = fixture
+        .worker
+        .search_page(search.clone(), &execution)
+        .unwrap();
+    assert_eq!(last.rows[0].record.record_key, "items:0000000000000002");
+    assert!(!last.page.has_more);
+    search.page.number = 1;
+    search.criteria = SearchCriteria::TraitReferences {
+        trait_key: "trait:agile".into(),
+        query: None,
+        filter: Some(levels_at_least_two()),
+    };
+    let filtered = fixture.worker.search_page(search, &execution).unwrap();
+    assert_eq!(filtered.page.total, 1);
+    assert_eq!(filtered.rows[0].record.record_key, "items:0000000000000002");
+}
+
+#[test]
+fn similar_trait_search_uses_persisted_seed_and_normal_filters() {
+    let fixture = trait_search_fixture(true, 3);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let mut search = request(
+        SearchCriteria::SimilarTraits {
+            seed_trait_key: "trait:agile".into(),
+            filter: None,
+        },
+        1,
+    );
+    let first = fixture
+        .worker
+        .search_page(search.clone(), &execution)
+        .unwrap();
+    assert_eq!(
+        first.mode,
+        SearchModeSummary::SimilarTraits {
+            trait_key: "trait:agile".into(),
+            title: "Agile".into(),
+        }
+    );
+    assert!(!first.rows.is_empty());
+    assert!(first.coverage.is_some());
+    search.criteria = SearchCriteria::SimilarTraits {
+        seed_trait_key: "trait:agile".into(),
+        filter: Some(
+            serde_json::from_value(json!({
+                "kind": "boolean_constant", "value": false
+            }))
+            .unwrap(),
+        ),
+    };
+    assert!(
+        fixture
+            .worker
+            .search_page(search, &execution)
+            .unwrap()
+            .rows
+            .is_empty()
+    );
+}
+
+#[test]
+fn trait_reference_search_reaches_records_beyond_association_preview_limits() {
+    let fixture = trait_search_fixture(false, 131);
+    let result = fixture
+        .worker
+        .search_page(
+            request(
+                SearchCriteria::TraitReferences {
+                    trait_key: "trait:agile".into(),
+                    query: None,
+                    filter: None,
+                },
+                131,
+            ),
+            &crate::ReadExecutionContext::uncancellable(),
+        )
+        .unwrap();
+    assert_eq!(result.page.total, 131);
+    assert_eq!(result.rows[0].record.record_key, "items:0000000000000099");
+    assert!(!result.page.has_more);
+}
+
+#[test]
+fn trait_reference_text_search_rejects_stale_generation_before_query_inference() {
+    let fixture = trait_search_fixture(true, 3);
+    let mut search = request(
+        SearchCriteria::TraitReferences {
+            trait_key: "trait:agile".into(),
+            query: Some("query needing unavailable model assets".into()),
+            filter: None,
+        },
+        1,
+    );
+    search.expected_artifact_generation = Some("retired-generation".into());
+    let error = fixture
+        .worker
+        .search_page(search, &crate::ReadExecutionContext::uncancellable())
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
+}

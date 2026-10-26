@@ -84,6 +84,15 @@ are thin consumers. The browser reuses shared reading/navigation behavior and An
 controls, retaining content, focus and scroll during same-identity refreshes and
 checking artifact generation before association navigation.
 
+Primary Search accepts a typed trait seed for Similar and a typed trait-reference
+scope. Similar uses the same persisted seed and filtered record ranking as the
+trait page. Trait-reference searches resolve the complete distinct root-record
+scope from indexed reference evidence before applying normal search predicates,
+ordering and paging. They never derive eligibility from a capped preview page.
+A reference inside a contained source entry scopes its owning record without
+promoting that entry's trait membership to the owner. Trait membership links
+continue to use the normal exact root-trait predicate.
+
 Existing record-key APIs, authored trait identifiers and trait filter predicates
 keep their meaning. This is an additional source-backed reference identity, not
 a second family schema, compatibility record model or generic localization store.

@@ -168,11 +168,15 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
 .reference-result__traits > span {
   margin: 0;
 }
-.reference-result__matches {
+.reference-result__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-control);
   grid-column: 2;
   grid-row: 2;
   align-self: center;
-  margin-right: 12px;
+  margin-inline-end: 12px;
 }
 .reference-match-list {
   display: flex;

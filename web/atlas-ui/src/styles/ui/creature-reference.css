@@ -14,7 +14,8 @@
   .detail-panel:has(.creature-reference:not(.creature-reference--caster)) {
   max-width: 70rem;
 }
-.record-view__pane--creature > .record-reference__header {
+.record-view__pane--creature > .record-reference__header,
+.record-workspace:has(.creature-reference) > .record-reference__header {
   border: 0;
   padding-block-end: 0;
 }

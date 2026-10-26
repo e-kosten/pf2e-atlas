@@ -181,6 +181,25 @@ impl SqliteIndexReader {
         }
         Ok((entries, total))
     }
+    /// Complete distinct root eligibility, independent of occurrence preview limits.
+    pub fn trait_reference_record_keys(
+        &self,
+        key: &TraitKey,
+    ) -> Result<Vec<RecordKey>, IndexError> {
+        let mut statement = self.native()?.prepare(
+            "SELECT DISTINCT record_key FROM trait_references WHERE trait_key=?1 ORDER BY record_key",
+        )?;
+        let keys = statement
+            .query_map([key.to_string()], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        keys.into_iter()
+            .map(|key| {
+                key.parse().map_err(|error| {
+                    IndexError::Invalid(format!("invalid trait reference key: {error}"))
+                })
+            })
+            .collect()
+    }
     pub fn trait_references(
         &self,
         key: &TraitKey,
