@@ -478,6 +478,22 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               spellError={
                 mutations.errorKind === "spell" ? mutations.errorMessage : undefined
               }
+              onAbilityState={async (ability, action) => {
+                const participant = selected;
+                if (!participant || !encounter.data) return false;
+                const result = await mutations.run({
+                  kind: "ability-state",
+                  request: {
+                    expected_encounter_revision: encounter.data.revision,
+                    expected_participant_revision: participant.revision,
+                    participant_key: participant.participant_key,
+                    navigation: ability.navigation,
+                    rule_ordinal: ability.rule_ordinal,
+                    action,
+                  },
+                });
+                return result.active && result.refreshed;
+              }}
               onSpellAction={async (participant, action, expectedRevision) => {
                 try {
                   const result = await mutations.run({

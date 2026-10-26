@@ -199,14 +199,20 @@ impl AtlasAppService {
             return Ok(mutation(receipt));
         }
         let snapshot = snapshot(self, encounter_ref, request.expected_encounter_revision)?;
-        workflow::condition_in_snapshot(&snapshot, participant_key, condition_id)?;
+        let selected = workflow::condition_in_snapshot(&snapshot, participant_key, condition_id)?;
         let participant = snapshot
             .participants
             .iter()
             .find(|p| p.participant_key == participant_key)
             .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?;
+        let subject = if selected.condition_key.is_none() {
+            workflow::ConditionSubjectContext::from_saved(participant)
+        } else {
+            workflow::condition_subject_context(self, participant)?
+        };
         let consequences = plan_condition_change(
             participant,
+            &subject.source_conditions,
             ConditionEventChange::Remove {
                 participant_key: participant_key.into(),
                 condition_id,
@@ -223,7 +229,7 @@ impl AtlasAppService {
                 request_id: request.request_id,
                 intent,
                 expected_revision: request.expected_encounter_revision,
-                reference_revision: None,
+                reference_revision: subject.reference_revision,
                 consequences,
                 prone_prevented: None,
                 persistent_precedence: None,
@@ -361,14 +367,23 @@ fn prepare_drained(
 
     let mut after = participant.clone();
     after.level_override = Some(request.level);
+    let subject = workflow::condition_subject_context(service, participant)?;
     let preview = ConditionHpChangeView {
         current_before: participant.current_hp,
         current_after: changes
             .participant_changes
             .first()
             .and_then(|change| change.current_hp),
-        maximum_before: super::rules::effective_hp_maximum(participant, participant.level_override),
-        maximum_after: super::rules::effective_hp_maximum(&after, Some(request.level)),
+        maximum_before: super::rules::effective_hp_maximum(
+            participant,
+            &subject.source_conditions,
+            participant.level_override,
+        ),
+        maximum_after: super::rules::effective_hp_maximum(
+            &after,
+            &subject.source_conditions,
+            Some(request.level),
+        ),
     };
     Ok((snapshot.encounter.encounter_key, changes, preview))
 }
@@ -508,6 +523,7 @@ fn prepare_add(
     )?;
     let mut consequences = plan_condition_change(
         &subject.participant,
+        &subject.source_conditions,
         change,
         request.event_intent == ConditionEventIntentView::Apply,
         prone_prevented.is_some(),
@@ -647,6 +663,7 @@ fn prepare_update(
     )?;
     let mut consequences = plan_condition_change(
         &subject.participant,
+        &subject.source_conditions,
         change,
         request.event_intent == ConditionEventIntentView::Apply,
         prone_prevented.is_some(),

@@ -1759,6 +1759,15 @@ impl AtlasWebService for MockService {
             reminders: vec![],
         })
     }
+    fn update_encounter_ability_state(
+        &self,
+        encounter_ref: &str,
+        _request: atlas_app_model::UpdateEncounterAbilityStateRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
+        })
+    }
     fn update_turn_resources(
         &self,
         encounter_ref: &str,
@@ -2067,6 +2076,7 @@ fn encounter_participant(
     include_condition: bool,
 ) -> EncounterParticipantView {
     EncounterParticipantView {
+        ability_states: None,
         turn_resources: None,
         knockout_options: vec![],
         knockout_unavailable_reason: None,

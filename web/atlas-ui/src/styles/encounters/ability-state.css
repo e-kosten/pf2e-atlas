@@ -1,0 +1,55 @@
+.encounter-ability-controls {
+  display: inline-grid;
+  gap: var(--space-control);
+  vertical-align: middle;
+  font-size: 1rem;
+  font-weight: normal;
+}
+
+.encounter-ability-controls__remaining {
+  font-variant-numeric: tabular-nums;
+}
+
+.embedded-ability-reading__usage {
+  margin-block-start: var(--space-control);
+}
+
+.encounter-ability-controls__choice {
+  width: max-content;
+  max-width: 100%;
+  font-size: inherit;
+}
+
+.encounter-ability-controls__choice-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-control);
+}
+
+.encounter-ability-controls__use {
+  min-inline-size: 5rem;
+}
+
+.encounter-ability-states {
+  display: grid;
+  gap: var(--space-control);
+  min-width: 0;
+}
+
+.encounter-ability-states h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.encounter-ability-states__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+  min-width: 0;
+}
+
+.encounter-ability-states__name {
+  font-size: 1rem;
+  font-weight: 600;
+}
