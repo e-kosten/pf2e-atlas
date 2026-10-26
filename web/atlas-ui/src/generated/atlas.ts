@@ -386,3 +386,6 @@ export type { ContentRollComponentView } from "../../../../crates/atlas-app-mode
 export type { RollContentRequest } from "../../../../crates/atlas-app-model/bindings/RollContentRequest";
 export type { ContentRollResultView } from "../../../../crates/atlas-app-model/bindings/ContentRollResultView";
 export type { ContentRollComponentResultView } from "../../../../crates/atlas-app-model/bindings/ContentRollComponentResultView";
+
+export type { ContentRollPresentationView } from "../../../../crates/atlas-app-model/bindings/ContentRollPresentationView";
+export type { RollUnitView } from "../../../../crates/atlas-app-model/bindings/RollUnitView";

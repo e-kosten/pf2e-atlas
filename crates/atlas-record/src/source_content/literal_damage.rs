@@ -8,6 +8,14 @@ pub struct LiteralDamageComponent {
     pub label: String,
     pub has_dice: bool,
     pub expression: atlas_dice::RollPreviewExpression,
+    pub kind: LiteralDamageKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LiteralDamageKind {
+    Damage,
+    Healing,
+    DamageOrHealing,
 }
 
 pub fn literal_damage(formula: &str) -> Option<Vec<LiteralDamageComponent>> {
@@ -171,6 +179,13 @@ fn component(value: &str) -> Option<LiteralDamageComponent> {
         label: label.join(" "),
         has_dice,
         expression,
+        kind: if healing && tags.contains(&"damage") {
+            LiteralDamageKind::DamageOrHealing
+        } else if healing {
+            LiteralDamageKind::Healing
+        } else {
+            LiteralDamageKind::Damage
+        },
     })
 }
 

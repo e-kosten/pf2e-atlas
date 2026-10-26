@@ -77,7 +77,10 @@
   gap: 6px;
   white-space: nowrap;
 }
-.atlas-roll__total {
+.atlas-roll__quantity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-width: 4ch;
 }
 

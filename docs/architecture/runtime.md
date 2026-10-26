@@ -696,3 +696,10 @@ Derived action references back to the containing root action retain their verifi
 destination in the app projection and carry a self-action fact. Reader surfaces
 render those labels without navigation, so a source command such as Seek's
 `[[/act seek]]{Perception}` cannot reopen the current action as another reference.
+
+Content-roll heading and unit roles are transient app-service projections over the
+checked literal components. Authored purpose captions remain verbatim; exact
+English time-unit captions supply Duration plus singular/plural unit labels.
+Damage/healing categories come from parsed source tags, not display-string tests.
+The browser renders these facts and binds each dialog name to its visible heading.
+These presentation changes require no artifact re-preparation or locale changes.

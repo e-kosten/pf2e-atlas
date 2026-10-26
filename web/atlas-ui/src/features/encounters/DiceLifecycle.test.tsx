@@ -116,7 +116,7 @@ it("moves keyboard focus into a damage result and restores its exact opener", as
   act(() => trigger.focus());
   // jsdom does not synthesize the native button click from Enter; send that activation.
   fireEvent.click(trigger);
-  const popup = await screen.findByRole("dialog", { name: "Jaws damage" });
+  const popup = await screen.findByRole("dialog", { name: "Jaws · Damage" });
   await waitFor(() => expect(popup).toHaveFocus());
   await screen.findByRole("button", { name: "Reroll" });
   expect(popup).toHaveFocus(); // Async result must not send focus back behind the popup.
@@ -151,7 +151,7 @@ it("waits for initiative controls before opening and permits cancelling a pendin
   await act(async () => resolve(options));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   fireEvent.click(trigger);
-  const popup = await screen.findByRole("dialog", { name: "Initiative" });
+  const popup = await screen.findByRole("dialog", { name: "Goblin · Initiative" });
   expect(within(popup).getByRole("combobox")).toHaveAccessibleName(
     "Goblin initiative statistic",
   );
@@ -171,7 +171,7 @@ it("moves focus into initiative controls and restores the roster opener on dismi
   const trigger = screen.getByRole("button", { name: "Goblin initiative, not rolled" });
   act(() => trigger.focus());
   fireEvent.click(trigger);
-  const popup = await screen.findByRole("dialog", { name: "Initiative" });
+  const popup = await screen.findByRole("dialog", { name: "Goblin · Initiative" });
   await waitFor(() => expect(popup).toHaveFocus());
   await within(popup).findByRole("button", { name: "Close" });
   fireEvent.keyDown(popup, { key: "Escape", code: "Escape" });

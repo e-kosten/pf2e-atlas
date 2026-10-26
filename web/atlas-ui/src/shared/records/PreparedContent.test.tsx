@@ -624,13 +624,17 @@ it("keeps fixed damage plain and retains a roll only while its exact source rema
           kind: "damage",
           formula: "1[fire]",
           options: {},
-          literal: [
-            {
-              formula: "1",
-              label: "fire damage",
-              expression: { kind: "number", value: 1 },
-            },
-          ],
+          literal: {
+            heading: "Fire damage",
+            components: [
+              {
+                formula: "1",
+                label: "fire damage",
+                unit: null,
+                expression: { kind: "number", value: 1 },
+              },
+            ],
+          },
           roll: null,
         },
       },
@@ -640,13 +644,17 @@ it("keeps fixed damage plain and retains a roll only while its exact source rema
           kind: "damage",
           formula: "1d6[fire]",
           options: {},
-          literal: [
-            {
-              formula: "1d6",
-              label: "fire damage",
-              expression: { kind: "dice", sides: [6] },
-            },
-          ],
+          literal: {
+            heading: "Fire damage",
+            components: [
+              {
+                formula: "1d6",
+                label: "fire damage",
+                unit: null,
+                expression: { kind: "dice", sides: [6] },
+              },
+            ],
+          },
           roll: request,
         },
       },
@@ -706,13 +714,17 @@ it("gives repeated inclusions of the same authored damage independent roll contr
       kind: "damage" as const,
       formula: "1d6[fire]",
       options: {},
-      literal: [
-        {
-          formula: "1d6",
-          label: "fire damage",
-          expression: { kind: "dice" as const, sides: [6] },
-        },
-      ],
+      literal: {
+        heading: "Fire damage",
+        components: [
+          {
+            formula: "1d6",
+            label: "fire damage",
+            unit: null,
+            expression: { kind: "dice" as const, sides: [6] },
+          },
+        ],
+      },
       roll: {
         source,
         source_fingerprint: "current",
@@ -781,13 +793,17 @@ it.each(["r", "gmr", "br"])(
             command,
             arguments: "1d4 #rounds",
             options: {},
-            literal: [
-              {
-                formula: "1d4",
-                label: "rounds",
-                expression: { kind: "dice", sides: [4] },
-              },
-            ],
+            literal: {
+              heading: "Duration",
+              components: [
+                {
+                  formula: "1d4",
+                  label: "rounds",
+                  unit: { singular: "round", plural: "rounds" },
+                  expression: { kind: "dice", sides: [4] },
+                },
+              ],
+            },
             roll: request,
           },
         },
@@ -804,7 +820,7 @@ it.each(["r", "gmr", "br"])(
         .nextElementSibling,
     ).toContainElement(button);
     fireEvent.click(button);
-    expect(await screen.findByRole("status", { name: "1d4: 3" })).toBeVisible();
+    expect(await screen.findByRole("status", { name: "1d4: 3 rounds" })).toBeVisible();
     expect(roll).toHaveBeenCalledWith(request);
     roll.mockRestore();
   },

@@ -2,6 +2,7 @@
 
 mod completions;
 mod content_roll;
+mod content_roll_presentation;
 mod contextual_references;
 mod physical_labels;
 
