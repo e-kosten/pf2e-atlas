@@ -6,7 +6,7 @@ import {
 import { listDestination, listsDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Input, Select } from "antd";
+import { Button, Form, Input, Select, Typography } from "antd";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { deleteSavedList, getSavedList, updateSavedList } from "../../api/atlasApi";
@@ -96,12 +96,11 @@ export function ListEditView({ route }: ListEditViewProps) {
   return (
     <main className="list-edit-view">
       <section className="list-edit-view__header">
-        <Button
-          type="link"
+        <Typography.Link
+          className="list-edit-view__back-link"
           href={destinationHref(
             listDestination({ slug: route.slug, selectedRecordKey: null }),
           )}
-          icon={<ArrowLeft size={15} />}
           onClick={(event) => {
             if (!isPrimaryActivation(event)) return;
             event.preventDefault();
@@ -113,8 +112,9 @@ export function ListEditView({ route }: ListEditViewProps) {
             );
           }}
         >
+          <ArrowLeft size={14} aria-hidden="true" />
           Back to list
-        </Button>
+        </Typography.Link>
         <div>
           <h2>Edit list</h2>
           {list.data && <p>{list.data.list.name}</p>}
@@ -145,8 +145,9 @@ export function ListEditView({ route }: ListEditViewProps) {
               <Form.Item
                 label="Name"
                 name="name"
+                validateFirst
                 rules={[
-                  { required: true },
+                  { required: true, whitespace: true, message: "Name is required." },
                   {
                     validator: (_, value: string | undefined) =>
                       value === undefined || slugify(value).length > 0

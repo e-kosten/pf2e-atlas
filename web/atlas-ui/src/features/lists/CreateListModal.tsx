@@ -77,8 +77,9 @@ export function CreateListModal({
         <Form.Item
           label="Name"
           name="name"
+          validateFirst
           rules={[
-            { required: true },
+            { required: true, whitespace: true, message: "Name is required." },
             {
               validator: (_, value: string | undefined) =>
                 value === undefined || slugify(value).length > 0
