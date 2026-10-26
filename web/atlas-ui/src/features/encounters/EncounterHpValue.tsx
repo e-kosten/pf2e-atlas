@@ -1,5 +1,5 @@
 import { Button } from "antd";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 
 export function EncounterHpValue({
@@ -7,17 +7,22 @@ export function EncounterHpValue({
   value,
   disabled,
   addLabel,
+  buttonRef,
   onCommit,
+  onRestoreFocus,
 }: {
   label: string;
   value?: bigint;
   disabled: boolean;
   addLabel?: string;
+  buttonRef?: RefObject<HTMLButtonElement | null>;
   onCommit: (input: string) => Promise<boolean>;
+  onRestoreFocus?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const valueButton = useRef<HTMLButtonElement>(null);
+  const trigger = buttonRef ?? valueButton;
   const editor = useRef<HTMLSpanElement>(null);
   const returnFocus = useRef(false);
   const finishEditing = () => {
@@ -27,9 +32,9 @@ export function EncounterHpValue({
   useLayoutEffect(() => {
     if (!editing && returnFocus.current) {
       returnFocus.current = false;
-      valueButton.current?.focus({ preventScroll: true });
+      trigger.current?.focus({ preventScroll: true });
     }
-  }, [editing]);
+  }, [editing, trigger]);
   return editing ? (
     <span ref={editor} className="encounter-hp-value__editor">
       <EditableCommitField
@@ -46,10 +51,20 @@ export function EncounterHpValue({
         disabled={disabled && !saving}
         readOnly={saving}
         onCommit={async (input) => {
+          const editingElement = editor.current;
+          const hadFocus = editingElement?.contains(document.activeElement);
           setSaving(true);
           try {
-            await onCommit(input);
-            finishEditing();
+            const refreshed = await onCommit(input);
+            if (editingElement?.isConnected) {
+              finishEditing();
+            } else if (
+              refreshed &&
+              hadFocus &&
+              document.activeElement === document.body
+            ) {
+              onRestoreFocus?.();
+            }
           } finally {
             setSaving(false);
           }
@@ -58,7 +73,7 @@ export function EncounterHpValue({
     </span>
   ) : (
     <Button
-      ref={valueButton}
+      ref={trigger}
       size="small"
       color="default"
       variant={addLabel ? "outlined" : "filled"}
