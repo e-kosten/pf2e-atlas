@@ -716,8 +716,8 @@ impl Projection<'_> {
 
     fn action_markup(&mut self, path: &str, value: &str) -> String {
         let (glyph, label) = match value.trim() {
-            "F" | "free" | "0" => (Some("free_action"), "free action"),
-            "R" | "reaction" => (Some("reaction"), "reaction"),
+            "F" | "f" | "free" | "0" => (Some("free_action"), "free action"),
+            "R" | "r" | "reaction" => (Some("reaction"), "reaction"),
             "1" | "A" | "a" => (Some("one_action"), "one action"),
             "2" | "D" | "d" => (Some("two_actions"), "two actions"),
             "3" | "T" | "t" => (Some("three_actions"), "three actions"),

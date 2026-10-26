@@ -48,6 +48,10 @@ ingesting translation-module overlays. Remaining localization comparison covers
 unobserved options, malformed input and runtime-specific behavior, rather than
 the previously omitted English catalog files.
 
+PF2e action-font spans recognize lowercase `f` and `r` as aliases of `F` and `R`,
+matching the pinned font. Preparation emits the existing free-action/reaction
+attributes and readable labels; unknown values retain their diagnostics.
+
 ## Completion and boundaries
 
 Produce a bounded discrepancy report and regression fixtures for any accepted
