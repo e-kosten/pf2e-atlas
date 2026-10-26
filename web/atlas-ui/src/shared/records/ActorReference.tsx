@@ -741,7 +741,8 @@ export function ActorActivity({
   onReference,
   selected = false,
   headingActions,
-  stateControls,
+  activationControls,
+  hideFrequency = false,
   rollControls,
   hideCost = false,
   inline = false,
@@ -752,7 +753,8 @@ export function ActorActivity({
   onReference: RecordReferenceHandler;
   selected?: boolean;
   headingActions?: React.ReactNode;
-  stateControls?: React.ReactNode;
+  activationControls?: React.ReactNode;
+  hideFrequency?: boolean;
   rollControls?: React.ReactNode;
   hideCost?: boolean;
   inline?: boolean;
@@ -803,7 +805,7 @@ export function ActorActivity({
                 ) : (
                   activity.title
                 )}{" "}
-                {activity.action_cost.state === "value" && (
+                {!activationControls && activity.action_cost.state === "value" && (
                   <ActionCost fact={activity.action_cost} />
                 )}
               </h4>
@@ -830,7 +832,16 @@ export function ActorActivity({
               ) : (
                 <strong>{activity.title}</strong>
               ))}
+            {inline && activationControls && (
+              <div className="actor-activity__activation">
+                {activity.action_cost.state === "value" && (
+                  <ActionCost fact={activity.action_cost} />
+                )}
+                {activationControls}
+              </div>
+            )}
             {headingActions}
+            {!inline && activationControls}
             {activity.kind === "strike" && activity.is_ranged.state === "value" && (
               <span className="actor-activity__usage">
                 {activity.is_ranged.value ? "Ranged" : "Melee"}
@@ -849,7 +860,6 @@ export function ActorActivity({
           )}
         </div>
       )}
-      {stateControls}
       <div className="actor-activity__facts">
         {activity.first_level_only?.value === true && (
           <FactRow label="Selection">At 1st level only</FactRow>
@@ -898,7 +908,7 @@ export function ActorActivity({
         ) : (
           <FactLine label="Duration" fact={activity.effect_duration} />
         )}
-        {!stateControls &&
+        {!hideFrequency &&
           activity.frequency.state !== "missing" &&
           activity.frequency.state !== "not_applicable" && (
             <FactLine

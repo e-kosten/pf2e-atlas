@@ -24,7 +24,8 @@ fn fixture_with_drained(initial_drained: bool) -> (AtlasAppService, FixtureArtif
                     {"label":"Clumsy","value":"Compendium.pf2e.conditionitems.Item.Clumsy"},
                     {"label":"Drained","value":"Compendium.pf2e.conditionitems.Item.Drained"}]},
                 {"key":"GrantItem","inMemoryOnly":true,"uuid":"{item|flags.system.rulesSelections.incurableCurse}"}]}},
-            {"_id":"eeeeeeeeeeeeeeee","name":"Turn ability","type":"action","system":{"frequency":{"max":1,"per":"turn"},"rules":[]}}
+            {"_id":"eeeeeeeeeeeeeeee","name":"Turn ability","type":"action","system":{"frequency":{"max":1,"per":"turn"},"rules":[]}},
+            {"_id":"gggggggggggggggg","name":"Round ability","type":"action","system":{"frequency":{"max":1,"per":"round"},"rules":[]}}
         ]
     });
     if initial_drained {
@@ -260,6 +261,93 @@ fn advancing_initiative_refreshes_turn_uses_and_preserves_daily_expenditure() {
     let after = service.encounter(&key).unwrap();
     assert_eq!(remaining(&after, "Turn ability"), 1);
     assert_eq!(remaining(&after, "Daily ability"), 2);
+}
+
+#[test]
+fn round_uses_stay_spent_until_the_owners_next_turn() {
+    let (service, _artifact, key) = fixture();
+    service
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: key.clone(),
+            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+            quantity: 1,
+            participant_variant: None,
+            initiative: Some(10),
+        })
+        .unwrap();
+    let advance = |id: &str| {
+        let detail = service.encounter(&key).unwrap();
+        service
+            .advance_encounter_turn(
+                &key,
+                AdvanceEncounterTurnRequest {
+                    request_id: id.into(),
+                    expected_revision: detail.revision,
+                },
+            )
+            .unwrap();
+    };
+    advance("start-owner");
+    let initial = service.encounter(&key).unwrap();
+    let owner = initial.participants[0].participant_key.clone();
+    assert_eq!(
+        initial.current_turn_participant_key.as_deref(),
+        Some(owner.as_str())
+    );
+    service
+        .update_encounter_ability_state(
+            &key,
+            request(
+                &initial,
+                "Round ability",
+                "spend-round-use",
+                EncounterAbilityStateAction::SpendUse,
+            ),
+        )
+        .unwrap();
+    assert_eq!(
+        remaining(&service.encounter(&key).unwrap(), "Round ability"),
+        0
+    );
+    advance("other-turn");
+    let other_turn = service.encounter(&key).unwrap();
+    assert_ne!(
+        other_turn.current_turn_participant_key.as_deref(),
+        Some(owner.as_str())
+    );
+    assert_eq!(remaining(&other_turn, "Round ability"), 0);
+    advance("next-owner-turn");
+    let owner_turn = service.encounter(&key).unwrap();
+    assert_eq!(
+        owner_turn.current_turn_participant_key.as_deref(),
+        Some(owner.as_str())
+    );
+    assert_eq!(remaining(&owner_turn, "Round ability"), 1);
+    // Retrying the same transition must not refill a use spent afterward.
+    service
+        .update_encounter_ability_state(
+            &key,
+            request(
+                &owner_turn,
+                "Round ability",
+                "spend-next-round-use",
+                EncounterAbilityStateAction::SpendUse,
+            ),
+        )
+        .unwrap();
+    service
+        .advance_encounter_turn(
+            &key,
+            AdvanceEncounterTurnRequest {
+                request_id: "next-owner-turn".into(),
+                expected_revision: other_turn.revision,
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        remaining(&service.encounter(&key).unwrap(), "Round ability"),
+        0
+    );
 }
 
 #[test]
