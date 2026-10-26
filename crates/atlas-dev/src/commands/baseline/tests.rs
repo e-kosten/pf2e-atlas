@@ -158,9 +158,11 @@ esac
             "echo '{\"status\":\"ok\",\"data\":{}}'"
         },
         if failure == "search" {
-            "echo '{\"status\":\"ok\",\"data\":{\"results\":[]}}'"
-        } else {
+            "echo '{\"status\":\"ok\",\"data\":{\"page\":{\"count\":0},\"rows\":[]}}'"
+        } else if failure == "retired_search_format" {
             "echo '{\"status\":\"ok\",\"data\":{\"results\":[{}]}}'"
+        } else {
+            "echo '{\"status\":\"ok\",\"data\":{\"page\":{\"count\":1},\"rows\":[{\"record\":{\"record_key\":\"feats-srd:healing\"},\"matches\":[]}]}}'"
         }
     );
     fs::write(path, script).unwrap();
@@ -171,7 +173,7 @@ esac
 fn validation_requires_deep_success_and_nonempty_results_for_every_profile() {
     let temp = tempfile::tempdir().unwrap();
     let executable = temp.path().join("atlas");
-    for failure in ["deep", "search", ""] {
+    for failure in ["deep", "search", "retired_search_format", ""] {
         fake_atlas(&executable, failure);
         let result = checks::validate(
             &executable,
@@ -180,7 +182,13 @@ fn validation_requires_deep_success_and_nonempty_results_for_every_profile() {
             temp.path(),
         );
         if failure.is_empty() {
-            assert_eq!(result.unwrap()["searches"].as_array().unwrap().len(), 2);
+            assert_eq!(
+                result.unwrap()["searches"],
+                json!([
+                    {"profile":"one","result_count":1},
+                    {"profile":"two","result_count":1}
+                ])
+            );
         } else {
             assert!(result.is_err());
         }
