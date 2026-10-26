@@ -346,8 +346,9 @@ per-field/per-marker body reads. Reader connections stay on one generation while
 the writer atomically publishes later artifacts.
 
 App-service search pages reuse browse, text and stored-vector Similar retrieval.
-Similar mode carries the exact root seed and canonical filters, and returns a
-body-free seed summary beside bounded candidate pages. It adds no ranking lane or
+Record Similar carries the exact root seed and canonical filters, and returns a
+body-free seed summary beside bounded candidate pages. Trait Similar carries its
+typed trait key and projected label through the same search-page workflow. It adds no ranking lane or
 query embedding. Every request supplies its complete criteria, page and optional
 expected artifact generation. The generation check precedes embedding and ranking;
 a mismatch returns `ArtifactGenerationChanged` with HTTP409 and expected/actual
