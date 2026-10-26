@@ -33,6 +33,7 @@ impl AtlasAppService {
                                 html: prepared.html,
                                 controls: crate::prepared_content::content_controls(
                                     &prepared.interactions,
+                                    None,
                                 ),
                             },
                             references: prepared

@@ -1471,3 +1471,12 @@ export async function previewEncounterDifficulty(
     { method: "POST", body: jsonBody(request) },
   );
 }
+
+export function rollContentDamage(
+  request: import("../generated/atlas").RollContentDamageRequest,
+): Promise<import("../generated/atlas").ContentDamageRollView> {
+  return atlasFetch("/api/rolls/content-damage", {
+    method: "POST",
+    body: jsonBody(request),
+  });
+}

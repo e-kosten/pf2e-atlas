@@ -186,9 +186,16 @@ remain visible with their source diagnostic.
 Prepared unresolved references preserve an explicit authored label or a qualified
 authored root name; opaque UUIDs display as unavailable. Their exact authored
 targets and unresolved status remain in relationship evidence and diagnostics.
-The content interpretation identity is `foundry-content/v10`; older prepared
+The content interpretation identity is `foundry-content/v11`; older prepared
 content requires re-preparation even when the physical schema is unchanged.
 Exact compatible embedding checkpoints remain reusable.
+
+Static PF2e damage-instance annotations are interpreted in atlas-record, using
+atlas-dice's pure preparation to validate bounded arithmetic without rolling.
+Readable text retains each known type/category and authored labels; an adjacent
+authored damage noun is preserved without duplication. Raw formulas/options remain
+in the existing interaction sidecar. Unsupported expressions retain their source.
+Dice preview trees are transient app projections, never persisted content ASTs.
 
 Localization preparation uses `selected-source-catalog/english-fallback/v2`.
 Its English catalog digest covers all manifest-declared English catalog paths

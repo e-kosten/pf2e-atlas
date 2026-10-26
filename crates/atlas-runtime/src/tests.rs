@@ -423,7 +423,7 @@ fn options(check: bool) -> RuntimeSetupOptions {
 
 #[test]
 fn setup_reprepares_known_old_content_policy_but_readers_remain_blocked_until_publication() {
-    for previous in ["foundry-content/v6", "foundry-content/v9"] {
+    for previous in ["foundry-content/v6", "foundry-content/v10"] {
         let directory = tempfile::tempdir().unwrap();
         let paths = paths(directory.path());
         source(&paths);
@@ -458,7 +458,7 @@ fn setup_reprepares_known_old_content_policy_but_readers_remain_blocked_until_pu
         );
         assert_eq!(
             reader.context().content_interpretation_version,
-            "foundry-content/v10"
+            "foundry-content/v11"
         );
         assert!(!paths.embedding_cache_root.exists());
     }

@@ -189,6 +189,7 @@ impl Projection<'_> {
                     audiences,
                     visible,
                     in_link,
+                    nodes.get(index + 1),
                 )
             })
             .collect()
@@ -201,6 +202,7 @@ impl Projection<'_> {
         audiences: &[String],
         visible: bool,
         in_link: bool,
+        following: Option<&ParsedNode>,
     ) -> String {
         match node {
             ParsedNode::Text { text } => {
@@ -358,7 +360,9 @@ impl Projection<'_> {
                 }
             }
             ParsedNode::ParsedLink { link } => self.link(link, path, audiences, visible, in_link),
-            ParsedNode::Foundry { node } => self.foundry(node, path, audiences, visible, in_link),
+            ParsedNode::Foundry { node } => {
+                self.foundry(node, path, audiences, visible, in_link, following)
+            }
         }
     }
 
@@ -528,6 +532,7 @@ impl Projection<'_> {
         audiences: &[String],
         visible: bool,
         in_link: bool,
+        following: Option<&ParsedNode>,
     ) -> String {
         if let ParsedMacro::Localize {
             key,
@@ -617,7 +622,22 @@ impl Projection<'_> {
                     formula: formula.clone(),
                     options: options.clone(),
                 });
-                formula.clone()
+                super::literal_damage(formula).map_or_else(
+                    || formula.clone(),
+                    |parts| {
+                        let text = parts
+                            .iter()
+                            .map(|p| if options.contains_key("shortLabel") { p.formula.clone() } else { format!("{} {}", p.formula, p.label) })
+                            .collect::<Vec<_>>()
+                            .join(" + ");
+                        // The macro supplies its type; preserve an immediately authored
+                        // damage noun rather than producing "fire damage damage".
+                        let noun_follows = matches!(following, Some(ParsedNode::Text { text }) if text.starts_with(char::is_whitespace) && text.trim_start().strip_prefix("damage").is_some_and(|tail| tail.is_empty() || !tail.starts_with(char::is_alphanumeric)));
+                        if noun_follows && !options.contains_key("shortLabel") {
+                            text.strip_suffix(" damage").unwrap_or(&text).to_owned()
+                        } else { text }
+                    },
+                )
             }
             ParsedMacro::InlineCommand {
                 command,

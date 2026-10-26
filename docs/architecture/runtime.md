@@ -672,3 +672,19 @@ compatibility, deep validation and queries run through the selected Atlas app
 executable. Explicit normal setup owns subsequent updates. Source/model caches
 remain shared, while compiler targets stay checkout-local. See
 [the contributor baseline workflow](../../CONTRIBUTING.md#reusable-development-baseline).
+
+
+### Authored damage reference rolls
+
+App-service resolves a selected source field and interaction ordinal from the
+checked record, verifies its source fingerprint, interpretation version and exact authored formula, then
+validates every supported literal instance before rolling. Only complete bounded
+static expressions with recognized options receive a roll offer. These are authored
+base-formula reference rolls: known traits/domains/roll options stay attributed
+metadata and never trigger actor synthetics. Unknown options or dynamic option
+values receive no roll offer. Mixed types
+retain separate labeled outcomes. This stateless endpoint performs no saved-state
+writes, HP changes or actor/item expression evaluation. The reader holds transient
+results, reuses them when reopening the popover, and replaces them only on explicit
+Reroll; there is no persistent roll history. The browser renders supplied previews
+and outcomes using the shared dice surface rather than parsing formulas.

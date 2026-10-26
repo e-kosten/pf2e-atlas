@@ -4,6 +4,7 @@ import { destinationHref } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { detailFixture } from "../../test/fixtures";
 import { ConfigProvider, theme } from "antd";
+import * as api from "../../api/atlasApi";
 
 it.each(["Escape", "backdrop"])(
   "dismisses source information with %s and restores its inline control",
@@ -577,3 +578,152 @@ it.each([false, true])(
     expect(edge.target).toBe(original);
   },
 );
+
+it("keeps fixed damage plain and retains a roll only while its exact source remains selected", async () => {
+  const roll = vi.spyOn(api, "rollContentDamage").mockResolvedValue({
+    components: [
+      {
+        label: "fire damage",
+        outcome: {
+          formula: "1d6",
+          total: 4,
+          expression: {
+            kind: "dice",
+            dice: [{ sides: 6, value: 4, kept: true }],
+            total: 4,
+          },
+        },
+      },
+    ],
+  });
+  const field = detailFixture("items:source", "Source", "rules:other").presentation
+    .content[0];
+  const request = {
+    source: field.locator,
+    source_fingerprint: "current",
+    content_interpretation_version: "foundry-content/v11",
+    ordinal: 1,
+    authored_formula: "1d6[fire]",
+  };
+  field.body = {
+    kind: "html",
+    inclusions: [],
+    html: '<p><span data-atlas-interaction="0">1 fire damage</span>; <span data-atlas-interaction="1">1d6 fire damage</span></p>',
+    controls: [
+      {
+        ordinal: 0,
+        control: {
+          kind: "damage",
+          formula: "1[fire]",
+          options: {},
+          literal: [
+            {
+              formula: "1",
+              label: "fire damage",
+              expression: { kind: "number", value: 1 },
+            },
+          ],
+          roll: null,
+        },
+      },
+      {
+        ordinal: 1,
+        control: {
+          kind: "damage",
+          formula: "1d6[fire]",
+          options: {},
+          literal: [
+            {
+              formula: "1d6",
+              label: "fire damage",
+              expression: { kind: "dice", sides: [6] },
+            },
+          ],
+          roll: request,
+        },
+      },
+    ],
+  };
+  const props = { content: field, onReference: vi.fn() };
+  const { rerender } = render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <PreparedContent {...props} />
+    </ConfigProvider>,
+  );
+  expect(screen.getByText("1 fire damage")).not.toHaveAttribute("role", "button");
+  fireEvent.click(screen.getByRole("button", { name: "Roll 1d6 fire damage" }));
+  await screen.findByRole("status", { name: "1d6: 4" });
+  rerender(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <PreparedContent {...props} content={structuredClone(field)} />
+    </ConfigProvider>,
+  );
+  expect(await screen.findByRole("status", { name: "1d6: 4" })).toBeVisible();
+  expect(roll).toHaveBeenCalledTimes(1);
+  const changed = structuredClone(field);
+  if (
+    changed.body.kind === "html" &&
+    changed.body.controls[1].control.kind === "damage"
+  ) {
+    changed.body.controls[1].control.roll = {
+      ...request,
+      source_fingerprint: "replacement",
+    };
+  }
+  rerender(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <PreparedContent {...props} content={changed} />
+    </ConfigProvider>,
+  );
+  expect(screen.getByRole("button", { name: "Roll 1d6 fire damage" })).toBeVisible();
+  expect(screen.queryByRole("status", { name: "1d6: 4" })).toBeNull();
+  expect(roll).toHaveBeenCalledTimes(1);
+  roll.mockRestore();
+});
+
+it("gives repeated inclusions of the same authored damage independent roll controls", () => {
+  const field = detailFixture("items:host", "Host", "rules:other").presentation
+    .content[0];
+  const source = {
+    record: "items:included",
+    embedded_path: [],
+    field: "/system/description/value",
+  };
+  const control = {
+    ordinal: 0,
+    control: {
+      kind: "damage" as const,
+      formula: "1d6[fire]",
+      options: {},
+      literal: [
+        {
+          formula: "1d6",
+          label: "fire damage",
+          expression: { kind: "dice" as const, sides: [6] },
+        },
+      ],
+      roll: {
+        source,
+        source_fingerprint: "current",
+        content_interpretation_version: "foundry-content/v11",
+        ordinal: 0,
+        authored_formula: "1d6[fire]",
+      },
+    },
+  };
+  field.body = {
+    kind: "html",
+    controls: [],
+    html: '<section data-atlas-inclusion="0"><span data-atlas-interaction="0">1d6 fire damage</span></section><section data-atlas-inclusion="1"><span data-atlas-interaction="0">1d6 fire damage</span></section>',
+    inclusions: [0, 1].map((namespace) => ({
+      namespace,
+      source,
+      controls: [control],
+      references: [],
+    })),
+  };
+  render(<PreparedContent content={field} onReference={vi.fn()} />);
+  expect(screen.getAllByRole("button", { name: "Roll 1d6 fire damage" })).toHaveLength(
+    2,
+  );
+});
