@@ -377,7 +377,9 @@ the reader lands, focuses and briefly highlights that marker while retaining the
 complete field. The marker is added only to the response after passage validation;
 stored HTML, passage hashes and artifact policy identities remain unchanged.
 Similarity coverage, section/role contributions and paired seed/result excerpts
-use this same selected-reader match context. Same-record evidence navigates through
+use this same selected-reader match context when Show similarity details is enabled.
+This browser preference defaults off, persists with the other search preferences,
+and does not alter retrieval or ranking. Same-record evidence navigates through
 the reader; cross-record seed or reference evidence uses the shared linked-record
 Drawer, preserving the selected result and its return context.
 

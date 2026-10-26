@@ -13,6 +13,7 @@ it("remembers general preferences across browser-owner launches", () => {
     ...DEFAULT_SEARCH_PREFERENCES,
     model: "embeddinggemma",
     ranking: "rrf" as const,
+    showSimilarityDetails: true,
     recordSimilarity: {
       method: "content-average" as const,
       decay: 0.75,
@@ -21,6 +22,18 @@ it("remembers general preferences across browser-owner launches", () => {
   };
   expect(writeSearchPreferences(preferences)).toBe(true);
   expect(readSearchPreferences()).toEqual(preferences);
+});
+
+it("defaults similarity details off without losing existing browser preferences", () => {
+  localStorage.setItem(
+    SEARCH_PREFERENCES_KEY,
+    JSON.stringify({ version: 1, model: "embeddinggemma", ranking: "rrf" }),
+  );
+  expect(readSearchPreferences()).toMatchObject({
+    model: "embeddinggemma",
+    ranking: "rrf",
+    showSimilarityDetails: false,
+  });
 });
 
 it("migrates the existing model preference without losing its choice", () => {

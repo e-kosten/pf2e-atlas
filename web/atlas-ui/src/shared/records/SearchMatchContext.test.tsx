@@ -75,7 +75,10 @@ it("shows similarity coverage, contributions, caveats and both exact passage des
     source_fingerprint: "seed-source",
   };
   const similarity = similarityEvidenceFixture(navigation, seed);
-  const { onNavigate } = renderMatches({ row: { ...row, similarity } });
+  const { onNavigate } = renderMatches({
+    row: { ...row, similarity },
+    showSimilarityDetails: true,
+  });
   const context = screen.getByRole("region", { name: "Similarity comparison" });
   expect(
     within(context).getByText("1 of 2 selected sections have comparable content."),
@@ -117,6 +120,7 @@ it("shows similarity coverage, contributions, caveats and both exact passage des
 it("leaves trait seed excerpts without fabricated record links and native candidates work without a reader host", () => {
   render(
     <SearchMatchContext
+      showSimilarityDetails
       row={{ ...row, similarity: similarityEvidenceFixture(navigation, null) }}
     />,
   );
@@ -127,4 +131,19 @@ it("leaves trait seed excerpts without fabricated record links and native candid
     name: "Candidate description",
   });
   expect(fireEvent.click(candidate, { metaKey: true })).toBe(true);
+});
+
+it("hides similarity details by default while preserving ordinary text match context", () => {
+  const props = {
+    row: { ...row, similarity: similarityEvidenceFixture(navigation, null) },
+    query: "fire",
+  };
+  const view = render(<SearchMatchContext {...props} />);
+  expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
+  expect(screen.getByRole("region", { name: "Search matches" })).toBeVisible();
+  view.rerender(<SearchMatchContext {...props} showSimilarityDetails />);
+  expect(screen.getByRole("region", { name: "Similarity comparison" })).toBeVisible();
+  view.rerender(<SearchMatchContext {...props} showSimilarityDetails={false} />);
+  expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
+  expect(screen.getByRole("region", { name: "Search matches" })).toBeVisible();
 });
