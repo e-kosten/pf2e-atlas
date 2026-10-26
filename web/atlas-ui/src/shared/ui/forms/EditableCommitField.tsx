@@ -3,6 +3,7 @@ import type { InputProps, InputRef } from "antd";
 import { useEffect, useRef, useState } from "react";
 
 export function EditableCommitField({
+  autoSize = false,
   focusOnMount,
   ariaLabel,
   blurOnEnter = true,
@@ -19,6 +20,7 @@ export function EditableCommitField({
   value,
   variant,
 }: {
+  autoSize?: boolean;
   focusOnMount?: boolean;
   ariaLabel: string;
   blurOnEnter?: boolean;
@@ -81,6 +83,7 @@ export function EditableCommitField({
       ref={inputRef}
       aria-label={ariaLabel}
       className={className}
+      htmlSize={autoSize ? Math.max(1, draft.length) : undefined}
       disabled={disabled}
       readOnly={readOnly}
       inputMode={inputMode}

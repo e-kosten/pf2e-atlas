@@ -1,5 +1,88 @@
 import { expect, test } from "./fixtures";
 import { activate, noPageOverflow } from "./reading";
+
+test("inline HP formulas grow, shrink and stay within the participant pane", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `HP formulas ${info.project.name} ${Date.now()}` },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    expect(
+      (
+        await page.request.post(`${path}/participants/manual`, {
+          data: {
+            encounter_ref: encounter.encounter_key,
+            display_name: "Formula Hero",
+            current_hp: 300,
+            max_hp: 500,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(
+      page.getByRole("button", { name: "Formula Hero", exact: true }),
+      info,
+    );
+    const current = page.getByRole("button", { name: "Edit Current HP", exact: true });
+    await activate(current, info);
+    const input = page.getByRole("textbox", { name: "Current HP", exact: true });
+    const shortWidth = (await input.boundingBox())!.width;
+    const formula = "300 - 10 + 5 - 2";
+    await input.fill(formula);
+    const grownWidth = (await input.boundingBox())!.width;
+    expect(grownWidth).toBeGreaterThan(shortWidth + 40);
+    expect(
+      await input.evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
+    ).toBe(true);
+    await input.fill(`300${"+1".repeat(180)}`);
+    const bounds = (await input.boundingBox())!;
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+    await noPageOverflow(page);
+    await input.fill("300");
+    expect((await input.boundingBox())!.width).toBeLessThan(grownWidth);
+    await input.press("Escape");
+    await expect(current).toHaveText("300");
+    await activate(current, info);
+    await input.fill(formula);
+    await input.press("Enter");
+    await expect(current).toHaveText("293");
+
+    await activate(
+      page.getByRole("button", { name: "Add temp HP", exact: true }),
+      info,
+    );
+    const temporary = page.getByRole("textbox", { name: "Temporary HP", exact: true });
+    await temporary.fill(formula);
+    expect(
+      await temporary.evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
+    ).toBe(true);
+    await temporary.press("Enter");
+    const editTemporary = page.getByRole("button", {
+      name: "Edit Temporary HP",
+      exact: true,
+    });
+    await expect(editTemporary).toHaveText("293");
+    await activate(editTemporary, info);
+    await temporary.fill("");
+    await temporary.press("Enter");
+    await expect(
+      page.getByRole("button", { name: "Add temp HP", exact: true }),
+    ).toBeFocused();
+    const saved = await (await page.request.get(path)).json();
+    expect(saved.participants[0].current_hp).toBe(293);
+    expect(saved.participants[0].temporary_hp).toBe(0);
+    await noPageOverflow(page);
+  } finally {
+    expect((await page.request.delete(path)).ok()).toBeTruthy();
+  }
+});
+
 test("persistent form uses visible workarea, flat DC, accessible damage row and stable focused editing", async ({
   page,
 }, info) => {
