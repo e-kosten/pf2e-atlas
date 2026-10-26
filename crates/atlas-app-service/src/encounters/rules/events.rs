@@ -27,6 +27,7 @@ pub(in crate::encounters) enum ConditionConsequence {
 
 pub(in crate::encounters) fn plan_condition_change(
     participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
     change: ConditionEventChange,
     apply_consequences: bool,
     keep_upright: bool,
@@ -88,8 +89,8 @@ pub(in crate::encounters) fn plan_condition_change(
     let mut effects = vec![];
     if apply_consequences {
         let increase = if changes_drained {
-            effective_drained_value(&after)?
-                .saturating_sub(effective_drained_value(participant)?)
+            effective_drained_value(&after, sources)?
+                .saturating_sub(effective_drained_value(participant, sources)?)
                 .max(0)
         } else {
             0
@@ -259,8 +260,8 @@ pub(in crate::encounters) fn plan_condition_change(
             effects.push(ConditionConsequence::BecomeProne);
         }
     }
-    let maximum_before = super::effective_hp_maximum(participant, level);
-    let maximum_after = super::effective_hp_maximum(&after, level);
+    let maximum_before = super::effective_hp_maximum(participant, sources, level);
+    let maximum_after = super::effective_hp_maximum(&after, sources, level);
     let hp_change = (maximum_before != maximum_after
         || effects.iter().any(|effect| {
             matches!(
@@ -286,12 +287,16 @@ pub(in crate::encounters) fn plan_condition_change(
         effects,
     })
 }
-fn effective_drained_value(participant: &EncounterParticipant) -> AppServiceResult<i64> {
+pub(in crate::encounters) fn effective_drained_value(
+    participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
+) -> AppServiceResult<i64> {
     let mut maximum = 0;
-    for condition in participant.conditions.iter().filter(|condition| {
-        condition_rule_for_key(condition.condition_key.as_deref()) == Some(ConditionRule::Drained)
-    }) {
-        let value = condition.value.filter(|value| *value > 0).ok_or_else(|| {
+    for condition in super::causes::condition_causes(participant, None, sources)
+        .iter()
+        .filter(|condition| condition.rule == ConditionRule::Drained)
+    {
+        let value = condition.value.filter(|value| *value >= 0).ok_or_else(|| {
             AppServiceError::invalid_request(
                 "Set the existing Drained value before calculating its HP loss",
             )

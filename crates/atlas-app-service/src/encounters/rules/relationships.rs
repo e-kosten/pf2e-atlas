@@ -14,7 +14,11 @@ pub(in crate::encounters) fn detection_state(
     subject: &EncounterParticipant,
     observer: &str,
 ) -> Option<DetectionState> {
-    let causes = super::causes::condition_causes(subject, Some(observer));
+    let causes = super::causes::condition_causes(
+        subject,
+        Some(observer),
+        crate::encounters::rules::source_conditions::SourceConditions::empty(),
+    );
     if causes
         .iter()
         .any(|cause| cause.rule == ConditionRule::Invisible)
@@ -64,7 +68,7 @@ pub(in crate::encounters) fn observer_defense_causes<'a>(
                     )
                 )
                 .then_some(ScopedConditionCause {
-                    source,
+                    source: super::causes::ConditionSource::Saved(source),
                     rule: ConditionRule::OffGuard,
                     value: None,
                     against: Some(subject.participant_key.as_str()),

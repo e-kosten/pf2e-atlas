@@ -58,7 +58,8 @@ impl AtlasAppService {
         let subject = hp_subject_context(self, participant, &input)?;
         let context = request.context.unwrap_or_default();
         validate_context(&snapshot, &context)?;
-        let effective_maximum = rules::effective_hp_maximum(participant, subject.level);
+        let effective_maximum =
+            rules::effective_hp_maximum(participant, &subject.source_conditions, subject.level);
         if matches!(input, HpEventInput::ResolvedHealing { .. })
             && participant.max_hp.is_some()
             && effective_maximum.is_none()
@@ -464,7 +465,7 @@ pub(super) fn hp_subject_context(
     let may_fall = matches!(*input,HpEventInput::ResolvedDamage{amount} if participant.track_dying && participant.current_hp.is_some_and(|hp|amount.saturating_sub(participant.temporary_hp)>=hp));
     let source_hazard = participant.participant_kind == atlas_local_state::ParticipantKind::Hazard
         && matches!(*input, HpEventInput::ResolvedDamage { .. });
-    if needs_level || may_fall || source_hazard {
+    if needs_level || may_fall || source_hazard || participant.record_key.is_some() {
         workflow::condition_subject_context(service, participant)
     } else {
         Ok(workflow::ConditionSubjectContext::from_saved(participant))
@@ -1278,7 +1279,7 @@ mod hp_lifecycle_tests {
             })
             .unwrap();
         let subject = workflow::ConditionSubjectContext {
-            source_actions: Default::default(),
+            source_conditions: Default::default(),
             participant: participant.clone(),
             facts: rules::ConditionApplicabilityFacts {
                 immunities: vec![rules::ConditionImmunity {
@@ -1676,6 +1677,7 @@ mod hp_lifecycle_tests {
             };
             let planned = rules::events::plan_condition_change(
                 &participant,
+                crate::encounters::rules::source_conditions::SourceConditions::empty(),
                 atlas_local_state::ConditionEventChange::Add(input),
                 true,
                 false,

@@ -71,6 +71,7 @@ pub struct SavedPendingConsequence {
 }
 #[derive(Debug, Clone, Default)]
 pub struct PreparedConditionEvent {
+    pub ability_states: Vec<super::AbilityStateChange>,
     pub consumed_applications: Vec<ConsumedConditionApplication>,
     pub turn_resources: Vec<super::TurnResources>,
     pub condition_changes: Vec<ConditionEventChange>,

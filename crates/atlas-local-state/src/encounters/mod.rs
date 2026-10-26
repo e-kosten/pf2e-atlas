@@ -1,3 +1,5 @@
+mod ability_state;
+pub use ability_state::{AbilityStateChange, AbilityStateValue, ParticipantAbilityState};
 mod turn_resources;
 pub use turn_resources::{
     TurnActionAdjustment, TurnActionAllocation, TurnResourceEffect, TurnResources,

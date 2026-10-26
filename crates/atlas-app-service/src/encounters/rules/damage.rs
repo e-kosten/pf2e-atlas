@@ -31,9 +31,13 @@ pub(in crate::encounters) fn persistent_protection(
     participant: &EncounterParticipant,
     damage_type: &str,
 ) -> Result<DamageProtection, String> {
-    let petrified = super::causes::condition_causes(participant, None)
-        .iter()
-        .any(|cause| cause.rule == ConditionRule::Petrified);
+    let petrified = super::causes::condition_causes(
+        participant,
+        None,
+        crate::encounters::rules::source_conditions::SourceConditions::empty(),
+    )
+    .iter()
+    .any(|cause| cause.rule == ConditionRule::Petrified);
     if petrified && object_damage_immunity(damage_type) {
         return Ok(DamageProtection {
             immune: true,
