@@ -120,14 +120,13 @@ export function EncounterTurnResources({
         {(stock !== null || grantReaction) && (
           <div className="encounter-turn-resources__group">
             <strong>Reaction</strong>
-            {grantReaction && <span>Not granted</span>}
             {stock !== null && Number(value.reactions_total) === 0 ? (
               <span>None this turn</span>
             ) : (
               <Tooltip
                 title={
                   grantReaction
-                    ? "Grant reaction before the first turn (GM discretion)"
+                    ? "The GM decides whether this creature can use a reaction before its first turn."
                     : Number(stock) > 0
                       ? value.can_spend_reactions.available
                         ? "Spend reaction"
@@ -148,20 +147,22 @@ export function EncounterTurnResources({
                   }
                   aria-label={
                     grantReaction
-                      ? "Grant reaction"
+                      ? "Allow reaction"
                       : Number(stock) > 0
                         ? "Spend reaction"
                         : "Restore reaction"
                   }
-                  aria-pressed={Number(stock) > 0}
+                  aria-pressed={grantReaction ? undefined : Number(stock) > 0}
                   color={Number(stock) > 0 ? "primary" : "default"}
                   variant={Number(stock) > 0 ? "solid" : "outlined"}
                   icon={
-                    <span
-                      className="action-cost__glyph"
-                      data-atlas-action-glyph="reaction"
-                      aria-hidden="true"
-                    />
+                    grantReaction ? undefined : (
+                      <span
+                        className="action-cost__glyph"
+                        data-atlas-action-glyph="reaction"
+                        aria-hidden="true"
+                      />
+                    )
                   }
                   onClick={() => {
                     void act(
@@ -173,7 +174,9 @@ export function EncounterTurnResources({
                           },
                     ).catch(() => {});
                   }}
-                />
+                >
+                  {grantReaction ? "Allow" : undefined}
+                </Button>
               </Tooltip>
             )}
           </div>
