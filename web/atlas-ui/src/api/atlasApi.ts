@@ -48,12 +48,15 @@ import {
   API_CONTRACT,
   API_CONTRACT_HEADER,
   checkResponseCompatibility,
+  clearCompatibilityFailure,
+  getCompatibilityFailure,
 } from "./compatibility";
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_BASE ?? "";
 
 export async function verifyBackendCompatibility(): Promise<true> {
   await atlasFetch("/api/compatibility", { cache: "no-store" });
+  clearCompatibilityFailure();
   return true;
 }
 
@@ -826,6 +829,8 @@ export async function reorderSavedListItem(
 }
 
 async function atlasFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const failure = getCompatibilityFailure();
+  if (failure && path !== "/api/compatibility") throw failure;
   const headers = new Headers(init.headers);
   headers.set("Content-Type", "application/json");
   headers.set(API_CONTRACT_HEADER, API_CONTRACT);

@@ -38,9 +38,14 @@ import type {
 } from "../generated/atlas";
 import { participantUpdate } from "../features/encounters/participantEdits";
 import { detailFixture } from "../test/fixtures";
-import { API_CONTRACT, API_CONTRACT_HEADER } from "./compatibility";
+import {
+  API_CONTRACT,
+  API_CONTRACT_HEADER,
+  clearCompatibilityFailure,
+} from "./compatibility";
 const fetchMock = vi.fn();
 beforeEach(() => {
+  clearCompatibilityFailure();
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockReset();
 });

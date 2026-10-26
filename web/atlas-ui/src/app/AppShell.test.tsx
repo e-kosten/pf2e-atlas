@@ -1,7 +1,13 @@
 import { RouterTestContext } from "../test/router";
 import { readinessFixture } from "../test/fixtures";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AppShell } from "./AppShell";
+import {
+  checkResponseCompatibility,
+  clearCompatibilityFailure,
+} from "../api/compatibility";
+import { reloadFrontend } from "../shared/browser/reloadFrontend";
+vi.mock("../shared/browser/reloadFrontend", () => ({ reloadFrontend: vi.fn() }));
 
 function renderShell(
   errorMessage: string | null = null,
@@ -32,6 +38,8 @@ function renderShell(
 describe("application navigation and accessibility", () => {
   beforeEach(() => {
     history.replaceState(null, "", "/search");
+    clearCompatibilityFailure();
+    vi.clearAllMocks();
   });
   it("provides native destinations and handles ordinary navigation once", async () => {
     renderShell();
@@ -106,6 +114,42 @@ describe("application navigation and accessibility", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "Reference status" })).toBeNull();
+  });
+
+  it("retains the mounted page and its draft when a later request detects an update", () => {
+    render(
+      <AppShell
+        activeView="search"
+        colorScheme="light"
+        resolvedColorScheme="light"
+        onColorSchemeChange={() => {}}
+        readiness={readinessFixture()}
+        readinessError={null}
+        checkingReadiness={false}
+        onCheckReadiness={() => {}}
+      >
+        <main>
+          <input aria-label="Draft" defaultValue="unsaved text" />
+        </main>
+      </AppShell>,
+      { wrapper: RouterTestContext },
+    );
+    const draft = screen.getByRole("textbox", { name: "Draft" });
+    act(() => {
+      expect(() =>
+        checkResponseCompatibility(
+          new Response("{}", { headers: { "x-atlas-api-contract": "other" } }),
+        ),
+      ).toThrow();
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Atlas was updated. Reload to continue.",
+    );
+    expect(screen.getByRole("textbox", { name: "Draft" })).toBe(draft);
+    expect(draft).toHaveValue("unsaved text");
+    expect(reloadFrontend).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Reload page" }));
+    expect(reloadFrontend).toHaveBeenCalledTimes(1);
   });
 
   it("offers system appearance without a persistent healthy-status banner", () => {

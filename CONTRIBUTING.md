@@ -261,6 +261,11 @@ If the browser reports “Atlas versions don’t match,” check `ATLAS_API_PROX
 the current frontend with `just web-ui-build`, build the matching backend, then
 select it explicitly with `dev-web --binary`. Retry the page after restarting.
 Old backends without the handshake are rejected too.
+Installed frontends automatically reload once if startup detects a mismatch; a
+persistent mismatch stops with Reload page. During use, an update prompt preserves
+the mounted page and drafts until the user reloads. Neither recovery path replays
+mutations or clears browser caches. Vite shows the proxy/backend diagnostic without
+an automatic reload.
 
 The fingerprint inputs are maintained in
 `crates/atlas-web/api-contract-inputs.json`; both builds use the same source set.
