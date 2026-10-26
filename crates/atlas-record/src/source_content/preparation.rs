@@ -786,7 +786,6 @@ impl Projection<'_> {
         } else {
             label_html.unwrap_or_else(|| derived_html.unwrap_or_else(|| escape(&text)))
         };
-        let body = format!("{body}{action_cost}{}", escape(&action_suffix));
         let body = if let Some(ordinal) = action_reference {
             let binding = self.reference_binding(ordinal);
             format!(
@@ -795,7 +794,10 @@ impl Projection<'_> {
         } else {
             body
         };
-        format!("<span{marker}>{body}</span>")
+        format!(
+            "<span{marker}>{body}{action_cost}{}</span>",
+            escape(&action_suffix)
+        )
     }
 
     fn dynamic<'a>(&mut self, path: &str, values: impl Iterator<Item = &'a str>) {
