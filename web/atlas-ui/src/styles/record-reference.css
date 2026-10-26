@@ -225,11 +225,7 @@
   display: grid;
   gap: 14px;
 }
-.spell-rank-annotation {
-  white-space: nowrap;
-}
 .spell-rank-marker {
-  justify-content: flex-start;
   margin-inline-start: 2px;
   vertical-align: baseline;
   color: var(--muted);
