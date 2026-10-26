@@ -85,6 +85,7 @@ function setup(
             <SearchSettings
               search={search}
               seed={search.similarSeed ? selectedSeed : null}
+              seedTitle={selectedSeed.kind === "trait" ? "Fire" : "Brown Mold"}
               onApply={apply}
               generation="generation-1"
             />
@@ -198,25 +199,35 @@ it("suspends an empty part draft when switching to the baseline", async () => {
   );
 });
 
-it("explains model and the selected text ranking without exposing Similar controls", async () => {
+it("explains model and both text ranking choices without exposing Similar controls", async () => {
   const { apply, remember } = setup({ ...DEFAULT_SEARCH_STATE, query: "heal" });
   const modelHelp = screen.getByRole("button", { name: "About embedding model" });
   fireEvent.click(modelHelp);
   await waitFor(() =>
-    expect(screen.getByText(/Changes how the search compares meaning/)).toBeVisible(),
+    expect(
+      screen.getByText(
+        /Changes which embedding model is used for search and document ranking/,
+      ),
+    ).toBeVisible(),
   );
   fireEvent.keyDown(modelHelp, { key: "Escape" });
   const rankingHelp = screen.getByRole("button", { name: "About ranking" });
   fireEvent.click(rankingHelp);
   await waitFor(() =>
-    expect(screen.getByText(/Score-based combines the strength/)).toBeVisible(),
+    expect(
+      screen.getByText(/Search combines word matches with meaning matches/),
+    ).toBeVisible(),
   );
   fireEvent.keyDown(rankingHelp, { key: "Escape" });
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search ranking" }));
   fireEvent.click(screen.getByText("Rank-based"));
   fireEvent.click(rankingHelp);
   await waitFor(() =>
-    expect(screen.getByText(/Rank-based combines the result positions/)).toBeVisible(),
+    expect(
+      screen.getByText(
+        /Rank-based considers how high each record appears in those two lists/,
+      ),
+    ).toBeVisible(),
   );
   expect(screen.queryByRole("combobox", { name: "Comparison method" })).toBeNull();
   expect(screen.queryByRole("button", { name: "About compare parts" })).toBeNull();
@@ -232,9 +243,7 @@ it("explains selected Similar choices and keeps help separate from opening Compa
   const methodHelp = screen.getByRole("button", { name: "About comparison method" });
   fireEvent.click(methodHelp);
   await waitFor(() =>
-    expect(
-      screen.getByText(/Passage matches compares each selected part/),
-    ).toBeVisible(),
+    expect(screen.getByText(/Compares your selected parts separately/)).toBeVisible(),
   );
   fireEvent.keyDown(methodHelp, { key: "Escape" });
   const decayHelp = screen.getByRole("button", { name: "About match decay" });
@@ -246,7 +255,9 @@ it("explains selected Similar choices and keeps help separate from opening Compa
   const partsHelp = screen.getByRole("button", { name: "About compare parts" });
   fireEvent.click(partsHelp);
   await waitFor(() =>
-    expect(screen.getByText(/Choose which sections of this record/)).toBeVisible(),
+    expect(
+      screen.getByText(/Choose what about Brown Mold you want to find similarities to/),
+    ).toBeVisible(),
   );
   expect(api.parts).not.toHaveBeenCalled();
   fireEvent.keyDown(partsHelp, { key: "Escape" });
@@ -273,7 +284,11 @@ it("explains selected Similar choices and keeps help separate from opening Compa
   fireEvent.click(screen.getByText("Content average"));
   fireEvent.click(methodHelp);
   await waitFor(() =>
-    expect(screen.getByText(/Content average blends the meaning/)).toBeVisible(),
+    expect(
+      screen.getByText(
+        /Specific details can become less prominent when several different parts are combined/,
+      ),
+    ).toBeVisible(),
   );
   expect(screen.queryByRole("spinbutton", { name: "Match decay" })).toBeNull();
 });
@@ -295,7 +310,7 @@ it("names the trait baseline by its content while preserving its wire value", as
   fireEvent.click(methodHelp);
   await waitFor(() =>
     expect(
-      screen.getByText(/Trait definition compares the trait’s definition/),
+      screen.getByText(/Uses the trait’s definition as the starting point/),
     ).toBeVisible(),
   );
   fireEvent.keyDown(methodHelp, { key: "Escape" });

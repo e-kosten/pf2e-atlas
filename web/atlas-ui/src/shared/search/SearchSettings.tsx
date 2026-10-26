@@ -55,12 +55,14 @@ type SettingsDraft = {
 export function SearchSettings({
   search,
   seed = null,
+  seedTitle,
   generation = null,
   onApply,
   disabled = false,
 }: {
   search: SearchFormState;
   seed?: SimilaritySeed | null;
+  seedTitle?: string;
   generation?: string | null;
   onApply: (search: SearchFormState, model: string) => void;
   disabled?: boolean;
@@ -234,14 +236,22 @@ export function SearchSettings({
     draft?.parts === null
       ? "All parts"
       : `${draft?.parts.length ?? 0} selected ${draft?.parts.length === 1 ? "part" : "parts"}`;
+  const sourceName = seedTitle ?? (trait ? "this trait" : "this record");
+  const sourcePossessive = seedTitle ? `${seedTitle}’s` : "the record’s";
+  const partsHelp = `Choose what about ${sourceName} you want to find similarities to. ${
+    allParts.some((part) => part.role === "description") &&
+    allParts.some((part) => part.role === "reset")
+      ? "Select Description to compare what it is, Reset to compare how it resets, or several parts to include several aspects."
+      : "Select one part to focus on that aspect, or several parts to include several aspects."
+  }`;
   const methodHelp =
     draft?.similarity.method === "passages"
-      ? "Passage matches compares each selected part with its closest matching content in a result, then combines the part matches using Match decay."
+      ? "Compares your selected parts separately. Different parts can match different sections of a result. Match decay controls how those matches contribute."
       : draft?.similarity.method === "content-average"
-        ? "Content average blends the meaning of the selected parts into an overall comparison. With Corresponding parts, it blends and compares each matching type of part separately."
+        ? "Averages the selected parts into an overall comparison. Specific details can become less prominent when several different parts are combined."
         : trait
-          ? "Trait definition compares the trait’s definition with content in other records. It uses the trait’s label when no definition is available."
-          : "Name and identity compares the record’s name and identity information with content in other records.";
+          ? "Uses the trait’s definition as the starting point, or its name when no definition is available."
+          : `Uses ${sourcePossessive} name and identifying information. Its description and abilities aren’t used.`;
   return (
     <>
       <Tooltip title={`Search settings: ${summary}`}>
@@ -324,7 +334,7 @@ export function SearchSettings({
                 label={
                   <SettingLabel
                     label="Embedding model"
-                    help="Changes how the search compares meaning, so choosing another model can change which results appear."
+                    help="Changes which embedding model is used for search and document ranking."
                   />
                 }
                 htmlFor={`${id}-model`}
@@ -343,11 +353,7 @@ export function SearchSettings({
                 label={
                   <SettingLabel
                     label="Ranking"
-                    help={
-                      draft.ranking === "rrf"
-                        ? "Rank-based combines the result positions of keyword and meaning-based matches."
-                        : "Score-based combines the strength of keyword and meaning-based matches."
-                    }
+                    help="Search combines word matches with meaning matches. Score-based considers how strongly each record matches. Rank-based considers how high each record appears in those two lists."
                   />
                 }
                 htmlFor={`${id}-ranking`}
@@ -470,12 +476,7 @@ export function SearchSettings({
                     items={[
                       {
                         key: "parts",
-                        label: (
-                          <SettingLabel
-                            label="Compare parts"
-                            help={`Choose which sections of this ${trait ? "trait" : "record"} supply the comparison content. All parts uses every section that can be compared. This selection applies only to this ${trait ? "trait" : "record"}.`}
-                          />
-                        ),
+                        label: <SettingLabel label="Compare parts" help={partsHelp} />,
                         extra: (
                           <Typography.Text type="secondary">
                             {selectionSummary}

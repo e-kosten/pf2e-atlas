@@ -25,16 +25,16 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
       workspace.resultsRefreshing ||
       (hasCriteria && profile.loading));
   const mode = workspace.resultPage?.mode;
-  const similarTitle =
+  const seedTitle =
     mode?.kind === "similar_records" &&
     mode.seed.record_key === workspace.search.similarSeed
       ? mode.seed.title
       : mode?.kind === "similar_traits" &&
           mode.trait_key === workspace.search.similarSeed
         ? mode.title
-        : workspace.errorMessage
-          ? "Record unavailable"
-          : "Loading record…";
+        : undefined;
+  const similarTitle =
+    seedTitle ?? (workspace.errorMessage ? "Record unavailable" : "Loading record…");
   return (
     <main className="search-workspace">
       <FilterControls
@@ -73,6 +73,7 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
             )}
             <SearchSettings
               search={workspace.search}
+              seedTitle={seedTitle}
               seed={
                 workspace.search.similarSeed
                   ? workspace.search.similarSeed.startsWith("trait:")
