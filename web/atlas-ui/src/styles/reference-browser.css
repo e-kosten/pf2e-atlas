@@ -53,6 +53,7 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
 }
 .browse-pane-header__content {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-control);
@@ -74,6 +75,7 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
 }
 .reference-reader__heading {
   flex: 1;
+  min-width: min-content;
 }
 .reference-reader__heading > :first-child,
 .reference-selection-status > button {

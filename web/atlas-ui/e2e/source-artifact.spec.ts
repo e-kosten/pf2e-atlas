@@ -440,12 +440,15 @@ test("owned Ghoul Fever and named GM passage use actual selected detail routes",
   // Use the parent ability's native link to check the complete owned identity,
   // including action cost, rather than the search match's selected prose field.
   await expect(feverLink).toBeVisible();
+  const inlineFever = feverLink.locator("..");
+  await expect(inlineFever).toHaveText("Ghoul Fever passive");
+  await expect(inlineFever.locator('.action-cost[title="passive"]')).toHaveCount(1);
+  await expect(inlineFever.locator("[data-atlas-action-glyph]")).toHaveCount(0);
   await page.goto((await feverLink.getAttribute("href"))!);
   await expect(page).toHaveURL(/\/records\/.*selection=/);
   const fever = page.getByRole("heading", { name: /^Ghoul Fever\b/ });
   await expect(fever).toBeVisible();
-  await expect(fever).toHaveText("Ghoul Fever passive");
-  await expect(fever.locator('.action-cost[title="passive"]')).toHaveCount(1);
+  await expect(fever).toHaveText(/^[\s]*Ghoul Fever[\s]*$/);
   await expect(fever.locator("[data-atlas-action-glyph]")).toHaveCount(0);
   await expect(page.getByText(/rises as a Ghoul the next midnight/)).toBeVisible();
   await page.screenshot({
