@@ -6,6 +6,7 @@ import {
 } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { ReferenceProfiles } from "./ReferenceProfiles";
+import { RecordGrants } from "./RecordGrants";
 import { JournalContents } from "./JournalContents";
 import { DocumentIdentityHeader } from "./DocumentIdentityHeader";
 import { TraitBadge } from "./TraitBadge";
@@ -701,6 +702,9 @@ export function RecordPresentation({
             ))}
           </section>
         )}
+      {presentation.grants && (
+        <RecordGrants grants={presentation.grants} onReference={onReference} />
+      )}
     </article>
   );
 }
