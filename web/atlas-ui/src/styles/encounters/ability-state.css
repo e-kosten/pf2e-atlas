@@ -1,0 +1,14 @@
+.encounter-ability-controls {
+  display: grid;
+  gap: var(--space-control);
+  padding-block: var(--space-control);
+}
+
+.encounter-ability-controls__choice {
+  min-width: 10rem;
+  max-width: 100%;
+}
+
+.encounter-ability-controls__use {
+  min-inline-size: 5rem;
+}

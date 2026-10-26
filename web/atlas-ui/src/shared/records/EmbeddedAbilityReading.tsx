@@ -15,6 +15,9 @@ import { activityAnchor, activityAddress } from "./embeddedNavigation";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
 
 export type EmbeddedReadingContext = {
+  renderAbilityControls?: (
+    navigation: RecordNavigationView,
+  ) => import("react").ReactNode;
   generation: string;
   parent: RecordNavigationView;
   landing?: RecordNavigationView;
@@ -232,7 +235,12 @@ function OwnedAbilityBatch({
             key={activityAnchor(entry.navigation)}
             className="embedded-ability-reading__entry"
           >
-            <ActorActivity activity={activity} onReference={onReference} inline />
+            <ActorActivity
+              activity={activity}
+              onReference={onReference}
+              inline
+              stateControls={context.renderAbilityControls?.(activity.navigation)}
+            />
             <ContentFields
               inlineAbility
               fields={entry.content}

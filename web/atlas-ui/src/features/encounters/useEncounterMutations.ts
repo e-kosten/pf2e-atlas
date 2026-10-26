@@ -5,6 +5,7 @@ import {
   setEncounterDifficulty,
   previewEncounterDifficulty,
   updateTurnResources,
+  updateEncounterAbilityState,
   applyEncounterHpAction,
   applyEncounterConditionLifecycle,
   rollInitiative,
@@ -44,6 +45,13 @@ import type {
 } from "../../generated/atlas";
 
 export type EncounterMutationCommand =
+  | {
+      kind: "ability-state";
+      request: Omit<
+        import("../../generated/atlas").UpdateEncounterAbilityStateRequest,
+        "request_id"
+      >;
+    }
   | {
       kind: "turn-resources";
       request: Omit<
@@ -248,6 +256,11 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       | import("../../generated/atlas").ConditionLifecycleResultView
     > => {
       switch (command.kind) {
+        case "ability-state":
+          return updateEncounterAbilityState(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
         case "turn-resources":
           return updateTurnResources(currentRef, {
             ...command.request,

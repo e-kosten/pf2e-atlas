@@ -1,3 +1,7 @@
+import {
+  EncounterAbilityControls,
+  type AbilityStateHandler,
+} from "./EncounterAbilityControls";
 import { destinationHref } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import {
@@ -9,7 +13,7 @@ import { EncounterLifeStatus } from "./EncounterLifeStatus";
 import { EncounterConditionRecovery } from "./EncounterConditionLifecycle";
 import { FactRow, factText } from "../../shared/records/presentationFacts";
 import { EncounterStrikeControl } from "./EncounterStrikeControl";
-import { Alert, Button } from "antd";
+import { Alert, Button, Space } from "antd";
 import { ActorEncounterLayout } from "../../shared/records/ActorEncounterLayout";
 import { HazardDefenses } from "../../shared/records/HazardDefenses";
 import { ActorDefenses } from "../../shared/records/ActorReference";
@@ -61,6 +65,7 @@ export function EncounterInspectorPane({
   onResolveDrained,
   onPreviewCondition,
   onTurnResources,
+  onAbilityState,
   onHpAction,
   onSpellAction,
   onConditionRecovery,
@@ -87,6 +92,7 @@ export function EncounterInspectorPane({
   previewSelection,
   onPreviewRankChange,
 }: {
+  onAbilityState?: AbilityStateHandler;
   disabled: boolean;
   encounterRevision: bigint;
   currentTurnKey?: string | null;
@@ -225,6 +231,7 @@ export function EncounterInspectorPane({
           onResolveDrained={onResolveDrained}
           onPreviewCondition={onPreviewCondition}
           onTurnResources={onTurnResources}
+          onAbilityState={onAbilityState}
           onHpAction={onHpAction}
           onSpellAction={onSpellAction}
           onUpdateCondition={onUpdateCondition}
@@ -308,6 +315,7 @@ function EncounterParticipantSurface({
   onResolveDrained,
   onPreviewCondition,
   onTurnResources,
+  onAbilityState,
   onHpAction,
   onSpellAction,
   onUpdateCondition,
@@ -318,6 +326,7 @@ function EncounterParticipantSurface({
   requestedConditionEdit,
   participants,
 }: {
+  onAbilityState?: AbilityStateHandler;
   disabled: boolean;
   encounterRevision: bigint;
   currentTurnKey?: string | null;
@@ -603,6 +612,26 @@ function EncounterParticipantSurface({
             artifactGeneration && participant.record_key
               ? {
                   generation: artifactGeneration,
+                  renderAbilityControls: (navigation) => {
+                    const abilities =
+                      participant.ability_states?.filter(
+                        (ability) =>
+                          JSON.stringify(ability.navigation.embedded_path) ===
+                          JSON.stringify(navigation.embedded_path),
+                      ) ?? [];
+                    return abilities.length ? (
+                      <Space wrap>
+                        {abilities.map((ability) => (
+                          <EncounterAbilityControls
+                            key={`${participant.participant_key}:${String(ability.rule_ordinal)}`}
+                            ability={ability}
+                            disabled={disabled}
+                            onChange={onAbilityState}
+                          />
+                        ))}
+                      </Space>
+                    ) : null;
+                  },
                   parent: {
                     record_key: participant.record_key,
                     embedded_path: [],

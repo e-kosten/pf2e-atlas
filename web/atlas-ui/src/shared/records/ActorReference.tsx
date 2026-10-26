@@ -741,6 +741,7 @@ export function ActorActivity({
   onReference,
   selected = false,
   headingActions,
+  stateControls,
   rollControls,
   hideCost = false,
   inline = false,
@@ -751,6 +752,7 @@ export function ActorActivity({
   onReference: RecordReferenceHandler;
   selected?: boolean;
   headingActions?: React.ReactNode;
+  stateControls?: React.ReactNode;
   rollControls?: React.ReactNode;
   hideCost?: boolean;
   inline?: boolean;
@@ -847,6 +849,7 @@ export function ActorActivity({
           )}
         </div>
       )}
+      {stateControls}
       <div className="actor-activity__facts">
         {activity.first_level_only?.value === true && (
           <FactRow label="Selection">At 1st level only</FactRow>
@@ -895,7 +898,8 @@ export function ActorActivity({
         ) : (
           <FactLine label="Duration" fact={activity.effect_duration} />
         )}
-        {activity.frequency.state !== "missing" &&
+        {!stateControls &&
+          activity.frequency.state !== "missing" &&
           activity.frequency.state !== "not_applicable" && (
             <FactLine
               label="Frequency"
