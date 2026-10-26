@@ -66,14 +66,16 @@ function response(request: EncounterReferenceRequest): RecordDetailView {
                 body: {
                   kind: "html",
                   inclusions: [],
-                  html: '<p>Exact local Jaws prose <span data-atlas-interaction="0">Reflex check</span></p>',
+                  html: '<p>Exact local Jaws prose <span data-atlas-interaction="0">Contextual damage</span></p>',
                   controls: [
                     {
                       ordinal: 0,
                       control: {
-                        kind: "check",
-                        statistic: "Reflex",
-                        options: { dc: "15" },
+                        kind: "damage",
+                        formula: "(@actor.level)d6[fire]",
+                        options: { traits: "fire" },
+                        literal: null,
+                        roll: null,
                       },
                     },
                   ],
@@ -440,10 +442,10 @@ it.each(["desktop", "narrow"])(
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: "Jaws 1 action" })).toHaveFocus(),
     );
-    const marker = await screen.findByRole("button", { name: "Reflex check" });
+    const marker = await screen.findByRole("button", { name: "Contextual damage" });
     act(() => marker.focus());
     fireEvent.keyDown(marker, { key: "Enter" });
-    const modal = await screen.findByRole("dialog", { name: "Reflex" });
+    const modal = await screen.findByRole("dialog", { name: "(@actor.level)d6[fire]" });
     const ok = within(modal).getByRole("button", { name: "OK" });
     act(() => ok.focus());
     fireEvent.keyDown(ok, { key: "Escape", keyCode: 27 });

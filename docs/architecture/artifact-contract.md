@@ -186,7 +186,7 @@ remain visible with their source diagnostic.
 Prepared unresolved references preserve an explicit authored label or a qualified
 authored root name; opaque UUIDs display as unavailable. Their exact authored
 targets and unresolved status remain in relationship evidence and diagnostics.
-The content interpretation identity is `foundry-content/v12`; older prepared
+The content interpretation identity is `foundry-content/v19`; older prepared
 content requires re-preparation even when the physical schema is unchanged.
 Exact compatible embedding checkpoints remain reusable.
 
@@ -209,8 +209,16 @@ through the action pack's unique admitted-name index, allowing ASCII case-only
 differences for these derived action references; missing or ambiguous
 destinations have no usable link. The sidecar retains the original command and
 options, and reference facts identify the registry slug and derived target.
-No Foundry action code executes. Content policy v16 requires re-preparation for
-these labels, references and generic formula boundaries.
+No Foundry action code executes. Action reference boundaries contain the label;
+costs and option details follow outside the link.
+
+Checks and area templates retain their source options and field-local interaction
+identities but render as plain text. Preparation supplies complete check names,
+basic/secret qualifiers, opposing DCs and authored area widths; exact custom labels
+and audience-filtered DCs remain authoritative. Literal DC adjustments can be
+composed without actor context. Actor/item formulas remain authored and unevaluated.
+Renderers add no check or area execution control or parameter dialog. Literal
+reference dice and verified document links keep their separate capabilities.
 
 Localization preparation uses `selected-source-catalog/english-fallback/v2`.
 Its English catalog digest covers all manifest-declared English catalog paths

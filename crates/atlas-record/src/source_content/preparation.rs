@@ -149,6 +149,11 @@ struct Projection<'a> {
     block: String,
 }
 
+struct InlineContext<'a> {
+    previous: Option<&'a ParsedNode>,
+    following: Option<&'a ParsedNode>,
+}
+
 enum PreparationOrigin<'a> {
     Record(&'a SourceContentLocator),
     Trait(&'a atlas_domain::TraitKey),
@@ -190,13 +195,31 @@ impl Projection<'_> {
             .iter()
             .enumerate()
             .map(|(index, node)| {
+                let normalized;
+                let node = if let ParsedNode::Text { text } = node
+                    && matches!(
+                        index.checked_sub(1).and_then(|index| nodes.get(index)),
+                        Some(ParsedNode::Foundry {
+                            node: ParsedMacro::Check { label: None, .. }
+                        })
+                    )
+                    && let Some((_, tail)) = super::read_only_text::check_noun(text)
+                {
+                    normalized = ParsedNode::Text { text: tail.into() };
+                    &normalized
+                } else {
+                    node
+                };
                 self.node(
                     node,
                     &format!("{path}/{index}"),
                     audiences,
                     visible,
                     in_link,
-                    nodes.get(index + 1),
+                    InlineContext {
+                        previous: index.checked_sub(1).and_then(|index| nodes.get(index)),
+                        following: nodes.get(index + 1),
+                    },
                 )
             })
             .collect()
@@ -209,7 +232,7 @@ impl Projection<'_> {
         audiences: &[String],
         visible: bool,
         in_link: bool,
-        following: Option<&ParsedNode>,
+        context: InlineContext<'_>,
     ) -> String {
         match node {
             ParsedNode::Text { text } => {
@@ -368,7 +391,7 @@ impl Projection<'_> {
             }
             ParsedNode::ParsedLink { link } => self.link(link, path, audiences, visible, in_link),
             ParsedNode::Foundry { node } => {
-                self.foundry(node, path, audiences, visible, in_link, following)
+                self.foundry(node, path, audiences, visible, in_link, context)
             }
         }
     }
@@ -539,7 +562,7 @@ impl Projection<'_> {
         audiences: &[String],
         visible: bool,
         in_link: bool,
-        following: Option<&ParsedNode>,
+        context: InlineContext<'_>,
     ) -> String {
         if let ParsedMacro::Localize {
             key,
@@ -609,18 +632,19 @@ impl Projection<'_> {
                 if statistic.is_none() {
                     self.issue(path, ContentDiagnosticCode::MissingCheckType, "@Check");
                 }
-                let mut text = statistic
-                    .clone()
-                    .unwrap_or_else(|| "[missing check type]".into());
-                if options.contains_key("basic") {
-                    text = format!("basic {text}");
-                }
-                if let Some(dc) = options.get("dc") {
-                    text = format!("DC {dc} {text}");
-                }
-                if let Some(against) = options.get("against").or_else(|| options.get("defense")) {
-                    text.push_str(&format!(" vs {against} DC"));
-                }
+                let noun = match context.following {
+                    Some(ParsedNode::Text { text }) => {
+                        super::read_only_text::check_noun(text).map(|(noun, _)| noun)
+                    }
+                    _ => None,
+                };
+                let already_secret = matches!(context.previous, Some(ParsedNode::Text { text }) if text.split_whitespace().next_back().is_some_and(|word| word.eq_ignore_ascii_case("secret")));
+                let text = super::read_only_text::check_text(
+                    statistic.as_deref().unwrap_or("[missing check type]"),
+                    &options,
+                    noun,
+                    already_secret,
+                );
                 self.dynamic(path, options.values().map(String::as_str));
                 interaction = Some(ContentInteractionKind::Check { statistic, options });
                 text
@@ -643,7 +667,7 @@ impl Projection<'_> {
                         let text = fragments.join(" + ");
                         // The macro supplies its type; preserve an immediately authored
                         // damage noun rather than producing "fire damage damage".
-                        let noun_follows = matches!(following, Some(ParsedNode::Text { text }) if text.starts_with(char::is_whitespace) && text.trim_start().strip_prefix("damage").is_some_and(|tail| tail.is_empty() || !tail.starts_with(char::is_alphanumeric)));
+                        let noun_follows = matches!(context.following, Some(ParsedNode::Text { text }) if text.starts_with(char::is_whitespace) && text.trim_start().strip_prefix("damage").is_some_and(|tail| tail.is_empty() || !tail.starts_with(char::is_alphanumeric)));
                         let text = if noun_follows && !options.contains_key("shortLabel") {
                             text.strip_suffix(" damage").unwrap_or(&text).to_owned()
                         } else { text };
@@ -722,21 +746,14 @@ impl Projection<'_> {
                 }
             }
             ParsedMacro::Template { shape, options, .. } => {
-                let distance = options.get("distance").map(String::as_str).unwrap_or("");
-                let valid = shape.as_deref().is_some_and(|shape| {
-                    matches!(
-                        shape,
-                        "burst" | "cone" | "cube" | "cylinder" | "emanation" | "line" | "square"
-                    )
-                }) && distance.parse::<f64>().is_ok_and(f64::is_finite)
-                    && options
-                        .get("width")
-                        .is_none_or(|width| width.parse::<f64>().is_ok_and(f64::is_finite));
-                let text = if valid {
-                    let mut text = format!("{distance}-foot {}", shape.as_deref().unwrap_or(""));
-                    if let Some(width) = options.get("width") {
-                        text.push_str(&format!(" (width {width} feet)"));
-                    }
+                let text = if let Some(text) = super::read_only_text::template_text(
+                    shape.as_deref(),
+                    options,
+                    match context.previous {
+                        Some(ParsedNode::Text { text }) => Some(text.as_str()),
+                        _ => None,
+                    },
+                ) {
                     text
                 } else {
                     self.issue(
@@ -744,6 +761,7 @@ impl Projection<'_> {
                         ContentDiagnosticCode::InvalidTemplate,
                         "Authored shape/distance/width retained; no runtime area inferred",
                     );
+                    let distance = options.get("distance").map(String::as_str).unwrap_or("");
                     format!(
                         "[template: {}; distance={distance}]",
                         shape.as_deref().unwrap_or("")

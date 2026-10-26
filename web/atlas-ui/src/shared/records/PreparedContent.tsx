@@ -30,6 +30,9 @@ export type RecordReferenceHandler = (
   landing?: RecordNavigationView,
 ) => void;
 const NO_RELATIONSHIPS: RecordRelationshipView[] = [];
+// Plain check/area text inside a reference remains part of that reference.
+const ACTIVATION_MARKER =
+  '[data-atlas-reference],[data-atlas-interaction][role="button"]';
 export function PreparedContent({
   content,
   relationships = NO_RELATIONSHIPS,
@@ -198,6 +201,12 @@ export function PreparedContentBody({
                 c.ordinal === Number(marker.getAttribute("data-atlas-interaction")),
             )?.control
           : null;
+      if (control?.kind === "check" || control?.kind === "template") {
+        marker.removeAttribute("href");
+        marker.removeAttribute("role");
+        marker.removeAttribute("tabindex");
+        return;
+      }
       if (fact?.self_action_reference) {
         marker.removeAttribute("href");
         marker.removeAttribute("role");
@@ -305,18 +314,16 @@ export function PreparedContentBody({
       marker.tabIndex = 0;
       const ownsEvent = (e: Event) => {
         const target = e.target as Element;
+        if (target.closest("button")) return false;
         const link = target.closest("a[href]");
         return (
-          target.closest("[data-atlas-reference],[data-atlas-interaction]") ===
-            marker &&
+          target.closest(ACTIVATION_MARKER) === marker &&
           (!link || link === marker || !marker.contains(link))
         );
       };
       const activate = (e: Event) => {
         if (!ownsEvent(e)) return;
-        const marker = (e.target as Element).closest(
-          "[data-atlas-reference],[data-atlas-interaction]",
-        );
+        const marker = (e.target as Element).closest(ACTIVATION_MARKER);
         if (!marker || !container.current?.contains(marker)) return;
         if (fact?.target && e instanceof MouseEvent && !isPrimaryActivation(e)) return;
         e.preventDefault();
@@ -331,13 +338,8 @@ export function PreparedContentBody({
         }
         const ordinal = Number(marker.getAttribute("data-atlas-interaction"));
         const control = markerControls.find((c) => c.ordinal === ordinal)?.control;
-        if (!control || control.kind === "command") return;
-        const title =
-          control.kind === "check"
-            ? control.statistic || "Check"
-            : control.kind === "damage"
-              ? control.formula
-              : control.shape || "Template";
+        if (control?.kind !== "damage") return;
+        const title = control.formula;
         modal.info({
           title,
           closable: true,

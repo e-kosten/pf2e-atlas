@@ -68,7 +68,10 @@ Literal `/r`, `/gmr` and `/br` commands share source-checked transient reference
 rolling, retaining their original modes and captions. Atlas has no Foundry chat
 recipient routing or persisted roll history. Unsupported dice syntax, flavored
 inline formulas and actor/item-dependent expressions remain outside this subset.
-Checks and contextual formulas remain separate comparison domains.
+Checks and area templates render as plain text, with complete labels, opposing
+DCs, basic/secret qualifiers, statistic choices and explicit area widths. Source
+options, custom labels and DC visibility are retained without generic parameter
+popups. Contextual formulas remain a separate comparison domain.
 
 ## Completion and boundaries
 

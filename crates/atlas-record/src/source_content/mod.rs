@@ -17,6 +17,7 @@ mod parser;
 #[cfg(test)]
 mod parser_tests;
 mod preparation;
+mod read_only_text;
 #[cfg(test)]
 mod tests;
 mod text_projection;

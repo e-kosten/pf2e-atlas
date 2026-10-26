@@ -1451,6 +1451,15 @@ complete class progression from these arrays. A short price/bulk/usage group doe
 not need a table. Compact table rows suit short progression values; prose-heavy
 roll tables need more cell spacing. Keep source-authored tables as tables.
 
+### Inline checks and areas
+
+Prepared `@Check` and `@Template` content reads as ordinary rules text. Render the
+backend's labels and qualifiers without a clickable appearance, keyboard stop or
+parameter dialog. For example, show “DC 28 basic Reflex save” or “30-foot cone.”
+Custom labels may contain independently usable document links; retain those links.
+Literal damage/inline-roll dice controls keep their explicit rolling behavior.
+Context-dependent formulas stay authored rather than acquiring guessed values.
+
 ## Mutable workflows
 
 ### Dice presentation

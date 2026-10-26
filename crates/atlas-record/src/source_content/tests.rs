@@ -269,8 +269,8 @@ fn preserves_html_unicode_and_mechanics_without_a_persisted_tree() {
     let markup = "<h2>Élan — 力</h2><p>↔ @Check[type:reflex|basic|dc:21] @Template[type:cone|distance:30|width:5] @Damage[2d6[fire]] [[/r 1d20+4]]</p>";
     let content = prepare(markup);
     assert!(content.html.contains("<h2>Élan — 力</h2>"));
-    assert!(content.text.contains("DC 21 basic reflex"));
-    assert!(content.text.contains("30-foot cone (width 5 feet)"));
+    assert!(content.text.contains("DC 21 basic Reflex save"));
+    assert!(content.text.contains("30-foot cone (5 feet wide)"));
     assert!(content.text.contains("2d6 fire damage"));
     assert!(content.text.contains("1d20+4"));
     assert_eq!(content.interactions.len(), 4);
@@ -621,7 +621,7 @@ fn typed_partial_source_and_owned_item_are_callable_without_ingest() {
         None,
     )
     .unwrap();
-    assert_eq!(content.text, "DC 21 basic reflex");
+    assert_eq!(content.text, "DC 21 basic Reflex save");
     assert_eq!(content.interactions.len(), 1);
 }
 
@@ -993,4 +993,107 @@ fn literal_roll_labels_keep_authored_text_and_mark_only_an_exact_formula_prefix(
             .contains("data-atlas-roll-formula=\"\">1d4</span> rounds")
     );
     assert_eq!(content.interactions.len(), 3);
+}
+
+#[test]
+fn checks_read_as_complete_sentences_with_choices_and_defenses() {
+    for (markup, expected) in [
+        (
+            "Affected creatures attempt a @Check[reflex|dc:28|basic] save.",
+            "Affected creatures attempt a DC 28 basic Reflex save.",
+        ),
+        (
+            "Attempt a @Check[morale|defense:morale|roller:self] check against a target army.",
+            "Attempt a Morale check vs Morale DC against a target army.",
+        ),
+        ("@Check[flat|dc:5|showDC:all].", "DC 5 flat check."),
+        (
+            "@Check[will|dc:20] saving throw.",
+            "DC 20 Will saving throw.",
+        ),
+        (
+            "@Check[religion,society|dc:28]",
+            "DC 28 Religion check or DC 28 Society check",
+        ),
+        (
+            "@Check[acrobatics|against:ac] check",
+            "Acrobatics check vs AC",
+        ),
+        (
+            "@Check[reflex|against:class-spell|basic] save",
+            "basic Reflex save vs class or spell DC",
+        ),
+        (
+            "@Check[athletics|dc:20|adjustment:2]",
+            "DC 22 Athletics check",
+        ),
+        (
+            "@Check[arcana,nature|dc:20|adjustment:2,-2]",
+            "DC 22 Arcana check or DC 18 Nature check",
+        ),
+        (
+            "@Check[perception|dc:20|traits:secret]",
+            "DC 20 secret Perception check",
+        ),
+        (
+            "a secret @Check[flat|dc:6|traits:secret]",
+            "a secret DC 6 flat check",
+        ),
+        (
+            "@Check[flat|dc:resolve(5+@item.badge.value)]",
+            "DC resolve(5+@item.badge.value) flat check",
+        ),
+        (
+            "@Check[crafting|dc:@self.level|adjustment:2] check",
+            "DC @self.level Crafting check (DC adjustment 2)",
+        ),
+        (
+            "@Check[fortitude|dc:21]{Resist the poison} check",
+            "Resist the poison check",
+        ),
+    ] {
+        let content = prepare(markup);
+        assert_eq!(content.text, expected, "{markup}");
+        assert_eq!(content.interactions.len(), 1);
+    }
+}
+
+#[test]
+fn area_text_preserves_shapes_widths_labels_and_runtime_fallbacks() {
+    for (markup, expected) in [
+        ("@Template[cone|distance:30]", "30-foot cone"),
+        (
+            "a 10-foot-wide, @Template[line|distance:60|width:10]",
+            "a 10-foot-wide, 60-foot line",
+        ),
+        (
+            "a 5-foot-wide @Template[line|distance:60|width:10]",
+            "a 5-foot-wide 60-foot line (10 feet wide)",
+        ),
+        ("@Template[type:burst|distance:10]", "10-foot burst"),
+        (
+            "@Template[line|distance:120|width:10]",
+            "120-foot line (10 feet wide)",
+        ),
+        (
+            "@Template[line|distance:30|width:1]",
+            "30-foot line (1 foot wide)",
+        ),
+        (
+            "@Template[line|distance:120|width:10]{10 feet wide and 120 feet long}",
+            "10 feet wide and 120 feet long",
+        ),
+        ("@Template[cube|distance:20]", "20-foot cube"),
+        ("@Template[cylinder|distance:10]", "10-foot cylinder"),
+        ("@Template[square|distance:10]", "10-foot square"),
+        ("@Template[emanation|distance:20]", "20-foot emanation"),
+        (
+            "@Template[cone|distance:resolve(@actor.level)]",
+            "[template: cone; distance=resolve(@actor.level)]",
+        ),
+    ] {
+        let content = prepare(markup);
+        assert_eq!(content.text, expected, "{markup}");
+        assert_eq!(content.interactions.len(), 1);
+    }
 }
