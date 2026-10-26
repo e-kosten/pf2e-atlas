@@ -92,7 +92,11 @@ pub(super) fn collect_relationships(
                             };
                             r.resolve_local_item(&occurrence.locator, target, family)
                         } else {
-                            r.resolve_reference(&occurrence.locator, target)
+                            r.resolve_reference(
+                                &occurrence.locator,
+                                &crate::source_content::ContentReferenceKind::Uuid,
+                                target,
+                            )
                         }
                     })
                 })

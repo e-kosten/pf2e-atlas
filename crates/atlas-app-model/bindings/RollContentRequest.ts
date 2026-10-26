@@ -4,4 +4,4 @@ import type { ContentLocationView } from "./ContentLocationView";
 /**
  * Selects an authored interaction, never a caller-supplied executable formula.
  */
-export type RollContentDamageRequest = { content_interpretation_version: string, source: ContentLocationView, source_fingerprint: string, ordinal: number, authored_formula: string, };
+export type RollContentRequest = { content_interpretation_version: string, source: ContentLocationView, source_fingerprint: string, ordinal: number, authored_formula: string, authored_command: string | null, };

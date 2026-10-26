@@ -1,3 +1,4 @@
+import { actionDefinitions } from './action-definitions.js';
 import { conditionDefinitions, type ConditionCoverage } from './condition-definitions.js';
 import { spawnSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -32,6 +33,7 @@ export async function preparePortfolio(args: { source?: string; cacheDir?: strin
   const input = selectPortfolioInput(graph, summary);
   const catalog = JSON.parse(await readFile(path.join(extraction, 'trait-catalog.json'), 'utf8')) as TraitCatalog;
   input.traitDefinitions = traitDefinitions(catalog);
+  input.actionDefinitions = await actionDefinitions(source);
   const conditionCoverage = JSON.parse(await readFile(path.join(repositoryRoot, 'dev-tools/source-contracts/fixtures/condition-rule-coverage.json'), 'utf8')) as ConditionCoverage;
   input.conditionCatalog = await conditionDefinitions(source, new Set(input.traitDefinitions.map(entry => entry.identifier)), conditionCoverage);
   if (JSON.stringify(input.portfolio!.schemaRoots.flatMap(root => root.ruleKey ? [root.ruleKey] : []).sort())

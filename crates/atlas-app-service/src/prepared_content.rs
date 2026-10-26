@@ -133,13 +133,14 @@ pub(crate) fn content_controls(
                             && options
                                 .values()
                                 .all(|value| !value.contains('@') && !value.contains("resolve(")))
-                        .then(|| RollContentDamageRequest {
+                        .then(|| RollContentRequest {
                             content_interpretation_version:
                                 atlas_record::source_content::CONTENT_INTERPRETATION_VERSION.into(),
                             source: locator.clone().into(),
                             source_fingerprint: fingerprint.to_owned(),
                             ordinal: i.ordinal,
                             authored_formula: formula.clone(),
+                            authored_command: None,
                         })
                     });
                     ContentControlKindView::Damage {
@@ -148,7 +149,7 @@ pub(crate) fn content_controls(
                         literal: parts.map(|parts| {
                             parts
                                 .into_iter()
-                                .map(|p| ContentDamageComponentView {
+                                .map(|p| ContentRollComponentView {
                                     formula: p.formula,
                                     label: p.label,
                                     expression: p.expression,
@@ -162,11 +163,35 @@ pub(crate) fn content_controls(
                     command,
                     arguments,
                     options,
-                } => ContentControlKindView::Command {
-                    command: command.clone(),
-                    arguments: arguments.clone(),
-                    options: options.clone(),
-                },
+                } => {
+                    let literal =
+                        atlas_record::source_content::literal_content_roll(command, arguments);
+                    let roll = source.and_then(|(locator, fingerprint)| {
+                        literal.as_ref().filter(|roll| roll.has_dice)?;
+                        Some(RollContentRequest {
+                            content_interpretation_version:
+                                atlas_record::source_content::CONTENT_INTERPRETATION_VERSION.into(),
+                            source: locator.clone().into(),
+                            source_fingerprint: fingerprint.to_owned(),
+                            ordinal: i.ordinal,
+                            authored_formula: arguments.clone(),
+                            authored_command: Some(command.clone()),
+                        })
+                    });
+                    ContentControlKindView::Command {
+                        command: command.clone(),
+                        arguments: arguments.clone(),
+                        options: options.clone(),
+                        literal: literal.map(|part| {
+                            vec![ContentRollComponentView {
+                                formula: part.formula,
+                                label: part.caption,
+                                expression: part.expression,
+                            }]
+                        }),
+                        roll,
+                    }
+                }
                 ContentInteractionKind::Template { shape, options } => {
                     ContentControlKindView::Template {
                         shape: shape.clone(),

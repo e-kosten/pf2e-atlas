@@ -197,6 +197,20 @@ Readable text retains each known type/category and authored labels; an adjacent
 authored damage noun is preserved without duplication. Raw formulas/options remain
 in the existing interaction sidecar. Unsupported expressions retain their source.
 Dice preview trees are transient app projections, never persisted content ASTs.
+Literal `/r`, `/gmr` and `/br` arithmetic uses the same bounded engine. Captions
+and authored command modes remain source data; modes do not change audience in
+Atlas's local reference roller. Runtime, flavored and unsupported formulas stay
+readable without an executable offer.
+
+The pinned SystemActions registry supplies generated literal `/act` identities,
+localization keys, costs and variant names. English catalog lookup resolves those
+keys during preparation; action costs follow the displayed label. Navigation resolves the registry's exact English name
+through the action pack's unique admitted-name index, allowing ASCII case-only
+differences for these derived action references; missing or ambiguous
+destinations have no usable link. The sidecar retains the original command and
+options, and reference facts identify the registry slug and derived target.
+No Foundry action code executes. Content policy v16 requires re-preparation for
+these labels, references and generic formula boundaries.
 
 Localization preparation uses `selected-source-catalog/english-fallback/v2`.
 Its English catalog digest covers all manifest-declared English catalog paths

@@ -324,10 +324,18 @@ fn references_unchanged(content: &[SourceContentOutcome], resolver: &SourceRefer
                 ContentReferenceResolution::UnverifiedUrl { .. }
                 | ContentReferenceResolution::Blocked => true,
                 ContentReferenceResolution::Unresolved => resolver
-                    .resolve_reference(&prepared.locator, &reference.authored_target)
+                    .resolve_reference(
+                        &prepared.locator,
+                        &reference.kind,
+                        &reference.authored_target,
+                    )
                     .is_none(),
                 ContentReferenceResolution::Resolved(target) => resolver
-                    .resolve_reference(&prepared.locator, &reference.authored_target)
+                    .resolve_reference(
+                        &prepared.locator,
+                        &reference.kind,
+                        &reference.authored_target,
+                    )
                     .is_some_and(|resolved| {
                         resolved.target == *target
                             && resolved.display_name == reference.label.target_name

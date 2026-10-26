@@ -102,7 +102,7 @@ export function InitiativePopover({
         <div
           ref={content}
           tabIndex={-1}
-          className="initiative-popover"
+          className="atlas-dice-popover"
           role="dialog"
           aria-label="Initiative"
         >

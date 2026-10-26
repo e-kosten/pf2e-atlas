@@ -1,23 +1,22 @@
-.content-damage-roll {
+.content-roll {
   display: grid;
   gap: 8px;
   max-height: min(70dvh, 640px);
   overflow-y: auto;
-  width: min(360px, calc(100vw - 48px));
 }
 
-.content-damage-roll__toolbar {
+.content-roll__toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
-.content-damage-roll__component {
+.content-roll__component {
   display: grid;
   gap: 4px;
 }
 
-.content-damage-roll .atlas-roll {
+.content-roll .atlas-roll {
   flex-wrap: wrap;
 }

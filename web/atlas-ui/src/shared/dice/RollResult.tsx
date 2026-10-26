@@ -32,8 +32,10 @@ export function RollResult({
         drawing={drawing}
         motion={motion}
       />
-      <span aria-hidden="true">=</span>
-      <strong className="atlas-roll__total">{pending ? " " : outcome.total}</strong>
+      <span className="atlas-roll__result">
+        <span aria-hidden="true">=</span>
+        <strong className="atlas-roll__total">{pending ? " " : outcome.total}</strong>
+      </span>
     </span>
   );
 }
@@ -61,8 +63,10 @@ export function UnrolledRoll({
         drawing={diceAppearance.drawing}
         motion={diceAppearance.motion}
       />
-      <span aria-hidden="true">=</span>
-      <span className="atlas-roll__total">{children}</span>
+      <span className="atlas-roll__result">
+        <span aria-hidden="true">=</span>
+        <span className="atlas-roll__total">{children}</span>
+      </span>
     </span>
   );
 }

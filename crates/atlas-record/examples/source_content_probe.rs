@@ -40,6 +40,7 @@ impl ContentReferenceResolver for Context {
     fn resolve_reference(
         &self,
         _source: &SourceContentLocator,
+        _kind: &atlas_record::source_content::ContentReferenceKind,
         target: &str,
     ) -> Option<ResolvedContentReference> {
         let rest = target.strip_prefix("Compendium.pf2e.")?;

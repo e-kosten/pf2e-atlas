@@ -3,7 +3,10 @@
 //! Authored markup remains in the source DTO. Preparation does not persist its
 //! transient parser tree or evaluate gameplay expressions. The private interpreter tree exists only during field preparation.
 
+mod inline_action;
 mod literal_damage;
+mod literal_roll;
+pub use literal_roll::{LiteralContentRoll, literal_content_roll};
 mod marker_validation;
 mod model;
 mod parse_diagnostics;

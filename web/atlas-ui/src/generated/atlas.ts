@@ -382,7 +382,7 @@ export type { SpellEffectFactView } from "../../../../crates/atlas-app-model/bin
 export type { SpellEffectStrikeView } from "../../../../crates/atlas-app-model/bindings/SpellEffectStrikeView";
 export type { SpellEffectChoiceView } from "../../../../crates/atlas-app-model/bindings/SpellEffectChoiceView";
 
-export type { ContentDamageComponentView } from "../../../../crates/atlas-app-model/bindings/ContentDamageComponentView";
-export type { RollContentDamageRequest } from "../../../../crates/atlas-app-model/bindings/RollContentDamageRequest";
-export type { ContentDamageRollView } from "../../../../crates/atlas-app-model/bindings/ContentDamageRollView";
-export type { ContentDamageRollComponentView } from "../../../../crates/atlas-app-model/bindings/ContentDamageRollComponentView";
+export type { ContentRollComponentView } from "../../../../crates/atlas-app-model/bindings/ContentRollComponentView";
+export type { RollContentRequest } from "../../../../crates/atlas-app-model/bindings/RollContentRequest";
+export type { ContentRollResultView } from "../../../../crates/atlas-app-model/bindings/ContentRollResultView";
+export type { ContentRollComponentResultView } from "../../../../crates/atlas-app-model/bindings/ContentRollComponentResultView";

@@ -3,7 +3,7 @@
 Status: proposed
 Priority: before extending supported inline mechanics
 Owner: unassigned
-Last reviewed: 2026-10-23
+Last reviewed: 2026-10-26
 
 Extend the upstream-backed comparison of Foundry rich-text syntax when changing
 the source pin or supporting additional content. ADR 0044 already established
@@ -57,6 +57,18 @@ and source-checked reference dice controls. Actor/item expressions, nested damag
 flavors and unrecognized options remain outside that execution subset. Known
 traits/domains/roll options stay metadata beside literal base-formula rolls. Authored
 formulas/options remain evidence; this does not establish full Foundry roll parity.
+
+The registered PF2e `/act` commands now use source-backed English labels, trailing
+action costs, variants and verified unique action references. References back to
+the containing action remain readable without reopening that action. The action
+registry's ASCII case-only naming differences are handled separately from exact
+authored UUID/name references. These controls do not execute actor actions.
+
+Literal `/r`, `/gmr` and `/br` commands share source-checked transient reference
+rolling, retaining their original modes and captions. Atlas has no Foundry chat
+recipient routing or persisted roll history. Unsupported dice syntax, flavored
+inline formulas and actor/item-dependent expressions remain outside this subset.
+Checks and contextual formulas remain separate comparison domains.
 
 ## Completion and boundaries
 
