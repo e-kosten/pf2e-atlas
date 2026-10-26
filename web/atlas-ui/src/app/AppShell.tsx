@@ -6,7 +6,12 @@ import {
   encountersDestination,
 } from "./destinations";
 import { Monitor, Moon, Sun } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useSyncExternalStore } from "react";
+import {
+  getCompatibilityFailure,
+  subscribeCompatibilityFailures,
+} from "../api/compatibility";
+import { reloadFrontend } from "../shared/browser/reloadFrontend";
 import { Alert, Button, Menu, Popover, Segmented, Space, Typography } from "antd";
 import type { MenuProps } from "antd";
 import { restoreOverlayFocus } from "../shared/ui/overlays/restoreOverlayFocus";
@@ -44,6 +49,11 @@ export function AppShell({
   const themeTrigger = useRef<HTMLButtonElement>(null);
   const themeContent = useRef<HTMLDivElement>(null);
   const selectedView = activeView;
+  const development = import.meta.env.DEV;
+  const compatibilityFailure = useSyncExternalStore(
+    subscribeCompatibilityFailures,
+    getCompatibilityFailure,
+  );
   const destinations = [
     {
       key: "search",
@@ -166,7 +176,21 @@ export function AppShell({
           </Popover>
         </Space>
       </header>
-      {availabilityError && (
+      {compatibilityFailure && (
+        <Alert
+          className="error-banner"
+          type="error"
+          showIcon
+          title="Atlas was updated. Reload to continue."
+          description={
+            development
+              ? "Check ATLAS_API_PROXY and restart a matching backend before reloading."
+              : "Copy any unsaved edits before reloading."
+          }
+          action={<Button onClick={reloadFrontend}>Reload page</Button>}
+        />
+      )}
+      {availabilityError && !compatibilityFailure && (
         <Alert
           className="error-banner"
           type="error"

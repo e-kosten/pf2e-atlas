@@ -4,8 +4,9 @@ pub(crate) mod modifiers;
 mod projection;
 pub(in crate::encounters) mod senses;
 pub(super) use projection::{
-    effective_hp_maximum, hp_maximum_stat, participant_runtime_block, project_initiative,
-    project_participant, resolve_condition_subject_hints,
+    effective_hp_maximum, effective_level, effective_participant_level, hp_maximum_stat,
+    participant_runtime_block, project_initiative, project_participant,
+    resolve_condition_subject_hints,
 };
 mod applicability;
 pub(super) use applicability::{
@@ -13,7 +14,8 @@ pub(super) use applicability::{
     condition_applicability,
 };
 mod source_facts;
-pub(super) use source_facts::{source_applicability, source_baseline};
+pub(super) use source_facts::{authored_stat_baseline, source_applicability};
+pub(super) mod source_action_conditions;
 
 pub(in crate::encounters) mod causes;
 

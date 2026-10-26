@@ -2,9 +2,16 @@ import { chooseAttributeSort } from "../../../test/sortControls";
 import type { ResultSort } from "../../../generated/atlas";
 import { SearchProfileProvider } from "../../../test/SearchProfileProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ConfigProvider, Form, Input } from "antd";
+import { ConfigProvider, Form, Grid, Input } from "antd";
 import { useState } from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import {
   AtlasApiError,
   searchPage,
@@ -13,6 +20,7 @@ import {
   discoverFilterCounts,
 } from "../../../api/atlasApi";
 import {
+  activityFixture,
   detailFixture,
   editorFixture,
   fieldFixture,
@@ -95,21 +103,31 @@ function Picker({
       onFinish={() => addSelected(selected)}
       okButtonProps={{ disabled: !selected }}
     >
-      <Form.Item name="note" label="Note">
-        <Input />
-      </Form.Item>
+      {(detail) => (
+        <>
+          <output aria-label="Selected adjustment">
+            {detail?.encounter_adjustment}
+          </output>
+          <Form.Item name="note" label="Note">
+            <Input />
+          </Form.Item>
+        </>
+      )}
     </SearchPickerModal>
   );
 }
 function renderPicker() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
+  });
   let profile = "bge-base";
   let disabled = false;
+  let open = true;
   const content = () => (
     <ConfigProvider theme={{ token: { motion: false } }}>
       <QueryClientProvider client={client}>
         <SearchProfileProvider id={profile}>
-          <Picker disabled={disabled} />
+          <Picker disabled={disabled} open={open} />
         </SearchProfileProvider>
       </QueryClientProvider>
     </ConfigProvider>
@@ -119,6 +137,10 @@ function renderPicker() {
     client,
     setDisabled: (next: boolean) => {
       disabled = next;
+      view.rerender(content());
+    },
+    setOpen: (next: boolean) => {
+      open = next;
       view.rerender(content());
     },
     setProfile: (next: string) => {
@@ -136,16 +158,20 @@ async function submit(query: string) {
 }
 async function expectRetainedCandidate() {
   const calls = addSelected.mock.calls.length;
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Add" }));
   await waitFor(() => expect(addSelected).toHaveBeenCalledTimes(calls + 1));
   expect(addSelected).toHaveBeenLastCalledWith("actors:ghoul");
 }
 beforeEach(() => {
+  vi.restoreAllMocks();
   vi.clearAllMocks();
   search.mockReset();
   search.mockResolvedValue(result());
   vi.mocked(getRecordDetail).mockImplementation((key) =>
-    Promise.resolve(detailFixture(key)),
+    Promise.resolve({ ...detailFixture(key), artifact_generation: "generation-a" }),
   );
   vi.mocked(discoverFilterEditor).mockResolvedValue({
     ...editorFixture(),
@@ -158,6 +184,41 @@ beforeEach(() => {
     counts: { status: "unavailable", reason: "non_conjunctive_context" },
   });
 });
+it("keeps the root selection default when a match opens an exact embedded document", async () => {
+  const page = result();
+  const navigation = activityFixture("Command", "actors:ghoul").navigation;
+  page.rows[0].matches = [
+    {
+      navigation,
+      label: "Command",
+      snippet: null,
+      lane: "lexical",
+      lexical_rank: null,
+      semantic_similarity: null,
+    },
+  ];
+  search.mockResolvedValue(page);
+  const parent = {
+    ...detailFixture("actors:ghoul", "Ghoul"),
+    artifact_generation: "generation-a",
+    encounter_adjustment: "elite" as const,
+  };
+  const child = {
+    ...detailFixture("actors:ghoul", "Command"),
+    artifact_generation: "generation-a",
+    selected: navigation,
+  };
+  vi.mocked(getRecordDetail).mockResolvedValueOnce(parent).mockResolvedValueOnce(child);
+  renderPicker();
+  fireEvent.click(await screen.findByRole("button", { name: "1 matches in Ghoul" }));
+  fireEvent.click(await screen.findByRole("link", { name: /Command/ }));
+  expect(await screen.findByRole("heading", { name: "Command" })).toBeVisible();
+  expect(screen.getByLabelText("Selected adjustment")).toHaveTextContent("elite");
+  expect(getRecordDetail).toHaveBeenCalledTimes(2);
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() => expect(addSelected).toHaveBeenLastCalledWith("actors:ghoul"));
+});
+
 it("inherits lazy contextual counts in Add pickers and leaves text searches count-free", async () => {
   vi.mocked(discoverFilterEditor).mockResolvedValue(
     editorFixture([
@@ -220,8 +281,11 @@ it("sorts through the shared request while retaining the candidate and Add draft
   }));
   renderPicker();
   fireEvent.click(await screen.findByRole("link", { name: /Ghoul/ }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
   fireEvent.change(screen.getByLabelText("Note"), { target: { value: "Keep draft" } });
-  fireEvent.click(screen.getByRole("button", { name: "Results" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Results" }));
   await chooseAttributeSort("level", "desc");
   await waitFor(() =>
     expect(search.mock.lastCall?.[0]).toMatchObject({
@@ -316,7 +380,9 @@ it("previews before explicit Add and retains the candidate when a later query ha
   expect(getRecordDetail).not.toHaveBeenCalled();
   fireEvent.click(link);
   await waitFor(() => expect(getRecordDetail).toHaveBeenCalled());
-  expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
   search.mockResolvedValue({
     ...result(),
     rows: [],
@@ -326,6 +392,171 @@ it("previews before explicit Add and retains the candidate when a later query ha
   await waitFor(() => expect(screen.queryByRole("link", { name: /Ghoul/ })).toBeNull());
   await expectRetainedCandidate();
   expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
+});
+
+function multipleCandidates() {
+  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
+  search.mockResolvedValue({
+    ...result(),
+    page: { ...result().page, count: 3, total: 3n },
+    rows: [...result().rows, ...result("Ogre").rows, ...result("Dragon").rows],
+  });
+  vi.mocked(getRecordDetail).mockImplementation((key) =>
+    Promise.resolve({
+      ...detailFixture(key, key.slice(7)),
+      artifact_generation: "generation-a",
+    }),
+  );
+}
+it("keeps the document and Add candidate together until a replacement is ready, preserving the draft", async () => {
+  multipleCandidates();
+  renderPicker();
+  fireEvent.click(await screen.findByRole("link", { name: /^Ghoul/ }));
+  const preview = screen.getByRole("region", { name: "Record preview" });
+  await within(preview).findByRole("heading", { name: "ghoul" });
+  const oldTitle = within(preview).getByRole("heading", { name: "ghoul" });
+  const frames: string[] = [];
+  const observer = new MutationObserver(() =>
+    frames.push(preview.querySelector("h2")?.textContent?.trim() ?? "blank"),
+  );
+  observer.observe(preview, { childList: true, characterData: true, subtree: true });
+  let finish!: (value: ReturnType<typeof detailFixture>) => void;
+  vi.mocked(getRecordDetail).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  try {
+    fireEvent.click(screen.getByRole("link", { name: /^Ogre/ }));
+    expect(screen.getByRole("link", { name: /^Ghoul/ })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    expect(oldTitle).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Note"), {
+      target: { value: "Keep this draft" },
+    });
+    fireEvent.submit(screen.getByLabelText("Note").closest("form")!);
+    expect(addSelected).not.toHaveBeenCalled();
+    await within(preview).findByText("Loading Ogre…");
+    expect(within(preview).getByRole("heading", { name: "ghoul" })).toBe(oldTitle);
+    await act(async () =>
+      finish({
+        ...detailFixture("actors:ogre", "Ogre"),
+        artifact_generation: "generation-a",
+      }),
+    );
+    await within(preview).findByRole("heading", { name: "Ogre" });
+    expect(screen.getByRole("link", { name: /^Ogre/ })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    expect(screen.getByLabelText("Note")).toHaveValue("Keep this draft");
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(addSelected).toHaveBeenLastCalledWith("actors:ogre"));
+    expect(frames).not.toContain("blank");
+    expect(new Set(frames)).toEqual(new Set(["ghoul", "Ogre"]));
+  } finally {
+    observer.disconnect();
+  }
+});
+
+it("keeps a failed request local with Retry and lets Cancel return to the existing candidate", async () => {
+  multipleCandidates();
+  renderPicker();
+  fireEvent.click(await screen.findByRole("link", { name: /^Ghoul/ }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
+  vi.mocked(getRecordDetail).mockRejectedValueOnce(new Error("Disconnected"));
+  fireEvent.click(screen.getByRole("link", { name: /^Ogre/ }));
+  expect(await screen.findByText("Could not load Ogre")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Retry loading Ogre" }));
+  await screen.findByRole("heading", { name: "ogre" });
+  expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
+  vi.mocked(getRecordDetail).mockRejectedValueOnce(new Error("Disconnected"));
+  fireEvent.click(screen.getByRole("link", { name: /^Dragon/ }));
+  await screen.findByText("Could not load Dragon");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel selection" }));
+  expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() => expect(addSelected).toHaveBeenLastCalledWith("actors:ogre"));
+});
+
+it.each(["superseded", "closed", "disabled"] as const)(
+  "ignores a late prepared selection when %s",
+  async (reason) => {
+    multipleCandidates();
+    const controls = renderPicker();
+    fireEvent.click(await screen.findByRole("link", { name: /^Ghoul/ }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+    );
+    let finish!: (value: ReturnType<typeof detailFixture>) => void;
+    vi.mocked(getRecordDetail).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    fireEvent.click(screen.getByRole("link", { name: /^Ogre/ }));
+    if (reason === "closed") controls.setOpen(false);
+    else if (reason === "disabled") controls.setDisabled(true);
+    else {
+      fireEvent.click(screen.getByRole("link", { name: /^Dragon/ }));
+      await screen.findByRole("heading", { name: "dragon" });
+    }
+    await act(async () =>
+      finish({
+        ...detailFixture("actors:ogre", "Ogre"),
+        artifact_generation: "generation-a",
+      }),
+    );
+    expect(screen.queryByRole("heading", { name: "Ogre" })).toBeNull();
+    expect(addSelected).not.toHaveBeenCalled();
+    if (reason === "superseded") {
+      fireEvent.click(screen.getByRole("button", { name: "Add" }));
+      await waitFor(() =>
+        expect(addSelected).toHaveBeenLastCalledWith("actors:dragon"),
+      );
+    }
+  },
+);
+
+it("rejects a mismatched source generation before caching or selecting the new document", async () => {
+  multipleCandidates();
+  const { client } = renderPicker();
+  fireEvent.click(await screen.findByRole("link", { name: /^Ghoul/ }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
+  vi.mocked(getRecordDetail).mockResolvedValueOnce({
+    ...detailFixture("actors:ogre", "Ogre"),
+    artifact_generation: "generation-b",
+  });
+  fireEvent.click(screen.getByRole("link", { name: /^Ogre/ }));
+  expect(await screen.findByText("Reference collection changed")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Refresh results" })).toBeEnabled();
+  expect(screen.getByRole("link", { name: /^Ghoul/ })).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+  expect(
+    client
+      .getQueryCache()
+      .findAll({ queryKey: ["record-detail"] })
+      .some(
+        (query) =>
+          (
+            query.state.data as
+              { detail?: ReturnType<typeof detailFixture> } | undefined
+          )?.detail?.artifact_generation === "generation-b",
+      ),
+  ).toBe(false);
 });
 
 it("inherits a profile switch on page one while retaining the explicit candidate, reader and Add draft", async () => {
@@ -347,10 +578,13 @@ it("inherits a profile switch on page one while retaining the explicit candidate
     );
   const { setProfile } = renderPicker();
   fireEvent.click(await screen.findByRole("link", { name: /Ghoul/ }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
   fireEvent.change(screen.getByLabelText("Note"), {
     target: { value: "Keep encounter draft" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Results" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Results" }));
   fireEvent.click(screen.getByTitle("Next Page"));
   await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
   setProfile("embeddinggemma");
@@ -377,6 +611,12 @@ it("blocks selection and form actions while Add is pending, preserving the draft
     target: { value: "Keep this note" },
   });
   fireEvent.click(await screen.findByRole("link", { name: /Ghoul/ }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
   view.setDisabled(true);
   expect(screen.getByRole("searchbox")).toBeDisabled();
   expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
@@ -402,6 +642,9 @@ it("adopts generation once and explicitly refreshes conflicts without clearing c
   await screen.findByRole("link", { name: /Ghoul/ });
   expect(search).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("link", { name: /Ghoul/ }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
   fireEvent.change(screen.getByLabelText("Note"), {
     target: { value: "Unsaved encounter note" },
   });
@@ -423,6 +666,9 @@ it("adopts generation once and explicitly refreshes conflicts without clearing c
     "The reference collection changed.",
   );
   expect(search.mock.calls[1][0].expected_artifact_generation).toBe("generation-a");
+  vi.mocked(getRecordDetail).mockImplementation((key) =>
+    Promise.resolve({ ...detailFixture(key), artifact_generation: "generation-b" }),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Refresh results" }));
   expect(await screen.findByRole("link", { name: /Dragon/ })).toBeInTheDocument();
   expect(search).toHaveBeenCalledTimes(3);

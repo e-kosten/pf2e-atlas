@@ -23,6 +23,7 @@ export function ReferenceReader({
   reading,
   selectedRecordKey = null,
   readerActions,
+  status,
   readerFooter,
   positions,
   onResults,
@@ -31,6 +32,7 @@ export function ReferenceReader({
   reading: ReferenceReading;
   selectedRecordKey?: string | null;
   readerActions?: ReactNode;
+  status?: ReactNode;
   readerFooter?: ReactNode;
   positions?: BrowsePositions;
   onResults?: () => void;
@@ -155,8 +157,17 @@ export function ReferenceReader({
   const hasResults = onResults !== undefined;
   const hasRequest = reading.request !== null;
   useEffect(() => {
-    if (hasResults && active && hasRequest)
-      backRef.current?.focus({ preventScroll: true });
+    if (!hasResults || !active || !hasRequest) return;
+    const focused = backRef.current?.ownerDocument.activeElement;
+    // Preparing a selection can finish after the user starts editing the Add
+    // form. Hidden results/search controls still hand focus to the reader.
+    if (
+      focused instanceof HTMLElement &&
+      focused.matches("input, textarea, [contenteditable=true], [role=combobox]") &&
+      focused.getClientRects().length > 0
+    )
+      return;
+    backRef.current?.focus({ preventScroll: true });
   }, [hasResults, active, hasRequest]);
   useEffect(() => {
     if (
@@ -220,13 +231,16 @@ export function ReferenceReader({
       aria-label="Record preview"
     >
       <BrowsePaneHeader className="reference-reader__header">
-        {onResults ? (
-          <Button ref={backRef} icon={<ArrowLeft size={16} />} onClick={onResults}>
-            Results
-          </Button>
-        ) : (
-          <Typography.Text type="secondary">Preview</Typography.Text>
-        )}
+        <div className="reference-reader__heading">
+          {onResults ? (
+            <Button ref={backRef} icon={<ArrowLeft size={16} />} onClick={onResults}>
+              Results
+            </Button>
+          ) : (
+            <Typography.Text type="secondary">Preview</Typography.Text>
+          )}
+          {status}
+        </div>
         <Space wrap>
           {reading.canGoBack && (
             <Button

@@ -425,9 +425,8 @@ pub(super) fn resolve_strike(
     }
     let (source, selected) =
         crate::records::read_record_detail(retrieval, request.reference.selection)?;
-    let baseline =
-        super::rules::source_baseline(&source.source, retrieval.source_fingerprint(), None)
-            .ok_or_else(|| AppServiceError::invalid_request("Actor statistics are unavailable."))?;
+    let baseline = super::hydration::source_baseline(&source.source, retrieval, None)?
+        .ok_or_else(|| AppServiceError::invalid_request("Actor statistics are unavailable."))?;
     let adjustment_applicable = !matches!(
         atlas_record::source_record::SourceQueryView::new(
             source.source.source(),

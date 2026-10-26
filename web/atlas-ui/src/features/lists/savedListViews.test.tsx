@@ -1236,9 +1236,12 @@ function filterEditorFixture() {
 }
 
 function recordDetailFixture(recordKey: string): RecordDetailView {
-  return detailFixture(
-    recordKey,
-    recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
-    recordKey === "rules:nested" ? undefined : "rules:nested",
-  );
+  return {
+    ...detailFixture(
+      recordKey,
+      recordKey === "rules:nested" ? "Nested Rule" : "Test Action 1",
+      recordKey === "rules:nested" ? undefined : "rules:nested",
+    ),
+    artifact_generation: "generation-a",
+  };
 }

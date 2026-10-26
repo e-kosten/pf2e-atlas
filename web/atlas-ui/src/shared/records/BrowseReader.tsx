@@ -18,6 +18,8 @@ export function BrowseReader({
   selectedRecordKey,
   reading,
   readerActions,
+  readerStatus,
+  onReaderClose,
   readerFooter,
   positions,
   onResultsScroll,
@@ -30,6 +32,8 @@ export function BrowseReader({
   selectedRecordKey: string | null;
   reading: ReferenceReading;
   readerActions?: ReactNode;
+  readerStatus?: ReactNode;
+  onReaderClose?: () => void;
   readerFooter?: ReactNode;
   positions?: BrowsePositions;
   onResultsScroll?: () => void;
@@ -66,6 +70,7 @@ export function BrowseReader({
     }
   }
   function closeReader() {
+    onReaderClose?.();
     setClosedRequest(reading.request);
     requestAnimationFrame(() => {
       const trigger = beforePreview.current?.isConnected
@@ -110,6 +115,7 @@ export function BrowseReader({
       reading={reading}
       selectedRecordKey={selectedRecordKey}
       readerActions={readerActions}
+      status={readerStatus}
       readerFooter={readerFooter}
       positions={saved}
       onResults={narrow ? closeReader : undefined}

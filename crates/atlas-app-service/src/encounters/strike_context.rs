@@ -77,11 +77,11 @@ fn prepare(
                 workspace.retrieval_mut(),
                 &request.strike.reference.selection.record_key,
             )?;
-            let sensory_baseline = super::rules::source_baseline(
+            let sensory_baseline = super::hydration::source_baseline(
                 &observer_source.source,
-                workspace.retrieval_mut().source_fingerprint(),
+                workspace.retrieval_mut(),
                 None,
-            );
+            )?;
             let dazzled = super::rules::sensory_context::dazzled_concealment(
                 participant,
                 key,
@@ -147,6 +147,7 @@ mod tests {
         fixture
             .worker
             .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                participant_variant: None,
                 encounter_ref: encounter.encounter_key.clone(),
                 record_ref: "Test Creature 1".into(),
                 quantity: 2,

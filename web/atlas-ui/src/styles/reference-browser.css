@@ -35,6 +35,7 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
 }
 .reference-results,
 .reference-reader {
+  --browse-pane-inset: var(--space-group);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -57,12 +58,34 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   gap: var(--space-control);
   min-width: 0;
   min-height: calc(var(--control-height) + 2 * var(--space-control));
-  padding: var(--space-control) var(--browse-header-inset, var(--space-group));
+  padding: var(--space-control) var(--browse-pane-inset);
 }
 .reference-results__header .result-pane-header {
   width: 100%;
   flex-wrap: wrap;
   justify-content: space-between;
+}
+.reference-reader__heading,
+.reference-selection-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-control);
+  min-width: 0;
+}
+.reference-reader__heading {
+  flex: 1;
+}
+.reference-reader__heading > :first-child,
+.reference-selection-status > button {
+  flex-shrink: 0;
+}
+.reference-selection-status > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
 }
 .reference-results__scroll,
 .reference-reader__scroll {
@@ -92,7 +115,6 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
 .reference-result__summary {
   display: flex;
   height: auto;
-  padding: 14px 16px 10px;
   border-radius: 0;
   text-align: left;
   white-space: normal;
@@ -133,7 +155,8 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   font-size: 12px;
 }
 .reference-result > .reference-result__traits {
-  padding: 0 16px 10px;
+  padding: 0 var(--browse-pane-inset) 10px;
+  padding-inline-start: calc(var(--browse-pane-inset) - 3px);
 }
 .reference-result__traits {
   grid-column: 1 / -1;
@@ -258,14 +281,17 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   max-width: calc(var(--document-measure) + 2 * var(--space-section));
   margin-inline: auto;
 }
-.reference-reader > .reference-reader__header {
-  --browse-header-inset: var(--space-section);
+.reference-reader {
+  --browse-pane-inset: var(--space-section);
+}
+.reference-reader__scroll > .detail-panel {
+  --record-inset: var(--browse-pane-inset);
 }
 @media (max-width: 600px) {
   .reference-reader--document .reference-reader__scroll > .detail-panel {
     max-width: calc(var(--document-measure) + 2 * var(--space-group));
   }
-  .reference-reader > .reference-reader__header {
-    --browse-header-inset: var(--space-group);
+  .reference-reader {
+    --browse-pane-inset: var(--space-group);
   }
 }

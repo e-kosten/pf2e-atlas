@@ -38,8 +38,14 @@ import type {
 } from "../generated/atlas";
 import { participantUpdate } from "../features/encounters/participantEdits";
 import { detailFixture } from "../test/fixtures";
+import {
+  API_CONTRACT,
+  API_CONTRACT_HEADER,
+  clearCompatibilityFailure,
+} from "./compatibility";
 const fetchMock = vi.fn();
 beforeEach(() => {
+  clearCompatibilityFailure();
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockReset();
 });
@@ -49,7 +55,10 @@ function respond(value: unknown, status = 200) {
     Promise.resolve(
       new Response(JSON.stringify(value), {
         status,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          [API_CONTRACT_HEADER]: API_CONTRACT,
+        },
       }),
     ),
   );
@@ -919,7 +928,12 @@ describe("source-backed API transport", () => {
     });
   });
   it("surfaces invalid success JSON and response text", async () => {
-    fetchMock.mockResolvedValue(new Response("broken", { status: 200 }));
+    fetchMock.mockResolvedValue(
+      new Response("broken", {
+        status: 200,
+        headers: { [API_CONTRACT_HEADER]: API_CONTRACT },
+      }),
+    );
     await expect(getReadiness()).rejects.toBeInstanceOf(AtlasApiError);
   });
 });

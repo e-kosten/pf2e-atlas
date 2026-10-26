@@ -56,7 +56,7 @@ pub(crate) fn insert_encounter(
 pub(crate) fn list(connection: &Connection) -> LocalStateResult<Vec<Encounter>> {
     let mut statement = connection.prepare(
         "SELECT encounter_key, slug, name, description, note, status, round_number,
-                current_turn_participant_key, created_at, updated_at, revision
+                current_turn_participant_key, created_at, updated_at, revision, difficulty_party_level, difficulty_party_size
          FROM encounters
          WHERE owner_id = 1
          ORDER BY updated_at DESC, slug ASC",
@@ -72,7 +72,7 @@ pub(crate) fn get(
     connection
         .query_row(
             "SELECT encounter_key, slug, name, description, note, status, round_number,
-                    current_turn_participant_key, created_at, updated_at, revision
+                    current_turn_participant_key, created_at, updated_at, revision, difficulty_party_level, difficulty_party_size
              FROM encounters
              WHERE owner_id = 1 AND (encounter_key = ?1 OR slug = ?1)",
             params![encounter_ref],
@@ -165,9 +165,9 @@ pub(crate) fn add_participant(
                 encounter_id, participant_key, record_key, participant_kind, participant_variant, position,
                 display_name, record_title_snapshot, record_kind_snapshot, side,
                 initiative, initiative_order, max_hp, current_hp, temporary_hp,
-                defeated, hidden, note, created_at, updated_at, hp_origin, variant_origin, track_dying
+                defeated, hidden, note, created_at, updated_at, hp_origin, variant_origin, track_dying, level_override
              )
-             VALUES (?1, ?2, ?3, ?4, ?19, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 0, 0, ?15, ?16, ?16, ?17, ?18, ?20)",
+             VALUES (?1, ?2, ?3, ?4, ?19, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, 0, 0, ?15, ?16, ?16, ?17, ?18, ?20, ?21)",
             params![
                 encounter_id,
                 participant_key,
@@ -189,6 +189,7 @@ pub(crate) fn add_participant(
                 participant.variant_origin.as_str(),
                 participant.participant_variant.as_str(),
                 participant.participant_kind == ParticipantKind::Pc,
+                participant.level_override,
             ],
         );
         match result {
@@ -584,6 +585,10 @@ fn participants(
 fn encounter_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Encounter> {
     let status: String = row.get(5)?;
     Ok(Encounter {
+        difficulty_reference: super::EncounterDifficultyReference {
+            party_level: row.get(11)?,
+            party_size: row.get(12)?,
+        },
         revision: row.get(10)?,
         encounter_key: row.get(0)?,
         slug: row.get(1)?,
@@ -1002,7 +1007,7 @@ fn new_participant_key() -> String {
     format!("participant_{:016x}", random::<u64>())
 }
 
-fn now_rfc3339() -> LocalStateResult<String> {
+pub(super) fn now_rfc3339() -> LocalStateResult<String> {
     OffsetDateTime::now_utc()
         .format(&Rfc3339)
         .map_err(Into::into)

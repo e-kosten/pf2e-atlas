@@ -7,6 +7,7 @@ mod keyed;
 mod parse;
 mod predicate;
 mod presence;
+mod retained_rule;
 mod union;
 pub(crate) mod value;
 

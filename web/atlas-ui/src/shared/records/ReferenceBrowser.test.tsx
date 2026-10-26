@@ -91,7 +91,10 @@ function Harness({
       }
       generation={generation}
       selectedRecordKey={selected}
-      onSelect={(row) => select(row.record.record_key)}
+      onSelect={(row, request) => {
+        select(row.record.record_key);
+        reading.select(request);
+      }}
       reading={reading}
       loading={false}
     />

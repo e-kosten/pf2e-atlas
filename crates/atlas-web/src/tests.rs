@@ -37,6 +37,84 @@ use super::error::status_for_error;
 use super::router::router_with_state;
 use super::service::{AtlasWebService, AtlasWebState, call_service};
 
+#[tokio::test]
+async fn compatibility_handshake_is_available_without_service_capacity() {
+    let app = router_with_state(AtlasWebState::from_service_with_blocking_capacity(
+        MockService::default(),
+        0,
+    ));
+    let response = app
+        .oneshot(
+            Request::get("/api/compatibility")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers()[super::compatibility::HEADER],
+        super::compatibility::CONTRACT
+    );
+    assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(
+        serde_json::from_slice::<Value>(&body).unwrap()["api_contract"],
+        super::compatibility::CONTRACT
+    );
+}
+
+#[tokio::test]
+async fn incompatible_requests_are_rejected_before_reads_or_mutations() {
+    for (method, path) in [
+        (Method::GET, "/api/readiness"),
+        (Method::POST, "/api/lists"),
+    ] {
+        let app = router_with_state(AtlasWebState::from_service_with_blocking_capacity(
+            MockService::default(),
+            0,
+        ));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri(path)
+                    .header(super::compatibility::HEADER, "old-frontend")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        assert_eq!(
+            response.headers()[super::compatibility::HEADER],
+            super::compatibility::CONTRACT
+        );
+    }
+}
+
+#[tokio::test]
+async fn matching_contract_reaches_the_service() {
+    let app = router_with_state(AtlasWebState::from_service_with_blocking_capacity(
+        MockService::default(),
+        0,
+    ));
+    let response = app
+        .oneshot(
+            Request::get("/api/readiness")
+                .header(super::compatibility::HEADER, super::compatibility::CONTRACT)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(
+        response.headers()[super::compatibility::HEADER],
+        super::compatibility::CONTRACT
+    );
+}
+
 #[test]
 fn app_error_codes_map_to_expected_http_statuses() {
     assert_eq!(
@@ -1408,6 +1486,22 @@ impl AtlasWebService for MockService {
         })
     }
 
+    fn set_encounter_difficulty(
+        &self,
+        encounter_ref: &str,
+        _request: atlas_app_model::SetEncounterDifficultyRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
+        })
+    }
+    fn preview_encounter_difficulty(
+        &self,
+        encounter_ref: &str,
+        _request: atlas_app_model::PreviewEncounterDifficultyRequest,
+    ) -> Result<atlas_app_model::EncounterDifficultyView, AppServiceError> {
+        Ok(encounter_detail(encounter_ref, None, false).difficulty)
+    }
     fn update_encounter(
         &self,
         request: UpdateEncounterRequest,
@@ -1902,6 +1996,22 @@ fn encounter_detail(
     include_condition: bool,
 ) -> EncounterDetailView {
     EncounterDetailView {
+        difficulty: atlas_app_model::EncounterDifficultyView {
+            rules: vec![],
+            reference: Default::default(),
+            party_level: None,
+            party_size: None,
+            pc_count: 0,
+            basis: "Choose a party reference.".into(),
+            reference_note: None,
+            total_xp: None,
+            known_xp: 0,
+            xp_per_pc: None,
+            award_note: None,
+            rating: None,
+            budgets: vec![],
+            opposition: vec![],
+        },
         revision: 7,
         artifact_generation: Some("test-generation".into()),
         encounter: encounter_summary(encounter_ref, "Ambush"),

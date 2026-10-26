@@ -1066,13 +1066,7 @@ fn custom_condition_subject(
                 "Encounter participant was not found",
             )
         })?;
-    Ok(workflow::ConditionSubjectContext {
-        level: participant.level_override,
-        participant,
-        facts: Default::default(),
-        reference_revision: None,
-        fortitude: None,
-    })
+    Ok(workflow::ConditionSubjectContext::from_saved(&participant))
 }
 
 #[cfg(test)]

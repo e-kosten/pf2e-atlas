@@ -7,7 +7,6 @@ use atlas_app_model::{
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest,
 };
-use atlas_domain::RecordKind;
 use atlas_local_state::{
     AddEncounterParticipant, EncounterParticipantCondition, EncounterStatus, NewEncounter,
     ParticipantKind, ParticipantSide, ReorderEncounterParticipant,
@@ -19,15 +18,13 @@ use crate::service::AtlasAppService;
 
 use super::conditions::{condition_catalog, modeled_condition_by_ref};
 use super::hydration::{hydrate_participant_records, resolve_record_ref};
-use super::mechanics::{effective_max, initial_variant};
+use super::mechanics::effective_max;
 use super::projection::{
     encounter_detail_view, encounter_not_found, encounter_status_local, encounter_summary,
     participant_side, participant_variant, reorder_placement,
 };
 use super::timing::{turn_review, turn_update};
 use super::turns::next_turn_after_removed;
-
-const MAX_ADD_QUANTITY: u32 = 50;
 
 impl AtlasAppService {
     pub fn encounter_condition_definitions(
@@ -212,86 +209,18 @@ impl AtlasAppService {
                 Ok((receipt, record, session.reference_revision()?))
             },
         )?;
-        if request.quantity == 0 || request.quantity > MAX_ADD_QUANTITY {
-            return Err(AppServiceError::invalid_request(format!(
-                "quantity must be between 1 and {MAX_ADD_QUANTITY}"
-            )));
-        }
-        let participant_kind = match record.summary.record_kind.as_value().copied() {
-            Some(RecordKind::Creature) => ParticipantKind::Creature,
-            Some(RecordKind::Hazard) => ParticipantKind::Hazard,
-            _ => {
-                return Err(AppServiceError::invalid_request(
-                    "encounter participants must be creatures, hazards, or manually named PCs",
-                ));
-            }
-        };
-        let side = if participant_kind == ParticipantKind::Hazard {
-            ParticipantSide::Hazard
-        } else {
-            ParticipantSide::Enemy
-        };
-        let (inherited, variant_origin) = initial_variant(&record.source);
-        let variant = inherited.unwrap_or(atlas_local_state::ParticipantVariant::Normal);
-        let max_hp = effective_max(&record.source, inherited);
-        let current_hp = max_hp;
-        let mut participants = Vec::with_capacity(request.quantity as usize);
-        for index in 0..request.quantity {
-            let display_name = if request.quantity == 1 {
-                record
-                    .summary
-                    .name
-                    .as_value()
-                    .cloned()
-                    .unwrap_or_else(|| record.summary.key.to_string())
-            } else {
-                format!(
-                    "{} {}",
-                    record
-                        .summary
-                        .name
-                        .as_value()
-                        .cloned()
-                        .unwrap_or_else(|| record.summary.key.to_string()),
-                    index + 1
-                )
-            };
-            participants.push(AddEncounterParticipant {
-                spell_resources: super::spell_catalog::initial_resources(&record.source),
-                participant_variant: variant,
-                variant_origin,
-                hp_origin: if max_hp.is_some() {
-                    atlas_local_state::ParticipantHpOrigin::DerivedPristine
-                } else {
-                    atlas_local_state::ParticipantHpOrigin::Unknown
-                },
-                record_key: Some(record.summary.key.clone()),
-                participant_kind,
-                display_name,
-                record_title_snapshot: Some(
-                    record
-                        .summary
-                        .name
-                        .as_value()
-                        .cloned()
-                        .unwrap_or_else(|| record.summary.key.to_string()),
-                ),
-                record_kind_snapshot: Some(
-                    record
-                        .summary
-                        .record_kind
-                        .as_value()
-                        .map(|k| k.as_str().to_owned())
-                        .unwrap_or_default(),
-                ),
-                side,
-                initiative: request.initiative,
-                max_hp,
-                current_hp,
-                temporary_hp: 0,
-                note: None,
-            });
-        }
+        super::record_addition::validate_quantity(request.quantity)?;
+        let template = super::record_addition::prepare(&record, request.participant_variant)?;
+        let participants = (0..request.quantity)
+            .map(|index| {
+                let mut participant = template.clone();
+                if request.quantity > 1 {
+                    participant.display_name = format!("{} {}", template.display_name, index + 1);
+                }
+                participant.initiative = request.initiative;
+                participant
+            })
+            .collect();
         self.with_write(move |session| {
             session.require_reference_revision(revision)?;
             session
@@ -312,6 +241,7 @@ impl AtlasAppService {
             session.local_state().encounters().add_participant(
                 &receipt.encounter_key,
                 AddEncounterParticipant {
+                    level_override: None,
                     spell_resources: Vec::new(),
                     participant_variant: atlas_local_state::ParticipantVariant::Normal,
                     variant_origin: atlas_local_state::ParticipantVariantOrigin::Explicit,
@@ -661,19 +591,56 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: AdvanceEncounterTurnRequest,
     ) -> AppServiceResult<EncounterMutationView> {
+        if request.expected_revision < 0 {
+            return Err(AppServiceError::invalid_request(
+                "expected revision must be nonnegative",
+            ));
+        }
+        let intent = serde_json::to_value(&request)
+            .map_err(|error| AppServiceError::invalid_request(error.to_string()))?;
+        if let Some(encounter) = self.with_state(|session| {
+            Ok(session.local_state().encounters().advance_turn_receipt(
+                encounter_ref,
+                &request.request_id,
+                &intent,
+            )?)
+        })? {
+            return Ok(EncounterMutationView {
+                encounter_key: encounter.encounter_key,
+            });
+        }
+        let snapshot =
+            super::event_execution::snapshot(self, encounter_ref, request.expected_revision)?;
+        let encounter_key = snapshot.encounter.encounter_key.clone();
+        let next = super::turns::next_turn(&snapshot);
+        let (source_actions, reference_revision) = if let Some(participant) = snapshot
+            .participants
+            .iter()
+            .find(|p| Some(&p.participant_key) == next.participant_key.as_ref())
+        {
+            super::turn_resources::source_action_context(self, participant)?
+        } else {
+            (Default::default(), None)
+        };
         self.with_write(move |session| {
-            if request.expected_revision < 0 {
-                return Err(AppServiceError::invalid_request(
-                    "expected revision must be nonnegative",
-                ));
+            // A concurrent matching request still recovers before the source guard.
+            if let Some(encounter) = session.local_state().encounters().advance_turn_receipt(
+                &encounter_key,
+                &request.request_id,
+                &intent,
+            )? {
+                return Ok(EncounterMutationView {
+                    encounter_key: encounter.encounter_key,
+                });
             }
-            let intent = serde_json::to_value(&request)
-                .map_err(|error| AppServiceError::invalid_request(error.to_string()))?;
+            if let Some(revision) = reference_revision {
+                session.require_reference_revision(revision)?;
+            }
             let encounter = session
                 .local_state()
                 .encounters()
                 .advance_turn_once(
-                    encounter_ref,
+                    &encounter_key,
                     &request.request_id,
                     &intent,
                     request.expected_revision,
@@ -687,6 +654,7 @@ impl AtlasAppService {
                                 update.turn.round_number,
                                 &request.request_id,
                                 false,
+                                &source_actions,
                             )
                             .map_err(|error| {
                                 atlas_local_state::LocalStateError::InvalidConditionEvent(
@@ -719,7 +687,7 @@ impl AtlasAppService {
                         Ok((update, !turn_review(snapshot).reminders.is_empty()))
                     },
                 )?
-                .ok_or_else(|| encounter_not_found(encounter_ref))?;
+                .ok_or_else(|| encounter_not_found(&encounter_key))?;
             Ok(EncounterMutationView {
                 encounter_key: encounter.encounter_key,
             })
@@ -925,6 +893,7 @@ pub(super) fn condition_extra_action_input(
 }
 
 pub(super) struct ConditionSubjectContext {
+    pub(super) source_actions: super::rules::source_action_conditions::SourceActionConditions,
     pub(super) participant: atlas_local_state::EncounterParticipant,
     pub(super) facts: super::rules::ConditionApplicabilityFacts,
     pub(super) reference_revision: Option<u64>,
@@ -936,6 +905,7 @@ impl ConditionSubjectContext {
     /// Facts available from saved encounter state, without a reference read or guard.
     pub(super) fn from_saved(participant: &atlas_local_state::EncounterParticipant) -> Self {
         Self {
+            source_actions: Default::default(),
             participant: participant.clone(),
             facts: Default::default(),
             reference_revision: None,
@@ -980,29 +950,32 @@ pub(super) fn condition_subject_context(
                     )
                 })
                 .unwrap_or_default();
-            let block = detail.as_ref().and_then(|detail| {
-                let baseline = super::rules::source_baseline(
-                    &detail.source,
-                    retrieval.source_fingerprint(),
-                    None,
-                )?;
-                let adjustment_applicable = !matches!(
-                    atlas_record::source_record::SourceQueryView::new(
-                        detail.source.source(),
-                        detail.summary.key.pack().as_str(),
-                        "",
+            let baseline = detail
+                .as_ref()
+                .map(|detail| super::hydration::source_baseline(&detail.source, retrieval, None))
+                .transpose()?
+                .flatten();
+            let block = detail
+                .as_ref()
+                .zip(baseline.as_ref())
+                .map(|(detail, baseline)| {
+                    let adjustment_applicable = !matches!(
+                        atlas_record::source_record::SourceQueryView::new(
+                            detail.source.source(),
+                            detail.summary.key.pack().as_str(),
+                            "",
+                        )
+                        .actor()
+                        .authored_adjustment(),
+                        atlas_record::source_record::SourceFieldView::NotApplicable
+                    );
+                    super::rules::project_participant(
+                        &participant,
+                        baseline,
+                        adjustment_applicable,
+                        &[],
                     )
-                    .actor()
-                    .authored_adjustment(),
-                    atlas_record::source_record::SourceFieldView::NotApplicable
-                );
-                Some(super::rules::project_participant(
-                    &participant,
-                    &baseline,
-                    adjustment_applicable,
-                    &[],
-                ))
-            });
+                });
             let level = participant.level_override.or_else(|| {
                 block
                     .as_ref()
@@ -1018,6 +991,17 @@ pub(super) fn condition_subject_context(
                 .and_then(|number| number.as_i64());
             let reference_revision = Some(session.reference_revision()?);
             Ok(ConditionSubjectContext {
+                source_actions: baseline
+                    .map(|baseline| baseline.source_actions)
+                    .unwrap_or_else(|| {
+                        super::rules::source_action_conditions::SourceActionConditions {
+                            entries: vec![],
+                            unavailable_reason: Some(
+                                "This creature's source conditions are unavailable.".into(),
+                            ),
+                            source_fingerprint: None,
+                        }
+                    }),
                 participant,
                 facts,
                 level,
@@ -1145,6 +1129,7 @@ mod immunity_override_tests {
             })
             .unwrap();
         let context = ConditionSubjectContext {
+            source_actions: Default::default(),
             participant: snapshot.participants[0].clone(),
             reference_revision: None,
             level: None,

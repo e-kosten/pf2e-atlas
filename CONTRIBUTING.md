@@ -253,6 +253,29 @@ just dev-web --binary target/debug/atlas --port 4827
 ```
 
 `dev-status --json` includes the complete manifest and check reports.
+Its compatibility result describes the selected executable and database, not the
+current frontend. Vite and the backend also compare an automatically derived API
+fingerprint before the browser opens a feature page. An October baseline can be
+healthy with its own frozen executable while incompatible with today's Vite UI.
+If the browser reports “Atlas versions don’t match,” check `ATLAS_API_PROXY`, build
+the current frontend with `just web-ui-build`, build the matching backend, then
+select it explicitly with `dev-web --binary`. Retry the page after restarting.
+Old backends without the handshake are rejected too.
+Installed frontends automatically reload once if startup detects a mismatch; a
+persistent mismatch stops with Reload page. During use, an update prompt preserves
+the mounted page and drafts until the user reloads. Neither recovery path replays
+mutations or clears browser caches. Vite shows the proxy/backend diagnostic without
+an automatic reload.
+
+The fingerprint inputs are maintained in
+`crates/atlas-web/api-contract-inputs.json`; both builds use the same source set.
+API-owner source/binding changes require a new frontend bundle before compiling
+`atlas-web`. Cargo rejects stale `dist/api-contract.txt`; Vite restarts when an
+input changes. UI-only style/component changes can reuse a backend with the same
+fingerprint, regardless of its Git commit. See
+[ADR0029](docs/architecture/decisions/0029-local-web-app-boundary.md#browserbackend-compatibility)
+for the conservative compatibility policy and request guard.
+
 Status invokes read-only Atlas checks and prints a fully qualified setup command
 when a candidate needs migration or a reference update. It exits nonzero for
 incompatible/unready data. Run that setup command deliberately against the private

@@ -9,7 +9,11 @@ import type {
   SearchResultRow,
 } from "../../generated/atlas";
 import { type BrowsePositions } from "./useBrowsePositions";
-import { rootNavigation, type ReferenceReading } from "./useReferenceReading";
+import {
+  rootNavigation,
+  type ReadingRequest,
+  type ReferenceReading,
+} from "./useReferenceReading";
 import { BrowseReader } from "./BrowseReader";
 import { RelationshipEvidence } from "./RelationshipEvidence";
 import { RecordBrowseSummary } from "./RecordBrowseSummary";
@@ -21,6 +25,8 @@ export function ReferenceBrowser({
   reading,
   resultsHeader,
   readerActions,
+  readerStatus,
+  onReaderClose,
   emptyMessage = "No matching records",
   positions,
   disabled = false,
@@ -32,10 +38,12 @@ export function ReferenceBrowser({
   rows: SearchResultRow[];
   loading: boolean;
   selectedRecordKey: string | null;
-  onSelect: (row: SearchResultRow) => void;
+  onSelect: (row: SearchResultRow, request: ReadingRequest) => void;
   reading: ReferenceReading;
   resultsHeader?: ReactNode;
   readerActions?: ReactNode;
+  readerStatus?: ReactNode;
+  onReaderClose?: () => void;
   emptyMessage?: string | null;
   positions?: BrowsePositions;
   disabled?: boolean;
@@ -54,6 +62,8 @@ export function ReferenceBrowser({
       resultsIdentity={rows}
       resultsLoading={loading}
       readerActions={readerActions}
+      readerStatus={readerStatus}
+      onReaderClose={onReaderClose}
       positions={positions}
       onResultsScroll={() => setOpenMatchKey(null)}
     >
@@ -80,12 +90,10 @@ export function ReferenceBrowser({
           }
           disabled={disabled}
           onPreview={() => {
-            onSelect(row);
-            reading.select({ navigation: rootNavigation(row.record.record_key) });
+            onSelect(row, { navigation: rootNavigation(row.record.record_key) });
           }}
           onMatch={(navigation) => {
-            onSelect(row);
-            reading.select({
+            onSelect(row, {
               navigation: rootNavigation(navigation.record_key),
               match: navigation,
             });

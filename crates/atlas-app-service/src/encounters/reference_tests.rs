@@ -40,6 +40,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
     let current = f
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: encounter.slug.clone(),
             record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
             quantity: 1,
@@ -297,6 +298,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
     let current = a
         .worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: encounter.slug.clone(),
             record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
             quantity: 1,
