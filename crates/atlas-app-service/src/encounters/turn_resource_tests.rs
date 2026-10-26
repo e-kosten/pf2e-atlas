@@ -105,6 +105,122 @@ fn resources(f: &FixtureWorker, key: &str, p: &str) -> TurnResourcesView {
         .turn_resources
         .unwrap()
 }
+
+#[test]
+fn turn_preparation_cannot_retarget_a_reassigned_slug() {
+    use std::{
+        sync::mpsc,
+        thread,
+        time::{Duration, Instant},
+    };
+    let executor = crate::executor::RetrievalExecutor::from_fixture_workers(1, 16);
+    let f = crate::test_support::fixture_worker_with_executor(executor.clone());
+    let create = |name: &str| {
+        f.worker
+            .create_encounter(CreateEncounterRequest {
+                name: name.into(),
+                description: None,
+                note: None,
+            })
+            .unwrap()
+            .encounter
+    };
+    let a = create("Preparing source encounter");
+    let b = create("Other encounter");
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: a.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 1,
+            initiative: Some(20),
+            participant_variant: None,
+        })
+        .unwrap();
+    f.worker
+        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
+            encounter_ref: b.encounter_key.clone(),
+            display_name: "Other PC".into(),
+            max_hp: Some(20),
+            current_hp: Some(20),
+            initiative: Some(10),
+        })
+        .unwrap();
+    let rename = |encounter: &EncounterSummaryView, slug: &str| {
+        f.worker
+            .update_encounter(UpdateEncounterRequest {
+                encounter_key: encounter.encounter_key.clone(),
+                slug: slug.into(),
+                name: encounter.name.clone(),
+                description: None,
+                note: None,
+                status: EncounterStatusView::Draft,
+            })
+            .unwrap();
+    };
+    rename(&a, &a.slug);
+    let saved = |key: &str| {
+        f.worker
+            .with_state(|session| {
+                Ok(session
+                    .local_state()
+                    .encounters()
+                    .get_with_participants(key)?
+                    .unwrap())
+            })
+            .unwrap()
+    };
+    let expected_revision = saved(&a.encounter_key).encounter.revision;
+    let (entered, ready) = mpsc::channel();
+    let (release, held) = mpsc::channel();
+    let blocker_executor = executor.clone();
+    let blocker = thread::spawn(move || {
+        blocker_executor.submit(crate::ReadExecutionContext::uncancellable(), move |_| {
+            entered.send(()).unwrap();
+            held.recv_timeout(Duration::from_secs(10)).unwrap();
+            Ok(())
+        })
+    });
+    ready.recv_timeout(Duration::from_secs(5)).unwrap();
+    executor.fail_after_submissions(1);
+    let advancing = f.worker.clone();
+    let slug = a.slug.clone();
+    let advance = thread::spawn(move || {
+        advancing.advance_encounter_turn(
+            &slug,
+            AdvanceEncounterTurnRequest {
+                request_id: "prepared-slug".into(),
+                expected_revision,
+            },
+        )
+    });
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while executor.remaining_submission_budget() != Some(0) && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(1));
+    }
+    let admitted = executor.remaining_submission_budget() == Some(0);
+    if admitted {
+        rename(&a, "renamed-source-encounter");
+        rename(&b, &a.slug);
+    }
+    let before = saved(&b.encounter_key);
+    release.send(()).unwrap();
+    blocker.join().unwrap().unwrap();
+    let result = advance.join().unwrap();
+    assert!(
+        admitted,
+        "turn source preparation must reach the held retrieval worker"
+    );
+    assert_eq!(before.encounter.revision, expected_revision);
+    let error = result.unwrap_err().into_app_error();
+    assert_eq!(error.code, AppErrorCode::EncounterTurnConflict);
+    assert_eq!(error.details.unwrap()["encounter_key"], a.encounter_key);
+    assert_eq!(
+        saved(&b.encounter_key),
+        before,
+        "the replacement slug owner stays untouched"
+    );
+}
+
 #[test]
 fn selection_does_not_invent_a_past_allocation_or_regain_resources() {
     let (f, key, a, _) = fixture();
