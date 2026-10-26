@@ -32,13 +32,50 @@ test("inline HP formulas grow, shrink and stay within the participant pane", asy
     await activate(current, info);
     const input = page.getByRole("textbox", { name: "Current HP", exact: true });
     const shortWidth = (await input.boundingBox())!.width;
+    const expectVisibleFormula = async (field: typeof input) => {
+      // WebKit scrolls the caret into the padding while typing. Require the
+      // glyphs to fit and any scroll to stay within that empty leading space.
+      expect(
+        await field.evaluate((node) => {
+          const style = getComputedStyle(node);
+          const text = document.createElement("span");
+          Object.assign(text.style, {
+            position: "absolute",
+            visibility: "hidden",
+            whiteSpace: "pre",
+            fontFamily: style.fontFamily,
+            fontSize: style.fontSize,
+            fontWeight: style.fontWeight,
+            fontStyle: style.fontStyle,
+            fontVariant: style.fontVariant,
+            fontFeatureSettings: style.fontFeatureSettings,
+            letterSpacing: style.letterSpacing,
+          });
+          text.textContent = (node as HTMLInputElement).value;
+          document.body.append(text);
+          const textWidth = text.getBoundingClientRect().width;
+          text.remove();
+          const available =
+            node.clientWidth -
+            parseFloat(style.paddingLeft) -
+            parseFloat(style.paddingRight);
+          return {
+            textFits: available >= textWidth - 1,
+            leftEdgeVisible: Math.abs(node.scrollLeft) <= parseFloat(style.paddingLeft),
+          };
+        }),
+      ).toEqual({ textFits: true, leftEdgeVisible: true });
+    };
+    for (const draft of ["300+300+300+300+300", "888+888+888+888+888"]) {
+      await input.fill("");
+      await input.pressSequentially(draft);
+      await expectVisibleFormula(input);
+    }
     const formula = "300 - 10 + 5 - 2";
     await input.fill(formula);
     const grownWidth = (await input.boundingBox())!.width;
     expect(grownWidth).toBeGreaterThan(shortWidth + 40);
-    expect(
-      await input.evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
-    ).toBe(true);
+    await expectVisibleFormula(input);
     await input.fill(`300${"+1".repeat(180)}`);
     const bounds = (await input.boundingBox())!;
     expect(bounds.x).toBeGreaterThanOrEqual(0);
@@ -58,10 +95,10 @@ test("inline HP formulas grow, shrink and stay within the participant pane", asy
       info,
     );
     const temporary = page.getByRole("textbox", { name: "Temporary HP", exact: true });
+    await temporary.pressSequentially("300+300+300+300+300");
+    await expectVisibleFormula(temporary);
     await temporary.fill(formula);
-    expect(
-      await temporary.evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
-    ).toBe(true);
+    await expectVisibleFormula(temporary);
     await temporary.press("Enter");
     const editTemporary = page.getByRole("button", {
       name: "Edit Temporary HP",
