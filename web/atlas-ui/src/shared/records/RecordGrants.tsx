@@ -24,13 +24,8 @@ export function RecordGrants({
                 navigation={entry.navigation}
                 selected={false}
                 disabled={false}
-                matchesOpen={false}
-                onMatchesOpenChange={() => {}}
                 onPreview={(anchor) =>
                   onReference(entry.navigation.record_key, anchor, entry.navigation)
-                }
-                onMatch={(navigation, anchor) =>
-                  onReference(navigation.record_key, anchor, navigation)
                 }
               />
             ) : (
