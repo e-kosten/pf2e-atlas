@@ -83,7 +83,7 @@ export function EditableCommitField({
       ref={inputRef}
       aria-label={ariaLabel}
       className={className}
-      htmlSize={autoSize ? Math.max(1, draft.length) : undefined}
+      style={autoSize ? { fieldSizing: "content" } : undefined}
       disabled={disabled}
       readOnly={readOnly}
       inputMode={inputMode}
