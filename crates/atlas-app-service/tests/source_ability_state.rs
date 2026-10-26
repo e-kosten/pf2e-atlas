@@ -25,7 +25,8 @@ fn fixture_with_drained(initial_drained: bool) -> (AtlasAppService, FixtureArtif
                     {"label":"Drained","value":"Compendium.pf2e.conditionitems.Item.Drained"}]},
                 {"key":"GrantItem","inMemoryOnly":true,"uuid":"{item|flags.system.rulesSelections.incurableCurse}"}]}},
             {"_id":"eeeeeeeeeeeeeeee","name":"Turn ability","type":"action","system":{"frequency":{"max":1,"per":"turn"},"rules":[]}},
-            {"_id":"gggggggggggggggg","name":"Round ability","type":"action","system":{"frequency":{"max":1,"per":"round"},"rules":[]}}
+            {"_id":"gggggggggggggggg","name":"Round ability","type":"action","system":{"frequency":{"max":1,"per":"round"},"rules":[]}},
+            {"_id":"hhhhhhhhhhhhhhhh","name":"Large capacity","type":"action","system":{"frequency":{"max":i64::MAX,"per":"day"},"rules":[]}}
         ]
     });
     if initial_drained {
@@ -261,6 +262,32 @@ fn advancing_initiative_refreshes_turn_uses_and_preserves_daily_expenditure() {
     let after = service.encounter(&key).unwrap();
     assert_eq!(remaining(&after, "Turn ability"), 1);
     assert_eq!(remaining(&after, "Daily ability"), 2);
+}
+
+#[test]
+fn restoring_a_full_capacity_is_rejected_without_overflow_or_a_write() {
+    let (service, _artifact, key) = fixture();
+    let before = service.encounter(&key).unwrap();
+    let error = service
+        .update_encounter_ability_state(
+            &key,
+            request(
+                &before,
+                "Large capacity",
+                "restore-full-capacity",
+                EncounterAbilityStateAction::RestoreUse,
+            ),
+        )
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(error.code, AppErrorCode::InvalidRequest);
+    let after = service.encounter(&key).unwrap();
+    assert_eq!(after.revision, before.revision);
+    assert_eq!(
+        after.participants[0].revision,
+        before.participants[0].revision
+    );
+    assert_eq!(remaining(&after, "Large capacity"), i64::MAX);
 }
 
 #[test]

@@ -465,7 +465,9 @@ pub(super) fn hp_subject_context(
     let may_fall = matches!(*input,HpEventInput::ResolvedDamage{amount} if participant.track_dying && participant.current_hp.is_some_and(|hp|amount.saturating_sub(participant.temporary_hp)>=hp));
     let source_hazard = participant.participant_kind == atlas_local_state::ParticipantKind::Hazard
         && matches!(*input, HpEventInput::ResolvedDamage { .. });
-    if needs_level || may_fall || source_hazard || participant.record_key.is_some() {
+    let source_healing =
+        matches!(*input, HpEventInput::ResolvedHealing { .. }) && participant.record_key.is_some();
+    if needs_level || may_fall || source_hazard || source_healing {
         workflow::condition_subject_context(service, participant)
     } else {
         Ok(workflow::ConditionSubjectContext::from_saved(participant))

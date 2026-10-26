@@ -88,6 +88,12 @@ action/reaction tracking. Initiative advancement refreshes per-turn frequencies
 for all participants and per-round frequencies at their owner's turn start, matching
 the pinned Foundry recharge policy. Longer intervals restore explicitly because
 Atlas has no game clock. Reads and source refreshes do not reset expenditure.
+Turn advancement prepares incoming source conditions and frequency refreshes in
+one reference snapshot before the guarded write; it never re-resolves a mutable
+encounter slug between preparations. Ordinary resolved damage that needs no
+source lifecycle facts, and removal of an unmodeled custom condition, remain
+state-local operations. Healing still resolves source conditions to preserve
+effective maximum HP.
 A source-option transition that increases effective Drained charges the increase
 once through the existing guarded HP event; switching it off does not heal HP.
 New source-derived participants start at their effective capacity while retaining
