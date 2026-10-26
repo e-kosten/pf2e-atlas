@@ -347,10 +347,25 @@ pub fn select_prepared_html_sections(
     html: &str,
 ) -> Result<Vec<SourceSelectedSection>, SourceSelectionError> {
     let document = Html::parse_fragment(html);
+    Ok(html_sections(&document, html)?
+        .into_iter()
+        .map(|section| section.value)
+        .collect())
+}
+
+struct SelectedHtmlSection {
+    value: SourceSelectedSection,
+    start: Option<ego_tree::NodeId>,
+}
+fn html_sections(
+    document: &Html,
+    html: &str,
+) -> Result<Vec<SelectedHtmlSection>, SourceSelectionError> {
     let mut blocks = Vec::new();
     collect_blocks(document.root_element(), &mut blocks);
     let mut output = Vec::new();
     let mut current_html = String::new();
+    let mut current_start = None;
     let mut label = None;
     let mut heading_chain: Vec<(u8, String)> = Vec::new();
     let mut current_chain = Vec::new();
@@ -368,6 +383,7 @@ pub fn select_prepared_html_sections(
             finish_section(
                 &mut output,
                 &mut current_html,
+                current_start.take(),
                 label.take(),
                 std::mem::take(&mut current_chain),
                 kind,
@@ -386,18 +402,31 @@ pub fn select_prepared_html_sections(
                 .map(|(_, label)| label.clone())
                 .collect();
         }
+        if current_start.is_none() {
+            current_start = block.element.map(|element| element.id());
+        }
         current_html.push_str(&block.html);
     }
-    finish_section(&mut output, &mut current_html, label, current_chain, kind)?;
+    finish_section(
+        &mut output,
+        &mut current_html,
+        current_start,
+        label,
+        current_chain,
+        kind,
+    )?;
     if output.is_empty() {
         let text = plain(html)?;
         if !text.is_empty() {
-            output.push(SourceSelectedSection {
-                kind: SourceSelectedSectionKind::Unlabeled,
-                section_ordinal: 0,
-                label: None,
-                heading_chain: vec![],
-                text,
+            output.push(SelectedHtmlSection {
+                value: SourceSelectedSection {
+                    kind: SourceSelectedSectionKind::Unlabeled,
+                    section_ordinal: 0,
+                    label: None,
+                    heading_chain: vec![],
+                    text,
+                },
+                start: Some(document.root_element().id()),
             });
         }
     }
@@ -442,8 +471,9 @@ fn collect_blocks<'a>(element: ElementRef<'a>, output: &mut Vec<HtmlBlock<'a>>) 
     }
 }
 fn finish_section(
-    output: &mut Vec<SourceSelectedSection>,
+    output: &mut Vec<SelectedHtmlSection>,
     html: &mut String,
+    start: Option<ego_tree::NodeId>,
     label: Option<String>,
     heading_chain: Vec<String>,
     kind: SourceSelectedSectionKind,
@@ -451,15 +481,67 @@ fn finish_section(
     let text = plain(html)?;
     html.clear();
     if !text.is_empty() {
-        output.push(SourceSelectedSection {
-            kind,
-            section_ordinal: output.len(),
-            label,
-            heading_chain,
-            text,
+        output.push(SelectedHtmlSection {
+            value: SourceSelectedSection {
+                kind,
+                section_ordinal: output.len(),
+                label,
+                heading_chain,
+                text,
+            },
+            start,
         });
     }
     Ok(())
+}
+
+/// Mark the start of a checked HTML passage's section for read-time landing.
+/// Keeps the complete field, authored structure and reference/control ordinals.
+/// This response-only marker never changes the stored preparation identity.
+pub fn mark_source_html_passage(
+    html: &str,
+    address: &SourcePassageAddress,
+) -> Result<String, SourceSelectionError> {
+    recover_source_passage(Some(html), None, address)?;
+    let SourcePassageAddress::HtmlSection {
+        section_ordinal, ..
+    } = address
+    else {
+        return Err(SourceSelectionError(
+            "HTML section address is required".into(),
+        ));
+    };
+    let mut document = Html::parse_fragment(html);
+    let start = html_sections(&document, html)?
+        .get(*section_ordinal)
+        .and_then(|section| section.start);
+    let Some(start) = start else {
+        return Ok(format!("<div data-atlas-passage-target>\n{html}</div>"));
+    };
+    // Only the checked destination may carry the runtime landing marker.
+    let elements: Vec<_> = document
+        .tree
+        .nodes()
+        .filter(|node| node.value().as_element().is_some())
+        .map(|node| node.id())
+        .collect();
+    for id in elements {
+        if let Some(mut node) = document.tree.get_mut(id)
+            && let scraper::Node::Element(element) = node.value()
+        {
+            element
+                .attrs
+                .retain(|(name, _)| name.local.as_ref() != "data-atlas-passage-target");
+            if id == start {
+                let mut name = element.name.clone();
+                name.prefix = None;
+                name.ns = Default::default();
+                name.local = "data-atlas-passage-target".into();
+                element.attrs.push((name, "".into()));
+            }
+        }
+    }
+    Ok(document.root_element().inner_html())
 }
 
 /// Reconstruct an addressed section with the same selection policy before
@@ -552,6 +634,42 @@ mod tests {
                 .unwrap();
         SourceBackedRecord::new(pack, source).unwrap()
     }
+    #[test]
+    fn checked_passage_marker_preserves_structure_and_distinguishes_duplicate_headings() {
+        let html = "<p data-atlas-passage-target>Intro</p><section><h3>Brood Variance</h3><p>First.</p><h3>Brood Variance</h3><ul><li><a data-atlas-reference=\"0\">Second.</a></li></ul></section>";
+        let section = select_prepared_html_sections(html).unwrap().remove(2);
+        let address = SourcePassageAddress::HtmlSection {
+            prepared_html_sha256: hash(html),
+            canonical_text_sha256: hash(&section.text),
+            selection_version: SOURCE_CONTENT_SELECTION_VERSION.into(),
+            section_ordinal: section.section_ordinal,
+            label: section.label,
+            chunk_bytes: SourceByteRange {
+                start: 0,
+                end: section.text.len(),
+            },
+        };
+        let marked = mark_source_html_passage(html, &address).unwrap();
+        let document = Html::parse_fragment(&marked);
+        let targets = document
+            .select(&scraper::Selector::parse("[data-atlas-passage-target]").unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0].value().name(), "h3");
+        assert_eq!(
+            targets[0]
+                .next_siblings()
+                .find_map(ElementRef::wrap)
+                .unwrap()
+                .value()
+                .name(),
+            "ul"
+        );
+        assert!(marked.contains("<a data-atlas-reference=\"0\">Second.</a>"));
+        assert!(marked.contains("<p>First.</p>"));
+        assert!(mark_source_html_passage("<p>Changed</p>", &address).is_err());
+    }
+
     #[test]
     fn sections_preserve_nested_context_all_prose_and_duplicate_titles() {
         let html = "bare leading prose<div><h2>Soul Degradation (Curse 7)</h2><p>The PC's sense of self fades.</p><p><strong>Saving Throw</strong>: DC 23 Fortitude</p><p><strong>Stage 1</strong>: one</p><p><strong>Stage 6</strong>: final stage</p><h3>Recovery</h3><p>Recovery details</p></div><p><b>Special Ability:</b> definition body</p><h2>Recovery</h2><p>Different definition</p>tail prose";

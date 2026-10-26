@@ -1,3 +1,5 @@
+import { ReaderMatchNavigation } from "./ReaderMatchNavigation";
+import type { RecordNavigationView } from "../../generated/atlas";
 import {
   destinationHref,
   isPrimaryActivation,
@@ -23,6 +25,7 @@ export function ReferenceReader({
   reading,
   selectedRecordKey = null,
   readerActions,
+  readerContext,
   status,
   readerFooter,
   positions,
@@ -31,6 +34,7 @@ export function ReferenceReader({
 }: {
   reading: ReferenceReading;
   selectedRecordKey?: string | null;
+  readerContext?: ReactNode;
   readerActions?: ReactNode;
   status?: ReactNode;
   readerFooter?: ReactNode;
@@ -44,6 +48,22 @@ export function ReferenceReader({
   const readerRef = useRef<HTMLElement>(null);
   const contentFocus = usePreviewContentFocus(active, readerRef);
   const backRef = useRef<HTMLButtonElement>(null);
+  const matchOpener = useRef<HTMLElement | null>(null);
+  const focusMatchTarget = useCallback((target: HTMLElement) => {
+    const opener = matchOpener.current;
+    const container = readerRef.current;
+    if (!opener || !container) return;
+    const focused = container.ownerDocument.activeElement;
+    if (
+      focused === opener ||
+      focused === container ||
+      focused === container.ownerDocument.body
+    ) {
+      target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+    }
+    matchOpener.current = null;
+  }, []);
   const address = JSON.stringify([
     recordReadingIdentity(
       reading.request?.navigation.record_key ?? null,
@@ -89,6 +109,20 @@ export function ReferenceReader({
       }
     },
     [active, address, saved],
+  );
+  const inspect = reading.inspect;
+  const openReference = preview.open;
+  const navigateToMatch = useCallback(
+    (navigation: RecordNavigationView, anchor: HTMLElement) => {
+      rememberPosition(anchor);
+      if (selectedRecordKey && navigation.record_key !== selectedRecordKey) {
+        openReference(navigation.record_key, anchor, navigation);
+        return;
+      }
+      matchOpener.current = anchor;
+      inspect({ navigation: rootNavigation(navigation.record_key), match: navigation });
+    },
+    [rememberPosition, inspect, selectedRecordKey, openReference],
   );
   useLayoutEffect(() => {
     const snapshot = () => rememberPosition();
@@ -137,12 +171,14 @@ export function ReferenceReader({
       readyLanding.current = reading.request;
       if (reading.restoringHistory) restorePosition();
       else {
-        if (activeRef.current && target && readerRef.current)
+        if (activeRef.current && target && readerRef.current) {
           landReadingTarget(target, readerRef.current);
+          focusMatchTarget(target);
+        }
         restoredRequest.current = reading.request;
       }
     },
-    [reading.request, reading.restoringHistory, restorePosition],
+    [reading.request, reading.restoringHistory, restorePosition, focusMatchTarget],
   );
   useEffect(() => {
     if (
@@ -209,6 +245,44 @@ export function ReferenceReader({
       marked?.classList.remove("reference-landing-highlight");
     };
   }, [reading.detail, reading.landing]);
+  useEffect(() => {
+    const detail = reading.detail;
+    const target = reading.request?.match;
+    if (
+      !active ||
+      !detail ||
+      !target ||
+      reading.landing ||
+      recordReadingIdentity(detail.record.record_key, detail.selected) !==
+        recordReadingIdentity(target.record_key, target)
+    )
+      return;
+    const content =
+      readerRef.current?.querySelector<HTMLElement>("[data-atlas-passage-target]") ??
+      readerRef.current?.querySelector<HTMLElement>(".record-reference__content") ??
+      readerRef.current?.querySelector<HTMLElement>(".record-workspace__reading");
+    if (!content) return;
+    content.classList.add("reference-landing-highlight");
+    if (!reading.restoringHistory && readerRef.current) {
+      landReadingTarget(content, readerRef.current);
+    }
+    focusMatchTarget(content);
+    const timer = setTimeout(
+      () => content.classList.remove("reference-landing-highlight"),
+      2800,
+    );
+    return () => {
+      clearTimeout(timer);
+      content.classList.remove("reference-landing-highlight");
+    };
+  }, [
+    active,
+    reading.detail,
+    reading.request,
+    reading.landing,
+    reading.restoringHistory,
+    focusMatchTarget,
+  ]);
   const detail = reading.detail;
   const fullNavigation = detail?.selected ?? reading.request?.navigation;
   const fullRoute = fullNavigation
@@ -292,28 +366,31 @@ export function ReferenceReader({
         {...contentFocus}
         onScroll={() => rememberPosition()}
       >
-        <RecordDetailPane
-          detail={detail}
-          loading={reading.loading}
-          error={reading.error}
-          onRetry={reading.retry}
-          landing={reading.landing}
-          onLandingReady={onLandingReady}
-          onReference={(recordKey, anchor, selection) => {
-            rememberPosition(anchor);
-            preview.open(recordKey, anchor, selection);
-          }}
-          onRankChange={(spell_rank) => {
-            if (detail) {
-              rememberPosition();
-              reading.changeRank({ ...detail.selected, spell_rank });
-            }
-          }}
-          onOwnerReturn={(recordKey, landing, anchor) => {
-            rememberPosition(anchor);
-            reading.inspect({ navigation: rootNavigation(recordKey), landing });
-          }}
-        />
+        <ReaderMatchNavigation.Provider value={navigateToMatch}>
+          <RecordDetailPane
+            detail={detail}
+            readingContext={detail && readerContext}
+            loading={reading.loading}
+            error={reading.error}
+            onRetry={reading.retry}
+            landing={reading.landing}
+            onLandingReady={onLandingReady}
+            onReference={(recordKey, anchor, selection) => {
+              rememberPosition(anchor);
+              preview.open(recordKey, anchor, selection);
+            }}
+            onRankChange={(spell_rank) => {
+              if (detail) {
+                rememberPosition();
+                reading.changeRank({ ...detail.selected, spell_rank });
+              }
+            }}
+            onOwnerReturn={(recordKey, landing, anchor) => {
+              rememberPosition(anchor);
+              reading.inspect({ navigation: rootNavigation(recordKey), landing });
+            }}
+          />
+        </ReaderMatchNavigation.Provider>
       </section>
       {readerFooter}
       {preview.recordKey && (

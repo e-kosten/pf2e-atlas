@@ -42,6 +42,7 @@ const rows: SearchResultRow[] = [
   {
     record: summaryFixture("actors:ghoul", "Ghoul"),
     relationship_evidence: [],
+    matching_sections: [{ navigation, label: "Jaws", snippet: null }],
     matches: [
       {
         navigation,
@@ -63,18 +64,21 @@ function Harness({
   positions,
   resultRows = rows,
   relationships,
-  generation,
+  generation = "test-generation",
+  query = "jaws",
 }: {
   positions?: BrowsePositions;
   resultRows?: SearchResultRow[];
   relationships?: RelationshipClauseSummaryView[];
   generation?: string;
+  query?: string;
 }) {
   const [selected, select] = useState<string | null>(null);
   const reading = useReferenceReading();
   return (
     <ReferenceBrowser
       positions={positions}
+      query={query}
       rows={resultRows}
       relationshipClauses={relationships}
       filter={
@@ -181,10 +185,13 @@ it.each([
       );
       const reader = document.querySelector<HTMLElement>(".reference-reader__scroll")!;
       geometry = readingScrollGeometry(reader);
+      const summary = screen.getByRole("link", { name: /^Ghoul/ });
+      fireEvent.click(summary);
+      await screen.findByRole("region", { name: "Search matches" });
       async function chooseMatch() {
-        fireEvent.click(screen.getByRole("button", { name: "1 matches in Ghoul" }));
-        const choices = document.querySelector<HTMLElement>(".reference-match-list")!;
-        fireEvent.click(await within(choices).findByRole("link", { name: "Jaws" }));
+        fireEvent.click(summary);
+        const choices = await screen.findByRole("region", { name: "Search matches" });
+        fireEvent.click(within(choices).getByRole("link", { name: "Jaws" }));
       }
       let finish: (() => void) | undefined;
       if (delayed) {
@@ -237,9 +244,7 @@ it.each([
       if (mobile) {
         fireEvent.click(screen.getByRole("button", { name: "Results" }));
         await waitFor(() =>
-          expect(
-            screen.getByRole("button", { name: "1 matches in Ghoul" }),
-          ).toHaveFocus(),
+          expect(screen.getByRole("link", { name: /^Ghoul/ })).toHaveFocus(),
         );
       }
       // A fresh match selection still lands at its exact activity.
@@ -281,18 +286,15 @@ it.each([{ metaKey: true }, { ctrlKey: true }, { button: 1 }])(
     expect(getDetail).not.toHaveBeenCalled();
   },
 );
-it("keeps match controls out of the summary anchor and restores focus on Escape", async () => {
+it("shows search context only after selection without an automatic match jump", async () => {
   renderBrowser();
-  const trigger = screen.getByRole("button", { name: "1 matches in Ghoul" });
-  expect(trigger.closest("a")).toBeNull();
-  fireEvent.click(trigger);
-  await waitFor(() =>
-    expect(screen.getByRole("link", { name: "Jaws" })).toBeInTheDocument(),
-  );
-  fireEvent.keyDown(document, { key: "Escape" });
-  expect(trigger).toHaveFocus();
-  expect(trigger).toHaveAttribute("aria-expanded", "false");
-  expect(getDetail).not.toHaveBeenCalled();
+  expect(screen.queryByRole("region", { name: "Search matches" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /matches in/ })).toBeNull();
+  fireEvent.click(screen.getByRole("link", { name: /^Ghoul/ }));
+  const context = await screen.findByRole("region", { name: "Search matches" });
+  expect(within(context).getByRole("link", { name: "Jaws" })).toBeVisible();
+  expect(getDetail).toHaveBeenCalledTimes(1);
+  expect(getDetail.mock.calls[0][1]).toBeUndefined();
 });
 it("keeps typed inline activities in their parent but excludes spells and precise passages", () => {
   const parent = detailFixture("actors:ghoul");
@@ -384,7 +386,13 @@ it.each([true, false])(
   },
 );
 
-it("combines text and relationship evidence in the existing Matches popover and restores its trigger on Escape", async () => {
+it("shows text and reference-link evidence in the selected reader without a result-row menu", async () => {
+  getDetail.mockImplementation((key) =>
+    Promise.resolve({
+      ...detailFixture(key, key === "items:armor" ? "Leather Armor" : undefined),
+      artifact_generation: "generation-a",
+    }),
+  );
   const target = {
     record_key: "items:armor",
     embedded_path: [],
@@ -446,18 +454,30 @@ it("combines text and relationship evidence in the existing Matches popover and 
       </QueryClientProvider>
     </ConfigProvider>,
   );
-  const trigger = screen.getByRole("button", { name: "2 matches in Ghoul" });
-  expect(screen.getAllByText("Matches")).toHaveLength(1);
-  expect(screen.queryByText("1 link")).toBeNull();
+  expect(screen.queryByRole("button", { name: /matches in/ })).toBeNull();
   expect(screen.queryByRole("link", { name: "Ghoul equipment" })).toBeNull();
-  fireEvent.click(trigger);
-  expect(
-    await screen.findByRole("link", { name: "Ghoul equipment" }),
-  ).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Jaws" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Leather Armor" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("link", { name: /^Ghoul/ }));
+  expect(await screen.findByRole("link", { name: "Ghoul equipment" })).toBeVisible();
+  const context = screen.getByRole("region", { name: "Search matches" });
+  expect(within(context).getByRole("link", { name: "Jaws" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Leather Armor" })).toBeVisible();
   expect(view.container).not.toHaveTextContent("Text reference");
-  fireEvent.keyDown(document, { key: "Escape" });
-  await waitFor(() => expect(trigger).toHaveFocus());
-  expect(trigger).toHaveAttribute("aria-expanded", "false");
+  const targetLink = screen.getByRole("link", { name: "Leather Armor" });
+  fireEvent.click(targetLink);
+  const reference = await screen.findByRole("dialog", {
+    name: "Reference",
+  });
+  expect(
+    await within(reference).findByRole("heading", { name: "Leather Armor" }),
+  ).toBeVisible();
+  fireEvent.click(
+    within(reference).getByRole("button", {
+      name: "Close reference preview",
+    }),
+  );
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(screen.getByRole("region", { name: "Search matches" })).toBeVisible();
+  expect(
+    view.container.querySelector('[data-record-key="actors:ghoul"]'),
+  ).toHaveAttribute("aria-current", "true");
 });
