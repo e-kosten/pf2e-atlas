@@ -1,7 +1,11 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { SimilarityPartView, RecordDetailView } from "../../generated/atlas";
+import type {
+  SimilarityPartView,
+  SimilarityPartsView,
+  RecordDetailView,
+} from "../../generated/atlas";
 import { detailFixture } from "../../test/fixtures";
 import { SimilaritySourceDocument } from "./SimilaritySourceDocument";
 import { rootNavigation } from "../records/useReferenceReading";
@@ -260,4 +264,41 @@ it("keeps typing focus when a slow section read finishes after the user moves to
   await screen.findByText("Delayed section source");
   expect(input).toHaveFocus();
   expect(input).toHaveValue("0.75");
+});
+
+it("emphasizes a source only with the matching seed and generation inventory", async () => {
+  api.detail.mockResolvedValue(
+    content(detailFixture(recordKey, "Brown Mold"), "Source prose"),
+  );
+  const inventory: SimilarityPartsView = {
+    artifact_generation: "test-generation",
+    search_profile: "bge-base",
+    seed,
+    role_recipe: "roles/v1",
+    supports_corresponding_parts: true,
+    parts: [part],
+  };
+  const source = (currentInventory: SimilarityPartsView | null) => (
+    <SimilaritySourceDocument
+      seed={seed}
+      generation="test-generation"
+      target={null}
+      active
+      onReloadSections={vi.fn()}
+      selection={
+        currentInventory ? { inventory: currentInventory, selected: null } : null
+      }
+    />
+  );
+  const view = render(source(inventory), { wrapper });
+  await screen.findByText("Source prose");
+  expect(view.container.querySelector(".comparison-source")).not.toBeNull();
+  view.rerender(source({ ...inventory, artifact_generation: "old-generation" }));
+  expect(view.container.querySelector(".comparison-source")).toBeNull();
+  view.rerender(
+    source({ ...inventory, seed: { kind: "record", record_key: "spells:heal" } }),
+  );
+  expect(view.container.querySelector(".comparison-source")).toBeNull();
+  view.rerender(source(null));
+  expect(view.container.querySelector(".comparison-source")).toBeNull();
 });

@@ -146,6 +146,7 @@ export function PreparedContentBody({
   );
   const { html, outline } = prepared;
   const excludedSections = JSON.stringify(sourceSelection?.excluded ?? []);
+  const selectedSections = JSON.stringify(sourceSelection?.selected ?? []);
   const sectionLanding = documentNavigation?.landing;
   const landedSection = useRef<string | null>(null);
   useLayoutEffect(() => {
@@ -375,16 +376,24 @@ export function PreparedContentBody({
   useLayoutEffect(() => {
     if (sourceHtml === undefined) return;
     const excluded = new Set<number>(JSON.parse(excludedSections));
+    const selected = new Set<number>(JSON.parse(selectedSections));
     container.current
       ?.querySelectorAll<HTMLElement>("[data-atlas-source-section]")
       .forEach((section) => {
+        const ownSection = !section.closest(
+          ".prepared-inclusion, .prepared-inclusion-unavailable",
+        );
+        const ordinal = Number(section.dataset.atlasSourceSection);
         section.classList.toggle(
           "source-section-excluded",
-          !section.closest(".prepared-inclusion, .prepared-inclusion-unavailable") &&
-            excluded.has(Number(section.dataset.atlasSourceSection)),
+          ownSection && excluded.has(ordinal),
+        );
+        section.classList.toggle(
+          "source-section-selected",
+          ownSection && selected.has(ordinal),
         );
       });
-  }, [html, sourceHtml, excludedSections, references]);
+  }, [html, sourceHtml, excludedSections, selectedSections, references]);
   if (body.kind === "unavailable")
     return (
       <Alert

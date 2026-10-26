@@ -130,8 +130,17 @@ function RecordSourceDocument({
       }
     }
   }, [target, active, reading.loading, reading.detail, reading.request, recordKey]);
+  const comparisonActive =
+    reading.detail?.artifact_generation === generation &&
+    reading.detail.selected.record_key === recordKey &&
+    selection?.inventory.artifact_generation === generation &&
+    selection.inventory.seed.kind === "record" &&
+    selection.inventory.seed.record_key === recordKey;
   return (
-    <div ref={root} className="search-settings__record-source">
+    <div
+      ref={root}
+      className={`search-settings__record-source${comparisonActive ? " comparison-source" : ""}`}
+    >
       <SourceSectionSelectionContext
         value={
           reading.detail?.artifact_generation === generation &&
@@ -151,7 +160,7 @@ function RecordSourceDocument({
           }
           selectedRecordKey={recordKey}
           active={active}
-          label="Document"
+          label="Source document"
           returnToSelectionLabel="Whole document"
           showRelated={false}
           status={
@@ -217,9 +226,14 @@ function TraitSourceDocument({
         heading.current.focus({ preventScroll: true });
     }
   }, [target, active, detail]);
+  const comparisonActive =
+    detail?.artifact_generation === generation &&
+    selection?.inventory.artifact_generation === generation &&
+    selection.inventory.seed.kind === "trait" &&
+    selection.inventory.seed.trait_key === traitKey;
   return (
     <section
-      className="search-settings__trait-source"
+      className={`search-settings__trait-source${comparisonActive ? " comparison-source" : ""}`}
       aria-label="Trait document"
       aria-busy={query.isFetching}
     >

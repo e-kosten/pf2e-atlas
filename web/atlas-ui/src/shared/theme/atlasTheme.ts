@@ -71,6 +71,9 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     "--panel-elevated": token.colorBgElevated,
     "--text": token.colorText,
     "--muted": token.colorTextDescription,
+    // Comparison reference text stays readable but clearly recedes from selected prose.
+    "--comparison-reference-text": `color-mix(in srgb, ${token.colorText} ${scheme === "light" ? 64 : 48}%, ${token.colorBgContainer})`,
+    "--comparison-selected-bg": token.controlItemBgActive,
     "--line": token.colorBorderSecondary,
     "--split": token.colorSplit,
     "--primary": token.colorPrimary,

@@ -57,14 +57,14 @@ const inventory: SimilarityPartsView = {
 function source(
   selected: string[] | null,
   field = content,
-  currentInventory = inventory,
+  currentInventory: SimilarityPartsView | null = inventory,
 ) {
   return (
     <SourceSectionSelectionContext
       value={{
         seed: inventory.seed,
         generation: "generation-1",
-        selection: { inventory: currentInventory, selected },
+        selection: currentInventory ? { inventory: currentInventory, selected } : null,
       }}
     >
       <input aria-label="Draft name" />
@@ -78,11 +78,21 @@ it("dims exact canonical sections live without replacing readable prose, native 
   const first = screen.getByText(/First prose/);
   const second = screen.getByText("Second prose");
   const link = screen.getByRole("link", { name: "Native reference" });
+  expect(first).toHaveClass("source-section-selected");
+  expect(second).toHaveClass("source-section-selected");
+  expect(screen.getByText("No vector prose")).not.toHaveClass(
+    "source-section-selected",
+  );
+  expect(screen.getByText("Foreign included prose")).not.toHaveClass(
+    "source-section-selected",
+  );
   const input = screen.getByRole("textbox", { name: "Draft name" });
   input.focus();
   fireEvent.change(input, { target: { value: "Draft" } });
   view.rerender(source(["part-1"]));
   expect(first).toHaveClass("source-section-excluded");
+  expect(first).not.toHaveClass("source-section-selected");
+  expect(second).toHaveClass("source-section-selected");
   expect(second).not.toHaveClass("source-section-excluded");
   expect(first).toBe(screen.getByText(/First prose/));
   expect(link).toBe(screen.getByRole("link", { name: "Native reference" }));
@@ -102,6 +112,35 @@ it("dims exact canonical sections live without replacing readable prose, native 
   view.rerender(source(["part-0", "part-1"]));
   expect(first).not.toHaveClass("source-section-excluded");
   expect(second).not.toHaveClass("source-section-excluded");
+});
+
+it("keeps source nodes and focused links stable while selection inventory is pending or invalid", () => {
+  const view = render(source(["part-1"]));
+  const first = screen.getByText(/First prose/);
+  const second = screen.getByText("Second prose");
+  const link = screen.getByRole("link", { name: "Native reference" });
+  link.focus();
+  for (const unavailable of [
+    null,
+    { ...inventory, artifact_generation: "old-generation" },
+    { ...inventory, seed: { kind: "record" as const, record_key: "journals:foreign" } },
+  ]) {
+    view.rerender(source(["part-1"], content, unavailable));
+    expect(first).toBe(screen.getByText(/First prose/));
+    expect(second).toBe(screen.getByText("Second prose"));
+    expect(link).toBe(screen.getByRole("link", { name: "Native reference" }));
+    expect(link).toHaveFocus();
+    expect(
+      view.container.querySelector(
+        ".source-section-selected, .source-section-excluded",
+      ),
+    ).toBeNull();
+  }
+  view.rerender(source(["part-1"]));
+  expect(first).toBe(screen.getByText(/First prose/));
+  expect(first).toHaveClass("source-section-excluded");
+  expect(second).toHaveClass("source-section-selected");
+  expect(link).toHaveFocus();
 });
 
 it.each([
@@ -129,21 +168,27 @@ it.each([
   },
 ])("does not dim a $name outside the exact inventory address", ({ field }) => {
   const view = render(source([], field));
-  expect(view.container.querySelector(".source-section-excluded")).toBeNull();
+  expect(
+    view.container.querySelector(".source-section-excluded, .source-section-selected"),
+  ).toBeNull();
 });
 
 it("ignores inventory from another seed or generation", () => {
   const view = render(
     source([], content, { ...inventory, artifact_generation: "generation-2" }),
   );
-  expect(view.container.querySelector(".source-section-excluded")).toBeNull();
+  expect(
+    view.container.querySelector(".source-section-excluded, .source-section-selected"),
+  ).toBeNull();
   view.rerender(
     source([], content, {
       ...inventory,
       seed: { kind: "record", record_key: "journals:foreign" },
     }),
   );
-  expect(view.container.querySelector(".source-section-excluded")).toBeNull();
+  expect(
+    view.container.querySelector(".source-section-excluded, .source-section-selected"),
+  ).toBeNull();
 });
 
 it("leaves ordinary readers and unsupported sidecar versions on original prepared content", () => {
@@ -160,7 +205,9 @@ it("leaves ordinary readers and unsupported sidecar versions on original prepare
     }),
   );
   expect(screen.getByText("Original prepared source")).toBeVisible();
-  expect(view.container.querySelector(".source-section-excluded")).toBeNull();
+  expect(
+    view.container.querySelector(".source-section-excluded, .source-section-selected"),
+  ).toBeNull();
 });
 
 it("clears source selection for a nested reference Drawer, including the same source record", () => {
