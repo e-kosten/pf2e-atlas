@@ -35,8 +35,8 @@ intent rather than client-computed replacement HP. App-service evaluates the
 bounded integer addition/subtraction shortcut against the revision-checked current
 participant and reuses the same provenance/replacement policy. Local-state checks
 that revision again under the write transaction, so concurrent changes cannot
-commit calculations made from stale HP. A single initial plus/minus sign extends
-the bounded integer shortcut. Signed Heal intent handles Enter; negative Damage
+commit calculations made from stale HP. Parentheses and one initial plus/minus sign per grouped expression extend
+the bounded integer shortcut without admitting dice or general evaluation. Signed Heal intent handles Enter; negative Damage
 or Heal amounts reverse the operation before running the actual damage/healing
 policy, including temporary HP, floor/cap and defeated behavior. Exact corrections
 keep their zero floor and preserve manual values above the maximum;

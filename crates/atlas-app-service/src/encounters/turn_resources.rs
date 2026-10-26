@@ -15,11 +15,12 @@ pub(super) fn prepare_start(
     round: i64,
     id: &str,
     dying_completed: bool,
+    sources: &rules::source_action_conditions::SourceActionConditions,
 ) -> AppServiceResult<(Option<PreparedConditionEvent>, Vec<EncounterBoundaryClaim>)> {
     if participant.participant_kind == ParticipantKind::Hazard {
         return Ok((None, vec![]));
     }
-    let budget = rules::capabilities::action_budget(participant);
+    let budget = rules::capabilities::action_budget(participant, sources);
     let dying = participant.track_dying
         && participant.current_hp == Some(0)
         && participant.conditions.iter().any(|c| {
@@ -29,7 +30,15 @@ pub(super) fn prepare_start(
     let pending_reason = if dying && !dying_completed {
         Some("Resolve Dying recovery before regaining actions.".into())
     } else if budget.actions.adjusted_value.is_none() {
-        Some("Set the missing condition values before regaining actions.".into())
+        Some(
+            budget
+                .notes
+                .first()
+                .map(|note| note.reason.clone())
+                .unwrap_or_else(|| {
+                    "Set the missing condition values before regaining actions.".into()
+                }),
+        )
     } else {
         None
     };
@@ -37,7 +46,8 @@ pub(super) fn prepare_start(
     let mut claims = vec![];
     let mut effects = vec![];
     if pending_reason.is_none() {
-        let lost = rules::capabilities::numeric_stunned_actions_lost(participant).unwrap_or(0);
+        let lost =
+            rules::capabilities::numeric_stunned_actions_lost(participant, sources).unwrap_or(0);
         if let Some(stunned) = participant.conditions.iter().find(|c| {
             condition_rule_for_key(c.condition_key.as_deref()) == Some(ConditionRule::Stunned)
                 && c.value.is_some_and(|v| v > 0)
@@ -49,7 +59,7 @@ pub(super) fn prepare_start(
             };
             let mut at_regain = participant.clone();
             at_regain.turn_resources = None;
-            changes = rules::lifecycle::prepare_lifecycle(&at_regain, &action, None, id)?
+            changes = rules::lifecycle::prepare_lifecycle(&at_regain, &action, None, id, sources)?
                 .resolve(None)?;
             for condition in participant.conditions.iter().filter(|c| {
                 condition_rule_for_key(c.condition_key.as_deref()) == Some(ConditionRule::Stunned)
@@ -94,6 +104,10 @@ pub(super) fn prepare_start(
             .unwrap_or((None, None))
     };
     changes.turn_resources.push(TurnResources {
+        allocation: pending_reason
+            .is_none()
+            .then(|| rules::capabilities::action_allocation(participant, sources))
+            .flatten(),
         actions_open: pending_reason.is_none(),
         participant_key: participant.participant_key.clone(),
         turn_key: format!("turn:{id}"),
@@ -110,6 +124,13 @@ pub(super) fn prepare_start(
                 condition_rule_for_key(c.condition_key.as_deref()) == Some(ConditionRule::Quickened)
             })
             .map(|c| c.extra_action.clone())
+            .chain(
+                sources
+                    .entries
+                    .iter()
+                    .filter(|c| c.rule == ConditionRule::Quickened)
+                    .map(|_| atlas_local_state::ConditionExtraAction::Unspecified),
+            )
             .collect(),
         reactions_total,
         reactions_remaining,
@@ -121,11 +142,12 @@ pub(super) fn prepare_start(
 pub(super) fn view(
     participant: &EncounterParticipant,
     current: Option<&str>,
+    sources: &rules::source_action_conditions::SourceActionConditions,
 ) -> Option<TurnResourcesView> {
     if participant.participant_kind == ParticipantKind::Hazard {
         return None;
     }
-    let budget = rules::capabilities::action_budget(participant);
+    let budget = rules::capabilities::action_budget(participant, sources);
     let saved = participant.turn_resources.as_ref();
     let ready = saved.filter(|r| r.pending_reason.is_none());
     let mut action_permission = budget.can_act.clone();
@@ -142,6 +164,47 @@ pub(super) fn view(
         action_permission.reason = Some("Regain actions to start tracking this turn.".into());
     }
     Some(TurnResourcesView {
+        action_calculation: if current == Some(participant.participant_key.as_str())
+            && ready.is_some_and(|r| r.actions_open)
+        {
+            TurnActionCalculationView::ThisTurn {
+                count: ready
+                    .and_then(|r| r.allocation.as_ref())
+                    .map(rules::capabilities::allocation_count),
+                changes: ready
+                    .and_then(|r| r.allocation.as_ref())
+                    .map(rules::capabilities::allocation_changes)
+                    .unwrap_or_default(),
+            }
+        } else {
+            TurnActionCalculationView::NextTurn {
+                count: budget.actions.clone(),
+            }
+        },
+        inherent_conditions: participant.record_key.as_ref().map(|key| {
+            InherentActionConditionsView {
+                unavailable_reason: sources.unavailable_reason.clone(),
+                entries: sources
+                    .entries
+                    .iter()
+                    .map(|condition| InherentActionConditionView {
+                        name: condition.rule.definition().name.into(),
+                        has_value: condition.rule.definition().has_value,
+                        value: condition.value,
+                        condition_ref: condition.rule.definition().record_key.into(),
+                        source_name: condition.source_label.clone(),
+                        source: RecordNavigationView {
+                            record_key: key.clone(),
+                            owners: vec![condition.owner.clone()],
+                            field: None,
+                            passage: None,
+                            spell_rank: None,
+                            source_fingerprint: sources.source_fingerprint.clone(),
+                        },
+                    })
+                    .collect(),
+            }
+        }),
         turn_key: saved.map(|r| r.turn_key.clone()),
         round_number: saved.map(|r| r.round_number),
         regular_total: ready.map(|r| r.regular_total),
@@ -164,29 +227,13 @@ pub(super) fn view(
                 r.effects
                     .iter()
                     .map(|e| {
+                        // Stunned can overlap Slowed at regain. Describe the
+                        // condition transition, not an extra deduction from the
+                        // available actions already displayed by the chips.
                         let outcome = if e.after == Some(0) {
-                            format!(
-                                "{} cleared · {} {} lost this turn",
-                                e.before.unwrap_or(0),
-                                e.actions_lost,
-                                if e.actions_lost == 1 {
-                                    "action"
-                                } else {
-                                    "actions"
-                                }
-                            )
+                            format!("{} cleared", e.before.unwrap_or(0))
                         } else {
-                            format!(
-                                "{} → {} · {} {} lost this turn",
-                                e.before.unwrap_or(0),
-                                e.after.unwrap_or(0),
-                                e.actions_lost,
-                                if e.actions_lost == 1 {
-                                    "action"
-                                } else {
-                                    "actions"
-                                }
-                            )
+                            format!("{} → {}", e.before.unwrap_or(0), e.after.unwrap_or(0),)
                         };
                         // Both effect producers are Stunned reducers. Preserve
                         // that rule identity after the saved condition is gone;
@@ -246,6 +293,12 @@ impl AtlasAppService {
             ));
         }
         let mut claims = vec![];
+        let (source_actions, reference_revision) =
+            if matches!(request.action, TurnResourceAction::Regain) {
+                source_action_context(self, participant)?
+            } else {
+                (Default::default(), None)
+            };
         let changes = match request.action {
             TurnResourceAction::Regain => {
                 if snapshot.encounter.current_turn_participant_key.as_deref()
@@ -280,6 +333,7 @@ impl AtlasAppService {
                     snapshot.encounter.round_number,
                     &request.request_id,
                     dying_completed,
+                    &source_actions,
                 )?;
                 claims = start_claims;
                 if let Some(reason) = changes
@@ -303,6 +357,7 @@ impl AtlasAppService {
                 let projection = view(
                     participant,
                     snapshot.encounter.current_turn_participant_key.as_deref(),
+                    &source_actions,
                 )
                 .ok_or_else(|| AppServiceError::invalid_request("Resources unavailable."))?;
                 let permission = if resource == TurnResourceKind::Reaction {
@@ -358,7 +413,7 @@ impl AtlasAppService {
             request_id: &request.request_id,
             intent: &intent,
             expected_revision: request.expected_encounter_revision,
-            reference_revision: None,
+            reference_revision,
             participant_revision: Some((&participant.participant_key, participant.revision)),
         }
         .evaluate(
@@ -372,6 +427,39 @@ impl AtlasAppService {
         Ok(EncounterMutationView {
             encounter_key: receipt.encounter_key,
         })
+    }
+}
+
+pub(super) fn source_action_context(
+    service: &AtlasAppService,
+    participant: &EncounterParticipant,
+) -> AppServiceResult<(
+    rules::source_action_conditions::SourceActionConditions,
+    Option<u64>,
+)> {
+    if participant.record_key.is_none() || participant.participant_kind == ParticipantKind::Hazard {
+        return Ok((Default::default(), None));
+    }
+    match super::workflow::condition_subject_context(service, participant) {
+        Ok(subject) => Ok((subject.source_actions, subject.reference_revision)),
+        Err(error) => {
+            let error = error.into_app_error();
+            if matches!(
+                error.code,
+                AppErrorCode::SetupRequired
+                    | AppErrorCode::ArtifactIncompatible
+                    | AppErrorCode::ArtifactGenerationChanged
+                    | AppErrorCode::IndexUnavailable
+                    | AppErrorCode::ArtifactNotReady
+            ) {
+                Ok((
+                    rules::source_action_conditions::SourceActionConditions::unavailable(),
+                    None,
+                ))
+            } else {
+                Err(error.into())
+            }
+        }
     }
 }
 

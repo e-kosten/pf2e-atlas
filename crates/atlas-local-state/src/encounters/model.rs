@@ -1,9 +1,18 @@
+/// Optional GM overrides; absent values follow the encounter's PC snapshot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+pub struct EncounterDifficultyReference {
+    pub party_level: Option<u32>,
+    pub party_size: Option<u32>,
+}
+
 use super::{ConditionOrigin, ConditionParameters, MortalityState};
 use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Encounter {
+    #[serde(default)]
+    pub difficulty_reference: EncounterDifficultyReference,
     pub revision: i64,
     pub encounter_key: String,
     pub slug: String,
@@ -260,6 +269,7 @@ pub struct UpdateEncounter {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AddEncounterParticipant {
+    pub level_override: Option<i64>,
     pub spell_resources: Vec<SpellResource>,
     pub participant_variant: ParticipantVariant,
     pub hp_origin: ParticipantHpOrigin,

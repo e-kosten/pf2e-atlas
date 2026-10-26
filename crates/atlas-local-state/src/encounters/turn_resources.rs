@@ -13,7 +13,24 @@ pub struct TurnResourceEffect {
     pub actions_lost: i64,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TurnActionAllocation {
+    pub base: i64,
+    pub adjustments: Vec<TurnActionAdjustment>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TurnActionAdjustment {
+    Quickened { gained: i64 },
+    Stunned { value: Option<i64>, lost: i64 },
+    Slowed { value: i64, lost: i64, overlap: i64 },
+    Inactive { lost: i64 },
+    StunnedDuringTurn { value: i64, lost: i64 },
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TurnResources {
+    /// Older saved turns lack the facts needed to reconstruct their allocation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allocation: Option<TurnActionAllocation>,
     pub actions_open: bool,
     pub pending_reason: Option<String>,
     pub participant_key: String,
@@ -44,5 +61,29 @@ impl EncountersWrite<'_> {
             ));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn older_turn_stock_remains_readable_without_inventing_allocation_facts() {
+        let saved: TurnResources = serde_json::from_value(serde_json::json!({
+            "actions_open":true,"pending_reason":null,"participant_key":"participant",
+            "turn_key":"turn:older","round_number":1,"regular_total":2,
+            "regular_remaining":1,"extra_total":0,"extra_remaining":0,"extra_uses":[],
+            "reactions_total":1,"reactions_remaining":1,"effects":[]
+        }))
+        .unwrap();
+        assert_eq!(saved.regular_total, 2);
+        assert_eq!(saved.regular_remaining, 1);
+        assert!(saved.allocation.is_none());
+        assert_eq!(
+            receipt_codec::decode::<TurnResources>(&receipt_codec::encode(&saved).unwrap())
+                .unwrap(),
+            saved
+        );
     }
 }

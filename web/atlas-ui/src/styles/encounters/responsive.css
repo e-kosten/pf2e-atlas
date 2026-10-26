@@ -38,6 +38,7 @@
 
 @media (max-width: 767px) {
   .encounter-detail-view {
+    --encounter-pane-inset: 12px;
     display: flex;
     flex-direction: column;
     height: auto;
@@ -57,11 +58,35 @@
     display: block;
   }
 
-  .encounter-detail-view .pane-header {
+  .encounter-detail-view .workspace-pane--results .pane-header {
     display: none;
   }
 
-  .encounter-detail-view .encounter-pane {
-    padding: 12px;
+  .atlas-app:has(.encounter-detail-view:not(.encounter-detail-view--participant)) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .atlas-app:has(.encounter-detail-view:not(.encounter-detail-view--participant))
+    .atlas-app__content {
+    overflow: hidden;
+  }
+
+  .encounter-detail-view:not(.encounter-detail-view--participant) {
+    height: 100%;
+  }
+
+  .encounter-detail-view:not(.encounter-detail-view--participant) .workspace-grid {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .encounter-detail-view .workspace-pane--filter {
+    height: 100%;
+  }
+
+  .encounter-detail-view .encounter-roster {
+    padding-block-end: 0;
   }
 }

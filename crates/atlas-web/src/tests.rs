@@ -1486,6 +1486,22 @@ impl AtlasWebService for MockService {
         })
     }
 
+    fn set_encounter_difficulty(
+        &self,
+        encounter_ref: &str,
+        _request: atlas_app_model::SetEncounterDifficultyRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        Ok(EncounterMutationView {
+            encounter_key: encounter_ref.into(),
+        })
+    }
+    fn preview_encounter_difficulty(
+        &self,
+        encounter_ref: &str,
+        _request: atlas_app_model::PreviewEncounterDifficultyRequest,
+    ) -> Result<atlas_app_model::EncounterDifficultyView, AppServiceError> {
+        Ok(encounter_detail(encounter_ref, None, false).difficulty)
+    }
     fn update_encounter(
         &self,
         request: UpdateEncounterRequest,
@@ -1980,6 +1996,22 @@ fn encounter_detail(
     include_condition: bool,
 ) -> EncounterDetailView {
     EncounterDetailView {
+        difficulty: atlas_app_model::EncounterDifficultyView {
+            rules: vec![],
+            reference: Default::default(),
+            party_level: None,
+            party_size: None,
+            pc_count: 0,
+            basis: "Choose a party reference.".into(),
+            reference_note: None,
+            total_xp: None,
+            known_xp: 0,
+            xp_per_pc: None,
+            award_note: None,
+            rating: None,
+            budgets: vec![],
+            opposition: vec![],
+        },
         revision: 7,
         artifact_generation: Some("test-generation".into()),
         encounter: encounter_summary(encounter_ref, "Ambush"),

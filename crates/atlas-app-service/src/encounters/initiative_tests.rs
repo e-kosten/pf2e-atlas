@@ -44,6 +44,7 @@ fn encounter(f: &FixtureWorker) -> String {
         .encounter_key;
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: key.clone(),
             record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
             quantity: 1,

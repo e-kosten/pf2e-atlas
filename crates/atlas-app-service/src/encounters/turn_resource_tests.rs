@@ -105,6 +105,122 @@ fn resources(f: &FixtureWorker, key: &str, p: &str) -> TurnResourcesView {
         .turn_resources
         .unwrap()
 }
+
+#[test]
+fn turn_preparation_cannot_retarget_a_reassigned_slug() {
+    use std::{
+        sync::mpsc,
+        thread,
+        time::{Duration, Instant},
+    };
+    let executor = crate::executor::RetrievalExecutor::from_fixture_workers(1, 16);
+    let f = crate::test_support::fixture_worker_with_executor(executor.clone());
+    let create = |name: &str| {
+        f.worker
+            .create_encounter(CreateEncounterRequest {
+                name: name.into(),
+                description: None,
+                note: None,
+            })
+            .unwrap()
+            .encounter
+    };
+    let a = create("Preparing source encounter");
+    let b = create("Other encounter");
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: a.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 1,
+            initiative: Some(20),
+            participant_variant: None,
+        })
+        .unwrap();
+    f.worker
+        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
+            encounter_ref: b.encounter_key.clone(),
+            display_name: "Other PC".into(),
+            max_hp: Some(20),
+            current_hp: Some(20),
+            initiative: Some(10),
+        })
+        .unwrap();
+    let rename = |encounter: &EncounterSummaryView, slug: &str| {
+        f.worker
+            .update_encounter(UpdateEncounterRequest {
+                encounter_key: encounter.encounter_key.clone(),
+                slug: slug.into(),
+                name: encounter.name.clone(),
+                description: None,
+                note: None,
+                status: EncounterStatusView::Draft,
+            })
+            .unwrap();
+    };
+    rename(&a, &a.slug);
+    let saved = |key: &str| {
+        f.worker
+            .with_state(|session| {
+                Ok(session
+                    .local_state()
+                    .encounters()
+                    .get_with_participants(key)?
+                    .unwrap())
+            })
+            .unwrap()
+    };
+    let expected_revision = saved(&a.encounter_key).encounter.revision;
+    let (entered, ready) = mpsc::channel();
+    let (release, held) = mpsc::channel();
+    let blocker_executor = executor.clone();
+    let blocker = thread::spawn(move || {
+        blocker_executor.submit(crate::ReadExecutionContext::uncancellable(), move |_| {
+            entered.send(()).unwrap();
+            held.recv_timeout(Duration::from_secs(10)).unwrap();
+            Ok(())
+        })
+    });
+    ready.recv_timeout(Duration::from_secs(5)).unwrap();
+    executor.fail_after_submissions(1);
+    let advancing = f.worker.clone();
+    let slug = a.slug.clone();
+    let advance = thread::spawn(move || {
+        advancing.advance_encounter_turn(
+            &slug,
+            AdvanceEncounterTurnRequest {
+                request_id: "prepared-slug".into(),
+                expected_revision,
+            },
+        )
+    });
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while executor.remaining_submission_budget() != Some(0) && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(1));
+    }
+    let admitted = executor.remaining_submission_budget() == Some(0);
+    if admitted {
+        rename(&a, "renamed-source-encounter");
+        rename(&b, &a.slug);
+    }
+    let before = saved(&b.encounter_key);
+    release.send(()).unwrap();
+    blocker.join().unwrap().unwrap();
+    let result = advance.join().unwrap();
+    assert!(
+        admitted,
+        "turn source preparation must reach the held retrieval worker"
+    );
+    assert_eq!(before.encounter.revision, expected_revision);
+    let error = result.unwrap_err().into_app_error();
+    assert_eq!(error.code, AppErrorCode::EncounterTurnConflict);
+    assert_eq!(error.details.unwrap()["encounter_key"], a.encounter_key);
+    assert_eq!(
+        saved(&b.encounter_key),
+        before,
+        "the replacement slug owner stays untouched"
+    );
+}
+
 #[test]
 fn selection_does_not_invent_a_past_allocation_or_regain_resources() {
     let (f, key, a, _) = fixture();
@@ -350,6 +466,22 @@ fn new_mid_turn_stun_can_resolve_after_start_turn_stun_without_replaying_either_
     f.worker.apply_condition_lifecycle(&key, request).unwrap();
     assert_eq!(resources(&f, &key, &a).regular_remaining, Some(1));
     assert_eq!(resources(&f, &key, &a).start_results.len(), 2);
+    let TurnActionCalculationView::ThisTurn {
+        count: Some(count),
+        changes,
+    } = resources(&f, &key, &a).action_calculation
+    else {
+        panic!("missing recorded allocation")
+    };
+    assert_eq!(count.adjusted_value, Some(2));
+    assert_eq!(count.adjustments[0].label, "Stunned 1");
+    assert_eq!(
+        changes.len(),
+        1,
+        "matching retry must not repeat the automatic loss"
+    );
+    assert_eq!(changes[0].label, "Stunned 1");
+    assert_eq!(changes[0].value, -1);
     assert_eq!(
         resources(&f, &key, &a).start_results[0],
         TurnResourceResultView {
@@ -358,7 +490,7 @@ fn new_mid_turn_stun_can_resolve_after_start_turn_stun_without_replaying_either_
                 .definition()
                 .record_key
                 .into(),
-            outcome: "1 cleared · 1 action lost this turn".into(),
+            outcome: "1 cleared".into(),
         }
     );
 }
@@ -485,7 +617,7 @@ fn applying_stunned_mid_turn_previews_and_commits_the_same_remaining_loss_once()
                 .definition()
                 .record_key
                 .into(),
-            outcome: "2 cleared · 2 actions lost this turn".into(),
+            outcome: "2 cleared".into(),
         }]
     );
 }
@@ -676,4 +808,246 @@ fn applying_an_updated_stunned_source_preserves_its_identity_and_edited_metadata
     assert_eq!(c.note.as_deref(), Some("Edited source note"));
     assert_eq!(c.origin.as_ref().unwrap().application_id, "original-stun");
     assert_eq!(resources(&f, &key, &a).regular_remaining, Some(0));
+}
+
+fn source_condition_fixture(items: serde_json::Value) -> (FixtureWorker, String, String) {
+    use crate::executor::RetrievalExecutor;
+    use atlas_search::test_support::{open_source_fixture, record};
+    use serde_json::json;
+    let f = crate::test_support::fixture_worker_with_executor(
+        RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
+            let mut records = vec![record(
+                "actors",
+                "Actor",
+                json!({
+                    "_id":"aaaaaaaaaaaaaaaa", "type":"npc", "name":"Generic source creature",
+                    "system":{"details":{"level":{"value":1}},"traits":{"value":[]},
+                        "attributes":{"adjustment":null,"hp":{"max":20},"immunities":[]}},
+                    "items":items
+                }),
+            )];
+            for rule in [
+                super::conditions::ConditionRule::Slowed,
+                super::conditions::ConditionRule::Quickened,
+            ] {
+                let definition = rule.definition();
+                let key = atlas_domain::RecordKey::parse(definition.record_key).unwrap();
+                records.push(record("conditionitems", "Item", json!({
+                    "_id":key.id().as_str(),"type":"condition","name":definition.name,
+                    "system":{"slug":definition.slug,"value":{"isValued":definition.has_value,"value":definition.default_value}}
+                })));
+            }
+            Ok(open_source_fixture(records, false)?)
+        }),
+    );
+    let key = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Inherent conditions".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter
+        .encounter_key;
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
+            encounter_ref: key.clone(),
+            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+            quantity: 1,
+            initiative: Some(20),
+        })
+        .unwrap();
+    let participant = f.worker.encounter(&key).unwrap().participants[0]
+        .participant_key
+        .clone();
+    (f, key, participant)
+}
+
+#[test]
+fn inherent_slowed_and_temporary_slowed_share_one_allocation_without_saving_duplicate_causes() {
+    use serde_json::json;
+    for items in [
+        json!([{"_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Renamed source ability",
+            "system":{"actionType":{"value":"passive"},"rules":[{"key":"GrantItem","inMemoryOnly":true,"uuid":"Compendium.pf2e.conditionitems.Item.Slowed"}]}}]),
+        json!([{"_id":"bbbbbbbbbbbbbbbb","type":"condition","name":"Owned Slowed",
+            "system":{"slug":"slowed","value":{"isValued":true,"value":1}}}]),
+    ] {
+        let (f, key, p) = source_condition_fixture(items);
+        let initial = resources(&f, &key, &p);
+        assert_eq!(initial.forecast.adjusted_value, Some(2));
+        assert_eq!(
+            initial.inherent_conditions.as_ref().unwrap().entries[0].value,
+            Some(1)
+        );
+        assert!(
+            f.worker.encounter(&key).unwrap().participants[0]
+                .conditions
+                .is_empty()
+        );
+        next(&f, &key, "source-first");
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(2));
+        let equal_source = add(&f, &p, "Slowed", Some(1));
+        assert_eq!(resources(&f, &key, &p).forecast.adjusted_value, Some(2));
+        next(&f, &key, "source-equal");
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(2));
+        f.worker
+            .with_write(|session| {
+                session
+                    .local_state()
+                    .encounters()
+                    .remove_condition(&p, equal_source)?;
+                Ok(())
+            })
+            .unwrap();
+        let temporary = add(&f, &p, "Slowed", Some(2));
+        assert_eq!(resources(&f, &key, &p).forecast.adjusted_value, Some(1));
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(2));
+        next(&f, &key, "source-second");
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(1));
+        f.worker
+            .with_write(|session| {
+                session
+                    .local_state()
+                    .encounters()
+                    .remove_condition(&p, temporary)?;
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(resources(&f, &key, &p).forecast.adjusted_value, Some(2));
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(1));
+        let advance = next(&f, &key, "source-third");
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(2));
+        change(
+            &f,
+            &key,
+            &p,
+            "source-spend",
+            TurnResourceAction::Spend {
+                resource: TurnResourceKind::Action,
+            },
+        );
+        f.worker.advance_encounter_turn(&key, advance).unwrap();
+        assert_eq!(resources(&f, &key, &p).regular_remaining, Some(1));
+        assert!(
+            f.worker.encounter(&key).unwrap().participants[0]
+                .conditions
+                .is_empty()
+        );
+    }
+}
+
+#[test]
+fn inherent_slowed_and_turn_start_stunned_overlap_without_an_additional_action_loss() {
+    use serde_json::json;
+    for (stunned, remaining, stunned_after, outcome) in [
+        (1, 2, None, "1 cleared"),
+        (2, 1, None, "2 cleared"),
+        (4, 0, Some(1), "4 → 1"),
+    ] {
+        let (f, key, p) = source_condition_fixture(json!([{
+            "_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Generic slow ability",
+            "system":{"actionType":{"value":"passive"},"rules":[{"key":"GrantItem","inMemoryOnly":true,"uuid":"Compendium.pf2e.conditionitems.Item.Slowed"}]}
+        }]));
+        add(&f, &p, "Stunned", Some(stunned));
+        next(&f, &key, "source-stunned-overlap");
+        let current = resources(&f, &key, &p);
+        assert_eq!(current.regular_total, Some(remaining));
+        assert_eq!(current.regular_remaining, Some(remaining));
+        assert_eq!(current.extra_remaining, Some(0));
+        assert_eq!(current.start_results.len(), 1);
+        assert_eq!(current.start_results[0].condition_name, "Stunned");
+        assert_eq!(current.start_results[0].outcome, outcome);
+        let TurnActionCalculationView::ThisTurn {
+            count: Some(count), ..
+        } = &current.action_calculation
+        else {
+            panic!("missing turn-start calculation")
+        };
+        assert_eq!(count.adjusted_value, Some(remaining));
+        assert_eq!(count.adjustments[0].label, format!("Stunned {stunned}"));
+        assert_eq!(count.suppressed_adjustments[0].label, "Slowed 1");
+        let detail = f.worker.encounter(&key).unwrap();
+        assert_eq!(
+            detail.participants[0]
+                .conditions
+                .iter()
+                .find(|condition| condition.name == "Stunned")
+                .and_then(|condition| condition.value),
+            stunned_after
+        );
+        assert_eq!(
+            current.inherent_conditions.unwrap().entries[0].value,
+            Some(1)
+        );
+    }
+}
+
+#[test]
+fn current_action_calculation_retains_regain_facts_until_turn_end() {
+    use serde_json::json;
+    let (f, key, p) = source_condition_fixture(json!([{
+        "_id":"bbbbbbbbbbbbbbbb","type":"condition","name":"Inherent Slowed",
+        "system":{"slug":"slowed","value":{"isValued":true,"value":1}}
+    }]));
+    f.worker
+        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
+            encounter_ref: key.clone(),
+            display_name: "Other participant".into(),
+            max_hp: Some(20),
+            current_hp: Some(20),
+            initiative: Some(10),
+        })
+        .unwrap();
+    add(&f, &p, "Stunned", Some(1));
+    next(&f, &key, "calculation-start");
+    let allocation = resources(&f, &key, &p).action_calculation;
+    add(&f, &p, "Slowed", Some(2));
+    let updated = resources(&f, &key, &p);
+    assert_eq!(updated.forecast.adjusted_value, Some(1));
+    assert_eq!(updated.action_calculation, allocation);
+    change(
+        &f,
+        &key,
+        &p,
+        "calculation-spend",
+        TurnResourceAction::Spend {
+            resource: TurnResourceKind::Action,
+        },
+    );
+    assert_eq!(resources(&f, &key, &p).action_calculation, allocation);
+    next(&f, &key, "calculation-end");
+    let off_turn = resources(&f, &key, &p);
+    let TurnActionCalculationView::NextTurn { count } = off_turn.action_calculation else {
+        panic!("ended turns must show the live forecast")
+    };
+    assert_eq!(count.adjusted_value, Some(1));
+    assert_eq!(count.adjustments[0].label, "Slowed 2");
+    assert!(count.adjustments.iter().all(|row| row.source != "stunned"));
+}
+
+#[test]
+fn inherent_quickened_is_included_when_stunned_consumes_turn_start_actions() {
+    use serde_json::json;
+    let (f, key, p) = source_condition_fixture(json!([{
+        "_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Swift Steps",
+        "system":{"actionType":{"value":"passive"},"rules":[{"key":"GrantItem","inMemoryOnly":true,"uuid":"Compendium.pf2e.conditionitems.Item.Quickened"}]}
+    }]));
+    assert_eq!(resources(&f, &key, &p).forecast.adjusted_value, Some(4));
+    add(&f, &p, "Stunned", Some(3));
+    next(&f, &key, "source-stunned");
+    let current = resources(&f, &key, &p);
+    assert_eq!(current.regular_remaining, Some(1));
+    assert_eq!(current.extra_remaining, Some(0));
+    assert_eq!(current.forecast.adjusted_value, Some(4));
+    assert!(matches!(
+        current.extra_uses.as_slice(),
+        [ConditionExtraActionView::Unspecified]
+    ));
+    assert!(
+        f.worker.encounter(&key).unwrap().participants[0]
+            .conditions
+            .is_empty()
+    );
 }

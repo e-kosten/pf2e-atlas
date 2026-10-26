@@ -10,6 +10,8 @@ pub enum LocalStateError {
     PartyConflict,
     #[error("{0}")]
     InvalidParty(&'static str),
+    #[error("{0}")]
+    InvalidDifficultyReference(&'static str),
     #[error("Local-state mutations require a caller-owned write transaction")]
     ActionRequiresTransaction,
     #[error("Unsupported stored roll receipt version {0}")]

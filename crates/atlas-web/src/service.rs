@@ -266,6 +266,17 @@ pub(crate) trait AtlasWebService: Send + Sync {
     fn delete_encounter(&self, encounter_ref: &str)
     -> Result<DeleteEncounterView, AppServiceError>;
 
+    fn set_encounter_difficulty(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::SetEncounterDifficultyRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+    fn preview_encounter_difficulty(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreviewEncounterDifficultyRequest,
+    ) -> Result<atlas_app_model::EncounterDifficultyView, AppServiceError>;
+
     fn update_encounter(
         &self,
         request: UpdateEncounterRequest,
@@ -719,6 +730,21 @@ impl AtlasWebService for AtlasAppService {
         encounter_ref: &str,
     ) -> Result<DeleteEncounterView, AppServiceError> {
         self.delete_encounter(encounter_ref)
+    }
+
+    fn set_encounter_difficulty(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::SetEncounterDifficultyRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.set_encounter_difficulty(encounter_ref, request)
+    }
+    fn preview_encounter_difficulty(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreviewEncounterDifficultyRequest,
+    ) -> Result<atlas_app_model::EncounterDifficultyView, AppServiceError> {
+        self.preview_encounter_difficulty(encounter_ref, request)
     }
 
     fn update_encounter(

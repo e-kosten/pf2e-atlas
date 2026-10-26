@@ -7,6 +7,36 @@ use atlas_search::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 
+pub(super) fn source_baseline(
+    record: &atlas_record::source_record::SourceBackedRecord,
+    retrieval: &mut atlas_search::AtlasRetrievalService,
+    selection: Option<(&[atlas_domain::OwnedContentLocator], u8)>,
+) -> AppServiceResult<Option<super::stat_block::StatBlockView>> {
+    let Some(mut baseline) =
+        super::rules::authored_stat_baseline(record, retrieval.source_fingerprint(), selection)
+    else {
+        return Ok(None);
+    };
+    baseline.source_actions =
+        super::rules::source_action_conditions::source_action_conditions(record, |uuid| {
+            Ok(
+                match retrieval
+                    .resolve_source_root_reference(uuid)?
+                    .map(|reference| reference.target)
+                {
+                    Some(atlas_record::source_content::ContentReferenceTarget::Record { key }) => {
+                        super::conditions::condition_rule_for_key(Some(&key.to_string()))
+                    }
+                    _ => None,
+                },
+            )
+        })?;
+    if !baseline.source_actions.entries.is_empty() {
+        baseline.source_actions.source_fingerprint = Some(retrieval.source_fingerprint().into());
+    }
+    Ok(Some(baseline))
+}
+
 pub(super) fn hydrate_participant_records(
     r: &mut atlas_search::AtlasRetrievalService,
     participants: &[EncounterParticipant],
@@ -44,8 +74,7 @@ pub(super) fn hydrate_participant_records(
                 vec![],
                 r,
             )?;
-            let arithmetic_baseline =
-                super::rules::source_baseline(&detail.source, r.source_fingerprint(), None);
+            let arithmetic_baseline = source_baseline(&detail.source, r, None)?;
             let adjustment_applicable = !matches!(
                 atlas_record::source_record::SourceQueryView::new(
                     detail.source.source(),
@@ -70,6 +99,20 @@ pub(super) fn hydrate_participant_records(
         }
     }
     Ok((Some(r.artifact_generation()?), records))
+}
+
+pub(super) fn participant_source_actions(
+    participant: &EncounterParticipant,
+    records: &BTreeMap<String, HydratedParticipantRecord>,
+) -> super::rules::source_action_conditions::SourceActionConditions {
+    let Some(key) = &participant.record_key else {
+        return Default::default();
+    };
+    records
+        .get(key)
+        .and_then(|record| record.arithmetic_baseline.as_ref())
+        .map(|baseline| baseline.source_actions.clone())
+        .unwrap_or_else(super::rules::source_action_conditions::SourceActionConditions::unavailable)
 }
 pub(super) fn resolve_record_ref(
     r: &mut atlas_search::AtlasRetrievalService,

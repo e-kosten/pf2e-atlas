@@ -46,6 +46,15 @@ change its meaning. Item's generic rule payload remains separate from specific
 rule interpretation, as in ADR 0039. Admitting a parent is not a claim that all
 its specific rules can be interpreted.
 
+Consumers can call `RuleElementSource::interpret` on one retained generic rule
+to obtain the generated specific `RuleSource`. The model owner reconstructs that
+node's authored fields, retaining duplicate names and invalid-field rejection,
+then invokes the same strict specific parser atomically. This pure operation
+does not read a source checkout, admit the parent again, change the snapshot or
+execute the rule. Callers must separately establish supported activation,
+value and lifetime semantics before applying a mechanical effect; successful
+interpretation alone does not establish that a grant is active.
+
 Upstream constructor-input evidence is resolved with the TypeScript compiler
 and kept beside declaration evidence. NPC senses use the input of `Sense`, which
 accepts omitted acuity/range and nullable range. The model retains those authored

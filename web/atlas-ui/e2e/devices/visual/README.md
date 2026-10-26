@@ -7,6 +7,30 @@ and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
 ## Product theme references
 
+### Accepted encounter workflow references
+
+macOS arm64, Playwright 1.62.1: source `5ddfb9be795d8d1784b48675d7ac2c3582685083`
+captures the accepted compact roster header, state/turn placement, persistent
+Add/initiative footer and aligned pane insets. All 12 capture scenarios pass their
+interaction/geometry assertions. All 40 changed before/candidate frames were
+reviewed: parent reviewed desktop/tablet pairs, independent Astra reviewed both
+phone projects and authenticated their hashes. Foreground condition/edit/recovery
+content and controls remain intact. Pair evidence and hashes are retained in
+`scratch/pr109-review/reference-pairs/`; the source-default match fix also has a
+separate blocked-write browser check. An ordinary comparison run remains required.
+
+Linux x64, Ubuntu 24.04, Playwright 1.62.1:
+[capture 40252941816](https://github.com/e-kosten/pf2e-atlas/actions/runs/40252941816)
+passed all 12 scenarios using CI run 40252568623's authenticated fixture, PR head
+`5ddfb9be795d8d1784b48675d7ac2c3582685083` and synthetic merge
+`23e455f1de7f16a9ead21067ff6a3823d1bebee8`. Binary SHA-256:
+`52dbf01081eb7977cec02993d9c877bc4bd8e51332a177c9ec573733bb578c34`;
+frontend index SHA-256:
+`7d87de6ef83fcf9ffadb62d01422f89c165fe819cb83b315cdac1ec812708964`.
+All 40 Linux pairs were separately reviewed by the parent (desktop/tablet) and
+independent Astra (phones), with hashes authenticated before adoption. Ordinary
+hosted comparison remains required; macOS PNGs were not copied to Linux.
+
 The current references capture the accepted Ink dark neutral ramp, bright dark
 text family and stronger overlay/control contrast while retaining the
 parchment-and-oxblood light theme. All four projects passed their 12 interaction
