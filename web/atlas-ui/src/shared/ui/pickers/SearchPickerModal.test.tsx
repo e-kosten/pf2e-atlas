@@ -20,6 +20,7 @@ import {
   discoverFilterCounts,
 } from "../../../api/atlasApi";
 import {
+  activityFixture,
   detailFixture,
   editorFixture,
   fieldFixture,
@@ -102,9 +103,16 @@ function Picker({
       onFinish={() => addSelected(selected)}
       okButtonProps={{ disabled: !selected }}
     >
-      <Form.Item name="note" label="Note">
-        <Input />
-      </Form.Item>
+      {(detail) => (
+        <>
+          <output aria-label="Selected adjustment">
+            {detail?.encounter_adjustment}
+          </output>
+          <Form.Item name="note" label="Note">
+            <Input />
+          </Form.Item>
+        </>
+      )}
     </SearchPickerModal>
   );
 }
@@ -176,6 +184,41 @@ beforeEach(() => {
     counts: { status: "unavailable", reason: "non_conjunctive_context" },
   });
 });
+it("keeps the root selection default when a match opens an exact embedded document", async () => {
+  const page = result();
+  const navigation = activityFixture("Command", "actors:ghoul").navigation;
+  page.rows[0].matches = [
+    {
+      navigation,
+      label: "Command",
+      snippet: null,
+      lane: "lexical",
+      lexical_rank: null,
+      semantic_similarity: null,
+    },
+  ];
+  search.mockResolvedValue(page);
+  const parent = {
+    ...detailFixture("actors:ghoul", "Ghoul"),
+    artifact_generation: "generation-a",
+    encounter_adjustment: "elite" as const,
+  };
+  const child = {
+    ...detailFixture("actors:ghoul", "Command"),
+    artifact_generation: "generation-a",
+    selected: navigation,
+  };
+  vi.mocked(getRecordDetail).mockResolvedValueOnce(parent).mockResolvedValueOnce(child);
+  renderPicker();
+  fireEvent.click(await screen.findByRole("button", { name: "1 matches in Ghoul" }));
+  fireEvent.click(await screen.findByRole("link", { name: /Command/ }));
+  expect(await screen.findByRole("heading", { name: "Command" })).toBeVisible();
+  expect(screen.getByLabelText("Selected adjustment")).toHaveTextContent("elite");
+  expect(getRecordDetail).toHaveBeenCalledTimes(2);
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() => expect(addSelected).toHaveBeenLastCalledWith("actors:ghoul"));
+});
+
 it("inherits lazy contextual counts in Add pickers and leaves text searches count-free", async () => {
   vi.mocked(discoverFilterEditor).mockResolvedValue(
     editorFixture([
