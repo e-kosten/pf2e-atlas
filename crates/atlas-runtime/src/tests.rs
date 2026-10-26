@@ -114,16 +114,36 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
             },
         )
         .unwrap();
-    let encounter = state
-        .encounters()
-        .create(NewEncounter {
-            slug: "kept-encounter".into(),
-            name: "Kept encounter".into(),
-            description: None,
-            note: Some("In progress".into()),
-        })
+    let encounter = Encounter {
+        encounter_key: "historical-encounter".into(),
+        slug: "kept-encounter".into(),
+        name: "Kept encounter".into(),
+        description: None,
+        note: Some("In progress".into()),
+        status: EncounterStatus::Draft,
+        round_number: 1,
+        current_turn_participant_key: None,
+        created_at: "2026-01-01T00:00:00Z".into(),
+        updated_at: "2026-01-01T00:00:00Z".into(),
+        revision: 0,
+        difficulty_reference: Default::default(),
+    };
+    // Seed historical rows directly: current domain readers require newer columns.
+    write
+        .connection()
+        .execute(
+            "INSERT INTO encounters(encounter_key,slug,name,note,status,created_at,updated_at)
+         VALUES (?1,?2,?3,?4,'draft',?5,?6)",
+            rusqlite::params![
+                encounter.encounter_key,
+                encounter.slug,
+                encounter.name,
+                encounter.note,
+                encounter.created_at,
+                encounter.updated_at
+            ],
+        )
         .unwrap();
-    // Seed historical rows directly: current participant readers require newer columns.
     write
         .connection()
         .execute(
