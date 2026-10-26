@@ -2,6 +2,7 @@ import {
   EncounterAbilityControls,
   type AbilityStateHandler,
 } from "./EncounterAbilityControls";
+import { EncounterAbilityStates } from "./EncounterAbilityStates";
 import { destinationHref } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import {
@@ -500,6 +501,13 @@ function EncounterParticipantSurface({
         onRecoverPersistent={onRecoverPersistent}
         onResolveDrained={onResolveDrained}
         participants={participants}
+      />
+      <EncounterAbilityStates
+        participantKey={participant.participant_key}
+        abilities={participant.ability_states}
+        disabled={disabled}
+        onChange={onAbilityState}
+        onReference={onReference}
       />
     </div>
   );
