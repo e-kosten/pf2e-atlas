@@ -88,12 +88,12 @@ it("changes the authored switch without losing its selected option", async () =>
 
 it("selects an authored choice directly from Off in one update", async () => {
   const onChange = vi.fn().mockResolvedValue(true);
-  const option: EncounterAbilityStateView = {
+  const option = {
     ...ability,
     label: "Go Dark",
     rule_ordinal: 0,
     state: {
-      kind: "option",
+      kind: "option" as const,
       active: false,
       always_active: false,
       selection: "Compendium.pf2e.conditionitems.Item.Invisible",
@@ -111,12 +111,14 @@ it("selects an authored choice directly from Off in one update", async () => {
       ],
     },
   };
-  render(
+  const { rerender } = render(
     <EncounterAbilityControls ability={option} disabled={false} onChange={onChange} />,
   );
   expect(screen.queryByRole("switch")).toBeNull();
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Go Dark option" }));
-  fireEvent.click(await screen.findByRole("option", { name: "Hidden" }));
+  const trigger = screen.getByRole("button", { name: "Go Dark effect: Off" });
+  trigger.focus();
+  fireEvent.click(trigger);
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Hidden" }));
   await waitFor(() =>
     expect(onChange).toHaveBeenCalledExactlyOnceWith(option, {
       kind: "set_option",
@@ -124,6 +126,24 @@ it("selects an authored choice directly from Off in one update", async () => {
       selection: "Compendium.pf2e.conditionitems.Item.Hidden",
     }),
   );
+  rerender(
+    <EncounterAbilityControls
+      ability={{
+        ...option,
+        state: {
+          ...option.state,
+          active: true,
+          selection: "Compendium.pf2e.conditionitems.Item.Hidden",
+        },
+      }}
+      disabled={false}
+      onChange={onChange}
+    />,
+  );
+  const selected = screen.getByRole("button", { name: "Go Dark effect: Hidden" });
+  expect(selected).toBe(trigger);
+  await waitFor(() => expect(selected).toHaveFocus());
+  expect(selected).toHaveAttribute("aria-expanded", "false");
 });
 
 it("omits the ability states section when no configurable ability is supplied", () => {

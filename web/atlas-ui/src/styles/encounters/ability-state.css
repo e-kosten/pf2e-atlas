@@ -17,6 +17,7 @@
 .encounter-ability-controls__choice {
   width: max-content;
   max-width: 100%;
+  font-size: inherit;
 }
 
 .encounter-ability-controls__choice-label {
@@ -46,4 +47,9 @@
   flex-wrap: wrap;
   gap: var(--space-control);
   min-width: 0;
+}
+
+.encounter-ability-states__name {
+  font-size: 1rem;
+  font-weight: 600;
 }
