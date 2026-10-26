@@ -21,7 +21,7 @@ mod preparation;
 mod tests;
 mod text_projection;
 
-pub use literal_damage::{LiteralDamageComponent, literal_damage};
+pub use literal_damage::{LiteralDamageComponent, LiteralDamageKind, literal_damage};
 pub use marker_validation::{
     PreparedMarkerError, validate_prepared_markers, validate_prepared_reference_bindings,
     validate_prepared_trait_reference_bindings,

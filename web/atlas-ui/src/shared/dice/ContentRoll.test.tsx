@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ConfigProvider } from "antd";
 import { ContentRoll } from "./ContentRoll";
 import { rollContent } from "../../api/atlasApi";
@@ -24,6 +24,7 @@ const components = [
   {
     formula: "4d8+10",
     label: "bludgeoning damage",
+    unit: null,
     expression: {
       kind: "binary" as const,
       operator: "add" as const,
@@ -32,6 +33,7 @@ const components = [
     },
   },
 ];
+const presentation = { heading: "Bludgeoning damage", components };
 const outcome: ContentRollResultView = {
   components: [
     {
@@ -57,7 +59,7 @@ const outcome: ContentRollResultView = {
 function show() {
   return render(
     <ConfigProvider theme={{ token: { motion: false } }}>
-      <ContentRoll request={request} components={components} />
+      <ContentRoll request={request} presentation={presentation} />
     </ConfigProvider>,
   );
 }
@@ -70,7 +72,7 @@ it("rolls once on activation, retains the result through dismissal and only rero
   fireEvent.click(opener);
   await screen.findByRole("status", { name: "4d8+10: 28" });
   expect(rollContent).toHaveBeenCalledExactlyOnceWith(request);
-  const dialog = screen.getByRole("dialog", { name: "4d8+10 bludgeoning damage" });
+  const dialog = screen.getByRole("dialog", { name: "Bludgeoning damage" });
   fireEvent.keyDown(dialog, { key: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(opener).toHaveFocus();
@@ -131,4 +133,114 @@ it("retains keyboard focus while rerolling and ignores repeated activation until
   complete(outcome);
   await waitFor(() => expect(reroll).toHaveAttribute("aria-disabled", "false"));
   expect(reroll).toHaveFocus();
+});
+
+it("promotes an authored purpose to the stable dialog heading without repeating it in the body", async () => {
+  const { AtlasApiError } = await import("../../api/atlasApi");
+  let reject!: (cause: unknown) => void;
+  vi.mocked(rollContent).mockImplementationOnce(
+    () =>
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      }),
+  );
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <ContentRoll
+        request={request}
+        presentation={{
+          ...presentation,
+          heading: "Counteract",
+          components: [{ ...components[0], label: "Counteract" }],
+        }}
+      />
+    </ConfigProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Roll 4d8+10 Counteract" }));
+  const dialog = await screen.findByRole("dialog", { name: "Counteract" });
+  expect(screen.getAllByText("Counteract", { exact: true })).toHaveLength(1);
+  expect(screen.queryByText("Roll result")).toBeNull();
+  await act(async () => {
+    reject(new AtlasApiError(400, "This source changed."));
+  });
+  await screen.findByRole("alert");
+  expect(screen.getByRole("dialog", { name: "Counteract" })).toBe(dialog);
+  expect(screen.getAllByText("Counteract", { exact: true })).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "Close roll" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+});
+
+it.each([1, 3])("shows time units beside a duration total of %s", async (value) => {
+  const unit = { singular: "round", plural: "rounds" };
+  vi.mocked(rollContent).mockResolvedValue({
+    components: [
+      {
+        label: "rounds",
+        outcome: {
+          formula: "1d4",
+          total: value,
+          expression: {
+            kind: "dice",
+            dice: [{ sides: 4, value, kept: true }],
+            total: value,
+          },
+        },
+      },
+    ],
+  });
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <ContentRoll
+        request={request}
+        presentation={{
+          heading: "Duration",
+          components: [
+            {
+              formula: "1d4",
+              label: "rounds",
+              unit,
+              expression: { kind: "dice", sides: [4] },
+            },
+          ],
+        }}
+      />
+    </ConfigProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Roll 1d4 rounds" }));
+  const suffix = value === 1 ? "round" : "rounds";
+  await screen.findByRole("status", { name: `1d4: ${value} ${suffix}` });
+  expect(screen.getByRole("dialog", { name: "Duration" })).toBeVisible();
+  expect(screen.getAllByText(suffix, { exact: true })).toHaveLength(1);
+});
+
+it("retains type labels that distinguish multiple damage components", async () => {
+  vi.mocked(rollContent).mockResolvedValue({
+    components: ["fire damage", "cold damage"].map((label) => ({
+      ...outcome.components[0],
+      label,
+    })),
+  });
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <ContentRoll
+        request={request}
+        presentation={{
+          heading: "Damage",
+          components: [
+            { ...components[0], label: "fire damage" },
+            { ...components[0], label: "cold damage" },
+          ],
+        }}
+      />
+    </ConfigProvider>,
+  );
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Roll 4d8+10 fire damage + 4d8+10 cold damage",
+    }),
+  );
+  await screen.findByRole("dialog", { name: "Damage" });
+  await screen.findAllByRole("status", { name: "4d8+10: 28" });
+  expect(screen.getByText("fire damage", { exact: true })).toBeVisible();
+  expect(screen.getByText("cold damage", { exact: true })).toBeVisible();
 });

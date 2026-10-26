@@ -146,16 +146,7 @@ pub(crate) fn content_controls(
                     ContentControlKindView::Damage {
                         formula: formula.clone(),
                         options: options.clone(),
-                        literal: parts.map(|parts| {
-                            parts
-                                .into_iter()
-                                .map(|p| ContentRollComponentView {
-                                    formula: p.formula,
-                                    label: p.label,
-                                    expression: p.expression,
-                                })
-                                .collect()
-                        }),
+                        literal: parts.map(super::content_roll_presentation::damage_presentation),
                         roll,
                     }
                 }
@@ -182,13 +173,8 @@ pub(crate) fn content_controls(
                         command: command.clone(),
                         arguments: arguments.clone(),
                         options: options.clone(),
-                        literal: literal.map(|part| {
-                            vec![ContentRollComponentView {
-                                formula: part.formula,
-                                label: part.caption,
-                                expression: part.expression,
-                            }]
-                        }),
+                        literal: literal
+                            .map(super::content_roll_presentation::command_presentation),
                         roll,
                     }
                 }

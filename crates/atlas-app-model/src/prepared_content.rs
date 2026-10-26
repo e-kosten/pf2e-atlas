@@ -41,14 +41,14 @@ pub enum ContentControlKindView {
     Damage {
         formula: String,
         options: std::collections::BTreeMap<String, String>,
-        literal: Option<Vec<ContentRollComponentView>>,
+        literal: Option<ContentRollPresentationView>,
         roll: Option<RollContentRequest>,
     },
     Command {
         command: String,
         arguments: String,
         options: std::collections::BTreeMap<String, String>,
-        literal: Option<Vec<ContentRollComponentView>>,
+        literal: Option<ContentRollPresentationView>,
         roll: Option<RollContentRequest>,
     },
     Template {
@@ -58,10 +58,23 @@ pub enum ContentControlKindView {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ContentRollPresentationView {
+    pub heading: String,
+    pub components: Vec<ContentRollComponentView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RollUnitView {
+    pub singular: String,
+    pub plural: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ContentRollComponentView {
     pub formula: String,
     pub label: String,
     pub expression: atlas_dice::RollPreviewExpression,
+    pub unit: Option<RollUnitView>,
 }
 
 /// Selects an authored interaction, never a caller-supplied executable formula.

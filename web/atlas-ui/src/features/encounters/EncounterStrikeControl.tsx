@@ -1,7 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { Alert, Button, Popover } from "antd";
-import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useId,
+  type ReactNode,
+} from "react";
 import { getEncounterStrikeOptions, rollEncounterStrike } from "../../api/atlasApi";
 import type {
   ActorActivityView,
@@ -158,6 +165,7 @@ function StrikeRollPopover({
   renderStrikeContext?: (requestId: string) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const headingId = useId();
   const [mode, setMode] = useState<RollMode>("normal");
   const [original, setOriginal] = useState<RollEncounterStrikeRequest>();
   const [contextOpen, setContextOpen] = useState(false);
@@ -221,7 +229,7 @@ function StrikeRollPopover({
           tabIndex={-1}
           className={`atlas-dice-popover strike-roll-control${contextOpen ? " strike-roll-control--expanded" : ""}`}
           role="dialog"
-          aria-label={actionLabel}
+          aria-labelledby={headingId}
         >
           <div className="strike-roll-control__toolbar">
             {contextOpen && (
@@ -233,7 +241,7 @@ function StrikeRollPopover({
                 onClick={() => setContextOpen(false)}
               />
             )}
-            <strong>
+            <strong id={headingId}>
               {title} · {contextOpen ? "Target & checks" : attack ? "Attack" : "Damage"}
             </strong>
             {attack && (

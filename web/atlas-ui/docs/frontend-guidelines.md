@@ -1469,6 +1469,22 @@ Clicking an encounter attack bonus or damage expression opens its result popover
 and rolls immediately. Reroll is explicit; opening via an effect or rerender must
 never submit a roll. Fortune/misfortune changes apply to the next deliberate roll.
 
+Dice popovers have one stable, purpose-specific heading before, during and after
+rolling, including failures and retries. Use the authored purpose (`Counteract`,
+`Recharge Breath Weapon`), the known workflow (`Fire recovery`), or the formula
+when no purpose is known. A single damage component uses its type as the heading;
+mixed components use Damage/Healing as appropriate and retain their individual
+labels. Do not repeat a single component's caption beneath the heading. Exact
+authored time-unit captions use Duration with units beside the total (`7 hours`),
+not a standalone Hours label. Backend presentation supplies these roles; the
+browser must not infer check mechanics from a d20 formula or source prose.
+
+Single-participant initiative names the participant and task (`Goblin · Initiative`);
+batch initiative uses Initiative. A dialog's accessible name references its visible
+heading. Keep the task name stable rather than appending Result after rolling.
+Inline table rolls and flat checks under an existing section retain useful local
+labels without acquiring another popover heading.
+
 Initiative uses the encounter mutation owner and backend-resolved choices.
 Preserve a request ID and unchanged intent for retry after an uncertain response.
 A new deliberate roll gets a new ID. A batch shows participant-attributed results;

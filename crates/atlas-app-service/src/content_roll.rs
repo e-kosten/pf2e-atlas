@@ -67,6 +67,7 @@ impl AtlasAppService {
             }
             // Validate every instance before consuming randomness; no partial mixed-type result.
             let prepared = parts
+                .components
                 .iter()
                 .map(|part| {
                     atlas_dice::prepare(&part.formula)

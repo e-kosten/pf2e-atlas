@@ -226,7 +226,7 @@ export function PreparedContentBody({
           (formula ?? marker).after(host);
           effects.push(
             createPortal(
-              <ContentRoll request={control.roll} components={control.literal} />,
+              <ContentRoll request={control.roll} presentation={control.literal} />,
               host,
               identity,
             ),

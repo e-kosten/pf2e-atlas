@@ -1,9 +1,9 @@
 import { Button, Popover } from "antd";
 import { Dices, X } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { rollContent } from "../../api/atlasApi";
 import type {
-  ContentRollComponentView,
+  ContentRollPresentationView,
   ContentRollResultView,
   RollContentRequest,
 } from "../../generated/atlas";
@@ -15,12 +15,14 @@ import "../../styles/ui/content-roll.css";
 /** Transient reader dice. Reopening shows the result; only Reroll replaces it. */
 export function ContentRoll({
   request,
-  components,
+  presentation,
 }: {
   request: RollContentRequest;
-  components: ContentRollComponentView[];
+  presentation: ContentRollPresentationView;
 }) {
   const [open, setOpen] = useState(false);
+  const headingId = useId();
+  const { heading, components } = presentation;
   const roll = useDiceRoll<ContentRollResultView>({ retainResultOnError: true });
   const { trigger, content, afterOpenChange } = useDicePopoverFocus(open);
   const label = components
@@ -43,7 +45,7 @@ export function ContentRoll({
           ref={content}
           tabIndex={-1}
           role="dialog"
-          aria-label={label}
+          aria-labelledby={headingId}
           className="atlas-dice-popover content-roll"
           onKeyDown={(event) => {
             if (event.key === "Escape") {
@@ -53,7 +55,7 @@ export function ContentRoll({
           }}
         >
           <div className="content-roll__toolbar">
-            <strong>Roll result</strong>
+            <strong id={headingId}>{heading}</strong>
             <Button
               type="text"
               icon={<X size={16} />}
@@ -63,15 +65,17 @@ export function ContentRoll({
           </div>
           {components.map((part, index) => (
             <div key={index} className="content-roll__component">
-              {part.label && <span>{part.label}</span>}
+              {components.length > 1 && part.label && <span>{part.label}</span>}
               {roll.result?.components[index] ? (
                 <RollResult
                   outcome={roll.result.components[index].outcome}
+                  unit={part.unit ?? undefined}
                   pending={roll.animating}
                 />
               ) : (
                 <UnrolledRoll
                   expression={part.expression}
+                  unit={part.unit ?? undefined}
                   formula={part.formula}
                   pending={roll.busy}
                 >
