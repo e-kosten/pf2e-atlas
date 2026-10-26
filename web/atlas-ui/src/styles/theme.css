@@ -12,6 +12,7 @@
   --text: #292621;
   --muted: #685f54;
   --comparison-reference-text: color-mix(in srgb, #292621 64%, #fffcf4);
+  --comparison-reference-badge-text: color-mix(in srgb, #292621 68%, #fffcf4);
   --comparison-selected-bg: color-mix(in srgb, #eaddcb 35%, #fffcf4);
   --line: #d6c6ad;
   --split: #d6c6ad;

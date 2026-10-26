@@ -634,12 +634,16 @@
   --comparison-normal-text: var(--text);
   --comparison-normal-heading: var(--heading-color);
   --comparison-normal-muted: var(--muted);
+  --comparison-normal-link: var(--link);
   --comparison-marker-bg: var(--comparison-selected-bg);
 }
 .comparison-source .record-reference {
   --text: var(--comparison-reference-text);
   --muted: var(--comparison-reference-text);
   --heading-color: var(--comparison-reference-text);
+  --link: var(--comparison-reference-text);
+  --comparison-badge-text: var(--comparison-reference-badge-text);
+  --comparison-badge-link: var(--comparison-reference-badge-text);
   color: var(--comparison-reference-text);
 }
 .comparison-source .record-reference__header,
@@ -658,6 +662,9 @@
   --text: var(--comparison-normal-text);
   --muted: var(--comparison-normal-muted);
   --heading-color: var(--comparison-normal-heading);
+  --link: var(--comparison-normal-link);
+  --comparison-badge-text: var(--comparison-normal-text);
+  --comparison-badge-link: var(--comparison-normal-link);
   color: var(--comparison-normal-text);
 }
 .comparison-source .source-section-selected {
@@ -688,6 +695,9 @@
   --text: var(--comparison-normal-text);
   --muted: var(--comparison-normal-muted);
   --heading-color: var(--comparison-normal-heading);
+  --link: var(--comparison-normal-link);
+  --comparison-badge-text: var(--comparison-normal-text);
+  --comparison-badge-link: var(--comparison-normal-link);
   color: var(--comparison-normal-text);
   background: var(--comparison-selected-bg);
   box-shadow: 0 0 0 calc(var(--space-control) / 2) var(--comparison-selected-bg);
@@ -698,7 +708,28 @@
   color: var(--comparison-reference-text);
 }
 .prepared-content--source .source-section-excluded {
+  --link: var(--comparison-reference-text);
+  --comparison-badge-text: var(--comparison-reference-badge-text);
+  --comparison-badge-link: var(--comparison-reference-badge-text);
   color: var(--comparison-reference-text);
+}
+
+.comparison-source .record-reference a,
+.comparison-source .record-reference .effect-reference-link {
+  color: var(--link);
+}
+.comparison-source .record-reference .record-trait-badge {
+  color: var(--comparison-badge-text);
+}
+.comparison-source .record-reference .record-trait-badge a {
+  color: var(--comparison-badge-link);
+}
+.comparison-source .record-reference a:hover {
+  text-decoration: underline;
+}
+.comparison-source .record-reference :is(a, [role="button"]):focus-visible {
+  outline: 2px solid var(--comparison-normal-link);
+  outline-offset: 2px;
 }
 
 .comparison-source :is(.prepared-inclusion, .prepared-inclusion-unavailable) {
