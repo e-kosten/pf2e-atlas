@@ -31,9 +31,11 @@ export function ReferenceBrowser({
   generation,
   onRefreshResults,
   query,
+  showSimilarityDetails = false,
 }: {
   rows: SearchResultRow[];
   query?: string;
+  showSimilarityDetails?: boolean;
   loading: boolean;
   selectedRecordKey: string | null;
   onSelect: (row: SearchResultRow, request: ReadingRequest) => void;
@@ -76,6 +78,7 @@ export function ReferenceBrowser({
         showContext ? (
           <SearchMatchContext
             row={selected}
+            showSimilarityDetails={showSimilarityDetails}
             query={query}
             clauses={relationshipClauses}
             filter={filter}

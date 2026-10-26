@@ -67,12 +67,14 @@ function Harness({
   relationships,
   generation = "test-generation",
   query = "jaws",
+  showSimilarityDetails = false,
 }: {
   positions?: BrowsePositions;
   resultRows?: SearchResultRow[];
   relationships?: RelationshipClauseSummaryView[];
   generation?: string;
   query?: string;
+  showSimilarityDetails?: boolean;
 }) {
   const [selected, select] = useState<string | null>(null);
   const reading = useReferenceReading();
@@ -80,6 +82,7 @@ function Harness({
     <ReferenceBrowser
       positions={positions}
       query={query}
+      showSimilarityDetails={showSimilarityDetails}
       rows={resultRows}
       relationshipClauses={relationships}
       filter={
@@ -509,7 +512,7 @@ it("keeps similarity evidence in the selected reader and uses shared exact match
       <QueryClientProvider
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
-        <Harness resultRows={resultRows} query="" />
+        <Harness showSimilarityDetails resultRows={resultRows} query="" />
       </QueryClientProvider>
     </ConfigProvider>,
   );
@@ -574,7 +577,12 @@ it("withholds similarity reader context from an unmatched result generation", as
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const browser = (generation: string) => (
     <QueryClientProvider client={client}>
-      <Harness resultRows={resultRows} query="" generation={generation} />
+      <Harness
+        showSimilarityDetails
+        resultRows={resultRows}
+        query=""
+        generation={generation}
+      />
     </QueryClientProvider>
   );
   const view = render(browser("test-generation"));

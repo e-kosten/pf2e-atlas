@@ -132,6 +132,39 @@ function setup(
   return { apply, remember };
 }
 
+it("keeps similarity details off by default and discards a canceled change", () => {
+  const { apply, remember } = setup();
+  const toggle = screen.getByRole("switch", { name: "Show similarity details" });
+  expect(toggle).not.toBeChecked();
+  fireEvent.click(toggle);
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(remember).not.toHaveBeenCalled();
+  expect(apply).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+  expect(
+    screen.getByRole("switch", { name: "Show similarity details" }),
+  ).not.toBeChecked();
+});
+
+it("remembers a details-only change without submitting another search", () => {
+  const { apply, remember } = setup();
+  fireEvent.click(screen.getByRole("switch", { name: "Show similarity details" }));
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(remember).toHaveBeenCalledWith(
+    expect.objectContaining({ showSimilarityDetails: true }),
+  );
+  expect(apply).not.toHaveBeenCalled();
+});
+
+it("resets the details preference with the other search settings", () => {
+  setup();
+  fireEvent.click(screen.getByRole("switch", { name: "Show similarity details" }));
+  fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+  expect(
+    screen.getByRole("switch", { name: "Show similarity details" }),
+  ).not.toBeChecked();
+});
+
 it("keeps edits local until Apply and discards them on Cancel", () => {
   const { apply, remember } = setup();
   fireEvent.change(screen.getByRole("spinbutton", { name: "Match decay" }), {

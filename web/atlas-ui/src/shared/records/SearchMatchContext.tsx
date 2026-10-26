@@ -18,6 +18,7 @@ export function SearchMatchContext({
   filter,
   generation,
   onRefresh,
+  showSimilarityDetails = false,
 }: {
   row: SearchResultRow;
   query?: string;
@@ -25,6 +26,7 @@ export function SearchMatchContext({
   filter?: QueryPredicate | null;
   generation?: string;
   onRefresh?: () => Promise<void>;
+  showSimilarityDetails?: boolean;
 }) {
   const { token } = theme.useToken();
   const onNavigate = useContext(ReaderMatchNavigation);
@@ -35,16 +37,17 @@ export function SearchMatchContext({
           clauses?.some((clause) => clause.clause_id === item.clause_id),
         )
       : [];
-  if (!sections.length && !evidence.length && !row.similarity) return null;
+  const similarity = showSimilarityDetails ? row.similarity : undefined;
+  if (!sections.length && !evidence.length && !similarity) return null;
   return (
     <div className="reader-match-context">
-      {row.similarity && (
+      {similarity && (
         <section aria-label="Similarity comparison">
           <Typography.Title level={3} style={{ fontSize: token.fontSizeLG, margin: 0 }}>
             Similarity comparison
           </Typography.Title>
           <SimilarityExplanation
-            evidence={row.similarity}
+            evidence={similarity}
             onNavigate={onNavigate ?? undefined}
           />
         </section>

@@ -15,6 +15,7 @@ import {
   Slider,
   Space,
   Spin,
+  Switch,
   Tooltip,
   Typography,
 } from "antd";
@@ -54,6 +55,7 @@ type SettingsDraft = {
   seedIdentity: string;
   model: string | null;
   ranking: SearchRanking;
+  showSimilarityDetails: boolean;
   similarity: SimilarityPreferences;
   parts: string[] | null;
   generation?: string;
@@ -231,6 +233,7 @@ export function SearchSettings({
       seedIdentity,
       model: profile.id,
       ranking,
+      showSimilarityDetails: profile.preferences.showSimilarityDetails,
       similarity: appliedPreferences,
       parts: appliedParts,
       generation: search.similarityGeneration,
@@ -265,9 +268,20 @@ export function SearchSettings({
     const nextSimilarity = seed
       ? similarityFromPreferences(draft.similarity, trait, draft.parts)
       : search.similarity;
+    const detailsOnly =
+      draft.showSimilarityDetails !== profile.preferences.showSimilarityDetails &&
+      !search.filterError &&
+      draft.model === profile.id &&
+      draft.ranking === ranking &&
+      draft.similarity.method === appliedPreferences.method &&
+      draft.similarity.decay === appliedPreferences.decay &&
+      draft.similarity.candidateParts === appliedPreferences.candidateParts &&
+      JSON.stringify(draft.parts) === JSON.stringify(appliedParts) &&
+      draft.generation === search.similarityGeneration;
     const nextPreferences = {
       ...profile.preferences,
       model: draft.model,
+      showSimilarityDetails: draft.showSimilarityDetails,
       ...(seed
         ? trait
           ? { traitSimilarity: draft.similarity }
@@ -275,27 +289,28 @@ export function SearchSettings({
         : { ranking: draft.ranking }),
     };
     const saved = profile.applyPreferences(nextPreferences);
-    onApply(
-      {
-        ...search,
-        ranking: seed ? search.ranking : draft.ranking,
-        ...(seed
-          ? {
-              similarity: nextSimilarity,
-              similarityGeneration:
-                nextSimilarity?.method !== "baseline" && draft.parts !== null
-                  ? (draft.generation ?? inventory.data?.artifact_generation)
-                  : undefined,
-            }
-          : {}),
-        filterError:
-          search.filterError === UNKNOWN_SEARCH_RANKING ||
-          search.filterError === INVALID_SIMILARITY_SETTINGS
-            ? null
-            : search.filterError,
-      },
-      draft.model,
-    );
+    if (!detailsOnly)
+      onApply(
+        {
+          ...search,
+          ranking: seed ? search.ranking : draft.ranking,
+          ...(seed
+            ? {
+                similarity: nextSimilarity,
+                similarityGeneration:
+                  nextSimilarity?.method !== "baseline" && draft.parts !== null
+                    ? (draft.generation ?? inventory.data?.artifact_generation)
+                    : undefined,
+              }
+            : {}),
+          filterError:
+            search.filterError === UNKNOWN_SEARCH_RANKING ||
+            search.filterError === INVALID_SIMILARITY_SETTINGS
+              ? null
+              : search.filterError,
+        },
+        draft.model,
+      );
     setDraft(null);
     if (!saved)
       void message.warning(
@@ -363,6 +378,7 @@ export function SearchSettings({
                         ...current,
                         model: profile.defaultId,
                         ranking: "score",
+                        showSimilarityDetails: false,
                         similarity: DEFAULT_SIMILARITY_PREFERENCES,
                         parts: null,
                         generation: undefined,
@@ -716,6 +732,26 @@ export function SearchSettings({
                         />
                       )}
                     </>
+                  )}
+                  {seed && (
+                    <Form.Item
+                      label={
+                        <SettingLabel
+                          label="Show similarity details"
+                          help="Shows section scores, weights, and source and result excerpts in the selected record."
+                        />
+                      }
+                      htmlFor={`${id}-similarity-details`}
+                    >
+                      <Switch
+                        id={`${id}-similarity-details`}
+                        aria-label="Show similarity details"
+                        checked={draft.showSimilarityDetails}
+                        onChange={(showSimilarityDetails) =>
+                          setDraft({ ...draft, showSimilarityDetails })
+                        }
+                      />
+                    </Form.Item>
                   )}
                 </Form>
               </div>
