@@ -15,7 +15,7 @@
 }
 
 .encounter-ability-controls__choice {
-  min-width: 10rem;
+  width: max-content;
   max-width: 100%;
 }
 

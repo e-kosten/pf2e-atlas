@@ -37,7 +37,7 @@ it("spends explicitly and retains the control through a canonical update", async
   );
   expect(screen.getByRole("button", { name: "Use Speed Surge" })).toBe(use);
   await waitFor(() => expect(use).toBeDisabled());
-  expect(screen.getByText("0 of 3 remaining · per day")).toBeVisible();
+  expect(screen.getByText("0 of 3 · per day")).toBeVisible();
   expect(
     screen.getByRole("button", { name: "Restore use of Speed Surge" }),
   ).toBeEnabled();

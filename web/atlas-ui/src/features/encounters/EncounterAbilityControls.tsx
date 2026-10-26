@@ -130,7 +130,7 @@ export function EncounterAbilityControls({
         ) : (
           <>
             <span className="encounter-ability-controls__remaining">
-              {String(state.remaining)} of {String(state.maximum)} remaining · per{" "}
+              {String(state.remaining)} of {String(state.maximum)} · per{" "}
               {state.interval}
             </span>
             <Button
