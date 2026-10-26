@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { EncounterAbilityControls } from "./EncounterAbilityControls";
+import { EncounterAbilityStates } from "./EncounterAbilityStates";
 import type { EncounterAbilityStateView } from "../../generated/atlas";
 const ability: EncounterAbilityStateView = {
   navigation: {
@@ -123,4 +124,78 @@ it("selects an authored choice directly from Off in one update", async () => {
       selection: "Compendium.pf2e.conditionitems.Item.Hidden",
     }),
   );
+});
+
+it("omits the ability states section when no configurable ability is supplied", () => {
+  const { rerender } = render(
+    <EncounterAbilityStates
+      participantKey="participant"
+      disabled={false}
+      onReference={vi.fn()}
+    />,
+  );
+  expect(screen.queryByRole("region", { name: "Ability states" })).toBeNull();
+  rerender(
+    <EncounterAbilityStates
+      participantKey="participant"
+      abilities={[ability]}
+      disabled={false}
+      onReference={vi.fn()}
+    />,
+  );
+  expect(screen.queryByRole("region", { name: "Ability states" })).toBeNull();
+});
+
+it("keeps a state available and synchronized with its ability after a canonical update", async () => {
+  const onChange = vi.fn().mockResolvedValue(true);
+  const mounted = {
+    ...ability,
+    label: "Mounted",
+    rule_ordinal: 0,
+    state: {
+      kind: "option" as const,
+      active: true,
+      always_active: false,
+      selection: null,
+      choices: [],
+    },
+  };
+  const view = (current: EncounterAbilityStateView) => (
+    <>
+      <EncounterAbilityStates
+        participantKey="participant"
+        abilities={[current]}
+        disabled={false}
+        onChange={onChange}
+        onReference={vi.fn()}
+      />
+      <section aria-label="Ability description">
+        <EncounterAbilityControls
+          ability={current}
+          disabled={false}
+          onChange={onChange}
+        />
+      </section>
+    </>
+  );
+  const { rerender } = render(view(mounted));
+  const states = within(screen.getByRole("region", { name: "Ability states" }));
+  const control = states.getByRole("switch", { name: "Mounted active" });
+  fireEvent.click(control);
+  await waitFor(() =>
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(mounted, {
+      kind: "set_option",
+      active: false,
+      selection: null,
+    }),
+  );
+  rerender(view({ ...mounted, state: { ...mounted.state, active: false } }));
+  expect(states.getByRole("switch", { name: "Mounted active" })).toBe(control);
+  expect(control).not.toBeChecked();
+  expect(
+    within(screen.getByRole("region", { name: "Ability description" })).getByRole(
+      "switch",
+      { name: "Mounted active" },
+    ),
+  ).not.toBeChecked();
 });

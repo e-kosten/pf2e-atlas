@@ -1198,6 +1198,16 @@ do not preserve an editable inactive row just to make its rules reachable. The
 server supplies the rule identity separately from the outcome text.
 Do not move the condition lane, HP controls or reading position when a count changes.
 
+Show source-supplied switches and finite choices in Ability states below Conditions
+when present, using the same controls and canonical state as the ability text.
+Keep the state available whether its resulting condition is active or absent:
+Raised Cavalry's Mounted switch stays available after mounting removes Slowed.
+Do not attach that switch to the disappearing Slowed row, treat Mounted as a
+condition, or make source-granted condition values editable. Keep states inline
+beside the ability's activation information as well. Usage counters belong after
+their complete ability text; do not repeat them in Ability states. Link the
+ability name to its exact source selection for reading the governing rule.
+
 Use explicit, compact action spending and correction controls; attacks and spell-use
 buttons never spend actions implicitly. In Turn, available action/reaction chips spend
 on activation and spent chips restore; retain the clicked chip's position and focus.
