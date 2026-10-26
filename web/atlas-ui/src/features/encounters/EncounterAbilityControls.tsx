@@ -2,6 +2,7 @@ import { DownOutlined, UndoOutlined } from "@ant-design/icons";
 import { Button, Dropdown, Space, Switch, Tooltip } from "antd";
 import { useLayoutEffect, useRef, useState } from "react";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
+import { useMenuFocus } from "../../shared/ui/overlays/useMenuFocus";
 import type {
   EncounterAbilityStateAction,
   EncounterAbilityStateView,
@@ -26,6 +27,7 @@ export function EncounterAbilityControls({
   const inFlight = useRef(false);
   const container = useRef<HTMLDivElement>(null);
   const choiceTrigger = useRef<HTMLButtonElement>(null);
+  const choicePopup = useRef<HTMLDivElement>(null);
   const [choiceOpen, setChoiceOpen] = useState(false);
   const restoreFocus = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
@@ -50,6 +52,15 @@ export function EncounterAbilityControls({
       ? (state.choices.find((choice) => choice.value === state.selection)?.label ?? "—")
       : "Off";
   const unavailable = disabled || pending || !onChange;
+  useMenuFocus(choiceOpen && !unavailable, choiceTrigger, choicePopup);
+  const closeChoiceOnEscape = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Escape" || !choiceOpen) return;
+    event.preventDefault();
+    event.stopPropagation();
+    restoreOverlayFocus(choiceTrigger.current, choicePopup.current);
+    setChoiceOpen(false);
+    choiceTrigger.current?.focus({ preventScroll: true });
+  };
   const update = async (action: EncounterAbilityStateAction) => {
     if (inFlight.current || unavailable || !onChange) return;
     const focused = document.activeElement;
@@ -101,23 +112,14 @@ export function EncounterAbilityControls({
               <div className="encounter-ability-controls__choice-label">
                 <span>Effect</span>
                 <Dropdown
-                  // eslint-disable-next-line jsx-a11y/no-autofocus -- Focus enters the menu only after the user opens it.
-                  autoFocus
                   trigger={["click"]}
+                  popupRender={(menu) => <div ref={choicePopup}>{menu}</div>}
                   open={choiceOpen && !unavailable}
                   onOpenChange={setChoiceOpen}
                   disabled={unavailable}
                   menu={{
                     "aria-label": `${ability.label} effect`,
-                    onKeyDown: (event) => {
-                      if (event.key === "Escape") {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        restoreOverlayFocus(choiceTrigger.current, event.currentTarget);
-                        setChoiceOpen(false);
-                        choiceTrigger.current?.focus({ preventScroll: true });
-                      }
-                    },
+                    onKeyDown: closeChoiceOnEscape,
                     selectable: true,
                     selectedKeys: [state.active ? (state.selection ?? "") : "__off"],
                     items: [
@@ -150,6 +152,7 @@ export function EncounterAbilityControls({
                     aria-expanded={choiceOpen && !unavailable}
                     className="encounter-ability-controls__choice"
                     onKeyDown={(event) => {
+                      closeChoiceOnEscape(event);
                       if (event.key === "ArrowDown") {
                         event.preventDefault();
                         setChoiceOpen(true);

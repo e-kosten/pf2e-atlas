@@ -1,4 +1,11 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { EncounterAbilityControls } from "./EncounterAbilityControls";
 import { EncounterAbilityStates } from "./EncounterAbilityStates";
 import type { EncounterAbilityStateView } from "../../generated/atlas";
@@ -151,6 +158,17 @@ it("selects an authored choice directly from Off in one update", async () => {
   await waitFor(() => expect(selected).toHaveAttribute("aria-expanded", "false"));
   await waitFor(() => expect(selected).toHaveFocus());
   expect(onChange).toHaveBeenCalledTimes(1);
+  vi.useFakeTimers();
+  try {
+    fireEvent.keyDown(selected, { key: "ArrowDown", keyCode: 40 });
+    fireEvent.keyDown(selected, { key: "Escape", keyCode: 27 });
+    await act(() => vi.advanceTimersByTimeAsync(250));
+    expect(selected).toHaveAttribute("aria-expanded", "false");
+    expect(selected).toHaveFocus();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 it("omits the ability states section when no configurable ability is supplied", () => {
