@@ -203,7 +203,11 @@ test("a long saved-list choice stays bounded through a pending and failed Add", 
     release();
     await expect(dialog.getByRole("alert")).toContainText("Service unavailable");
     await expect(
-      dialog.getByRole("button", { name: "Add", exact: true }),
+      dialog.getByRole("button", { name: /^(?:loading\s+)?Add$/ }),
+    ).toBeEnabled();
+    await expect(selector).toBeEnabled();
+    await expect(
+      dialog.getByRole("button", { name: "Cancel", exact: true }),
     ).toBeEnabled();
     await expect(selector.locator("..")).toHaveText(name);
     await expect(page.getByRole("listbox")).toBeHidden();
@@ -1164,9 +1168,12 @@ test("named parties add everyone directly and archive views stay separate", asyn
     await activate(page.getByRole("button", { name: "New Party", exact: true }), info);
     editor = page.getByRole("dialog", { name: "New Party", exact: true });
     await editor.getByLabel("Party name", { exact: true }).fill(name);
+    await editor
+      .getByRole("spinbutton", { name: "Party level", exact: true })
+      .fill("5");
     for (const [index, pc] of ["Aster", "Bram", "Cora", "Dain"].entries()) {
       await activate(editor.getByRole("button", { name: "Add PC", exact: true }), info);
-      await editor.getByLabel(`PC ${index + 1}`, { exact: true }).fill(pc);
+      await editor.getByLabel(`PC ${index + 1} name`, { exact: true }).fill(pc);
     }
     await noPageOverflow(page);
     await activate(editor.getByRole("button", { name: "Save", exact: true }), info);
@@ -1223,6 +1230,11 @@ test("named parties add everyone directly and archive views stay separate", asyn
     expect(
       detail.participants.map((p: { display_name: string }) => p.display_name),
     ).toEqual(["Aster", "Bram", "Cora", "Dain"]);
+    expect(
+      detail.participants.every(
+        (p: { level_override?: number }) => p.level_override === 5,
+      ),
+    ).toBe(true);
     expect(
       detail.participants.every(
         (p: { max_hp?: number; current_hp?: number; initiative?: number }) =>
