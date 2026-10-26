@@ -4,7 +4,7 @@ import { RuntimeCountCalculation } from "./RuntimeCountCalculation";
 import { statusReasonLabel } from "./statusReasonLabel";
 import { TraitBadge } from "./TraitBadge";
 import { Alert, Button, Collapse, Popover, Typography } from "antd";
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import type {
   ActorActivityView,
   ActorAbilityGroupView,
@@ -47,9 +47,11 @@ function qualifierText<T extends string | string[]>(
 export function DamageComponents({
   damage,
   patch = false,
+  afterComponent,
 }: {
   damage: FactView<DamageComponentView[]>;
   patch?: boolean;
+  afterComponent?: (component: DamageComponentView) => ReactNode;
 }) {
   if (!hasReadingFact(damage, { patch })) return null;
   if (damage.state !== "value" || damage.value === null)
@@ -125,6 +127,7 @@ export function DamageComponents({
             (!patch && component.apply_modifier.state === "missing")
               ? `; applies modifier ${factText(component.apply_modifier, String, { patch })}`
               : ""}
+            {afterComponent?.(component)}
           </p>
         );
       })}

@@ -225,6 +225,15 @@
   display: grid;
   gap: 14px;
 }
+.spell-rank-marker {
+  margin-inline-start: 2px;
+  vertical-align: baseline;
+  color: var(--muted);
+}
+.spell-rank-marker__tooltip {
+  display: grid;
+  gap: 4px;
+}
 .spell-reference__casting {
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line);

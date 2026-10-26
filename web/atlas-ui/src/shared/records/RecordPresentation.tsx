@@ -12,6 +12,7 @@ import { TraitBadge } from "./TraitBadge";
 import { RollTableReading } from "./RollTableReading";
 import { RecordRarity } from "./RecordRarity";
 import { SpellRankControl } from "./SpellRankControl";
+import { SpellRankMarker } from "./SpellRankMarker";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import { RecordProvenanceAction } from "./RecordProvenanceAction";
 import type { ReactNode, Ref } from "react";
@@ -153,6 +154,7 @@ export function RecordIdentity({
   headingId,
   actions,
   showOwnerReturn = true,
+  traitsAfter,
 }: {
   identity?: RecordSummaryView;
   stacked?: boolean;
@@ -160,6 +162,7 @@ export function RecordIdentity({
   headingId?: string;
   actions?: IdentityActions;
   showOwnerReturn?: boolean;
+  traitsAfter?: ReactNode;
   classification: string;
   rankControl?: ReactNode;
   actionCost?: FactView<ActionCostView>;
@@ -250,12 +253,13 @@ export function RecordIdentity({
         ) : null
       }
     >
-      {(hasRarity || traits.length > 0) && (
+      {(hasRarity || traits.length > 0 || traitsAfter) && (
         <div className="badge-row">
           <RecordRarity rarity={identity?.rarity ?? null} />
           {traits.map((trait) => (
             <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
           ))}
+          {traitsAfter}
         </div>
       )}
     </DocumentIdentityHeader>
@@ -295,6 +299,12 @@ export function RecordPresentationIdentity({
   actions?: IdentityActions;
 }) {
   const body = presentation?.body;
+  const identityChanges =
+    body?.kind === "spell"
+      ? body.value.rank_changes?.filter((change) =>
+          ["traits", "rarity"].includes(change.fact.kind),
+        )
+      : undefined;
   const documentIdentity = stacked;
   const provenance = selection?.embedded_path.length
     ? relationships.find(
@@ -312,6 +322,17 @@ export function RecordPresentationIdentity({
       actions={actions}
       showOwnerReturn={showOwnerReturn}
       identity={presentation?.identity}
+      traitsAfter={
+        identityChanges?.length
+          ? identityChanges.map((change) => (
+              <SpellRankMarker
+                key={change.fact.kind}
+                change={change}
+                label={change.fact.kind === "traits" ? "Traits" : "Rarity"}
+              />
+            ))
+          : undefined
+      }
       classification={presentation ? recordClassification(presentation) : ""}
       rankControl={
         body?.kind === "spell" && onRankChange && body.value.base_rank.value != null ? (

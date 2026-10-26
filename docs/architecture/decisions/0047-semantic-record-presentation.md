@@ -191,6 +191,20 @@ rather than resolving to a canonical replacement. Original-record navigation
 carries the selected rank to the catalog record. Rank preview does not spend
 resources; encounter casting is a separate mutable workflow under ADR 0048.
 
+Verified rank changes carry app-service field/component provenance relative to
+the same owned spell's authored base. A successful preview is not a statement of
+complete heightening coverage; absent patches cannot establish rank independence.
+The browser renders a small persistent marker with base context in an Ant Tooltip,
+including hover, keyboard focus, touch activation and local Escape dismissal.
+Unchanged facts and unavailable calculations do not receive an applied-change marker.
+
+Read-only casting forms compose supported authored overrides before using the
+same heightening owner. Their displayed differences compare against the primary
+spell at the selected rank; their rank provenance compares against that form's
+own base. Authored sort order is preserved. Unsupported form changes retain their
+sparse facts with a local unavailable explanation. These projections neither
+select a form for casting nor execute Foundry rules or rewrite descriptions.
+
 Effective fixed-rank traits and rarity drive the displayed identity as well as
 mechanics. Rejected rank overrides do not silently fall back to inferred ranks.
 Unsupported area increments, changed description patches and patches changing

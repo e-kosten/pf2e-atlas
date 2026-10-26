@@ -10,7 +10,10 @@ import type {
   SpellHeighteningChangeView,
   SpellHeighteningView,
   SpellPresentationView,
+  SpellRankFactView,
+  SpellRankChangeView,
 } from "../../generated/atlas";
+import { SpellRankMarker } from "./SpellRankMarker";
 import { DamageComponents } from "./ActorReference";
 import { ActionCost } from "./ActionCost";
 import {
@@ -21,19 +24,35 @@ import {
   hasReadingFact,
 } from "./presentationFacts";
 
+function rankMarker(
+  changes: SpellRankChangeView[] | undefined,
+  kind: SpellRankFactView["kind"],
+  label: string,
+  componentId?: string,
+) {
+  const change = changes?.find(
+    (change) =>
+      change.fact.kind === kind &&
+      (change.fact.kind !== "damage" || change.fact.component_id === componentId),
+  );
+  return change ? <SpellRankMarker change={change} label={label} /> : null;
+}
+
 function Area({
   fact,
   patch = false,
+  after,
 }: {
   fact: FactView<SpellAreaView>;
   patch?: boolean;
+  after?: ReactNode;
 }) {
   if (fact.state !== "value" || !fact.value)
-    return <FactLine label="Area" fact={fact} patch={patch} />;
+    return <FactLine label="Area" fact={fact} patch={patch} after={after} />;
   if (patch)
     return (
       <>
-        <FactLine label="Area size" fact={fact.value.size} patch />
+        <FactLine label="Area size" fact={fact.value.size} patch after={after} />
         <FactLine label="Area shape" fact={fact.value.shape} patch />
         <FactLine label="Area details" fact={fact.value.details} patch />
       </>
@@ -49,22 +68,30 @@ function Area({
       ]
         .filter(Boolean)
         .join(" ")}
+      {after}
     </FactRow>
   );
 }
 function Defense({
   fact,
   patch = false,
+  after,
 }: {
   fact: FactView<SpellDefenseView>;
   patch?: boolean;
+  after?: ReactNode;
 }) {
   if (fact.state !== "value" || !fact.value)
-    return <FactLine label="Defense" fact={fact} patch={patch} />;
+    return <FactLine label="Defense" fact={fact} patch={patch} after={after} />;
   if (patch)
     return (
       <>
-        <FactLine label="Save statistic" fact={fact.value.statistic} patch />
+        <FactLine
+          label="Save statistic"
+          fact={fact.value.statistic}
+          patch
+          after={after}
+        />
         <FactLine
           label="Basic save"
           fact={fact.value.basic}
@@ -87,6 +114,7 @@ function Defense({
       {["invalid", "null"].includes(fact.value.passive.state)
         ? `; passive defense ${factText(fact.value.passive)}`
         : ""}
+      {after}
     </FactRow>
   );
 }
@@ -176,34 +204,96 @@ function HeighteningChanges({ fact }: { fact: FactView<SpellHeighteningChangeVie
     </div>
   );
 }
-export function SpellChanges({ changes }: { changes: SpellChangeView }) {
+export function SpellChanges({
+  changes,
+  rankChanges,
+  effective = false,
+}: {
+  changes: SpellChangeView;
+  rankChanges?: SpellRankChangeView[];
+  effective?: boolean;
+}) {
+  const marker = (
+    kind: SpellRankFactView["kind"],
+    label: string,
+    componentId?: string,
+  ) => rankMarker(rankChanges, kind, label, componentId);
   return (
     <>
-      <ActionCost label="Cast" fact={changes.cast} patch />
-      <FactLine label="Range" fact={changes.range} patch />
-      <FactLine label="Target" fact={changes.target} patch />
-      <Area fact={changes.area} patch />
-      <Defense fact={changes.defense} patch />
-      <FactLine label="Duration" fact={changes.duration} patch />
+      <ActionCost
+        label="Cast"
+        fact={changes.cast}
+        patch={!effective}
+        after={marker("cast", "Cast")}
+      />
+      <FactLine
+        label="Range"
+        fact={changes.range}
+        patch={!effective}
+        after={marker("range", "Range")}
+      />
+      <FactLine
+        label="Target"
+        fact={changes.target}
+        patch={!effective}
+        after={marker("target", "Target")}
+      />
+      {effective && changes.area.state === "null" ? (
+        <FactRow label="Area">None{marker("area", "Area")}</FactRow>
+      ) : (
+        <Area fact={changes.area} patch={!effective} after={marker("area", "Area")} />
+      )}
+      {effective && changes.defense.state === "null" ? (
+        <FactRow label="Defense">None{marker("defense", "Defense")}</FactRow>
+      ) : (
+        <Defense
+          fact={changes.defense}
+          patch={!effective}
+          after={marker("defense", "Defense")}
+        />
+      )}
+      <FactLine
+        label="Duration"
+        fact={changes.duration}
+        patch={!effective}
+        after={marker("duration", "Duration")}
+      />
       <FactLine
         label="Sustained"
+        after={marker("sustained", "Sustained")}
         fact={changes.sustained}
-        patch
+        patch={!effective}
         format={(value) => (value ? "Yes" : "No")}
       />
       <FactLine
         label="Traits"
+        after={marker("traits", "Traits")}
         fact={changes.traits}
-        patch
+        patch={!effective}
         format={(value) => value.join(", ")}
       />
       <FactLine
         label="Traditions"
+        after={marker("traditions", "Traditions")}
         fact={changes.traditions}
-        patch
+        patch={!effective}
         format={(value) => value.join(", ")}
       />
-      <DamageComponents damage={changes.damage} patch />
+      {effective && hasReadingFact(changes.damage) ? (
+        <div className="spell-reference__damage">
+          <strong>Damage</strong>
+          <DamageComponents
+            damage={changes.damage}
+            afterComponent={(component) => marker("damage", "Damage", component.id)}
+          />
+        </div>
+      ) : (
+        <DamageComponents
+          damage={changes.damage}
+          patch={!effective}
+          afterComponent={(component) => marker("damage", "Damage", component.id)}
+        />
+      )}
       <HeighteningChanges fact={changes.heightening} />
     </>
   );
@@ -268,6 +358,12 @@ export function SpellReference({
   children?: ReactNode;
 }) {
   const ritual = spell.ritual.state === "value" ? spell.ritual.value : null;
+  const marker = (
+    kind: SpellRankFactView["kind"],
+    label: string,
+    componentId?: string,
+  ) => rankMarker(spell.rank_changes, kind, label, componentId);
+
   return (
     <div className="spell-reference">
       {spell.rank_note && <p>{spell.rank_note}</p>}
@@ -298,12 +394,27 @@ export function SpellReference({
           label="Traditions"
           fact={spell.traditions}
           format={(value) => value.join(", ")}
+          after={marker("traditions", "Traditions")}
         />
-        <ActionCost label="Cast" fact={spell.cast} />
+        <ActionCost label="Cast" fact={spell.cast} after={marker("cast", "Cast")} />
         {spell.requirements && (
-          <FactLine label="Requirements" fact={spell.requirements} />
+          <FactLine
+            label="Requirements"
+            fact={spell.requirements}
+            after={marker("requirements", "Requirements")}
+          />
         )}
-        {spell.cost && <FactLine label="Cost" fact={spell.cost} />}
+        {!spell.requirements && marker("requirements", "Requirements") && (
+          <FactRow label="Requirements">
+            Not listed{marker("requirements", "Requirements")}
+          </FactRow>
+        )}
+        {spell.cost && (
+          <FactLine label="Cost" fact={spell.cost} after={marker("cost", "Cost")} />
+        )}
+        {!spell.cost && marker("cost", "Cost") && (
+          <FactRow label="Cost">Not listed{marker("cost", "Cost")}</FactRow>
+        )}
         {ritual ? (
           <div className="spell-reference__ritual-checks">
             <FactLine label="Primary check" fact={ritual.primary_check} required />
@@ -330,30 +441,63 @@ export function SpellReference({
             <FactLine label="Ritual casting" fact={spell.ritual} />
           )
         )}
-        {spell.counteraction.value !== false && (
+        {(spell.counteraction.value !== false ||
+          marker("counteraction", "Counteract")) && (
           <FactLine
             label="Counteract"
             fact={spell.counteraction}
-            format={() => "Yes"}
+            format={(value) => (value ? "Yes" : "No")}
+            after={marker("counteraction", "Counteract")}
           />
         )}
-        <FactLine label="Range" fact={spell.range} />
-        <FactLine label="Target" fact={spell.target} />
-        {spell.area && <Area fact={spell.area} />}
-        {spell.defense && <Defense fact={spell.defense} />}
-        <FactLine label="Duration" fact={spell.duration} />
+        <FactLine label="Range" fact={spell.range} after={marker("range", "Range")} />
+        <FactLine
+          label="Target"
+          fact={spell.target}
+          after={marker("target", "Target")}
+        />
+        {spell.area ? (
+          <Area fact={spell.area} after={marker("area", "Area")} />
+        ) : (
+          marker("area", "Area") && (
+            <FactRow label="Area">None{marker("area", "Area")}</FactRow>
+          )
+        )}
+        {spell.defense ? (
+          <Defense fact={spell.defense} after={marker("defense", "Defense")} />
+        ) : (
+          marker("defense", "Defense") && (
+            <FactRow label="Defense">None{marker("defense", "Defense")}</FactRow>
+          )
+        )}
+        <FactLine
+          label="Duration"
+          fact={spell.duration}
+          after={marker("duration", "Duration")}
+        />
         {spell.sustained.state === "value" ? (
-          spell.sustained.value && <FactRow label="Sustained">Yes</FactRow>
+          (spell.sustained.value || marker("sustained", "Sustained")) && (
+            <FactRow label="Sustained">
+              {spell.sustained.value ? "Yes" : "No"}
+              {marker("sustained", "Sustained")}
+            </FactRow>
+          )
         ) : (
           <FactLine label="Sustained" fact={spell.sustained} />
         )}
         {spell.damage.state === "value" && spell.damage.value?.length ? (
           <div className="spell-reference__damage">
             <strong>Damage</strong>
-            <DamageComponents damage={spell.damage} />
+            <DamageComponents
+              damage={spell.damage}
+              afterComponent={(component) => marker("damage", "Damage", component.id)}
+            />
           </div>
         ) : (
-          <DamageComponents damage={spell.damage} />
+          <DamageComponents
+            damage={spell.damage}
+            afterComponent={(component) => marker("damage", "Damage", component.id)}
+          />
         )}
       </div>
       {children}
@@ -366,7 +510,6 @@ export function SpellReference({
           {spell.forms.value?.length ? (
             <section className="spell-reference__forms">
               <h3>Spell forms</h3>
-              <p className="muted">Changes to the base spell.</p>
               {spell.forms.value.map((form, index) => (
                 <section className="spell-reference__change" key={form.id}>
                   <h4>
@@ -377,8 +520,13 @@ export function SpellReference({
                   {["null", "invalid"].includes(form.name.state) && (
                     <FactLine label="Form name" fact={form.name} />
                   )}
+                  {form.rank_note && <p>{form.rank_note}</p>}
                   {form.changes.value ? (
-                    <SpellChanges changes={form.changes.value} />
+                    <SpellChanges
+                      changes={form.changes.value}
+                      rankChanges={form.rank_changes}
+                      effective={form.effective_rank != null}
+                    />
                   ) : (
                     <FactLine label="Other changes" fact={form.changes} patch />
                   )}
