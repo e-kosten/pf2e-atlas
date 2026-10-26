@@ -714,8 +714,17 @@ The whole result summary previews on ordinary click or Space. Arrow/j/k move
 focus without changing selection; Enter opens the full reference in the same tab.
 Keep native hrefs and modified clicks. Results contain scan metadata and wrapping
 traits; rarity is separate metadata. Never dump matched content into the row.
-The N matches text action opens a bounded native Ant click Popover, with checked
-links and no chevron. Escape returns trigger focus; choosing a match closes it.
+Main search results open the selected record reader. Its SearchMatchContext shows
+query matches, similarity section/role contributions and paired seed/result excerpts,
+and relationship evidence. Preserve coverage, truncated-evidence and averaged-vector
+caveats. ReaderMatchNavigation owns checked same-record landing, focus and history;
+cross-record seed/reference evidence opens the shared linked-record Drawer. Exact
+passage/owner/source addresses come from the backend, with native modified links.
+Keep this context scoped to the selected root and matching artifact generation;
+returning from a subsection restores it. Bounded related-record previews may retain
+the optional N matches Ant Popover for their established reference links. Escape
+returns trigger focus; choosing a match closes it. Similarity explanations belong
+in the selected reader, without a second result-row explanation control.
 
 Typed parent-visible ability, strike and casting-entry matches land in that parent.
 Other owners and precise fields/passages retain the exact addressed reader.

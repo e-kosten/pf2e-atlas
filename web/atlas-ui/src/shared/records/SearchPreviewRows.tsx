@@ -29,12 +29,13 @@ export function SearchPreviewRows({
             onRefreshResults={async () => {
               onReload?.();
             }}
-            matchesOpen={open === row.record.record_key}
-            onMatchesOpenChange={(show) => setOpen(show ? row.record.record_key : null)}
             onPreview={(anchor) => onReference(row.record.record_key, anchor)}
-            onMatch={(selection, anchor) =>
-              onReference(selection.record_key, anchor, selection)
-            }
+            matchNavigation={{
+              open: open === row.record.record_key,
+              onOpenChange: (show) => setOpen(show ? row.record.record_key : null),
+              onNavigate: (selection, anchor) =>
+                onReference(selection.record_key, anchor, selection),
+            }}
           />
         </div>
       ))}

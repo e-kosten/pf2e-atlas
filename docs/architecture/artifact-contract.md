@@ -180,10 +180,13 @@ occurrences, and indexed lexical/semantic inputs do not acquire transitive text.
 Preparation emits fixed action glyphs as allowlisted semantic HTML attributes
 with readable text, retaining nested enrichments rather than flattening them.
 Font characters are display decoration, not canonical search or terminal text.
+The pinned font aliases lowercase `f`/`r` to uppercase `F`/`R`; both forms produce
+the same free-action/reaction attributes and readable labels. Unknown glyphs
+remain visible with their source diagnostic.
 Prepared unresolved references preserve an explicit authored label or a qualified
 authored root name; opaque UUIDs display as unavailable. Their exact authored
 targets and unresolved status remain in relationship evidence and diagnostics.
-The content interpretation identity is `foundry-content/v9`; older prepared
+The content interpretation identity is `foundry-content/v10`; older prepared
 content requires re-preparation even when the physical schema is unchanged.
 Exact compatible embedding checkpoints remain reusable.
 

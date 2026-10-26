@@ -321,12 +321,7 @@ function VersionCard({
         row={{ record, matches: [], relationship_evidence: [] }}
         selected={false}
         disabled={false}
-        matchesOpen={false}
-        onMatchesOpenChange={() => {}}
         onPreview={(anchor) => onReference(record.record_key, anchor)}
-        onMatch={(selection, anchor) =>
-          onReference(selection.record_key, anchor, selection)
-        }
         context={context}
         actions={
           <Button size="small" onClick={onCompare}>

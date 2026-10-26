@@ -18,6 +18,7 @@ import {
   detailFixture,
   summaryFixture,
   knownFact,
+  similarityEvidenceFixture,
 } from "../../test/fixtures";
 import { ReferenceBrowser } from "./ReferenceBrowser";
 import type { BrowsePositions } from "./useBrowsePositions";
@@ -42,6 +43,7 @@ const rows: SearchResultRow[] = [
   {
     record: summaryFixture("actors:ghoul", "Ghoul"),
     relationship_evidence: [],
+    matching_sections: [{ navigation, label: "Jaws", snippet: null }],
     matches: [
       {
         navigation,
@@ -63,18 +65,21 @@ function Harness({
   positions,
   resultRows = rows,
   relationships,
-  generation,
+  generation = "test-generation",
+  query = "jaws",
 }: {
   positions?: BrowsePositions;
   resultRows?: SearchResultRow[];
   relationships?: RelationshipClauseSummaryView[];
   generation?: string;
+  query?: string;
 }) {
   const [selected, select] = useState<string | null>(null);
   const reading = useReferenceReading();
   return (
     <ReferenceBrowser
       positions={positions}
+      query={query}
       rows={resultRows}
       relationshipClauses={relationships}
       filter={
@@ -181,10 +186,13 @@ it.each([
       );
       const reader = document.querySelector<HTMLElement>(".reference-reader__scroll")!;
       geometry = readingScrollGeometry(reader);
+      const summary = screen.getByRole("link", { name: /^Ghoul/ });
+      fireEvent.click(summary);
+      await screen.findByRole("region", { name: "Search matches" });
       async function chooseMatch() {
-        fireEvent.click(screen.getByRole("button", { name: "1 matches in Ghoul" }));
-        const choices = document.querySelector<HTMLElement>(".reference-match-list")!;
-        fireEvent.click(await within(choices).findByRole("link", { name: "Jaws" }));
+        fireEvent.click(summary);
+        const choices = await screen.findByRole("region", { name: "Search matches" });
+        fireEvent.click(within(choices).getByRole("link", { name: "Jaws" }));
       }
       let finish: (() => void) | undefined;
       if (delayed) {
@@ -237,9 +245,7 @@ it.each([
       if (mobile) {
         fireEvent.click(screen.getByRole("button", { name: "Results" }));
         await waitFor(() =>
-          expect(
-            screen.getByRole("button", { name: "1 matches in Ghoul" }),
-          ).toHaveFocus(),
+          expect(screen.getByRole("link", { name: /^Ghoul/ })).toHaveFocus(),
         );
       }
       // A fresh match selection still lands at its exact activity.
@@ -281,18 +287,15 @@ it.each([{ metaKey: true }, { ctrlKey: true }, { button: 1 }])(
     expect(getDetail).not.toHaveBeenCalled();
   },
 );
-it("keeps match controls out of the summary anchor and restores focus on Escape", async () => {
+it("shows search context only after selection without an automatic match jump", async () => {
   renderBrowser();
-  const trigger = screen.getByRole("button", { name: "1 matches in Ghoul" });
-  expect(trigger.closest("a")).toBeNull();
-  fireEvent.click(trigger);
-  await waitFor(() =>
-    expect(screen.getByRole("link", { name: "Jaws" })).toBeInTheDocument(),
-  );
-  fireEvent.keyDown(document, { key: "Escape" });
-  expect(trigger).toHaveFocus();
-  expect(trigger).toHaveAttribute("aria-expanded", "false");
-  expect(getDetail).not.toHaveBeenCalled();
+  expect(screen.queryByRole("region", { name: "Search matches" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /matches in/ })).toBeNull();
+  fireEvent.click(screen.getByRole("link", { name: /^Ghoul/ }));
+  const context = await screen.findByRole("region", { name: "Search matches" });
+  expect(within(context).getByRole("link", { name: "Jaws" })).toBeVisible();
+  expect(getDetail).toHaveBeenCalledTimes(1);
+  expect(getDetail.mock.calls[0][1]).toBeUndefined();
 });
 it("keeps typed inline activities in their parent but excludes spells and precise passages", () => {
   const parent = detailFixture("actors:ghoul");
@@ -384,7 +387,13 @@ it.each([true, false])(
   },
 );
 
-it("combines text and relationship evidence in the existing Matches popover and restores its trigger on Escape", async () => {
+it("shows text and reference-link evidence in the selected reader without a result-row menu", async () => {
+  getDetail.mockImplementation((key) =>
+    Promise.resolve({
+      ...detailFixture(key, key === "items:armor" ? "Leather Armor" : undefined),
+      artifact_generation: "generation-a",
+    }),
+  );
   const target = {
     record_key: "items:armor",
     embedded_path: [],
@@ -446,18 +455,133 @@ it("combines text and relationship evidence in the existing Matches popover and 
       </QueryClientProvider>
     </ConfigProvider>,
   );
-  const trigger = screen.getByRole("button", { name: "2 matches in Ghoul" });
-  expect(screen.getAllByText("Matches")).toHaveLength(1);
-  expect(screen.queryByText("1 link")).toBeNull();
+  expect(screen.queryByRole("button", { name: /matches in/ })).toBeNull();
   expect(screen.queryByRole("link", { name: "Ghoul equipment" })).toBeNull();
-  fireEvent.click(trigger);
-  expect(
-    await screen.findByRole("link", { name: "Ghoul equipment" }),
-  ).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Jaws" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Leather Armor" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("link", { name: /^Ghoul/ }));
+  expect(await screen.findByRole("link", { name: "Ghoul equipment" })).toBeVisible();
+  const context = screen.getByRole("region", { name: "Search matches" });
+  expect(within(context).getByRole("link", { name: "Jaws" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Leather Armor" })).toBeVisible();
   expect(view.container).not.toHaveTextContent("Text reference");
-  fireEvent.keyDown(document, { key: "Escape" });
-  await waitFor(() => expect(trigger).toHaveFocus());
-  expect(trigger).toHaveAttribute("aria-expanded", "false");
+  const targetLink = screen.getByRole("link", { name: "Leather Armor" });
+  fireEvent.click(targetLink);
+  const reference = await screen.findByRole("dialog", {
+    name: "Reference",
+  });
+  expect(
+    await within(reference).findByRole("heading", { name: "Leather Armor" }),
+  ).toBeVisible();
+  fireEvent.click(
+    within(reference).getByRole("button", {
+      name: "Close reference preview",
+    }),
+  );
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(screen.getByRole("region", { name: "Search matches" })).toBeVisible();
+  expect(
+    view.container.querySelector('[data-record-key="actors:ghoul"]'),
+  ).toHaveAttribute("aria-current", "true");
+});
+
+it("keeps similarity evidence in the selected reader and uses shared exact match navigation and seed Drawer return", async () => {
+  const candidate = {
+    ...rows[0].matches[0].navigation,
+    embedded_path: [],
+    field: "/system/description/value",
+    source_fingerprint: "candidate-source",
+  };
+  const seed = {
+    ...candidate,
+    record_key: "hazards:brown-mold",
+    source_fingerprint: "seed-source",
+  };
+  const resultRows = [
+    { ...rows[0], similarity: similarityEvidenceFixture(candidate, seed) },
+  ];
+  getDetail.mockImplementation((key, request) => {
+    const detail = detailFixture(key, key === seed.record_key ? "Brown Mold" : "Ghoul");
+    if (request?.fields?.includes(candidate.field))
+      detail.selected = key === seed.record_key ? seed : candidate;
+    return Promise.resolve(detail);
+  });
+  const view = render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <Harness resultRows={resultRows} query="" />
+      </QueryClientProvider>
+    </ConfigProvider>,
+  );
+  expect(
+    screen.queryByRole("button", { name: /Why this match|matches in/ }),
+  ).toBeNull();
+  expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
+  fireEvent.click(screen.getByRole("link", { name: /^Ghoul/ }));
+  let context = await screen.findByRole("region", { name: "Similarity comparison" });
+  const seedLink = within(context).getByRole("link", { name: "Seed description" });
+  seedLink.focus();
+  fireEvent.click(seedLink);
+  const drawer = await screen.findByRole("dialog", { name: "Reference" });
+  expect(
+    await within(drawer).findByRole("heading", { name: "Brown Mold" }),
+  ).toBeVisible();
+  expect(getDetail).toHaveBeenCalledWith(
+    seed.record_key,
+    expect.objectContaining({
+      fields: [seed.field],
+      source_fingerprint: seed.source_fingerprint,
+    }),
+    expect.any(AbortSignal),
+  );
+  expect(
+    view.container.querySelector('[data-record-key="actors:ghoul"]'),
+  ).toHaveAttribute("aria-current", "true");
+  fireEvent.click(
+    within(drawer).getByRole("button", { name: "Close reference preview" }),
+  );
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await waitFor(() => expect(seedLink).toHaveFocus());
+  const candidateLink = within(context).getByRole("link", {
+    name: "Candidate description",
+  });
+  candidateLink.focus();
+  fireEvent.click(candidateLink);
+  await waitFor(() =>
+    expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull(),
+  );
+  expect(getDetail).toHaveBeenCalledWith(
+    candidate.record_key,
+    expect.objectContaining({
+      fields: [candidate.field],
+      source_fingerprint: candidate.source_fingerprint,
+    }),
+    expect.any(AbortSignal),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  context = await screen.findByRole("region", { name: "Similarity comparison" });
+  await waitFor(() =>
+    expect(
+      within(context).getByRole("link", { name: "Candidate description" }),
+    ).toHaveFocus(),
+  );
+});
+
+it("withholds similarity reader context from an unmatched result generation", async () => {
+  const resultRows = [
+    { ...rows[0], similarity: similarityEvidenceFixture(navigation, null) },
+  ];
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const browser = (generation: string) => (
+    <QueryClientProvider client={client}>
+      <Harness resultRows={resultRows} query="" generation={generation} />
+    </QueryClientProvider>
+  );
+  const view = render(browser("test-generation"));
+  fireEvent.click(screen.getByRole("link", { name: /^Ghoul/ }));
+  await screen.findByRole("region", { name: "Similarity comparison" });
+  view.rerender(browser("another-generation"));
+  expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
+  view.rerender(browser("test-generation"));
+  expect(screen.getByRole("region", { name: "Similarity comparison" })).toBeVisible();
 });

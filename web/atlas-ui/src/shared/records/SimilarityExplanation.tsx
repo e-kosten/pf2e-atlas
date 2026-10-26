@@ -1,4 +1,4 @@
-import { Button, Table, Typography } from "antd";
+import { Table, Typography } from "antd";
 import type {
   RecordNavigationView,
   SimilarityEvidenceView,
@@ -11,7 +11,7 @@ export function SimilarityExplanation({
   onNavigate,
 }: {
   evidence: SimilarityEvidenceView;
-  onNavigate: (navigation: RecordNavigationView, anchor: HTMLElement) => void;
+  onNavigate?: (navigation: RecordNavigationView, anchor: HTMLElement) => void;
 }) {
   const contributions = evidence.roles.length
     ? evidence.roles.map((role) => ({
@@ -89,7 +89,7 @@ export function SimilarityExplanation({
           className="similarity-explanation__pair"
         >
           <div>
-            <strong>Seed</strong>
+            <strong>Seed</strong>{" "}
             {pair.seed ? (
               <PassageLink
                 navigation={pair.seed.navigation}
@@ -100,7 +100,7 @@ export function SimilarityExplanation({
             <Typography.Paragraph>{pair.seed_text}</Typography.Paragraph>
           </div>
           <div>
-            <strong>Match</strong>
+            <strong>Match</strong>{" "}
             <PassageLink
               navigation={pair.candidate.navigation}
               label={pair.candidate.label || "Matching passage"}
@@ -123,21 +123,20 @@ function PassageLink({
 }: {
   navigation: RecordNavigationView;
   label: string;
-  onNavigate: (navigation: RecordNavigationView, anchor: HTMLElement) => void;
+  onNavigate?: (navigation: RecordNavigationView, anchor: HTMLElement) => void;
 }) {
   return (
-    <Button
-      type="link"
+    <Typography.Link
       href={destinationHref(
         recordDestination({ recordKey: navigation.record_key, selection: navigation }),
       )}
       onClick={(event) => {
-        if (!isPrimaryActivation(event)) return;
+        if (!onNavigate || !isPrimaryActivation(event)) return;
         event.preventDefault();
         onNavigate(navigation, event.currentTarget);
       }}
     >
       {label}
-    </Button>
+    </Typography.Link>
   );
 }

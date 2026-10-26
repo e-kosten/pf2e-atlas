@@ -239,9 +239,14 @@ export function useSearchWorkspace({
     previousUrlReading.current = incomingReading;
     if (
       readingChanged &&
-      (JSON.stringify(reading.request?.navigation ?? null) !==
-        JSON.stringify(request?.navigation ?? null) ||
-        JSON.stringify(reading.request?.landing) !== JSON.stringify(request?.landing))
+      (JSON.stringify(
+        reading.detail?.selected ??
+          reading.request?.match ??
+          reading.request?.navigation ??
+          null,
+      ) !== JSON.stringify(request?.navigation ?? null) ||
+        JSON.stringify(reading.landing ?? reading.request?.landing) !==
+          JSON.stringify(request?.landing))
     )
       inspectReading(request);
   });

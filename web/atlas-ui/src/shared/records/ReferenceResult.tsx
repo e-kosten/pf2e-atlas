@@ -9,15 +9,12 @@ import type {
 } from "../../generated/atlas";
 import { RelationshipEvidence } from "./RelationshipEvidence";
 import { RecordBrowseSummary } from "./RecordBrowseSummary";
-import { SimilarityExplanation } from "./SimilarityExplanation";
 export function ReferenceResult({
   row,
   selected,
   disabled,
   onPreview,
-  onMatch,
-  matchesOpen,
-  onMatchesOpenChange,
+  matchNavigation,
   relationshipClauses,
   filter,
   generation,
@@ -34,14 +31,17 @@ export function ReferenceResult({
   filter?: import("../../generated/atlas").QueryPredicate | null;
   generation?: string;
   onRefreshResults?: () => Promise<void>;
-  matchesOpen: boolean;
-  onMatchesOpenChange: (open: boolean) => void;
   selected: boolean;
   disabled: boolean;
   onPreview: (anchor: HTMLElement) => void;
-  onMatch: (navigation: RecordNavigationView, anchor: HTMLElement) => void;
+  matchNavigation?: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onNavigate: (navigation: RecordNavigationView, anchor: HTMLElement) => void;
+  };
 }) {
-  const setMatchesOpen = onMatchesOpenChange;
+  const matchesOpen = matchNavigation?.open ?? false;
+  const setMatchesOpen = matchNavigation?.onOpenChange;
   const trigger = useRef<HTMLButtonElement>(null);
   const matches = row.matches.filter(
     (match) =>
@@ -57,16 +57,17 @@ export function ReferenceResult({
           ),
         )
       : [];
-  const matchCount =
-    BigInt(matches.length) +
-    relationshipEvidence.reduce((count, evidence) => count + evidence.page.total, 0n);
+  const matchCount = matchNavigation
+    ? BigInt(matches.length) +
+      relationshipEvidence.reduce((count, evidence) => count + evidence.page.total, 0n)
+    : 0n;
   useEffect(() => {
     if (!matchesOpen) return;
     const escape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
       event.stopPropagation();
-      setMatchesOpen(false);
+      setMatchesOpen?.(false);
       trigger.current?.focus({ preventScroll: true });
     };
     document.addEventListener("keydown", escape, true);
@@ -92,9 +93,9 @@ export function ReferenceResult({
             : undefined
         }
       />
-      {(matchCount > 0n || row.similarity || actions) && (
+      {(matchCount > 0n || actions) && (
         <div className="reference-result__actions">
-          {(matchCount > 0n || row.similarity) && (
+          {matchCount > 0n && (
             <Popover
               open={matchesOpen}
               onOpenChange={setMatchesOpen}
@@ -110,15 +111,6 @@ export function ReferenceResult({
                       ?.focus({ preventScroll: true });
                   }}
                 >
-                  {row.similarity && (
-                    <SimilarityExplanation
-                      evidence={row.similarity}
-                      onNavigate={(navigation, anchor) => {
-                        setMatchesOpen(false);
-                        onMatch(navigation, trigger.current ?? anchor);
-                      }}
-                    />
-                  )}
                   {matches.map((match, index) => (
                     <Button
                       key={index}
@@ -141,8 +133,8 @@ export function ReferenceResult({
                       onClick={(event) => {
                         if (!isPrimaryActivation(event)) return;
                         event.preventDefault();
-                        setMatchesOpen(false);
-                        onMatch(
+                        setMatchesOpen?.(false);
+                        matchNavigation!.onNavigate(
                           match.navigation,
                           trigger.current ?? event.currentTarget,
                         );
@@ -170,8 +162,11 @@ export function ReferenceResult({
                           generation={generation}
                           onRefresh={onRefreshResults}
                           onNavigate={(navigation, anchor) => {
-                            setMatchesOpen(false);
-                            onMatch(navigation, trigger.current ?? anchor);
+                            setMatchesOpen?.(false);
+                            matchNavigation!.onNavigate(
+                              navigation,
+                              trigger.current ?? anchor,
+                            );
                           }}
                         />
                       );
@@ -186,11 +181,7 @@ export function ReferenceResult({
                 variant="text"
                 size="small"
                 aria-expanded={matchesOpen}
-                aria-label={
-                  row.similarity
-                    ? `Why this match: ${record.title}`
-                    : `${matchCount.toString()} matches in ${record.title}`
-                }
+                aria-label={`${matchCount.toString()} matches in ${record.title}`}
                 styles={{
                   root: {
                     color: "var(--muted)",
@@ -199,7 +190,7 @@ export function ReferenceResult({
                 }}
                 disabled={disabled}
               >
-                {row.similarity ? "Why this match" : "Matches"}
+                Matches
               </Button>
             </Popover>
           )}{" "}

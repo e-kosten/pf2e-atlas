@@ -27,6 +27,7 @@ mod records;
 mod related;
 mod relationship_search;
 mod retrieval;
+mod search_match_sections;
 mod search_pages;
 mod service;
 mod similarity;

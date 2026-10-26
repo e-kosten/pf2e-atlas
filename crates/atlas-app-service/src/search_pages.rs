@@ -197,6 +197,7 @@ impl AtlasAppService {
                                 relationship_evidence: vec![],
                                 record: localized_summary_view(record, retrieval),
                                 matches: vec![],
+                                matching_sections: None,
                             })
                             .collect();
                         (mode, rows, search_page_view(result.page), None)
@@ -219,6 +220,7 @@ impl AtlasAppService {
                                 relationship_evidence: vec![],
                                 record: localized_summary_view(record, retrieval),
                                 matches: vec![],
+                                matching_sections: None,
                             })
                             .collect(),
                         search_page_view(result.page),

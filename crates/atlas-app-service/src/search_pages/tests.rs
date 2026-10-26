@@ -253,6 +253,10 @@ fn lexical_pages_preserve_filters_counts_and_exact_owned_witnesses() {
         atlas_domain::OwnedContentIdentity::Stable("owned00000000000".into())
     );
     assert_eq!(witness.label.as_deref(), Some("Owned flare"));
+    let sections = owned.rows[0].matching_sections.as_ref().unwrap();
+    assert_eq!(sections.len(), 1);
+    assert_eq!(sections[0].navigation, witness.navigation);
+    assert!(owned.rows[0].similarity.is_none());
 }
 
 #[test]
@@ -934,6 +938,16 @@ fn similarity_inventory_and_explicit_parts_share_generation_and_effective_config
     assert_eq!(page.similarity.unwrap().options, options);
     assert!(page.rows.iter().all(|row| row.similarity.is_some()));
     for row in &page.rows {
+        let destinations = row
+            .matching_sections
+            .as_ref()
+            .expect("Similar passage destinations accompany comparison evidence");
+        assert!(!destinations.is_empty());
+        assert!(destinations.iter().all(|section| {
+            row.matches
+                .iter()
+                .any(|witness| witness.navigation == section.navigation)
+        }));
         for score in &row.similarity.as_ref().unwrap().parts {
             let source = inventory
                 .parts
