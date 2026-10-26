@@ -2,5 +2,6 @@
 import type { FactView } from "./FactView";
 import type { NumberFactView } from "./NumberFactView";
 import type { SpellChangeView } from "./SpellChangeView";
+import type { SpellRankChangeView } from "./SpellRankChangeView";
 
-export type SpellFormView = { id: string, name: FactView<string>, sort: NumberFactView, changes: FactView<SpellChangeView>, };
+export type SpellFormView = { id: string, name: FactView<string>, sort: NumberFactView, changes: FactView<SpellChangeView>, rank_changes?: Array<SpellRankChangeView>, rank_note?: string, effective_rank?: number, };

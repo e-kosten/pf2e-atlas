@@ -375,3 +375,9 @@ export type { PersistentDamageOutcomeView } from "../../../../crates/atlas-app-m
 export type { PersistentEpisodeReviewView } from "../../../../crates/atlas-app-model/bindings/PersistentEpisodeReviewView";
 
 export type { RollPreviewExpression } from "../../../../crates/atlas-app-model/bindings/RollPreviewExpression";
+export type { SpellRankChangeView } from "../../../../crates/atlas-app-model/bindings/SpellRankChangeView";
+export type { SpellRankFactView } from "../../../../crates/atlas-app-model/bindings/SpellRankFactView";
+export type { SpellEffectPreviewView } from "../../../../crates/atlas-app-model/bindings/SpellEffectPreviewView";
+export type { SpellEffectFactView } from "../../../../crates/atlas-app-model/bindings/SpellEffectFactView";
+export type { SpellEffectStrikeView } from "../../../../crates/atlas-app-model/bindings/SpellEffectStrikeView";
+export type { SpellEffectChoiceView } from "../../../../crates/atlas-app-model/bindings/SpellEffectChoiceView";

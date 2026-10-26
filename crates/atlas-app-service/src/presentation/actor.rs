@@ -441,6 +441,7 @@ pub(super) fn authored_activity(
         ),
     };
     let mut activity = ActorActivityView {
+        spell_effect: None,
         reading_order: 0,
         ability_group: ability_group(item),
         first_level_only: match item {

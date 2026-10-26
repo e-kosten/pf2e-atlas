@@ -1,10 +1,11 @@
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
+import { ValueExplanation } from "../ui/ValueExplanation";
 import { RuntimeCountCalculation } from "./RuntimeCountCalculation";
 import { statusReasonLabel } from "./statusReasonLabel";
 import { TraitBadge } from "./TraitBadge";
-import { Alert, Button, Collapse, Popover, Typography } from "antd";
-import { useEffect, useId, useRef } from "react";
+import { Alert, Button, Collapse, Typography } from "antd";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import type {
   ActorActivityView,
   ActorAbilityGroupView,
@@ -47,9 +48,11 @@ function qualifierText<T extends string | string[]>(
 export function DamageComponents({
   damage,
   patch = false,
+  renderComponent,
 }: {
   damage: FactView<DamageComponentView[]>;
   patch?: boolean;
+  renderComponent?: (component: DamageComponentView, value: ReactNode) => ReactNode;
 }) {
   if (!hasReadingFact(damage, { patch })) return null;
   if (damage.state !== "value" || damage.value === null)
@@ -79,8 +82,8 @@ export function DamageComponents({
           !patch && ["missing", "null"].includes(component.materials.state)
             ? ""
             : qualifierText(component.materials, patch);
-        return (
-          <p key={component.id}>
+        const value = (
+          <>
             {patch ? <strong>Damage : </strong> : null}
             <strong>
               {patch && component.formula.state === "missing"
@@ -125,6 +128,11 @@ export function DamageComponents({
             (!patch && component.apply_modifier.state === "missing")
               ? `; applies modifier ${factText(component.apply_modifier, String, { patch })}`
               : ""}
+          </>
+        );
+        return (
+          <p key={component.id}>
+            {renderComponent ? renderComponent(component, value) : value}
           </p>
         );
       })}
@@ -1255,22 +1263,15 @@ export function RuntimeCount({
   return (
     <FactRow label={label}>
       {explanation ? (
-        <Popover
+        <ValueExplanation
           title={count.label}
-          trigger="click"
+          label={`Show explanation for ${count.label}`}
           content={<RuntimeCountCalculation count={count} />}
         >
-          <Button
-            className="record-number"
-            type="link"
-            size="small"
-            aria-label={`Show explanation for ${count.label}`}
-          >
-            {count.adjusted_value === null
-              ? "Needs review"
-              : `${count.adjusted_value}${unit}`}
-          </Button>
-        </Popover>
+          {count.adjusted_value === null
+            ? "Needs review"
+            : `${count.adjusted_value}${unit}`}
+        </ValueExplanation>
       ) : count.adjusted_value === null ? (
         "Needs review"
       ) : (

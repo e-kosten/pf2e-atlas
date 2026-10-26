@@ -492,8 +492,9 @@ test("life status stays compact and stable while saving, without replacing the s
     await activate(dead.locator(".."), info);
     await expect(dead).toBeChecked();
     await expect(name).toBeEnabled();
+    // Ant can retain the loading icon's accessible name during its exit motion.
     await expect(
-      dialog.getByRole("button", { name: "Save", exact: true }),
+      dialog.getByRole("button", { name: /^(?:loading )?Save$/ }),
     ).toBeDisabled();
     await page.screenshot({
       path: info.outputPath("life-status-pending.png"),

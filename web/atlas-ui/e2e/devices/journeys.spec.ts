@@ -570,11 +570,48 @@ test("standalone records scroll as pages from the gutter and keyboard", async ({
     await page.mouse.move(8, 320);
     await page.mouse.wheel(0, 600);
     await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
+    // The first zero-position sample can precede Home's native scroll completion.
+    const homeScroll = await page.evaluateHandle(() => {
+      const state = { finished: false };
+      const finish = () => {
+        if (scrollY !== 0) return;
+        state.finished = true;
+        document.removeEventListener("scrollend", finish);
+      };
+      document.addEventListener("scrollend", finish);
+      return { state, cancel: () => document.removeEventListener("scrollend", finish) };
+    });
+    try {
+      await page.keyboard.press("Home");
+      await expect
+        .poll(() => homeScroll.evaluate(({ state }) => state.finished))
+        .toBe(true);
+    } finally {
+      await homeScroll.evaluate(({ cancel }) => cancel());
+      await homeScroll.dispose();
+    }
+  } else {
+    await page.keyboard.press("Home");
   }
-  await page.keyboard.press("Home");
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   await page.keyboard.press("PageDown");
-  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
+  try {
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
+  } catch (error) {
+    await info.attach("page-scroll-state", {
+      contentType: "application/json",
+      body: JSON.stringify(
+        await page.evaluate(() => ({
+          focused: document.hasFocus(),
+          activeElement: document.activeElement?.outerHTML.slice(0, 500),
+          scrollY,
+          documentHeight: document.documentElement.scrollHeight,
+          viewportHeight: innerHeight,
+        })),
+      ),
+    });
+    throw error;
+  }
   expect(
     await page.locator(".record-view__pane").evaluate((node) => node.scrollTop),
   ).toBe(0);
@@ -651,11 +688,24 @@ test("reference rank menus accept pointer selection and retain their trigger", a
   await activate(link, info);
   const drawer = page.getByRole("dialog", { name: "Lantern Ward", exact: true });
   await expect(drawer).toBeVisible();
-  const changeRank = drawer.getByRole("button", { name: "Change rank", exact: true });
+  const changeRank = drawer.getByRole("button", { name: /: Change rank$/ });
+  // This populated spell exercises the traits row; Battle Form has no traits.
+  const traitsGap = () =>
+    drawer.locator(".record-reference__header").evaluate((header) => {
+      const title = header
+        .querySelector(".record-reference__title")!
+        .getBoundingClientRect();
+      const traits = header
+        .querySelector(".record-reference__metadata")!
+        .getBoundingClientRect();
+      return traits.top - title.bottom;
+    });
+  expect(await traitsGap()).toBeCloseTo(8, 1);
   const trigger = await changeRank.elementHandle();
   await activate(changeRank, info);
   await activate(page.getByRole("menuitem", { name: "Rank 4", exact: true }), info);
   await expect(drawer.getByText("Spell 4", { exact: true })).toBeVisible();
+  expect(await traitsGap()).toBeCloseTo(8, 1);
   expect(await trigger!.evaluate((node) => node.isConnected)).toBe(true);
   await expect(changeRank).toBeFocused();
   const href = await drawer
@@ -679,7 +729,7 @@ test("reference rank keyboard selection and Tab exit retain the reading context"
   await page.goto("/records/browser-rules:rule000000000001");
   await activate(page.getByRole("link", { name: "Lantern Ward", exact: true }), info);
   const drawer = page.getByRole("dialog", { name: "Lantern Ward", exact: true });
-  const trigger = drawer.getByRole("button", { name: "Change rank", exact: true });
+  const trigger = drawer.getByRole("button", { name: /: Change rank$/ });
   const menu = page.getByRole("menu", { name: "Spell rank", exact: true });
   await trigger.press("ArrowDown");
   await expect(page.getByRole("menuitem", { name: "Rank 2 (base)" })).toBeFocused();

@@ -35,7 +35,7 @@ it("shows applied and overridden modifiers in the same cause/value calculation",
       />
     </ConfigProvider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Show explanation for Attack" }));
+  fireEvent.click(screen.getByRole("button", { name: /Show explanation for Attack:/ }));
   const calculation = within(
     await screen.findByRole("region", { name: "Attack calculation" }),
   );
@@ -85,7 +85,7 @@ it("preserves units, positive adjustments, and contextual notes", async () => {
     </ConfigProvider>,
   );
   expect(screen.getByText("30 feet")).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Show explanation for Speed" }));
+  fireEvent.click(screen.getByRole("button", { name: /Show explanation for Speed:/ }));
   const calculation = within(
     await screen.findByRole("region", { name: "Speed calculation" }),
   );

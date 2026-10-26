@@ -264,7 +264,7 @@
   flex: 0 1 auto;
 }
 .encounter-hp-value,
-.encounter-hp-maximum .record-number {
+.encounter-hp-maximum .explained-value {
   font: inherit;
   padding-inline: 2px;
 }

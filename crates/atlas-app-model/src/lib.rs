@@ -173,11 +173,12 @@ pub use presentation::{
     NumberFactView, PhysicalDetailsView, PhysicalMaterialReferenceView, PhysicalPresentationView,
     PhysicalPriceView, RecordBodyView, RecordPresentationView, RitualCastingView,
     RollTablePresentationView, RollTableRowView, ShieldReferenceView, SpellAreaView,
-    SpellChangeView, SpellDefenseView, SpellFixedLevelView, SpellFormView,
-    SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView, StrikeRangeView,
-    TableResultPresentationView, WeaponAmmunitionReferenceView, WeaponDamageReferenceView,
-    WeaponMeleeReferenceView, WeaponPersistentReferenceView, WeaponReferenceView,
-    WeaponRuneReferenceView,
+    SpellChangeView, SpellDefenseView, SpellEffectChoiceView, SpellEffectFactView,
+    SpellEffectPreviewView, SpellEffectStrikeView, SpellFixedLevelView, SpellFormView,
+    SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView, SpellRankChangeView,
+    SpellRankFactView, StrikeRangeView, TableResultPresentationView, WeaponAmmunitionReferenceView,
+    WeaponDamageReferenceView, WeaponMeleeReferenceView, WeaponPersistentReferenceView,
+    WeaponReferenceView, WeaponRuneReferenceView,
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView, SearchProfileReadinessView};
 pub use record::{

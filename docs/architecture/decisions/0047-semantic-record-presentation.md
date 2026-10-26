@@ -191,6 +191,53 @@ rather than resolving to a canonical replacement. Original-record navigation
 carries the selected rank to the catalog record. Rank preview does not spend
 resources; encounter casting is a separate mutable workflow under ADR 0048.
 
+Verified rank changes carry app-service field/component provenance relative to
+the same owned spell's authored base. A successful preview is not a statement of
+complete heightening coverage; absent patches cannot establish rank independence.
+The browser makes the changed fact an underlined explanation button using the
+shared Ant Popover composition. Activation by click, tap, Enter or Space opens
+brief base context; hover/focus highlights the fact without opening it. Local
+Escape dismisses the explanation before its surrounding Drawer. Encounter
+calculations use the same explanation cue while retaining their cause/value
+tables. This cue indicates available context, including overridden modifiers or
+cancellations; rank explanations still require verified changes. Unchanged spell
+facts and unavailable calculations do not receive an applied-change cue.
+
+Linked spell effects reuse the selected `spell_rank` navigation context. The
+app-service supplies a contextual destination only for an exact resolved effect
+with supported rank statistics, retaining the authored target separately. Reading
+the effect directly or in the shared Drawer uses the same projection and full-page
+address. Effect-to-spell source links preserve the rank when the target admits it.
+
+Battle-form bracket values are interpreted by atlas-foundry-model with its existing
+generated override contract; no second source schema or JSON round trip is added.
+App-service selects the last eligible source bracket and composes its typed partial
+overrides with the baseline, never accumulating every preceding bracket. It compares
+against the effect's authored base for per-fact explanation provenance. Known
+Foundry defaults such as own-if-higher and armor penalty exemptions are presentation
+qualifiers, not changes to a stored actor. Caster-dependent expressions remain
+symbolic. Conditional strikes and forms using the character's own unarmed attacks
+remain unavailable without that context. Strike range and ability qualifiers stay
+beside their attack; unmodeled sense members retain a local Rules reference rather
+than implying the displayed senses are complete. Exact pinned localization labels
+are presentation vocabulary; unknown labels never become inferred mechanics.
+No arbitrary rule execution, effect application or source mutation occurs.
+
+Explicit ChoiceSet values can supply read-only alternatives through their typed
+CreatureSize and FlatModifier bindings. Only bounded parent-rank predicates determine
+eligibility; unknown actor-dependent predicates remain unavailable. At rank6,
+Enlarge exposes both Huge and Large, without choosing one. Reach override values
+remain fixed values and must not be described as relative increases. Full authored
+rules retain qualifiers such as different increases from a Tiny original size.
+The browser and CLI show these transient facts before unchanged authored content.
+
+Read-only casting forms compose supported authored overrides before using the
+same heightening owner. Their displayed differences compare against the primary
+spell at the selected rank; their rank provenance compares against that form's
+own base. Authored sort order is preserved. Unsupported form changes retain their
+sparse facts with a local unavailable explanation. These projections neither
+select a form for casting nor execute Foundry rules or rewrite descriptions.
+
 Effective fixed-rank traits and rarity drive the displayed identity as well as
 mechanics. Rejected rank overrides do not silently fall back to inferred ranks.
 Unsupported area increments, changed description patches and patches changing
