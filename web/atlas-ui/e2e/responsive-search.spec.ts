@@ -356,7 +356,7 @@ test("reader matches keep result rows stable and navigate without scrolling app 
   await expect(page.locator(".reference-landing-highlight")).toContainText(
     "The firewyrm breathes",
   );
-  await expect(page.locator(".record-reference__content")).toBeFocused();
+  await expect(page.locator("[data-atlas-passage-target]")).toBeFocused();
   expect(await page.evaluate(() => scrollY)).toBe(0);
   await preview
     .getByRole("button", { name: "Return to selection", exact: true })
@@ -399,6 +399,30 @@ test("long match excerpts stay within two lines at desktop and phone widths", as
   await expect(section).toHaveText("Brood Variance");
   await expect(section).toBeInViewport();
   await expect(section).toBeFocused();
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    const controls = page
+      .locator(".reference-reader__header")
+      .locator("button:visible, a:visible");
+    const boxes = await controls.evaluateAll((elements) =>
+      elements.map((element) => {
+        const { x, y, width, height } = element.getBoundingClientRect();
+        return { x, y, width, height };
+      }),
+    );
+    for (const [index, box] of boxes.entries()) {
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+      for (const other of boxes.slice(index + 1)) {
+        const overlapX =
+          Math.min(box.x + box.width, other.x + other.width) - Math.max(box.x, other.x);
+        const overlapY =
+          Math.min(box.y + box.height, other.y + other.height) -
+          Math.max(box.y, other.y);
+        expect(overlapX > 0.5 && overlapY > 0.5).toBe(false);
+      }
+    }
+  }
   await page.getByRole("button", { name: "Return to selection", exact: true }).click();
   await matches.getByRole("link", { name: "Clumsy Leap", exact: true }).click();
   await expect(page.getByRole("heading", { name: /^Clumsy Leap/ })).toBeVisible();
