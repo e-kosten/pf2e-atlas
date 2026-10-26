@@ -2,6 +2,8 @@ export type ResolvedColorScheme = "light" | "dark";
 export type StatusRole = "success" | "warning" | "error" | "info";
 export type RarityRole = "common" | "uncommon" | "rare" | "unique";
 
+const darkTextPalette = { text: "#F7F1E7", muted: "#D0C6B7" } as const;
+
 export interface BadgeColors {
   text: string;
   background: string;
@@ -18,14 +20,38 @@ export interface DarkNeutralRamp {
   border: string;
 }
 
+export interface BrandMarkColors {
+  ring: string;
+  inner: string;
+  cardinal: string;
+  shade: string;
+  outline: string;
+  secondary: string;
+  tick: string;
+  dieRim: string;
+  dieField: string;
+  dieFaces: readonly [
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
+}
+
 export const darkNeutralRamp = {
-  shell: "#111110",
-  background: "#171615",
-  surface: "#211F1C",
-  elevated: "#28241F",
-  subtle: "#302A23",
-  separator: "#4A4136",
-  border: "#5C5144",
+  shell: "#090908",
+  background: "#0E0D0C",
+  surface: "#151311",
+  elevated: "#1B1815",
+  subtle: "#221D19",
+  separator: "#342C25",
+  border: "#705F50",
 } as const satisfies DarkNeutralRamp;
 
 export interface AtlasPalette {
@@ -51,6 +77,11 @@ export interface AtlasPalette {
   contextBar: string;
   shell: BadgeColors;
   brand: {
+    text: string;
+    mark: BrandMarkColors;
+  };
+  tooltip: {
+    background: string;
     text: string;
   };
   navigation: {
@@ -103,7 +134,33 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
     },
     contextBar: "#FFFCF4",
     shell: { background: "#F6EFE3", text: "#292621", border: "#D6C6AD" },
-    brand: { text: "#8C333A" },
+    brand: {
+      text: "#8C333A",
+      mark: {
+        ring: "#8C333A",
+        inner: "#FFFCF4",
+        cardinal: "#FFFCF4",
+        shade: "#D6C6AD",
+        outline: "#74272E",
+        secondary: "#346C63",
+        tick: "#74272E",
+        dieRim: "#8C333A",
+        dieField: "#F6EFE3",
+        dieFaces: [
+          "#F6EFE3",
+          "#F3EBDD",
+          "#F5EDE1",
+          "#F4ECDF",
+          "#F2E9DB",
+          "#DDD0BD",
+          "#F1E8D9",
+          "#D5C6B1",
+          "#F3EADC",
+          "#DACCB9",
+        ],
+      },
+    },
+    tooltip: { background: "#292621", text: "#FFFFFF" },
     navigation: {
       activeText: "#8C333A",
       hoverText: "#9D4349",
@@ -139,38 +196,64 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
     shadow: "rgba(72, 52, 33, 0.18)",
   },
   dark: {
-    primary: "#7F2F24",
-    primaryHover: "#954033",
-    primaryActive: "#6E281F",
+    primary: "#AD4D3B",
+    primaryHover: "#B35844",
+    primaryActive: "#963B2F",
     onPrimary: "#FFF8EF",
     link: "#D6BA86",
     background: darkNeutralRamp.background,
     surface: darkNeutralRamp.surface,
     elevated: darkNeutralRamp.elevated,
     subtle: darkNeutralRamp.subtle,
-    text: "#F3E9D7",
-    muted: "#C4B6A1",
+    text: darkTextPalette.text,
+    muted: darkTextPalette.muted,
     border: darkNeutralRamp.border,
     separator: darkNeutralRamp.separator,
     selection: {
-      background: "#382622",
-      text: "#F3E9D7",
-      hover: "#493029",
-      border: "#9B4737",
+      background: "#503129",
+      text: darkTextPalette.text,
+      hover: "#5A3930",
+      border: "#B55D49",
     },
     contextBar: darkNeutralRamp.surface,
     shell: {
       background: darkNeutralRamp.shell,
-      text: "#F3E9D7",
+      text: darkTextPalette.text,
       border: darkNeutralRamp.separator,
     },
-    brand: { text: "#D6BA86" },
+    brand: {
+      text: "#D6BA86",
+      mark: {
+        ring: "#D6BA86",
+        inner: darkNeutralRamp.background,
+        cardinal: "#F3E9D7",
+        shade: "#D6BA86",
+        outline: "#C4B6A1",
+        secondary: "#954033",
+        tick: "#D6BA86",
+        dieRim: "#7F2F24",
+        dieField: "#E4D9C6",
+        dieFaces: [
+          "#E4D9C6",
+          "#DFD3C0",
+          "#E3D7C4",
+          "#E1D5C2",
+          "#DCD1BD",
+          "#8F8576",
+          "#D7CBB7",
+          "#807567",
+          "#DBCFBB",
+          "#8B8072",
+        ],
+      },
+    },
+    tooltip: { background: darkNeutralRamp.shell, text: "#FFF8EF" },
     navigation: {
       activeText: "#D6BA86",
       hoverText: "#D6BA86",
       pressedText: "#D6BA86",
-      activeBackground: "#382622",
-      hoverBackground: "#382622",
+      activeBackground: "#503129",
+      hoverBackground: "#503129",
     },
     recordKind: { text: "#A8C7B0", background: "#29312B", border: "#5C7662" },
     filter: {
@@ -178,10 +261,10 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
       exclude: { text: "#EE9A89", background: "#422622", border: "#B95540" },
     },
     rarity: {
-      common: { text: "#C4B6A1", background: "#302E2A", border: "#5C5144" },
+      common: { text: "#C4B6A1", background: "#302E2A", border: "#756858" },
       uncommon: { text: "#E1B27A", background: "#3D2E21", border: "#865722" },
-      rare: { text: "#E8A093", background: "#422622", border: "#9B4737" },
-      unique: { text: "#D2AFE8", background: "#35283D", border: "#684582" },
+      rare: { text: "#E8A093", background: "#422622", border: "#B55D49" },
+      unique: { text: "#D2AFE8", background: "#35283D", border: "#845DA0" },
     },
     status: {
       success: { text: "#A8C99F", background: "#273126", border: "#668F59" },

@@ -15,6 +15,7 @@ import type {
   ColorSchemePreference,
   ResolvedColorScheme,
 } from "../shared/theme/atlasTheme";
+import { AtlasMark } from "../shared/branding/AtlasMark";
 
 type AppShellProps = {
   activeView: "search" | "lists" | "encounters" | "reference";
@@ -109,8 +110,8 @@ export function AppShell({
           style={{ color: "var(--brand-text)" }}
           aria-label="PF2e Atlas"
         >
-          <img src="/favicon.svg" alt="" />
-          <span className="topbar__brand-prefix">PF2e </span>Atlas
+          <AtlasMark />
+          <span>PF2e Atlas</span>
         </AtlasLink>
         <Menu
           aria-label="Atlas views"
@@ -135,6 +136,7 @@ export function AppShell({
               <div ref={themeContent}>
                 <Space orientation="vertical" size="small">
                   <Segmented
+                    aria-label="Appearance"
                     value={colorScheme}
                     onChange={onColorSchemeChange}
                     options={[
