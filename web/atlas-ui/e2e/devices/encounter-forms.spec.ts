@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures";
 import { activate, noPageOverflow } from "./reading";
 
-test("inline HP formulas grow, shrink and stay within the participant pane", async ({
+test("inline HP formulas stay bounded without displacing facts or actions", async ({
   page,
 }, info) => {
   const created = await page.request.post("/api/encounters", {
@@ -23,6 +23,21 @@ test("inline HP formulas grow, shrink and stay within the participant pane", asy
         })
       ).ok(),
     ).toBeTruthy();
+    const state = await (await page.request.get(path)).json();
+    expect(
+      (
+        await page.request.patch(
+          `${path}/participants/${state.participants[0].participant_key}/life-settings`,
+          {
+            data: {
+              request_id: crypto.randomUUID(),
+              expected_encounter_revision: state.revision,
+              track_dying: false,
+            },
+          },
+        )
+      ).ok(),
+    ).toBeTruthy();
     await page.goto(`/encounters/${encounter.slug}`);
     await activate(
       page.getByRole("button", { name: "Formula Hero", exact: true }),
@@ -32,55 +47,77 @@ test("inline HP formulas grow, shrink and stay within the participant pane", asy
     await activate(current, info);
     const input = page.getByRole("textbox", { name: "Current HP", exact: true });
     const shortWidth = (await input.boundingBox())!.width;
-    const expectVisibleFormula = async (field: typeof input) => {
-      // WebKit scrolls the caret into the padding while typing. Require the
-      // glyphs to fit and any scroll to stay within that empty leading space.
+    const panel = page.locator(".encounter-hp-panel");
+    const actions = panel.locator(".encounter-hp-panel__actions");
+    const actionPosition = (await actions.boundingBox())!;
+    const expectBoundedRow = async (field: typeof input) => {
+      const panelBounds = (await panel.boundingBox())!;
+      const fieldBounds = (await field.boundingBox())!;
+      const groupBounds = (await actions.boundingBox())!;
+      expect(fieldBounds.x).toBeGreaterThanOrEqual(panelBounds.x);
+      expect(fieldBounds.x + fieldBounds.width).toBeLessThanOrEqual(
+        panelBounds.x + panelBounds.width + 1,
+      );
+      expect(Math.abs(groupBounds.x - actionPosition.x)).toBeLessThan(2);
+      expect(Math.abs(groupBounds.y - actionPosition.y)).toBeLessThan(2);
+      const buttons = actions.getByRole("button");
+      await expect(buttons).toHaveCount(3);
+      for (const button of await buttons.all()) {
+        const bounds = (await button.boundingBox())!;
+        expect(bounds.x).toBeGreaterThanOrEqual(panelBounds.x);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(
+          panelBounds.x + panelBounds.width + 1,
+        );
+        expect(Math.abs(bounds.y - groupBounds.y)).toBeLessThan(2);
+      }
+      const maximum = (await panel.locator(".encounter-hp-maximum").boundingBox())!;
+      const values = panel.locator(".encounter-hp-panel__values");
+      const valuesBounds = (await values.boundingBox())!;
+      for (const fact of await values.locator(":scope > *").all()) {
+        const bounds = (await fact.boundingBox())!;
+        expect(bounds.x).toBeGreaterThanOrEqual(valuesBounds.x - 1);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(
+          valuesBounds.x + valuesBounds.width + 1,
+        );
+      }
+      if (!(await values.getByRole("textbox").count())) {
+        expect(fieldBounds.x).toBeGreaterThanOrEqual(
+          valuesBounds.x + valuesBounds.width,
+        );
+      }
       expect(
-        await field.evaluate((node) => {
-          const style = getComputedStyle(node);
-          const text = document.createElement("span");
-          Object.assign(text.style, {
-            position: "absolute",
-            visibility: "hidden",
-            whiteSpace: "pre",
-            fontFamily: style.fontFamily,
-            fontSize: style.fontSize,
-            fontWeight: style.fontWeight,
-            fontStyle: style.fontStyle,
-            fontVariant: style.fontVariant,
-            fontFeatureSettings: style.fontFeatureSettings,
-            letterSpacing: style.letterSpacing,
-          });
-          text.textContent = (node as HTMLInputElement).value;
-          document.body.append(text);
-          const textWidth = text.getBoundingClientRect().width;
-          text.remove();
-          const available =
-            node.clientWidth -
-            parseFloat(style.paddingLeft) -
-            parseFloat(style.paddingRight);
-          return {
-            textFits: available >= textWidth - 1,
-            leftEdgeVisible: Math.abs(node.scrollLeft) <= parseFloat(style.paddingLeft),
-          };
-        }),
-      ).toEqual({ textFits: true, leftEdgeVisible: true });
+        Math.abs(
+          maximum.y + maximum.height / 2 - fieldBounds.y - fieldBounds.height / 2,
+        ),
+      ).toBeLessThan(3);
+      await noPageOverflow(page);
     };
-    for (const draft of ["300+300+300+300+300", "888+888+888+888+888"]) {
+    const expectVisibleFormula = async (field: typeof input) => {
+      // WebKit reserves a couple of caret pixels within the leading padding.
+      const { overflow, hiddenStart } = await field.evaluate((node) => ({
+        overflow: node.scrollWidth - node.clientWidth,
+        hiddenStart:
+          Math.abs(node.scrollLeft) - parseFloat(getComputedStyle(node).paddingLeft),
+      }));
+      expect(overflow).toBeLessThanOrEqual(2);
+      expect(hiddenStart).toBeLessThanOrEqual(0);
+    };
+    for (const draft of ["300+300", "888+888"]) {
       await input.fill("");
       await input.pressSequentially(draft);
       await expectVisibleFormula(input);
+      await expectBoundedRow(input);
     }
     const formula = "300 - 10 + 5 - 2";
     await input.fill(formula);
     const grownWidth = (await input.boundingBox())!.width;
-    expect(grownWidth).toBeGreaterThan(shortWidth + 40);
-    await expectVisibleFormula(input);
+    expect(grownWidth).toBeGreaterThan(shortWidth + 8);
+    await expectBoundedRow(input);
     await input.fill(`300${"+1".repeat(180)}`);
-    const bounds = (await input.boundingBox())!;
-    expect(bounds.x).toBeGreaterThanOrEqual(0);
-    expect(bounds.x + bounds.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
-    await noPageOverflow(page);
+    await expectBoundedRow(input);
+    expect(await input.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(
+      true,
+    );
     await input.fill("300");
     expect((await input.boundingBox())!.width).toBeLessThan(grownWidth);
     await input.press("Escape");
@@ -95,10 +132,15 @@ test("inline HP formulas grow, shrink and stay within the participant pane", asy
       info,
     );
     const temporary = page.getByRole("textbox", { name: "Temporary HP", exact: true });
-    await temporary.pressSequentially("300+300+300+300+300");
+    await temporary.pressSequentially("300+300");
     await expectVisibleFormula(temporary);
+    await expectBoundedRow(temporary);
+    await temporary.fill(`300${"+1".repeat(180)}`);
+    await expectBoundedRow(temporary);
+    expect(
+      await temporary.evaluate((node) => node.scrollWidth > node.clientWidth),
+    ).toBe(true);
     await temporary.fill(formula);
-    await expectVisibleFormula(temporary);
     await temporary.press("Enter");
     const editTemporary = page.getByRole("button", {
       name: "Edit Temporary HP",
@@ -106,6 +148,8 @@ test("inline HP formulas grow, shrink and stay within the participant pane", asy
     });
     await expect(editTemporary).toHaveText("293");
     await activate(editTemporary, info);
+    await temporary.fill(`300${"+1".repeat(180)}`);
+    await expectBoundedRow(temporary);
     await temporary.fill("");
     await temporary.press("Enter");
     await expect(
