@@ -123,6 +123,19 @@ export function antDesignTheme(scheme: ResolvedColorScheme): ThemeConfig {
   return scheme === "light" ? lightThemeConfig : darkThemeConfig;
 }
 
+export function atlasPopoverStyles(scheme: ResolvedColorScheme): {
+  root: CSSProperties;
+  container: CSSProperties;
+} {
+  const palette = resolveAtlasPalette(scheme);
+  return {
+    root: {
+      filter: `drop-shadow(0 0 1px ${palette.border}) drop-shadow(0 12px 28px ${palette.shadow})`,
+    },
+    container: { boxShadow: "none" },
+  };
+}
+
 function statusTokens(palette: AtlasPalette): Partial<GlobalToken> {
   return Object.fromEntries(
     Object.entries(palette.status).flatMap(([role, colors]) => {
@@ -226,6 +239,15 @@ function themeConfig(scheme: ResolvedColorScheme, palette: AtlasPalette): ThemeC
       Checkbox: { colorWhite: palette.onPrimary },
       Radio: { colorWhite: palette.onPrimary },
       Switch: { colorTextLightSolid: palette.onPrimary },
+      Segmented: {
+        trackBg: palette.surface,
+        itemColor: palette.muted,
+        itemHoverBg: palette.selection.hover,
+        itemHoverColor: palette.text,
+        itemActiveBg: palette.primaryActive,
+        itemSelectedBg: palette.primary,
+        itemSelectedColor: palette.onPrimary,
+      },
       Input: {
         borderRadius: atlasTheme.radius.md,
         controlHeight: atlasTheme.controlHeight,

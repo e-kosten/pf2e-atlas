@@ -114,6 +114,7 @@ describe("application navigation and accessibility", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("button", { name: "Reference status" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Theme" }));
+    expect(screen.getByRole("radiogroup", { name: "Appearance" })).toBeInTheDocument();
     fireEvent.click(screen.getByText("System"));
     expect(changeTheme).toHaveBeenCalledWith("system");
   });

@@ -4,9 +4,14 @@ import { readFileSync } from "node:fs";
 import {
   antDesignTheme,
   applyAtlasDocumentTheme,
+  atlasPopoverStyles,
   atlasCssVariables,
 } from "./atlasTheme";
-import { atlasPalettes, darkNeutralRamp } from "./themeDefinitions";
+import {
+  atlasPalettes,
+  darkNeutralRamp,
+  resolveAtlasPalette,
+} from "./themeDefinitions";
 
 function luminance(hex: string) {
   const channels = hex
@@ -145,13 +150,22 @@ describe("Atlas product palette", () => {
         itemHoverColor: palette.navigation.hoverText,
         itemSelectedColor: palette.navigation.activeText,
       });
+      expect(config.components?.Segmented).toMatchObject({
+        trackBg: palette.surface,
+        itemColor: palette.muted,
+        itemSelectedBg: palette.primary,
+        itemSelectedColor: palette.onPrimary,
+      });
       expect(config.components?.Table?.headerBg).toBe(palette.surface);
+      expect(atlasPopoverStyles(scheme).root.filter).toContain(palette.border);
+      expect(atlasPopoverStyles(scheme).root.filter).toContain(palette.shadow);
+      expect(atlasPopoverStyles(scheme).container.boxShadow).toBe("none");
     });
   }
 
-  it("maps one ordered warm-umber ramp through every dark structural role", () => {
+  it("maps one ordered ink ramp through every dark structural role", () => {
     const ramp = darkNeutralRamp;
-    const palette = atlasPalettes.dark;
+    const palette = resolveAtlasPalette("dark");
     const config = antDesignTheme("dark");
     const tokens = antTheme.getDesignToken(config);
     const variables = atlasCssVariables("dark");
@@ -178,12 +192,17 @@ describe("Atlas product palette", () => {
       border: ramp.border,
       contextBar: ramp.surface,
       shell: { background: ramp.shell, border: ramp.separator },
+      brand: { mark: { inner: ramp.background } },
+      tooltip: { background: ramp.shell },
     });
     expect(tokens.colorBgLayout.toLowerCase()).toBe(ramp.background.toLowerCase());
     expect(tokens.colorBgContainer.toLowerCase()).toBe(ramp.surface.toLowerCase());
     expect(tokens.colorFillAlter.toLowerCase()).toBe(ramp.subtle.toLowerCase());
     expect(variables["--panel-subtle" as keyof typeof variables]).toBe(
       tokens.colorFillAlter,
+    );
+    expect(variables["--brand-mark-inner" as keyof typeof variables]).toBe(
+      ramp.background,
     );
     for (const surface of [
       ramp.shell,
@@ -195,6 +214,36 @@ describe("Atlas product palette", () => {
       expect(contrast(palette.text, surface)).toBeGreaterThanOrEqual(7);
       expect(contrast(palette.muted, surface)).toBeGreaterThanOrEqual(4.5);
     }
+    expect(contrast(palette.primary, ramp.surface)).toBeGreaterThanOrEqual(3);
+    expect(contrast(palette.selection.border, ramp.surface)).toBeGreaterThanOrEqual(3);
+    expect(contrast(ramp.border, ramp.surface)).toBeGreaterThanOrEqual(3);
+  });
+
+  it("keeps the quiet dark rarity boundaries visible on the default surface", () => {
+    const palette = atlasPalettes.dark;
+
+    for (const role of ["common", "unique"] as const) {
+      expect(
+        contrast(palette.rarity[role].border, palette.surface),
+      ).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("projects the bright dark text palette through shared text roles", () => {
+    const palette = resolveAtlasPalette("dark");
+    const config = antDesignTheme("dark");
+    const tokens = antTheme.getDesignToken(config);
+    const variables = atlasCssVariables("dark");
+
+    expect(palette.selection.text).toBe(palette.text);
+    expect(palette.shell.text).toBe(palette.text);
+    expect(tokens.colorText).toBe(palette.text);
+    expect(tokens.colorTextDescription).toBe(palette.muted);
+    expect(variables["--text" as keyof typeof variables]).toBe(palette.text);
+    expect(variables["--muted" as keyof typeof variables]).toBe(palette.muted);
+    expect(variables["--shell-text" as keyof typeof variables]).toBe(palette.text);
+    expect(variables["--selection-text" as keyof typeof variables]).toBe(palette.text);
+    expect(resolveAtlasPalette("dark")).toBe(atlasPalettes.dark);
   });
 
   it("keeps the pre-React light fallback aligned with runtime variables", () => {

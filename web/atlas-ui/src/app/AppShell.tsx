@@ -136,6 +136,7 @@ export function AppShell({
               <div ref={themeContent}>
                 <Space orientation="vertical" size="small">
                   <Segmented
+                    aria-label="Appearance"
                     value={colorScheme}
                     onChange={onColorSchemeChange}
                     options={[
