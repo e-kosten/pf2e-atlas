@@ -58,13 +58,8 @@ export function EncounterHpValue({
             const refreshed = await onCommit(input);
             if (editingElement?.isConnected) {
               finishEditing();
-            } else if (
-              refreshed &&
-              hadFocus &&
-              document.activeElement === document.body
-            ) {
-              onRestoreFocus?.();
             }
+            if (refreshed && hadFocus) onRestoreFocus?.();
           } finally {
             setSaving(false);
           }

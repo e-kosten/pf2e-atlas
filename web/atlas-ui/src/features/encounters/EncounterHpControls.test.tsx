@@ -27,34 +27,40 @@ it.each([
   );
 });
 
-it("submits a blank temporary HP correction on Enter", async () => {
-  const current = encounterParticipant({ temporary_hp: 5n });
-  const onAction = vi.fn().mockImplementation(async () => {
-    rerender(
-      <EncounterHpControls
-        current={{ ...current, temporary_hp: 0n }}
-        onAction={onAction}
-      />,
+it.each(["before", "after"])(
+  "clears temporary HP with canonical rendering %s completion",
+  async (renderOrder) => {
+    const current = encounterParticipant({ temporary_hp: 5n });
+    const cleared = { ...current, temporary_hp: 0n, revision: current.revision + 1n };
+    const onAction = vi.fn().mockImplementation(async () => {
+      if (renderOrder === "before")
+        rerender(<EncounterHpControls current={cleared} onAction={onAction} />);
+      return true;
+    });
+    const { rerender } = render(
+      <EncounterHpControls current={current} onAction={onAction} />,
     );
-    return true;
-  });
-  const { rerender } = render(
-    <EncounterHpControls current={current} onAction={onAction} />,
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Edit Temporary HP" }));
-  const input = screen.getByRole("textbox", { name: "Temporary HP" });
-  fireEvent.change(input, { target: { value: "" } });
-  fireEvent.keyDown(input, { key: "Enter" });
-  await waitFor(() =>
-    expect(onAction).toHaveBeenCalledExactlyOnceWith({
-      kind: "set_temporary",
-      input: "",
-    }),
-  );
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Add temp HP" })).toHaveFocus(),
-  );
-});
+    fireEvent.click(screen.getByRole("button", { name: "Edit Temporary HP" }));
+    const input = screen.getByRole("textbox", { name: "Temporary HP" });
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() =>
+      expect(onAction).toHaveBeenCalledExactlyOnceWith({
+        kind: "set_temporary",
+        input: "",
+      }),
+    );
+    if (renderOrder === "after") {
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Edit Temporary HP" })).toHaveFocus(),
+      );
+      rerender(<EncounterHpControls current={cleared} onAction={onAction} />);
+    }
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Add temp HP" })).toHaveFocus(),
+    );
+  },
+);
 
 it("retains a rejected inline formula for correction and retry", async () => {
   const onAction = vi
