@@ -72,9 +72,13 @@ it("keeps an ungranted reaction visible before the first turn and tracks an expl
     />,
   );
   expect(screen.getByText("At turn start")).toBeVisible();
-  expect(screen.getByText("Not granted")).toBeVisible();
   expect(onChange).not.toHaveBeenCalled();
-  const grant = screen.getByRole("button", { name: "Grant reaction" });
+  const grant = screen.getByRole("button", { name: "Allow reaction" });
+  expect(grant).toHaveTextContent("Allow");
+  fireEvent.focus(grant);
+  expect(await screen.findByRole("tooltip")).toHaveTextContent(
+    "The GM decides whether this creature can use a reaction before its first turn.",
+  );
   grant.focus();
   fireEvent.click(grant);
   await waitFor(() =>
@@ -93,7 +97,7 @@ it("keeps an ungranted reaction visible before the first turn and tracks an expl
       onChange={onChange}
     />,
   );
-  expect(screen.queryByText("Not granted")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Allow reaction" })).toBeNull();
   expect(screen.getByText("At turn start")).toBeVisible();
   const spend = screen.getByRole("button", { name: "Spend reaction" });
   expect(spend).toHaveFocus();
