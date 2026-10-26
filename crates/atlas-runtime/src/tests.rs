@@ -423,43 +423,45 @@ fn options(check: bool) -> RuntimeSetupOptions {
 
 #[test]
 fn setup_reprepares_known_old_content_policy_but_readers_remain_blocked_until_publication() {
-    let directory = tempfile::tempdir().unwrap();
-    let paths = paths(directory.path());
-    source(&paths);
-    assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
-    let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
-    let before = workspace
-        .read(crate::WORKSPACE_SCHEMA_VERSION)
-        .unwrap()
-        .reference_revision()
-        .unwrap();
-    atlas_index::test_support::set_content_interpretation_version(
-        &paths.index_path,
-        crate::WORKSPACE_SCHEMA_VERSION,
-        "foundry-content/v6",
-    )
-    .unwrap();
-    assert!(
-        !atlas_index::ensure_reference_projections(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
+    for previous in ["foundry-content/v6", "foundry-content/v9"] {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = paths(directory.path());
+        source(&paths);
+        assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
+        let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+        let before = workspace
+            .read(crate::WORKSPACE_SCHEMA_VERSION)
             .unwrap()
-    );
-    assert!(open_reader(&paths.index_path).is_err());
-    let check = crate::setup::ensure_setup(&paths, options(true));
-    assert!(!check.ready);
-    assert!(open_reader(&paths.index_path).is_err());
-    let rebuilt = crate::setup::ensure_setup(&paths, options(false));
-    assert!(rebuilt.ready, "{:?}", rebuilt.actions);
-    assert!(rebuilt.build.is_some());
-    let reader = open_reader(&paths.index_path).unwrap();
-    assert_eq!(
-        reader.workspace_session().reference_revision().unwrap(),
-        before + 1
-    );
-    assert_eq!(
-        reader.context().content_interpretation_version,
-        "foundry-content/v9"
-    );
-    assert!(!paths.embedding_cache_root.exists());
+            .reference_revision()
+            .unwrap();
+        atlas_index::test_support::set_content_interpretation_version(
+            &paths.index_path,
+            crate::WORKSPACE_SCHEMA_VERSION,
+            previous,
+        )
+        .unwrap();
+        assert!(
+            !atlas_index::ensure_reference_projections(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
+                .unwrap()
+        );
+        assert!(open_reader(&paths.index_path).is_err());
+        let check = crate::setup::ensure_setup(&paths, options(true));
+        assert!(!check.ready);
+        assert!(open_reader(&paths.index_path).is_err());
+        let rebuilt = crate::setup::ensure_setup(&paths, options(false));
+        assert!(rebuilt.ready, "{:?}", rebuilt.actions);
+        assert!(rebuilt.build.is_some());
+        let reader = open_reader(&paths.index_path).unwrap();
+        assert_eq!(
+            reader.workspace_session().reference_revision().unwrap(),
+            before + 1
+        );
+        assert_eq!(
+            reader.context().content_interpretation_version,
+            "foundry-content/v10"
+        );
+        assert!(!paths.embedding_cache_root.exists());
+    }
 }
 
 #[test]
