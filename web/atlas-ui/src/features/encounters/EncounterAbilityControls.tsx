@@ -1,0 +1,156 @@
+import { Button, Select, Space, Switch } from "antd";
+import { useLayoutEffect, useRef, useState } from "react";
+import type {
+  EncounterAbilityStateAction,
+  EncounterAbilityStateView,
+} from "../../generated/atlas";
+
+export type AbilityStateHandler = (
+  ability: EncounterAbilityStateView,
+  action: EncounterAbilityStateAction,
+) => Promise<boolean>;
+
+export function EncounterAbilityControls({
+  ability,
+  disabled,
+  onChange,
+}: {
+  ability: EncounterAbilityStateView;
+  disabled: boolean;
+  onChange?: AbilityStateHandler;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string>();
+  const inFlight = useRef(false);
+  const container = useRef<HTMLDivElement>(null);
+  const restoreFocus = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (pending || disabled || !restoreFocus.current) return;
+    const target = restoreFocus.current;
+    restoreFocus.current = null;
+    if (
+      target.isConnected &&
+      container.current?.contains(target) &&
+      document.activeElement === document.body
+    )
+      (target.hasAttribute("disabled")
+        ? container.current.querySelector<HTMLElement>(
+            "button:not(:disabled),input:not(:disabled)",
+          )
+        : target
+      )?.focus({ preventScroll: true });
+  }, [pending, disabled]);
+  const state = ability.state;
+  const unavailable = disabled || pending || !onChange;
+  const update = async (action: EncounterAbilityStateAction) => {
+    if (inFlight.current || unavailable || !onChange) return;
+    const focused = document.activeElement;
+    restoreFocus.current =
+      focused instanceof HTMLElement && container.current?.contains(focused)
+        ? focused
+        : null;
+    inFlight.current = true;
+    setPending(true);
+    setError(undefined);
+    try {
+      if (!(await onChange(ability, action)))
+        setError("Could not confirm the update. Refresh the encounter.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not update ability.");
+    } finally {
+      inFlight.current = false;
+      setPending(false);
+    }
+  };
+  return (
+    <div
+      ref={container}
+      className="encounter-ability-controls"
+      aria-label={ability.label}
+      aria-busy={pending}
+    >
+      <Space wrap align="center">
+        {state.kind === "option" ? (
+          <>
+            {!state.always_active && state.choices.length === 0 && (
+              <Switch
+                aria-label={`${ability.label} active`}
+                checked={state.active}
+                checkedChildren="On"
+                unCheckedChildren="Off"
+                disabled={disabled || !onChange}
+                loading={pending}
+                onChange={(active) =>
+                  void update({
+                    kind: "set_option",
+                    active,
+                    selection: state.selection,
+                  })
+                }
+              />
+            )}
+            {state.choices.length > 0 && (
+              <Select
+                aria-label={`${ability.label} option`}
+                value={state.active ? state.selection : "__off"}
+                loading={pending}
+                popupMatchSelectWidth={false}
+                options={
+                  state.always_active
+                    ? state.choices
+                    : [
+                        { value: "__off", label: "Off", consequence: null },
+                        ...state.choices,
+                      ]
+                }
+                optionRender={(option) => (
+                  <span>
+                    {option.data.label}
+                    {option.data.consequence ? ` · ${option.data.consequence}` : ""}
+                  </span>
+                )}
+                disabled={unavailable}
+                onChange={(selection: string) =>
+                  void update({
+                    kind: "set_option",
+                    active: selection !== "__off",
+                    selection: selection === "__off" ? state.selection : selection,
+                  })
+                }
+                className="encounter-ability-controls__choice"
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <span>
+              {String(state.remaining)} / {String(state.maximum)} uses ·{" "}
+              {state.interval}
+            </span>
+            <Button
+              className="encounter-ability-controls__use"
+              aria-label={`Use ${ability.label}`}
+              disabled={unavailable || state.remaining === 0n}
+              loading={pending ? { delay: 300 } : false}
+              onClick={() => void update({ kind: "spend_use" })}
+            >
+              Use
+            </Button>
+            <Button
+              aria-label={`Restore use of ${ability.label}`}
+              disabled={unavailable || state.remaining >= state.maximum}
+              onClick={() => void update({ kind: "restore_use" })}
+            >
+              Restore
+            </Button>
+          </>
+        )}
+      </Space>
+      {error && (
+        <div className="encounter-inline-error" role="alert">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
