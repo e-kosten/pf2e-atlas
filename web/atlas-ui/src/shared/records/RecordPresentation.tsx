@@ -12,6 +12,7 @@ import { TraitBadge } from "./TraitBadge";
 import { RollTableReading } from "./RollTableReading";
 import { RecordRarity } from "./RecordRarity";
 import { SpellRankControl } from "./SpellRankControl";
+import { SpellRankValue } from "./SpellRankValue";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import { RecordProvenanceAction } from "./RecordProvenanceAction";
 import type { ReactNode, Ref } from "react";
@@ -25,6 +26,7 @@ import type {
   ActionCostView,
   FactView,
 } from "../../generated/atlas";
+import { SpellEffectPreview } from "./SpellEffectPreview";
 import { ActorActivity } from "./ActorReference";
 import { FactLine, factText, isEmptyFactValue } from "./presentationFacts";
 import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent";
@@ -153,6 +155,7 @@ export function RecordIdentity({
   headingId,
   actions,
   showOwnerReturn = true,
+  badgeExplanations,
 }: {
   identity?: RecordSummaryView;
   stacked?: boolean;
@@ -160,6 +163,7 @@ export function RecordIdentity({
   headingId?: string;
   actions?: IdentityActions;
   showOwnerReturn?: boolean;
+  badgeExplanations?: ReactNode;
   classification: string;
   rankControl?: ReactNode;
   actionCost?: FactView<ActionCostView>;
@@ -195,7 +199,7 @@ export function RecordIdentity({
         </>
       }
       classification={classification}
-      classificationAction={rankControl}
+      classificationControl={rankControl}
       stacked={stacked}
       headingRef={headingRef}
       headingId={headingId}
@@ -250,12 +254,13 @@ export function RecordIdentity({
         ) : null
       }
     >
-      {(hasRarity || traits.length > 0) && (
+      {(hasRarity || traits.length > 0 || badgeExplanations) && (
         <div className="badge-row">
           <RecordRarity rarity={identity?.rarity ?? null} />
           {traits.map((trait) => (
             <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
           ))}
+          {badgeExplanations}
         </div>
       )}
     </DocumentIdentityHeader>
@@ -295,6 +300,12 @@ export function RecordPresentationIdentity({
   actions?: IdentityActions;
 }) {
   const body = presentation?.body;
+  const identityChanges =
+    body?.kind === "spell"
+      ? body.value.rank_changes?.filter((change) =>
+          ["traits", "rarity"].includes(change.fact.kind),
+        )
+      : undefined;
   const documentIdentity = stacked;
   const provenance = selection?.embedded_path.length
     ? relationships.find(
@@ -312,12 +323,26 @@ export function RecordPresentationIdentity({
       actions={actions}
       showOwnerReturn={showOwnerReturn}
       identity={presentation?.identity}
+      badgeExplanations={
+        identityChanges?.length
+          ? identityChanges.map((change) => (
+              <SpellRankValue
+                key={change.fact.kind}
+                change={change}
+                label={change.fact.kind === "traits" ? "Traits" : "Rarity"}
+              >
+                {change.fact.kind === "traits" ? "Trait changes" : "Rarity change"}
+              </SpellRankValue>
+            ))
+          : undefined
+      }
       classification={presentation ? recordClassification(presentation) : ""}
       rankControl={
         body?.kind === "spell" && onRankChange && body.value.base_rank.value != null ? (
           <SpellRankControl
             key={recordReadingIdentity(selection?.record_key ?? null, selection)}
             spell={body.value}
+            classification={presentation ? recordClassification(presentation) : ""}
             embedded={Boolean(selection?.embedded_path.length)}
             onChange={onRankChange}
           />
@@ -562,7 +587,18 @@ export function RecordPresentation({
               Boolean(body.value.action_cost.value?.glyph)
             }
           />
-          {!encounter && flavor}
+          {body.value.spell_effect && (
+            <SpellEffectPreview view={body.value.spell_effect} />
+          )}
+          {!encounter &&
+            (body.value.spell_effect && !body.value.spell_effect.unavailable ? (
+              <section>
+                <h3>Rules</h3>
+                {flavor}
+              </section>
+            ) : (
+              flavor
+            ))}
         </>
       )}
       {body.kind === "roll_table" &&

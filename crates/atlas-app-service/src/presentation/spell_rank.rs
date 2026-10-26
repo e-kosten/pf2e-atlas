@@ -25,18 +25,61 @@ macro_rules! members {
     }};
 }
 
-fn patch_system(
-    system: &mut SpellSystemSource,
-    patch: &PatchSpellSystemSource,
-) -> Result<(), String> {
+// Both generated patch types have these same named authored fields. Share the
+// field policy directly rather than converting either patch through JSON/a shim.
+macro_rules! patch_fields {
+    ($system:ident, $patch:ident) => {{
+        let system = &mut *$system;
+        let patch = $patch;
+        members!(system, patch, requirements, counteraction);
+        for (target, patch) in [
+            (&mut system.range, &patch.range),
+            (&mut system.target, &patch.target),
+            (&mut system.time, &patch.time),
+            (&mut system.cost, &patch.cost),
+        ] {
+            object(target, patch, |a, b| members!(a, b, value));
+        }
+        object(&mut system.duration, &patch.duration, |a, b| {
+            members!(a, b, value, sustained);
+        });
+        object(&mut system.area, &patch.area, |a, b| {
+            members!(a, b, value, r#type, details);
+        });
+        object(&mut system.defense, &patch.defense, |a, b| {
+            object(&mut a.save, &b.save, |a, b| {
+                members!(a, b, statistic, basic)
+            });
+            object(&mut a.passive, &b.passive, |a, b| members!(a, b, statistic));
+        });
+        object(&mut system.traits, &patch.traits, |a, b| {
+            members!(a, b, value, traditions, rarity, other_tags);
+        });
+        object(&mut system.damage, &patch.damage, |a, b| {
+            for (id, component) in &b.entries {
+                if let Some((_, target)) = a.entries.iter_mut().find(|(key, _)| key == id) {
+                    members!(
+                        target, component, formula, r#type, kinds, category, materials, apply_mod
+                    );
+                } else {
+                    a.entries.push((id.clone(), component.clone()));
+                }
+            }
+        });
+    }};
+}
+
+fn unchanged_description(
+    system: &SpellSystemSource,
+    patch: &SourcePresence<ItemDescriptionSource>,
+) -> bool {
     let mut description = system.description.clone();
-    object(&mut description, &patch.description, |a, b| {
-        members!(a, b, value, gm);
-    });
-    if description != system.description {
-        return Err("Heightened description changes are not supported.".into());
-    }
-    let empty_heightening_patch = match &patch.heightening {
+    object(&mut description, patch, |a, b| members!(a, b, value, gm));
+    description == system.description
+}
+
+fn empty_heightening_patch(patch: &SourcePresence<PatchSpellSystemSourceHeightening>) -> bool {
+    match patch {
         SourcePresence::Missing => true,
         SourcePresence::Value(value) => {
             matches!(value.area, SourcePresence::Missing)
@@ -47,46 +90,88 @@ fn patch_system(
                 && value.additional_fields.fields().is_empty()
         }
         _ => false,
-    };
-    if !empty_heightening_patch {
+    }
+}
+
+fn patch_system(
+    system: &mut SpellSystemSource,
+    patch: &PatchSpellSystemSource,
+) -> Result<(), String> {
+    if !unchanged_description(system, &patch.description) {
+        return Err("Heightened description changes are not supported.".into());
+    }
+    if !empty_heightening_patch(&patch.heightening) {
         return Err("Changes to heightening rules are not supported.".into());
     }
-    members!(system, patch, requirements, counteraction);
-    for (target, patch) in [
-        (&mut system.range, &patch.range),
-        (&mut system.target, &patch.target),
-        (&mut system.time, &patch.time),
-        (&mut system.cost, &patch.cost),
-    ] {
-        object(target, patch, |a, b| members!(a, b, value));
-    }
-    object(&mut system.duration, &patch.duration, |a, b| {
-        members!(a, b, value, sustained);
-    });
-    object(&mut system.area, &patch.area, |a, b| {
-        members!(a, b, value, r#type, details);
-    });
-    object(&mut system.defense, &patch.defense, |a, b| {
-        object(&mut a.save, &b.save, |a, b| {
-            members!(a, b, statistic, basic)
-        });
-        object(&mut a.passive, &b.passive, |a, b| members!(a, b, statistic));
-    });
-    object(&mut system.traits, &patch.traits, |a, b| {
-        members!(a, b, value, traditions, rarity, other_tags);
-    });
-    object(&mut system.damage, &patch.damage, |a, b| {
-        for (id, component) in &b.entries {
-            if let Some((_, target)) = a.entries.iter_mut().find(|(key, _)| key == id) {
-                members!(
-                    target, component, formula, r#type, kinds, category, materials, apply_mod
-                );
-            } else {
-                a.entries.push((id.clone(), component.clone()));
-            }
-        }
-    });
+    patch_fields!(system, patch);
     Ok(())
+}
+
+/// A read-only casting-form source, before rank heightening. No actor rules run.
+pub(super) fn casting_form(
+    source: &SpellSource,
+    overlay: &SpellOverlayOverride,
+) -> Result<SpellSource, String> {
+    if overlay.overlay_type.as_value() != Some(&PatchSpellOverlayOverrideOverlayType::Override) {
+        return Err("This casting form is unavailable.".into());
+    }
+    let mut result = source.clone();
+    let SourcePresence::Value(system) = &mut result.system else {
+        return Err("Spell mechanics are unavailable.".into());
+    };
+    let patch = overlay
+        .system
+        .as_value()
+        .ok_or("This form's changes are unavailable.")?;
+    if !unchanged_description(system, &patch.description) {
+        return Err("This form changes the spell description.".into());
+    }
+    if !matches!(patch.level, SourcePresence::Missing)
+        || !matches!(patch.location, SourcePresence::Missing)
+        || !patch.additional_fields.fields().is_empty()
+        || patch
+            .rules
+            .as_value()
+            .is_some_and(|rules| !rules.is_empty())
+        || matches!(patch.rules, SourcePresence::Invalid(_))
+    {
+        return Err("This form has additional casting changes.".into());
+    }
+    if let SourcePresence::Value(heightening) = &patch.heightening {
+        if !matches!(heightening.levels, SourcePresence::Missing)
+            || !matches!(
+                heightening.r#type,
+                SourcePresence::Missing
+                    | SourcePresence::Value(PatchSpellSystemSourceHeighteningType::Interval)
+            )
+            || !heightening.additional_fields.fields().is_empty()
+        {
+            return Err("This form changes fixed-rank rules.".into());
+        }
+        match &mut system.heightening {
+            SourcePresence::Value(SpellSystemSourceHeightening::SpellHeighteningInterval(
+                interval,
+            )) => {
+                members!(interval, heightening, area, interval);
+                object(&mut interval.damage, &heightening.damage, |a, b| {
+                    for (id, formula) in &b.entries {
+                        if let Some((_, target)) = a.entries.iter_mut().find(|(key, _)| key == id) {
+                            *target = formula.clone();
+                        } else {
+                            a.entries.push((id.clone(), formula.clone()));
+                        }
+                    }
+                });
+            }
+            _ => return Err("This form's rank scaling is unavailable.".into()),
+        }
+    } else if !matches!(patch.heightening, SourcePresence::Missing) {
+        return Err("This form's rank scaling is unavailable.".into());
+    }
+    patch_fields!(system, patch);
+    // Prevent recursive form presentation while retaining the original item.
+    system.overlays = SourcePresence::Missing;
+    Ok(result)
 }
 
 /// Produce a transient checked source for projection; source snapshot is immutable.

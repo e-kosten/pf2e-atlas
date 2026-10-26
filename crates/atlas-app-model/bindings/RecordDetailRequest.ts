@@ -2,4 +2,8 @@
 import type { EmbeddedContentLocator } from "./EmbeddedContentLocator";
 import type { SourcePassageAddress } from "./SourcePassageAddress";
 
-export type RecordDetailRequest = { spell_rank?: number, record_key: string, embedded_path: Array<EmbeddedContentLocator>, fields: Array<string>, passage: SourcePassageAddress | null, source_fingerprint: string | null, };
+export type RecordDetailRequest = {
+/**
+ * Selected casting rank for a spell or its explicitly linked effect preview.
+ */
+spell_rank?: number, record_key: string, embedded_path: Array<EmbeddedContentLocator>, fields: Array<string>, passage: SourcePassageAddress | null, source_fingerprint: string | null, };

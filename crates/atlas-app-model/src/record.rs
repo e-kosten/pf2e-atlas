@@ -36,6 +36,7 @@ pub struct RecordBadgeView {
 pub struct RecordNavigationView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    /// Selected casting rank for a spell or its explicitly linked effect preview.
     pub spell_rank: Option<u8>,
     pub record_key: String,
     #[serde(rename = "embedded_path")]
@@ -49,6 +50,7 @@ pub struct RecordNavigationView {
 pub struct RecordDetailRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    /// Selected casting rank for a spell or its explicitly linked effect preview.
     pub spell_rank: Option<u8>,
     pub record_key: String,
     #[serde(default)]

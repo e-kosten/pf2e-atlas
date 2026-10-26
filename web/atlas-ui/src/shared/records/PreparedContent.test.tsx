@@ -533,3 +533,47 @@ it("binds repeated inclusion ordinals to their own exact links and controls", as
   expect(dialog).toHaveTextContent("22");
   expect(dialog).not.toHaveTextContent("10");
 });
+
+it.each([false, true])(
+  "preserves ranked effect context for %s compact rendering and native navigation",
+  (compact) => {
+    const detail = detailFixture("spells:form", "Form", "effects:bear");
+    const field = detail.presentation.content[0];
+    field.body = {
+      kind: "html",
+      inclusions: [],
+      html: '<p><span data-atlas-reference="0">Bear</span></p>',
+      controls: [],
+    };
+    const original = detail.relationships[0].target!;
+    const contextual = { ...original, spell_rank: 4 };
+    const edge = {
+      ...detail.relationships[0],
+      contextual_target: contextual,
+      effect_label: compact ? { text: "Bear", title: "Animal Form (Bear)" } : null,
+    };
+    const onReference = vi.fn();
+    render(
+      <PreparedContent
+        content={field}
+        relationships={[edge]}
+        onReference={onReference}
+      />,
+    );
+    const link = screen.getByRole("link", {
+      name: compact ? "Preview Animal Form (Bear)" : "Bear",
+    });
+    expect(link).toHaveAttribute(
+      "href",
+      destinationHref(
+        recordDestination({ recordKey: contextual.record_key, selection: contextual }),
+      ),
+    );
+    expect(link).not.toHaveAttribute("title", "Spell from this item");
+    fireEvent.click(link, { ctrlKey: true });
+    expect(onReference).not.toHaveBeenCalled();
+    fireEvent.click(link);
+    expect(onReference).toHaveBeenCalledWith(contextual.record_key, link, contextual);
+    expect(edge.target).toBe(original);
+  },
+);

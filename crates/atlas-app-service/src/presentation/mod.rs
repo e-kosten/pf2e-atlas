@@ -7,7 +7,10 @@ mod item_reference;
 mod physical_reference;
 mod reference_profiles;
 mod spell;
+mod spell_changes;
 pub(crate) mod spell_context;
+pub(crate) mod spell_effect;
+mod spell_forms;
 pub(crate) mod spell_rank;
 pub(crate) mod strike;
 use crate::projection::{field_state, navigation_fingerprint};
@@ -21,13 +24,16 @@ use atlas_record::source_record::{
 };
 use facts::*;
 
-pub(crate) fn apply_spell_rank(
+pub(crate) fn apply_casting_rank(
     record: &SourceBackedRecord,
     node: SourceNodeView<'_>,
     requested: Option<u8>,
     presentation: &mut RecordPresentationView,
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> crate::AppServiceResult<Option<u8>> {
+    if let SourceNodeView::Item(ItemSourceView::EffectSource(source)) = node {
+        return spell_effect::apply_rank(source, requested, presentation, retrieval);
+    }
     let SourceNodeView::Item(ItemSourceView::SpellSource(source)) = node else {
         if requested.is_some() {
             return Err(crate::AppServiceError::invalid_request(
@@ -67,6 +73,9 @@ pub(crate) fn apply_spell_rank(
         }
     };
     let mut view = spell::authored_spell(&effective);
+    let changes = spell_changes::rank_changes(source, &effective, &view, rank);
+    view.rank_changes = (!changes.is_empty()).then_some(changes);
+    spell_forms::apply_forms(source, &effective, rank, &mut view);
     view.rank = NumberFactView {
         state: QueryFieldState::Value,
         value: Some(rank.into()),

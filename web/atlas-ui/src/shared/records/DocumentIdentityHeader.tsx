@@ -6,7 +6,7 @@ export function DocumentIdentityHeader({
   classification,
   navigation,
   identityActions,
-  classificationAction,
+  classificationControl,
   stacked = true,
   headingRef,
   headingId,
@@ -18,7 +18,7 @@ export function DocumentIdentityHeader({
   classification: string;
   navigation?: ReactNode;
   identityActions?: ReactNode;
-  classificationAction?: ReactNode;
+  classificationControl?: ReactNode;
   stacked?: boolean;
   headingRef?: Ref<HTMLHeadingElement>;
   headingId?: string;
@@ -26,13 +26,13 @@ export function DocumentIdentityHeader({
   attribution?: ReactNode;
   children?: ReactNode;
 }) {
-  const kind =
-    classification || classificationAction ? (
-      <div className="record-reference__classification">
-        {classification && <p className="record-reference__kind">{classification}</p>}
-        {classificationAction}
-      </div>
-    ) : null;
+  const kind = classification ? (
+    <div className="record-reference__classification">
+      {classificationControl ?? (
+        <p className="record-reference__kind">{classification}</p>
+      )}
+    </div>
+  ) : null;
   return (
     <header
       className={`record-reference__header${stacked ? " record-reference__header--stacked" : ""}`}

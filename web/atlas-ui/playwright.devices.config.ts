@@ -42,6 +42,7 @@ export default defineConfig({
       name: "phone-chromium",
       testMatch: [
         "journeys.spec.ts",
+        "spell-effects.spec.ts",
         "conditions.spec.ts",
         "condition-refinement.spec.ts",
         "encounter-forms.spec.ts",
@@ -53,6 +54,7 @@ export default defineConfig({
       name: "phone-webkit",
       testMatch: [
         "journeys.spec.ts",
+        "spell-effects.spec.ts",
         "conditions.spec.ts",
         "condition-refinement.spec.ts",
         "encounter-forms.spec.ts",
@@ -64,6 +66,7 @@ export default defineConfig({
       name: "tablet-webkit",
       testMatch: [
         "journeys.spec.ts",
+        "spell-effects.spec.ts",
         "conditions.spec.ts",
         "condition-refinement.spec.ts",
         "encounter-forms.spec.ts",

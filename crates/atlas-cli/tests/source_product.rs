@@ -438,8 +438,7 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
         "Casting: 2 actions",
         "Changes to base",
         "Defense: cleared (null)",
-        "Damage component changes: kinds: healing",
-        "Damage increase: 1d8+8",
+        "Damage component changes: 2d6+1; fire; kinds: healing",
     ] {
         assert!(
             selected.contains(expected),
@@ -485,6 +484,19 @@ fn creature_and_customized_owned_spell_terminal_and_json_preserve_semantic_facts
     assert_eq!(heightened["parent"]["title"], "Local Caster");
     assert_eq!(heightened["selected"]["spell_rank"], 5);
     assert_eq!(heightened["content"]["body"]["value"]["rank"]["value"], 5);
+    let healing = heightened["content"]["body"]["value"]["forms"]["value"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|form| form["id"] == "living")
+        .unwrap();
+    assert_eq!(healing["effective_rank"], 5);
+    let healing_damage = &healing["changes"]["value"]["damage"]["value"][0];
+    assert_eq!(healing_damage["formula"]["value"], "(2d6+1) + 3 × (1d8+8)");
+    assert_eq!(
+        healing_damage["kinds"]["value"],
+        serde_json::json!(["healing"])
+    );
     let entry = root["results"][0]["value"]["content"]["body"]["value"]["activities"]["value"]
         .as_array()
         .unwrap()
