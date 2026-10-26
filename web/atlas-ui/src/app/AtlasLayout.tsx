@@ -13,6 +13,7 @@ import {
 import { AppShell } from "./AppShell";
 import { LinkPickerContext } from "../shared/filters/LinkPickerContext";
 import { LinkConditionPicker } from "../shared/filters/LinkConditionPicker";
+import { BackendCompatibilityGate } from "./BackendCompatibilityGate";
 
 import { useSearchWorkspace } from "../features/search/useSearchWorkspace";
 import { useQuery } from "@tanstack/react-query";
@@ -30,26 +31,9 @@ const SearchView = lazy(() =>
 export function AtlasLayout() {
   const [colorScheme, setColorScheme] =
     useState<ColorSchemePreference>(readStoredColorScheme);
-  const section = useRouterState({
-    select: (state) =>
-      [...state.matches].reverse().find((match) => match.staticData.section)?.staticData
-        .section ?? "search",
-  });
   const systemColorScheme = useSystemColorScheme();
   const resolvedColorScheme =
     colorScheme === "system" ? systemColorScheme : colorScheme;
-  const readiness = useQuery({ queryKey: ["readiness"], queryFn: getReadiness });
-  const searchProfile = useSearchProfileSelection(readiness.data);
-  const workspace = useSearchWorkspace({
-    enabled: section === "search",
-    searchProfile: searchProfile.id,
-    pendingUrlProfile: searchProfile.pendingUrlProfile,
-    searchProfileStored: searchProfile.storedVectors,
-    searchProfileUsable: searchProfile.usable,
-    includeSearchProfileInUrl:
-      searchProfile.profiles.filter((profile) => profile.stored_vectors).length !== 1 ||
-      !searchProfile.storedVectors,
-  });
   useLayoutEffect(() => {
     applyAtlasDocumentTheme(document, resolvedColorScheme);
   }, [resolvedColorScheme]);
@@ -74,31 +58,68 @@ export function AtlasLayout() {
       }}
     >
       <App component={false}>
-        <SearchProfileContext value={searchProfile}>
-          <LinkPickerContext value={LinkConditionPicker}>
-            <AppShell
-              activeView={section}
-              colorScheme={colorScheme}
-              onColorSchemeChange={updateColorScheme}
-              resolvedColorScheme={resolvedColorScheme}
-              readiness={readiness.data}
-              readinessError={readiness.error}
-              checkingReadiness={readiness.isFetching}
-              onCheckReadiness={() => void readiness.refetch()}
-            >
-              <>
-                <Activity mode={section === "search" ? "visible" : "hidden"}>
-                  <Suspense fallback={<main className="detail-empty">Loading</main>}>
-                    <SearchView workspace={workspace} />
-                  </Suspense>
-                </Activity>
-                <Outlet />
-              </>
-            </AppShell>
-          </LinkPickerContext>
-        </SearchProfileContext>
+        <BackendCompatibilityGate>
+          <AtlasWorkspace
+            colorScheme={colorScheme}
+            onColorSchemeChange={updateColorScheme}
+            resolvedColorScheme={resolvedColorScheme}
+          />
+        </BackendCompatibilityGate>
       </App>
     </ConfigProvider>
+  );
+}
+
+function AtlasWorkspace({
+  colorScheme,
+  onColorSchemeChange,
+  resolvedColorScheme,
+}: {
+  colorScheme: ColorSchemePreference;
+  onColorSchemeChange: (preference: ColorSchemePreference) => void;
+  resolvedColorScheme: ResolvedColorScheme;
+}) {
+  const section = useRouterState({
+    select: (state) =>
+      [...state.matches].reverse().find((match) => match.staticData.section)?.staticData
+        .section ?? "search",
+  });
+  const readiness = useQuery({ queryKey: ["readiness"], queryFn: getReadiness });
+  const searchProfile = useSearchProfileSelection(readiness.data);
+  const workspace = useSearchWorkspace({
+    enabled: section === "search",
+    searchProfile: searchProfile.id,
+    pendingUrlProfile: searchProfile.pendingUrlProfile,
+    searchProfileStored: searchProfile.storedVectors,
+    searchProfileUsable: searchProfile.usable,
+    includeSearchProfileInUrl:
+      searchProfile.profiles.filter((profile) => profile.stored_vectors).length !== 1 ||
+      !searchProfile.storedVectors,
+  });
+  return (
+    <SearchProfileContext value={searchProfile}>
+      <LinkPickerContext value={LinkConditionPicker}>
+        <AppShell
+          activeView={section}
+          colorScheme={colorScheme}
+          onColorSchemeChange={onColorSchemeChange}
+          resolvedColorScheme={resolvedColorScheme}
+          readiness={readiness.data}
+          readinessError={readiness.error}
+          checkingReadiness={readiness.isFetching}
+          onCheckReadiness={() => void readiness.refetch()}
+        >
+          <>
+            <Activity mode={section === "search" ? "visible" : "hidden"}>
+              <Suspense fallback={<main className="detail-empty">Loading</main>}>
+                <SearchView workspace={workspace} />
+              </Suspense>
+            </Activity>
+            <Outlet />
+          </>
+        </AppShell>
+      </LinkPickerContext>
+    </SearchProfileContext>
   );
 }
 export function InvalidRoute({ message }: { message: string }) {
