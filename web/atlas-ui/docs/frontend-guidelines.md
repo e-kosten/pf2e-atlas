@@ -61,7 +61,7 @@ positive example. Linked sections define detailed behavior and shared owners.
 | Fact groups and tables   | Group facts by what the user reads together; use tables for a repeated comparison axis.                                                                                        | Hidden Pit separates durability, saves and IWR; Fighter uses Level → Advancement rows. See [Grouping reference facts](#grouping-reference-facts).                                                                                 | One wrapping run of unrelated facts, a card for every number, or a table for a short price/bulk/usage group.                                                                                    |
 | Reading width            | Bound the complete single-column document; keep workspace chrome attached to its pane.                                                                                         | Allfood title, traits, facts and prose share a readable column within the full search pane. See [Styling](#styling).                                                                                                              | Capping prose alone under a wider identity block, stretching prose across the screen, or adding filler to occupy space.                                                                         |
 | Entity hierarchy         | Lead a single-entity page with its identity; group related metadata below it.                                                                                                  | Allfood's name, classification/rank, aligned traits and attribution.                                                                                                                                                              | A generic Reference bar above the name or detached trait pills floating beside unrelated controls.                                                                                              |
-| Reading and editing      | In reading/scanning views, keep values readable with a persistent cue for editing; reveal the editor on activation. Keep fields visible when entry is the primary task.        | Current/temp HP use subtle neutral filled buttons; spell rank has a visible Change rank action. See [Reading and editing values](#reading-and-editing-values).                                                                    | Permanent number fields throughout a read-oriented panel, or editable values indistinguishable from static text until hover.                                                                    |
+| Reading and editing      | In reading/scanning views, keep values readable with a persistent cue for editing; reveal the editor on activation. Keep fields visible when entry is the primary task.        | Current/temp HP use subtle neutral filled buttons; spell rank uses its classification chip with a visible dropdown arrow. See [Reading and editing values](#reading-and-editing-values).                                          | Permanent number fields throughout a read-oriented panel, or editable values indistinguishable from static text until hover.                                                                    |
 | Actions and copy         | Keep frequent actions near their context. Use named icons for familiar compact actions and text for unfamiliar choices; each note must add a fact, consequence or next action. | An accessible icon with a concise tooltip; base rank shown inside the picker. See [Choosing an interaction surface](#choosing-an-interaction-surface).                                                                            | Cryptic unfamiliar icons, tooltips repeating clear labels, duplicate Base rank captions or a checkmark repeating selected-row fill.                                                             |
 | Disclosures              | Keep essential rules inline; disclose secondary material only for a selective-reading task, with a clear title and enclosing boundary.                                         | Bordered Ant Heightening details around related extra facts, with authored heightening prose still inline. See [Record presentation](#record-presentation).                                                                       | Bare expanding text, nested accordions, hiding essential rules, or adding a disclosure merely because another section uses one.                                                                 |
 | Rules and current values | Distinguish selected results from their rules; preserve qualifiers, clears and unavailable facts.                                                                              | Fireball's current damage changes with rank; its per-rank increase stays constant.                                                                                                                                                | Presenting a constant increase as current damage, or inferring that Animal Form's replacement statistics stack like Sound Body's benefits.                                                      |
@@ -191,10 +191,14 @@ existing quick edit. A substantial edit involving several related decisions can
 use a dedicated form or overlay; presentation does not bypass confirmation,
 validation or backend mutation policy.
 
-A named adjacent action is another visible editing cue: reference spell rank
-stays readable beside Change rank, which opens its choices. Do not leave a Select
-permanently in the identity block. This is the accepted spell composition, not a
-requirement to add a Change button beside every editable value.
+For a discrete choice that describes the record being read, the readable value
+can itself open an anchored menu. Spell rank uses its classification chip, such
+as Spell 4, with a persistent dropdown arrow; the menu identifies the base rank.
+Keep the chip aligned with neighboring document actions and the traits directly
+below the natural title row. Do not turn identity into a permanently visible
+Select or add a second Change rank row that pushes unrelated metadata down.
+This does not make every classification editable: noneditable kinds remain static,
+and multi-field data entry still belongs in a form.
 
 ### Primary toolbars
 
@@ -354,8 +358,8 @@ identity structure across non-creature kinds and reading hosts, rather than
 maintaining spell/equipment exceptions. Put this default in
 DocumentIdentityHeader, not a family-name allowlist or a remembered opt-in flag.
 Treat this as an identity composition, not a requirement to force result summaries
-or encounter roster rows into the same vertical stack. Spell identity is static
-text beside a muted Change rank menu.
+or encounter roster rows into the same vertical stack. The spell classification
+chip opens its rank menu and shows a persistent dropdown arrow.
 Do not reserve an invisible reset slot or repeat base-rank copy outside the rank
 menu. Let the title and action group share a row when they fit, including on phone; wrap for
 actual content rather than forcing every narrow header into separate rows.
@@ -896,10 +900,10 @@ Its header shows the document title once and its consistent action group remains
 reachable while the body scrolls. Use the shared identity composition: title and
 glyph, trailing classification, document actions, traits, then source attribution.
 Classification is a scan anchor within the title row, not a detached pane control;
-the classification and document icon actions share one aligned row. Controls that
-change classification sit in a separate row below: Spell 2, Explore and Add to
-list align together, with Change rank underneath. Align the title with that first
-row; never center it or the icon actions against the combined chip/picker height.
+the classification and document icon actions share one aligned row. For spells,
+the classification chip also opens the rank menu: Spell 2 with a dropdown arrow,
+Explore and Add to list share the same control height. Keep traits directly below
+the natural title row; do not add a separate rank-action row or reserve its height.
 The tools wrap beneath the title when necessary on narrow panes. Action glyphs stay beside the title;
 textual activation facts such as Treat Wounds' supplied "passive" belong in the
 document body, not in its heading or classification. Keep
@@ -1080,8 +1084,10 @@ retired requests cannot commit later; validate the expected collection generatio
 before caching a prepared document. Ordinary direct navigation still uses its
 own initial loading state rather than retaining an unrelated page.
 
-Spell headers show the supplied classification/rank as static text, with a muted
-Change rank button and an anchored Ant menu. The menu identifies the base rank;
+Spell headers show the supplied classification/rank in an Ant Button styled as
+the classification chip, with a visible dropdown arrow and an anchored Ant menu.
+The accessible name includes the displayed classification and Change rank.
+Noneditable classifications remain static. The menu identifies the base rank;
 do not repeat a Base rank caption beside the trigger. For an owned spell it exposes
 return to its opening casting rank. Preserve the trigger while fetching, return
 focus after selection or Escape without scrolling, and close the menu before a

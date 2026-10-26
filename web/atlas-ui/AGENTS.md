@@ -27,7 +27,7 @@ Before creating a feature-local interaction pattern, check `src/shared/ui`.
 - Use `IndexTable` for clickable entity/index tables.
 - Use `EntityIndexPage` for `/things` index pages with a title, summary, actions, and table body.
 - Use `EditableCommitField` for inline fields that keep a local draft and commit on blur or Enter.
-- In reading/scanning views, editable values need a persistent subtle cue, with inputs revealed on activation. Use the neutral filled value-button pattern for inline encounter HP; spell rank has its adjacent Change rank action. Keep fields visible for data-entry tasks. Follow [Reading and editing values](docs/frontend-guidelines.md#reading-and-editing-values); hover alone must not establish editability.
+- In reading/scanning views, editable values need a persistent subtle cue, with inputs revealed on activation. Use the neutral filled value-button pattern for inline encounter HP; spell rank uses a clickable classification chip with a visible dropdown arrow. Keep fields visible for data-entry tasks. Follow [Reading and editing values](docs/frontend-guidelines.md#reading-and-editing-values); hover alone must not establish editability.
 - Use `SearchPickerModal` for modal record-search selection flows.
 - Use `PaneIconButton` and `PaneIconLink` for pane-header icon actions.
 - Use `BrowsePaneHeader` in selected-record workspaces; `BrowseReader` owns alignment of the two natural header rows, including wrapped controls. Do not independently fix their heights.

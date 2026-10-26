@@ -18,16 +18,15 @@ test("spell links keep rank through effect reading, explanations and full-page n
 }, info) => {
   await page.goto(selectedSpell(4));
   const header = page.locator(".record-reference__header").first();
-  await expect(
-    header.getByRole("button", { name: "Change rank", exact: true }),
-  ).toBeVisible();
+  await expect(header.getByRole("button", { name: /: Change rank$/ })).toBeVisible();
   const headerGeometry = () =>
     header.evaluate((node) => {
       const rect = (selector: string) =>
         node.querySelector(selector)!.getBoundingClientRect();
       const kind = rect(".record-reference__kind");
       const title = rect("h2");
-      const rank = rect(".spell-rank-control");
+      const titleRow = rect(".record-reference__title");
+      const traits = rect(".record-reference__metadata");
       const actions = [
         ...node.querySelectorAll(".record-reference__actions button"),
       ].map((button) => button.getBoundingClientRect());
@@ -36,7 +35,8 @@ test("spell links keep rank through effect reading, explanations and full-page n
         rowTop: kind.y,
         rowBottom: Math.max(kind.bottom, ...actions.map((a) => a.bottom)),
         titleTop: title.y,
-        rankTop: rank.y,
+        kindHeight: kind.height,
+        traitsGap: traits.y - titleRow.bottom,
         actions: actions.map((a) => ({ center: a.y + a.height / 2, height: a.height })),
       };
     });
@@ -46,7 +46,11 @@ test("spell links keep rank through effect reading, explanations and full-page n
     expect(Math.abs(action.center - beforeHeader.kindCenter)).toBeLessThanOrEqual(1);
     expect(action.height).toBe(34);
   }
-  expect(beforeHeader.rankTop).toBeGreaterThanOrEqual(beforeHeader.rowBottom);
+  expect(beforeHeader.kindHeight).toBe(34);
+  expect(beforeHeader.traitsGap).toBe(8);
+  await expect(header.getByRole("button", { name: /: Change rank$/ })).toHaveText(
+    "Spell 4",
+  );
   expect(beforeHeader.titleTop).toBeLessThanOrEqual(beforeHeader.rowTop + 4);
   await activate(
     header.getByRole("button", { name: "Explore related records", exact: true }),
