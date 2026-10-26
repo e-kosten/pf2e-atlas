@@ -123,7 +123,8 @@
 .list-browse-header__parent {
   padding: 16px 24px 0;
 }
-.list-browse-header__parent-link {
+.list-browse-header__parent-link,
+.list-edit-view__back-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
