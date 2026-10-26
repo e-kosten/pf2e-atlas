@@ -356,6 +356,15 @@ per-field/per-marker body reads. Reader connections stay on one generation while
 the writer atomically publishes later artifacts.
 
 App-service search pages reuse browse, text and stored-vector Similar retrieval.
+Configurable Similar carries typed method/decay/part/candidate-role options for
+record or trait seeds. The same app workflow projects an exact part inventory and
+paired match evidence for CLI and web; the browser does not infer correspondence
+roles or calculate scores. Inventory can report missing vectors without requiring
+model weights. The index-owned section/role projection is backfilled from retained
+checked data by workspace migration 16 and refreshed during publication. Existing
+record and trait algorithms remain explicit Current baseline methods; the new
+passage and centroid recipes reuse stored vectors. See
+[ADR0059](./decisions/0059-configurable-similarity.md).
 Record Similar carries the exact root seed and canonical filters, and returns a
 body-free seed summary beside bounded candidate pages. Trait Similar carries its
 typed trait key and projected label through the same search-page workflow. It adds no ranking lane or

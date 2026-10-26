@@ -2,7 +2,7 @@ import { chooseAttributeSort } from "../../../test/sortControls";
 import type { ResultSort } from "../../../generated/atlas";
 import { SearchProfileProvider } from "../../../test/SearchProfileProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ConfigProvider, Form, Grid, Input } from "antd";
+import { App, ConfigProvider, Form, Grid, Input } from "antd";
 import { useState } from "react";
 import {
   act,
@@ -18,6 +18,7 @@ import {
   getRecordDetail,
   discoverFilterEditor,
   discoverFilterCounts,
+  getSimilarityParts,
 } from "../../../api/atlasApi";
 import {
   activityFixture,
@@ -28,6 +29,10 @@ import {
 } from "../../../test/fixtures";
 import type { SearchResultsPage } from "../../../generated/atlas";
 import { SearchPickerModal } from "./SearchPickerModal";
+import {
+  similarityConfigurationFixture,
+  similarityPartsFixture,
+} from "../../../test/similarityFixtures";
 
 vi.mock("../../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../../api/atlasApi")>()),
@@ -35,6 +40,7 @@ vi.mock("../../../api/atlasApi", async (original) => ({
   getRecordDetail: vi.fn(),
   discoverFilterEditor: vi.fn(),
   discoverFilterCounts: vi.fn(),
+  getSimilarityParts: vi.fn(),
 }));
 const search = vi.mocked(searchPage);
 const addSelected = vi.fn();
@@ -74,9 +80,11 @@ function result(
 function Picker({
   disabled = false,
   open = true,
+  similar = false,
 }: {
   disabled?: boolean;
   open?: boolean;
+  similar?: boolean;
 }) {
   const [form] = Form.useForm();
   const [selected, setSelected] = useState<string | null>(null);
@@ -87,9 +95,15 @@ function Picker({
       open={open}
       form={form}
       buildRequest={(query) => ({
-        criteria: query.trim()
-          ? { kind: "text_search", query, mode: "hybrid", filter: null }
-          : { kind: "list_records", filter: null },
+        criteria: similar
+          ? {
+              kind: "similar_records",
+              seed_record_key: "hazards:brown-mold",
+              filter: null,
+            }
+          : query.trim()
+            ? { kind: "text_search", query, mode: "hybrid", filter: null }
+            : { kind: "list_records", filter: null },
         expected_artifact_generation: null,
         page: { number: 1, size: 25 },
       })}
@@ -116,7 +130,7 @@ function Picker({
     </SearchPickerModal>
   );
 }
-function renderPicker() {
+function renderPicker(similar = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
   });
@@ -127,7 +141,9 @@ function renderPicker() {
     <ConfigProvider theme={{ token: { motion: false } }}>
       <QueryClientProvider client={client}>
         <SearchProfileProvider id={profile}>
-          <Picker disabled={disabled} open={open} />
+          <App>
+            <Picker disabled={disabled} open={open} similar={similar} />
+          </App>
         </SearchProfileProvider>
       </QueryClientProvider>
     </ConfigProvider>
@@ -682,4 +698,84 @@ it("adopts generation once and explicitly refreshes conflicts without clearing c
   expect(client.getQueryData(["encounter", "draft-owner"])).toEqual({
     name: "Encounter",
   });
+});
+
+it("applies reloaded B parts once while preserving the picker candidate and unsaved form", async () => {
+  let finishOld!: (page: SearchResultsPage) => void;
+  const oldPage = new Promise<SearchResultsPage>((resolve) => {
+    finishOld = resolve;
+  });
+  search.mockImplementation((request) => {
+    const generation = request.expected_artifact_generation ?? "generation-a";
+    const similarity =
+      request.criteria.kind === "similar_records"
+        ? request.criteria.similarity
+        : undefined;
+    const page = {
+      ...result(generation === "generation-b" ? "Dragon" : "Ghoul", generation),
+      sort: { kind: "relevance" } as const,
+      ...(similarity ? { similarity: similarityConfigurationFixture(similarity) } : {}),
+    };
+    return search.mock.calls.length === 2 ? oldPage : Promise.resolve(page);
+  });
+  vi.mocked(getSimilarityParts)
+    .mockRejectedValueOnce(
+      new AtlasApiError(409, "Collection changed", {
+        code: "artifact_generation_changed",
+        message: "Collection changed",
+        recoverable_action: "refresh_results",
+      }),
+    )
+    .mockResolvedValue(similarityPartsFixture());
+  const { client } = renderPicker(true);
+  fireEvent.click(await screen.findByRole("link", { name: /Ghoul/ }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
+  fireEvent.change(screen.getByLabelText("Note"), {
+    target: { value: "Unsaved encounter note" },
+  });
+  client.setQueryData(["encounter", "draft-owner"], { name: "Encounter" });
+  act(() => {
+    void client.invalidateQueries({ queryKey: ["search-picker"] });
+  });
+  await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
+  vi.mocked(getRecordDetail).mockImplementation((key) =>
+    Promise.resolve({ ...detailFixture(key), artifact_generation: "generation-b" }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+  fireEvent.click(screen.getByText("Compare parts"));
+  fireEvent.click(await screen.findByRole("button", { name: "Reload parts" }));
+  await screen.findByRole("checkbox", { name: "Description" });
+  fireEvent.click(screen.getByRole("checkbox", { name: "All parts" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Description" }));
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  // The reader remains open; return to results to inspect the new collection.
+  fireEvent.click(screen.getByRole("button", { name: "Results" }));
+  expect(await screen.findByRole("link", { name: /Dragon/ })).toBeInTheDocument();
+  expect(search).toHaveBeenCalledTimes(3);
+  expect(search.mock.lastCall?.[0]).toMatchObject({
+    expected_artifact_generation: "generation-b",
+    criteria: { similarity: { parts: ["description-b"] } },
+    page: { number: 1 },
+  });
+  expect(search.mock.calls[1][1]?.aborted).toBe(true);
+  await act(async () => {
+    finishOld(result("Old A"));
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  });
+  expect(screen.queryByRole("link", { name: /Old A/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Refresh results" })).toBeNull();
+  expect(screen.getByLabelText("Note")).toHaveValue("Unsaved encounter note");
+  await expectRetainedCandidate();
+  expect(client.getQueryData(["encounter", "draft-owner"])).toEqual({
+    name: "Encounter",
+  });
+  expect(search).toHaveBeenCalledTimes(3);
+  expect(
+    client
+      .getQueryCache()
+      .findAll({ queryKey: ["search-picker"] })
+      .some((query) => query.queryKey.includes("generation-a")),
+  ).toBe(false);
 });

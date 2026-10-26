@@ -1081,6 +1081,36 @@ struct MockService {
 mod read_abandonment_tests;
 
 impl AtlasWebService for MockService {
+    fn similarity_parts(
+        &self,
+        request: atlas_app_model::SimilarityPartsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::SimilarityPartsView, AppServiceError> {
+        execution.check()?;
+        if request
+            .expected_artifact_generation
+            .as_deref()
+            .is_some_and(|generation| generation != "current-generation")
+        {
+            return Err(AppServiceError::new(
+                AppErrorCode::ArtifactGenerationChanged,
+                "reference data changed",
+            ));
+        }
+        Ok(atlas_app_model::SimilarityPartsView {
+            supports_corresponding_parts: matches!(
+                request.seed,
+                atlas_domain::SimilaritySeed::Record { .. }
+            ),
+            artifact_generation: "current-generation".into(),
+            search_profile: request
+                .search_profile
+                .unwrap_or_else(|| atlas_domain::SearchProfileId::new("bge-base")),
+            seed: request.seed,
+            parts: vec![],
+            role_recipe: atlas_domain::SIMILARITY_ROLE_RECIPE.into(),
+        })
+    }
     fn relationship_occurrences(
         &self,
         _request: atlas_app_model::RelationshipOccurrencesRequest,
@@ -2164,6 +2194,7 @@ fn record_summary() -> RecordSummaryView {
 
 fn search_results_page(page_number: u32) -> SearchResultsPage {
     SearchResultsPage {
+        similarity: None,
         sort: atlas_domain::ResultSort::attribute(
             atlas_domain::SortField::Name,
             atlas_domain::SortDirection::Asc,
@@ -2183,6 +2214,7 @@ fn search_results_page(page_number: u32) -> SearchResultsPage {
             next_page: Some(page_number + 1),
         },
         rows: vec![atlas_app_model::SearchResultRow {
+            similarity: None,
             relationship_evidence: vec![],
             record: record_summary(),
             matches: vec![],
@@ -2265,4 +2297,41 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
     .await;
     assert_eq!(status, StatusCode::OK);
     assert!(body["note"].is_null());
+}
+
+#[tokio::test]
+async fn similarity_inventory_route_preserves_typed_seed_profile_and_generation() {
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/search/similarity/parts",
+        Some(json!({
+            "seed":{"kind":"record","record_key":"items:seed000000000000"},
+            "search_profile":"embeddinggemma", "expected_artifact_generation":"current-generation"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["search_profile"], "embeddinggemma");
+    assert_eq!(body["seed"]["record_key"], "items:seed000000000000");
+    assert_eq!(body["artifact_generation"], "current-generation");
+    assert_eq!(body["supports_corresponding_parts"], true);
+
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/search/similarity/parts",
+        Some(json!({
+            "seed":{"kind":"trait","trait_key":"trait:fire"},
+            "expected_artifact_generation":"previous-generation"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+}
+
+#[tokio::test]
+async fn similarity_inventory_route_rejects_unknown_seed_fields() {
+    let (status, _) = route_json(Method::POST, "/api/search/similarity/parts", Some(json!({
+        "seed":{"kind":"record","record_key":"items:seed000000000000","text":"invented selection"}
+    }))).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 }

@@ -34,6 +34,8 @@ import type {
   ReorderSavedListItemRequest,
   SavedListCreateView,
   SearchResultsPage,
+  SimilarityPartsRequest,
+  SimilarityPartsView,
   SavedListDetailView,
   SavedListIndexView,
   SavedListItemMutationView,
@@ -110,6 +112,17 @@ export async function searchPage(
     body: jsonBody(request),
   });
   return normalizeSearchResultsPage(page);
+}
+
+export async function getSimilarityParts(
+  request: SimilarityPartsRequest,
+  signal?: AbortSignal,
+): Promise<SimilarityPartsView> {
+  return atlasFetch("/api/search/similarity/parts", {
+    method: "POST",
+    body: jsonBody(request),
+    signal,
+  });
 }
 
 export async function getRelationshipOccurrences(

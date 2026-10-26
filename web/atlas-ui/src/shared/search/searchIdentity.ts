@@ -3,6 +3,7 @@ import type {
   ResultSort,
   SearchResultsRequest,
   TraitRecordsRequest,
+  SimilarityOptions,
 } from "../../generated/atlas";
 
 /** Ordering and paging may retain a labelled prior page; eligibility and source identity may not. */
@@ -14,6 +15,28 @@ export function sameSearchPageContext(
     JSON.stringify({ ...previous, sort: undefined, page: undefined }) ===
     JSON.stringify({ ...next, sort: undefined, page: undefined })
   );
+}
+
+export function assertSimilarityIdentity(
+  response: { similarity?: { options: SimilarityOptions } },
+  options?: SimilarityOptions,
+) {
+  if (!options) return;
+  const key = (value?: SimilarityOptions) =>
+    value?.method === "baseline"
+      ? JSON.stringify([value.method])
+      : value
+        ? JSON.stringify([
+            value.method,
+            value.method === "passages" ? value.decay : null,
+            value.candidate_parts,
+            value.parts,
+          ])
+        : null;
+  if (key(response.similarity?.options) !== key(options))
+    throw new Error(
+      "The search response used different similarity settings. Retry the search.",
+    );
 }
 
 /** Never display retrieval evidence under a different model or collection. */

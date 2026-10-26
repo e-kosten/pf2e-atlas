@@ -76,18 +76,22 @@ pub(crate) fn print_search_matches(records: &[atlas_app_model::SearchResultRow])
         {
             println!("  Matched: {label}");
         }
-        for evidence in &r.relationship_evidence {
-            for occurrence in &evidence.occurrences {
-                print_relationship_occurrence(occurrence);
-            }
-            if evidence.page.has_more {
-                println!(
-                    "  {} references; more available with `atlas graph occurrences`.",
-                    evidence.page.total
-                );
-            }
-        }
+        print_relationship_evidence(&r.relationship_evidence);
         println!();
+    }
+}
+
+pub(crate) fn print_relationship_evidence(evidence: &[atlas_app_model::RelationshipEvidenceView]) {
+    for evidence in evidence {
+        for occurrence in &evidence.occurrences {
+            print_relationship_occurrence(occurrence);
+        }
+        if evidence.page.has_more {
+            println!(
+                "  {} references; more available with `atlas graph occurrences`.",
+                evidence.page.total
+            );
+        }
     }
 }
 pub(crate) fn print_search_page_count(result: &atlas_app_model::SearchResultsPage) {

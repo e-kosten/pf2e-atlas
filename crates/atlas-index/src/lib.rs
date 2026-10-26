@@ -8,6 +8,8 @@ mod embedding_values;
 mod persisted_inputs;
 mod reference_jobs;
 mod semantic_locations;
+mod similarity_projection;
+pub use similarity_projection::{SIMILARITY_SCHEMA_SQL, backfill_similarity_parts};
 mod vector_allocation;
 pub use component_upgrade::{
     ReferenceUpgrade, classify_reference_upgrade, ensure_reference_projections,
@@ -31,6 +33,8 @@ mod projections;
 mod publication_delta;
 pub mod query;
 mod read_content;
+mod read_similarity;
+pub use read_similarity::SourceSimilarityUnit;
 mod read_units;
 mod reader;
 mod schema;

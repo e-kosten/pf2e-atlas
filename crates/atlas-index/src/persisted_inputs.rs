@@ -63,6 +63,24 @@ pub fn read_persisted_inputs(
     c: &Connection,
     context: &SourceArtifactBuildContext,
 ) -> Result<Vec<SourceArtifactRecordInput>, IndexError> {
+    read_selected_persisted_inputs(c, context, None)
+}
+
+pub(crate) fn read_persisted_input(
+    c: &Connection,
+    context: &SourceArtifactBuildContext,
+    key: &atlas_domain::RecordKey,
+) -> Result<Option<SourceArtifactRecordInput>, IndexError> {
+    Ok(read_selected_persisted_inputs(c, context, Some(key))?
+        .into_iter()
+        .next())
+}
+
+fn read_selected_persisted_inputs(
+    c: &Connection,
+    context: &SourceArtifactBuildContext,
+    key: Option<&atlas_domain::RecordKey>,
+) -> Result<Vec<SourceArtifactRecordInput>, IndexError> {
     if context.source_contract != atlas_foundry_model::SOURCE_CONTRACT_ID
         || context.snapshot_version != atlas_foundry_model::SNAPSHOT_VERSION
     {
@@ -71,8 +89,8 @@ pub fn read_persisted_inputs(
         ));
     }
     let preparation_hash = context.preparation_sha256()?;
-    let mut statement = c.prepare("SELECT r.record_id,r.key,r.pack_id,r.source_path,r.content_hash,b.codec_version,b.encoding,b.snapshot FROM records r JOIN record_bodies b USING(record_id) ORDER BY r.record_id")?;
-    let mut rows = statement.query([])?;
+    let mut statement = c.prepare("SELECT r.record_id,r.key,r.pack_id,r.source_path,r.content_hash,b.codec_version,b.encoding,b.snapshot FROM records r JOIN record_bodies b USING(record_id) WHERE (?1 IS NULL OR r.key=?1) ORDER BY r.record_id")?;
+    let mut rows = statement.query([key.map(ToString::to_string)])?;
     let mut inputs = Vec::new();
     while let Some(row) = rows.next()? {
         let id: i64 = row.get(0)?;

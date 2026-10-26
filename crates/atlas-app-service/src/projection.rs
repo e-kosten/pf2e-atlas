@@ -190,6 +190,7 @@ pub(crate) fn search_results_view(
             .records
             .into_iter()
             .map(|r| atlas_app_model::SearchResultRow {
+                similarity: None,
                 relationship_evidence: vec![],
                 record: localized_summary_view(&r.record, retrieval),
                 matches: r

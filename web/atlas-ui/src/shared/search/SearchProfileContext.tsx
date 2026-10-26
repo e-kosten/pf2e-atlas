@@ -3,7 +3,14 @@ import type { AppReadinessView, SearchProfileId } from "../../generated/atlas";
 import { useRouter, useRouterState } from "@tanstack/react-router";
 import { searchParam } from "../../app/urlState";
 import { currentSearchLocation } from "../../app/searchLocation";
-export const SEARCH_PROFILE_PREFERENCE_KEY = "atlas.search.profile.v1";
+import {
+  DEFAULT_SEARCH_PREFERENCES,
+  LEGACY_SEARCH_PROFILE_KEY,
+  readSearchPreferences,
+  writeSearchPreferences,
+  type SearchPreferences,
+} from "./searchPreferences";
+export const SEARCH_PROFILE_PREFERENCE_KEY = LEGACY_SEARCH_PROFILE_KEY;
 export const SEARCH_PROFILE_PARAM = "search_profile";
 export type SearchProfileSelection = {
   id: SearchProfileId | null;
@@ -16,6 +23,9 @@ export type SearchProfileSelection = {
   canResetLink: boolean;
   resetLink: () => void;
   select: (id: SearchProfileId) => void;
+  defaultId: SearchProfileId | null;
+  preferences: SearchPreferences;
+  applyPreferences: (preferences: SearchPreferences) => boolean;
 };
 export const SearchProfileContext = createContext<SearchProfileSelection>({
   id: null,
@@ -28,24 +38,22 @@ export const SearchProfileContext = createContext<SearchProfileSelection>({
   canResetLink: false,
   resetLink: () => {},
   select: () => {},
+  defaultId: null,
+  preferences: DEFAULT_SEARCH_PREFERENCES,
+  applyPreferences: () => true,
 });
 export function useSearchProfile() {
   return useContext(SearchProfileContext);
-}
-function storedProfile() {
-  try {
-    return localStorage.getItem(SEARCH_PROFILE_PREFERENCE_KEY);
-  } catch {
-    return null;
-  }
 }
 type ProfileChoice = {
   id: string;
   source: "url" | "preference" | "default" | "selection";
 };
-function initialChoice(explicit: string | null): ProfileChoice | null {
+function initialChoice(
+  explicit: string | null,
+  preference: string | null,
+): ProfileChoice | null {
   if (explicit !== null) return { id: explicit, source: "url" };
-  const preference = storedProfile();
   return preference === null ? null : { id: preference, source: "preference" };
 }
 function defaultChoice(readiness: AppReadinessView): ProfileChoice {
@@ -63,9 +71,11 @@ export function useSearchProfileSelection(
   readiness: AppReadinessView | undefined,
 ): SearchProfileSelection {
   const router = useRouter();
+  const [preferences, setPreferences] = useState(readSearchPreferences);
   const [choice, setChoice] = useState(() =>
     initialChoice(
       searchParam(router.latestLocation.search, SEARCH_PROFILE_PARAM) ?? null,
+      preferences.model,
     ),
   );
   const explicitProfile = useRouterState({
@@ -115,6 +125,13 @@ export function useSearchProfileSelection(
     loading: !readiness,
     error,
     canResetLink,
+    defaultId: readiness ? defaultChoice(readiness).id : null,
+    preferences,
+    applyPreferences: (next) => {
+      setPreferences(next);
+      if (next.model !== null) setChoice({ id: next.model, source: "selection" });
+      return writeSearchPreferences(next);
+    },
     resetLink: () => {
       if (!readiness) return;
       setChoice(defaultChoice(readiness));
@@ -133,11 +150,9 @@ export function useSearchProfileSelection(
     },
     select: (next) => {
       setChoice({ id: next, source: "selection" });
-      try {
-        localStorage.setItem(SEARCH_PROFILE_PREFERENCE_KEY, next);
-      } catch {
-        // Optional preferences never prevent a deliberate selection.
-      }
+      const updated = { ...preferences, model: next };
+      setPreferences(updated);
+      writeSearchPreferences(updated);
       if (currentSearchLocation(router))
         void router.navigate({
           to: ".",

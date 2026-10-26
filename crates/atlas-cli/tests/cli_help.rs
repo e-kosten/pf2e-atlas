@@ -201,3 +201,55 @@ fn relationship_filters_and_occurrence_paging_are_discoverable_in_help() {
         assert!(discovery.contains(flag));
     }
 }
+
+#[test]
+fn similar_help_exposes_parts_methods_and_trait_seeds_without_new_ranking_flags() {
+    let text = help(&["similar"]);
+    for flag in [
+        "--method",
+        "--decay",
+        "--part",
+        "--candidate-parts",
+        "--list-parts",
+        "--artifact-generation",
+        "--explain",
+    ] {
+        assert!(text.contains(flag), "missing Similar control: {flag}");
+    }
+    assert!(text.contains("trait:fire"));
+    assert!(text.contains("content-average"));
+    assert!(!text.contains("--ranking"));
+}
+
+#[test]
+fn invalid_similarity_controls_fail_before_workspace_access_with_clean_json() {
+    for (flags, expected_code) in [
+        (
+            vec!["--method", "baseline", "--decay", "0.5"],
+            "invalid_request",
+        ),
+        (
+            vec!["--method", "content-average", "--decay", "0.5"],
+            "invalid_request",
+        ),
+        (
+            vec!["--method", "baseline", "--candidate-parts", "any"],
+            "invalid_request",
+        ),
+        (vec!["--part", "opaque-selector"], "invalid_input"),
+        (vec!["--list-parts", "--kind", "hazard"], "invalid_request"),
+        (vec!["--list-parts", "--page", "2"], "invalid_input"),
+        (vec!["--decay", "NaN"], "invalid_input"),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args(["similar", "No workspace should be opened"])
+            .args(flags)
+            .arg("--json")
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        let envelope: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(envelope["error"]["code"], expected_code);
+        assert!(!String::from_utf8_lossy(&output.stderr).contains("panicked"));
+    }
+}

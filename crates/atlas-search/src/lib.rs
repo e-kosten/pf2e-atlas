@@ -1,4 +1,5 @@
 #![deny(unsafe_code)]
+mod configurable_similarity;
 mod discovery;
 mod error;
 mod graph;
@@ -7,6 +8,11 @@ mod records;
 mod reference_resolution;
 mod service;
 mod similar;
+mod similarity_scoring;
+pub use configurable_similarity::{
+    ConfigurableSimilarRequest, ConfigurableSimilarResult, SimilarityDiagnostics,
+    SimilarityEvidence, SimilarityPair, SimilarityPartScore, SimilarityRoleScore,
+};
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
 #[cfg(test)]

@@ -13,6 +13,8 @@ mod relationships;
 mod resolver;
 mod search_selection;
 mod shield_content;
+mod similarity;
+pub use similarity::similarity_content_role;
 #[cfg(test)]
 mod tests;
 mod text;

@@ -6,16 +6,25 @@ import type {
   ResultSort,
   SortField,
   SortDirection,
+  SimilarityOptions,
 } from "../../generated/atlas";
 import { decodeFilterUrl, encodeFilterUrl } from "./filterUrl";
+import {
+  DEFAULT_SEARCH_PREFERENCES,
+  type SearchPreferences,
+} from "../search/searchPreferences";
 export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
 export const SEARCH_SCOPE_CONFLICT = "Choose either Similar or trait references";
 export const UNKNOWN_SEARCH_RANKING = "Unknown search ranking";
 export const UNKNOWN_RESULT_SORT = "Unknown result order";
 export const INVALID_RESULT_SORT = "Choose an order available for this search";
+export const INVALID_SIMILARITY_SETTINGS =
+  "Invalid similarity settings in this search link";
 export type SearchFormState = {
   sort?: ResultSort;
   ranking?: SearchRanking;
+  similarity?: SimilarityOptions;
+  similarityGeneration?: string;
   query: string;
   mode: "browse" | "text_search" | "similar_records";
   similarSeed: string | null;
@@ -68,17 +77,20 @@ export function buildSearchRequest(
       search_profile,
       ...sortRequest,
       page,
-      expected_artifact_generation,
+      expected_artifact_generation:
+        state.similarityGeneration ?? expected_artifact_generation,
       criteria: state.similarSeed.startsWith("trait:")
         ? {
             kind: "similar_traits",
             seed_trait_key: state.similarSeed,
             filter: state.filter,
+            similarity: state.similarity,
           }
         : {
             kind: "similar_records",
             seed_record_key: state.similarSeed,
             filter: state.filter,
+            similarity: state.similarity,
           },
     };
   return {
@@ -142,6 +154,8 @@ export function encodeSearchExecutionState(
     JSON.stringify({
       search_profile,
       ranking: state.ranking ?? "score",
+      similarity: state.similarSeed ? state.similarity : undefined,
+      similarityGeneration: state.similarSeed ? state.similarityGeneration : undefined,
       sort: state.sort,
       query: state.query,
       similarSeed: state.similarSeed,
@@ -159,10 +173,23 @@ export function searchStateQueryString(
 ): string {
   const params = new URLSearchParams();
   if (search_profile != null) params.set("search_profile", search_profile);
-  if (state.ranking && state.ranking !== "score") params.set("ranking", state.ranking);
+  if (state.ranking) params.set("ranking", state.ranking);
   encodeResultSort(params, state.sort);
   if (state.query) params.set("q", state.query);
   if (state.similarSeed) params.set("similar", state.similarSeed);
+  if (state.similarSeed && state.similarity) {
+    const settings = state.similarity;
+    params.set("similarity_method", settings.method);
+    if (settings.method !== "baseline") {
+      params.set("candidate_parts", settings.candidate_parts);
+      if (settings.method === "passages")
+        params.set("similarity_decay", String(settings.decay));
+      if (settings.parts)
+        for (const part of settings.parts) params.append("similarity_part", part);
+      if (state.similarityGeneration)
+        params.set("similarity_generation", state.similarityGeneration);
+    }
+  }
   if (state.traitReferenceSeed) params.set("trait_refs", state.traitReferenceSeed);
   if (state.filter) params.set("filter", encodeFilterUrl(state.filter));
   if (state.pageSize !== 25) params.set("limit", String(state.pageSize));
@@ -171,6 +198,7 @@ export function searchStateQueryString(
 export function decodeSearchStateFromParams(
   params: URLSearchParams,
   surface: "search" | "saved_list" = "search",
+  preferences: SearchPreferences = DEFAULT_SEARCH_PREFERENCES,
 ): SearchFormState {
   let filter: QueryPredicate | null = null;
   let filterError: string | null = null;
@@ -185,11 +213,23 @@ export function decodeSearchStateFromParams(
     filter = null;
     filterWasReset = true;
   }
-  const ranking = params.get("ranking") ?? "score";
+  const ranking = params.get("ranking") ?? preferences.ranking;
   if (!filterError && ranking !== "rrf" && ranking !== "score")
     filterError = UNKNOWN_SEARCH_RANKING;
   const pageSize = Number(params.get("limit") || 25);
   const similarSeed = params.get("similar")?.trim() || null;
+  let similarity: SimilarityOptions | undefined;
+  if (similarSeed) {
+    try {
+      similarity = decodeSimilarityOptions(
+        params,
+        preferences,
+        similarSeed.startsWith("trait:"),
+      );
+    } catch {
+      filterError = INVALID_SIMILARITY_SETTINGS;
+    }
+  }
   if (similarSeed && params.get("q")?.trim()) filterError = SIMILAR_QUERY_CONFLICT;
   if (similarSeed && params.get("trait_refs")) filterError = SEARCH_SCOPE_CONFLICT;
   const { sort, sortError } = decodeResultSort(
@@ -204,6 +244,10 @@ export function decodeSearchStateFromParams(
     ...(sort ? { sort } : {}),
     query: params.get("q") || "",
     similarSeed,
+    ...(similarity ? { similarity } : {}),
+    ...(params.get("similarity_generation")
+      ? { similarityGeneration: params.get("similarity_generation")! }
+      : {}),
     ...(params.get("trait_refs")
       ? { traitReferenceSeed: params.get("trait_refs") }
       : {}),
@@ -218,6 +262,45 @@ export function decodeSearchStateFromParams(
     pageSize:
       Number.isInteger(pageSize) && pageSize >= 1 && pageSize <= 100 ? pageSize : 25,
   };
+}
+
+function decodeSimilarityOptions(
+  params: URLSearchParams,
+  preferences: SearchPreferences,
+  trait: boolean,
+): SimilarityOptions {
+  const preferred = trait ? preferences.traitSimilarity : preferences.recordSimilarity;
+  const method = params.get("similarity_method") ?? preferred.method;
+  const hasContentOptions =
+    params.has("candidate_parts") ||
+    params.has("similarity_decay") ||
+    params.has("similarity_part") ||
+    params.has("similarity_generation");
+  if (method === "baseline") {
+    if (hasContentOptions) throw new Error(INVALID_SIMILARITY_SETTINGS);
+    return { method };
+  }
+  if (method !== "passages" && method !== "content-average")
+    throw new Error(INVALID_SIMILARITY_SETTINGS);
+  const candidate_parts =
+    params.get("candidate_parts") ?? (trait ? "any" : preferred.candidateParts);
+  if (
+    (candidate_parts !== "any" && candidate_parts !== "corresponding") ||
+    (trait && candidate_parts !== "any")
+  )
+    throw new Error(INVALID_SIMILARITY_SETTINGS);
+  const parts = params.has("similarity_part") ? params.getAll("similarity_part") : null;
+  if (parts?.some((part) => !part) || (parts && !params.get("similarity_generation")))
+    throw new Error(INVALID_SIMILARITY_SETTINGS);
+  if (method === "content-average") {
+    if (params.has("similarity_decay")) throw new Error(INVALID_SIMILARITY_SETTINGS);
+    return { method, parts, candidate_parts };
+  }
+  const rawDecay = params.get("similarity_decay");
+  const decay = rawDecay === null ? preferred.decay : Number(rawDecay);
+  if (rawDecay?.trim() === "" || !Number.isFinite(decay) || decay < 0 || decay > 1)
+    throw new Error(INVALID_SIMILARITY_SETTINGS);
+  return { method, parts, candidate_parts, decay };
 }
 
 export const INVALID_SORT_SEED =

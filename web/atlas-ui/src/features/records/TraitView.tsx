@@ -6,7 +6,7 @@ import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { Alert, Button, Empty, Spin, Tabs, Typography } from "antd";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { AtlasApiError, getTraitRecords } from "../../api/atlasApi";
+import { getTraitRecords, searchPage } from "../../api/atlasApi";
 import type {
   TraitAssociationKind,
   TraitDetailView,
@@ -25,6 +25,8 @@ import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHea
 import { useTraitDetail } from "../../shared/records/useTraitDetail";
 import { PreparedContentBody } from "../../shared/records/PreparedContent";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
+import { similarityFromPreferences } from "../../shared/search/similarityState";
+import { SearchPreviewRows } from "../../shared/records/SearchPreviewRows";
 import {
   DEFAULT_SEARCH_STATE,
   searchStateQueryString,
@@ -33,7 +35,10 @@ import {
   effectiveResultSort,
   type SearchFormState,
 } from "../../shared/filters/searchState";
-import { assertSearchIdentity } from "../../shared/search/searchIdentity";
+import {
+  assertSearchIdentity,
+  assertSimilarityIdentity,
+} from "../../shared/search/searchIdentity";
 import {
   isArtifactGenerationChanged,
   retireImmutableReferenceQueries,
@@ -261,19 +266,116 @@ function traitAssociationState(
     },
   };
 }
-function TraitRecords({
-  detail,
-  kind,
-  onReload,
-  search,
-  onReference,
-}: {
+type TraitRecordsProps = {
   detail: TraitDetailView;
   onReference: RecordReferenceHandler;
   kind: TraitAssociationKind;
   onReload: () => void;
   search: SearchFormState;
-}) {
+};
+function TraitRecords(props: TraitRecordsProps) {
+  return props.kind === "similar" ? (
+    <TraitSimilarRecords {...props} />
+  ) : (
+    <TraitAssociatedRecords {...props} kind={props.kind} />
+  );
+}
+
+function TraitSimilarRecords({
+  detail,
+  search,
+  onReference,
+  onReload,
+}: TraitRecordsProps) {
+  const profile = useSearchProfile();
+  const similarity = similarityFromPreferences(
+    profile.preferences.traitSimilarity,
+    true,
+  );
+  const request = {
+    criteria: {
+      kind: "similar_traits" as const,
+      seed_trait_key: detail.trait_key,
+      filter: null,
+      similarity,
+    },
+    search_profile: profile.id ?? undefined,
+    expected_artifact_generation: detail.artifact_generation,
+    page: { number: 1, size: 5 },
+    sort: effectiveResultSort(search),
+  };
+  const query = useQuery({
+    queryKey: ["trait-similar-preview", request],
+    enabled: profile.id !== null && profile.storedVectors && !search.filterError,
+    staleTime: Infinity,
+    queryFn: async ({ signal }) => {
+      const page = await searchPage(request, signal);
+      assertSearchIdentity(page, profile.id, detail.artifact_generation, request.sort);
+      assertSimilarityIdentity(page, similarity);
+      return page;
+    },
+  });
+  const changed = isArtifactGenerationChanged(query.error);
+  const data = changed ? undefined : query.data;
+  const route = searchDestination({
+    query: searchStateQueryString(
+      {
+        ...search,
+        query: "",
+        similarSeed: detail.trait_key,
+        similarity,
+        traitReferenceSeed: null,
+      },
+      profile.id ?? profile.pendingUrlProfile,
+    ),
+  });
+  return (
+    <section aria-label="Similar records" aria-busy={query.isFetching}>
+      <ExploreSearchAction route={route} summary="Top matches">
+        Search similar records
+      </ExploreSearchAction>
+      {search.filterError && <Alert type="error" title={search.filterError} />}
+      {query.error && (
+        <Alert
+          type="error"
+          title={
+            changed ? "Reference collection changed" : "Unable to load similar records"
+          }
+          description={query.error.message}
+          action={
+            <Button onClick={() => (changed ? onReload() : void query.refetch())}>
+              {changed ? "Reload trait" : "Retry"}
+            </Button>
+          }
+        />
+      )}
+      {!profile.storedVectors && (
+        <Typography.Paragraph type="secondary">
+          Similar records require stored vectors for the selected model.
+        </Typography.Paragraph>
+      )}
+      {query.isFetching && <Spin delay={400} />}
+      {data &&
+        (data.rows.length ? (
+          <SearchPreviewRows
+            page={data}
+            onReference={onReference}
+            onReload={onReload}
+          />
+        ) : (
+          <Empty description="No similar records" />
+        ))}
+    </section>
+  );
+}
+
+function TraitAssociatedRecords({
+  detail,
+  kind,
+  onReload,
+  search,
+  onReference,
+}: Omit<TraitRecordsProps, "kind"> & { kind: "members" | "references" }) {
   const profile = useSearchProfile();
   const request: TraitRecordsRequest = {
     trait_key: detail.trait_key,
@@ -282,31 +384,15 @@ function TraitRecords({
     expected_artifact_generation: detail.artifact_generation,
     search_profile: profile.id,
     ranking: "score",
-    ...(kind === "similar" && search.sort ? { sort: search.sort } : {}),
   };
   const query = useQuery<TraitRecordsPage>({
     queryKey: ["trait-records", request],
     staleTime: Infinity,
     retryOnMount: false,
-    queryFn: async ({ signal }) => {
-      const response = await getTraitRecords(request, signal);
-      if (kind === "similar")
-        assertSearchIdentity(
-          { ...response, search_profile: response.search_profile ?? "" },
-          profile.id,
-          detail.artifact_generation,
-          effectiveResultSort(search),
-        );
-      return response;
-    },
-    enabled: kind !== "similar" || (!profile.loading && !search.filterError),
+    queryFn: ({ signal }) => getTraitRecords(request, signal),
   });
   const changed = isArtifactGenerationChanged(query.error);
-  const unavailable =
-    kind === "similar" &&
-    query.error instanceof AtlasApiError &&
-    query.error.appError?.code === "vector_readiness_required";
-  const data = changed || unavailable ? undefined : query.data;
+  const data = changed ? undefined : query.data;
   const memberSearch = searchDestination({
     query: searchStateQueryString(
       {
@@ -329,68 +415,47 @@ function TraitRecords({
             {
               ...search,
               query: "",
-              similarSeed: kind === "similar" ? detail.trait_key : null,
-              traitReferenceSeed: kind === "references" ? detail.trait_key : null,
-              ...(kind === "references" ? { sort: undefined } : {}),
+              similarSeed: null,
+              traitReferenceSeed: detail.trait_key,
+              sort: undefined,
             },
             profile.id,
           ),
         });
   return (
     <section
-      aria-label={
-        kind === "members"
-          ? "Records with this trait"
-          : kind === "similar"
-            ? "Similar records"
-            : "Trait references"
-      }
+      aria-label={kind === "members" ? "Records with this trait" : "Trait references"}
       aria-busy={query.isFetching}
     >
       <ExploreSearchAction
         route={fullSearch}
         summary={
           data
-            ? kind === "similar"
-              ? "Top matches"
-              : `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1n ? "entry" : "entries"}`
+            ? `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1n ? "entry" : "entries"}`
             : undefined
         }
       >
         {kind === "members"
           ? "Search records with this trait"
-          : kind === "similar"
-            ? "Search similar records"
-            : "Search trait references"}
+          : "Search trait references"}
       </ExploreSearchAction>
-      {kind === "similar" && search.filterError && (
-        <Alert type="error" title={search.filterError} />
-      )}
       {query.error && (
         <Alert
           showIcon
-          type={changed ? "warning" : unavailable ? "info" : "error"}
+          type={changed ? "warning" : "error"}
           title={
-            changed
-              ? "Reference collection changed"
-              : unavailable
-                ? "Similar unavailable for this trait with the selected search model"
-                : "Unable to load these records"
+            changed ? "Reference collection changed" : "Unable to load these records"
           }
           description={
-            unavailable ? undefined : (
-              <>
-                {data && "Previously loaded records remain below. "}
-                {query.error.message}
-              </>
-            )
+            <>
+              {data && "Previously loaded records remain below. "}
+              {query.error.message}
+            </>
           }
           action={
-            unavailable ? undefined : (
-              <Button onClick={() => (changed ? onReload() : void query.refetch())}>
-                {changed ? "Reload trait" : "Retry"}
-              </Button>
-            )
+            <Button onClick={() => (changed ? onReload() : void query.refetch())}>
+              {changed ? "Reload trait" : "Retry"}
+            </Button>
           }
         />
       )}
@@ -402,7 +467,7 @@ function TraitRecords({
       {query.isLoading && <Spin delay={500} />}
       {data && (
         <>
-          {kind !== "similar" && data.coverage && !data.coverage.exhaustive && (
+          {data.coverage && !data.coverage.exhaustive && (
             <Typography.Paragraph type="secondary">Top matches</Typography.Paragraph>
           )}
           {!data.rows.length ? (
@@ -410,9 +475,7 @@ function TraitRecords({
               description={
                 kind === "members"
                   ? "No records carry this trait"
-                  : kind === "references"
-                    ? "No source-backed references"
-                    : "No similar records"
+                  : "No source-backed references"
               }
             />
           ) : (

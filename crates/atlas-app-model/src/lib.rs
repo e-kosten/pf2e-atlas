@@ -101,6 +101,12 @@ pub use reference_profiles::{
 mod readiness;
 mod record;
 mod search;
+mod similarity;
+pub use similarity::{
+    SimilarityConfigurationView, SimilarityDiagnosticsView, SimilarityEvidenceView,
+    SimilarityPairView, SimilarityPartScoreView, SimilarityPartView, SimilarityPartsRequest,
+    SimilarityPartsView, SimilarityRoleScoreView,
+};
 
 pub use embedded_reading::{
     EmbeddedReadingBatchView, EmbeddedReadingCursor, EmbeddedReadingEntryView,
@@ -233,6 +239,10 @@ mod tests {
     }
 
     fn export_bindings_to(path: &Path) {
+        SimilarityPartsRequest::export_all_to(path).expect("similarity inventory request bindings");
+        SimilarityPartsView::export_all_to(path).expect("similarity inventory bindings");
+        SimilarityConfigurationView::export_all_to(path)
+            .expect("similarity configuration bindings");
         UpdateTurnResourcesRequest::export_all_to(path).expect("turn resource request");
         TurnResourcesView::export_all_to(path).expect("turn resources");
         EncounterStrikeContextRequest::export_all_to(path).expect("strike attempt preview request");

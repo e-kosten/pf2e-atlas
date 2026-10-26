@@ -3,6 +3,7 @@ use atlas_embedding::EmbeddingError;
 use atlas_index::IndexError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SearchErrorKind {
+    OperationCancelled,
     IndexUnavailable,
     ArtifactContractViolation,
     InvalidFilter,
@@ -19,6 +20,12 @@ pub struct SearchError {
     pub query_error: Option<Box<QueryError>>,
 }
 impl SearchError {
+    pub(crate) fn operation_cancelled() -> Self {
+        Self::new(
+            SearchErrorKind::OperationCancelled,
+            "comparison was cancelled",
+        )
+    }
     pub fn kind(&self) -> SearchErrorKind {
         self.kind
     }
@@ -94,6 +101,7 @@ impl From<QueryError> for SearchError {
 impl From<IndexError> for SearchError {
     fn from(e: IndexError) -> Self {
         match e {
+            IndexError::Limit(message) => Self::invalid_search_options(message),
             IndexError::Query(e) => e.into(),
             IndexError::Unavailable(s) => Self::index_unavailable(s),
             IndexError::Unsupported(s) | IndexError::Invalid(s) => {
