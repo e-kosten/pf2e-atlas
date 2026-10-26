@@ -81,18 +81,24 @@
 .record-reference__tools {
   display: flex;
   flex: 0 0 auto;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 100%;
+  margin-inline-start: auto;
+}
+.record-reference__tools-row {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-control) var(--space-group);
   max-width: 100%;
-  margin-inline-start: auto;
+}
+.record-reference__classification-action {
+  align-self: flex-start;
 }
 .record-reference__classification {
   display: flex;
-  align-items: flex-end;
-  flex-direction: column;
-  gap: 2px;
-  margin-inline-start: 0;
+  align-items: center;
 }
 .record-reference__identity {
   flex: 1 1 12ch;
@@ -127,6 +133,14 @@
 .record-reference__header--stacked .record-reference__title {
   align-items: center;
   gap: var(--space-control) var(--space-group);
+}
+.record-reference__header--with-classification-action .record-reference__title {
+  align-items: flex-start;
+}
+.record-reference__header--with-classification-action .record-reference__identity {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-height);
 }
 .record-reference__metadata {
   display: grid;

@@ -17,6 +17,46 @@ test("spell links keep rank through effect reading, explanations and full-page n
   page,
 }, info) => {
   await page.goto(selectedSpell(4));
+  const header = page.locator(".record-reference__header").first();
+  await expect(
+    header.getByRole("button", { name: "Change rank", exact: true }),
+  ).toBeVisible();
+  const headerGeometry = () =>
+    header.evaluate((node) => {
+      const rect = (selector: string) =>
+        node.querySelector(selector)!.getBoundingClientRect();
+      const kind = rect(".record-reference__kind");
+      const title = rect("h2");
+      const rank = rect(".spell-rank-control");
+      const actions = [
+        ...node.querySelectorAll(".record-reference__actions button"),
+      ].map((button) => button.getBoundingClientRect());
+      return {
+        kindCenter: kind.y + kind.height / 2,
+        rowTop: kind.y,
+        rowBottom: Math.max(kind.bottom, ...actions.map((a) => a.bottom)),
+        titleTop: title.y,
+        rankTop: rank.y,
+        actions: actions.map((a) => ({ center: a.y + a.height / 2, height: a.height })),
+      };
+    });
+  const beforeHeader = await headerGeometry();
+  expect(beforeHeader.actions).toHaveLength(2);
+  for (const action of beforeHeader.actions) {
+    expect(Math.abs(action.center - beforeHeader.kindCenter)).toBeLessThanOrEqual(1);
+    expect(action.height).toBe(34);
+  }
+  expect(beforeHeader.rankTop).toBeGreaterThanOrEqual(beforeHeader.rowBottom);
+  expect(beforeHeader.titleTop).toBeLessThanOrEqual(beforeHeader.rowTop + 4);
+  await activate(
+    header.getByRole("button", { name: "Explore related records", exact: true }),
+    info,
+  );
+  expect(await headerGeometry()).toEqual(beforeHeader);
+  await activate(
+    header.getByRole("button", { name: "Read document", exact: true }),
+    info,
+  );
   const bear = page.getByRole("link", { name: "Bear", exact: true });
   await expect(bear).toBeVisible();
   const href = await bear.getAttribute("href");
