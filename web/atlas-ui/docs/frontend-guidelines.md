@@ -1578,6 +1578,11 @@ Creature Lore rows use the authored title and signed modifier once. Actor spell
 lists display known authored casting rank, preserving an unavailable casting
 rank explicitly; base rank and authored heightening remain in the opened detail.
 The browser does not calculate selected-rank spell effects.
+Casting-advice retention includes saved conditions and source option identity/state.
+Changing Incurable Curse from Stupefied to Clumsy immediately retires the previous
+flat-check advice, even if its replacement fails. Spending a use or spell slot keeps
+still-valid advice and the Cast control mounted; do not invalidate it for every
+participant revision or retain it merely because the spell is unchanged.
 
 Participant settings uses one labeled Save/Cancel form and the complete guarded
 participant update. Edit HP shows Current, Maximum and Temporary fields; Save
