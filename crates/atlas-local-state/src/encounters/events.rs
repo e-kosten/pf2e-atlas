@@ -277,6 +277,22 @@ impl EncountersWrite<'_> {
                 self.connection.execute("INSERT INTO encounter_boundary_claims(encounter_id,participant_key,round_number,kind,scope_key,request_id) SELECT id,?2,?3,?4,?5,?6 FROM encounters WHERE encounter_key=?1",params![encounter_key,claim.participant_key,claim.round_number,claim.kind.as_str(),claim.scope_key,request_id])?;
             }
             let changes = evaluate()?;
+            for change in &changes.ability_states {
+                let participant = snapshot
+                    .participants
+                    .iter()
+                    .find(|participant| participant.participant_key == change.participant_key)
+                    .ok_or_else(|| {
+                        LocalStateError::ParticipantNotFound(change.participant_key.clone())
+                    })?;
+                if participant.revision != change.expected_revision {
+                    return Err(LocalStateError::StaleParticipantRevision {
+                        participant_key: change.participant_key.clone(),
+                        expected_revision: change.expected_revision,
+                        actual_revision: participant.revision,
+                    });
+                }
+            }
             for change in &changes.participant_changes {
                 let participant = snapshot
                     .participants
@@ -381,6 +397,9 @@ impl EncountersWrite<'_> {
                         }
                     }
                 }
+            }
+            for change in &changes.ability_states {
+                self.save_ability_state(encounter_key, change)?;
             }
             for resources in &changes.turn_resources {
                 self.save_turn_resources(encounter_key, resources)?;

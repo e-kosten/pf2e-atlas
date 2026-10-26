@@ -654,7 +654,7 @@ pub(crate) fn compose_participant(
                     applied: vec![],
                     suppressed: vec![],
                     notes: vec![RuntimeEffectNoteView {
-                        source: format!("condition:{}", replacement.condition_id),
+                        source: replacement.source.clone(),
                         label: replacement.condition_name.clone(),
                         reason: format!(
                             "Sets {} to {}.",

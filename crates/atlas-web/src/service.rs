@@ -346,6 +346,11 @@ pub(crate) trait AtlasWebService: Send + Sync {
         &self,
         encounter_ref: &str,
     ) -> Result<EncounterTurnReviewView, AppServiceError>;
+    fn update_encounter_ability_state(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::UpdateEncounterAbilityStateRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
     fn update_turn_resources(
         &self,
         encounter_ref: &str,
@@ -841,6 +846,13 @@ impl AtlasWebService for AtlasAppService {
         encounter_ref: &str,
     ) -> Result<EncounterTurnReviewView, AppServiceError> {
         self.encounter_turn_review(encounter_ref)
+    }
+    fn update_encounter_ability_state(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::UpdateEncounterAbilityStateRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.update_encounter_ability_state(encounter_ref, request)
     }
     fn update_turn_resources(
         &self,

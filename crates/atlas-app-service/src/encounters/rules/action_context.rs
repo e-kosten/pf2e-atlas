@@ -1,6 +1,7 @@
 //! Pure action restrictions and flat-check obligations. Unknown facts stay contextual hints.
 use super::super::conditions::ConditionRule;
-use super::causes::condition_causes;
+use super::causes::{ConditionSourceKey, condition_causes};
+use super::source_conditions::SourceConditions;
 use atlas_local_state::EncounterParticipant;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,11 +43,15 @@ pub(in crate::encounters) struct ActionContext<'a> {
 }
 
 impl ActionContext<'_> {
-    fn fact(&self, source_id: i64, fact: ActionFact) -> Option<bool> {
+    fn fact(&self, source_id: &ConditionSourceKey, fact: ActionFact) -> Option<bool> {
         let scoped: Vec<_> = self
             .facts
             .iter()
-            .filter(|entry| entry.fact == fact && entry.source_id == Some(source_id))
+            .filter(|entry| {
+                entry.fact == fact
+                    && source_id.saved_id().is_some()
+                    && entry.source_id == source_id.saved_id()
+            })
             .collect();
         let values: Vec<_> = if scoped.is_empty() {
             self.facts
@@ -67,21 +72,21 @@ impl ActionContext<'_> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::encounters) enum ActionIssue {
     Prohibited {
-        source_id: i64,
+        source_id: ConditionSourceKey,
         rule: ConditionRule,
     },
     NeedsFact {
-        source_id: i64,
+        source_id: ConditionSourceKey,
         fact: ActionFact,
     },
     NeedsConfusion {
-        source_id: i64,
+        source_id: ConditionSourceKey,
     },
     NeedsValue {
-        source_id: i64,
+        source_id: ConditionSourceKey,
     },
     NeedsContext {
-        source_id: i64,
+        source_id: ConditionSourceKey,
         reason: &'static str,
     },
 }
@@ -89,7 +94,7 @@ pub(in crate::encounters) enum ActionIssue {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::encounters) struct DisruptionCheck {
     pub dc: i64,
-    pub source_ids: Vec<i64>,
+    pub source_ids: Vec<ConditionSourceKey>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -101,8 +106,11 @@ pub(in crate::encounters) struct ActionEvaluation {
 }
 
 impl ActionEvaluation {
-    fn prohibit(&mut self, source_id: i64, rule: ConditionRule) {
-        let issue = ActionIssue::Prohibited { source_id, rule };
+    fn prohibit(&mut self, source_id: &ConditionSourceKey, rule: ConditionRule) {
+        let issue = ActionIssue::Prohibited {
+            source_id: source_id.clone(),
+            rule,
+        };
         if !self.issues.contains(&issue) {
             self.issues.push(issue);
         }
@@ -111,105 +119,121 @@ impl ActionEvaluation {
     fn requires(
         &mut self,
         context: &ActionContext<'_>,
-        source_id: i64,
+        source_id: &ConditionSourceKey,
         rule: ConditionRule,
         fact: ActionFact,
         permitted: bool,
     ) {
         match context.fact(source_id, fact) {
             Some(value) if value != permitted => self.prohibit(source_id, rule),
-            None => self.issues.push(ActionIssue::NeedsFact { source_id, fact }),
+            None => self.issues.push(ActionIssue::NeedsFact {
+                source_id: source_id.clone(),
+                fact,
+            }),
             _ => {}
         }
     }
 
-    fn check(&mut self, source_id: i64, dc: i64) {
+    fn check(&mut self, source_id: &ConditionSourceKey, dc: i64) {
         let check = self.disruption.get_or_insert_with(|| DisruptionCheck {
             dc,
             source_ids: vec![],
         });
         check.dc = check.dc.max(dc);
-        if !check.source_ids.contains(&source_id) {
-            check.source_ids.push(source_id);
+        if !check.source_ids.contains(source_id) {
+            check.source_ids.push(source_id.clone());
         }
     }
 
-    fn conditional_check(&mut self, context: &ActionContext<'_>, source_id: i64, fact: ActionFact) {
+    fn conditional_check(
+        &mut self,
+        context: &ActionContext<'_>,
+        source_id: &ConditionSourceKey,
+        fact: ActionFact,
+    ) {
         match context.fact(source_id, fact) {
             Some(true) => self.check(source_id, 5),
             Some(false) => {}
-            None => self.issues.push(ActionIssue::NeedsFact { source_id, fact }),
+            None => self.issues.push(ActionIssue::NeedsFact {
+                source_id: source_id.clone(),
+                fact,
+            }),
         }
     }
 }
 
 pub(in crate::encounters) fn evaluate_action(
     participant: &EncounterParticipant,
+    sources: &SourceConditions,
     context: &ActionContext<'_>,
 ) -> ActionEvaluation {
     let mut result = ActionEvaluation::default();
-    for cause in condition_causes(participant, context.other_participant) {
-        let id = cause.source.condition_id;
+    for cause in condition_causes(participant, context.other_participant, sources) {
+        let id = cause.source.key();
         let rule = cause.rule;
         match rule {
-            ConditionRule::Unconscious | ConditionRule::Petrified => result.prohibit(id, rule),
-            ConditionRule::Stunned if cause.value != Some(0) => result.prohibit(id, rule),
+            ConditionRule::Unconscious | ConditionRule::Petrified => result.prohibit(&id, rule),
+            ConditionRule::Stunned if cause.value != Some(0) => result.prohibit(&id, rule),
             ConditionRule::Paralyzed => {
-                result.requires(context, id, rule, ActionFact::MentalOnly, true);
+                result.requires(context, &id, rule, ActionFact::MentalOnly, true);
             }
             ConditionRule::Immobilized | ConditionRule::Prone => {
-                result.requires(context, id, rule, ActionFact::Move, false);
+                result.requires(context, &id, rule, ActionFact::Move, false);
             }
             ConditionRule::Restrained => {
-                result.requires(context, id, rule, ActionFact::Attack, false);
-                result.requires(context, id, rule, ActionFact::Manipulate, false);
+                result.requires(context, &id, rule, ActionFact::Attack, false);
+                result.requires(context, &id, rule, ActionFact::Manipulate, false);
             }
-            ConditionRule::Grabbed => result.conditional_check(context, id, ActionFact::Manipulate),
-            ConditionRule::Deafened => result.conditional_check(context, id, ActionFact::Auditory),
+            ConditionRule::Grabbed => {
+                result.conditional_check(context, &id, ActionFact::Manipulate)
+            }
+            ConditionRule::Deafened => result.conditional_check(context, &id, ActionFact::Auditory),
             ConditionRule::Stupefied if context.kind == ActionKind::Cast => {
                 match stupefied_dc(cause.value) {
-                    Some(dc) => result.check(id, dc),
-                    _ => result
-                        .issues
-                        .push(ActionIssue::NeedsValue { source_id: id }),
+                    Some(dc) => result.check(&id, dc),
+                    _ => result.issues.push(ActionIssue::NeedsValue {
+                        source_id: id.clone(),
+                    }),
                 }
             }
-            ConditionRule::Fascinated => match context.fact(id, ActionFact::Concentrate) {
+            ConditionRule::Fascinated => match context.fact(&id, ActionFact::Concentrate) {
                 Some(true) => {
                     if matches!(
-                        &cause.source.parameters,
-                        atlas_local_state::ConditionParameters::Fascinated { subject: Some(_) }
+                        cause.source.saved().map(|source| &source.parameters),
+                        Some(atlas_local_state::ConditionParameters::Fascinated {
+                            subject: Some(_)
+                        })
                     ) {
-                        result.requires(context, id, rule, ActionFact::RelatesToFascination, true)
+                        result.requires(context, &id, rule, ActionFact::RelatesToFascination, true)
                     } else {
                         result.issues.push(ActionIssue::NeedsContext {
-                            source_id: id,
+                            source_id: id.clone(),
                             reason: "Choose the subject of fascination.",
                         });
                     }
                 }
                 Some(false) => {}
                 None => result.issues.push(ActionIssue::NeedsFact {
-                    source_id: id,
+                    source_id: id.clone(),
                     fact: ActionFact::Concentrate,
                 }),
             },
             ConditionRule::Fleeing => {
                 if context.reaction.is_none() {
                     result.issues.push(ActionIssue::NeedsFact {
-                        source_id: id,
+                        source_id: id.clone(),
                         fact: ActionFact::Reaction,
                     });
                 }
                 if context.reaction == Some(false) {
                     if matches!(
-                        &cause.source.parameters,
-                        atlas_local_state::ConditionParameters::Fleeing { subject: Some(_) }
+                        cause.source.saved().map(|source| &source.parameters),
+                        Some(atlas_local_state::ConditionParameters::Fleeing { subject: Some(_) })
                     ) {
-                        result.requires(context, id, rule, ActionFact::FurthersEscape, true);
+                        result.requires(context, &id, rule, ActionFact::FurthersEscape, true);
                     } else {
                         result.issues.push(ActionIssue::NeedsContext {
-                            source_id: id,
+                            source_id: id.clone(),
                             reason: "Choose the source you are fleeing from.",
                         });
                     }
@@ -218,49 +242,57 @@ pub(in crate::encounters) fn evaluate_action(
             ConditionRule::Confused => {
                 if context.reaction.is_none() {
                     result.issues.push(ActionIssue::NeedsFact {
-                        source_id: id,
+                        source_id: id.clone(),
                         fact: ActionFact::Reaction,
                     });
                 }
                 if context.reaction == Some(true) {
-                    result.prohibit(id, rule);
+                    result.prohibit(&id, rule);
                 } else if context.reaction == Some(false) {
-                    result
-                        .issues
-                        .push(ActionIssue::NeedsConfusion { source_id: id });
+                    result.issues.push(ActionIssue::NeedsConfusion {
+                        source_id: id.clone(),
+                    });
                 }
             }
             ConditionRule::Controlled => {
-                if control_direction(participant, cause.source).is_some() {
+                if cause
+                    .source
+                    .saved()
+                    .and_then(|source| control_direction(participant, source, sources))
+                    .is_some()
+                {
                     result.requires(
                         context,
-                        id,
+                        &id,
                         rule,
                         ActionFact::FollowsControllerInstructions,
                         true,
                     );
                 } else {
                     result.issues.push(ActionIssue::NeedsContext {
-                        source_id: id,
+                        source_id: id.clone(),
                         reason: "Resolve which controller directs this action.",
                     });
                 }
             }
 
             ConditionRule::Sickened => {
-                result.requires(context, id, rule, ActionFact::VoluntaryIngestion, false)
+                result.requires(context, &id, rule, ActionFact::VoluntaryIngestion, false)
             }
             _ => {}
         }
     }
     if let Some(check) = &mut result.disruption {
-        check.source_ids.sort_unstable();
+        check.source_ids.sort_by_key(|source| format!("{source:?}"));
     }
     result
 }
 
-pub(in crate::encounters) fn is_confused(participant: &EncounterParticipant) -> bool {
-    condition_causes(participant, None)
+pub(in crate::encounters) fn is_confused(
+    participant: &EncounterParticipant,
+    sources: &SourceConditions,
+) -> bool {
+    condition_causes(participant, None, sources)
         .iter()
         .any(|cause| cause.rule == ConditionRule::Confused)
 }
@@ -269,16 +301,25 @@ pub(in crate::encounters) fn is_confused(participant: &EncounterParticipant) -> 
 pub(in crate::encounters) fn control_direction(
     participant: &EncounterParticipant,
     source: &atlas_local_state::EncounterParticipantCondition,
+    sources: &SourceConditions,
 ) -> Option<(String, Option<String>)> {
     let controller = source.source_participant_key.as_deref()?;
     let instructions = source.note.as_ref();
-    let conflicting = condition_causes(participant, Some(controller))
+    let conflicting = condition_causes(participant, Some(controller), sources)
         .iter()
         .any(|cause| {
             cause.rule == ConditionRule::Controlled
-                && (cause.source.source_participant_key.is_none()
-                    || (cause.source.source_participant_key.as_deref() == Some(controller)
-                        && cause.source.note.as_ref() != instructions))
+                && (cause
+                    .source
+                    .saved()
+                    .is_none_or(|source| source.source_participant_key.is_none())
+                    || (cause
+                        .source
+                        .saved()
+                        .and_then(|source| source.source_participant_key.as_deref())
+                        == Some(controller)
+                        && cause.source.saved().and_then(|source| source.note.as_ref())
+                            != instructions))
         });
     (!conflicting).then(|| (controller.to_owned(), instructions.cloned()))
 }
@@ -291,8 +332,9 @@ fn stupefied_dc(value: Option<i64>) -> Option<i64> {
 pub(in crate::encounters) fn stupefied_casting_hint(
     participant: &EncounterParticipant,
     opponent: Option<&str>,
+    sources: &SourceConditions,
 ) -> Option<Result<i64, ()>> {
-    let mut checks = condition_causes(participant, opponent)
+    let mut checks = condition_causes(participant, opponent, sources)
         .into_iter()
         .filter(|cause| cause.rule == ConditionRule::Stupefied)
         .peekable();
@@ -300,7 +342,7 @@ pub(in crate::encounters) fn stupefied_casting_hint(
     let mut result = ActionEvaluation::default();
     for cause in checks {
         match stupefied_dc(cause.value) {
-            Some(dc) => result.check(cause.source.condition_id, dc),
+            Some(dc) => result.check(&cause.source.key(), dc),
             None => return Some(Err(())),
         }
     }

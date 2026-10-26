@@ -34,9 +34,18 @@ fn prepare(
         .ok_or_else(|| {
             AppServiceError::invalid_request("Participant is no longer in this encounter.")
         })?;
+    let (sources, records) = {
+        let (_, records) = super::hydration::hydrate_participant_records(
+            workspace.retrieval_mut(),
+            &snapshot.participants,
+        )?;
+        let sources = super::hydration::participant_source_conditions(participant, &records);
+        (sources, records)
+    };
     let facts = super::action_projection::strike_facts(&activity);
     let evaluated = super::rules::action_context::evaluate_action(
         participant,
+        &sources,
         &super::rules::action_context::ActionContext {
             kind: ActionKind::Strike,
             reaction: Some(false),
@@ -47,7 +56,7 @@ fn prepare(
     let mut issues = evaluated
         .issues
         .into_iter()
-        .map(|issue| super::action_projection::issue_view(issue, participant))
+        .map(|issue| super::action_projection::issue_view(issue, participant, &sources))
         .collect::<Vec<_>>();
     issues.extend(super::action_projection::inactive_issue(participant));
     let disruption = evaluated.disruption.map(|check| {
@@ -90,13 +99,21 @@ fn prepare(
                 None,
             );
             let mut dc = requirements.flat_check_dc;
-            let mut ids = requirements.source_ids;
+            let mut ids = requirements
+                .source_ids
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<super::rules::causes::ConditionSourceKey>>();
             if dazzled.applies == Some(true) {
                 dc = Some(dc.unwrap_or(0).max(5));
                 ids.extend(dazzled.source_ids);
             }
-            let causes =
-                super::rules::causes::condition_causes(subject, Some(&participant.participant_key));
+            let target_sources = super::hydration::participant_source_conditions(subject, &records);
+            let causes = super::rules::causes::condition_causes(
+                subject,
+                Some(&participant.participant_key),
+                &target_sources,
+            );
             let prevents_effect = activity.traits_known
                 && causes.iter().any(|cause| {
                     (cause.rule == super::conditions::ConditionRule::Blinded
@@ -119,7 +136,7 @@ fn prepare(
     };
     let action = EncounterStrikeActionContextView {
         issues,
-        confused: super::rules::action_context::is_confused(participant),
+        confused: super::rules::action_context::is_confused(participant, &sources),
         disruption,
         targeting,
     };

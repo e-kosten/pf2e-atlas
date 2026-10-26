@@ -482,6 +482,7 @@ pub(super) fn resolve_strike(
     let facts = super::action_projection::strike_facts(&activity);
     let evaluation = super::rules::action_context::evaluate_action(
         participant,
+        &baseline.source_conditions,
         &ActionContext {
             kind: ActionKind::Strike,
             reaction: Some(false),
@@ -493,9 +494,13 @@ pub(super) fn resolve_strike(
         .issues
         .into_iter()
         .map(|issue| {
-            let issue = super::action_projection::issue_view(issue, participant);
+            let issue = super::action_projection::issue_view(
+                issue,
+                participant,
+                &baseline.source_conditions,
+            );
             RuntimeEffectNoteView {
-                source: format!("condition:{}", issue.source_condition_id),
+                source: issue.source_key,
                 label: issue.condition_name,
                 reason: issue.reason,
             }
@@ -507,23 +512,19 @@ pub(super) fn resolve_strike(
             label: check
                 .source_ids
                 .iter()
-                .filter_map(|id| {
-                    participant
-                        .conditions
-                        .iter()
-                        .find(|condition| condition.condition_id == *id)
-                })
-                .map(|condition| condition.name.as_str())
+                .map(|id| id.label(std::slice::from_ref(participant)))
                 .collect::<Vec<_>>()
                 .join(", "),
             reason: format!("DC {} flat check or the action is disrupted", check.dc),
         });
     }
-    for cause in super::rules::causes::condition_causes(participant, None) {
+    for cause in
+        super::rules::causes::condition_causes(participant, None, &baseline.source_conditions)
+    {
         if cause.rule == super::conditions::ConditionRule::Blinded {
             conditional.push(RuntimeEffectNoteView {
-                source: format!("condition:{}:detection", cause.source.condition_id),
-                label: cause.source.name.clone(),
+                source: cause.source.explanation_key(),
+                label: cause.source.name().to_owned(),
                 reason: "Check detection".into(),
             });
         }
