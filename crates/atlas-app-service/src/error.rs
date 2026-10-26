@@ -162,6 +162,7 @@ impl From<atlas_domain::QueryError> for AppServiceError {
 
 fn search_error_code(kind: SearchErrorKind) -> AppErrorCode {
     match kind {
+        SearchErrorKind::OperationCancelled => AppErrorCode::OperationCancelled,
         SearchErrorKind::IndexUnavailable => AppErrorCode::IndexUnavailable,
         SearchErrorKind::ArtifactContractViolation => AppErrorCode::ArtifactIncompatible,
         SearchErrorKind::InvalidFilter => AppErrorCode::FilterInvalid,

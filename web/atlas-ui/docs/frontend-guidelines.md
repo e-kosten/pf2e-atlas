@@ -12,10 +12,16 @@ literal to every workspace serializer so reader or criterion updates retain link
 authority. This literal does not enable retrieval. Unavailable explicit choices
 remain visible. Native Similar See-more links preserve the same pending literal
 for copying or opening another tab while their requests still wait for metadata.
-A compact Ant Select at the trailing end of the search input row changes the same
-selection inherited by search pickers and
-Similar previews, including their native See-more links. Browser preferences are
-optional and never switch another live tab. Missing query assets block text
+A shared Search settings icon button beside the search input opens one Ant modal.
+Its draft includes the model and the applicable text-ranking or Similar controls;
+Apply commits their complete effective state in one search update. Compare parts
+expands within that modal, rather than opening another overlay. Model selection
+is inherited by search pickers and Similar previews, including their native
+See-more links. General preferences persist in one versioned localStorage object;
+the existing model preference migrates once. Explicit URLs override launch defaults
+without implicitly saving them. Cancel discards drafts and Apply remembers the
+active general preferences. Exact part selections remain seed/generation-specific.
+Browser preferences are optional and never switch another live tab. Missing query assets block text
 inference while stored-vector Similar and reference reading remain available.
 An artifact with one stored profile has no chooser or model-choice copy, including
 invalid incoming links. Those links retain their explicit error until the user
@@ -25,7 +31,10 @@ defaults and resolve to the valid server or sole stored default on launch.
 Unbuilt catalog entries are never offered as choices in the comparison UI.
 `FilterControls` owns the input row and its trailing control slot; the row wraps
 when space requires it without covering the existing `Input.Search` control.
-The chosen model name stays visible with an accessible Search model label.
+The settings icon has a normal-sized button target, accessible Search settings
+name and a tooltip summarizing effective values. A customized marker has a text
+equivalent. Model and method controls live inside the shared dialog; ordinary
+filters and result order remain in the main search flow.
 Search without committed criteria shows “Search or choose filters.”; committed
 text, a Similar seed or a non-null predicate uses the shared executable-search
 policy. No-data requests show centered Ant loading feedback, completed empty

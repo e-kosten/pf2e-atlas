@@ -1,0 +1,49 @@
+.search-settings__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-control);
+}
+.search-settings__decay {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem;
+  align-items: center;
+  gap: var(--space-group);
+}
+.search-settings__scale {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-control);
+  margin-block-end: var(--space-control);
+}
+.search-settings__parts,
+.search-settings__part-group,
+.search-settings__part-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-control);
+}
+.search-settings__parts {
+  margin-block: var(--space-group);
+}
+.search-settings__part-fields {
+  padding-inline-start: var(--space-group);
+}
+.similarity-explanation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-group);
+  width: min(32rem, calc(100vw - 64px));
+  max-height: 60dvh;
+  overflow: auto;
+}
+.similarity-explanation__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-group);
+}
+@media (max-width: 480px) {
+  .similarity-explanation__pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

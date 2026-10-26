@@ -2,12 +2,17 @@ import { navigateDestination } from "../../app/navigation";
 import { recordDestination, searchDestination } from "../../app/destinations";
 import { Alert, Button, Empty, Modal, Spin, Tabs, Typography } from "antd";
 import { useState } from "react";
+import { SearchPreviewRows } from "./SearchPreviewRows";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
 import { AtlasApiError, getRelatedRecords, searchPage } from "../../api/atlasApi";
 import { useSearchProfile } from "../search/SearchProfileContext";
+import { similarityFromPreferences } from "../search/similarityState";
 import { SearchProfileNotice } from "../search/SearchProfileNotice";
-import { assertSearchIdentity } from "../search/searchIdentity";
+import {
+  assertSearchIdentity,
+  assertSimilarityIdentity,
+} from "../search/searchIdentity";
 import { currentSearchLocation } from "../../app/searchLocation";
 import {
   DEFAULT_SEARCH_STATE,
@@ -15,12 +20,7 @@ import {
   searchStateQueryString,
 } from "../filters/searchState";
 import { linkLeaf } from "../filters/linkPredicates";
-import type {
-  RecordDetailView,
-  RecordSummaryView,
-  SearchResultsPage,
-  QueryPredicate,
-} from "../../generated/atlas";
+import type { RecordDetailView, RecordSummaryView } from "../../generated/atlas";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
@@ -168,45 +168,6 @@ function useReferencePreview(detail: RecordDetailView, incoming: boolean) {
     },
   });
   return { query, filter };
-}
-
-function SearchPreviewRows({
-  page,
-  filter,
-  onReference,
-  onReload,
-}: {
-  page: SearchResultsPage;
-  filter?: QueryPredicate;
-  onReference: RecordReferenceHandler;
-  onReload?: () => void;
-}) {
-  const [open, setOpen] = useState<string | null>(null);
-  return (
-    <div className="record-explore__results" role="list">
-      {page.rows.map((row) => (
-        <div role="listitem" key={row.record.record_key}>
-          <ReferenceResult
-            row={row}
-            selected={false}
-            disabled={false}
-            relationshipClauses={page.relationship_clauses}
-            filter={filter}
-            generation={page.artifact_generation}
-            onRefreshResults={async () => {
-              onReload?.();
-            }}
-            matchesOpen={open === row.record.record_key}
-            onMatchesOpenChange={(show) => setOpen(show ? row.record.record_key : null)}
-            onPreview={(anchor) => onReference(row.record.record_key, anchor)}
-            onMatch={(selection, anchor) =>
-              onReference(selection.record_key, anchor, selection)
-            }
-          />
-        </div>
-      ))}
-    </div>
-  );
 }
 
 function ReferencePreview({
@@ -498,15 +459,27 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
 function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreProps) {
   const seed = detail.record.record_key;
   const profile = useSearchProfile();
+  const similarity = similarityFromPreferences(profile.preferences.recordSimilarity);
   const similar = useQuery({
-    queryKey: ["similar-preview", seed, detail.artifact_generation, profile.id],
+    queryKey: [
+      "similar-preview",
+      seed,
+      detail.artifact_generation,
+      profile.id,
+      similarity,
+    ],
     enabled: profile.id !== null && profile.storedVectors,
     staleTime: Infinity,
     queryFn: async ({ signal }) => {
       const page = await searchPage(
         {
           search_profile: profile.id ?? undefined,
-          criteria: { kind: "similar_records", seed_record_key: seed, filter: null },
+          criteria: {
+            kind: "similar_records",
+            seed_record_key: seed,
+            filter: null,
+            similarity,
+          },
           page: { number: 1, size: 5 },
           expected_artifact_generation: detail.artifact_generation,
         },
@@ -515,6 +488,7 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       assertSearchIdentity(page, profile.id, detail.artifact_generation, {
         kind: "relevance",
       });
+      assertSimilarityIdentity(page, similarity);
       return page;
     },
   });
@@ -529,6 +503,8 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
         query: "",
         mode: "similar_records",
         similarSeed: seed,
+        similarity,
+        similarityGeneration: undefined,
         traitReferenceSeed: null,
       },
       profile.id ?? profile.pendingUrlProfile,

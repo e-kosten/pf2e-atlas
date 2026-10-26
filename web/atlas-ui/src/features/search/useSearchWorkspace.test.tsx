@@ -1,4 +1,11 @@
 import { RouterTestContext } from "../../test/router";
+import { App, ConfigProvider } from "antd";
+import { SearchProfileProvider } from "../../test/SearchProfileProvider";
+import { SearchSettings } from "../../shared/search/SearchSettings";
+import {
+  similarityConfigurationFixture,
+  similarityPartsFixture,
+} from "../../test/similarityFixtures";
 import type { ResultSort } from "../../generated/atlas";
 import {
   summaryFixture,
@@ -44,6 +51,7 @@ const apiMocks = vi.hoisted(() => ({
   getReadiness: vi.fn(),
   searchPage: vi.fn(),
   getRelationshipOccurrences: vi.fn(),
+  getSimilarityParts: vi.fn(),
 }));
 
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -55,6 +63,7 @@ vi.mock("../../api/atlasApi", async (original) => ({
   getRecordDetail: apiMocks.getRecordDetail,
   searchPage: apiMocks.searchPage,
   getRelationshipOccurrences: apiMocks.getRelationshipOccurrences,
+  getSimilarityParts: apiMocks.getSimilarityParts,
 }));
 
 describe("useSearchWorkspace", () => {
@@ -390,6 +399,169 @@ describe("useSearchWorkspace", () => {
     });
   });
 
+  it("commits a combined model and ranking change in one result request", async () => {
+    history.replaceState(null, "", "/search?q=heal");
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
+      ...searchResultsPage([], {
+        profile: request.search_profile,
+        pageNumber: request.page.number,
+      }),
+      ranking: request.ranking ?? "score",
+    }));
+    const { result, rerender } = renderHook(
+      ({ profile }) => useSearchWorkspace({ searchProfile: profile }),
+      {
+        initialProps: { profile: "bge-base" },
+        wrapper: queryClientWrapper(),
+      },
+    );
+    await waitFor(() =>
+      expect(result.current.resultPage?.search_profile).toBe("bge-base"),
+    );
+    apiMocks.searchPage.mockClear();
+    act(() => {
+      result.current.applySettings!(
+        { ...result.current.search, ranking: "rrf" },
+        "embeddinggemma",
+      );
+      rerender({ profile: "embeddinggemma" });
+    });
+    await waitFor(() => expect(result.current.resultPage?.ranking).toBe("rrf"));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    });
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+    expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+      search_profile: "embeddinggemma",
+      ranking: "rrf",
+      page: { number: 1 },
+    });
+  });
+
+  it("applies reloaded B parts without a separate refresh and retires late A reads", async () => {
+    history.replaceState(null, "", "/search?similar=hazards%3Abrown-mold");
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const oldPage = deferred<SearchResultsPage>();
+    apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) => {
+      const similarity =
+        request.criteria.kind === "similar_records"
+          ? request.criteria.similarity
+          : undefined;
+      const page = {
+        ...searchResultsPage([], {
+          generation: request.expected_artifact_generation ?? "generation-a",
+        }),
+        ...(similarity
+          ? { similarity: similarityConfigurationFixture(similarity) }
+          : {}),
+      };
+      return apiMocks.searchPage.mock.calls.length === 2
+        ? oldPage.promise
+        : Promise.resolve(page);
+    });
+    apiMocks.getSimilarityParts
+      .mockRejectedValueOnce(
+        new AtlasApiError(409, "Collection changed", {
+          code: "artifact_generation_changed",
+          message: "Collection changed",
+          recoverable_action: "refresh_results",
+        }),
+      )
+      .mockResolvedValue(similarityPartsFixture());
+    apiMocks.getRecordDetail
+      .mockImplementationOnce((key: string) =>
+        Promise.resolve({ ...detailFixture(key), artifact_generation: "generation-a" }),
+      )
+      .mockImplementation((key: string) =>
+        Promise.resolve({ ...detailFixture(key), artifact_generation: "generation-b" }),
+      );
+    let workspace!: ReturnType<typeof useSearchWorkspace>;
+    function SettingsWorkspace() {
+      workspace = useSearchWorkspace({ searchProfile: "bge-base" });
+      return (
+        <>
+          <SearchSettings
+            search={workspace.search}
+            seed={{ kind: "record", record_key: "hazards:brown-mold" }}
+            generation={workspace.resultPage?.artifact_generation}
+            onApply={workspace.applySettings!}
+          />
+          <output aria-label="Result collection">
+            {workspace.resultPage?.artifact_generation}
+          </output>
+        </>
+      );
+    }
+    render(
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <App>
+          <SearchProfileProvider>
+            <SettingsWorkspace />
+          </SearchProfileProvider>
+        </App>
+      </ConfigProvider>,
+      { wrapper: queryClientWrapper(client) },
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText("Result collection")).toHaveTextContent(
+        "generation-a",
+      ),
+    );
+    act(() => {
+      workspace.selectRecord("spell:heal");
+      workspace.positions.saveList(187);
+      workspace.positions.saveReader("spell:heal", 93);
+      void client.invalidateQueries({ queryKey: ["results"] });
+    });
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(workspace.reading.detail?.artifact_generation).toBe("generation-a"),
+    );
+    client.setQueryData(["encounter", "draft"], { name: "Unsaved encounter" });
+    fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+    fireEvent.click(screen.getByText("Compare parts"));
+    fireEvent.click(await screen.findByRole("button", { name: "Reload parts" }));
+    await screen.findByRole("checkbox", { name: "Description" });
+    fireEvent.click(screen.getByRole("checkbox", { name: "All parts" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Description" }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() =>
+      expect(screen.getByLabelText("Result collection")).toHaveTextContent(
+        "generation-b",
+      ),
+    );
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(3);
+    expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+      expected_artifact_generation: "generation-b",
+      criteria: { similarity: { parts: ["description-b"] } },
+      page: { number: 1 },
+    });
+    expect(apiMocks.searchPage.mock.calls[1][1].aborted).toBe(true);
+    await act(async () => {
+      oldPage.resolve(searchResultsPage(["spell:late-a"]));
+      await delay(350);
+    });
+    expect(workspace.resultPage?.artifact_generation).toBe("generation-b");
+    expect(workspace.errorMessage).toBeNull();
+    expect(workspace.selectedRecordKey).toBe("spell:heal");
+    expect(workspace.reading.request?.navigation.record_key).toBe("spell:heal");
+    await waitFor(() =>
+      expect(workspace.reading.detail?.artifact_generation).toBe("generation-b"),
+    );
+    expect(workspace.positions.readList()).toBe(187);
+    expect(workspace.positions.readReader("spell:heal")).toBe(93);
+    expect(client.getQueryData(["encounter", "draft"])).toEqual({
+      name: "Unsaved encounter",
+    });
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(3);
+    expect(
+      client
+        .getQueryCache()
+        .findAll({ queryKey: ["results"] })
+        .some((query) => query.queryKey.includes("generation-a")),
+    ).toBe(false);
+  });
+
   it("preserves a standalone spell's selected rank in the search URL and restores it on reload", async () => {
     history.replaceState(null, "", "/search/records/spells:fireball");
     apiMocks.getRecordDetail.mockImplementation((key, selection) => {
@@ -692,9 +864,16 @@ describe("useSearchWorkspace", () => {
   it("does not adopt a generation when an abandoned criterion finishes late", async () => {
     history.replaceState(null, "", "/search?similar=items:first");
     const first = deferred<SearchResultsPage>();
-    apiMocks.searchPage
-      .mockReturnValueOnce(first.promise)
-      .mockResolvedValue(searchResultsPage([], { generation: "generation-b" }));
+    const similarity = similarityConfigurationFixture({
+      method: "passages",
+      decay: 0.5,
+      parts: null,
+      candidate_parts: "any",
+    });
+    apiMocks.searchPage.mockReturnValueOnce(first.promise).mockResolvedValue({
+      ...searchResultsPage([], { generation: "generation-b" }),
+      similarity,
+    });
     const { result } = renderHook(
       () => useSearchWorkspace({ searchProfile: "bge-base" }),
       {
@@ -712,7 +891,10 @@ describe("useSearchWorkspace", () => {
       expect(result.current.resultPage?.artifact_generation).toBe("generation-b"),
     );
     await act(async () =>
-      first.resolve(searchResultsPage([], { generation: "generation-a" })),
+      first.resolve({
+        ...searchResultsPage([], { generation: "generation-a" }),
+        similarity,
+      }),
     );
     expect(result.current.resultPage?.artifact_generation).toBe("generation-b");
     act(() => result.current.setPageNumber(2));
@@ -857,7 +1039,9 @@ describe("useSearchWorkspace", () => {
     expect(result.current.resultPage?.rows[0].record.record_key).toBe("spell:new");
     expect(result.current.filterEditor).toEqual(editorB);
     expect(apiMocks.searchPage).toHaveBeenCalledTimes(4);
-    expect(window.location.search).toBe("?search_profile=bge-base&q=dirge");
+    expect(window.location.search).toBe(
+      "?search_profile=bge-base&ranking=score&q=dirge",
+    );
   });
 
   it("keeps remembered Kind while editing an authoritative text URL, then clears it on a Kind edit", async () => {

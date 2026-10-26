@@ -281,7 +281,7 @@ Exact primary names and verified aliases retain priority ahead of fused results.
 Lexical-policy upgrades rebuild these rows from retained records and content in a
 maintenance transaction without replacing semantic vectors or saved state.
 
-Search collapses semantic units by maximum similarity per root. Hybrid offers
+Text search collapses semantic units by maximum similarity per root. Hybrid offers
 one rank per root per lane with RRF60 as a dogfooding alternative. The default
 `score` strategy min-max normalizes each candidate lane and combines lexical .25 with semantic .75;
 a constant nonempty lane receives its full lane weight. Neither strategy adds
@@ -290,10 +290,28 @@ profile and requires no persisted projection changes. See ADR0053.
 Semantic candidate windows are bounded and reported as such. Selection among
 exact equal-distance hits at a KNN cutoff is arbitrary and may change with physical
 layout. Existing outer ordering sorts the selected hits, not excluded ties. Do not
-enumerate boundary ties or expand windows to enforce reproducibility. Similar uses the
-stored root identity seed and semantic candidates, excluding the seed. No invented
-trait/graph reranking weights apply. App search pages expose the same bounded
-Similar request and body-free seed summary; they do not extend the stored schema.
+enumerate boundary ties or expand windows to enforce reproducibility. Current
+baseline Similar uses the stored root identity seed and semantic candidates,
+excluding the seed; trait baseline Similar uses its stored definition centroid.
+No invented trait/graph reranking weights apply.
+
+Configurable Similar also supports passage matching and content averages over
+selected existing source sections. Schema 16 adds similarity_parts metadata with
+typed comparison roles and exact source/preparation-bound selectors. Its backfill
+reads retained checked snapshots and prepared content, without new embeddings.
+Publication refreshes this metadata with its owning record. Corresponding-role
+eligibility constrains KNN before bounded candidates are selected.
+
+Passage matching averages best allowed chunk matches within each source section
+using overlap-adjusted coverage, then combines sorted section scores with
+normalized geometric rank decay. Content average either compares global
+centroids or keeps separate corresponding-role centroids. Missing counterparts
+remain explicit zero contributions under the new positive-cosine score recipe.
+Baseline scores remain unchanged. Aggregate scores are ranking values, not
+probabilities. App search pages acknowledge effective options, recipes, profile,
+generation and diagnostics and project bounded paired source evidence. Evidence
+limits do not alter ranking. All methods use stored vectors without query-model
+weights. See [ADR0059](./decisions/0059-configurable-similarity.md).
 
 Attribute ordering uses the existing root name, level/rank and per-item-price
 projections. Index shares one comparison contract between complete browse SQL

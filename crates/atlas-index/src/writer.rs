@@ -291,7 +291,8 @@ fn validate_input(input: &IndexBuildInput) -> Result<(), IndexError> {
 fn write_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError> {
     c.execute("DELETE FROM trait_definitions", [])?;
     write_record_rows(c, input)?;
-    crate::traits::write_traits(c, input)
+    crate::traits::write_traits(c, input)?;
+    crate::similarity_projection::write_similarity_parts(c, input)
 }
 
 /// Record-component composition is shared with deliberately historical fixtures;

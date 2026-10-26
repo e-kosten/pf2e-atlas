@@ -79,69 +79,73 @@ impl AtlasAppService {
                 crate::relationship_search::prepare_filter(retrieval, filter)?;
             let evidence_filter = filter.cloned();
             let scope = RecordScope::All;
+            let cancelled = || projection_execution.check().is_err();
+            let mut similarity = None;
             let (mode, mut rows, page, coverage) = match request.criteria {
                 SearchCriteria::SimilarRecords {
                     seed_record_key,
                     filter,
+                    similarity: options,
                 } => {
                     let key = atlas_domain::RecordKey::parse(&seed_record_key).map_err(|e| {
                         AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string())
                     })?;
-                    let result = retrieval
-                        .similar_records(atlas_search::SimilarRecordRequest {
+                    let seed = atlas_domain::SimilaritySeed::Record { record_key: key };
+                    let options = options.unwrap_or_default();
+                    crate::similarity::validate_options(
+                        &seed,
+                        &options,
+                        request.expected_artifact_generation.as_deref(),
+                    )?;
+                    let (mode, results, effective) = crate::similarity::configured_results(
+                        retrieval,
+                        atlas_search::ConfigurableSimilarRequest {
+                            cancelled: Some(&cancelled),
+                            seed: &seed,
+                            options: &options,
                             sort: sort.clone(),
                             search_profile: request.search_profile.as_ref(),
-                            record_key: &key,
                             filter: filter.as_ref(),
                             scope,
                             page,
                             prefer_remaster: true,
-                        })?
-                        .ok_or_else(|| {
-                            AppServiceError::new(
-                                AppErrorCode::RecordNotFound,
-                                "similar seed not found",
-                            )
-                        })?;
-                    projection_execution.check()?;
-                    let seed = localized_summary_view(&result.seed, retrieval);
-                    let results = search_results_view(result.results, retrieval);
-                    (
-                        SearchModeSummary::SimilarRecords {
-                            seed: Box::new(seed),
                         },
-                        results.rows,
-                        results.page,
-                        Some(results.coverage),
-                    )
+                    )?;
+                    projection_execution.check()?;
+                    similarity = Some(effective);
+                    (mode, results.rows, results.page, Some(results.coverage))
                 }
                 SearchCriteria::SimilarTraits {
                     seed_trait_key,
                     filter,
+                    similarity: options,
                 } => {
                     let key = seed_trait_key
                         .parse::<atlas_domain::TraitKey>()
                         .map_err(|error| AppServiceError::invalid_request(error.to_string()))?;
-                    let result = retrieval
-                        .similar_trait(atlas_search::SimilarTraitRequest {
+                    let seed = atlas_domain::SimilaritySeed::Trait { trait_key: key };
+                    let options = options.unwrap_or_default();
+                    crate::similarity::validate_options(
+                        &seed,
+                        &options,
+                        request.expected_artifact_generation.as_deref(),
+                    )?;
+                    let (mode, results, effective) = crate::similarity::configured_results(
+                        retrieval,
+                        atlas_search::ConfigurableSimilarRequest {
+                            cancelled: Some(&cancelled),
+                            seed: &seed,
+                            options: &options,
                             sort: sort.clone(),
-                            trait_key: &key,
                             search_profile: request.search_profile.as_ref(),
                             filter: filter.as_ref(),
                             scope,
                             page,
                             prefer_remaster: true,
-                            ranking: request.ranking.unwrap_or_default(),
-                        })?
-                        .ok_or_else(|| {
-                            AppServiceError::invalid_request("Similar trait seed not found")
-                        })?;
+                        },
+                    )?;
                     projection_execution.check()?;
-                    let mode = SearchModeSummary::SimilarTraits {
-                        trait_key: result.seed.key.to_string(),
-                        title: result.seed.label,
-                    };
-                    let results = search_results_view(result.results, retrieval);
+                    similarity = Some(effective);
                     (mode, results.rows, results.page, Some(results.coverage))
                 }
                 SearchCriteria::TraitReferences {
@@ -187,6 +191,7 @@ impl AtlasAppService {
                             .records
                             .iter()
                             .map(|record| SearchResultRow {
+                                similarity: None,
                                 relationship_evidence: vec![],
                                 record: localized_summary_view(record, retrieval),
                                 matches: vec![],
@@ -208,6 +213,7 @@ impl AtlasAppService {
                             .records
                             .iter()
                             .map(|record| SearchResultRow {
+                                similarity: None,
                                 relationship_evidence: vec![],
                                 record: localized_summary_view(record, retrieval),
                                 matches: vec![],
@@ -288,6 +294,7 @@ impl AtlasAppService {
                 }
             }
             Ok(SearchResultsPage {
+                similarity,
                 sort,
                 relationship_clauses: relationship_summaries,
                 ranking: request.ranking.unwrap_or_default(),

@@ -11,6 +11,10 @@ import {
   conditionValues,
   isExcluded,
 } from "../../shared/filters/filterControls";
+import {
+  DEFAULT_SEARCH_PREFERENCES,
+  type SearchPreferences,
+} from "../../shared/search/searchPreferences";
 export const KIND_PREFERENCE_KEY = "atlas.search.kind-default.v1";
 type KindPreference = {
   include: string[];
@@ -105,6 +109,10 @@ export type WorkspaceInteractionEvent =
       search: SearchFormState;
     }
   | {
+      type: "search.settingsApplied";
+      search: SearchFormState;
+    }
+  | {
       type: "search.executionCommitted";
       search: SearchFormState;
     }
@@ -116,9 +124,13 @@ export type WorkspaceInteractionEvent =
       type: "record.selected";
       recordKey: string | null;
     };
-export function initialWorkspaceInteractionState(): WorkspaceInteractionState {
+export function initialWorkspaceInteractionState(
+  preferences: SearchPreferences = DEFAULT_SEARCH_PREFERENCES,
+): WorkspaceInteractionState {
   let search = decodeSearchStateFromParams(
     new URLSearchParams(atlasRouter.latestLocation.searchStr),
+    "search",
+    preferences,
   );
   const route = currentSearchLocation();
   if (
@@ -158,6 +170,13 @@ export function workspaceInteractionReducer(
       return {
         ...state,
         search: event.search,
+      };
+    case "search.settingsApplied":
+      return {
+        ...state,
+        search: event.search,
+        activeSearch: event.search,
+        pageNumber: 1,
       };
     case "search.executionCommitted":
       if (event.search === state.activeSearch) {

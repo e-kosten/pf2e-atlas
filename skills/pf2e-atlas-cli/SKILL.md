@@ -162,8 +162,9 @@ includes the key, label, content, catalogs, source revision and indexing locale.
 A successful response can have `content: null`: report the missing definition
 rather than inventing text or substituting another trait. Trait membership uses
 the exact identifier; `--trait deadly` does not include `deadly-d8`. `record get`,
-`record resolve`, `graph` and CLI `similar` operate on records. Trait Members,
-References and Similar views are available in the web UI.
+`record resolve` and `graph` operate on records. `atlas similar trait:fire` accepts
+an exact typed trait seed; it searches for similar records, not similar trait names.
+Trait Members and References views remain available in the web UI.
 
 ## Search and evidence
 
@@ -180,7 +181,28 @@ atlas search --kind equipment --sort level_desc --sort unit_price_asc --json
 atlas search --kind creature --sort random --seed 42 --json
 atlas search --where 'defenses.hp.maximum >= 80 && "undead" in traits' --json
 atlas similar spells-srd:1xLVcA8Y1onw7toT --kind spell --json
+atlas similar 'Brown Mold' --list-parts --json
+atlas similar 'Brown Mold' --method passages --decay 0.5 --explain --json
+atlas similar trait:fire --method baseline --json
 ```
+
+Similar uses stored vectors and needs no model weights. `--method passages`
+compares selected content with geometric rank decay from the strongest logical
+part (0) through equal-part contribution (1). `--method content-average` compares
+content centroids; it does not accept decay. `--method baseline` preserves root
+identity similarity for records and definition-centroid similarity for traits;
+it does not accept parts, candidate-part mode or decay.
+
+Use `--list-parts` to discover available source content. Copy exact selectors into
+repeatable `--part` arguments and supply `--artifact-generation` from discovery.
+Omission selects all indexed prose. Never construct selectors from labels or
+silently replace stale or unavailable explicit parts. `--candidate-parts any`
+allows matches anywhere; `corresponding` restricts comparisons to shared content
+roles across kinds. Trait definitions support only any-content matching.
+Candidate filters remain separate from seed content selection. `--explain`
+returns part contributions and paired evidence; average-method excerpts are
+representative, not an additive explanation of the centroid score. Scores are
+not percentages or calibrated relevance probabilities.
 
 FTS targets names, verified aliases, typed vocabulary, embedded names and structurally
 named definitions. Semantic search independently covers selected root and embedded

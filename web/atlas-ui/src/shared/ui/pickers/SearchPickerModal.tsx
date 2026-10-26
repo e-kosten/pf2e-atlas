@@ -16,10 +16,13 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 import { RotateCw, X } from "lucide-react";
 import { searchPage } from "../../../api/atlasApi";
 import { useSearchProfile } from "../../search/SearchProfileContext";
+import { SearchSettings } from "../../search/SearchSettings";
+import { similarityFromPreferences } from "../../search/similarityState";
 import { SearchProfileNotice } from "../../search/SearchProfileNotice";
 import {
   assertSearchIdentity,
   sameSearchPageContext,
+  assertSimilarityIdentity,
 } from "../../search/searchIdentity";
 import type {
   RecordSummaryView,
@@ -93,7 +96,10 @@ export function SearchPickerModal<FormValues>({
   const { token } = theme.useToken();
   const narrow = !Grid.useBreakpoint().lg;
   const profile = useSearchProfile();
-  const [search, setSearch] = useState<SearchFormState>(DEFAULT_SEARCH_STATE);
+  const [search, setSearch] = useState<SearchFormState>(() => ({
+    ...DEFAULT_SEARCH_STATE,
+    ranking: profile.preferences.ranking,
+  }));
   const [paging, setPaging] = useState({ profile: profile.id, number: 1 });
   const pageNumber = paging.profile === profile.id ? paging.number : 1;
   if (paging.profile !== profile.id) setPaging({ profile: profile.id, number: 1 });
@@ -113,7 +119,24 @@ export function SearchPickerModal<FormValues>({
     ...base,
     ...(search.sort ? { sort: search.sort } : {}),
     search_profile: profile.id ?? undefined,
-    criteria: { ...base.criteria, filter },
+    ranking: search.ranking ?? profile.preferences.ranking,
+    criteria:
+      base.criteria.kind === "similar_records" ||
+      base.criteria.kind === "similar_traits"
+        ? {
+            ...base.criteria,
+            filter,
+            similarity:
+              search.similarity ??
+              base.criteria.similarity ??
+              similarityFromPreferences(
+                base.criteria.kind === "similar_traits"
+                  ? profile.preferences.traitSimilarity
+                  : profile.preferences.recordSimilarity,
+                base.criteria.kind === "similar_traits",
+              ),
+          }
+        : { ...base.criteria, filter },
     page: { number: pageNumber, size: search.pageSize },
   };
   const requestToken = JSON.stringify(request);
@@ -143,13 +166,17 @@ export function SearchPickerModal<FormValues>({
         : undefined,
     queryFn: async ({ signal }) => {
       const page = await searchPage(
-        { ...request, expected_artifact_generation: retrieval.generation },
+        {
+          ...request,
+          expected_artifact_generation:
+            search.similarityGeneration ?? retrieval.generation,
+        },
         signal,
       );
       assertSearchIdentity(
         page,
         profile.id,
-        retrieval.generation,
+        search.similarityGeneration ?? retrieval.generation,
         effectiveResultSort({
           sort: request.sort,
           query: request.criteria.kind === "text_search" ? request.criteria.query : "",
@@ -159,6 +186,11 @@ export function SearchPickerModal<FormValues>({
               : null,
         }),
       );
+      if (
+        request.criteria.kind === "similar_records" ||
+        request.criteria.kind === "similar_traits"
+      )
+        assertSimilarityIdentity(page, request.criteria.similarity);
       if (
         retrieval.generation === null &&
         !signal.aborted &&
@@ -216,11 +248,30 @@ export function SearchPickerModal<FormValues>({
       recovering: false,
     }));
   }
+  async function applySettings(next: SearchFormState) {
+    const nextGeneration = next.similarityGeneration;
+    const collectionChanged =
+      nextGeneration !== undefined && nextGeneration !== retrieval.generation;
+    if (collectionChanged) {
+      liveRequest.current.active = false;
+      setRetrieval((current) => ({ ...current, recovering: true }));
+    }
+    setSearch(next);
+    setPageNumber(1);
+    if (collectionChanged) {
+      await retireImmutableReferenceQueries(queryClient);
+      setRetrieval((current) => ({
+        epoch: current.epoch + 1,
+        generation: nextGeneration,
+        recovering: false,
+      }));
+    }
+  }
   const currentRows =
     recordResults.error || !profileReady ? [] : (recordResults.data?.rows ?? []);
 
   const reset = () => {
-    setSearch(DEFAULT_SEARCH_STATE);
+    setSearch({ ...DEFAULT_SEARCH_STATE, ranking: profile.preferences.ranking });
     setPageNumber(1);
     reading.inspect(null);
     setRetrieval((current) => ({
@@ -290,6 +341,26 @@ export function SearchPickerModal<FormValues>({
       >
         <FilterControls
           layout="toolbar"
+          searchRowEnd={
+            <SearchSettings
+              search={
+                request.criteria.kind === "similar_records" ||
+                request.criteria.kind === "similar_traits"
+                  ? { ...search, similarity: request.criteria.similarity }
+                  : search
+              }
+              seed={
+                request.criteria.kind === "similar_records"
+                  ? { kind: "record", record_key: request.criteria.seed_record_key }
+                  : request.criteria.kind === "similar_traits"
+                    ? { kind: "trait", trait_key: request.criteria.seed_trait_key }
+                    : null
+              }
+              generation={retrieval.generation}
+              disabled={disabled}
+              onApply={applySettings}
+            />
+          }
           filterState={{
             search,
             setSearch: (next) => {

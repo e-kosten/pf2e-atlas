@@ -9,6 +9,7 @@ import type {
 } from "../../generated/atlas";
 import { RelationshipEvidence } from "./RelationshipEvidence";
 import { RecordBrowseSummary } from "./RecordBrowseSummary";
+import { SimilarityExplanation } from "./SimilarityExplanation";
 export function ReferenceResult({
   row,
   selected,
@@ -91,9 +92,9 @@ export function ReferenceResult({
             : undefined
         }
       />
-      {(matchCount > 0n || actions) && (
+      {(matchCount > 0n || row.similarity || actions) && (
         <div className="reference-result__actions">
-          {matchCount > 0n && (
+          {(matchCount > 0n || row.similarity) && (
             <Popover
               open={matchesOpen}
               onOpenChange={setMatchesOpen}
@@ -109,6 +110,15 @@ export function ReferenceResult({
                       ?.focus({ preventScroll: true });
                   }}
                 >
+                  {row.similarity && (
+                    <SimilarityExplanation
+                      evidence={row.similarity}
+                      onNavigate={(navigation, anchor) => {
+                        setMatchesOpen(false);
+                        onMatch(navigation, trigger.current ?? anchor);
+                      }}
+                    />
+                  )}
                   {matches.map((match, index) => (
                     <Button
                       key={index}
@@ -176,7 +186,11 @@ export function ReferenceResult({
                 variant="text"
                 size="small"
                 aria-expanded={matchesOpen}
-                aria-label={`${matchCount.toString()} matches in ${record.title}`}
+                aria-label={
+                  row.similarity
+                    ? `Why this match: ${record.title}`
+                    : `${matchCount.toString()} matches in ${record.title}`
+                }
                 styles={{
                   root: {
                     color: "var(--muted)",
@@ -185,7 +199,7 @@ export function ReferenceResult({
                 }}
                 disabled={disabled}
               >
-                Matches
+                {row.similarity ? "Why this match" : "Matches"}
               </Button>
             </Popover>
           )}{" "}

@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 15;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 16;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -97,6 +97,15 @@ const MIGRATIONS: &[Migration] = &[
         sql: atlas_local_state::ENCOUNTER_DIFFICULTY_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 16,
+        name: "similarity-parts",
+        sql: atlas_index::SIMILARITY_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            id: "typed-content-correspondence/v1",
+            apply: atlas_index::backfill_similarity_parts,
+        }),
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -129,6 +138,148 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
+
+    #[test]
+    fn similarity_backfill_skips_retired_preparation_before_accessing_records() {
+        // This database intentionally has no records, bodies, prepared fields or
+        // similarity table. Any attempted record scan/decode/publication fails.
+        // Only authenticated component metadata is needed to defer to setup.
+        for (field, retired) in [
+            (
+                "localization_policy",
+                "selected-source-catalog/english-fallback/v1",
+            ),
+            ("relationship_policy", "typed-authored-occurrences/v4"),
+            ("content_interpretation_version", "foundry-content/v8"),
+            ("trait_policy", ""),
+        ] {
+            let c = rusqlite::Connection::open_in_memory().unwrap();
+            c.execute_batch("CREATE TABLE artifact_context(singleton INTEGER PRIMARY KEY,format_version INTEGER,context_hash TEXT,context_json TEXT);").unwrap();
+            let context = atlas_search::test_support::context(false);
+            let mut stored = serde_json::to_value(context).unwrap();
+            stored[field] = serde_json::json!(retired);
+            let json = serde_json::to_string(&stored).unwrap();
+            c.execute(
+                "INSERT INTO artifact_context VALUES(1,?,?,?)",
+                rusqlite::params![
+                    atlas_index::ARTIFACT_FORMAT_VERSION,
+                    atlas_search::test_support::hash(json.as_bytes()),
+                    json
+                ],
+            )
+            .unwrap();
+            assert_eq!(
+                atlas_index::classify_reference_upgrade(&c).unwrap(),
+                atlas_index::ReferenceUpgrade::SourcePreparation,
+                "{field}"
+            );
+            atlas_index::backfill_similarity_parts(&c).unwrap();
+            let after: String = c
+                .query_row("SELECT context_json FROM artifact_context", [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert_eq!(
+                after, json,
+                "skipping must not relabel retired preparation as current"
+            );
+            assert!(
+                c.prepare("SELECT * FROM records").is_err(),
+                "the fixture must make scanning impossible"
+            );
+        }
+    }
+
+    #[test]
+    fn similarity_metadata_upgrade_preserves_saved_state_and_exact_vectors() {
+        use atlas_index::IndexArtifactWriter;
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("similarity-upgrade.sqlite");
+        let workspace = initialize_workspace(&path).unwrap();
+        let input = atlas_search::test_support::input(
+            vec![atlas_search::test_support::record(
+                "hazards",
+                "Actor",
+                serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Hazard","type":"hazard","system":{"details":{"description":"<p>A narrow fissure</p>","reset":"<p>Returns at dawn</p>"}}}),
+            )],
+            true,
+        );
+        {
+            let owner = workspace.update_owner().unwrap();
+            let maintenance = owner
+                .maintenance(WORKSPACE_SCHEMA_VERSION, "similarity migration fixture")
+                .unwrap();
+            atlas_index::SqliteIndexWriter::new(&maintenance)
+                .write(&input)
+                .unwrap();
+        }
+        let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        LocalStateWrite::new(&write)
+            .saved_lists()
+            .create(NewSavedList {
+                slug: "kept".into(),
+                name: "Kept".into(),
+                description: Some("Keep this note".into()),
+                tags: vec![],
+            })
+            .unwrap();
+        let table: String = write
+            .connection()
+            .query_row(
+                "SELECT name FROM sqlite_master WHERE type='table' AND sql LIKE '%USING vec0%'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let vectors = |connection: &rusqlite::Connection| {
+            connection
+                .prepare(&format!(
+                    "SELECT unit_id,embedding FROM {table} ORDER BY unit_id"
+                ))
+                .unwrap()
+                .query_map([], |row| {
+                    Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+                })
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        let before = vectors(write.connection());
+        let revision = write
+            .connection()
+            .query_row(
+                "SELECT reference_revision FROM workspace WHERE id=1",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap();
+        // Model the exact pre-projection physical shape in this disposable fixture.
+        write
+            .connection()
+            .execute_batch(
+                "DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version=16; PRAGMA user_version=15;",
+            )
+            .unwrap();
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(&path).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(vectors(read.connection()), before);
+        assert_eq!(read.reference_revision().unwrap(), revision as u64);
+        assert_eq!(
+            LocalStateRead::new(&read).saved_lists().list().unwrap()[0].name,
+            "Kept"
+        );
+        let roles = read
+            .connection()
+            .prepare("SELECT role FROM similarity_parts ORDER BY role")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(roles, vec!["description", "reset"]);
+        atlas_index::validate_reference(read.connection()).unwrap();
+    }
 
     #[test]
     fn consumed_application_upgrade_preserves_markers_receipts_and_saved_state() {

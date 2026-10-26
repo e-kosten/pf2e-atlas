@@ -1,18 +1,15 @@
 import { useFilterUrlRecovery } from "../../shared/filters/useFilterUrlRecovery";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { Alert, Button, Select, Tag } from "antd";
+import { Alert, Button, Tag } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
 import { FilterControls } from "../../shared/filters/FilterPanel";
 import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
 import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
-import { SearchModelSelect } from "./SearchModelSelect";
+import { SearchSettings } from "../../shared/search/SearchSettings";
 import { SearchProfileNotice } from "../../shared/search/SearchProfileNotice";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
-import {
-  hasExecutableSearch,
-  UNKNOWN_SEARCH_RANKING,
-} from "../../shared/filters/searchState";
+import { hasExecutableSearch } from "../../shared/filters/searchState";
 
 export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
   usePageTitle("Search");
@@ -74,27 +71,21 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
                   : "Loading trait…"}
               </Tag>
             )}
-            <SearchModelSelect />
-            <Select
-              disabled={Boolean(workspace.search.similarSeed)}
-              aria-label="Search ranking"
-              className="search-model-select"
-              value={workspace.search.ranking ?? "score"}
-              options={[
-                { value: "rrf", label: "Rank-based" },
-                { value: "score", label: "Score-based" },
-              ]}
-              onChange={(ranking) =>
-                workspace.setSearch({
-                  ...workspace.search,
-                  ranking,
-                  filterError:
-                    workspace.search.filterError === UNKNOWN_SEARCH_RANKING
-                      ? null
-                      : workspace.search.filterError,
-                })
+            <SearchSettings
+              search={workspace.search}
+              seed={
+                workspace.search.similarSeed
+                  ? workspace.search.similarSeed.startsWith("trait:")
+                    ? { kind: "trait", trait_key: workspace.search.similarSeed }
+                    : { kind: "record", record_key: workspace.search.similarSeed }
+                  : null
               }
-              popupMatchSelectWidth={false}
+              generation={workspace.resultPage?.artifact_generation}
+              onApply={(next, model) =>
+                workspace.applySettings
+                  ? workspace.applySettings(next, model)
+                  : workspace.setSearch(next)
+              }
             />
           </>
         }

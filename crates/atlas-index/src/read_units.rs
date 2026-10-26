@@ -76,7 +76,7 @@ pub(crate) fn eligible_sql(
 pub(crate) fn parse_key(s: String) -> Result<RecordKey, IndexError> {
     RecordKey::parse(&s).map_err(|e| IndexError::Invalid(e.to_string()))
 }
-fn location(row: &rusqlite::Row<'_>) -> rusqlite::Result<SourceUnitLocation> {
+pub(crate) fn location(row: &rusqlite::Row<'_>) -> rusqlite::Result<SourceUnitLocation> {
     let decode = |e: Box<dyn std::error::Error + Send + Sync>| {
         rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, e)
     };

@@ -72,6 +72,45 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
             apply: crate::backfill_embedding_storage,
         }),
     },
+    Migration {
+        version: 11,
+        name: "persistent-preparation",
+        sql: atlas_local_state::PERSISTENT_PREPARATION_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 12,
+        name: "turn-resources",
+        sql: atlas_local_state::TURN_RESOURCES_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 13,
+        name: "consumed-condition-applications",
+        sql: atlas_local_state::CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 14,
+        name: "party-member-levels",
+        sql: atlas_local_state::PARTY_LEVELS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 15,
+        name: "encounter-difficulty",
+        sql: atlas_local_state::ENCOUNTER_DIFFICULTY_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 16,
+        name: "similarity-parts",
+        sql: crate::SIMILARITY_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            id: "typed-content-correspondence/v1",
+            apply: crate::backfill_similarity_parts,
+        }),
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()

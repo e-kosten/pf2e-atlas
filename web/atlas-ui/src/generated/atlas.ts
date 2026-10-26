@@ -381,3 +381,11 @@ export type { SpellEffectPreviewView } from "../../../../crates/atlas-app-model/
 export type { SpellEffectFactView } from "../../../../crates/atlas-app-model/bindings/SpellEffectFactView";
 export type { SpellEffectStrikeView } from "../../../../crates/atlas-app-model/bindings/SpellEffectStrikeView";
 export type { SpellEffectChoiceView } from "../../../../crates/atlas-app-model/bindings/SpellEffectChoiceView";
+export type { SimilarityOptions } from "../../../../crates/atlas-app-model/bindings/SimilarityOptions";
+export type { SimilaritySeed } from "../../../../crates/atlas-app-model/bindings/SimilaritySeed";
+export type { SimilarityPartView } from "../../../../crates/atlas-app-model/bindings/SimilarityPartView";
+export type { SimilarityRole } from "../../../../crates/atlas-app-model/bindings/SimilarityRole";
+export type { SimilarityPartsRequest } from "../../../../crates/atlas-app-model/bindings/SimilarityPartsRequest";
+export type { SimilarityPartsView } from "../../../../crates/atlas-app-model/bindings/SimilarityPartsView";
+export type { SimilarityEvidenceView } from "../../../../crates/atlas-app-model/bindings/SimilarityEvidenceView";
+export type { SimilarityConfigurationView } from "../../../../crates/atlas-app-model/bindings/SimilarityConfigurationView";

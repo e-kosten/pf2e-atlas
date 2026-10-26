@@ -521,7 +521,7 @@ impl AtlasRetrievalService {
 }
 
 /// Compact prose for both product surfaces; preserve words and mark shortening.
-fn reading_excerpt(text: &str) -> String {
+pub(crate) fn reading_excerpt(text: &str) -> String {
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
     let limit = 240;
     let Some((boundary, _)) = text.char_indices().nth(limit) else {

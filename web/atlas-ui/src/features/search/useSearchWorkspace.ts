@@ -10,7 +10,10 @@ import {
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { searchPage } from "../../api/atlasApi";
-import { assertSearchIdentity } from "../../shared/search/searchIdentity";
+import {
+  assertSearchIdentity,
+  assertSimilarityIdentity,
+} from "../../shared/search/searchIdentity";
 import type {
   FilterEditorView,
   SearchResultsPage,
@@ -50,6 +53,11 @@ import { atlasRouter } from "../../app/router";
 import { useRouterState } from "@tanstack/react-router";
 import { currentSearchLocation } from "../../app/searchLocation";
 import {
+  DEFAULT_SEARCH_PREFERENCES,
+  type SearchPreferences,
+} from "../../shared/search/searchPreferences";
+import { similarityFromPreferences } from "../../shared/search/similarityState";
+import {
   isArtifactGenerationChanged,
   retireImmutableReferenceQueries,
 } from "../../shared/queries/immutableReferenceQueries";
@@ -59,6 +67,7 @@ export type SearchWorkspaceState = {
   reading: ReferenceReading;
   positions: BrowsePositions;
   setSearch: (next: SearchFormState) => void;
+  applySettings?: (next: SearchFormState, profile: string) => void;
   recoverFilterUrl: (restored: SearchFormState) => void;
   selectedRecordKey: string | null;
   selectRecord: (recordKey: string | null) => void;
@@ -88,6 +97,7 @@ type UseAtlasWorkspaceOptions = {
   searchProfileStored?: boolean;
   searchProfileUsable?: boolean;
   includeSearchProfileInUrl?: boolean;
+  searchPreferences?: SearchPreferences;
 };
 function urlCriteria(query: string) {
   const decoded = decodeSearchStateFromParams(new URLSearchParams(query));
@@ -105,6 +115,7 @@ export function useSearchWorkspace({
   searchProfileStored = true,
   searchProfileUsable = true,
   includeSearchProfileInUrl = true,
+  searchPreferences = DEFAULT_SEARCH_PREFERENCES,
 }: UseAtlasWorkspaceOptions): SearchWorkspaceState {
   // Unresolved metadata is distinct from deliberate single-profile URL omission.
   // This literal comes from the existing selection owner and never enables reads.
@@ -116,7 +127,7 @@ export function useSearchWorkspace({
         : null;
   const [interaction, dispatch] = useReducer(
     workspaceInteractionReducer,
-    undefined,
+    searchPreferences,
     initialWorkspaceInteractionState,
   );
   const { search, selectedRecordKey, activeSearch } = interaction;
@@ -188,7 +199,7 @@ export function useSearchWorkspace({
     if (!enabled) return;
     const route = currentSearchLocation();
     if (!route) return;
-    const restored = initialWorkspaceInteractionState();
+    const restored = initialWorkspaceInteractionState(searchPreferences);
     const incomingCriteria = urlCriteria(atlasRouter.latestLocation.searchStr);
     const criteriaChanged = previousUrlCriteria.current !== incomingCriteria;
     previousUrlCriteria.current = incomingCriteria;
@@ -283,9 +294,11 @@ export function useSearchWorkspace({
       assertSearchIdentity(
         page,
         searchProfile,
-        retrieval.generation,
+        activeSearch.similarityGeneration ?? retrieval.generation,
         effectiveResultSort(activeSearch),
       );
+      if (activeSearch.similarSeed)
+        assertSimilarityIdentity(page, activeSearch.similarity);
       if (
         activeSearch.query.trim() &&
         page.ranking !== (activeSearch.ranking ?? "score")
@@ -386,6 +399,19 @@ export function useSearchWorkspace({
     catalogIdentity: [retrieval.epoch],
   });
   function setSearch(next: SearchFormState) {
+    if (next.similarSeed !== search.similarSeed)
+      next = {
+        ...next,
+        similarity: next.similarSeed
+          ? similarityFromPreferences(
+              next.similarSeed.startsWith("trait:")
+                ? searchPreferences.traitSimilarity
+                : searchPreferences.recordSimilarity,
+              next.similarSeed.startsWith("trait:"),
+            )
+          : undefined,
+        similarityGeneration: undefined,
+      };
     // A submitted canonical address is navigation, independent of search eligibility.
     const recordKey = next.query.trim();
     if (next.query !== search.query && /^[^:\s]+:[^:\s]+$/u.test(recordKey)) {
@@ -442,6 +468,38 @@ export function useSearchWorkspace({
   return {
     search,
     setSearch,
+    applySettings: async (next, profile) => {
+      const committed = normalizeSortTransition(search, next);
+      const nextGeneration = committed.similarityGeneration;
+      const collectionChanged =
+        nextGeneration !== undefined && nextGeneration !== retrieval.generation;
+      if (collectionChanged) {
+        // Refreshed parts belong to a new immutable collection. Retire A before
+        // committing its replacement so late A reads cannot seed the B owner.
+        liveRequest.current.retiring = true;
+        setRetrieval((current) => ({ ...current, recovering: true }));
+      }
+      dispatch({ type: "search.settingsApplied", search: committed });
+      void atlasRouter.navigate({
+        ...searchDestination({
+          selectedRecordKey,
+          query: searchStateQueryString(committed, profile),
+          selection: reading.request?.navigation,
+          landing: reading.landing,
+        }),
+        replace: true,
+        resetScroll: false,
+        state: (state) => ({ ...state, atlasSearchPage: 1 }),
+      });
+      if (collectionChanged) {
+        await retireImmutableReferenceQueries(queryClient);
+        setRetrieval((current) => ({
+          epoch: current.epoch + 1,
+          generation: nextGeneration,
+          recovering: false,
+        }));
+      }
+    },
     recoverFilterUrl: (restored) =>
       dispatch({
         type: "url.restored",

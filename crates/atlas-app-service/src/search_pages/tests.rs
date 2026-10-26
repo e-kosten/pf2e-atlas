@@ -52,6 +52,7 @@ fn selected_profile_is_request_local_and_stored_similar_and_lexical_need_no_mode
     let mut similar = request(
         SearchCriteria::SimilarRecords {
             seed_record_key: "items:0000000000000000".into(),
+            similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
             filter: None,
         },
         1,
@@ -260,6 +261,7 @@ fn similar_pages_preserve_seed_exclusion_filtering_and_bounded_coverage() {
     let mut criteria = request(
         SearchCriteria::SimilarRecords {
             seed_record_key: "items:0000000000000000".into(),
+            similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
             filter: Some(levels_at_least_two()),
         },
         1,
@@ -356,6 +358,7 @@ fn anchored_similar_request_rejects_a_stale_detail_generation() {
     let mut query = request(
         SearchCriteria::SimilarRecords {
             seed_record_key: "items:0000000000000000".into(),
+            similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
             filter: None,
         },
         1,
@@ -451,6 +454,7 @@ fn invalid_pages_and_missing_similar_seeds_remain_explicit_errors() {
     let missing = request(
         SearchCriteria::SimilarRecords {
             seed_record_key: "items:missing000000000".into(),
+            similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
             filter: None,
         },
         1,
@@ -783,6 +787,7 @@ fn similar_trait_search_uses_persisted_seed_and_normal_filters() {
     let mut search = request(
         SearchCriteria::SimilarTraits {
             seed_trait_key: "trait:agile".into(),
+            similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
             filter: None,
         },
         1,
@@ -802,6 +807,7 @@ fn similar_trait_search_uses_persisted_seed_and_normal_filters() {
     assert!(first.coverage.is_some());
     search.criteria = SearchCriteria::SimilarTraits {
         seed_trait_key: "trait:agile".into(),
+        similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
         filter: Some(
             serde_json::from_value(json!({
                 "kind": "boolean_constant", "value": false
@@ -859,4 +865,102 @@ fn trait_reference_text_search_rejects_stale_generation_before_query_inference()
         .unwrap_err()
         .into_app_error();
     assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
+}
+
+#[test]
+fn similarity_inventory_and_explicit_parts_share_generation_and_effective_configuration() {
+    let executor = RetrievalExecutor::from_test_fixture_factory(2, 16, || {
+        let mut data = input((0..2).map(|i| record("items", "Item", json!({
+            "_id":format!("{i:016}"),"name":format!("Related record {i}"),"type":"effect",
+            "system":{"description":{"value":"<p>Shared explanatory content</p>"}}
+        }))).collect(), true);
+        for unit in &mut data.semantic_units {
+            unit.vector.fill(0.0);
+            unit.vector[0] = 1.0;
+        }
+        Ok(open_input_fixture(data)?)
+    });
+    let fixture = fixture_worker_with_executor(executor);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let seed = atlas_domain::SimilaritySeed::Record {
+        record_key: "items:0000000000000000".parse().unwrap(),
+    };
+    let inventory = fixture
+        .worker
+        .similarity_parts(
+            atlas_app_model::SimilarityPartsRequest {
+                seed,
+                search_profile: None,
+                expected_artifact_generation: None,
+            },
+            &execution,
+        )
+        .unwrap();
+    assert!(!inventory.parts.is_empty());
+    assert!(
+        inventory
+            .parts
+            .iter()
+            .all(|part| !part.role_label.is_empty())
+    );
+    let options = atlas_domain::SimilarityOptions::Passages {
+        decay: 0.123456,
+        parts: Some(vec![inventory.parts[0].selector.clone()]),
+        candidate_parts: atlas_domain::SimilarityCandidateParts::Any,
+    };
+    let mut query = request(
+        SearchCriteria::SimilarRecords {
+            seed_record_key: "items:0000000000000000".into(),
+            filter: None,
+            similarity: Some(options.clone()),
+        },
+        1,
+    );
+    assert_eq!(
+        fixture
+            .worker
+            .search_page(query.clone(), &execution)
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::InvalidRequest
+    );
+    query.expected_artifact_generation = Some(inventory.artifact_generation);
+    let page = fixture
+        .worker
+        .search_page(query.clone(), &execution)
+        .unwrap();
+    assert!(!page.rows.is_empty());
+    assert_eq!(page.similarity.unwrap().options, options);
+    assert!(page.rows.iter().all(|row| row.similarity.is_some()));
+    query.expected_artifact_generation = Some("stale-inventory-generation".into());
+    assert_eq!(
+        fixture
+            .worker
+            .search_page(query, &execution)
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::ArtifactGenerationChanged
+    );
+}
+
+#[test]
+fn similarity_part_inventory_remains_available_without_vectors_or_model_assets() {
+    let (fixture, _) = fixture(false);
+    let inventory = fixture
+        .worker
+        .similarity_parts(
+            atlas_app_model::SimilarityPartsRequest {
+                seed: atlas_domain::SimilaritySeed::Record {
+                    record_key: "items:0000000000000000".parse().unwrap(),
+                },
+                search_profile: None,
+                expected_artifact_generation: None,
+            },
+            &crate::ReadExecutionContext::uncancellable(),
+        )
+        .unwrap();
+    assert!(!inventory.parts.is_empty());
+    assert!(inventory.parts.iter().all(|part| !part.has_vectors));
 }
