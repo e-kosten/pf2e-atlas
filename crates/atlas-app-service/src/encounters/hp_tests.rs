@@ -109,6 +109,32 @@ fn apply(
 }
 
 #[test]
+fn temporary_hp_corrections_accept_formulas_and_blank_clearing() {
+    for atomic in [false, true] {
+        let (f, key, p) = manual(Some(30), Some(25));
+        for (input, expected) in [("300-10", 290), ("", 0), ("2+3", 5), (" \t ", 0)] {
+            let action = if atomic {
+                EncounterHpAction::SetValues {
+                    current: None,
+                    maximum: None,
+                    temporary: Some(input.into()),
+                }
+            } else {
+                EncounterHpAction::SetTemporary {
+                    input: input.into(),
+                }
+            };
+            let after = apply(&f.worker, &key, &p, action);
+            assert_eq!(
+                (after.current_hp, after.max_hp, after.temporary_hp),
+                (Some(25), Some(30), expected),
+                "atomic={atomic}, input={input:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn damage_absorbs_temporary_hp_then_floors_and_healing_preserves_defeated() {
     let (f, key, p) = manual(Some(30), Some(25));
     disable_dying_tracking(&f.worker, &key, &p);

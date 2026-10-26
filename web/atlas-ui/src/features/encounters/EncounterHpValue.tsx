@@ -17,7 +17,6 @@ export function EncounterHpValue({
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string>();
   const valueButton = useRef<HTMLButtonElement>(null);
   const editor = useRef<HTMLSpanElement>(null);
   const returnFocus = useRef(false);
@@ -36,26 +35,16 @@ export function EncounterHpValue({
       <EditableCommitField
         onCancel={() => {
           finishEditing();
-          setError(undefined);
         }}
         focusOnMount
         blurOnEnter={false}
         ariaLabel={label}
         className="encounter-hp-value__input"
         size="small"
-        inputMode="numeric"
         value={value?.toString() ?? ""}
         disabled={disabled && !saving}
         readOnly={saving}
         onCommit={async (input) => {
-          if (
-            input.trim() &&
-            (!/^\d+$/.test(input.trim()) || !Number.isSafeInteger(Number(input)))
-          ) {
-            setError("Enter a nonnegative whole number.");
-            throw new Error("Invalid HP");
-          }
-          setError(undefined);
           setSaving(true);
           try {
             await onCommit(input);
@@ -65,7 +54,6 @@ export function EncounterHpValue({
           }
         }}
       />
-      {error && <span role="alert">{error}</span>}
     </span>
   ) : (
     <Button
