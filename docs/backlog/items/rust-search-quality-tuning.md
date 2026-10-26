@@ -1,9 +1,33 @@
 # Source-backed Search Quality Evaluation
 
-Status: proposed
+Status: in_progress
 Priority: soon
-Owner: unassigned
-Last reviewed: 2026-10-19
+Owner: configurable-similarity workstream
+Last reviewed: 2026-10-26
+
+## Authorized Similar experiment
+
+The current work adds Passage matches with normalized geometric rank decay,
+Content average, and the existing record/trait baselines over stored vectors.
+Advanced Compare parts selects exact existing source sections; candidate matching
+can use any prose or explicit cross-kind correspondence roles. Role eligibility
+must constrain candidate retrieval before bounded KNN as well as final scoring.
+
+The browser has one shared Search settings dialog for the model, existing hybrid
+ranking choice, Similar method, decay and advanced part selection. Apply commits
+one request and remembers general preferences in localStorage. Explicit search
+links override saved launch defaults without saving them automatically; exact
+part selections remain seed/generation-specific. CLI part discovery and the same
+scoring/evidence contracts use the shared app service.
+
+Implementation begins from main 9d3fbb1f and pauses at a runnable browser/CLI UX
+checkpoint. The canonical active plan is scratch/plans/2026-10-26-configurable-similarity.md
+in the feature worktree. Starting defaults are experimental; the final evaluation
+separates fixed-pool ordering, bounded candidate recall, source-grounded usefulness,
+explanation fidelity and measured runtime cost across both stored models.
+Highlighting arbitrary text, new segmentation/models, summaries and learned
+reranking remain outside this scope. The lexical/hybrid algorithms below are
+unchanged by moving their existing chooser into the shared settings dialog.
 
 ## Current Baseline
 

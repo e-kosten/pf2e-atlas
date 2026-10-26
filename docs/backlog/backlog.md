@@ -28,7 +28,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Source-backed search quality evaluation](items/rust-search-quality-tuning.md)
   Evaluate lexical evidence, associated-content influence and semantic inputs
-  against fresh source-backed tasks; preserve completed study evidence. Status: proposed.
+  against fresh source-backed tasks; preserve completed study evidence. Configurable
+  Similar strategies, part selection, shared search settings and CLI parity are
+  in implementation, with an early functional UX checkpoint. Status: in_progress.
 
 ## Soon
 
