@@ -356,6 +356,11 @@ per-field/per-marker body reads. Reader connections stay on one generation while
 the writer atomically publishes later artifacts.
 
 App-service search pages reuse browse, text and stored-vector Similar retrieval.
+For query-backed reader context, app-service also projects `matching_sections`:
+whole-entry and precise witnesses for the same checked entry share one useful
+destination, while distinct embedded identities and passages remain separate.
+Raw witnesses, retrieval-lane attribution and ranking remain unchanged; adapters
+render the projected labels, excerpts and exact navigation.
 Record Similar carries the exact root seed and canonical filters, and returns a
 body-free seed summary beside bounded candidate pages. Trait Similar carries its
 typed trait key and projected label through the same search-page workflow. It adds no ranking lane or
