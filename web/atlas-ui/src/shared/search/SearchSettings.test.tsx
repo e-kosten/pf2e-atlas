@@ -144,7 +144,7 @@ it("rejects a manually typed decay outside the supported range", () => {
 
 it("discovers exact parts and carries their collection guard when applying", async () => {
   const { apply } = setup();
-  fireEvent.click(screen.getByText("Compare parts"));
+  fireEvent.click(screen.getByText("Sections to compare"));
   const description = await screen.findByRole("checkbox", { name: "Description" });
   fireEvent.click(description);
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
@@ -177,14 +177,14 @@ it("omits controls that do not apply to the baseline", async () => {
   await waitFor(() =>
     expect(screen.queryByRole("spinbutton", { name: "Match decay" })).toBeNull(),
   );
-  expect(screen.queryByText("Compare parts")).toBeNull();
+  expect(screen.queryByText("Sections to compare")).toBeNull();
 });
 
 it("suspends an empty part draft when switching to the baseline", async () => {
   const { apply } = setup();
-  fireEvent.click(screen.getByText("Compare parts"));
+  fireEvent.click(screen.getByText("Sections to compare"));
   await screen.findByRole("checkbox", { name: "Description" });
-  fireEvent.click(screen.getByRole("checkbox", { name: "All parts" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "All sections" }));
   expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Comparison method" }));
   fireEvent.click(screen.getByText("Name and identity"));
@@ -230,53 +230,61 @@ it("explains model and both text ranking choices without exposing Similar contro
     ).toBeVisible(),
   );
   expect(screen.queryByRole("combobox", { name: "Comparison method" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "About compare parts" })).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "About sections to compare" }),
+  ).toBeNull();
   fireEvent.keyDown(rankingHelp, { key: "Escape" });
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(apply).not.toHaveBeenCalled();
   expect(remember).not.toHaveBeenCalled();
 });
 
-it("explains selected Similar choices and keeps help separate from opening Compare parts", async () => {
+it("explains selected Similar choices and keeps help separate from opening Sections to compare", async () => {
   setup();
   expect(screen.queryByRole("combobox", { name: "Search ranking" })).toBeNull();
   const methodHelp = screen.getByRole("button", { name: "About comparison method" });
   fireEvent.click(methodHelp);
   await waitFor(() =>
-    expect(screen.getByText(/Compares your selected parts separately/)).toBeVisible(),
+    expect(
+      screen.getByText(/Looks for passages similar to each selected section/),
+    ).toBeVisible(),
   );
   fireEvent.keyDown(methodHelp, { key: "Escape" });
   const decayHelp = screen.getByRole("button", { name: "About match decay" });
   fireEvent.click(decayHelp);
   await waitFor(() =>
-    expect(screen.getByText(/0 uses only the strongest part/)).toBeVisible(),
+    expect(screen.getByText(/0 uses only the strongest section/)).toBeVisible(),
   );
   fireEvent.keyDown(decayHelp, { key: "Escape" });
-  const partsHelp = screen.getByRole("button", { name: "About compare parts" });
+  const partsHelp = screen.getByRole("button", { name: "About sections to compare" });
   fireEvent.click(partsHelp);
   await waitFor(() =>
     expect(
-      screen.getByText(/Choose what about Brown Mold you want to find similarities to/),
+      screen.getByText(
+        /Choose which sections of this record to use when finding similar records/,
+      ),
     ).toBeVisible(),
   );
   expect(api.parts).not.toHaveBeenCalled();
   fireEvent.keyDown(partsHelp, { key: "Escape" });
-  fireEvent.click(screen.getByText("Compare parts"));
+  fireEvent.click(screen.getByText("Sections to compare"));
   await screen.findByRole("checkbox", { name: "Description" });
   const candidateHelp = screen.getByRole("button", { name: "About candidate content" });
   fireEvent.click(candidateHelp);
   await waitFor(() =>
     expect(
-      screen.getByText(/Any selected source part can match any content/),
+      screen.getByText(/Any selected section can match any content/),
     ).toBeVisible(),
   );
   fireEvent.keyDown(candidateHelp, { key: "Escape" });
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Candidate content" }));
-  fireEvent.click(screen.getByText("Corresponding parts"));
+  fireEvent.click(screen.getByText("Corresponding sections"));
   fireEvent.click(candidateHelp);
   await waitFor(() =>
     expect(
-      screen.getByText(/If a result lacks that type of part, it contributes no match/),
+      screen.getByText(
+        /If a result lacks that type of section, it contributes no match/,
+      ),
     ).toBeVisible(),
   );
   fireEvent.keyDown(candidateHelp, { key: "Escape" });
@@ -286,7 +294,7 @@ it("explains selected Similar choices and keeps help separate from opening Compa
   await waitFor(() =>
     expect(
       screen.getByText(
-        /Specific details can become less prominent when several different parts are combined/,
+        /Specific details can become less prominent when several different sections are combined/,
       ),
     ).toBeVisible(),
   );
@@ -305,7 +313,7 @@ it("names the trait baseline by its content while preserving its wire value", as
   await waitFor(() => expect(screen.getByText("Trait definition")).toBeVisible());
   expect(screen.queryByText("Name and identity")).toBeNull();
   expect(screen.queryByText("Current baseline")).toBeNull();
-  expect(screen.getByText(/Uses the trait’s definition, or its label/)).toBeVisible();
+  expect(screen.queryByText(/Uses the trait’s definition, or its label/)).toBeNull();
   const methodHelp = screen.getByRole("button", { name: "About comparison method" });
   fireEvent.click(methodHelp);
   await waitFor(() =>

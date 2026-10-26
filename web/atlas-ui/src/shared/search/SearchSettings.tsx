@@ -159,8 +159,8 @@ export function SearchSettings({
         : "Score-based ranking",
     seed && appliedSimilarity.method !== "baseline"
       ? appliedParts
-        ? `${appliedParts.length} selected ${appliedParts.length === 1 ? "part" : "parts"}`
-        : "All parts"
+        ? `${appliedParts.length} selected ${appliedParts.length === 1 ? "section" : "sections"}`
+        : "All sections"
       : null,
   ]
     .filter(Boolean)
@@ -234,21 +234,15 @@ export function SearchSettings({
     modelOptions.push({ value: draft.model, label: draft.model, disabled: true });
   const selectionSummary =
     draft?.parts === null
-      ? "All parts"
-      : `${draft?.parts.length ?? 0} selected ${draft?.parts.length === 1 ? "part" : "parts"}`;
-  const sourceName = seedTitle ?? (trait ? "this trait" : "this record");
+      ? "All sections"
+      : `${draft?.parts.length ?? 0} selected ${draft?.parts.length === 1 ? "section" : "sections"}`;
   const sourcePossessive = seedTitle ? `${seedTitle}’s` : "the record’s";
-  const partsHelp = `Choose what about ${sourceName} you want to find similarities to. ${
-    allParts.some((part) => part.role === "description") &&
-    allParts.some((part) => part.role === "reset")
-      ? "Select Description to compare what it is, Reset to compare how it resets, or several parts to include several aspects."
-      : "Select one part to focus on that aspect, or several parts to include several aspects."
-  }`;
+  const partsHelp = `Choose which sections of this ${trait ? "trait" : "record"} to use when finding similar records.`;
   const methodHelp =
     draft?.similarity.method === "passages"
-      ? "Compares your selected parts separately. Different parts can match different sections of a result. Match decay controls how those matches contribute."
+      ? "Looks for passages similar to each selected section. Each selected section can match a different passage in the results."
       : draft?.similarity.method === "content-average"
-        ? "Averages the selected parts into an overall comparison. Specific details can become less prominent when several different parts are combined."
+        ? "Averages the selected sections into an overall comparison. Specific details can become less prominent when several different sections are combined."
         : trait
           ? "Uses the trait’s definition as the starting point, or its name when no definition is available."
           : `Uses ${sourcePossessive} name and identifying information. Its description and abilities aren’t used.`;
@@ -400,7 +394,7 @@ export function SearchSettings({
                     label={
                       <SettingLabel
                         label="Match decay"
-                        help="Parts are ordered by match strength for each result. 0 uses only the strongest part; 1 gives all selected parts equal weight. Values in between give each additional part less weight."
+                        help="Sections are ordered by match strength for each result. 0 uses only the strongest section; 1 gives all selected sections equal weight. Values in between give each additional section less weight."
                       />
                     }
                     validateStatus={invalidDecay ? "error" : undefined}
@@ -451,32 +445,28 @@ export function SearchSettings({
                       />
                     </div>
                     <div className="search-settings__scale">
-                      <span>Strongest part</span>
-                      <span>All parts equally</span>
+                      <span>Strongest section</span>
+                      <span>All sections equally</span>
                     </div>
                     {!invalidDecay && (
                       <Typography.Text type="secondary">
                         {selectedCount === 1
-                          ? "One part selected; decay has no effect."
+                          ? "One section selected; decay has no effect."
                           : `Contributions: 1, ${Number(draft.similarity.decay.toFixed(4))}, ${Number((draft.similarity.decay ** 2).toFixed(4))}…`}
                       </Typography.Text>
                     )}
                   </Form.Item>
                 )}
-                {draft.similarity.method === "baseline" ? (
-                  <Typography.Paragraph type="secondary">
-                    {trait
-                      ? "Uses the trait’s definition, or its label when no definition is available."
-                      : "Uses the record’s name and identity information."}
-                  </Typography.Paragraph>
-                ) : (
+                {draft.similarity.method !== "baseline" && (
                   <Collapse
                     activeKey={partsOpen ? ["parts"] : []}
                     onChange={(keys) => setPartsOpen(keys.includes("parts"))}
                     items={[
                       {
                         key: "parts",
-                        label: <SettingLabel label="Compare parts" help={partsHelp} />,
+                        label: (
+                          <SettingLabel label="Sections to compare" help={partsHelp} />
+                        ),
                         extra: (
                           <Typography.Text type="secondary">
                             {selectionSummary}
@@ -488,7 +478,7 @@ export function SearchSettings({
                             {inventory.error && (
                               <Alert
                                 type="error"
-                                title="Unable to load comparison parts"
+                                title="Unable to load comparison sections"
                                 description={inventory.error.message}
                                 action={
                                   <Button
@@ -506,7 +496,7 @@ export function SearchSettings({
                                     }}
                                   >
                                     {isArtifactGenerationChanged(inventory.error)
-                                      ? "Reload parts"
+                                      ? "Reload sections"
                                       : "Retry"}
                                   </Button>
                                 }
@@ -529,7 +519,7 @@ export function SearchSettings({
                                     })
                                   }
                                 >
-                                  All parts
+                                  All sections
                                 </Checkbox>
                                 <PartChoices
                                   parts={allParts}
@@ -545,8 +535,8 @@ export function SearchSettings({
                                 {(invalidParts || staleParts) && (
                                   <Typography.Paragraph type="danger" role="alert">
                                     {staleParts
-                                      ? "Some selected parts are unavailable. Choose the parts again."
-                                      : "Select at least one part."}
+                                      ? "Some selected sections are unavailable. Choose the sections again."
+                                      : "Select at least one section."}
                                   </Typography.Paragraph>
                                 )}
                                 {allParts.some((part) => part.label_only) && (
@@ -565,8 +555,8 @@ export function SearchSettings({
                                     help={
                                       draft.similarity.candidateParts ===
                                       "corresponding"
-                                        ? "Only parts with matching purposes can contribute, including across record kinds. For example, descriptions compare with descriptions. If a result lacks that type of part, it contributes no match."
-                                        : "Any selected source part can match any content in a result, even when the sections serve different purposes."
+                                        ? "Only sections with matching purposes can contribute, including across record kinds. For example, descriptions compare with descriptions. If a result lacks that type of section, it contributes no match."
+                                        : "Any selected section can match any content in a result, even when the sections serve different purposes."
                                     }
                                   />
                                 }
@@ -580,7 +570,7 @@ export function SearchSettings({
                                     { value: "any", label: "Any content" },
                                     {
                                       value: "corresponding",
-                                      label: "Corresponding parts",
+                                      label: "Corresponding sections",
                                     },
                                   ]}
                                   onChange={(candidateParts) =>
