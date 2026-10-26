@@ -1,18 +1,22 @@
 import type { ActionCostView, FactView } from "../../generated/atlas";
-import type { ReactNode } from "react";
-import { FactRow, hasReadingFact, isEmptyFactValue } from "./presentationFacts";
+import {
+  FactRow,
+  hasReadingFact,
+  isEmptyFactValue,
+  type FactValueRenderer,
+} from "./presentationFacts";
 
 /** Render authored meaning; glyph choice is already resolved by Rust. */
 export function ActionCost({
   fact,
   label,
   patch = false,
-  after,
+  renderValue,
 }: {
   fact: FactView<ActionCostView>;
   label?: string;
   patch?: boolean;
-  after?: ReactNode;
+  renderValue?: FactValueRenderer;
 }) {
   if (!hasReadingFact(fact, { patch })) return null;
   const cost = fact.state === "value" ? fact.value : null;
@@ -48,14 +52,8 @@ export function ActionCost({
     </span>
   );
   return label ? (
-    <FactRow label={label}>
-      {content}
-      {after}
-    </FactRow>
+    <FactRow label={label}>{renderValue ? renderValue(content) : content}</FactRow>
   ) : (
-    <>
-      {content}
-      {after}
-    </>
+    <>{renderValue ? renderValue(content) : content}</>
   );
 }

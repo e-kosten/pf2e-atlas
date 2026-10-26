@@ -1,0 +1,24 @@
+.explained-value__label {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, currentcolor 55%, transparent);
+  text-underline-offset: 3px;
+}
+.explained-value:hover .explained-value__label,
+.explained-value:focus-visible .explained-value__label {
+  color: var(--explanation-hover);
+  text-decoration-color: currentcolor;
+}
+.value-explanation {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-control);
+  max-inline-size: min(420px, calc(100vw - 72px));
+  max-block-size: calc(100dvh - 96px);
+  overflow: auto;
+}
+.value-explanation__title {
+  display: block;
+  margin-block-end: var(--space-control);
+}

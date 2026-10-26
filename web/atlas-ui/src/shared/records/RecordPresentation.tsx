@@ -12,7 +12,7 @@ import { TraitBadge } from "./TraitBadge";
 import { RollTableReading } from "./RollTableReading";
 import { RecordRarity } from "./RecordRarity";
 import { SpellRankControl } from "./SpellRankControl";
-import { SpellRankMarker } from "./SpellRankMarker";
+import { SpellRankValue } from "./SpellRankValue";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import { RecordProvenanceAction } from "./RecordProvenanceAction";
 import type { ReactNode, Ref } from "react";
@@ -154,7 +154,7 @@ export function RecordIdentity({
   headingId,
   actions,
   showOwnerReturn = true,
-  traitsAfter,
+  badgeExplanations,
 }: {
   identity?: RecordSummaryView;
   stacked?: boolean;
@@ -162,7 +162,7 @@ export function RecordIdentity({
   headingId?: string;
   actions?: IdentityActions;
   showOwnerReturn?: boolean;
-  traitsAfter?: ReactNode;
+  badgeExplanations?: ReactNode;
   classification: string;
   rankControl?: ReactNode;
   actionCost?: FactView<ActionCostView>;
@@ -253,13 +253,13 @@ export function RecordIdentity({
         ) : null
       }
     >
-      {(hasRarity || traits.length > 0 || traitsAfter) && (
+      {(hasRarity || traits.length > 0 || badgeExplanations) && (
         <div className="badge-row">
           <RecordRarity rarity={identity?.rarity ?? null} />
           {traits.map((trait) => (
             <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
           ))}
-          {traitsAfter}
+          {badgeExplanations}
         </div>
       )}
     </DocumentIdentityHeader>
@@ -322,14 +322,16 @@ export function RecordPresentationIdentity({
       actions={actions}
       showOwnerReturn={showOwnerReturn}
       identity={presentation?.identity}
-      traitsAfter={
+      badgeExplanations={
         identityChanges?.length
           ? identityChanges.map((change) => (
-              <SpellRankMarker
+              <SpellRankValue
                 key={change.fact.kind}
                 change={change}
                 label={change.fact.kind === "traits" ? "Traits" : "Rarity"}
-              />
+              >
+                {change.fact.kind === "traits" ? "Trait changes" : "Rarity change"}
+              </SpellRankValue>
             ))
           : undefined
       }

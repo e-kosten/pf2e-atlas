@@ -217,7 +217,7 @@ it("explains a modified allowance without duplicating chip controls or confusing
       />
     </ConfigProvider>,
   );
-  const trigger = screen.getByRole("button", { name: "Actions: calculation details" });
+  const trigger = screen.getByRole("button", { name: /Actions: calculation details:/ });
   trigger.focus();
   fireEvent.click(trigger);
   expect(screen.queryByText(/^This turn:/)).toBeNull();
@@ -226,7 +226,11 @@ it("explains a modified allowance without duplicating chip controls or confusing
   );
   const scrollRegion = screen.getByRole("region", { name: "Action calculation" });
   expect(scrollRegion).toHaveAttribute("tabindex", "0");
-  await waitFor(() => expect(scrollRegion).toHaveFocus());
+  await waitFor(() =>
+    expect(
+      screen.getByRole("dialog", { name: "Actions: calculation details" }),
+    ).toHaveFocus(),
+  );
   const calculation = screen.getByRole("region", { name: "Actions calculation" });
   await waitFor(() =>
     expect(within(calculation).getByRole("row", { name: "Total 1" })).toBeVisible(),
@@ -276,7 +280,9 @@ it("keeps extra action directly toggleable with its visible restriction and no s
       resource: "extra_action",
     }),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: /Actions: calculation details:/ }),
+  );
   await waitFor(() =>
     expect(screen.getByRole("region", { name: "Actions calculation" })).toBeVisible(),
   );
@@ -347,7 +353,9 @@ it("keeps explanations when modifiers cancel to the base allowance", async () =>
       />
     </ConfigProvider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: /Actions: calculation details:/ }),
+  );
   const calculation = await screen.findByRole("region", {
     name: "Actions calculation",
   });
@@ -410,7 +418,9 @@ it("keeps this turn's overlap explanation while conditions change and switches t
     </ConfigProvider>
   );
   const { rerender } = render(view(initial, true));
-  fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: /Actions: calculation details:/ }),
+  );
   const table = await screen.findByRole("region", { name: "Actions calculation" });
   await waitFor(() =>
     expect(within(table).getByRole("row", { name: "Stunned 1 -1" })).toBeVisible(),
@@ -466,7 +476,9 @@ it("keeps later automatic losses separate from the initial allocation", async ()
       />
     </ConfigProvider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: /Actions: calculation details:/ }),
+  );
   const start = await screen.findByRole("region", { name: "Actions calculation" });
   await waitFor(() =>
     expect(within(start).getByRole("row", { name: "Total 3" })).toBeVisible(),
@@ -488,7 +500,9 @@ it("does not reconstruct an older turn's missing calculation from today's condit
       />
     </ConfigProvider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Actions: calculation details" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: /Actions: calculation details:/ }),
+  );
   await waitFor(() =>
     expect(
       screen.getByText("Allocation details were not recorded for this turn."),

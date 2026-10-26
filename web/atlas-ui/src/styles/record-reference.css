@@ -183,15 +183,6 @@
 .record-fact > strong {
   margin-right: 4px;
 }
-.record-number {
-  padding: 0;
-  height: auto;
-  font-weight: 700;
-}
-.record-number-context {
-  display: inline-flex;
-  align-items: center;
-}
 .record-missing {
   color: var(--muted);
   padding: 0;
@@ -224,15 +215,6 @@
 .spell-reference {
   display: grid;
   gap: 14px;
-}
-.spell-rank-marker {
-  margin-inline-start: 2px;
-  vertical-align: baseline;
-  color: var(--muted);
-}
-.spell-rank-marker__tooltip {
-  display: grid;
-  gap: 4px;
 }
 .spell-reference__casting {
   padding-bottom: 10px;
@@ -361,7 +343,7 @@
   padding-inline: 0;
 }
 .record-reference__facts,
-.record-number,
+.explained-value,
 .actor-casting__row {
   font-variant-numeric: tabular-nums;
 }

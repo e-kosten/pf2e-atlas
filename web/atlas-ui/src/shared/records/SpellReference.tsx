@@ -13,7 +13,7 @@ import type {
   SpellRankFactView,
   SpellRankChangeView,
 } from "../../generated/atlas";
-import { SpellRankMarker } from "./SpellRankMarker";
+import { SpellRankValue } from "./SpellRankValue";
 import { DamageComponents } from "./ActorReference";
 import { ActionCost } from "./ActionCost";
 import {
@@ -22,67 +22,79 @@ import {
   NumberFact,
   factText,
   hasReadingFact,
+  type FactValueRenderer,
 } from "./presentationFacts";
 
-function rankMarker(
+function rankValue(
   changes: SpellRankChangeView[] | undefined,
   kind: SpellRankFactView["kind"],
   label: string,
   componentId?: string,
-) {
+): FactValueRenderer | undefined {
   const change = changes?.find(
     (change) =>
       change.fact.kind === kind &&
       (change.fact.kind !== "damage" || change.fact.component_id === componentId),
   );
-  return change ? <SpellRankMarker change={change} label={label} /> : null;
+  return change
+    ? (value) => (
+        <SpellRankValue change={change} label={label}>
+          {value}
+        </SpellRankValue>
+      )
+    : undefined;
 }
 
 function Area({
   fact,
   patch = false,
-  after,
+  renderValue,
 }: {
   fact: FactView<SpellAreaView>;
   patch?: boolean;
-  after?: ReactNode;
+  renderValue?: FactValueRenderer;
 }) {
   if (fact.state !== "value" || !fact.value)
-    return <FactLine label="Area" fact={fact} patch={patch} after={after} />;
+    return (
+      <FactLine label="Area" fact={fact} patch={patch} renderValue={renderValue} />
+    );
   if (patch)
     return (
       <>
-        <FactLine label="Area size" fact={fact.value.size} patch after={after} />
+        <FactLine
+          label="Area size"
+          fact={fact.value.size}
+          patch
+          renderValue={renderValue}
+        />
         <FactLine label="Area shape" fact={fact.value.shape} patch />
         <FactLine label="Area details" fact={fact.value.details} patch />
       </>
     );
-  return (
-    <FactRow label="Area">
-      {[
-        factText(fact.value.size, String, { required: true }),
-        factText(fact.value.shape, String, { required: true }),
-        fact.value.details.state === "missing" || !hasReadingFact(fact.value.details)
-          ? ""
-          : factText(fact.value.details),
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      {after}
-    </FactRow>
-  );
+  const value = [
+    factText(fact.value.size, String, { required: true }),
+    factText(fact.value.shape, String, { required: true }),
+    fact.value.details.state === "missing" || !hasReadingFact(fact.value.details)
+      ? ""
+      : factText(fact.value.details),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return <FactRow label="Area">{renderValue ? renderValue(value) : value}</FactRow>;
 }
 function Defense({
   fact,
   patch = false,
-  after,
+  renderValue,
 }: {
   fact: FactView<SpellDefenseView>;
   patch?: boolean;
-  after?: ReactNode;
+  renderValue?: FactValueRenderer;
 }) {
   if (fact.state !== "value" || !fact.value)
-    return <FactLine label="Defense" fact={fact} patch={patch} after={after} />;
+    return (
+      <FactLine label="Defense" fact={fact} patch={patch} renderValue={renderValue} />
+    );
   if (patch)
     return (
       <>
@@ -90,7 +102,7 @@ function Defense({
           label="Save statistic"
           fact={fact.value.statistic}
           patch
-          after={after}
+          renderValue={renderValue}
         />
         <FactLine
           label="Basic save"
@@ -101,8 +113,8 @@ function Defense({
         <FactLine label="Passive defense" fact={fact.value.passive} patch />
       </>
     );
-  return (
-    <FactRow label="Defense">
+  const value = (
+    <>
       {fact.value.basic.value ? "Basic " : ""}
       {factText(fact.value.statistic)}
       {["invalid", "null"].includes(fact.value.basic.state)
@@ -114,9 +126,9 @@ function Defense({
       {["invalid", "null"].includes(fact.value.passive.state)
         ? `; passive defense ${factText(fact.value.passive)}`
         : ""}
-      {after}
-    </FactRow>
+    </>
   );
+  return <FactRow label="Defense">{renderValue ? renderValue(value) : value}</FactRow>;
 }
 function HeighteningDamage({
   fact,
@@ -213,68 +225,74 @@ export function SpellChanges({
   rankChanges?: SpellRankChangeView[];
   effective?: boolean;
 }) {
-  const marker = (
+  const explain = (
     kind: SpellRankFactView["kind"],
     label: string,
     componentId?: string,
-  ) => rankMarker(rankChanges, kind, label, componentId);
+  ) => rankValue(rankChanges, kind, label, componentId);
   return (
     <>
       <ActionCost
         label="Cast"
         fact={changes.cast}
         patch={!effective}
-        after={marker("cast", "Cast")}
+        renderValue={explain("cast", "Cast")}
       />
       <FactLine
         label="Range"
         fact={changes.range}
         patch={!effective}
-        after={marker("range", "Range")}
+        renderValue={explain("range", "Range")}
       />
       <FactLine
         label="Target"
         fact={changes.target}
         patch={!effective}
-        after={marker("target", "Target")}
+        renderValue={explain("target", "Target")}
       />
       {effective && changes.area.state === "null" ? (
-        <FactRow label="Area">None{marker("area", "Area")}</FactRow>
+        <FactRow label="Area">{explain("area", "Area")?.("None") ?? "None"}</FactRow>
       ) : (
-        <Area fact={changes.area} patch={!effective} after={marker("area", "Area")} />
+        <Area
+          fact={changes.area}
+          patch={!effective}
+          renderValue={explain("area", "Area")}
+        />
       )}
       {effective && changes.defense.state === "null" ? (
-        <FactRow label="Defense">None{marker("defense", "Defense")}</FactRow>
+        <FactRow label="Defense">
+          {explain("defense", "Defense")?.("None") ?? "None"}
+        </FactRow>
       ) : (
         <Defense
           fact={changes.defense}
           patch={!effective}
-          after={marker("defense", "Defense")}
+          renderValue={explain("defense", "Defense")}
         />
       )}
       <FactLine
         label="Duration"
         fact={changes.duration}
         patch={!effective}
-        after={marker("duration", "Duration")}
+        renderValue={explain("duration", "Duration")}
       />
       <FactLine
         label="Sustained"
-        after={marker("sustained", "Sustained")}
+        renderValue={explain("sustained", "Sustained")}
         fact={changes.sustained}
         patch={!effective}
         format={(value) => (value ? "Yes" : "No")}
       />
       <FactLine
         label="Traits"
-        after={marker("traits", "Traits")}
+        renderValue={explain("traits", "Traits")}
         fact={changes.traits}
         patch={!effective}
         format={(value) => value.join(", ")}
       />
       <FactLine
         label="Traditions"
-        after={marker("traditions", "Traditions")}
+        renderValue={explain("traditions", "Traditions")}
         fact={changes.traditions}
         patch={!effective}
         format={(value) => value.join(", ")}
@@ -284,14 +302,18 @@ export function SpellChanges({
           <strong>Damage</strong>
           <DamageComponents
             damage={changes.damage}
-            afterComponent={(component) => marker("damage", "Damage", component.id)}
+            renderComponent={(component, value) =>
+              explain("damage", "Damage", component.id)?.(value) ?? value
+            }
           />
         </div>
       ) : (
         <DamageComponents
           damage={changes.damage}
           patch={!effective}
-          afterComponent={(component) => marker("damage", "Damage", component.id)}
+          renderComponent={(component, value) =>
+            explain("damage", "Damage", component.id)?.(value) ?? value
+          }
         />
       )}
       <HeighteningChanges fact={changes.heightening} />
@@ -358,11 +380,11 @@ export function SpellReference({
   children?: ReactNode;
 }) {
   const ritual = spell.ritual.state === "value" ? spell.ritual.value : null;
-  const marker = (
+  const explain = (
     kind: SpellRankFactView["kind"],
     label: string,
     componentId?: string,
-  ) => rankMarker(spell.rank_changes, kind, label, componentId);
+  ) => rankValue(spell.rank_changes, kind, label, componentId);
 
   return (
     <div className="spell-reference">
@@ -394,26 +416,36 @@ export function SpellReference({
           label="Traditions"
           fact={spell.traditions}
           format={(value) => value.join(", ")}
-          after={marker("traditions", "Traditions")}
+          renderValue={explain("traditions", "Traditions")}
         />
-        <ActionCost label="Cast" fact={spell.cast} after={marker("cast", "Cast")} />
+        <ActionCost
+          label="Cast"
+          fact={spell.cast}
+          renderValue={explain("cast", "Cast")}
+        />
         {spell.requirements && (
           <FactLine
             label="Requirements"
             fact={spell.requirements}
-            after={marker("requirements", "Requirements")}
+            renderValue={explain("requirements", "Requirements")}
           />
         )}
-        {!spell.requirements && marker("requirements", "Requirements") && (
+        {!spell.requirements && explain("requirements", "Requirements") && (
           <FactRow label="Requirements">
-            Not listed{marker("requirements", "Requirements")}
+            {explain("requirements", "Requirements")?.("Not listed") ?? "Not listed"}
           </FactRow>
         )}
         {spell.cost && (
-          <FactLine label="Cost" fact={spell.cost} after={marker("cost", "Cost")} />
+          <FactLine
+            label="Cost"
+            fact={spell.cost}
+            renderValue={explain("cost", "Cost")}
+          />
         )}
-        {!spell.cost && marker("cost", "Cost") && (
-          <FactRow label="Cost">Not listed{marker("cost", "Cost")}</FactRow>
+        {!spell.cost && explain("cost", "Cost") && (
+          <FactRow label="Cost">
+            {explain("cost", "Cost")?.("Not listed") ?? "Not listed"}
+          </FactRow>
         )}
         {ritual ? (
           <div className="spell-reference__ritual-checks">
@@ -442,44 +474,55 @@ export function SpellReference({
           )
         )}
         {(spell.counteraction.value !== false ||
-          marker("counteraction", "Counteract")) && (
+          explain("counteraction", "Counteract")) && (
           <FactLine
             label="Counteract"
             fact={spell.counteraction}
             format={(value) => (value ? "Yes" : "No")}
-            after={marker("counteraction", "Counteract")}
+            renderValue={explain("counteraction", "Counteract")}
           />
         )}
-        <FactLine label="Range" fact={spell.range} after={marker("range", "Range")} />
+        <FactLine
+          label="Range"
+          fact={spell.range}
+          renderValue={explain("range", "Range")}
+        />
         <FactLine
           label="Target"
           fact={spell.target}
-          after={marker("target", "Target")}
+          renderValue={explain("target", "Target")}
         />
         {spell.area ? (
-          <Area fact={spell.area} after={marker("area", "Area")} />
+          <Area fact={spell.area} renderValue={explain("area", "Area")} />
         ) : (
-          marker("area", "Area") && (
-            <FactRow label="Area">None{marker("area", "Area")}</FactRow>
+          explain("area", "Area") && (
+            <FactRow label="Area">
+              {explain("area", "Area")?.("None") ?? "None"}
+            </FactRow>
           )
         )}
         {spell.defense ? (
-          <Defense fact={spell.defense} after={marker("defense", "Defense")} />
+          <Defense fact={spell.defense} renderValue={explain("defense", "Defense")} />
         ) : (
-          marker("defense", "Defense") && (
-            <FactRow label="Defense">None{marker("defense", "Defense")}</FactRow>
+          explain("defense", "Defense") && (
+            <FactRow label="Defense">
+              {explain("defense", "Defense")?.("None") ?? "None"}
+            </FactRow>
           )
         )}
         <FactLine
           label="Duration"
           fact={spell.duration}
-          after={marker("duration", "Duration")}
+          renderValue={explain("duration", "Duration")}
         />
         {spell.sustained.state === "value" ? (
-          (spell.sustained.value || marker("sustained", "Sustained")) && (
+          (spell.sustained.value || explain("sustained", "Sustained")) && (
             <FactRow label="Sustained">
-              {spell.sustained.value ? "Yes" : "No"}
-              {marker("sustained", "Sustained")}
+              {explain(
+                "sustained",
+                "Sustained",
+              )?.(spell.sustained.value ? "Yes" : "No") ??
+                (spell.sustained.value ? "Yes" : "No")}
             </FactRow>
           )
         ) : (
@@ -490,13 +533,17 @@ export function SpellReference({
             <strong>Damage</strong>
             <DamageComponents
               damage={spell.damage}
-              afterComponent={(component) => marker("damage", "Damage", component.id)}
+              renderComponent={(component, value) =>
+                explain("damage", "Damage", component.id)?.(value) ?? value
+              }
             />
           </div>
         ) : (
           <DamageComponents
             damage={spell.damage}
-            afterComponent={(component) => marker("damage", "Damage", component.id)}
+            renderComponent={(component, value) =>
+              explain("damage", "Damage", component.id)?.(value) ?? value
+            }
           />
         )}
       </div>
