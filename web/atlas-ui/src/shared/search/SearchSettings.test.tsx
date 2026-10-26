@@ -6,7 +6,31 @@ import { DEFAULT_SEARCH_PREFERENCES } from "./searchPreferences";
 import { DEFAULT_SEARCH_STATE, type SearchFormState } from "../filters/searchState";
 import { readinessFixture } from "../../test/fixtures";
 import { SearchSettings } from "./SearchSettings";
+import { AtlasApiError } from "../../api/atlasApi";
 import type { SimilarityPartsView, SimilaritySeed } from "../../generated/atlas";
+
+vi.mock("./SimilaritySourceDocument", () => ({
+  SimilaritySourceDocument: ({
+    seed,
+    target,
+    generation,
+    onReloadSections,
+  }: {
+    seed: SimilaritySeed;
+    target: { part: { label: string } } | null;
+    generation: string;
+    onReloadSections: () => void;
+  }) => (
+    <section
+      aria-label="Seed source"
+      data-seed={JSON.stringify(seed)}
+      data-generation={generation}
+    >
+      {target?.part.label ?? "Whole document"}
+      <button onClick={onReloadSections}>Reload sections</button>
+    </section>
+  ),
+}));
 
 const api = vi.hoisted(() => ({ parts: vi.fn() }));
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -41,6 +65,13 @@ const inventory: SimilarityPartsView = {
     role_label: label,
     has_vectors: true,
     label_only: false,
+    navigation: {
+      record_key: seed.record_key,
+      embedded_path: [],
+      field: `/system/details/${label.toLowerCase()}`,
+      passage: null,
+      source_fingerprint: "source-1",
+    },
   })),
 };
 
@@ -327,4 +358,136 @@ it("names the trait baseline by its content while preserving its wire value", as
     expect.objectContaining({ similarity: { method: "baseline" } }),
     "bge-base",
   );
+});
+
+it("opens a section's source separately from its checkbox and preserves the complete draft across views", async () => {
+  const { apply } = setup();
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Match decay" }), {
+    target: { value: "0.75" },
+  });
+  fireEvent.click(screen.getByText("Sections to compare"));
+  const description = await screen.findByRole("checkbox", { name: "Description" });
+  const link = screen.getByRole("link", { name: "Description" });
+  expect(link).toHaveAttribute("href", expect.stringContaining("selection="));
+  fireEvent.click(link);
+  const source = screen.getByRole("region", { name: "Seed source" });
+  expect(source).toHaveTextContent("Description");
+  expect(source).toHaveAttribute("data-generation", "generation-1");
+  expect(description).toBeChecked();
+  expect(screen.getByRole("radio", { name: "Document" })).toBeChecked();
+  fireEvent.click(screen.getByRole("radio", { name: "Sections" }));
+  expect(screen.getByRole("spinbutton", { name: "Match decay" })).toHaveValue("0.75");
+  fireEvent.click(description);
+  expect(description).not.toBeChecked();
+  fireEvent.click(screen.getByRole("radio", { name: "Document" }));
+  expect(source).toHaveTextContent("Description");
+  expect(apply).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      similarity: { ...options, decay: 0.75, parts: ["part-1"] },
+    }),
+    "bge-base",
+  );
+});
+
+it("keeps modified section activation native and leaves selection and the active view unchanged", async () => {
+  setup();
+  fireEvent.click(screen.getByText("Sections to compare"));
+  const description = await screen.findByRole("checkbox", { name: "Description" });
+  const event = new MouseEvent("click", {
+    bubbles: true,
+    cancelable: true,
+    ctrlKey: true,
+  });
+  screen.getByRole("link", { name: "Description" }).dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(false);
+  expect(description).toBeChecked();
+  expect(screen.getByRole("radio", { name: "Sections" })).toBeChecked();
+});
+
+it("reloads the source and inventory generation together while preserving unrelated draft settings", async () => {
+  const next = {
+    ...inventory,
+    artifact_generation: "generation-2",
+    parts: inventory.parts.map((part) => ({
+      ...part,
+      selector: `new-${part.selector}`,
+    })),
+  };
+  api.parts.mockResolvedValueOnce(inventory).mockResolvedValue(next);
+  const { apply } = setup();
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Match decay" }), {
+    target: { value: "0.75" },
+  });
+  fireEvent.click(screen.getByText("Sections to compare"));
+  fireEvent.click(await screen.findByRole("checkbox", { name: "Description" }));
+  fireEvent.click(screen.getByRole("link", { name: "Reset" }));
+  fireEvent.click(screen.getByRole("button", { name: "Reload sections" }));
+  await waitFor(() =>
+    expect(screen.getByRole("region", { name: "Seed source" })).toHaveAttribute(
+      "data-generation",
+      "generation-2",
+    ),
+  );
+  expect(screen.getByRole("region", { name: "Seed source" })).toHaveTextContent(
+    "Whole document",
+  );
+  expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("radio", { name: "Sections" }));
+  expect(screen.getByRole("spinbutton", { name: "Match decay" })).toHaveValue("0.75");
+  expect(screen.getByRole("checkbox", { name: "Description" })).not.toBeChecked();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Description" }));
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      similarityGeneration: "generation-2",
+      similarity: { ...options, decay: 0.75, parts: ["new-part-0"] },
+    }),
+    "bge-base",
+  );
+  expect(api.parts).toHaveBeenLastCalledWith(
+    expect.objectContaining({ expected_artifact_generation: null }),
+    expect.any(AbortSignal),
+  );
+});
+
+it("retires loaded source when a model-switch inventory reports a new generation, preserving the draft until reload", async () => {
+  api.parts.mockResolvedValueOnce(inventory).mockRejectedValue(
+    new AtlasApiError(409, "The reference collection changed.", {
+      code: "artifact_generation_changed",
+      message: "The reference collection changed.",
+      recoverable_action: "refresh_results",
+    }),
+  );
+  setup();
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Match decay" }), {
+    target: { value: "0.75" },
+  });
+  fireEvent.click(screen.getByText("Sections to compare"));
+  fireEvent.click(await screen.findByRole("checkbox", { name: "Description" }));
+  expect(
+    screen.getByRole("region", { name: "Seed source", hidden: true }),
+  ).toHaveAttribute("data-generation", "generation-1");
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search model" }));
+  fireEvent.click(screen.getByText("EmbeddingGemma"));
+  await screen.findByText("The reference collection changed.");
+  expect(
+    screen.queryByRole("region", { name: "Seed source", hidden: true }),
+  ).toBeNull();
+  expect(screen.getByRole("button", { name: "Reload sections" })).toBeVisible();
+  expect(screen.getByRole("spinbutton", { name: "Match decay" })).toHaveValue("0.75");
+  expect(screen.getByText("1 selected section")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("radio", { name: "Document" }));
+  expect(screen.getByText("Reference collection changed")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Reload sections" })).toBeVisible();
+  fireEvent.click(screen.getByRole("radio", { name: "Sections" }));
+  // An older model's cached inventory cannot resurrect retired source content.
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search model" }));
+  fireEvent.click(screen.getByText("BGE Base"));
+  expect(
+    screen.queryByRole("region", { name: "Seed source", hidden: true }),
+  ).toBeNull();
+  expect(screen.getByRole("button", { name: "Reload sections" })).toBeVisible();
 });

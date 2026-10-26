@@ -933,6 +933,17 @@ fn similarity_inventory_and_explicit_parts_share_generation_and_effective_config
     assert!(!page.rows.is_empty());
     assert_eq!(page.similarity.unwrap().options, options);
     assert!(page.rows.iter().all(|row| row.similarity.is_some()));
+    for row in &page.rows {
+        for score in &row.similarity.as_ref().unwrap().parts {
+            let source = inventory
+                .parts
+                .iter()
+                .find(|part| part.selector == score.part.selector)
+                .unwrap();
+            assert_eq!(&score.part, source);
+            assert!(score.part.navigation.is_some());
+        }
+    }
     query.expected_artifact_generation = Some("stale-inventory-generation".into());
     assert_eq!(
         fixture
@@ -963,4 +974,147 @@ fn similarity_part_inventory_remains_available_without_vectors_or_model_assets()
         .unwrap();
     assert!(!inventory.parts.is_empty());
     assert!(inventory.parts.iter().all(|part| !part.has_vectors));
+}
+
+#[test]
+fn similarity_section_labels_preserve_authored_headings_and_navigate_checked_sources() {
+    for semantic in [false, true] {
+        let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
+            let sources = vec![record(
+                "actors",
+                "Actor",
+                json!({
+                    "_id":"aaaaaaaaaaaaaaaa", "name":"Seed", "type":"npc",
+                    "system":{"details":{"publicNotes":"<p>Unheaded introduction</p><h2>Public notes</h2><p>Authored heading content</p>","blurb":"Plain authored blurb"}},
+                    "items":[{"name":"Local ability","type":"action","system":{"description":{"value":"<h2>Ability heading</h2><p>Owned content</p>"}}}, {"name":"Local unheaded ability","type":"action","system":{"description":{"value":"<p>Unheaded owned content</p>"}}}]
+                }),
+            )];
+            let data = if semantic {
+                atlas_search::test_support::input_with_both_profiles(sources)
+            } else {
+                input(sources, false)
+            };
+            Ok(open_input_fixture(data)?)
+        });
+        let fixture = fixture_worker_with_executor(executor);
+        let execution = crate::ReadExecutionContext::uncancellable();
+        let request = atlas_app_model::SimilarityPartsRequest {
+            seed: atlas_domain::SimilaritySeed::Record {
+                record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
+            },
+            search_profile: None,
+            expected_artifact_generation: None,
+        };
+        let inventory = fixture
+            .worker
+            .similarity_parts(request.clone(), &execution)
+            .unwrap();
+        if semantic {
+            let mut other_profile = request.clone();
+            other_profile.search_profile =
+                Some(atlas_domain::SearchProfileId::new("embeddinggemma"));
+            other_profile.expected_artifact_generation =
+                Some(inventory.artifact_generation.clone());
+            let other = fixture
+                .worker
+                .similarity_parts(other_profile, &execution)
+                .unwrap();
+            assert_eq!(inventory.artifact_generation, other.artifact_generation);
+            assert_eq!(inventory.parts, other.parts);
+        }
+        let introduction = inventory
+            .parts
+            .iter()
+            .find(|part| {
+                part.owners.is_empty()
+                    && part.field == "/system/details/publicNotes"
+                    && part.section_ordinal == 0
+            })
+            .unwrap();
+        assert_eq!(introduction.label, "Description");
+        assert_eq!(
+            introduction.navigation.as_ref().unwrap().passage.is_some(),
+            semantic
+        );
+        let heading = inventory
+            .parts
+            .iter()
+            .find(|part| part.label == "Public notes")
+            .unwrap();
+        assert!(heading.navigation.is_some());
+        let owned = inventory
+            .parts
+            .iter()
+            .find(|part| part.owner_label == "Local ability")
+            .unwrap();
+        assert_eq!(owned.label, "Ability heading");
+        assert!(
+            owned
+                .navigation
+                .as_ref()
+                .unwrap()
+                .source_fingerprint
+                .is_some()
+        );
+        let unheaded_owned = inventory
+            .parts
+            .iter()
+            .find(|part| part.owner_label == "Local unheaded ability")
+            .unwrap();
+        assert_eq!(
+            unheaded_owned
+                .navigation
+                .as_ref()
+                .unwrap()
+                .passage
+                .is_some(),
+            semantic
+        );
+        assert!(
+            unheaded_owned
+                .navigation
+                .as_ref()
+                .unwrap()
+                .source_fingerprint
+                .is_some()
+        );
+        let plain = inventory
+            .parts
+            .iter()
+            .find(|part| part.field == "/system/details/blurb")
+            .unwrap();
+        assert_eq!(
+            plain.navigation.as_ref().unwrap().passage.is_some(),
+            semantic
+        );
+        for part in [introduction, heading, owned, unheaded_owned, plain] {
+            let navigation = part.navigation.as_ref().unwrap();
+            assert_eq!(navigation.field.as_deref(), Some(part.field.as_str()));
+            assert_eq!(navigation.owners, part.owners);
+            let detail = fixture
+                .worker
+                .record_detail_at(atlas_app_model::RecordDetailRequest {
+                    spell_rank: None,
+                    record_key: navigation.record_key.clone(),
+                    owners: navigation.owners.clone(),
+                    fields: vec![part.field.clone()],
+                    passage: navigation.passage.clone(),
+                    source_fingerprint: navigation.source_fingerprint.clone(),
+                })
+                .unwrap();
+            assert_eq!(detail.artifact_generation, inventory.artifact_generation);
+            assert_eq!(&detail.selected, navigation);
+        }
+        let mut stale = request;
+        stale.expected_artifact_generation = Some("stale-source-generation".into());
+        assert_eq!(
+            fixture
+                .worker
+                .similarity_parts(stale, &execution)
+                .unwrap_err()
+                .into_app_error()
+                .code,
+            AppErrorCode::ArtifactGenerationChanged
+        );
+    }
 }

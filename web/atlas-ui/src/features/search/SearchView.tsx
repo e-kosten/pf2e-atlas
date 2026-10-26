@@ -44,6 +44,9 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
           workspace.search.similarSeed
             ? {
                 title: similarTitle,
+                seed: workspace.search.similarSeed.startsWith("trait:")
+                  ? { kind: "trait", trait_key: workspace.search.similarSeed }
+                  : { kind: "record", record_key: workspace.search.similarSeed },
                 onSearch: workspace.refresh,
                 onClear: () =>
                   workspace.setSearch({

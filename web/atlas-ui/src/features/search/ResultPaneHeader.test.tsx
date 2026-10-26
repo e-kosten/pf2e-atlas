@@ -19,7 +19,7 @@ function render(ui: ReactElement) {
 }
 
 describe("search pane composition", () => {
-  it("keeps the visible chosen model beside the search input with an accessible label", () => {
+  it("keeps Search settings beside the search input and the model choice in its dialog", () => {
     render(
       <SearchProfileProvider>
         <SearchView workspace={workspace()} />
@@ -27,11 +27,14 @@ describe("search pane composition", () => {
     );
     const input = screen.getByRole("searchbox", { name: "Search records" });
     const row = input.closest(".filter-controls__search-row");
-    expect(row).toContainElement(
-      screen.getByRole("combobox", { name: "Search model" }),
-    );
-    expect(within(row as HTMLElement).getByText("BGE Base")).toBeVisible();
-    expect(screen.queryByText("Search model")).toBeNull();
+    const settings = screen.getByRole("button", { name: "Search settings" });
+    expect(row).toContainElement(settings);
+    expect(screen.queryByRole("combobox", { name: "Search model" })).toBeNull();
+    fireEvent.click(settings);
+    const dialog = within(screen.getByRole("dialog", { name: "Search settings" }));
+    expect(dialog.getByRole("combobox", { name: "Search model" })).toBeEnabled();
+    expect(dialog.getByText("BGE Base")).toBeInTheDocument();
+    fireEvent.click(dialog.getByRole("button", { name: "Cancel" }));
   });
 
   it("distinguishes idle drafts, pending search, completed empty and local error without a zero pager", () => {
@@ -143,13 +146,12 @@ describe("search pane composition", () => {
     const criterion = screen.getByText("Similar to");
     const body = criterion.closest(".filter-toolbar");
     expect(body).toBeVisible();
-    expect(body).toContainElement(
-      screen.getByRole("searchbox", { name: "Similar search" }),
+    expect(body).toContainElement(screen.getByRole("link", { name: "Seed" }));
+    expect(screen.getByRole("link", { name: "Seed" })).toHaveAttribute(
+      "href",
+      "/records/items:seed",
     );
-    expect(screen.getByRole("searchbox", { name: "Similar search" })).toHaveValue(
-      "Seed",
-    );
-    expect(screen.getByRole("combobox", { name: "Search ranking" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Search settings" })).toBeVisible();
     expect(screen.getByText("Top matches")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Clear similar criterion" }));
     expect(setSearch).toHaveBeenCalledWith({

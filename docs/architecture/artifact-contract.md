@@ -302,6 +302,17 @@ reads retained checked snapshots and prepared content, without new embeddings.
 Publication refreshes this metadata with its owning record. Corresponding-role
 eligibility constrains KNN before bounded candidates are selected.
 
+Section inventory and comparison evidence project reader destinations from the
+checked lexical and semantic-location metadata. The index combines full-section
+addresses and contiguous chunk coverage without loading vectors or source bodies.
+App-service preserves authored section headings and supplies field-title fallbacks
+such as Description for NPC public notes. These display labels do not rewrite
+stored selectors or comparison metadata. Reader destinations retain the exact
+owner and field, canonical passage when available, and snapshot-local fingerprint
+where required. A section without a canonical passage can open its containing
+field; it does not receive an invented section address. The source reader checks
+the same artifact generation as the section inventory.
+
 Passage matching averages best allowed chunk matches within each source section
 using overlap-adjusted coverage, then combines sorted section scores with
 normalized geometric rank decay. Content average either compares global

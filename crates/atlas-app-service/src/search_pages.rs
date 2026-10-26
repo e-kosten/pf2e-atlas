@@ -110,6 +110,7 @@ impl AtlasAppService {
                             page,
                             prefer_remaster: true,
                         },
+                        &projection_execution,
                     )?;
                     projection_execution.check()?;
                     similarity = Some(effective);
@@ -143,6 +144,7 @@ impl AtlasAppService {
                             page,
                             prefer_remaster: true,
                         },
+                        &projection_execution,
                     )?;
                     projection_execution.check()?;
                     similarity = Some(effective);

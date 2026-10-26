@@ -5,6 +5,78 @@ use atlas_domain::{
 };
 use serde_json::json;
 
+#[test]
+fn section_navigation_combines_overlapping_chunks_across_profiles_without_hydrating_content() {
+    let text = "Long description ".repeat(20);
+    let mut data = crate::test_support::input_with_both_profiles(vec![record(
+        "actors",
+        "Actor",
+        json!({"_id":"aaaaaaaaaaaaaaaa","name":"Seed","type":"npc","system":{"details":{"publicNotes":format!("<p>{text}</p>")}}}),
+    )]);
+    let mut chunks = vec![];
+    data.semantic_units.retain(|unit| {
+        if unit.field.as_deref() != Some("/system/details/publicNotes") {
+            return true;
+        }
+        let SourcePassageAddress::HtmlSection { chunk_bytes, .. } = &unit.address else {
+            unreachable!()
+        };
+        let length = chunk_bytes.end;
+        for (ordinal, range) in [
+            atlas_domain::SourceByteRange { start: 0, end: 100 },
+            atlas_domain::SourceByteRange {
+                start: 80,
+                end: length,
+            },
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut chunk = unit.clone();
+            chunk.chunk_ordinal = ordinal;
+            chunk.input_hash = hash(format!("chunk {ordinal}").as_bytes());
+            let SourcePassageAddress::HtmlSection { chunk_bytes, .. } = &mut chunk.address else {
+                unreachable!()
+            };
+            *chunk_bytes = range;
+            chunks.push(chunk);
+        }
+        false
+    });
+    data.semantic_units.extend(chunks);
+    let (service, _artifact) = open_input_fixture(data).unwrap();
+    let key = "actors:aaaaaaaaaaaaaaaa".parse().unwrap();
+    service.reset_read_metrics();
+    let addresses = service.similarity_part_addresses(&key).unwrap();
+    assert_eq!(addresses.len(), 1);
+    let metrics = service.read_metrics();
+    assert_eq!(metrics.sql_statements, 1);
+    assert_eq!(metrics.source_body_decodes, 0);
+    assert_eq!(metrics.prepared_content_batches, 0);
+    let address = addresses.values().next().unwrap();
+    let SourcePassageAddress::HtmlSection {
+        chunk_bytes, label, ..
+    } = address
+    else {
+        panic!("expected a checked HTML section")
+    };
+    assert_eq!(
+        *chunk_bytes,
+        atlas_domain::SourceByteRange {
+            start: 0,
+            end: text.trim().len()
+        }
+    );
+    assert!(label.is_none());
+    let seed = SimilaritySeed::Record { record_key: key };
+    for profile in ["bge-base", "embeddinggemma"] {
+        let inventory = service
+            .similarity_parts(&seed, Some(&SearchProfileId::new(profile)))
+            .unwrap();
+        assert!(addresses.contains_key(&inventory.parts[0].selector));
+    }
+}
+
 fn fixture() -> atlas_index::IndexBuildInput {
     let mut input = input(
         vec![
