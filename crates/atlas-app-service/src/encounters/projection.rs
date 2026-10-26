@@ -154,6 +154,15 @@ pub(super) fn participant_view(
             .and_then(serde_json::Number::as_i64),
     )
     .map(|stat| crate::presentation::actor::number_with_modifiers(&stat))
+    .or_else(|| {
+        stat_block.as_ref().and_then(|block| {
+            block
+                .values
+                .iter()
+                .find(|stat| stat.target == super::stat_block::StatisticTarget::HitPointMaximum)
+                .map(|stat| crate::presentation::actor::number_with_uncertainty(stat, true))
+        })
+    })
     .unwrap_or_else(|| atlas_app_model::NumberFactView {
         state: atlas_domain::QueryFieldState::Missing,
         value: None,
@@ -216,7 +225,9 @@ pub(super) fn participant_view(
         },
         persistent_damage_groups: super::persistent_damage::group_views(
             &participant,
+            &participant,
             record_detail.map(|record| &record.detail.source),
+            sources,
         ),
         cast_unavailable_reason: super::rules::capabilities::cannot_act_reason(
             &participant,

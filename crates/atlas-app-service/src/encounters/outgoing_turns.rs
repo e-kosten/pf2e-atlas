@@ -117,7 +117,12 @@ pub(super) fn latest_review(
             }
         }
     }
-    let groups = super::persistent_damage::group_views(&frozen, None);
+    let groups = super::persistent_damage::group_views(
+        &frozen,
+        live.unwrap_or(original),
+        None,
+        &super::rules::source_conditions::SourceConditions::unavailable(),
+    );
     let recovery_recorded = claims.iter().any(|claim| {
         claim.kind == atlas_local_state::EncounterBoundaryKind::TurnEnd
             && claim.scope_key == "frightened"
