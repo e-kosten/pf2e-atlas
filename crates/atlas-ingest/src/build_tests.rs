@@ -320,7 +320,8 @@ fn indexing_locale_falls_back_to_english_and_missing_catalog_preserves_artifact(
         r#"{"PF2E":{"Label":"French"}}"#,
     )
     .unwrap();
-    let catalog = crate::source::localization::LocalizationCatalog::load(&fixture.0, "fr").unwrap();
+    let catalog =
+        crate::source::localization::LocalizationCatalog::load(&fixture.0, "fr", None).unwrap();
     assert_eq!(catalog.localized_value("PF2E.Label"), Some("French"));
     assert_eq!(
         catalog.localized_value("PF2E.Fallback"),
@@ -338,7 +339,77 @@ fn indexing_locale_falls_back_to_english_and_missing_catalog_preserves_artifact(
         atlas_index::validate_artifact(first.output_path).unwrap(),
         before
     );
-    assert!(crate::source::localization::LocalizationCatalog::load(&fixture.0, "../en").is_err());
+    assert!(
+        crate::source::localization::LocalizationCatalog::load(&fixture.0, "../en", None).is_err()
+    );
+}
+
+#[test]
+fn english_catalog_changes_reprepare_unchanged_documents_and_failures_preserve_publication() {
+    use atlas_record::source_record::SourceContentStatus;
+    let fixture = Fixture::new();
+    let manifest_path = fixture.0.join("module.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["languages"] = serde_json::json!([
+        {"lang":"en","path":"lang/en.json"},
+        {"lang":"en","path":"lang/re-en.json"}
+    ]);
+    fs::write(&manifest_path, manifest.to_string()).unwrap();
+    let rules = fixture.0.join("static/lang/re-en.json");
+    fs::write(
+        &rules,
+        r#"{"Rules":"<h2>Original rules</h2><p>Original English passage.</p>"}"#,
+    )
+    .unwrap();
+    let document = fixture.0.join("packs/items/useful.json");
+    let mut authored: serde_json::Value =
+        serde_json::from_slice(&fs::read(&document).unwrap()).unwrap();
+    authored["system"]["description"]["value"] = serde_json::json!("@Localize[Rules]");
+    fs::write(&document, authored.to_string()).unwrap();
+    let original = crate::build::prepare_build(&fixture.options(), vec![]).unwrap();
+    let original_hash = original
+        .prepared
+        .index
+        .context
+        .preparation_sha256()
+        .unwrap();
+    fs::write(
+        &rules,
+        r#"{"Rules":"<h2>Updated rules</h2><p>Updated English passage.</p>"}"#,
+    )
+    .unwrap();
+    let updated =
+        crate::build::prepare_build(&fixture.options(), original.prepared.index.records).unwrap();
+    assert_eq!(updated.source_report.reused_admissions, 2);
+    assert_eq!(updated.source_report.reused_preparations, 0);
+    assert_ne!(
+        updated.prepared.index.context.preparation_sha256().unwrap(),
+        original_hash
+    );
+    let content = updated
+        .prepared
+        .index
+        .records
+        .iter()
+        .flat_map(|record| &record.content)
+        .filter_map(|outcome| match &outcome.status {
+            SourceContentStatus::Prepared(content) => Some(content),
+            _ => None,
+        })
+        .find(|content| content.locator.field == "/system/description/value")
+        .unwrap();
+    assert!(content.text.contains("Updated English passage."));
+    assert!(!content.html.contains("Original English passage."));
+    assert!(!content.html.contains("@Localize"));
+    let published = build_artifact(fixture.options()).unwrap();
+    let before = atlas_index::validate_artifact(&published.output_path).unwrap();
+    fs::remove_file(rules).unwrap();
+    assert!(build_artifact(fixture.options()).is_err());
+    assert_eq!(
+        atlas_index::validate_artifact(published.output_path).unwrap(),
+        before
+    );
 }
 #[test]
 #[ignore = "requires the pinned full PF2e source export; run explicitly"]
@@ -1074,6 +1145,7 @@ fn captured_manifest_localization_and_alias_inputs_reject_transient_changes() {
             crate::source::localization::LocalizationCatalog::load_captured(
                 &fixture.0,
                 "en",
+                None,
                 Some(&capture),
             )
             .map(|_| ())
