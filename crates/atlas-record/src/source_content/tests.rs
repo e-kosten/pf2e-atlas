@@ -928,6 +928,21 @@ fn action_commands_use_registry_labels_glyphs_variants_and_checked_references() 
     let content = prepare_source_content(locator(),
         "<p>uses [[/act seek]]; [[/act seek dc=20]]{Perception}; [[/act administer-first-aid variant=stop-bleeding]]; [[/act seek variant=made-up]]; [[/act unknown]]. [[/br 1d4 #rounds]] [[/r @actor.level+1d6]]</p>",
         audience(), ContentVisibilityRule::All, Some(&English), Some(&References)).unwrap();
+    let html = scraper::Html::parse_fragment(&content.html);
+    let selector = scraper::Selector::parse("[data-atlas-reference]").unwrap();
+    let references: Vec<_> = html.select(&selector).collect();
+    assert_eq!(references.len(), 3);
+    for (reference, expected) in references.iter().zip(["Seek", "Perception"]) {
+        assert_eq!(reference.text().collect::<String>(), expected);
+        let glyph = reference
+            .next_siblings()
+            .find_map(scraper::ElementRef::wrap)
+            .unwrap();
+        assert_eq!(
+            glyph.value().attr("data-atlas-action-glyph"),
+            Some("one_action")
+        );
+    }
     assert!(content.text.contains("Seek one action"));
     assert!(content.text.contains("Perception one action (DC 20)"));
     assert!(
