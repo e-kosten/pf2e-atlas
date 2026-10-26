@@ -96,6 +96,9 @@ async function openAndSelect() {
   fireEvent.click(trigger);
   const dialog = await screen.findByRole("dialog", { name: "Add link condition" });
   fireEvent.click(await within(dialog).findByRole("link", { name: /Leather Armor/ }));
+  await waitFor(() =>
+    expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
   return dialog;
 }
 beforeEach(() => {
@@ -111,9 +114,10 @@ beforeEach(() => {
     artifact_generation: "generation-a",
     counts: { status: "unavailable", reason: "non_conjunctive_context" },
   });
-  vi.mocked(getRecordDetail).mockImplementation(async (key) =>
-    detailFixture(key, "Leather Armor"),
-  );
+  vi.mocked(getRecordDetail).mockImplementation(async (key) => ({
+    ...detailFixture(key, "Leather Armor"),
+    artifact_generation: "generation-a",
+  }));
   vi.mocked(searchPage).mockImplementation(async (request: SearchResultsRequest) => ({
     artifact_generation: "generation-a",
     search_profile: "bge-base",
@@ -305,6 +309,10 @@ it("edits an exact embedded selection without rebinding it until a parent row is
   );
   dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
   fireEvent.click(await within(dialog).findByRole("link", { name: /Leather Armor/ }));
+  await within(dialog).findByRole("heading", { name: "Leather Armor" });
+  await waitFor(() =>
+    expect(within(dialog).getByRole("button", { name: "Apply" })).toBeEnabled(),
+  );
   fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
   await waitFor(() =>
     expect(linkClauses(current().search.filter)[0].relationship.selection).toEqual(
@@ -339,6 +347,10 @@ it("rejects a newly selected record from a different reference generation withou
   const lookup = vi.mocked(searchPage).getMockImplementation()!;
   vi.mocked(searchPage).mockImplementation(async (...args) => ({
     ...(await lookup(...args)),
+    artifact_generation: "generation-b",
+  }));
+  vi.mocked(getRecordDetail).mockImplementation(async (key) => ({
+    ...detailFixture(key, "Leather Armor"),
     artifact_generation: "generation-b",
   }));
   const current = setup();

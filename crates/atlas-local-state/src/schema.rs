@@ -1,4 +1,5 @@
 pub const PARTIES_SCHEMA_SQL: &str = include_str!("parties.sql");
+pub const PARTY_LEVELS_SCHEMA_SQL: &str = include_str!("party_levels.sql");
 
 /// Mutable domain baseline, composed into the workspace migration by runtime.
 pub const LOCAL_STATE_SCHEMA_SQL: &str = include_str!("schema.sql");
@@ -20,3 +21,6 @@ pub const TURN_RESOURCES_SCHEMA_SQL: &str = include_str!("turn_resources.sql");
 /// Application identities that survive even when no condition row is inserted.
 pub const CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL: &str =
     include_str!("consumed_condition_applications.sql");
+
+/// Optional encounter difficulty references; existing encounters follow their PCs.
+pub const ENCOUNTER_DIFFICULTY_SCHEMA_SQL: &str = include_str!("encounter_difficulty.sql");

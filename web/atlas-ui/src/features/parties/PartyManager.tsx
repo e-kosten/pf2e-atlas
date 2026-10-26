@@ -1,5 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Form, Input, Modal, Space, Table } from "antd";
+import {
+  Alert,
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Segmented,
+  Space,
+  Table,
+  Tooltip,
+} from "antd";
+import { Trash2 } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { createParty, deleteParty, updateParty } from "../../api/atlasApi";
 import type {
@@ -158,8 +170,22 @@ export function PartyManager({
   );
 }
 
+type PartyLevelMode = "shared" | "individual";
+type PartyEditorValues = CreatePartyRequest & { sharedLevel?: number | null };
+
 function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => void }) {
-  const [form] = Form.useForm<CreatePartyRequest>();
+  const [form] = Form.useForm<PartyEditorValues>();
+  const initialMembers = party?.members ?? [];
+  const uniformLevels = initialMembers.every(
+    (member) => member.level === initialMembers[0]?.level,
+  );
+  const [levelMode, setLevelMode] = useState<PartyLevelMode>(
+    !party || (uniformLevels && initialMembers[0]?.level !== undefined)
+      ? "shared"
+      : "individual",
+  );
+  const memberCount = (Form.useWatch("members", form) ?? initialMembers).length;
+  const individualDraftReady = useRef(initialMembers.length > 0);
   const [closing, setClosing] = useState(false);
   const id = useId();
   const inFlight = useRef(false);
@@ -181,11 +207,36 @@ function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => voi
       setClosing(true);
     },
   });
-  const submit = async (values: CreatePartyRequest) => {
+  const changeLevelMode = (next: PartyLevelMode) => {
+    if (next === levelMode) return;
+    const members = form.getFieldValue("members") as CreatePartyRequest["members"];
+    if (next === "individual" && !individualDraftReady.current) {
+      const level = form.getFieldValue("sharedLevel") as number | null | undefined;
+      members.forEach((_member, index) =>
+        form.setFieldValue(["members", index, "level"], level ?? undefined),
+      );
+      individualDraftReady.current = true;
+    } else if (
+      next === "shared" &&
+      members.length > 0 &&
+      members.every((member) => member.level === members[0].level)
+    ) {
+      form.setFieldValue("sharedLevel", members[0].level);
+    }
+    setLevelMode(next);
+  };
+  const submit = async (values: PartyEditorValues) => {
     if (inFlight.current) return;
     inFlight.current = true;
     try {
-      await save.mutateAsync(values);
+      await save.mutateAsync({
+        name: values.name,
+        members: values.members.map((member) => ({
+          ...member,
+          level:
+            (levelMode === "shared" ? values.sharedLevel : member.level) ?? undefined,
+        })),
+      });
     } catch {
       /* Keep the draft and show the mutation error. */
     } finally {
@@ -211,7 +262,10 @@ function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => voi
         layout="vertical"
         form={form}
         disabled={save.isPending}
-        initialValues={party ?? { name: "", members: [] }}
+        initialValues={{
+          ...(party ?? { name: "", members: [] }),
+          sharedLevel: uniformLevels ? initialMembers[0]?.level : undefined,
+        }}
         onFinish={(values) => void submit(values)}
       >
         {save.error && (
@@ -235,17 +289,64 @@ function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => voi
         >
           <Input maxLength={255} />
         </Form.Item>
+        <div className="party-editor__level-mode">
+          <Form.Item label="PC levels">
+            <Segmented<PartyLevelMode>
+              aria-label="PC levels"
+              name={`${id}-level-mode`}
+              value={levelMode}
+              onChange={changeLevelMode}
+              options={[
+                { label: "Same level", value: "shared" },
+                { label: "Individual levels", value: "individual" },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="sharedLevel"
+            label="Party level"
+            hidden={levelMode !== "shared"}
+            rules={
+              levelMode === "shared"
+                ? [
+                    {
+                      required: memberCount > 0,
+                      type: "integer",
+                      min: 1,
+                      max: 20,
+                      message: "Use 1–20.",
+                    },
+                  ]
+                : []
+            }
+          >
+            <InputNumber aria-label="Party level" min={1} max={20} placeholder="—" />
+          </Form.Item>
+        </div>
         <Form.List name="members">
           {(fields, { add, remove }) => (
-            <>
+            <div className="party-editor__members">
+              {fields.length > 0 && (
+                <div
+                  className={`party-editor__row party-editor__row--${levelMode} party-editor__headings`}
+                  aria-hidden="true"
+                >
+                  <span>PC name</span>
+                  {levelMode === "individual" && <span>Level</span>}
+                  <span />
+                </div>
+              )}
               {fields.map(({ key, name, ...rest }) => (
-                <Space key={key} align="start" style={{ display: "flex" }}>
+                <div
+                  key={key}
+                  className={`party-editor__row party-editor__row--${levelMode}`}
+                >
                   <Form.Item {...rest} name={[name, "member_key"]} hidden>
                     <Input />
                   </Form.Item>
                   <Form.Item
                     {...rest}
-                    label={`PC ${name + 1}`}
+                    className="party-editor__field"
                     name={[name, "name"]}
                     rules={[
                       {
@@ -256,24 +357,52 @@ function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => voi
                       },
                     ]}
                   >
-                    <Input maxLength={255} />
+                    <Input maxLength={255} aria-label={`PC ${name + 1} name`} />
                   </Form.Item>
-                  <Button
-                    style={{ marginTop: 30 }}
-                    aria-label={`Remove PC ${name + 1}`}
-                    onClick={() => remove(name)}
+                  <Form.Item
+                    {...rest}
+                    className="party-editor__field"
+                    name={[name, "level"]}
+                    hidden={levelMode !== "individual"}
+                    rules={
+                      levelMode === "individual"
+                        ? [{ type: "integer", min: 1, max: 20, message: "Use 1–20." }]
+                        : []
+                    }
                   >
-                    Remove
-                  </Button>
-                </Space>
+                    <InputNumber
+                      className="party-editor__level"
+                      aria-label={`PC ${name + 1} level`}
+                      min={1}
+                      max={20}
+                      placeholder="—"
+                    />
+                  </Form.Item>
+                  <Tooltip title={`Remove PC ${name + 1}`} trigger={["hover", "focus"]}>
+                    <Button
+                      type="text"
+                      aria-label={`Remove PC ${name + 1}`}
+                      onClick={() => remove(name)}
+                      icon={<Trash2 size={16} aria-hidden="true" />}
+                    />
+                  </Tooltip>
+                </div>
               ))}
               <Button
+                className="party-editor__add"
                 disabled={save.isPending || fields.length >= 50}
-                onClick={() => add({ name: "" })}
+                onClick={() =>
+                  add({
+                    name: "",
+                    ...(levelMode === "shared" && individualDraftReady.current
+                      ? { level: form.getFieldValue("sharedLevel") ?? undefined }
+                      : {}),
+                  })
+                }
               >
                 Add PC
               </Button>
-            </>
+            </div>
           )}
         </Form.List>
       </Form>

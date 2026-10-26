@@ -318,13 +318,7 @@ impl AtlasAppService {
             ));
         }
         let subject = if request.resolution == HpLifecycleResolutionView::KeepCurrentState {
-            workflow::ConditionSubjectContext {
-                participant: participant.clone(),
-                facts: Default::default(),
-                reference_revision: None,
-                level: participant.level_override,
-                fortitude: None,
-            }
+            workflow::ConditionSubjectContext::from_saved(participant)
         } else {
             workflow::condition_subject_context(self, participant)?
         };
@@ -473,13 +467,7 @@ pub(super) fn hp_subject_context(
     if needs_level || may_fall || source_hazard {
         workflow::condition_subject_context(service, participant)
     } else {
-        Ok(workflow::ConditionSubjectContext {
-            participant: participant.clone(),
-            facts: Default::default(),
-            reference_revision: None,
-            level: participant.level_override,
-            fortitude: None,
-        })
+        Ok(workflow::ConditionSubjectContext::from_saved(participant))
     }
 }
 pub(super) fn hp_context_for_subject(
@@ -1290,6 +1278,7 @@ mod hp_lifecycle_tests {
             })
             .unwrap();
         let subject = workflow::ConditionSubjectContext {
+            source_actions: Default::default(),
             participant: participant.clone(),
             facts: rules::ConditionApplicabilityFacts {
                 immunities: vec![rules::ConditionImmunity {

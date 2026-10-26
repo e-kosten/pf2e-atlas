@@ -1427,3 +1427,22 @@ export async function updateTurnResources(
     { method: "POST", body: jsonBody(request) },
   );
 }
+
+export async function setEncounterDifficulty(
+  encounterRef: string,
+  request: import("../generated/atlas").SetEncounterDifficultyRequest,
+): Promise<EncounterMutationView> {
+  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}/difficulty`, {
+    method: "PATCH",
+    body: jsonBody(request),
+  });
+}
+export async function previewEncounterDifficulty(
+  encounterRef: string,
+  request: import("../generated/atlas").PreviewEncounterDifficultyRequest,
+): Promise<import("../generated/atlas").EncounterDifficultyView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/difficulty/preview`,
+    { method: "POST", body: jsonBody(request) },
+  );
+}

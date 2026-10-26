@@ -1,4 +1,5 @@
 mod conditions;
+mod difficulty;
 mod hp;
 #[cfg(test)]
 mod hp_tests;
@@ -9,6 +10,7 @@ mod initiative_tests;
 pub(crate) mod mechanics;
 mod outgoing_turns;
 mod projection;
+mod record_addition;
 mod reference;
 #[cfg(test)]
 mod reference_tests;

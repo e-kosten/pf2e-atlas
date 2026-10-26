@@ -54,7 +54,7 @@ fn source(
 #[test]
 fn spell_ability_and_strength_damage_penalty_apply_once_with_variant() {
     let source = source(json!(true), "1d6", Some(5));
-    let baseline = super::source_baseline(&source, "fixture", None).unwrap();
+    let baseline = super::authored_stat_baseline(&source, "fixture", None).unwrap();
     let mut participant = participant();
     participant.participant_variant = ParticipantVariant::Elite;
     let definition = modeled_condition_by_rule(ConditionRule::Enfeebled).unwrap();
@@ -94,7 +94,7 @@ fn missing_ability_or_unsupported_formula_never_produces_partial_total() {
         source(json!(true), "1d6", None),
         source(json!(true), "@actor.level+1d6", Some(5)),
     ] {
-        let baseline = super::source_baseline(&source, "fixture", None).unwrap();
+        let baseline = super::authored_stat_baseline(&source, "fixture", None).unwrap();
         let projected = super::project_participant(&participant(), &baseline, true, &[]);
         let damage = &projected
             .activities
@@ -109,7 +109,7 @@ fn missing_ability_or_unsupported_formula_never_produces_partial_total() {
 #[test]
 fn false_apply_mod_does_not_require_an_ability() {
     let source = source(json!(false), "1d6", None);
-    let baseline = super::source_baseline(&source, "fixture", None).unwrap();
+    let baseline = super::authored_stat_baseline(&source, "fixture", None).unwrap();
     let projected = super::project_participant(&participant(), &baseline, true, &[]);
     let damage = &projected
         .activities
@@ -124,7 +124,7 @@ fn false_apply_mod_does_not_require_an_ability() {
 #[test]
 fn invalid_selected_rank_does_not_fall_back_to_an_exact_base_spell() {
     let source = source(json!(false), "1d6", Some(5));
-    let baseline = super::source_baseline(&source, "fixture", None).unwrap();
+    let baseline = super::authored_stat_baseline(&source, "fixture", None).unwrap();
     let owners = &baseline
         .activities
         .iter()
@@ -132,7 +132,7 @@ fn invalid_selected_rank_does_not_fall_back_to_an_exact_base_spell() {
         .unwrap()
         .navigation
         .owners;
-    let selected = super::source_baseline(&source, "fixture", Some((owners, 0))).unwrap();
+    let selected = super::authored_stat_baseline(&source, "fixture", Some((owners, 0))).unwrap();
     let spell = selected
         .activities
         .iter()

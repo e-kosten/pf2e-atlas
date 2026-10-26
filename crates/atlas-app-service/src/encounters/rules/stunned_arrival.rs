@@ -46,7 +46,11 @@ pub(in crate::encounters) fn apply(
         return Ok(());
     }
     let after = subject_after_change(participant, change)?;
-    let Some(lost) = super::capabilities::stunned_resolution_loss(&after).filter(|n| *n > 0) else {
+    // Source limits were applied at regain; own-turn loss uses recorded remaining stock.
+    let source_free = Default::default();
+    let Some(lost) =
+        super::capabilities::stunned_resolution_loss(&after, &source_free).filter(|n| *n > 0)
+    else {
         return Ok(());
     };
     let mut resolved = super::lifecycle::prepare_lifecycle(
@@ -57,6 +61,7 @@ pub(in crate::encounters) fn apply(
         },
         None,
         request_id,
+        &source_free,
     )?
     .resolve(None)?;
     for reduction in resolved.condition_changes {

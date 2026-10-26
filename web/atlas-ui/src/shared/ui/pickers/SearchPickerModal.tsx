@@ -4,13 +4,16 @@ import {
   Button,
   ConfigProvider,
   Form,
+  Grid,
   Modal,
   Pagination,
   Space,
+  theme,
   Typography,
 } from "antd";
 import type { FormInstance, ModalProps } from "antd";
 import { useId, useLayoutEffect, useRef, useState } from "react";
+import { RotateCw, X } from "lucide-react";
 import { searchPage } from "../../../api/atlasApi";
 import { useSearchProfile } from "../../search/SearchProfileContext";
 import { SearchProfileNotice } from "../../search/SearchProfileNotice";
@@ -20,6 +23,7 @@ import {
 } from "../../search/searchIdentity";
 import type {
   RecordSummaryView,
+  RecordDetailView,
   SearchResultsPage,
   SearchResultsRequest,
 } from "../../../generated/atlas";
@@ -35,6 +39,8 @@ import { ResultSortControl } from "../../search/ResultSortControl";
 import { useFilterDiscovery } from "../../filters/useFilterDiscovery";
 import { ReferenceBrowser } from "../../records/ReferenceBrowser";
 import { useReferenceReading } from "../../records/useReferenceReading";
+import { usePreparedReferenceSelection } from "../../records/usePreparedReferenceSelection";
+import { PaneIconButton } from "../actions/PaneAction";
 import {
   isArtifactGenerationChanged,
   retireImmutableReferenceQueries,
@@ -62,10 +68,12 @@ export function SearchPickerModal<FormValues>({
   dismissLabel = "Cancel",
   confirmLabel = "Add",
   status,
+  summary,
 }: {
   buildRequest: (query: string) => SearchResultsRequest;
   disabled?: boolean;
-  children?: React.ReactNode;
+  children?:
+    React.ReactNode | ((detail: RecordDetailView | undefined) => React.ReactNode);
   emptyPrompt: string;
   emptyResults: string;
   form: FormInstance<FormValues>;
@@ -79,8 +87,11 @@ export function SearchPickerModal<FormValues>({
   dismissLabel?: string;
   confirmLabel?: string;
   status?: React.ReactNode;
+  summary?: React.ReactNode;
 }) {
   const formId = useId();
+  const { token } = theme.useToken();
+  const narrow = !Grid.useBreakpoint().lg;
   const profile = useSearchProfile();
   const [search, setSearch] = useState<SearchFormState>(DEFAULT_SEARCH_STATE);
   const [paging, setPaging] = useState({ profile: profile.id, number: 1 });
@@ -172,7 +183,16 @@ export function SearchPickerModal<FormValues>({
     null,
     open && !retrieval.recovering,
     retrieval.epoch,
+    retrieval.generation,
   );
+  const selection = usePreparedReferenceSelection(
+    reading,
+    open && !disabled && !retrieval.recovering,
+    retrieval.epoch,
+    retrieval.generation,
+  );
+  const preparing = selection.current;
+  const selectionGenerationChanged = isArtifactGenerationChanged(preparing?.error);
   const context = buildFilterDiscoveryContext(
     { ...search, filter },
     profile.id ?? undefined,
@@ -210,15 +230,49 @@ export function SearchPickerModal<FormValues>({
     }));
     onSelectionChange(null);
   };
+  const selectionStatus =
+    preparing && (preparing.slow || preparing.error) ? (
+      <div className="reference-selection-status" role="status">
+        <span title={preparing.name}>
+          {preparing.error
+            ? selectionGenerationChanged
+              ? "Reference collection changed"
+              : `Could not load ${preparing.name}`
+            : `Loading ${preparing.name}…`}
+        </span>
+        {preparing.error && (
+          <PaneIconButton
+            size="small"
+            icon={<RotateCw size={14} />}
+            label={
+              selectionGenerationChanged
+                ? "Refresh results"
+                : `Retry loading ${preparing.name}`
+            }
+            onClick={() =>
+              selectionGenerationChanged ? void refreshResults() : selection.retry()
+            }
+          />
+        )}
+        <PaneIconButton
+          size="small"
+          icon={<X size={14} />}
+          label="Cancel selection"
+          onClick={selection.cancel}
+        />
+      </div>
+    ) : undefined;
   return (
     <ConfigProvider componentDisabled={disabled}>
       <Modal
+        centered
         className="reference-picker"
         classNames={{ body: "reference-picker__body" }}
         width="min(1400px, calc(100vw - 32px))"
         styles={{
+          wrapper: { paddingBlock: "var(--space-group)" },
           body: {
-            height: "min(70dvh, 820px)",
+            height: "min(82dvh, 900px, calc(100dvh - 8rem))",
             display: "flex",
             flexDirection: "column",
           },
@@ -240,6 +294,7 @@ export function SearchPickerModal<FormValues>({
             search,
             setSearch: (next) => {
               if (!disabled) {
+                if (preparing) selection.cancel();
                 setSearch(normalizeSortTransition(search, next));
                 setPageNumber(1);
               }
@@ -287,15 +342,22 @@ export function SearchPickerModal<FormValues>({
           }
           disabled={disabled}
           selectedRecordKey={selectedRecordKey}
-          onSelect={(row) => {
-            if (!disabled) {
-              if (recordResults.data)
-                onSelectionChange({
-                  record: row.record,
-                  artifact_generation: recordResults.data.artifact_generation,
-                });
-            }
+          onReaderClose={selection.cancel}
+          onSelect={(row, request) => {
+            const page = recordResults.data;
+            if (!disabled && page)
+              void selection.select({
+                request,
+                name: row.record.title,
+                generation: page.artifact_generation,
+                commit: () =>
+                  onSelectionChange({
+                    record: row.record,
+                    artifact_generation: page.artifact_generation,
+                  }),
+              });
           }}
+          readerStatus={selectionStatus}
           reading={reading}
           emptyMessage={
             recordResults.error || search.filterError
@@ -306,15 +368,24 @@ export function SearchPickerModal<FormValues>({
           }
           resultsHeader={
             <div className="result-pane-header">
-              <Typography.Text>
-                {recordResults.isPlaceholderData
-                  ? "Updating results"
-                  : recordResults.data?.page
-                    ? recordResults.data.coverage?.exhaustive === false
-                      ? `Top ${recordResults.data.page.total.toLocaleString()} matches`
-                      : `${recordResults.data.page.total.toLocaleString()} records`
-                    : "Results"}
-              </Typography.Text>
+              <div
+                className="reference-picker__result-caption"
+                style={{ minHeight: token.controlHeightSM }}
+              >
+                {narrow && selectionStatus ? (
+                  selectionStatus
+                ) : (
+                  <Typography.Text>
+                    {recordResults.isPlaceholderData
+                      ? "Updating results"
+                      : recordResults.data?.page
+                        ? recordResults.data.coverage?.exhaustive === false
+                          ? `Top ${recordResults.data.page.total.toLocaleString()} matches`
+                          : `${recordResults.data.page.total.toLocaleString()} records`
+                        : "Results"}
+                  </Typography.Text>
+                )}
+              </div>
               <div className="pager pager--compact">
                 <ResultSortControl
                   search={search}
@@ -353,27 +424,40 @@ export function SearchPickerModal<FormValues>({
         />
         <Form
           name={formId}
-          className="reference-picker__footer"
+          className={`reference-picker__footer${summary ? " reference-picker__footer--summary" : ""}`}
           disabled={disabled}
           form={form}
           layout="vertical"
-          onFinish={onFinish}
+          onFinish={(values) => {
+            if (!disabled && !preparing) onFinish(values);
+          }}
         >
-          <div className="reference-picker__fields">{children}</div>
-          {status}
-          <Space>
+          <div className="reference-picker__fields">
+            {typeof children === "function" ? children(reading.parentDetail) : children}
+          </div>
+          {summary && <div className="reference-picker__summary">{summary}</div>}
+          {!summary && status}
+          <Space className="reference-picker__actions">
             <Button disabled={disabled} onClick={onCancel}>
               {dismissLabel}
             </Button>
             <Button
               {...okButtonProps}
-              disabled={disabled || !selectedRecordKey || okButtonProps?.disabled}
+              disabled={
+                disabled ||
+                Boolean(preparing) ||
+                !selectedRecordKey ||
+                okButtonProps?.disabled
+              }
               type="primary"
               htmlType="submit"
             >
               {confirmLabel}
             </Button>
           </Space>
+          {summary && status && (
+            <div className="reference-picker__status">{status}</div>
+          )}
         </Form>
       </Modal>
     </ConfigProvider>

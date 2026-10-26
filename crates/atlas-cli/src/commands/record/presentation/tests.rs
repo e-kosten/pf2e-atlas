@@ -326,6 +326,7 @@ fn detail(body: RecordBodyView) -> RecordDetailView {
             body,
         },
         selected: address(),
+        encounter_adjustment: None,
         relationships: vec![],
         relationships_truncated: false,
     }

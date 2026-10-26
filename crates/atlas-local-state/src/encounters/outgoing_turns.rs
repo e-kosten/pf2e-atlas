@@ -14,6 +14,15 @@ pub struct SavedOutgoingTurn {
     pub next_participant_key: Option<String>,
 }
 impl EncountersRead<'_> {
+    pub fn advance_turn_receipt(
+        &self,
+        encounter_ref: &str,
+        request_id: &str,
+        intent: &serde_json::Value,
+    ) -> LocalStateResult<Option<Encounter>> {
+        super::initiative_rolls::validate_request(request_id, intent)?;
+        recover_advance(self.connection, encounter_ref, request_id, intent)
+    }
     pub fn outgoing_turn(
         &self,
         encounter_ref: &str,
@@ -37,6 +46,15 @@ impl EncountersRead<'_> {
     }
 }
 impl EncountersWrite<'_> {
+    pub fn advance_turn_receipt(
+        &self,
+        encounter_ref: &str,
+        request_id: &str,
+        intent: &serde_json::Value,
+    ) -> LocalStateResult<Option<Encounter>> {
+        super::initiative_rolls::validate_request(request_id, intent)?;
+        recover_advance(self.connection, encounter_ref, request_id, intent)
+    }
     pub fn advance_turn_once(
         &self,
         encounter_ref: &str,
@@ -47,19 +65,15 @@ impl EncountersWrite<'_> {
     ) -> LocalStateResult<Option<Encounter>> {
         super::initiative_rolls::validate_request(request_id, intent)?;
         crate::atomic_action::run(self.connection, || {
+            if let Some(encounter) =
+                recover_advance(self.connection, encounter_ref, request_id, intent)?
+            {
+                return Ok(Some(encounter));
+            }
             let Some(snapshot) = storage::get_with_participants(self.connection, encounter_ref)?
             else {
                 return Ok(None);
             };
-            let prior:Option<String>=self.connection.query_row("SELECT intent_json FROM encounter_outgoing_turns WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND request_id=?2",params![snapshot.encounter.encounter_key,request_id],|row|row.get(0)).optional()?;
-            if let Some(prior) = prior {
-                if serde_json::from_str::<serde_json::Value>(&prior)? != *intent {
-                    return Err(LocalStateError::InvalidRollRequest(
-                        "request ID already used for another turn intent",
-                    ));
-                }
-                return storage::get(self.connection, encounter_ref);
-            }
             if snapshot.encounter.revision != expected_revision {
                 return Err(LocalStateError::StaleEncounterRevision {
                     encounter_key: snapshot.encounter.encounter_key,
@@ -103,4 +117,25 @@ impl EncountersWrite<'_> {
             storage::get(self.connection, encounter_ref)
         })
     }
+}
+
+fn recover_advance(
+    connection: &rusqlite::Connection,
+    encounter_ref: &str,
+    request_id: &str,
+    intent: &serde_json::Value,
+) -> LocalStateResult<Option<Encounter>> {
+    let prior: Option<String> = connection.query_row(
+        "SELECT t.intent_json FROM encounter_outgoing_turns t JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND t.request_id=?2",
+        params![encounter_ref, request_id], |row| row.get(0),
+    ).optional()?;
+    let Some(prior) = prior else {
+        return Ok(None);
+    };
+    if serde_json::from_str::<serde_json::Value>(&prior)? != *intent {
+        return Err(LocalStateError::InvalidRollRequest(
+            "request ID already used for another turn intent",
+        ));
+    }
+    storage::get(connection, encounter_ref)
 }

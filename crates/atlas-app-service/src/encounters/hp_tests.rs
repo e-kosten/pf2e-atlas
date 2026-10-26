@@ -207,6 +207,20 @@ fn signed_amounts_reverse_operations_through_actual_hp_policy() {
             30,
             8,
         ),
+        (
+            EncounterHpAction::Damage {
+                amount: "-(10+5-2)".into(),
+            },
+            30,
+            8,
+        ),
+        (
+            EncounterHpAction::Heal {
+                amount: "-(10+5-2)".into(),
+            },
+            20,
+            0,
+        ),
     ] {
         let (f, key, p) = manual(Some(30), Some(25));
         apply(
@@ -497,6 +511,7 @@ fn hp_receipt_does_not_depend_on_postcommit_reference_hydration() {
         .encounter_key;
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -536,6 +551,7 @@ fn derived_maximum_reuses_existing_deficit_policy() {
         .encounter_key;
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -625,6 +641,7 @@ fn same_value_exact_current_correction_marks_derived_hp_edited() {
         .encounter_key;
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,
@@ -802,6 +819,7 @@ fn omitted_atomic_fields_preserve_derived_provenance_and_supplied_same_values_ma
         .encounter_key;
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,

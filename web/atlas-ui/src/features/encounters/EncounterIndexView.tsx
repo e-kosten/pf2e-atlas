@@ -18,6 +18,7 @@ import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 import { PartyManager } from "../parties/PartyManager";
+import { encounterStatusLabels } from "./encounterStatus";
 import { CreateEncounterModal } from "./EncounterModals";
 type EncounterIndexViewProps = {
   route: Record<string, never>;
@@ -174,7 +175,12 @@ function encounterColumns(
         </a>
       ),
     },
-    { title: "Status", dataIndex: "status", width: 120 },
+    {
+      title: "Status",
+      dataIndex: "status",
+      width: 120,
+      render: (_, encounter) => encounterStatusLabels[encounter.status],
+    },
     {
       title: "Round",
       dataIndex: "round_number",

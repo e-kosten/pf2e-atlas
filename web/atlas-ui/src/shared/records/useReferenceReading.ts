@@ -1,8 +1,8 @@
 import { recordDetailRequest } from "./recordDetailQuery";
 import { recordReadingIdentity, useRetainedRecord } from "./useRetainedRecord";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useCallback, useReducer } from "react";
-import { getRecordDetail } from "../../api/atlasApi";
+import { AtlasApiError, getRecordDetail } from "../../api/atlasApi";
 import type { RecordDetailView, RecordNavigationView } from "../../generated/atlas";
 import { activityAnchor } from "./embeddedNavigation";
 
@@ -46,12 +46,65 @@ export type ReadingRequest = {
   landing?: RecordNavigationView;
 };
 
+/** Shared exact query for visible reading and preparing a picker selection. */
+export function referenceReadingQueryOptions(
+  request: ReadingRequest | null,
+  epoch = 0,
+  generation?: string | null,
+) {
+  function checked(detail: RecordDetailView) {
+    if (generation && detail.artifact_generation !== generation)
+      throw new AtlasApiError(409, "The reference collection changed.", {
+        code: "artifact_generation_changed",
+        message: "The reference collection changed.",
+        recoverable_action: "refresh_results",
+      });
+    return detail;
+  }
+  return queryOptions({
+    queryKey: [
+      "record-detail",
+      request,
+      epoch,
+      ...(generation === undefined ? [] : [generation]),
+    ],
+    enabled: request !== null,
+    queryFn: async ({ signal }) => {
+      const navigation = request!.navigation;
+      const embedded =
+        navigation.embedded_path.length ||
+        navigation.field ||
+        navigation.passage ||
+        navigation.spell_rank ||
+        navigation.source_fingerprint;
+      const parent = await getRecordDetail(
+        navigation.record_key,
+        embedded ? recordDetailRequest(navigation) : undefined,
+        signal,
+      );
+      signal.throwIfAborted();
+      checked(parent);
+      const match = request!.match;
+      if (match && !parentShowsActivity(parent, match)) {
+        const detail = await getRecordDetail(
+          match.record_key,
+          recordDetailRequest(match),
+          signal,
+        );
+        return { detail: checked(detail), parent, landing: undefined };
+      }
+      return { detail: parent, parent, landing: match ?? request!.landing };
+    },
+  });
+}
+
 // A match first checks the typed parent's visible activities. Other embedded nodes
 // and precise field/passage addresses retain their complete addressed reader.
 export function useReferenceReading(
   initial: ReadingRequest | null = null,
   enabled = true,
   epoch = 0,
+  generation?: string | null,
 ) {
   const [session, dispatch] = useReducer(
     (
@@ -98,33 +151,8 @@ export function useReferenceReading(
     [],
   );
   const query = useQuery({
-    queryKey: ["record-detail", request, epoch],
+    ...referenceReadingQueryOptions(request, epoch, generation),
     enabled: enabled && request !== null,
-    queryFn: async ({ signal }) => {
-      const navigation = request!.navigation;
-      const embedded =
-        navigation.embedded_path.length ||
-        navigation.field ||
-        navigation.passage ||
-        navigation.spell_rank ||
-        navigation.source_fingerprint;
-      const parent = await getRecordDetail(
-        navigation.record_key,
-        embedded ? recordDetailRequest(navigation) : undefined,
-        signal,
-      );
-      signal.throwIfAborted();
-      const match = request!.match;
-      if (match && !parentShowsActivity(parent, match)) {
-        const detail = await getRecordDetail(
-          match.record_key,
-          recordDetailRequest(match),
-          signal,
-        );
-        return { detail, landing: undefined };
-      }
-      return { detail: parent, landing: match ?? request!.landing };
-    },
   });
   const retained = useRetainedRecord(
     JSON.stringify([
@@ -134,6 +162,7 @@ export function useReferenceReading(
       ),
       request?.landing,
       epoch,
+      generation,
     ]),
     query.data,
     query.error,
@@ -148,6 +177,7 @@ export function useReferenceReading(
     canGoBack: session.history.length > 0,
     back: () => dispatch({ kind: "back" }),
     detail: retained?.detail,
+    parentDetail: retained?.parent,
     landing: retained?.landing,
     loading: query.isFetching,
     error: query.error,

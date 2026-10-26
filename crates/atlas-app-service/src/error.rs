@@ -82,7 +82,8 @@ impl From<LocalStateError> for AppServiceError {
     fn from(error: LocalStateError) -> Self {
         let code = match &error {
             LocalStateError::EncounterBoundaryConflict => AppErrorCode::EncounterTurnConflict,
-            LocalStateError::InvalidParty(_)
+            LocalStateError::InvalidDifficultyReference(_)
+            | LocalStateError::InvalidParty(_)
             | LocalStateError::InvalidSlug { .. }
             | LocalStateError::InvalidRollRequest(_)
             | LocalStateError::InvalidConditionEvent(_)
