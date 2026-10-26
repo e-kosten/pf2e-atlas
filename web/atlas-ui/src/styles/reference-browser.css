@@ -53,6 +53,7 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
 }
 .browse-pane-header__content {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-control);
@@ -74,6 +75,7 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
 }
 .reference-reader__heading {
   flex: 1;
+  min-width: min-content;
 }
 .reference-reader__heading > :first-child,
 .reference-selection-status > button {
@@ -234,6 +236,8 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
 @media (prefers-reduced-motion: reduce) {
   .reference-landing-highlight {
     animation: none;
+    background: var(--selection-bg);
+    outline: 2px solid var(--selection-border);
   }
 }
 @media (max-width: 991px) {
@@ -297,4 +301,23 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   .reference-reader {
     --browse-pane-inset: var(--space-group);
   }
+}
+
+.reader-match-context {
+  display: grid;
+  gap: var(--space-group);
+  margin-block-end: var(--space-section);
+  padding-block-end: var(--space-group);
+  border-bottom: 1px solid var(--line);
+}
+.reader-match-context__sections {
+  display: grid;
+  gap: var(--space-control);
+  list-style: none;
+  padding: 0;
+  margin: var(--space-control) 0 0;
+}
+.reader-match-context__sections > li {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
