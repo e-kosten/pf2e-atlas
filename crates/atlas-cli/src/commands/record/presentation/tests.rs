@@ -214,6 +214,9 @@ fn optional_spell_prose_keeps_unavailable_parents_without_exposing_known_absent_
         let mut changes = no_changes();
         changes.range = cleared();
         spell.forms = known(vec![SpellFormView {
+            rank_changes: None,
+            rank_note: None,
+            effective_rank: None,
             id: "clear".into(),
             name: known("Clear range".into()),
             sort: numeric(0),
@@ -264,6 +267,9 @@ fn explicit_empty_damage_changes_keep_nested_qualifiers_and_required_baseline_te
     let mut output = String::new();
     let mut spell = spell();
     spell.forms = known(vec![SpellFormView {
+        effective_rank: None,
+        rank_changes: None,
+        rank_note: None,
         id: "empty".into(),
         name: known("Empty changes".into()),
         sort: numeric(0),
@@ -344,6 +350,7 @@ fn damage_component() -> DamageComponentView {
 }
 fn spell() -> SpellPresentationView {
     SpellPresentationView {
+        rank_changes: None,
         ritual: FactView {
             state: QueryFieldState::NotApplicable,
             value: None,
@@ -466,6 +473,9 @@ fn fixed_heightening_and_forms_remain_authored_changes_with_no_formula_execution
         }]),
     });
     spell.forms = known(vec![SpellFormView {
+        effective_rank: None,
+        rank_changes: None,
+        rank_note: None,
         id: "blue".into(),
         name: known("Blue dragon".into()),
         sort: numeric(10),
@@ -599,6 +609,7 @@ fn actor() -> ActorPresentationView {
         languages: known(vec!["common".into()]),
         language_details: missing(),
         activities: known(vec![ActorActivityView {
+            spell_effect: None,
             ability_group: None,
             reading_order: 0,
             strike_range: missing(),
@@ -873,6 +884,9 @@ fn sparse_forms_show_authored_changes_explicit_clears_and_heightening_formula() 
         levels: missing(),
     });
     spell.forms = known(vec![SpellFormView {
+        effective_rank: None,
+        rank_changes: None,
+        rank_note: None,
         id: "two-actions".into(),
         name: missing(),
         sort: numeric(1),

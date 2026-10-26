@@ -413,7 +413,7 @@ describe("semantic family presentation", () => {
       );
       const signed = ["Fortitude", "Reflex", "Will", "Stealth"].includes(label);
       const control = screen.getByRole("button", {
-        name: `Show explanation for ${label}`,
+        name: new RegExp(`Show explanation for ${label}:`),
       });
       expect(control.closest(".record-fact")).toHaveTextContent(signed ? "+11" : "11");
       fireEvent.click(control);
@@ -584,6 +584,58 @@ describe("semantic family presentation", () => {
     expect(within(form).queryByText("—")).toBeNull();
     expect(screen.queryByText("Cost")).toBeNull();
     expect(screen.queryByText("Requirements")).toBeNull();
+  });
+
+  it("reads computed casting forms as current facts while preserving meaningful absence and heightening context", async () => {
+    const absent = <T,>() => unavailableFact<T>("not_applicable");
+    const changes: SpellChangeView = {
+      cast: knownFact({ glyph: "two_actions", label: "2 actions" }),
+      range: knownFact(""),
+      target: absent(),
+      area: absent(),
+      defense: unavailableFact("null"),
+      duration: absent(),
+      sustained: absent(),
+      traits: absent(),
+      traditions: absent(),
+      heightening: absent(),
+      damage: knownFact([
+        {
+          id: "living",
+          formula: knownFact("(1d8+8) + 2 × (1d8+8)"),
+          damage_type: knownFact("vitality"),
+          kinds: knownFact(["healing"]),
+          category: unavailableFact("null"),
+          materials: knownFact([]),
+          apply_modifier: knownFact(false),
+        },
+      ]),
+    };
+    const { container } = render(
+      <SpellChanges
+        effective
+        changes={changes}
+        rankChanges={[
+          {
+            fact: { kind: "damage", component_id: "living" },
+            base_rank: 1,
+            base_value: "1d8+8 vitality; healing",
+            explanation: "+1d8+8 per additional rank",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("None").parentElement).toHaveTextContent("Defense");
+    expect(screen.getByText("(1d8+8) + 2 × (1d8+8)")).toBeVisible();
+    expect(container).not.toHaveTextContent(
+      /category|materials|modifier|Empty|Cleared/,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /Heightening details for Damage:/ }),
+    );
+    expect(await screen.findByRole("dialog")).toHaveTextContent(
+      "Base rank: 1d8+8 vitality; healing",
+    );
   });
 
   it("distinguishes unavailable actor collections from known empty without substituting zero", () => {

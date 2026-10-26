@@ -126,6 +126,9 @@ fn heightening(out: &mut String, spell: &SpellPresentationView) {
                 .map(str::to_owned)
                 .unwrap_or_else(|| format!("Alternative form {}", index + 1));
             line(out, format!("\n{name}"));
+            if let Some(note) = &form.rank_note {
+                line(out, note);
+            }
             line(out, "Changes to base");
             changes(out, &form.changes);
         }
