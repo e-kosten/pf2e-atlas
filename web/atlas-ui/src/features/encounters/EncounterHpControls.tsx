@@ -32,14 +32,25 @@ export function EncounterHpControls({
   const [editorOpen, setEditorOpen] = useState(false);
   const [committed, setCommitted] = useState(false);
   const addTemporaryButton = useRef<HTMLButtonElement>(null);
-  const [temporaryFocusRequest, setTemporaryFocusRequest] = useState(0);
-  const restoredTemporaryFocus = useRef(0);
+  const [temporaryFocusRequest, setTemporaryFocusRequest] = useState<{
+    participantKey: string;
+    revision: bigint;
+  }>();
+  const restoredTemporaryFocus = useRef<typeof temporaryFocusRequest>(undefined);
   useLayoutEffect(() => {
-    if (restoredTemporaryFocus.current === temporaryFocusRequest || disabled) return;
+    if (
+      !temporaryFocusRequest ||
+      restoredTemporaryFocus.current === temporaryFocusRequest ||
+      disabled
+    )
+      return;
+    const sameParticipant =
+      temporaryFocusRequest.participantKey === current.participant_key;
+    if (sameParticipant && temporaryFocusRequest.revision === current.revision) return;
     restoredTemporaryFocus.current = temporaryFocusRequest;
-    if (document.activeElement === document.body)
+    if (sameParticipant && document.activeElement === document.body)
       addTemporaryButton.current?.focus({ preventScroll: true });
-  }, [disabled, temporaryFocusRequest]);
+  }, [current.participant_key, current.revision, disabled, temporaryFocusRequest]);
   const hpKnown = current.current_hp !== undefined;
   const maxKnown = current.effective_max_hp.state === "value";
   const currentHp = asNumber(current.current_hp);
@@ -91,7 +102,10 @@ export function EncounterHpControls({
                   disabled={disabled}
                   onCommit={(input) => onAction({ kind: "set_temporary", input })}
                   onRestoreFocus={() =>
-                    setTemporaryFocusRequest((request) => request + 1)
+                    setTemporaryFocusRequest({
+                      participantKey: current.participant_key,
+                      revision: current.revision,
+                    })
                   }
                 />
                 <span>temp</span>
