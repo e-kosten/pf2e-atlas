@@ -1,0 +1,37 @@
+.spell-effect-preview {
+  display: grid;
+  gap: var(--space-group);
+}
+.spell-effect-preview__facts,
+.spell-effect-preview__choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: var(--space-control) var(--space-group);
+}
+.spell-effect-preview__qualifier {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875em;
+}
+.spell-effect-preview__strike {
+  padding-block: var(--space-control);
+}
+.spell-effect-preview__strike-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-control);
+  margin-block-end: var(--space-control);
+}
+.spell-effect-preview h3,
+.spell-effect-preview h4 {
+  margin: 0;
+}
+.spell-effect-preview__choices > section {
+  display: grid;
+  align-content: start;
+  gap: var(--space-control);
+  padding: var(--space-control);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}

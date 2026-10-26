@@ -11,6 +11,7 @@ use atlas_app_model::{
 use atlas_domain::QueryFieldState;
 
 mod actor;
+mod effect;
 mod reference_profiles;
 mod spell;
 

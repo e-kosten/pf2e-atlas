@@ -26,6 +26,7 @@ import type {
   ActionCostView,
   FactView,
 } from "../../generated/atlas";
+import { SpellEffectPreview } from "./SpellEffectPreview";
 import { ActorActivity } from "./ActorReference";
 import { FactLine, factText, isEmptyFactValue } from "./presentationFacts";
 import { PreparedContent, type RecordReferenceHandler } from "./PreparedContent";
@@ -585,7 +586,18 @@ export function RecordPresentation({
               Boolean(body.value.action_cost.value?.glyph)
             }
           />
-          {!encounter && flavor}
+          {body.value.spell_effect && (
+            <SpellEffectPreview view={body.value.spell_effect} />
+          )}
+          {!encounter &&
+            (body.value.spell_effect && !body.value.spell_effect.unavailable ? (
+              <section>
+                <h3>Rules</h3>
+                {flavor}
+              </section>
+            ) : (
+              flavor
+            ))}
         </>
       )}
       {body.kind === "roll_table" &&

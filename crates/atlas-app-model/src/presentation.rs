@@ -211,6 +211,9 @@ pub struct StrikeRangeView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorActivityView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub spell_effect: Option<SpellEffectPreviewView>,
     /// Display order within a reading group; never the runtime item ordinal.
     pub reading_order: usize,
     pub ability_group: Option<ActorAbilityGroupView>,
@@ -248,6 +251,37 @@ pub struct ActorActivityView {
     pub casting_context: Option<CastingEntryContextView>,
     pub notes: Vec<RuntimeEffectNoteView>,
 }
+/// Read-only source statistics at a selected casting rank; never applies an effect.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct SpellEffectPreviewView {
+    pub rank: u8,
+    pub base_rank: u8,
+    pub facts: Vec<SpellEffectFactView>,
+    pub strikes: Vec<SpellEffectStrikeView>,
+    pub choices: Vec<SpellEffectChoiceView>,
+    pub unavailable: Option<String>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct SpellEffectFactView {
+    pub label: String,
+    pub value: FactView<String>,
+    pub base_value: Option<String>,
+    pub qualifier: Option<String>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct SpellEffectStrikeView {
+    pub id: String,
+    pub title: String,
+    pub traits: Vec<crate::RecordBadgeView>,
+    pub attack: SpellEffectFactView,
+    pub damage: SpellEffectFactView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct SpellEffectChoiceView {
+    pub label: String,
+    pub facts: Vec<SpellEffectFactView>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct CastingEntryContextView {
     pub parent: RecordNavigationView,

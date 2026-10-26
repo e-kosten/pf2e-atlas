@@ -9,6 +9,7 @@ mod reference_profiles;
 mod spell;
 mod spell_changes;
 pub(crate) mod spell_context;
+pub(crate) mod spell_effect;
 mod spell_forms;
 pub(crate) mod spell_rank;
 pub(crate) mod strike;
@@ -23,13 +24,16 @@ use atlas_record::source_record::{
 };
 use facts::*;
 
-pub(crate) fn apply_spell_rank(
+pub(crate) fn apply_casting_rank(
     record: &SourceBackedRecord,
     node: SourceNodeView<'_>,
     requested: Option<u8>,
     presentation: &mut RecordPresentationView,
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> crate::AppServiceResult<Option<u8>> {
+    if let SourceNodeView::Item(ItemSourceView::EffectSource(source)) = node {
+        return spell_effect::apply_rank(source, requested, presentation, retrieval);
+    }
     let SourceNodeView::Item(ItemSourceView::SpellSource(source)) = node else {
         if requested.is_some() {
             return Err(crate::AppServiceError::invalid_request(

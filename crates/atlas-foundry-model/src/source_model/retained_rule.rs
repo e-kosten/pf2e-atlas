@@ -37,6 +37,47 @@ impl RuleElementSource {
     }
 }
 
+impl super::generated::SourceFromSchemaBattleFormRuleSchemaBracketsEntrySourceFromSchema {
+    /// Interpret a retained bracket with the same generated contract as overrides.
+    /// Selection and composition belong to the consumer; source values stay intact.
+    pub fn interpret_overrides(
+        &self,
+        context: SourceContext,
+    ) -> Result<super::generated::SourceFromSchemaBattleFormRuleOverrideSchema, SourceDiagnostic>
+    {
+        let value = match &self.value {
+            SourcePresence::Value(value) => value,
+            SourcePresence::Invalid(rejection) => return Err(rejection.diagnostic.clone()),
+            _ => {
+                return Err(context.message(
+                    &context.json_path,
+                    "battle-form override object",
+                    "value unavailable",
+                ));
+            }
+        };
+        // The generated override parser is private to its generated module. Reuse
+        // its public rule entry point rather than defining a second field schema.
+        let wrapped = SourceValue::Object(SourceObject {
+            fields: vec![
+                ("key".into(), SourceValue::String("BattleForm".into())),
+                ("overrides".into(), value.clone()),
+            ],
+        });
+        let parsed =
+            super::generated::parse_battle_form_rule(&wrapped, &context, &context.json_path)?;
+        match parsed.overrides {
+            SourcePresence::Value(overrides) => Ok(overrides),
+            SourcePresence::Invalid(rejection) => Err(rejection.diagnostic),
+            _ => Err(context.message(
+                &context.json_path,
+                "battle-form override object",
+                "value unavailable",
+            )),
+        }
+    }
+}
+
 fn append<T>(
     fields: &mut Vec<(String, SourceValue)>,
     key: &str,
@@ -116,5 +157,40 @@ mod tests {
         };
         assert_eq!(grant.ignored, SourcePresence::Value(true));
         assert_eq!(grant.predicate.as_value().unwrap().len(), 1);
+    }
+    #[test]
+    fn battle_form_brackets_use_the_authoritative_override_contract_without_mutation() {
+        let retained = generic(
+            r#"{"key":"BattleForm","brackets":[{"start":4,"value":{"tempHP":15,"armorClass":{"modifier":"18 + @actor.level"}}}]}"#,
+        );
+        let original = retained.clone();
+        let RuleSource::BattleForm(rule) = retained.interpret(context()).unwrap() else {
+            panic!("battle form")
+        };
+        let bracket = &rule.brackets.as_value().unwrap()[0];
+        let overrides = bracket.interpret_overrides(context()).unwrap();
+        assert_eq!(
+            overrides.temp_hp,
+            SourcePresence::Value(JSONValue::Number(15.into()))
+        );
+        assert_eq!(retained, original);
+        for value in [
+            r#"{"tempHP":5,"tempHP":15}"#,
+            r#"{"strikes":{"jaws":{"damage":{"dice":"bad"}}}}"#,
+            "null",
+        ] {
+            let retained = generic(&format!(
+                r#"{{"key":"BattleForm","brackets":[{{"start":4,"value":{value}}}]}}"#
+            ));
+            let RuleSource::BattleForm(rule) = retained.interpret(context()).unwrap() else {
+                panic!("battle form")
+            };
+            assert!(
+                rule.brackets.as_value().unwrap()[0]
+                    .interpret_overrides(context())
+                    .is_err(),
+                "{value}"
+            );
+        }
     }
 }

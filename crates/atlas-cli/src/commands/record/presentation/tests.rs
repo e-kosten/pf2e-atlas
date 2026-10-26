@@ -609,6 +609,7 @@ fn actor() -> ActorPresentationView {
         languages: known(vec!["common".into()]),
         language_details: missing(),
         activities: known(vec![ActorActivityView {
+            spell_effect: None,
             ability_group: None,
             reading_order: 0,
             strike_range: missing(),

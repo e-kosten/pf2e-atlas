@@ -404,6 +404,23 @@ unresolved choice in the explanation. Prose remains authored even when a nearby
 structured fact changes. Casting-form differences use the selected rank; raw
 form patches with an unavailable preview retain their local explanation.
 
+Selected casting rank also travels through backend-supplied contextual effect
+links. For Animal Form at rank4, Bear opens the existing reference Drawer at
+rank4, with Large size, 15 temporary HP, AC18 + your level and the supplied
+strikes before the full rules. Changed effect facts use `ValueExplanation` with
+brief base context. Preserve qualifiers such as using your own modifier if
+higher; expressions involving a caster stay symbolic. Keep these source facts
+read-only: inspecting a form neither selects it nor changes an encounter actor.
+
+Render supported effect statistics with `SpellEffectPreview`; do not reproduce
+them from spell prose, infer links by animal names, or select the largest choice.
+Enlarge at rank6 shows both eligible size options, each with its supplied facts.
+A source reach override is labeled fixed reach, not a relative increase. When
+statistics and full authored rules are both present, a Rules heading distinguishes
+that complete text from the rank-specific facts above it. Source rules remain
+unchanged. Native links and the Drawer's full-page action retain the same selected
+rank; normal close/Back behavior still belongs to the shared reference reader.
+
 Omit the renderer-added Description heading when a simple record has
 one principal description field. Battle Medicine then reads Prerequisites,
 authored Requirements and prose without a competing generic heading. Keep all
