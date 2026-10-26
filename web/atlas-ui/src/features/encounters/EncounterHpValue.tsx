@@ -31,8 +31,9 @@ export function EncounterHpValue({
     }
   }, [editing]);
   return editing ? (
-    <span ref={editor}>
+    <span ref={editor} className="encounter-hp-value__editor">
       <EditableCommitField
+        autoSize
         onCancel={() => {
           finishEditing();
         }}
