@@ -1244,6 +1244,16 @@ does not suppress essential actions or change existing owned-ability permalinks.
 Verify the body-only, named-heading, prose-link and unavailable cases when changing
 shared inclusion presentation.
 
+Recipient grants use the bottom **Grants** section and the shared reference rows,
+with exact native destinations and the usual Drawer behavior. App-service omits
+entries already linked in prose, included content or feature lists; the renderer
+shows every remaining entry without a search shortcut, five-row cap or nested
+card. For example, Sisterhood Orphan needs a link to Inflict Punishment, whereas
+Adaptive Anadi already links Adopted Ancestry in its prose. Keep restrictions in
+the authored rules. Actor roots and actor-owned abilities describe internal
+composition and do not get this recipient section; retain their Explore links.
+Do not infer or apply encounter effects from the presence of a grant link.
+
 A selected ability's metadata and prepared prose form one document. The metadata
 renderer contributes no separate boundary before its own prose; when the identity
 already supplies every metadata fact, it contributes no empty padded row or rule.

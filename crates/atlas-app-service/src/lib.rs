@@ -23,6 +23,7 @@ mod prepared_content;
 mod presentation;
 mod projection;
 mod read_execution;
+mod record_grants;
 mod records;
 mod related;
 mod relationship_search;

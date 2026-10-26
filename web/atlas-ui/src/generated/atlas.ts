@@ -1,4 +1,6 @@
 export type { EncounterDifficultyAddition } from "../../../../crates/atlas-app-model/bindings/EncounterDifficultyAddition";
+export type { RecordGrantsView } from "../../../../crates/atlas-app-model/bindings/RecordGrantsView";
+export type { RecordGrantLinkView } from "../../../../crates/atlas-app-model/bindings/RecordGrantLinkView";
 export type { PreviewEncounterDifficultyRequest } from "../../../../crates/atlas-app-model/bindings/PreviewEncounterDifficultyRequest";
 export type { TurnResourceResultView } from "../../../../crates/atlas-app-model/bindings/TurnResourceResultView";
 export type { TurnResourceAction } from "../../../../crates/atlas-app-model/bindings/TurnResourceAction";

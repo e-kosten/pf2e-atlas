@@ -822,6 +822,7 @@ pub(crate) fn manual_presentation(
         adjustment: None,
     };
     RecordPresentationView {
+        grants: None,
         classification: "PC".into(),
         identity: RecordSummaryView {
             unit_price_label: None,

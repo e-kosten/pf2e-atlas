@@ -39,6 +39,15 @@ fn declared_grants_appear_in_explore_and_reference_search_without_duplicate_resu
         .worker
         .record_detail("backgrounds:aaaaaaaaaaaaaaaa")
         .unwrap();
+    let grants = detail.presentation.grants.as_ref().unwrap();
+    assert_eq!(grants.entries.len(), 1, "Pet is already linked in prose");
+    assert_eq!(grants.entries[0].title, "Train Animal");
+    assert_eq!(
+        grants.entries[0].navigation.record_key,
+        "feats-srd:cccccccccccccccc"
+    );
+    assert_eq!(grants.unavailable_count, 0);
+    assert!(!grants.truncated);
     let related = f
         .worker
         .related_records(RelatedRecordsRequest {
@@ -104,6 +113,75 @@ fn declared_grants_appear_in_explore_and_reference_search_without_duplicate_resu
             .occurrences
             .iter()
             .all(|o| o.source_navigation.record_key == "backgrounds:aaaaaaaaaaaaaaaa")
+    );
+}
+
+#[test]
+fn recipient_grants_are_uncapped_but_do_not_appear_on_actors_or_partial_readings() {
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            let rules = (0..7).map(|n| json!({"key":"GrantItem","uuid":format!("Compendium.pf2e.feats-srd.Item.granted{n:09}")})).collect::<Vec<_>>();
+            let ability = json!({"_id":"ability000000000","name":"Granting ability","type":"action","system":{
+                "description":{"value":"<p>Grants benefits to the recipient.</p>"},"rules":rules
+            }});
+            let mut records = vec![
+                record("actions", "Item", ability.clone()),
+                record(
+                    "actors",
+                    "Actor",
+                    json!({"_id":"actor00000000000","name":"Internal grants","type":"npc","items":[ability]}),
+                ),
+            ];
+            // The seventh exact reference is unavailable; the first six all remain visible.
+            records.extend((0..6).map(|n| record("feats-srd", "Item", json!({"_id":format!("granted{n:09}"),"name":format!("Benefit {n}"),"type":"feat"}))));
+            Ok(open_source_fixture(records, false)?)
+        },
+    ));
+    let detail = f.worker.record_detail("actions:ability000000000").unwrap();
+    let grants = detail.presentation.grants.unwrap();
+    assert_eq!(grants.entries.len(), 6);
+    assert_eq!(grants.unavailable_count, 1);
+    assert!(!grants.truncated);
+    assert!(grants.entries.iter().all(|entry| entry.record.is_some()));
+    assert!(
+        f.worker
+            .record_detail("actors:actor00000000000")
+            .unwrap()
+            .presentation
+            .grants
+            .is_none()
+    );
+    let mut request = RecordDetailRequest {
+        record_key: "actors:actor00000000000".into(),
+        owners: vec![atlas_domain::OwnedContentLocator {
+            collection: "/items".into(),
+            identity: atlas_domain::OwnedContentIdentity::Stable("ability000000000".into()),
+        }],
+        fields: vec![],
+        spell_rank: None,
+        passage: None,
+        source_fingerprint: None,
+    };
+    assert!(
+        f.worker
+            .record_detail_at(request.clone())
+            .unwrap()
+            .presentation
+            .grants
+            .is_none()
+    );
+    request.record_key = "actions:ability000000000".into();
+    request.owners.clear();
+    request.fields = vec!["/system/description/value".into()];
+    assert!(
+        f.worker
+            .record_detail_at(request)
+            .unwrap()
+            .presentation
+            .grants
+            .is_none()
     );
 }
 

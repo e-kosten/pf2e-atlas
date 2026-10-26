@@ -129,6 +129,10 @@
 .record-explore__results {
   --browse-pane-inset: var(--space-group);
 }
+
+.record-grants {
+  --browse-pane-inset: var(--space-group);
+}
 .record-explore__loading {
   display: flex;
   align-items: center;
