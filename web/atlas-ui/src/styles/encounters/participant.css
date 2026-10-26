@@ -58,19 +58,21 @@
 
 .encounter-hp-panel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
-  max-width: 32rem;
+  min-inline-size: 0;
+  max-inline-size: min(32rem, 100%);
 }
 
 .encounter-hp-panel__header {
   align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px 10px;
-  justify-content: space-between;
 }
 
 .encounter-hp-panel h3 {
+  flex-shrink: 0;
   font-size: 16px;
   margin: 0;
 }
@@ -81,6 +83,16 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.encounter-hp-panel__identity {
+  flex-wrap: nowrap;
+}
+
+.encounter-hp-panel__actions {
+  flex-wrap: nowrap;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 .encounter-hp-panel__values {
@@ -212,6 +224,10 @@
 }
 
 @container encounter-reference (max-width: 32rem) {
+  .encounter-hp-panel__header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .encounter-reference__title {
     flex-wrap: wrap;
   }
@@ -230,7 +246,22 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.encounter-hp-panel__values:not(:has(.encounter-hp-value__editor)),
+.encounter-hp-panel__values > :not(.encounter-hp-value__editor) {
+  flex-shrink: 0;
+}
+.encounter-hp-panel__identity,
+.encounter-hp-panel__values,
+.encounter-hp-value__editor {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+.encounter-hp-value__editor {
+  display: inline-flex;
+  flex: 0 1 auto;
 }
 .encounter-hp-value,
 .encounter-hp-maximum .record-number {
@@ -246,7 +277,9 @@
 }
 .encounter-hp-value__input {
   text-align: center;
-  width: 7ch;
+  width: auto;
+  min-inline-size: min(7ch, 100%);
+  max-inline-size: min(24ch, 100%);
 }
 .encounter-knockout {
   width: min(300px, calc(100vw - 48px));
