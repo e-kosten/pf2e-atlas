@@ -163,7 +163,8 @@ Their awaiting HTTP helper marks abandonment on drop; cooperative checks skip
 queued work and later projection. Blocking work retains its permit until it
 finishes. Durable mutations and their reference reads remain uncancellable.
 Stored-vector Similar is a mode of the stateless search-page request, carrying its
-root seed and canonical filters. Related availability is a bounded app-service
+record or typed trait seed and canonical filters. Trait-reference searches use
+complete indexed root eligibility before ordinary filtering and paging. Related availability is a bounded app-service
 workflow over exact selected-owner graph reads and root-only verified suggestions,
 with complete artifact-generation cache identity and truthful empty/unavailable
 outcomes. It does not add a retrieval, ranking or stored-record model.

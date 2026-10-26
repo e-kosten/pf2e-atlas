@@ -45,8 +45,12 @@ export function DocumentIdentityHeader({
           </h2>
           {identityActions}
         </div>
-        {kind}
-        {actions && <div className="record-reference__actions">{actions}</div>}
+        {(kind || actions) && (
+          <div className="record-reference__tools">
+            {kind}
+            {actions && <div className="record-reference__actions">{actions}</div>}
+          </div>
+        )}
       </div>
       {stacked && children ? (
         <div className="record-reference__metadata">{children}</div>

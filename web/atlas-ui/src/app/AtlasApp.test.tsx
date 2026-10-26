@@ -411,10 +411,10 @@ describe("AtlasApp routing", () => {
       );
       const reader = render(<AtlasApp />, { wrapper: queryClientWrapper() });
       expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
-      fireEvent.click(screen.getByRole("button", { name: "Related records" }));
-      fireEvent.click(await screen.findByRole("button", { name: "Similar records" }));
+      fireEvent.click(screen.getByRole("button", { name: "Explore related records" }));
+      fireEvent.click(await screen.findByRole("tab", { name: "Similar" }));
       const link = await screen.findByRole("link", {
-        name: "See more similar records",
+        name: "Search similar records",
       });
       const href = link.getAttribute("href")!;
       const copied = new URL(href, window.location.origin);

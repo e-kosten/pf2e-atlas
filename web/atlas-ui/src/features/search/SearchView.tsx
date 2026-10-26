@@ -1,6 +1,6 @@
 import { useFilterUrlRecovery } from "../../shared/filters/useFilterUrlRecovery";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { Alert, Button, Select } from "antd";
+import { Alert, Button, Select, Tag } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
 import { FilterControls } from "../../shared/filters/FilterPanel";
 import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
@@ -27,6 +27,17 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
     (workspace.resultsLoading ||
       workspace.resultsRefreshing ||
       (hasCriteria && profile.loading));
+  const mode = workspace.resultPage?.mode;
+  const similarTitle =
+    mode?.kind === "similar_records" &&
+    mode.seed.record_key === workspace.search.similarSeed
+      ? mode.seed.title
+      : mode?.kind === "similar_traits" &&
+          mode.trait_key === workspace.search.similarSeed
+        ? mode.title
+        : workspace.errorMessage
+          ? "Record unavailable"
+          : "Loading record…";
   return (
     <main className="search-workspace">
       <FilterControls
@@ -35,14 +46,7 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
         similarSearch={
           workspace.search.similarSeed
             ? {
-                title:
-                  workspace.resultPage?.mode.kind === "similar_records" &&
-                  workspace.resultPage.mode.seed.record_key ===
-                    workspace.search.similarSeed
-                    ? workspace.resultPage.mode.seed.title
-                    : workspace.errorMessage
-                      ? "Record unavailable"
-                      : "Loading record…",
+                title: similarTitle,
                 onSearch: workspace.refresh,
                 onClear: () =>
                   workspace.setSearch({
@@ -56,6 +60,20 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
         }
         searchRowEnd={
           <>
+            {workspace.search.traitReferenceSeed && (
+              <Tag
+                closable
+                onClose={() =>
+                  workspace.setSearch({ ...workspace.search, traitReferenceSeed: null })
+                }
+              >
+                Trait references:{" "}
+                {mode?.kind === "trait_references" &&
+                mode.trait_key === workspace.search.traitReferenceSeed
+                  ? mode.title
+                  : "Loading trait…"}
+              </Tag>
+            )}
             <SearchModelSelect />
             <Select
               disabled={Boolean(workspace.search.similarSeed)}

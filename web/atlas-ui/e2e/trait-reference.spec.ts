@@ -19,7 +19,7 @@ async function memberships(request: APIRequestContext, detail: TraitDetailView) 
     data: {
       trait_key: detail.trait_key,
       kind: "members",
-      page: { number: 1, size: 20 },
+      page: { number: 1, size: 5 },
       expected_artifact_generation: detail.artifact_generation,
       search_profile: null,
       ranking: "score",
@@ -41,9 +41,7 @@ test("real trait chip opens its definition and Back returns to the selected sour
   await page.goto(`/records/${record}`);
   const chip = page.locator('a[href="/traits/trait:deadly-d8"]').first();
   await expect(chip).toBeVisible();
-  await expect(page.locator(".record-reference__kind").first()).toHaveText(
-    "Equipment 0",
-  );
+  await expect(page.locator(".record-reference__kind").first()).toHaveText("Weapon 0");
   const screenshot = testInfo.outputPath("record-rapier-kind.png");
   await page.screenshot({ path: screenshot, animations: "disabled" });
   await testInfo.attach("Rapier document classification", {
@@ -132,6 +130,10 @@ test("definition references retain authored labels and checked record links", as
     contentType: "image/png",
   });
   await content.getByRole("link", { name: "Stupefied 1", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("link", { name: "Open reference full page", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/records\/conditionitems:/);
   await expect(
     page.getByRole("heading", { name: "Stupefied", exact: true }),
@@ -159,7 +161,8 @@ test("trait membership opens the exact embedded source", async ({
   const destination = recordPath(member!.navigation);
   const link = region.locator(`a[href=${JSON.stringify(destination)}]`).first();
   await expect(link).toBeVisible();
-  await expect(link).toHaveText(`${member!.source_label} · ${member!.record.title}`);
+  await expect(link).toContainText(member!.record.title);
+  await expect(link).toContainText(`Trait on ${member!.source_label}`);
   await link.scrollIntoViewIfNeeded();
   const screenshot = testInfo.outputPath("trait-named-embedded-member.png");
   await page.screenshot({ path: screenshot, animations: "disabled" });
@@ -168,6 +171,10 @@ test("trait membership opens the exact embedded source", async ({
     contentType: "image/png",
   });
   await link.click();
+  await page
+    .getByRole("dialog")
+    .getByRole("link", { name: "Open reference full page", exact: true })
+    .click();
   await expect
     .poll(() => JSON.parse(new URL(page.url()).searchParams.get("selection") ?? "null"))
     .toEqual(member!.navigation);
@@ -213,12 +220,32 @@ for (const profile of ["embeddinggemma", "bge-base"]) {
     expect(data.coverage).not.toBeNull();
     expect(data.rows.length).toBeGreaterThan(0);
     const region = page.getByRole("region", { name: "Similar records", exact: true });
-    await expect(region.getByRole("link").first()).toBeVisible();
+    await expect(region.locator("[data-record-key]").first()).toBeVisible();
     if (!data.coverage!.exhaustive)
       await expect(region.getByText("Top matches", { exact: true })).toBeVisible();
-    await expect(region.getByRole("link").first()).toHaveAttribute(
+    await expect(region.locator("[data-record-key]").first()).toHaveAttribute(
       "href",
       /^\/records\//,
     );
+    expect(data.page.size).toBe(5);
+    await expect(region.locator(".reference-result")).toHaveCount(data.rows.length);
+    const searchRequest = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/search/page") &&
+        response.request().postDataJSON()?.criteria?.kind === "similar_traits",
+    );
+    await region
+      .getByRole("link", { name: "Search similar records", exact: true })
+      .click();
+    const resultPage = await (await searchRequest).json();
+    expect(resultPage.mode).toMatchObject({
+      kind: "similar_traits",
+      trait_key: "trait:agile",
+      title: "Agile",
+    });
+    expect(resultPage.search_profile).toBe(profile);
+    await expect(
+      page.getByRole("searchbox", { name: "Similar search", exact: true }),
+    ).toHaveValue("Agile");
   });
 }

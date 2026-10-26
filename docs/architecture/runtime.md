@@ -403,6 +403,14 @@ source-snapshot compatibility verification; category discovery never runs Simila
 ranking. Responses and browser caches use the complete selection and immutable
 artifact-context hash, distinct from snapshot-local navigation fingerprints.
 
+Browser exploration previews are independent first-page Search requests limited
+to five rows. Full-result actions enter primary Search rather than an inline
+association pager. Typed trait Similar seeds reuse persisted trait vectors.
+Trait-reference searches obtain complete distinct owning-record eligibility from
+index evidence through search, then apply the ordinary predicates, ordering and
+paging. Exact contained-source membership remains distinct from a root trait
+filter. No browser preview supplies search eligibility.
+
 Relationship predicates share the ordinary AND/OR/NOT query tree and the stateless
 search-page workflow. Each exact selection has a direction, source-contents scope
 and clause ID. Shared retrieval admission validates every selected record/owner/

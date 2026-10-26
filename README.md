@@ -101,7 +101,9 @@ to order ties, for example `--sort level_desc --sort unit_price_asc`.
 the order repeatable while paging. In the CLI, use `--sort random --seed 42`, or
 omit `--seed` to generate one.
 
-In the browser, **Related** opens full **Links to** and **Linked from** results.
+In the browser, the document header’s **Explore** icon opens short previews of
+related records. **Search referring records** and **Search referenced records**
+open the complete filtered results in Search.
 Use **Links** beside the search filters to choose another entry. Each condition
 has its own direction and **Main entry only** / **Whole entry** scope. Advanced
 filters combine links and ordinary conditions with AND, OR and NOT. CLI search

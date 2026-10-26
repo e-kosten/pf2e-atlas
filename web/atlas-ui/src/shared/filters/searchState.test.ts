@@ -444,3 +444,42 @@ it("carries complete relationship constraints in browse and saved-list discovery
     mode: "lexical",
   });
 });
+
+describe("trait search handoffs", () => {
+  it("round trips a trait Similar seed and retains its filter", () => {
+    const state = {
+      ...DEFAULT_SEARCH_STATE,
+      similarSeed: "trait:consumable",
+      filter: { kind: "boolean_constant", value: false } as const,
+    };
+    const decoded = decodeSearchStateFromParams(
+      new URLSearchParams(searchStateQueryString(state)),
+    );
+    expect(buildSearchRequest(decoded, 1).criteria).toEqual({
+      kind: "similar_traits",
+      seed_trait_key: "trait:consumable",
+      filter: expect.objectContaining(state.filter),
+    });
+  });
+  it("keeps trait references scoped when adding keywords and filters", () => {
+    const state = {
+      ...DEFAULT_SEARCH_STATE,
+      traitReferenceSeed: "trait:consumable",
+      query: "potion",
+      filter: { kind: "boolean_constant", value: false } as const,
+    };
+    const decoded = decodeSearchStateFromParams(
+      new URLSearchParams(searchStateQueryString(state)),
+    );
+    expect(hasExecutableSearch(decoded)).toBe(true);
+    expect(buildSearchRequest(decoded, 1).criteria).toEqual({
+      kind: "trait_references",
+      trait_key: "trait:consumable",
+      query: "potion",
+      filter: expect.objectContaining(state.filter),
+    });
+    expect(encodeSearchExecutionState(state)).not.toEqual(
+      encodeSearchExecutionState({ ...state, traitReferenceSeed: null }),
+    );
+  });
+});

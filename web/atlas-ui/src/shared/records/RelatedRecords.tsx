@@ -1,453 +1,501 @@
-import {
-  destinationHref,
-  isPrimaryActivation,
-  navigateDestination,
-} from "../../app/navigation";
+import { navigateDestination } from "../../app/navigation";
 import { recordDestination, searchDestination } from "../../app/destinations";
-import {
-  Alert,
-  Button,
-  Collapse,
-  Modal,
-  Select,
-  Spin,
-  Space,
-  Tabs,
-  Typography,
-} from "antd";
+import { Alert, Button, Empty, Modal, Spin, Tabs, Typography } from "antd";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import DOMPurify from "dompurify";
+import { AtlasApiError, getRelatedRecords, searchPage } from "../../api/atlasApi";
 import { useSearchProfile } from "../search/SearchProfileContext";
 import { SearchProfileNotice } from "../search/SearchProfileNotice";
 import { assertSearchIdentity } from "../search/searchIdentity";
-import DOMPurify from "dompurify";
-import { AtlasApiError, getRelatedRecords, searchPage } from "../../api/atlasApi";
 import { currentSearchLocation } from "../../app/searchLocation";
-import type {
-  GraphSectionView,
-  RecordDetailView,
-  RecordNavigationView,
-  RecordSummaryView,
-} from "../../generated/atlas";
 import {
   DEFAULT_SEARCH_STATE,
   decodeSearchStateFromParams,
   searchStateQueryString,
 } from "../filters/searchState";
+import { linkLeaf } from "../filters/linkPredicates";
+import type {
+  RecordDetailView,
+  RecordSummaryView,
+  SearchResultsPage,
+  QueryPredicate,
+} from "../../generated/atlas";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
-import { linkLeaf } from "../filters/linkPredicates";
 import { relationshipSearchRoute } from "./relationshipSearch";
-export function RelatedRecords({
-  detail,
-  onReference,
-  onReload,
-  reloadLabel = "Reload record",
-}: {
+import { ReferenceResult } from "./ReferenceResult";
+import { ExploreSearchAction } from "./ExploreSearchAction";
+import { useRecordExploreLocation } from "./recordExploreLocation";
+
+type ExploreProps = {
   detail: RecordDetailView;
   onReference: RecordReferenceHandler;
   onReload?: () => void;
   reloadLabel?: string;
-}) {
-  return (
-    <section className="related-records" aria-label="Related records">
-      <Collapse
-        size="small"
-        destroyOnHidden
-        items={[
+};
+
+export function RelatedRecords(props: ExploreProps) {
+  const incoming = useReferencePreview(props.detail, true);
+  const outgoing = useReferencePreview(props.detail, false);
+  const related = useRelated(props.detail);
+  const { tab: active, setTab: setActive } = useRecordExploreLocation();
+  const graph = related.data?.references;
+  const otherReferences =
+    graph?.kind === "content" &&
+    graph.content.outgoing.occurrences.some((entry) => !entry.target);
+  const hasIncoming =
+    !!incoming.query.error ||
+    !incoming.query.data ||
+    incoming.query.data.rows.length > 0;
+  const hasOutgoing =
+    !!outgoing.query.error ||
+    !outgoing.query.data ||
+    outgoing.query.data.rows.length > 0 ||
+    otherReferences ||
+    !!related.error ||
+    graph?.kind === "error" ||
+    graph?.kind === "unavailable";
+  const versions =
+    related.data &&
+    [related.data.counterparts, related.data.variants].some(
+      (category) => category.kind !== "empty",
+    );
+  const items = [
+    ...(hasIncoming
+      ? [
           {
-            key: "related",
-            label: "Related records",
-            children: (
-              <RelatedTabs
-                key={JSON.stringify([detail.selected, detail.artifact_generation])}
-                detail={detail}
-                onReference={onReference}
-                onReload={onReload}
-                reloadLabel={reloadLabel}
-              />
-            ),
+            key: "incoming",
+            label: "Referenced by",
+            children: <ReferencePreview {...props} incoming />,
           },
-        ]}
+        ]
+      : []),
+    ...(hasOutgoing
+      ? [
+          {
+            key: "outgoing",
+            label: "References",
+            children: <ReferencePreview {...props} incoming={false} />,
+          },
+        ]
+      : []),
+    { key: "similar", label: "Similar", children: <SimilarPreview {...props} /> },
+    ...(props.detail.selected.embedded_path.length === 0 && (versions || related.error)
+      ? [{ key: "versions", label: "Versions", children: <Versions {...props} /> }]
+      : []),
+  ];
+  return (
+    <section className="record-explore" aria-label="Explore record">
+      <Tabs
+        activeKey={items.some((item) => item.key === active) ? active : items[0].key}
+        onChange={setActive}
+        animated={false}
+        destroyOnHidden
+        items={items}
       />
     </section>
   );
 }
-function RelatedTabs({
+
+function QueryError({
+  error,
+  retry,
+  onReload,
+  reloadLabel = "Reload record",
+}: {
+  error: Error;
+  retry: () => void;
+  onReload?: () => void;
+  reloadLabel?: string;
+}) {
+  const reload =
+    isArtifactGenerationChanged(error) ||
+    (error instanceof AtlasApiError &&
+      error.appError?.recoverable_action === "reload_record");
+  return (
+    <Alert
+      type="error"
+      showIcon
+      title="Unable to load connections"
+      description={error.message}
+      action={
+        <Button
+          size="small"
+          onClick={reload ? onReload : retry}
+          disabled={reload && !onReload}
+        >
+          {reload ? reloadLabel : "Retry"}
+        </Button>
+      }
+    />
+  );
+}
+
+function useReferencePreview(detail: RecordDetailView, incoming: boolean) {
+  const profile = useSearchProfile();
+  const filter = linkLeaf(
+    {
+      direction: incoming ? "incoming" : "outgoing",
+      selection: detail.selected,
+      include_contents: detail.selected.embedded_path.length === 0,
+    },
+    "record-explore-reference",
+  );
+  const query = useQuery({
+    queryKey: [
+      "record-reference-preview",
+      filter,
+      detail.artifact_generation,
+      profile.id,
+    ],
+    staleTime: Infinity,
+    enabled: !profile.loading && profile.id !== null,
+    queryFn: async ({ signal }) => {
+      const page = await searchPage(
+        {
+          search_profile: profile.id ?? undefined,
+          criteria: { kind: "list_records", filter },
+          page: { number: 1, size: 5 },
+          expected_artifact_generation: detail.artifact_generation,
+        },
+        signal,
+      );
+      assertSearchIdentity(page, profile.id, detail.artifact_generation);
+      return page;
+    },
+  });
+  return { query, filter };
+}
+
+function SearchPreviewRows({
+  page,
+  filter,
+  onReference,
+  onReload,
+}: {
+  page: SearchResultsPage;
+  filter?: QueryPredicate;
+  onReference: RecordReferenceHandler;
+  onReload?: () => void;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+  return (
+    <div className="record-explore__results" role="list">
+      {page.rows.map((row) => (
+        <div role="listitem" key={row.record.record_key}>
+          <ReferenceResult
+            row={row}
+            selected={false}
+            disabled={false}
+            relationshipClauses={page.relationship_clauses}
+            filter={filter}
+            generation={page.artifact_generation}
+            onRefreshResults={async () => {
+              onReload?.();
+            }}
+            matchesOpen={open === row.record.record_key}
+            onMatchesOpenChange={(show) => setOpen(show ? row.record.record_key : null)}
+            onPreview={(anchor) => onReference(row.record.record_key, anchor)}
+            onMatch={(selection, anchor) =>
+              onReference(selection.record_key, anchor, selection)
+            }
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ReferencePreview({
   detail,
+  incoming,
   onReference,
   onReload,
   reloadLabel,
-}: {
-  detail: RecordDetailView;
-  onReference: RecordReferenceHandler;
-  onReload?: () => void;
-  reloadLabel: string;
-}) {
-  const [active, setActive] = useState("references");
-  const [comparison, setComparison] = useState<string | null>(null);
-  const key = detail.record.record_key;
-  const related = useQuery({
-    queryKey: ["related", detail.selected, detail.artifact_generation],
-    staleTime: Infinity,
-    queryFn: ({ signal }) =>
-      getRelatedRecords(
-        {
-          selection: detail.selected,
-          artifact_generation: detail.artifact_generation,
-        },
-        signal,
-      ),
-  });
-  const reloadRecord =
-    related.error instanceof AtlasApiError &&
-    related.error.appError?.recoverable_action === "reload_record";
-  const graph =
-    related.data?.references.kind === "content"
-      ? related.data.references.content
-      : undefined;
-  const remaster =
-    related.data?.counterparts.kind === "content"
-      ? related.data.counterparts.content
-      : undefined;
-  const variants =
-    related.data?.variants.kind === "content"
-      ? related.data.variants.content
-      : undefined;
-  const variantChoices =
-    variants?.variants.filter((record) => record.record_key !== key) ?? [];
-  function link(label: string, selection: RecordNavigationView) {
-    return (
-      <Typography.Link
-        href={destinationHref(
-          recordDestination({
-            recordKey: selection.record_key,
-            selection,
-          }),
-        )}
-        onClick={(event) => {
-          if (!isPrimaryActivation(event)) return;
-          event.preventDefault();
-          onReference(selection.record_key, event.currentTarget, selection);
-        }}
-      >
-        {label}
-      </Typography.Link>
-    );
-  }
-  function records(rows: RecordSummaryView[], empty: string) {
-    return rows.length ? (
-      <ul className="related-records__list">
-        {rows.map((record) => (
-          <li key={record.record_key}>
-            {link(record.title, {
-              record_key: record.record_key,
-              embedded_path: [],
-              field: null,
-              passage: null,
-              source_fingerprint: null,
-            })}
-          </li>
-        ))}
-      </ul>
-    ) : (
-      <Typography.Paragraph type="secondary">{empty}</Typography.Paragraph>
-    );
-  }
-  function viewAll(section: GraphSectionView) {
-    if (!section.filter) return null;
-    const route = relationshipSearchRoute(section.filter);
-    return (
-      <Typography.Link
-        href={destinationHref(route)}
-        onClick={(event) => {
-          if (!isPrimaryActivation(event)) return;
-          event.preventDefault();
-          navigateDestination(route);
-        }}
-      >
-        View all
-      </Typography.Link>
-    );
-  }
-  function references(section: GraphSectionView, incoming: boolean) {
-    if (!section.occurrences.length)
-      return (
-        <Typography.Paragraph type="secondary">
-          {incoming
-            ? "No references to this record were found."
-            : "No references were found here."}{" "}
-          {viewAll(section)}
-        </Typography.Paragraph>
-      );
-    return (
-      <>
-        <ul className="related-records__list">
-          {section.occurrences.map((occurrence) => {
-            const navigation = incoming
-              ? occurrence.source_navigation
-              : occurrence.target;
-            const summary = section.records.find(
-              (record) => record.record_key === navigation?.record_key,
-            );
-            const label =
-              summary?.title ??
-              (incoming ? "Open referring record" : "Open referenced record");
-            return (
-              <li
-                key={JSON.stringify([
-                  occurrence.source,
-                  occurrence.ordinal,
-                  occurrence.target,
-                ])}
-              >
-                {navigation ? (
-                  link(label, navigation)
-                ) : occurrence.url &&
-                  ["resolved_url", "unverified_url"].includes(occurrence.status) &&
-                  DOMPurify.isValidAttribute("a", "href", occurrence.url) ? (
-                  <Typography.Link
-                    href={occurrence.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    External reference
-                  </Typography.Link>
-                ) : (
-                  <Typography.Text type="secondary">
-                    This reference is unavailable in the current collection.
-                  </Typography.Text>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-        {viewAll(section)}
-        {section.truncated && (
-          <Typography.Paragraph type="secondary">
-            Showing a limited set of references; additional references may exist.
-          </Typography.Paragraph>
-        )}
-      </>
-    );
-  }
-  const items = [
-    ...(graph
-      ? [
-          {
-            key: "references",
-            label: "References",
-            children: (
-              <>
-                <h3>Referenced here</h3>
-                {references(graph.outgoing, false)}
-                <h3>References to this record</h3>
-                {references(graph.backlinks, true)}
-              </>
-            ),
-          },
-        ]
-      : []),
-    ...(remaster
-      ? [
-          {
-            key: "remaster",
-            label: "Remaster",
-            children: (
-              <ul className="related-records__list">
-                {remaster.links.map((pair) => (
-                  <li
-                    key={
-                      pair.legacy_record.record_key +
-                      ":" +
-                      pair.remaster_record.record_key
-                    }
-                  >
-                    {records([pair.legacy_record, pair.remaster_record], "")}
-                  </li>
-                ))}
-              </ul>
-            ),
-          },
-        ]
-      : []),
-    ...(variants
-      ? [
-          {
-            key: "variants",
-            label: "Variants",
-            children: (
-              <>
-                <Typography.Paragraph type="secondary">
-                  {variants.ambiguous
-                    ? "These suggestions are uncertain; compare the records before treating them as variants."
-                    : "These records share a naming pattern and compatible source facts."}
-                </Typography.Paragraph>
-                {records(variantChoices, "No suggested variants were found.")}
-                <Select
-                  className="related-records__compare"
-                  aria-label="Compare variant"
-                  placeholder="Choose a variant to compare…"
-                  value={comparison}
-                  showSearch={{ optionFilterProp: "label" }}
-                  options={variantChoices.map((record) => ({
-                    value: record.record_key,
-                    label: record.title,
-                  }))}
-                  onChange={setComparison}
-                />
-                {variants.truncated && (
-                  <Typography.Paragraph type="secondary">
-                    Showing a limited set of suggested variants; others may exist.
-                  </Typography.Paragraph>
-                )}
-              </>
-            ),
-          },
-        ]
-      : []),
-  ];
-  const selectedTab = items.some((item) => item.key === active)
-    ? active
-    : items[0]?.key;
-  const failures = related.data
-    ? ([
-        ["References", related.data.references],
-        ["Remaster", related.data.counterparts],
-        ["Variants", related.data.variants],
-      ] as const)
-    : [];
+}: ExploreProps & { incoming: boolean }) {
+  const { query, filter } = useReferencePreview(detail, incoming);
+  const profile = useSearchProfile();
+  const data = isArtifactGenerationChanged(query.error) ? undefined : query.data;
   return (
-    <div className="related-records__body">
-      <Space wrap className="related-records__actions">
-        {(["incoming", "outgoing"] as const).map((direction) => {
-          const route = relationshipSearchRoute(
-            linkLeaf({
-              direction,
-              selection: detail.selected,
-              include_contents: detail.selected.embedded_path.length === 0,
-            }),
-          );
-          return (
-            <Button
-              key={direction}
-              href={destinationHref(route)}
-              onClick={(event) => {
-                if (!isPrimaryActivation(event)) return;
-                event.preventDefault();
-                navigateDestination(route);
-              }}
-            >
-              {direction === "incoming"
-                ? "Find records linking here"
-                : "Browse links from here"}
-            </Button>
-          );
-        })}
-      </Space>
-
-      {related.isFetching && (
-        <div role="status" className="related-records__status">
-          <Spin size="small" /> Loading related records…
+    <div className="record-explore__task">
+      <ExploreSearchAction
+        route={relationshipSearchRoute(filter)}
+        summary={
+          data
+            ? `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1n ? "record" : "records"}`
+            : undefined
+        }
+      >
+        {incoming ? "Search referring records" : "Search referenced records"}
+      </ExploreSearchAction>
+      {profile.error && <SearchProfileNotice />}
+      {query.isPending && !profile.error && (
+        <div role="status">
+          <Spin size="small" delay={400} /> Loading references…
         </div>
       )}
-      {related.error && (
-        <Alert
-          type="error"
-          showIcon
-          title="Unable to load related records"
-          description={related.error.message}
-          action={
-            <Button
-              size="small"
-              disabled={reloadRecord && !onReload}
-              onClick={() => {
-                if (reloadRecord) onReload?.();
-                else void related.refetch();
-              }}
-            >
-              {reloadRecord ? reloadLabel : "Retry"}
-            </Button>
-          }
+      {query.error && (
+        <QueryError
+          error={query.error}
+          retry={() => void query.refetch()}
+          onReload={onReload}
+          reloadLabel={reloadLabel}
         />
       )}
-      {failures.map(([label, category]) =>
-        category.kind === "error" ? (
-          <Alert
-            key={label}
-            type="error"
-            title={`${label} could not be checked`}
-            description={category.error.message}
-            action={
-              <Button
-                size="small"
-                onClick={() => {
-                  void related.refetch();
-                }}
-              >
-                Retry
-              </Button>
+      {data &&
+        (data.rows.length ? (
+          <SearchPreviewRows
+            page={data}
+            filter={filter}
+            onReference={onReference}
+            onReload={onReload}
+          />
+        ) : (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              incoming ? "No records reference this entry." : "No linked records found."
             }
           />
-        ) : category.kind === "unavailable" &&
-          detail.selected.embedded_path.length === 0 ? (
-          <Typography.Paragraph key={label} type="secondary">
-            {label}: {category.reason}
-          </Typography.Paragraph>
-        ) : null,
-      )}
-      {items.length > 0 && (
-        <Tabs
-          activeKey={selectedTab}
-          onChange={setActive}
-          destroyOnHidden
-          items={items}
-        />
-      )}
-      <Collapse
-        size="small"
-        ghost
-        destroyOnHidden
-        items={[
-          {
-            key: "similar",
-            label: detail.selected.embedded_path.length
-              ? `Similar to parent record: ${detail.record.title}`
-              : "Similar records",
-            children: (
-              <SimilarPreview
-                detail={detail}
-                onReference={onReference}
-                onReload={onReload}
-                reloadLabel={reloadLabel}
-              />
-            ),
-          },
-        ]}
-      />
-      {comparison && (
-        <Comparison
-          source={key}
-          target={comparison}
-          onClose={() => setComparison(null)}
+        ))}
+      {!incoming && (
+        <OtherReferences
+          detail={detail}
+          onReference={onReference}
+          onReload={onReload}
+          reloadLabel={reloadLabel}
         />
       )}
     </div>
   );
 }
-function SimilarPreview({
-  detail,
+
+function useRelated(detail: RecordDetailView) {
+  const query = useQuery({
+    queryKey: ["related", detail.selected, detail.artifact_generation],
+    staleTime: Infinity,
+    retryOnMount: false,
+    queryFn: ({ signal }) =>
+      getRelatedRecords(
+        { selection: detail.selected, artifact_generation: detail.artifact_generation },
+        signal,
+      ),
+  });
+  return {
+    ...query,
+    data: isArtifactGenerationChanged(query.error) ? undefined : query.data,
+  };
+}
+
+function OtherReferences({ detail, onReload, reloadLabel }: ExploreProps) {
+  const related = useRelated(detail);
+  const graph = related.data?.references;
+  const other =
+    graph?.kind === "content"
+      ? graph.content.outgoing.occurrences.filter((entry) => !entry.target)
+      : [];
+  if (related.error)
+    return (
+      <QueryError
+        error={related.error}
+        retry={() => void related.refetch()}
+        onReload={onReload}
+        reloadLabel={reloadLabel}
+      />
+    );
+  if (graph?.kind === "error")
+    return (
+      <Alert
+        type="error"
+        title="Additional references could not be checked"
+        description={graph.error.message}
+      />
+    );
+  if (!other.length) return null;
+  return (
+    <div className="record-explore__other">
+      <h3>Other references</h3>
+      <ul>
+        {other.slice(0, 5).map((entry, index) => (
+          <li key={index}>
+            {entry.url &&
+            ["resolved_url", "unverified_url"].includes(entry.status) &&
+            DOMPurify.isValidAttribute("a", "href", entry.url) ? (
+              <Typography.Link
+                href={entry.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                External reference
+              </Typography.Link>
+            ) : (
+              <Typography.Text type="secondary">
+                This reference is unavailable in the current collection.
+              </Typography.Text>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function VersionCard({
+  record,
   onReference,
-  onReload,
-  reloadLabel,
+  onCompare,
+  context,
 }: {
-  detail: RecordDetailView;
+  record: RecordSummaryView;
   onReference: RecordReferenceHandler;
-  onReload?: () => void;
-  reloadLabel: string;
+  onCompare: () => void;
+  context?: string;
 }) {
+  return (
+    <div role="listitem">
+      <ReferenceResult
+        row={{ record, matches: [], relationship_evidence: [] }}
+        selected={false}
+        disabled={false}
+        matchesOpen={false}
+        onMatchesOpenChange={() => {}}
+        onPreview={(anchor) => onReference(record.record_key, anchor)}
+        onMatch={(selection, anchor) =>
+          onReference(selection.record_key, anchor, selection)
+        }
+        context={context}
+        actions={
+          <Button size="small" onClick={onCompare}>
+            Compare
+          </Button>
+        }
+      />
+    </div>
+  );
+}
+
+function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) {
+  const related = useRelated(detail);
+  const [comparison, setComparison] = useState<{
+    target: string;
+    open: boolean;
+  } | null>(null);
+  const counterparts = related.data?.counterparts;
+  const variants = related.data?.variants;
+  const pairs = counterparts?.kind === "content" ? counterparts.content.links : [];
+  const choices =
+    variants?.kind === "content"
+      ? variants.content.variants.filter(
+          (record) => record.record_key !== detail.record.record_key,
+        )
+      : [];
+  return (
+    <div className="record-explore__task">
+      {related.isLoading && (
+        <div role="status">
+          <Spin size="small" delay={400} /> Checking versions…
+        </div>
+      )}
+      {related.error && (
+        <QueryError
+          error={related.error}
+          retry={() => void related.refetch()}
+          onReload={onReload}
+          reloadLabel={reloadLabel}
+        />
+      )}
+      {[counterparts, variants].map((category, index) =>
+        category?.kind === "error" ? (
+          <Alert
+            key={index}
+            type="error"
+            title={`${index === 0 ? "Editions" : "Variants"} could not be checked`}
+            description={category.error.message}
+            action={
+              <Button size="small" onClick={() => void related.refetch()}>
+                Retry
+              </Button>
+            }
+          />
+        ) : category?.kind === "unavailable" ? (
+          <Typography.Paragraph key={index} type="secondary">
+            {category.reason}
+          </Typography.Paragraph>
+        ) : null,
+      )}
+      {pairs.length > 0 && (
+        <section>
+          <h3>Other editions</h3>
+          <div className="record-explore__results" role="list">
+            {pairs.map((pair) => {
+              const legacy =
+                pair.remaster_record.record_key === detail.record.record_key;
+              const other = legacy ? pair.legacy_record : pair.remaster_record;
+              return (
+                <VersionCard
+                  key={other.record_key}
+                  record={other}
+                  onReference={onReference}
+                  onCompare={() =>
+                    setComparison({ target: other.record_key, open: true })
+                  }
+                  context={legacy ? "Legacy" : "Remaster"}
+                />
+              );
+            })}
+          </div>
+        </section>
+      )}
+      {choices.length > 0 && (
+        <section>
+          <h3>Suggested variants</h3>
+          {variants?.kind === "content" && variants.content.ambiguous && (
+            <Typography.Paragraph type="secondary">
+              These suggestions are uncertain; compare before treating them as variants.
+            </Typography.Paragraph>
+          )}
+          <div className="record-explore__results" role="list">
+            {choices.map((record) => (
+              <VersionCard
+                key={record.record_key}
+                record={record}
+                onReference={onReference}
+                onCompare={() =>
+                  setComparison({ target: record.record_key, open: true })
+                }
+              />
+            ))}
+          </div>
+          {variants?.kind === "content" && variants.content.truncated && (
+            <Typography.Paragraph type="secondary">
+              More suggested variants may exist.
+            </Typography.Paragraph>
+          )}
+        </section>
+      )}
+      {counterparts?.kind === "empty" && variants?.kind === "empty" && (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="No other editions or suggested variants found."
+        />
+      )}
+      {comparison && (
+        <Comparison
+          source={detail.record.record_key}
+          target={comparison.target}
+          open={comparison.open}
+          onClose={() => setComparison({ ...comparison, open: false })}
+          onAfterClose={() => setComparison(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreProps) {
   const seed = detail.record.record_key;
   const profile = useSearchProfile();
   const similar = useQuery({
@@ -470,7 +518,7 @@ function SimilarPreview({
       return page;
     },
   });
-  const reloadRecord = isArtifactGenerationChanged(similar.error);
+  const data = isArtifactGenerationChanged(similar.error) ? undefined : similar.data;
   const route = searchDestination({
     selectedRecordKey: null,
     query: searchStateQueryString(
@@ -481,85 +529,65 @@ function SimilarPreview({
         query: "",
         mode: "similar_records",
         similarSeed: seed,
+        traitReferenceSeed: null,
       },
       profile.id ?? profile.pendingUrlProfile,
     ),
   });
   return (
-    <>
+    <div className="record-explore__task">
+      <ExploreSearchAction route={route} summary="Top matches">
+        Search similar records
+      </ExploreSearchAction>
+      {!!detail.selected.embedded_path.length && (
+        <Typography.Paragraph>
+          Similar to parent record: {detail.record.title}
+        </Typography.Paragraph>
+      )}
       {!profile.storedVectors && <SearchProfileNotice />}
       {similar.isFetching && (
         <div role="status">
-          <Spin size="small" /> Loading similar records…
+          <Spin size="small" delay={400} /> Loading similar records…
         </div>
       )}
       {similar.error && (
-        <Alert
-          type="error"
-          title="Unable to load similar records"
-          description={similar.error.message}
-          action={
-            <Button
-              size="small"
-              disabled={reloadRecord && !onReload}
-              onClick={() => {
-                if (reloadRecord) onReload?.();
-                else void similar.refetch();
-              }}
-            >
-              {reloadRecord ? reloadLabel : "Retry"}
-            </Button>
-          }
+        <QueryError
+          error={similar.error}
+          retry={() => void similar.refetch()}
+          onReload={onReload}
+          reloadLabel={reloadLabel}
         />
       )}
-      {similar.data &&
-        (similar.data.rows.length ? (
-          <ul className="related-records__list">
-            {similar.data.rows.map((row) => (
-              <li key={row.record.record_key}>
-                <Typography.Link
-                  href={destinationHref(
-                    recordDestination({
-                      recordKey: row.record.record_key,
-                    }),
-                  )}
-                  onClick={(event) => {
-                    if (!isPrimaryActivation(event)) return;
-                    event.preventDefault();
-                    onReference(row.record.record_key, event.currentTarget);
-                  }}
-                >
-                  {row.record.title}
-                </Typography.Link>
-              </li>
-            ))}
-          </ul>
+      {data &&
+        (data.rows.length ? (
+          <>
+            <SearchPreviewRows
+              page={data}
+              onReference={onReference}
+              onReload={onReload}
+            />
+          </>
         ) : (
-          <Typography.Paragraph type="secondary">
-            No similar records found.
-          </Typography.Paragraph>
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="No similar records found."
+          />
         ))}
-      <Typography.Link
-        href={destinationHref(route)}
-        onClick={(event) => {
-          if (!isPrimaryActivation(event)) return;
-          event.preventDefault();
-          navigateDestination(route);
-        }}
-      >
-        See more similar records
-      </Typography.Link>
-    </>
+    </div>
   );
 }
 function Comparison({
   source,
   target,
+  open,
   onClose,
+  onAfterClose,
 }: {
   source: string;
   target: string;
+  open: boolean;
   onClose: () => void;
+  onAfterClose: () => void;
 }) {
   const left = useRecordDetail(source);
   const right = useRecordDetail(target);
@@ -573,7 +601,8 @@ function Comparison({
   return (
     <Modal
       title="Variant comparison"
-      open
+      open={open}
+      afterClose={onAfterClose}
       footer={null}
       onCancel={onClose}
       width="min(90vw, calc(2 * var(--document-measure) + 6 * var(--space-section) + var(--panel-gap)))"

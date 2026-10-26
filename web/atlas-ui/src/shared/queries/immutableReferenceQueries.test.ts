@@ -17,6 +17,7 @@ describe("immutable reference retirement", () => {
       "record-detail",
       "embedded-reading",
       "related",
+      "record-reference-preview",
       "similar-preview",
       "encounter-record-detail",
     ];

@@ -44,6 +44,15 @@ pub enum SearchCriteria {
         seed_record_key: String,
         filter: Option<QueryPredicate>,
     },
+    SimilarTraits {
+        seed_trait_key: String,
+        filter: Option<QueryPredicate>,
+    },
+    TraitReferences {
+        trait_key: String,
+        query: Option<String>,
+        filter: Option<QueryPredicate>,
+    },
     ListRecords {
         filter: Option<QueryPredicate>,
     },
@@ -58,6 +67,14 @@ pub enum SearchCriteria {
 pub enum SearchModeSummary {
     SimilarRecords {
         seed: Box<RecordSummaryView>,
+    },
+    SimilarTraits {
+        trait_key: String,
+        title: String,
+    },
+    TraitReferences {
+        trait_key: String,
+        title: String,
     },
     ListRecords,
     TextSearch {

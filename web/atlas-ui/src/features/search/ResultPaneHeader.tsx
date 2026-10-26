@@ -7,7 +7,9 @@ import { ResultSortControl } from "../../shared/search/ResultSortControl";
 
 export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceState }) {
   const page = workspace.resultPage?.page;
-  const similar = workspace.resultPage?.mode.kind === "similar_records";
+  const similar =
+    workspace.resultPage?.mode.kind === "similar_records" ||
+    workspace.resultPage?.mode.kind === "similar_traits";
   const displayedPageNumber = workspace.resultsRefreshing
     ? workspace.pageNumber
     : (page?.number ?? workspace.pageNumber);
@@ -27,7 +29,7 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
               ? "Top matches"
               : workspace.resultPage?.coverage?.exhaustive === false
                 ? `Top ${page.total.toLocaleString()} matches`
-                : `${page.total.toLocaleString()} records`
+                : `${page.total.toLocaleString()} ${page.total === 1n ? "record" : "records"}`
             : "Results"}
       </span>
       <div className="pager pager--compact">

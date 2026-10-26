@@ -2,4 +2,4 @@
 import type { QueryPredicate } from "./QueryPredicate";
 import type { RetrievalModeView } from "./RetrievalModeView";
 
-export type SearchCriteria = { "kind": "similar_records", seed_record_key: string, filter: QueryPredicate | null, } | { "kind": "list_records", filter: QueryPredicate | null, } | { "kind": "text_search", query: string, filter: QueryPredicate | null, mode: RetrievalModeView, };
+export type SearchCriteria = { "kind": "similar_records", seed_record_key: string, filter: QueryPredicate | null, } | { "kind": "similar_traits", seed_trait_key: string, filter: QueryPredicate | null, } | { "kind": "trait_references", trait_key: string, query: string | null, filter: QueryPredicate | null, } | { "kind": "list_records", filter: QueryPredicate | null, } | { "kind": "text_search", query: string, filter: QueryPredicate | null, mode: RetrievalModeView, };
