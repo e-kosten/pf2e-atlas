@@ -33,11 +33,11 @@ export function SimilarityExplanation({
       {evidence.truncated && (
         <Typography.Paragraph type="secondary">
           Showing part of the comparison evidence. The score includes all selected
-          parts.
+          sections.
         </Typography.Paragraph>
       )}
       <Typography.Text>
-        {evidence.comparable_parts} of {evidence.selected_parts} selected parts have
+        {evidence.comparable_parts} of {evidence.selected_parts} selected sections have
         comparable content.
       </Typography.Text>
       {contributions.length > 0 && (
@@ -48,7 +48,7 @@ export function SimilarityExplanation({
           dataSource={contributions}
           columns={[
             {
-              title: "Part",
+              title: "Section",
               dataIndex: "label",
               render: (label: string, row) => (
                 <>

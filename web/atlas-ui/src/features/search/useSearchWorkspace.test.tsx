@@ -519,10 +519,10 @@ describe("useSearchWorkspace", () => {
     );
     client.setQueryData(["encounter", "draft"], { name: "Unsaved encounter" });
     fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
-    fireEvent.click(screen.getByText("Compare parts"));
-    fireEvent.click(await screen.findByRole("button", { name: "Reload parts" }));
+    fireEvent.click(screen.getByText("Sections to compare"));
+    fireEvent.click(await screen.findByRole("button", { name: "Reload sections" }));
     await screen.findByRole("checkbox", { name: "Description" });
-    fireEvent.click(screen.getByRole("checkbox", { name: "All parts" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "All sections" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Description" }));
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() =>
