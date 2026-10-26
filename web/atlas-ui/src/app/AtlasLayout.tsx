@@ -5,6 +5,7 @@ import { Outlet, useRouterState } from "@tanstack/react-router";
 import {
   COLOR_SCHEME_STORAGE_KEY,
   applyAtlasDocumentTheme,
+  atlasPopoverStyles,
   antDesignTheme,
   type ColorSchemePreference,
   type ResolvedColorScheme,
@@ -63,6 +64,9 @@ export function AtlasLayout() {
   return (
     <ConfigProvider
       theme={antDesignTheme(resolvedColorScheme)}
+      popover={{
+        styles: atlasPopoverStyles(resolvedColorScheme),
+      }}
       select={{
         classNames: {
           popup: { root: "atlas-select-popup", listItem: "atlas-select-option" },
