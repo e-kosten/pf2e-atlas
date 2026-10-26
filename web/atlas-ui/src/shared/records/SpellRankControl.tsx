@@ -1,5 +1,6 @@
-import { Button, Dropdown } from "antd";
+import { Button, ConfigProvider, Dropdown } from "antd";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { ChevronDown } from "lucide-react";
 import type { SpellPresentationView } from "../../generated/atlas";
 
 const tabbableSelector = [
@@ -26,10 +27,12 @@ function moveFocusFromTrigger(trigger: HTMLButtonElement, reverse: boolean) {
 
 export function SpellRankControl({
   spell,
+  classification,
   embedded,
   onChange,
 }: {
   spell: SpellPresentationView;
+  classification: string;
   embedded: boolean;
   onChange: (rank: number | undefined) => void;
 }) {
@@ -69,7 +72,17 @@ export function SpellRankControl({
     trigger.current?.focus({ preventScroll: true });
   };
   return (
-    <div className="spell-rank-control">
+    <ConfigProvider
+      theme={{
+        components: {
+          Button: {
+            defaultBg: "var(--record-kind-bg)",
+            defaultColor: "var(--record-kind-text)",
+            defaultBorderColor: "var(--record-kind-border)",
+          },
+        },
+      }}
+    >
       <Dropdown
         trigger={["click"]}
         popupRender={(menu) => <div ref={popup}>{menu}</div>}
@@ -114,9 +127,10 @@ export function SpellRankControl({
       >
         <Button
           ref={trigger}
-          type="text"
-          size="small"
-          className="spell-rank-control__trigger"
+          className="record-reference__kind spell-rank-control"
+          icon={<ChevronDown size={14} aria-hidden="true" />}
+          iconPlacement="end"
+          aria-label={`${classification}: Change rank`}
           aria-haspopup="menu"
           aria-expanded={open}
           onKeyDown={(event) => {
@@ -127,9 +141,9 @@ export function SpellRankControl({
             }
           }}
         >
-          Change rank
+          {classification}
         </Button>
       </Dropdown>
-    </div>
+    </ConfigProvider>
   );
 }

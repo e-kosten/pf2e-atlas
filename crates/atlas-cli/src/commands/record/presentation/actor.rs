@@ -188,6 +188,9 @@ pub(super) fn render(
 }
 
 pub(super) fn activity_facts(out: &mut String, activity: &ActorActivityView, show_identity: bool) {
+    if let Some(effect) = &activity.spell_effect {
+        super::effect::statistics(out, effect);
+    }
     if activity
         .first_level_only
         .as_ref()

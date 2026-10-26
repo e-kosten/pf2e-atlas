@@ -1,8 +1,10 @@
-import { Button, Popover, Tooltip } from "antd";
+import { Button, Tooltip } from "antd";
 import { CalculationTable } from "../ui/tables/CalculationTable";
-import { Info } from "lucide-react";
+import { ValueExplanation } from "../ui/ValueExplanation";
 import type { ReactNode } from "react";
 import type { FactView, NumberFactView } from "../../generated/atlas";
+
+export type FactValueRenderer = (value: ReactNode) => ReactNode;
 
 export function isEmptyFactValue(value: unknown): boolean {
   return (
@@ -71,60 +73,46 @@ export function NumberFact({
   const adjustment = fact.adjustment;
   if (fact.state === "missing" && !adjustment) return <MissingFact label={label} />;
   if (!adjustment) return <>{text}</>;
-  const contextual = adjustment.notes.length > 0;
   return (
-    <span className={contextual ? "record-number-context" : undefined}>
-      {contextual && text}
-      <Popover
-        trigger="click"
-        title="Effective value"
-        content={
-          <CalculationTable
-            label={`${label ?? "Value"} calculation`}
-            valueLabel={label ?? "Value"}
-            rows={[
-              {
-                key: "original",
-                label: "Original",
-                value: format(adjustment.authored),
-              },
-              ...adjustment.applied.map((modifier, index) => ({
-                key: `applied-${index}`,
-                label: modifier.label,
-                value: `${modifier.value > 0n ? "+" : ""}${modifier.value}${unit}`,
-                note: modifier.modifier_type,
-              })),
-              ...adjustment.suppressed.map((modifier, index) => ({
-                key: `suppressed-${index}`,
-                label: modifier.label,
-                value: "—",
-                note: `${modifier.value > 0n ? "+" : ""}${modifier.value}${unit} ${modifier.modifier_type} · Overridden`,
-                muted: true,
-              })),
-              ...adjustment.notes.map((note, index) => ({
-                key: `note-${index}`,
-                label: note.label,
-                value: "—",
-                note: note.reason,
-              })),
-              { key: "effective", label: "Effective", value: text, total: true },
-            ]}
-          />
-        }
-      >
-        <Button
-          aria-label={
-            label ? `Show explanation for ${label}` : "Show value explanation"
-          }
-          className={contextual ? undefined : "record-number"}
-          type={contextual ? "text" : "link"}
-          size="small"
-          icon={contextual ? <Info size={14} aria-hidden="true" /> : undefined}
-        >
-          {contextual ? null : text}
-        </Button>
-      </Popover>
-    </span>
+    <ValueExplanation
+      label={label ? `Show explanation for ${label}` : "Show value explanation"}
+      title="Effective value"
+      content={
+        <CalculationTable
+          label={`${label ?? "Value"} calculation`}
+          valueLabel={label ?? "Value"}
+          rows={[
+            {
+              key: "original",
+              label: "Original",
+              value: format(adjustment.authored),
+            },
+            ...adjustment.applied.map((modifier, index) => ({
+              key: `applied-${index}`,
+              label: modifier.label,
+              value: `${modifier.value > 0n ? "+" : ""}${modifier.value}${unit}`,
+              note: modifier.modifier_type,
+            })),
+            ...adjustment.suppressed.map((modifier, index) => ({
+              key: `suppressed-${index}`,
+              label: modifier.label,
+              value: "—",
+              note: `${modifier.value > 0n ? "+" : ""}${modifier.value}${unit} ${modifier.modifier_type} · Overridden`,
+              muted: true,
+            })),
+            ...adjustment.notes.map((note, index) => ({
+              key: `note-${index}`,
+              label: note.label,
+              value: "—",
+              note: note.reason,
+            })),
+            { key: "effective", label: "Effective", value: text, total: true },
+          ]}
+        />
+      }
+    >
+      {text}
+    </ValueExplanation>
   );
 }
 
@@ -134,21 +122,25 @@ export function FactLine<T>({
   format,
   patch = false,
   required = false,
+  renderValue,
 }: {
   label: string;
   fact: FactView<T>;
   format?: (value: T) => string;
   patch?: boolean;
   required?: boolean;
+  renderValue?: FactValueRenderer;
 }) {
   if (!hasReadingFact(fact, { patch, required })) return null;
+  const value =
+    fact.state === "missing" ? (
+      <MissingFact label={label} />
+    ) : (
+      factText(fact, format, { patch, required })
+    );
   return (
     <FactRow label={label}>
-      {fact.state === "missing" ? (
-        <MissingFact label={label} />
-      ) : (
-        factText(fact, format, { patch, required })
-      )}
+      {renderValue && fact.state !== "missing" ? renderValue(value) : value}
     </FactRow>
   );
 }

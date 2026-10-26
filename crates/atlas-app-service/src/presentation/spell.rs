@@ -25,6 +25,7 @@ pub(super) fn authored_spell(source: &SpellSource) -> SpellPresentationView {
         ),
         counteraction: fact(s.and_then(|s| (&s.counteraction).into()).map(|v| *v)),
         rank_note: None,
+        rank_changes: None,
         base_rank: number(
             s.and_then(|s| (&s.level).into())
                 .and_then(|v| (&v.value).into()),
@@ -82,6 +83,9 @@ pub(super) fn authored_spell(source: &SpellSource) -> SpellPresentationView {
                 o.entries
                     .iter()
                     .map(|(id, v)| SpellFormView {
+                        rank_changes: None,
+                        rank_note: None,
+                        effective_rank: None,
                         id: id.clone(),
                         name: text((&v.name).into()),
                         sort: number((&v.sort).into()),

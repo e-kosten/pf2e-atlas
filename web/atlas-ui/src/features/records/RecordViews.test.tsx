@@ -73,10 +73,10 @@ describe("record route views", () => {
       },
     );
     render(<RecordHarness />, { wrapper: queryClientWrapper() });
-    await screen.findByRole("button", { name: "Change rank" });
+    await screen.findByRole("button", { name: /Change rank/ });
     const entries = history.length;
     for (const rank of [4, 5]) {
-      fireEvent.click(screen.getByRole("button", { name: "Change rank" }));
+      fireEvent.click(screen.getByRole("button", { name: /Change rank/ }));
       fireEvent.click(await screen.findByRole("menuitem", { name: "Rank " + rank }));
       await waitFor(() =>
         expect(selectedNavigation(atlasRouter.latestLocation.search)?.spell_rank).toBe(

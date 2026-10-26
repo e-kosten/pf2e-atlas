@@ -1,7 +1,6 @@
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
-import { Button, Popover, Space, Tooltip } from "antd";
-import { ChevronDown } from "lucide-react";
+import { Button, Space, Tooltip } from "antd";
 import { useRef, useState } from "react";
 import type {
   TurnResourceAction,
@@ -11,7 +10,7 @@ import type {
 import { RuntimeCount } from "../../shared/records/ActorReference";
 import { RuntimeCountCalculation } from "../../shared/records/RuntimeCountCalculation";
 import { CalculationTable } from "../../shared/ui/tables/CalculationTable";
-import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
+import { ValueExplanation } from "../../shared/ui/ValueExplanation";
 import type { RecordReferenceHandler } from "../../shared/records/PreparedContent";
 export type TurnResourceHandler = (action: TurnResourceAction) => Promise<void>;
 export function EncounterTurnResources({
@@ -272,9 +271,6 @@ function ResourceCounter({
   reason?: string;
   onAction: TurnResourceHandler;
 }) {
-  const [open, setOpen] = useState(false);
-  const button = useRef<HTMLButtonElement>(null);
-  const popup = useRef<HTMLDivElement>(null);
   const count = calculation?.count;
   const changes = calculation?.kind === "this_turn" ? calculation.changes : [];
   const hasDetails =
@@ -334,21 +330,11 @@ function ResourceCounter({
   return (
     <div className="encounter-turn-resources__group">
       {calculation && hasDetails ? (
-        <Popover
-          trigger="click"
-          open={open}
-          onOpenChange={(next) => {
-            if (!next) restoreOverlayFocus(button.current, popup.current);
-            setOpen(next);
-          }}
-          afterOpenChange={(next) => {
-            if (next && open && document.activeElement === button.current)
-              popup.current?.focus({ preventScroll: true });
-          }}
+        <ValueExplanation
+          label={`${label}: calculation details`}
           title={calculation.kind === "this_turn" ? "This turn" : "Next turn"}
           content={
             <div
-              ref={popup}
               className="encounter-turn-resource-details"
               role="region"
               aria-label="Action calculation"
@@ -382,18 +368,8 @@ function ResourceCounter({
             </div>
           }
         >
-          <Button
-            ref={button}
-            type="text"
-            styles={{ root: { paddingInline: 0, fontSize: "inherit" } }}
-            icon={<ChevronDown size={14} />}
-            iconPlacement="end"
-            aria-expanded={open}
-            aria-label={`${label}: calculation details`}
-          >
-            <strong>{label}</strong>
-          </Button>
-        </Popover>
+          <strong>{label}</strong>
+        </ValueExplanation>
       ) : calculation ? (
         <strong>{label}</strong>
       ) : null}

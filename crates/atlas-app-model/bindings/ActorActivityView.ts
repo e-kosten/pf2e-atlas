@@ -12,10 +12,11 @@ import type { NumberFactView } from "./NumberFactView";
 import type { RecordBadgeView } from "./RecordBadgeView";
 import type { RecordNavigationView } from "./RecordNavigationView";
 import type { RuntimeEffectNoteView } from "./RuntimeEffectNoteView";
+import type { SpellEffectPreviewView } from "./SpellEffectPreviewView";
 import type { StrikeAttackOptionView } from "./StrikeAttackOptionView";
 import type { StrikeRangeView } from "./StrikeRangeView";
 
-export type ActorActivityView = {
+export type ActorActivityView = { spell_effect?: SpellEffectPreviewView,
 /**
  * Display order within a reading group; never the runtime item ordinal.
  */

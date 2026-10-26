@@ -60,6 +60,27 @@ pub(super) fn records() -> Vec<SourceArtifactRecordInput> {
             }),
         ),
     ];
+    // Exact source fixtures exercise the same rank-aware pipeline as full-corpus reading.
+    records.push(record(
+        "browser-effects",
+        "Item",
+        serde_json::from_str(include_str!(
+            "../../../atlas-app-service/tests/fixtures/spell-effect-animal-form-bear.json"
+        ))
+        .expect("Bear source fixture"),
+    ));
+    records.push(record(
+        "browser-effects",
+        "Item",
+        serde_json::from_str(include_str!(
+            "../../../atlas-app-service/tests/fixtures/spell-effect-enlarge.json"
+        ))
+        .expect("Enlarge source fixture"),
+    ));
+    records.push(record("browser-spells", "Item", json!({
+        "_id":"battleform000001", "type":"spell", "name":"Browser Battle Form",
+        "system":{"level":{"value":2}, "description":{"value":"<p>Choose @UUID[Compendium.pf2e.browser-effects.Item.gQnDKDeBTtjwOWAk]{Bear} or @UUID[Compendium.pf2e.browser-effects.Item.sPCWrhUHqlbGhYSD]{Enlarge}.</p>"}}
+    })));
     records.extend((1..=32).map(|number| {
         record(
             "browser-actors",
