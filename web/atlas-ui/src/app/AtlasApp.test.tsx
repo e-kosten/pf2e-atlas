@@ -34,11 +34,10 @@ vi.mock("./router", () => ({
     return routerSlot.current;
   },
 }));
-async function loadApplication() {
-  const { createAtlasRouter } =
-    await vi.importActual<typeof import("./router")>("./router");
-  routerSlot.current = createAtlasRouter();
-}
+// Transform the real route graph once during module loading. Per-test hook
+// deadlines measure fixture setup, not cold imports of the application routes.
+const { createAtlasRouter } =
+  await vi.importActual<typeof import("./router")>("./router");
 import { SEARCH_PROFILE_PREFERENCE_KEY } from "../shared/search/SearchProfileContext";
 import { rootNavigation } from "../shared/records/useReferenceReading";
 import { encodeFilterUrl } from "../shared/filters/filterUrl";
@@ -69,7 +68,7 @@ vi.mock("../api/atlasApi", async (original) => ({
 }));
 
 describe("AtlasApp routing", () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
     installLocalStorage();
     Element.prototype.scrollIntoView = vi.fn();
@@ -106,7 +105,7 @@ describe("AtlasApp routing", () => {
       }),
     );
     apiMocks.getSavedLists.mockResolvedValue(savedListIndexFixture());
-    await loadApplication();
+    routerSlot.current = createAtlasRouter();
     apiMocks.addSavedListItem.mockImplementation(
       ({ record_ref, list_ref }: { record_ref: string; list_ref: string }) =>
         Promise.resolve({
@@ -307,7 +306,7 @@ describe("AtlasApp routing", () => {
       expect(JSON.parse(copiedParams.get("landing")!)).toEqual(landing);
       expect(apiMocks.searchPage).not.toHaveBeenCalled();
       first.unmount();
-      await loadApplication();
+      routerSlot.current = createAtlasRouter();
       history.replaceState(null, "", copied);
       render(<AtlasApp />, { wrapper: queryClientWrapper() });
       expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
@@ -427,7 +426,7 @@ describe("AtlasApp routing", () => {
         expect(fireEvent.click(link, nativeClick)).toBe(true);
       expect(window.location.pathname).toBe("/records/spell:heal");
       reader.unmount();
-      await loadApplication();
+      routerSlot.current = createAtlasRouter();
       history.replaceState(null, "", copied.pathname + copied.search);
       render(<AtlasApp />, { wrapper: queryClientWrapper() });
       await act(() => vi.dynamicImportSettled());
