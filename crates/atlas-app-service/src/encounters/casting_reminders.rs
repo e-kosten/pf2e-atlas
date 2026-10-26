@@ -130,6 +130,7 @@ fn reminders(
         advisories: casting_advisories(
             participant,
             &snapshot.participants,
+            &sources,
             &issues,
             check.as_ref(),
         ),
@@ -138,21 +139,39 @@ fn reminders(
 fn casting_advisories(
     participant: &atlas_local_state::EncounterParticipant,
     roster: &[atlas_local_state::EncounterParticipant],
+    sources: &super::rules::source_conditions::SourceConditions,
     issues: &[EncounterActionIssueView],
     check: Option<&EncounterActionCheckView>,
 ) -> Vec<RuntimeEffectNoteView> {
     use super::conditions::ConditionRule as R;
     let mut notes = vec![];
+    let authored_source = |issue: &EncounterActionIssueView| {
+        sources.entries.iter().find(|source| {
+            super::rules::causes::ConditionSource::Authored(
+                source,
+                sources.source_fingerprint.as_deref(),
+                &participant.participant_key,
+            )
+            .key()
+            .key()
+                == issue.source_key
+        })
+    };
+    let rule_for_issue = |issue: &EncounterActionIssueView| {
+        participant
+            .conditions
+            .iter()
+            .find(|condition| Some(condition.condition_id) == issue.source_condition_id)
+            .and_then(|condition| {
+                super::conditions::condition_rule_for_key(condition.condition_key.as_deref())
+            })
+            .or_else(|| authored_source(issue).map(|source| source.rule))
+    };
     let unknown_stupefied = issues.iter().any(|issue| {
-        issue.kind == EncounterActionIssueKindView::NeedsValue
-            && participant
-                .conditions
-                .iter()
-                .find(|condition| Some(condition.condition_id) == issue.source_condition_id)
-                .is_some_and(|condition| {
-                    super::conditions::condition_rule_for_key(condition.condition_key.as_deref())
-                        == Some(R::Stupefied)
-                })
+        matches!(
+            issue.kind,
+            EncounterActionIssueKindView::NeedsValue | EncounterActionIssueKindView::NeedsContext
+        ) && rule_for_issue(issue) == Some(R::Stupefied)
     });
     if let Some(check) = check
         && !unknown_stupefied
@@ -172,14 +191,9 @@ fn casting_advisories(
         });
     }
     for issue in issues {
-        let Some(condition) = participant
-            .conditions
-            .iter()
-            .find(|condition| Some(condition.condition_id) == issue.source_condition_id)
-        else {
-            continue;
-        };
-        let rule = super::conditions::condition_rule_for_key(condition.condition_key.as_deref());
+        let rule = rule_for_issue(issue);
+        let activation_unknown = authored_source(issue)
+            .is_some_and(|source| sources.unresolved_entries(participant).contains(&source));
         let subject = issue.subject.as_ref().map(|subject| match subject {
             ConditionSubjectView::Participant { participant_key } => roster
                 .iter()
@@ -217,23 +231,222 @@ fn casting_advisories(
                 "Actions must help escape {}.",
                 subject.as_deref().unwrap_or("the source of flight")
             )),
-            Some(R::Stupefied) if unknown_stupefied => {
-                Some("The Stupefied value is missing; the casting flat-check DC is unknown.".into())
+            Some(R::Stupefied) if unknown_stupefied => Some(if activation_unknown {
+                "Confirm whether Stupefied applies; the casting flat-check DC is unknown.".into()
+            } else {
+                "The Stupefied value is missing; the casting flat-check DC is unknown.".into()
+            }),
+            Some(R::Unconscious | R::Petrified | R::Stunned) if activation_unknown => {
+                Some("It prevents casting.".into())
             }
             _ if issue.kind == EncounterActionIssueKindView::Prohibited => {
                 Some(issue.reason.clone())
             }
             _ => None,
         };
+        let reason = reason.map(|reason| {
+            if activation_unknown && rule != Some(R::Stupefied) {
+                format!("Confirm whether {} applies. {reason}", issue.condition_name)
+            } else {
+                reason
+            }
+        });
         if let Some(reason) = reason
             && !notes.iter().any(|note| note.reason == reason)
         {
             notes.push(RuntimeEffectNoteView {
-                source: format!("condition:{}", condition.condition_id),
-                label: condition.name.clone(),
+                source: issue.source_key.clone(),
+                label: issue.condition_name.clone(),
                 reason,
             });
         }
     }
     notes
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::rules::source_conditions::{SourceConditions, source_conditions};
+    use super::*;
+    use serde_json::json;
+
+    fn participant() -> atlas_local_state::EncounterParticipant {
+        let fixture = crate::test_support::encounter_fixture_worker();
+        let encounter = fixture
+            .worker
+            .create_encounter(CreateEncounterRequest {
+                name: "Source casting advice".into(),
+                description: None,
+                note: None,
+            })
+            .unwrap()
+            .encounter
+            .encounter_key;
+        fixture
+            .worker
+            .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
+                encounter_ref: encounter.clone(),
+                display_name: "Caster".into(),
+                max_hp: Some(40),
+                current_hp: Some(40),
+                initiative: None,
+            })
+            .unwrap();
+        fixture
+            .worker
+            .with_state(|session| {
+                Ok(session
+                    .local_state()
+                    .encounters()
+                    .get_with_participants(&encounter)?
+                    .unwrap()
+                    .participants
+                    .remove(0))
+            })
+            .unwrap()
+    }
+
+    fn sources(items: serde_json::Value) -> SourceConditions {
+        sources_with_rule(items, super::super::conditions::ConditionRule::Stupefied)
+    }
+
+    fn sources_with_rule(
+        items: serde_json::Value,
+        rule: super::super::conditions::ConditionRule,
+    ) -> SourceConditions {
+        let source = atlas_search::test_support::record(
+            "actors",
+            "Actor",
+            json!({
+                "_id":"sourceCaster0001", "type":"npc", "system":{"attributes":{"immunities":[]},"traits":{"value":[]}}, "items":items,
+            }),
+        );
+        source_conditions(&source.record, |_| Ok(Some(rule))).unwrap()
+    }
+
+    fn advice(
+        participant: &atlas_local_state::EncounterParticipant,
+        sources: &SourceConditions,
+    ) -> Vec<RuntimeEffectNoteView> {
+        let evaluation = evaluate_action(
+            participant,
+            sources,
+            &ActionContext {
+                kind: ActionKind::Cast,
+                reaction: Some(false),
+                other_participant: None,
+                facts: &[],
+            },
+        );
+        let issues = evaluation
+            .issues
+            .into_iter()
+            .map(|issue| super::super::action_projection::issue_view(issue, participant, sources))
+            .collect::<Vec<_>>();
+        let check = evaluation.disruption.map(|check| {
+            super::super::action_projection::check_view(
+                check.dc,
+                check.source_ids,
+                std::slice::from_ref(participant),
+            )
+        });
+        casting_advisories(
+            participant,
+            std::slice::from_ref(participant),
+            sources,
+            &issues,
+            check.as_ref(),
+        )
+    }
+
+    #[test]
+    fn source_casting_issues_keep_paralysis_and_missing_values_without_confusion_hint() {
+        let participant = participant();
+        let sources = sources(json!([
+            {"_id":"paralyzedSource1","type":"condition","system":{"slug":"paralyzed"}},
+            {"_id":"stupefiedSource1","type":"condition","system":{"slug":"stupefied","value":{"isValued":true,"value":null}}},
+            {"_id":"confusedSource01","type":"condition","system":{"slug":"confused"}}
+        ]));
+        let notes = advice(&participant, &sources);
+        assert_eq!(notes.len(), 2);
+        assert!(
+            notes
+                .iter()
+                .any(|note| note.reason
+                    == "Only purely mental actions are possible while Paralyzed.")
+        );
+        assert!(notes.iter().any(|note| note.reason
+            == "The Stupefied value is missing; the casting flat-check DC is unknown."));
+        assert!(
+            notes
+                .iter()
+                .all(|note| note.source.starts_with("source-condition:"))
+        );
+    }
+
+    #[test]
+    fn unknown_source_activation_warns_without_inventing_a_casting_check() {
+        let participant = participant();
+        let sources = sources(json!([
+            {"_id":"unknownSource001","type":"action","system":{"actionType":{"value":"passive"},"rules":[
+                {"key":"GrantItem","inMemoryOnly":true,"uuid":"fixture:stupefied","predicate":["unknown-context"]}
+            ]}}
+        ]));
+        let notes = advice(&participant, &sources);
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].label, "Stupefied");
+        assert_eq!(
+            notes[0].reason,
+            "Confirm whether Stupefied applies; the casting flat-check DC is unknown."
+        );
+    }
+
+    #[test]
+    fn known_stronger_casting_check_survives_uncertain_weaker_source() {
+        let participant = participant();
+        let mut sources = sources(json!([
+            {"_id":"knownStupefied01","type":"condition","system":{"slug":"stupefied","value":{"isValued":true,"value":3}}},
+            {"_id":"unknownSource001","type":"action","system":{"actionType":{"value":"passive"},"rules":[
+                {"key":"GrantItem","inMemoryOnly":true,"uuid":"fixture:stupefied","predicate":["unknown-context"]}
+            ]}}
+        ]));
+        sources.source_fingerprint = Some("fixture".into());
+        let notes = advice(&participant, &sources);
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].reason, "DC 8 flat check or the spell is disrupted");
+    }
+
+    #[test]
+    fn uncertain_action_prevention_keeps_conditional_casting_advice_without_confusion_hint() {
+        use super::super::conditions::ConditionRule;
+        let participant = participant();
+        for rule in [
+            ConditionRule::Unconscious,
+            ConditionRule::Petrified,
+            ConditionRule::Stunned,
+            ConditionRule::Confused,
+        ] {
+            let sources = sources_with_rule(
+                json!([
+                    {"_id":"unknownSource001","type":"action","system":{"actionType":{"value":"passive"},"rules":[
+                        {"key":"GrantItem","inMemoryOnly":true,"uuid":"fixture:condition","predicate":["unknown-context"]}
+                    ]}}
+                ]),
+                rule,
+            );
+            let notes = advice(&participant, &sources);
+            if rule == ConditionRule::Confused {
+                assert!(notes.is_empty());
+            } else {
+                assert_eq!(notes.len(), 1);
+                assert_eq!(
+                    notes[0].reason,
+                    format!(
+                        "Confirm whether {} applies. It prevents casting.",
+                        rule.definition().name
+                    )
+                );
+            }
+        }
+    }
 }

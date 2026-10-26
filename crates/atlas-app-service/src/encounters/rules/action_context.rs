@@ -1,6 +1,6 @@
 //! Pure action restrictions and flat-check obligations. Unknown facts stay contextual hints.
 use super::super::conditions::ConditionRule;
-use super::causes::{ConditionSourceKey, condition_causes};
+use super::causes::{ConditionCause, ConditionSourceKey, condition_causes};
 use super::source_conditions::SourceConditions;
 use atlas_local_state::EncounterParticipant;
 
@@ -168,124 +168,161 @@ pub(in crate::encounters) fn evaluate_action(
     context: &ActionContext<'_>,
 ) -> ActionEvaluation {
     let mut result = ActionEvaluation::default();
-    for cause in condition_causes(participant, context.other_participant, sources) {
-        let id = cause.source.key();
-        let rule = cause.rule;
-        match rule {
-            ConditionRule::Unconscious | ConditionRule::Petrified => result.prohibit(&id, rule),
-            ConditionRule::Stunned if cause.value != Some(0) => result.prohibit(&id, rule),
-            ConditionRule::Paralyzed => {
-                result.requires(context, &id, rule, ActionFact::MentalOnly, true);
+    let known = condition_causes(participant, context.other_participant, sources);
+    for cause in &known {
+        evaluate_cause(&mut result, participant, sources, context, *cause);
+    }
+    for cause in super::projection::uncertain_source_causes(
+        participant,
+        context.other_participant,
+        &[],
+        sources,
+    ) {
+        if known
+            .iter()
+            .any(|active| active.rule == cause.rule && active.source.key() == cause.source.key())
+        {
+            continue;
+        }
+        let mut potential = ActionEvaluation::default();
+        evaluate_cause(&mut potential, participant, sources, context, cause);
+        let check_uncertain = potential.disruption.as_ref().is_some_and(|check| {
+            result
+                .disruption
+                .as_ref()
+                .is_none_or(|known| check.dc > known.dc)
+        });
+        if !potential.issues.is_empty() || check_uncertain {
+            let issue = ActionIssue::NeedsContext {
+                source_id: cause.source.key(),
+                reason: "Confirm whether this condition applies before resolving the action.",
+            };
+            if !result.issues.contains(&issue) {
+                result.issues.push(issue);
             }
-            ConditionRule::Immobilized | ConditionRule::Prone => {
-                result.requires(context, &id, rule, ActionFact::Move, false);
-            }
-            ConditionRule::Restrained => {
-                result.requires(context, &id, rule, ActionFact::Attack, false);
-                result.requires(context, &id, rule, ActionFact::Manipulate, false);
-            }
-            ConditionRule::Grabbed => {
-                result.conditional_check(context, &id, ActionFact::Manipulate)
-            }
-            ConditionRule::Deafened => result.conditional_check(context, &id, ActionFact::Auditory),
-            ConditionRule::Stupefied if context.kind == ActionKind::Cast => {
-                match stupefied_dc(cause.value) {
-                    Some(dc) => result.check(&id, dc),
-                    _ => result.issues.push(ActionIssue::NeedsValue {
-                        source_id: id.clone(),
-                    }),
-                }
-            }
-            ConditionRule::Fascinated => match context.fact(&id, ActionFact::Concentrate) {
-                Some(true) => {
-                    if matches!(
-                        cause.source.saved().map(|source| &source.parameters),
-                        Some(atlas_local_state::ConditionParameters::Fascinated {
-                            subject: Some(_)
-                        })
-                    ) {
-                        result.requires(context, &id, rule, ActionFact::RelatesToFascination, true)
-                    } else {
-                        result.issues.push(ActionIssue::NeedsContext {
-                            source_id: id.clone(),
-                            reason: "Choose the subject of fascination.",
-                        });
-                    }
-                }
-                Some(false) => {}
-                None => result.issues.push(ActionIssue::NeedsFact {
-                    source_id: id.clone(),
-                    fact: ActionFact::Concentrate,
-                }),
-            },
-            ConditionRule::Fleeing => {
-                if context.reaction.is_none() {
-                    result.issues.push(ActionIssue::NeedsFact {
-                        source_id: id.clone(),
-                        fact: ActionFact::Reaction,
-                    });
-                }
-                if context.reaction == Some(false) {
-                    if matches!(
-                        cause.source.saved().map(|source| &source.parameters),
-                        Some(atlas_local_state::ConditionParameters::Fleeing { subject: Some(_) })
-                    ) {
-                        result.requires(context, &id, rule, ActionFact::FurthersEscape, true);
-                    } else {
-                        result.issues.push(ActionIssue::NeedsContext {
-                            source_id: id.clone(),
-                            reason: "Choose the source you are fleeing from.",
-                        });
-                    }
-                }
-            }
-            ConditionRule::Confused => {
-                if context.reaction.is_none() {
-                    result.issues.push(ActionIssue::NeedsFact {
-                        source_id: id.clone(),
-                        fact: ActionFact::Reaction,
-                    });
-                }
-                if context.reaction == Some(true) {
-                    result.prohibit(&id, rule);
-                } else if context.reaction == Some(false) {
-                    result.issues.push(ActionIssue::NeedsConfusion {
-                        source_id: id.clone(),
-                    });
-                }
-            }
-            ConditionRule::Controlled => {
-                if cause
-                    .source
-                    .saved()
-                    .and_then(|source| control_direction(participant, source, sources))
-                    .is_some()
-                {
-                    result.requires(
-                        context,
-                        &id,
-                        rule,
-                        ActionFact::FollowsControllerInstructions,
-                        true,
-                    );
-                } else {
-                    result.issues.push(ActionIssue::NeedsContext {
-                        source_id: id.clone(),
-                        reason: "Resolve which controller directs this action.",
-                    });
-                }
-            }
-
-            ConditionRule::Sickened => {
-                result.requires(context, &id, rule, ActionFact::VoluntaryIngestion, false)
-            }
-            _ => {}
         }
     }
     if let Some(check) = &mut result.disruption {
         check.source_ids.sort_by_key(|source| format!("{source:?}"));
     }
     result
+}
+
+fn evaluate_cause(
+    result: &mut ActionEvaluation,
+    participant: &EncounterParticipant,
+    sources: &SourceConditions,
+    context: &ActionContext<'_>,
+    cause: ConditionCause<'_>,
+) {
+    let id = cause.source.key();
+    let rule = cause.rule;
+    match rule {
+        ConditionRule::Unconscious | ConditionRule::Petrified => result.prohibit(&id, rule),
+        ConditionRule::Stunned if cause.value != Some(0) => result.prohibit(&id, rule),
+        ConditionRule::Paralyzed => {
+            result.requires(context, &id, rule, ActionFact::MentalOnly, true);
+        }
+        ConditionRule::Immobilized | ConditionRule::Prone => {
+            result.requires(context, &id, rule, ActionFact::Move, false);
+        }
+        ConditionRule::Restrained => {
+            result.requires(context, &id, rule, ActionFact::Attack, false);
+            result.requires(context, &id, rule, ActionFact::Manipulate, false);
+        }
+        ConditionRule::Grabbed => result.conditional_check(context, &id, ActionFact::Manipulate),
+        ConditionRule::Deafened => result.conditional_check(context, &id, ActionFact::Auditory),
+        ConditionRule::Stupefied if context.kind == ActionKind::Cast => {
+            match stupefied_dc(cause.value) {
+                Some(dc) => result.check(&id, dc),
+                _ => result.issues.push(ActionIssue::NeedsValue {
+                    source_id: id.clone(),
+                }),
+            }
+        }
+        ConditionRule::Fascinated => match context.fact(&id, ActionFact::Concentrate) {
+            Some(true) => {
+                if matches!(
+                    cause.source.saved().map(|source| &source.parameters),
+                    Some(atlas_local_state::ConditionParameters::Fascinated { subject: Some(_) })
+                ) {
+                    result.requires(context, &id, rule, ActionFact::RelatesToFascination, true)
+                } else {
+                    result.issues.push(ActionIssue::NeedsContext {
+                        source_id: id.clone(),
+                        reason: "Choose the subject of fascination.",
+                    });
+                }
+            }
+            Some(false) => {}
+            None => result.issues.push(ActionIssue::NeedsFact {
+                source_id: id.clone(),
+                fact: ActionFact::Concentrate,
+            }),
+        },
+        ConditionRule::Fleeing => {
+            if context.reaction.is_none() {
+                result.issues.push(ActionIssue::NeedsFact {
+                    source_id: id.clone(),
+                    fact: ActionFact::Reaction,
+                });
+            }
+            if context.reaction == Some(false) {
+                if matches!(
+                    cause.source.saved().map(|source| &source.parameters),
+                    Some(atlas_local_state::ConditionParameters::Fleeing { subject: Some(_) })
+                ) {
+                    result.requires(context, &id, rule, ActionFact::FurthersEscape, true);
+                } else {
+                    result.issues.push(ActionIssue::NeedsContext {
+                        source_id: id.clone(),
+                        reason: "Choose the source you are fleeing from.",
+                    });
+                }
+            }
+        }
+        ConditionRule::Confused => {
+            if context.reaction.is_none() {
+                result.issues.push(ActionIssue::NeedsFact {
+                    source_id: id.clone(),
+                    fact: ActionFact::Reaction,
+                });
+            }
+            if context.reaction == Some(true) {
+                result.prohibit(&id, rule);
+            } else if context.reaction == Some(false) {
+                result.issues.push(ActionIssue::NeedsConfusion {
+                    source_id: id.clone(),
+                });
+            }
+        }
+        ConditionRule::Controlled => {
+            if cause
+                .source
+                .saved()
+                .and_then(|source| control_direction(participant, source, sources))
+                .is_some()
+            {
+                result.requires(
+                    context,
+                    &id,
+                    rule,
+                    ActionFact::FollowsControllerInstructions,
+                    true,
+                );
+            } else {
+                result.issues.push(ActionIssue::NeedsContext {
+                    source_id: id.clone(),
+                    reason: "Resolve which controller directs this action.",
+                });
+            }
+        }
+
+        ConditionRule::Sickened => {
+            result.requires(context, &id, rule, ActionFact::VoluntaryIngestion, false)
+        }
+        _ => {}
+    }
 }
 
 pub(in crate::encounters) fn is_confused(

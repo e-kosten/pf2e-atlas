@@ -87,7 +87,7 @@ impl AtlasAppService {
                 PersistentDamageInput::Roll | PersistentDamageInput::Prepared { .. }
             )
         });
-        let (record, reference_revision) = if needs_source {
+        let (record, source_conditions, reference_revision) = if needs_source {
             let record_key = participant.record_key.clone().ok_or_else(|| {
                 AppServiceError::invalid_request(
                     "Damage protections are unavailable; enter table results",
@@ -105,11 +105,22 @@ impl AtlasAppService {
                     }
                     let record =
                         super::hydration::resolve_record_ref(session.retrieval_mut(), &record_key)?;
-                    Ok((Some(record.source), Some(session.reference_revision()?)))
+                    let sources = super::hydration::source_baseline(
+                        &record.source,
+                        session.retrieval_mut(),
+                        None,
+                    )?
+                    .map(|baseline| baseline.source_conditions)
+                    .unwrap_or_else(super::rules::source_conditions::SourceConditions::unavailable);
+                    Ok((
+                        Some(record.source),
+                        sources,
+                        Some(session.reference_revision()?),
+                    ))
                 },
             )?
         } else {
-            (None, None)
+            (None, Default::default(), None)
         };
         let preparation_context = atlas_local_state::PersistentPreparationContext {
             participant_key: participant.participant_key.clone(),
@@ -146,6 +157,7 @@ impl AtlasAppService {
                         super::rules::damage::persistent_protection(
                             record.as_ref(),
                             participant,
+                            &source_conditions,
                             group.damage_type,
                         )
                         .map_err(AppServiceError::invalid_request)?,
@@ -178,6 +190,7 @@ impl AtlasAppService {
                         group,
                         record.as_ref(),
                         participant,
+                        &source_conditions,
                     )?;
                     let protection = outcome.protection.as_ref().ok_or_else(|| {
                         AppServiceError::invalid_request("Prepared damage protections unavailable")

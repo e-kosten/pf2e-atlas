@@ -249,7 +249,7 @@ pub(in crate::encounters) fn application_grants(
         .any(|grant| grant.target == target && grant.in_memory_only != Some(true))
 }
 
-fn expand(mut causes: Vec<ConditionCause<'_>>) -> Vec<ConditionCause<'_>> {
+pub(super) fn expand(mut causes: Vec<ConditionCause<'_>>) -> Vec<ConditionCause<'_>> {
     let mut cursor = 0;
     while cursor < causes.len() {
         let cause = causes[cursor];
