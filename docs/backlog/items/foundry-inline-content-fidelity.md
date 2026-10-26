@@ -52,6 +52,12 @@ PF2e action-font spans recognize lowercase `f` and `r` as aliases of `F` and `R`
 matching the pinned font. Preparation emits the existing free-action/reaction
 attributes and readable labels; unknown values retain their diagnostics.
 
+Literal typed damage and supported mixed-type pools have readable preparation
+and source-checked reference dice controls. Actor/item expressions, nested damage
+flavors and unrecognized options remain outside that execution subset. Known
+traits/domains/roll options stay metadata beside literal base-formula rolls. Authored
+formulas/options remain evidence; this does not establish full Foundry roll parity.
+
 ## Completion and boundaries
 
 Produce a bounded discrepancy report and regression fixtures for any accepted

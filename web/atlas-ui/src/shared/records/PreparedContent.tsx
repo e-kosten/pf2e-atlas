@@ -15,6 +15,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { EffectReferenceLink } from "./EffectReferenceLink";
+import { ContentDamageRoll } from "../dice/ContentDamageRoll";
 import type {
   PreparedContentFieldView,
   PreparedFieldBodyView,
@@ -92,6 +93,7 @@ export function PreparedContentBody({
   const [modal, contextHolder] = Modal.useModal();
   const container = useRef<HTMLDivElement>(null);
   const [effectLinks, setEffectLinks] = useState<ReactPortal[]>([]);
+  const damageHosts = useRef(new Map<string, HTMLElement>());
   const referenceHandler = useRef(onReference);
   useLayoutEffect(() => {
     referenceHandler.current = onReference;
@@ -172,6 +174,7 @@ export function PreparedContentBody({
     );
     const listeners: Array<() => void> = [];
     const effects: ReactPortal[] = [];
+    const activeDamage = new Set<string>();
     markers?.forEach((originalMarker) => {
       let marker = originalMarker;
       const namespace = marker
@@ -195,6 +198,28 @@ export function PreparedContentBody({
                 c.ordinal === Number(marker.getAttribute("data-atlas-interaction")),
             )?.control
           : null;
+      if (control?.kind === "damage" && control.literal) {
+        marker.removeAttribute("role");
+        marker.removeAttribute("tabindex");
+        if (control.roll) {
+          const identity = `${namespace ?? "host"}:${JSON.stringify(control.roll)}`;
+          activeDamage.add(identity);
+          let host = damageHosts.current.get(identity);
+          if (!host) {
+            host = document.createElement("span");
+            damageHosts.current.set(identity, host);
+          }
+          marker.before(host);
+          effects.push(
+            createPortal(
+              <ContentDamageRoll request={control.roll} components={control.literal} />,
+              host,
+              identity,
+            ),
+          );
+        }
+        return;
+      }
       if (fact?.target && fact.effect_label) {
         const host = document.createElement("span");
         host.setAttribute("data-atlas-reference", String(ref));
@@ -333,6 +358,12 @@ export function PreparedContentBody({
         marker.removeEventListener("keydown", keyboard);
       });
     });
+    for (const [identity, host] of damageHosts.current) {
+      if (!activeDamage.has(identity)) {
+        host.remove();
+        damageHosts.current.delete(identity);
+      }
+    }
     setEffectLinks(effects);
     return () => listeners.forEach((remove) => remove());
   }, [body, references, openReference, html, modal]);

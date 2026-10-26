@@ -41,6 +41,8 @@ pub enum ContentControlKindView {
     Damage {
         formula: String,
         options: std::collections::BTreeMap<String, String>,
+        literal: Option<Vec<ContentDamageComponentView>>,
+        roll: Option<RollContentDamageRequest>,
     },
     Command {
         command: String,
@@ -51,6 +53,34 @@ pub enum ContentControlKindView {
         shape: Option<String>,
         options: std::collections::BTreeMap<String, String>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ContentDamageComponentView {
+    pub formula: String,
+    pub label: String,
+    pub expression: atlas_dice::RollPreviewExpression,
+}
+
+/// Selects an authored interaction, never a caller-supplied executable formula.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RollContentDamageRequest {
+    pub content_interpretation_version: String,
+    pub source: crate::ContentLocationView,
+    pub source_fingerprint: String,
+    pub ordinal: usize,
+    pub authored_formula: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ContentDamageRollView {
+    pub components: Vec<ContentDamageRollComponentView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ContentDamageRollComponentView {
+    pub label: String,
+    pub outcome: atlas_dice::RollOutcome,
 }
 
 /// An attributed marker destination within one already-selected prepared body.

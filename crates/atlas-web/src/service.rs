@@ -57,6 +57,10 @@ impl AtlasWebState {
 }
 
 pub(crate) trait AtlasWebService: Send + Sync {
+    fn roll_content_damage(
+        &self,
+        request: atlas_app_model::RollContentDamageRequest,
+    ) -> Result<atlas_app_model::ContentDamageRollView, AppServiceError>;
     fn roll_flat_check(
         &self,
         request: atlas_app_model::RollFlatCheckRequest,
@@ -490,6 +494,12 @@ impl AtlasWebService for AtlasAppService {
         request: atlas_app_model::EncounterStrikeOptionsRequest,
     ) -> Result<atlas_app_model::EncounterStrikeOptionsView, AppServiceError> {
         self.encounter_strike_options(encounter_ref, request)
+    }
+    fn roll_content_damage(
+        &self,
+        request: atlas_app_model::RollContentDamageRequest,
+    ) -> Result<atlas_app_model::ContentDamageRollView, AppServiceError> {
+        self.roll_content_damage(request)
     }
     fn roll_flat_check(
         &self,

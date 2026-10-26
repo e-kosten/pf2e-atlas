@@ -32,6 +32,9 @@ and [ADR index](./decisions/README.md) for the relevant owner.
 | `atlas-tags` | File-owned tag definitions/assignment DTOs and structural validation. Assessment and product filtering are deferred pending demonstrated retrieval gaps (ADR0054). |
 | `atlas-sqlite-vec` | sqlite-vec registration and capability probing. |
 
+`atlas-record` uses atlas-dice's pure preparation for bounded literal damage
+arithmetic. App-service owns random reference rolls from these prepared controls.
+
 `web/atlas-ui` renders generated app contracts with React and Ant Design. Private
 TypeScript compiler research/generation lives under `dev-tools`; Rust developer
 commands do not dispatch those scripts. Product record identity remains Foundry
@@ -122,7 +125,7 @@ without character building or gameplay execution. Class proficiencies are initia
 ranks; grants retain source levels and deity spells retain granted ranks. Verified
 root links reuse record-owned identity/name resolution through bounded summary-only
 search reads, without decoding linked bodies. Campaign prerequisites share the
-attributed content selection used for feat prerequisites; content/v10 binds that
+attributed content selection used for feat prerequisites; content/v11 binds that
 selection. Existing artifacts require normal republication, not a browser fallback.
 
 Physical reference bodies use a typed subtype union for weapons, armor, shields,

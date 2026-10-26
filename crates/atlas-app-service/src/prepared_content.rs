@@ -60,7 +60,10 @@ pub(crate) fn prepared_fields(
                     Some(html) => PreparedFieldBodyView::Html {
                         inclusions: vec![],
                         html: html.clone(),
-                        controls: content_controls(&cached.interactions),
+                        controls: content_controls(
+                            &cached.interactions,
+                            Some((&locator, fingerprint)),
+                        ),
                     },
                     None if cached.outcome == "empty" => PreparedFieldBodyView::Html {
                         inclusions: vec![],
@@ -97,6 +100,7 @@ pub(crate) fn prepared_fields(
 
 pub(crate) fn content_controls(
     interactions: &[atlas_record::source_content::ContentInteraction],
+    source: Option<(&SourceContentLocator, &str)>,
 ) -> Vec<ContentControlView> {
     interactions
         .iter()
@@ -110,9 +114,48 @@ pub(crate) fn content_controls(
                     }
                 }
                 ContentInteractionKind::Damage { formula, options } => {
+                    let parts = atlas_record::source_content::literal_damage(formula);
+                    let roll = source.and_then(|(locator, fingerprint)| {
+                        let parts = parts.as_ref()?;
+                        (parts.iter().any(|p| p.has_dice)
+                            && options.keys().all(|key| {
+                                matches!(
+                                    key.as_str(),
+                                    "name"
+                                        | "shortLabel"
+                                        | "immutable"
+                                        | "overrideTraits"
+                                        | "traits"
+                                        | "domains"
+                                        | "options"
+                                )
+                            })
+                            && options
+                                .values()
+                                .all(|value| !value.contains('@') && !value.contains("resolve(")))
+                        .then(|| RollContentDamageRequest {
+                            content_interpretation_version:
+                                atlas_record::source_content::CONTENT_INTERPRETATION_VERSION.into(),
+                            source: locator.clone().into(),
+                            source_fingerprint: fingerprint.to_owned(),
+                            ordinal: i.ordinal,
+                            authored_formula: formula.clone(),
+                        })
+                    });
                     ContentControlKindView::Damage {
                         formula: formula.clone(),
                         options: options.clone(),
+                        literal: parts.map(|parts| {
+                            parts
+                                .into_iter()
+                                .map(|p| ContentDamageComponentView {
+                                    formula: p.formula,
+                                    label: p.label,
+                                    expression: p.expression,
+                                })
+                                .collect()
+                        }),
+                        roll,
                     }
                 }
                 ContentInteractionKind::Command {
