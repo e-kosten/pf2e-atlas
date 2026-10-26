@@ -93,6 +93,7 @@ export function EncounterAbilityControls({
           <>
             {!state.always_active && state.choices.length === 0 && (
               <Switch
+                size="small"
                 aria-label={`${ability.label} active`}
                 checked={state.active}
                 checkedChildren="On"
