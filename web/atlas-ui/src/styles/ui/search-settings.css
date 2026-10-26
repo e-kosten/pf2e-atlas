@@ -99,9 +99,17 @@
   overflow-y: auto;
   scrollbar-gutter: stable;
 }
-.search-settings__document,
+.search-settings__document:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+}
 .search-settings__record-source {
-  height: 100%;
+  flex: 1;
+}
+.search-settings__comparison-key {
+  flex: none;
+  margin: 0 0 var(--space-group);
+  color: var(--muted);
 }
 .search-settings__record-source {
   display: flex;

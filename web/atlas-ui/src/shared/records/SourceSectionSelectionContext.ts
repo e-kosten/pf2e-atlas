@@ -39,22 +39,32 @@ export function useSourceSectionSelection(
   const inventory = selection?.inventory;
   if (
     !selection ||
-    selection.selected === null ||
     inventory?.artifact_generation !== scope.generation ||
     JSON.stringify(inventory.seed) !== JSON.stringify(scope.seed)
   )
-    return { excluded: [] as number[] };
+    // Keep the same source rendering while a profile's inventory is pending.
+    // Eligibility emphasis waits for an authoritative seed/generation match.
+    return { selected: [] as number[], excluded: [] as number[] };
+  const parts = inventory.parts.filter(
+    (part) =>
+      part.has_vectors &&
+      ("record" in location
+        ? part.field === location.field &&
+          part.navigation?.source_fingerprint === sourceFingerprint &&
+          JSON.stringify(part.owners) === JSON.stringify(location.embedded_path)
+        : part.field === "/definition" && part.owners.length === 0),
+  );
   return {
-    excluded: inventory.parts
+    selected: parts
       .filter(
         (part) =>
-          part.has_vectors &&
-          !selection.selected!.includes(part.selector) &&
-          ("record" in location
-            ? part.field === location.field &&
-              part.navigation?.source_fingerprint === sourceFingerprint &&
-              JSON.stringify(part.owners) === JSON.stringify(location.embedded_path)
-            : part.field === "/definition" && part.owners.length === 0),
+          selection.selected === null || selection.selected.includes(part.selector),
+      )
+      .map((part) => part.section_ordinal),
+    excluded: parts
+      .filter(
+        (part) =>
+          selection.selected !== null && !selection.selected.includes(part.selector),
       )
       .map((part) => part.section_ordinal),
   };

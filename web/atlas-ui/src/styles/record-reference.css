@@ -629,12 +629,54 @@
   margin-block: var(--space-control);
 }
 
-/* Excluded comparison prose stays readable; links retain their native emphasis. */
-.prepared-content--source .source-section-excluded {
-  color: var(--muted);
+/* Source comparison keeps orientation normal and reference-only facts readable. */
+.comparison-source {
+  --comparison-normal-text: var(--text);
+  --comparison-normal-heading: var(--heading-color);
+  --comparison-normal-muted: var(--muted);
 }
-.prepared-content
-  .source-section-excluded
-  :is(.prepared-inclusion, .prepared-inclusion-unavailable) {
-  color: var(--text);
+.comparison-source .record-reference {
+  --text: var(--comparison-reference-text);
+  --muted: var(--comparison-reference-text);
+  --heading-color: var(--comparison-reference-text);
+  color: var(--comparison-reference-text);
+}
+.comparison-source .record-reference__header,
+.comparison-source .document-outline,
+.comparison-source .source-section-selected,
+.comparison-source
+  .record-reference__content:has(.source-section-selected)
+  > :is(h3, h5),
+.comparison-source
+  .embedded-ability-reading__entry:has(.source-section-selected)
+  .actor-activity__title,
+.comparison-source :is(.prepared-inclusion, .prepared-inclusion-unavailable),
+.comparison-source
+  :is(.prepared-inclusion, .prepared-inclusion-unavailable)
+  .record-reference {
+  --text: var(--comparison-normal-text);
+  --muted: var(--comparison-normal-muted);
+  --heading-color: var(--comparison-normal-heading);
+  color: var(--comparison-normal-text);
+}
+.comparison-source .source-section-selected,
+.comparison-source
+  .record-reference__content:has(.source-section-selected)
+  > :is(h3, h5),
+.comparison-source
+  .embedded-ability-reading__entry:has(.source-section-selected)
+  .actor-activity__title {
+  background: var(--comparison-selected-bg);
+}
+.comparison-source
+  .embedded-ability-reading__entry:not(:has(.source-section-selected))
+  .actor-activity__heading-link {
+  color: var(--comparison-reference-text);
+}
+.prepared-content--source .source-section-excluded {
+  color: var(--comparison-reference-text);
+}
+
+.comparison-source :is(.prepared-inclusion, .prepared-inclusion-unavailable) {
+  background: var(--panel);
 }

@@ -397,8 +397,8 @@ export function SearchSettings({
                 block
                 value={sourceView}
                 options={[
-                  { label: "Sections", value: "sections" },
-                  { label: "Document", value: "document" },
+                  { label: "Search settings", value: "sections" },
+                  { label: "Source document", value: "document" },
                 ]}
                 onChange={setSourceView}
               />
@@ -724,6 +724,10 @@ export function SearchSettings({
                   className="search-settings__document"
                   hidden={!showingSource || (!wide && sourceView !== "document")}
                 >
+                  <p className="search-settings__comparison-key">
+                    Highlighted sections are used for comparison. Other content is shown
+                    for reference.
+                  </p>
                   {sourceVisited &&
                     sourceGeneration !== null &&
                     !isArtifactGenerationChanged(inventory.error) && (

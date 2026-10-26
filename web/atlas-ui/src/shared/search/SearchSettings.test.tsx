@@ -377,12 +377,12 @@ it("opens a section's source separately from its checkbox and preserves the comp
   expect(source).toHaveTextContent("Description");
   expect(source).toHaveAttribute("data-generation", "generation-1");
   expect(description).toBeChecked();
-  expect(screen.getByRole("radio", { name: "Document" })).toBeChecked();
-  fireEvent.click(screen.getByRole("radio", { name: "Sections" }));
+  expect(screen.getByRole("radio", { name: "Source document" })).toBeChecked();
+  fireEvent.click(screen.getByRole("radio", { name: "Search settings" }));
   expect(screen.getByRole("spinbutton", { name: "Match decay" })).toHaveValue("0.75");
   fireEvent.click(description);
   expect(description).not.toBeChecked();
-  fireEvent.click(screen.getByRole("radio", { name: "Document" }));
+  fireEvent.click(screen.getByRole("radio", { name: "Source document" }));
   expect(source).toHaveTextContent("Description");
   expect(apply).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
@@ -406,7 +406,7 @@ it("keeps modified section activation native and leaves selection and the active
   screen.getByRole("link", { name: "Description" }).dispatchEvent(event);
   expect(event.defaultPrevented).toBe(false);
   expect(description).toBeChecked();
-  expect(screen.getByRole("radio", { name: "Sections" })).toBeChecked();
+  expect(screen.getByRole("radio", { name: "Search settings" })).toBeChecked();
 });
 
 it("reloads the source and inventory generation together while preserving unrelated draft settings", async () => {
@@ -437,7 +437,7 @@ it("reloads the source and inventory generation together while preserving unrela
     "Whole document",
   );
   expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
-  fireEvent.click(screen.getByRole("radio", { name: "Sections" }));
+  fireEvent.click(screen.getByRole("radio", { name: "Search settings" }));
   expect(screen.getByRole("spinbutton", { name: "Match decay" })).toHaveValue("0.75");
   expect(screen.getByRole("checkbox", { name: "Description" })).not.toBeChecked();
   fireEvent.click(screen.getByRole("checkbox", { name: "Description" }));
@@ -482,10 +482,10 @@ it("retires loaded source when a model-switch inventory reports a new generation
   expect(screen.getByRole("spinbutton", { name: "Match decay" })).toHaveValue("0.75");
   expect(screen.getByText("1 selected section")).toBeVisible();
   expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
-  fireEvent.click(screen.getByRole("radio", { name: "Document" }));
+  fireEvent.click(screen.getByRole("radio", { name: "Source document" }));
   expect(screen.getByText("Reference collection changed")).toBeVisible();
   expect(screen.getByRole("button", { name: "Reload sections" })).toBeVisible();
-  fireEvent.click(screen.getByRole("radio", { name: "Sections" }));
+  fireEvent.click(screen.getByRole("radio", { name: "Search settings" }));
   // An older model's cached inventory cannot resurrect retired source content.
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search model" }));
   fireEvent.click(screen.getByText("BGE Base"));
