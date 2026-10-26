@@ -92,9 +92,7 @@ pub(super) fn validate(binary: &Path, index: &Path, assets: &Assets, cwd: &Path)
         let phase = format!("check_baseline_search_{id}");
         tracing::info!(target:"atlas_progress",phase=phase.as_str(),profile=id,"Loading and testing {id} search");
         let report = data(&invoke(binary, &arguments, cwd)?)?;
-        let results = report["results"]
-            .as_array()
-            .ok_or("Missing search results")?;
+        let results = report["rows"].as_array().ok_or("Missing search rows")?;
         if results.is_empty() {
             return Err(format!("Semantic query returned no results for {id}").into());
         }
