@@ -5,6 +5,32 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Bounded HP editor references
+
+The accepted HP layout reserves space for the numeric facts and action buttons.
+Narrow panels keep the action group below the values; long formulas scroll
+inside the capped editor. Condition, damage, recovery and modal content remain
+intact. Exact pixel comparisons retain `maxDiffPixels: 0`.
+
+macOS arm64, Playwright 1.62.1: source
+`15e40d7c1006b258c7da79030733e7abeaa058fb` passes all 12 capture scenarios.
+Thirty phone/tablet frames change for the HP action row and consequent content,
+anchor and overlay-background positions. Parent review covers ten tablet pairs;
+independent Astra review covers twenty phone pairs. The ten desktop references
+remain byte-identical to the preceding accepted set.
+
+Linux x64, Ubuntu 24.04, Playwright 1.62.1:
+[capture 40263640425](https://github.com/e-kosten/pf2e-atlas/actions/runs/40263640425)
+passes all 12 scenarios using CI 40262746889's fixture from synthetic merge
+`6f4d7cfc1e798f7b23257f9d3769fa4516e3c880`. Its Git tree is identical to the
+macOS source above (`bedd7d6f95d662e55b1a3127dfd976197c491688`). Only ten phone
+Chromium frames change, independently reviewed by Astra; the other thirty
+references remain byte-identical. Binary SHA-256:
+`33265b43b692eb49e67f63837fb9c543c0dd075c15678bd3f3e115f2297842c2`;
+frontend index SHA-256:
+`cc615bc2b95756fc3fc0d0bc6b58e8e466f92bb52aff0959c74ac2abf366c6ba`.
+These are separate platform captures, not copied across operating systems.
+
 ## Product theme references
 
 ### Accepted encounter workflow references
