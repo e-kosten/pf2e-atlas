@@ -233,6 +233,10 @@ failures produce no saved-value candidates and never fall back to another worksp
 Web retains a bounded worker queue and runtime/inference owners. Idle workers hold
 no reader. Each operation observes one coherent reference revision; later
 operations can see a completed publication without restarting the service.
+Before feature components mount, the browser checks the data-independent web API
+fingerprint. HTTP middleware rejects an advertised mismatch before app-service
+execution. This transport check is separate from reference readiness and saved-state
+revision guards; see [ADR0029](./decisions/0029-local-web-app-boundary.md#browserbackend-compatibility).
 Semantic queries prepare their embedding before opening the consuming session,
 then recheck the profile contract. Default query-profile warming and retained
 model sessions are independent of database lifetimes. Lexical/reference reads and

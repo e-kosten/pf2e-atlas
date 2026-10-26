@@ -1,8 +1,8 @@
 # Reusable development baseline
 
-Status: in_progress
+Status: done
 
-Local Rust implementation and operational acceptance are complete; PR #85 integration is pending.
+PR85 and PR86 delivered the versioned baseline tooling and explicit backend selection.
 
 Provide versioned validated executable/workspace seeds shared by main and linked
 worktrees. Initialize missing private workspaces without replacing saved state;
@@ -12,7 +12,7 @@ Acceptance: consistent live SQLite snapshot, atomic publication after validation
 independent writable copies, candidate readiness without implicit migration,
 provenance/status commands, focused regression tests and real two-profile smoke.
 
-See [the contributor workflow](../../../CONTRIBUTING.md#reusable-development-baseline) for commands and retention guidance.
+See [the contributor workflow](../../../../CONTRIBUTING.md#reusable-development-baseline) for commands and retention guidance.
 
 The baseline manifest and existing private databases remain reusable across tooling
 updates. Snapshot admission belongs to atlas-storage; atlas-dev owns orchestration
