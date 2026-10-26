@@ -431,20 +431,24 @@ test("owned Ghoul Fever and named GM passage use actual selected detail routes",
   const ghoul = page.locator(".reference-result").filter({
     has: page.locator('[data-record-key="pathfinder-bestiary:LHHgGSs0ELCR4CYK"]'),
   });
-  await ghoul.getByRole("button", { name: /matches in Ghoul$/ }).click();
-  await page
-    .locator(".reference-match-list:visible")
+  await ghoul.locator("[data-record-key]").click();
+  const feverLink = page
+    .getByRole("region", { name: "Record preview", exact: true })
+    .getByRole("heading", { name: /^Ghoul Fever/ })
     .getByRole("link", { name: "Ghoul Fever", exact: true })
-    .first()
-    .click();
-  await page
-    .getByRole("link", { name: "Open Ghoul Fever full reference", exact: true })
-    .click();
+    .first();
+  // Use the parent ability's native link to check the complete owned identity,
+  // including action cost, rather than the search match's selected prose field.
+  await expect(feverLink).toBeVisible();
+  const inlineFever = feverLink.locator("..");
+  await expect(inlineFever).toHaveText("Ghoul Fever passive");
+  await expect(inlineFever.locator('.action-cost[title="passive"]')).toHaveCount(1);
+  await expect(inlineFever.locator("[data-atlas-action-glyph]")).toHaveCount(0);
+  await page.goto((await feverLink.getAttribute("href"))!);
   await expect(page).toHaveURL(/\/records\/.*selection=/);
   const fever = page.getByRole("heading", { name: /^Ghoul Fever\b/ });
   await expect(fever).toBeVisible();
-  await expect(fever).toHaveText("Ghoul Fever passive");
-  await expect(fever.locator('.action-cost[title="passive"]')).toHaveCount(1);
+  await expect(fever).toHaveText(/^[\s]*Ghoul Fever[\s]*$/);
   await expect(fever.locator("[data-atlas-action-glyph]")).toHaveCount(0);
   await expect(page.getByText(/rises as a Ghoul the next midnight/)).toBeVisible();
   await page.screenshot({
@@ -452,13 +456,9 @@ test("owned Ghoul Fever and named GM passage use actual selected detail routes",
     fullPage: true,
   });
   await page.goto("/search?q=%22Soul%20Degradation%22");
+  await page.locator(".reference-result").first().locator("[data-record-key]").click();
   await page
-    .locator(".reference-result")
-    .first()
-    .getByRole("button", { name: /matches in/ })
-    .click();
-  await page
-    .locator(".reference-match-list:visible")
+    .getByRole("region", { name: "Search matches", exact: true })
     .getByRole("link", { name: "Soul Degradation (Curse 7)", exact: true })
     .first()
     .click();
