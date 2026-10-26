@@ -73,28 +73,16 @@ export function EncounterHpControls({
             <span className="encounter-hp-maximum">
               <NumberFact fact={current.effective_max_hp} label="Maximum HP" />
             </span>
-            {current.temporary_hp > 0n && (
-              <>
-                <span>+</span>
-                <EncounterHpValue
-                  label="Temporary HP"
-                  value={current.temporary_hp}
-                  disabled={disabled}
-                  onCommit={(input) => onAction({ kind: "set_temporary", input })}
-                />
-                <span>temp</span>
-              </>
-            )}
-          </span>
-          {current.temporary_hp === 0n && (
+            {current.temporary_hp > 0n && <span>+</span>}
             <EncounterHpValue
               label="Temporary HP"
-              value={0n}
-              addLabel="Add temp HP"
+              value={current.temporary_hp}
+              addLabel={current.temporary_hp === 0n ? "Add temp HP" : undefined}
               disabled={disabled}
               onCommit={(input) => onAction({ kind: "set_temporary", input })}
             />
-          )}
+            {current.temporary_hp > 0n && <span>temp</span>}
+          </span>
         </div>
         <div className="encounter-hp-panel__actions">
           {statusControl}

@@ -28,12 +28,18 @@ it.each([
 });
 
 it("submits a blank temporary HP correction on Enter", async () => {
-  const onAction = vi.fn().mockResolvedValue(true);
-  render(
-    <EncounterHpControls
-      current={encounterParticipant({ temporary_hp: 5n })}
-      onAction={onAction}
-    />,
+  const current = encounterParticipant({ temporary_hp: 5n });
+  const onAction = vi.fn().mockImplementation(async () => {
+    rerender(
+      <EncounterHpControls
+        current={{ ...current, temporary_hp: 0n }}
+        onAction={onAction}
+      />,
+    );
+    return true;
+  });
+  const { rerender } = render(
+    <EncounterHpControls current={current} onAction={onAction} />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Edit Temporary HP" }));
   const input = screen.getByRole("textbox", { name: "Temporary HP" });
@@ -44,6 +50,9 @@ it("submits a blank temporary HP correction on Enter", async () => {
       kind: "set_temporary",
       input: "",
     }),
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add temp HP" })).toHaveFocus(),
   );
 });
 
