@@ -465,6 +465,30 @@ fn predicate_term(
     }
 }
 
+fn predicate_mentions(predicate: &SourcePresence<Vec<PredicateStatement>>, option: &str) -> bool {
+    fn mentions(term: &PredicateStatement, option: &str) -> bool {
+        match term {
+            PredicateStatement::String(value) => value == option,
+            PredicateStatement::Negation(value) => value
+                .not
+                .as_value()
+                .is_some_and(|term| mentions(term, option)),
+            PredicateStatement::Conjunction(value) => value
+                .and
+                .as_value()
+                .is_some_and(|terms| terms.iter().any(|term| mentions(term, option))),
+            PredicateStatement::Disjunction(value) => value
+                .or
+                .as_value()
+                .is_some_and(|terms| terms.iter().any(|term| mentions(term, option))),
+            _ => false,
+        }
+    }
+    predicate
+        .as_value()
+        .is_some_and(|terms| terms.iter().any(|term| mentions(term, option)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -608,28 +632,4 @@ mod tests {
             json!({"value":"Permanently slowed 1; cannot use reactions."});
         assert!(facts(json!([source])).entries.is_empty());
     }
-}
-
-fn predicate_mentions(predicate: &SourcePresence<Vec<PredicateStatement>>, option: &str) -> bool {
-    fn mentions(term: &PredicateStatement, option: &str) -> bool {
-        match term {
-            PredicateStatement::String(value) => value == option,
-            PredicateStatement::Negation(value) => value
-                .not
-                .as_value()
-                .is_some_and(|term| mentions(term, option)),
-            PredicateStatement::Conjunction(value) => value
-                .and
-                .as_value()
-                .is_some_and(|terms| terms.iter().any(|term| mentions(term, option))),
-            PredicateStatement::Disjunction(value) => value
-                .or
-                .as_value()
-                .is_some_and(|terms| terms.iter().any(|term| mentions(term, option))),
-            _ => false,
-        }
-    }
-    predicate
-        .as_value()
-        .is_some_and(|terms| terms.iter().any(|term| mentions(term, option)))
 }
