@@ -97,7 +97,31 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
   if (release && release.target_commitish !== sha) throw new Error('Existing nightly points at another commit');
   if (!release) {
     run('gh', ['release', 'create', tag, '--target', sha, '--title', `Nightly ${version}`, '--notes',
-      `Automated nightly from main commit ${sha}.\n\nFor dogfooding; not a stable release.\nVersion: ${version}\n`,
+      [
+        'Not a stable release',
+        '',
+        'Install with the installer for your platform:',
+        '',
+        '**macOS / Linux**',
+        '',
+        '```sh',
+        "curl --proto '=https' --tlsv1.2 -LsSf \\",
+        `  https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/atlas-installer.sh \\`,
+        `  | sh -s -- --version ${tag}`,
+        '```',
+        '',
+        '**Windows (PowerShell)**',
+        '',
+        '```powershell',
+        `Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/atlas-installer.ps1 -OutFile atlas-installer.ps1`,
+        `./atlas-installer.ps1 -Version ${tag}`,
+        '```',
+        '',
+        'For first-time setup, see the [Quick Start](https://github.com/e-kosten/pf2e-atlas#quick-start).',
+        '',
+        `Built from main commit ${sha}.`,
+        '',
+      ].join('\n'),
       '--draft', '--prerelease', '--latest=false']);
   }
   if (!release || release.draft) {
