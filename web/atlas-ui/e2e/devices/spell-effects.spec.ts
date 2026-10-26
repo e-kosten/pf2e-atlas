@@ -97,6 +97,9 @@ test("spell links keep rank through effect reading, explanations and full-page n
         height: fact.height,
       };
     });
+  // Wait for Drawer motion to settle before measuring content reflow.
+  // Trial actionability preserves the keyboard activation below.
+  await hp.click({ trial: true });
   const before = await geometry();
   await hp.press("Enter");
   const explanation = page.getByRole("dialog", {
