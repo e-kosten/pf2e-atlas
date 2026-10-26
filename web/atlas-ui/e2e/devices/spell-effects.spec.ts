@@ -26,17 +26,16 @@ test("spell links keep rank through effect reading, explanations and full-page n
       const kind = rect(".record-reference__kind");
       const title = rect("h2");
       const titleRow = rect(".record-reference__title");
-      const traits = rect(".record-reference__metadata");
       const actions = [
         ...node.querySelectorAll(".record-reference__actions button"),
       ].map((button) => button.getBoundingClientRect());
       return {
         kindCenter: kind.y + kind.height / 2,
         rowTop: kind.y,
-        rowBottom: Math.max(kind.bottom, ...actions.map((a) => a.bottom)),
+        rowBottom: Math.max(kind.bottom, title.bottom, ...actions.map((a) => a.bottom)),
         titleTop: title.y,
         kindHeight: kind.height,
-        traitsGap: traits.y - titleRow.bottom,
+        titleRowBottom: titleRow.bottom,
         actions: actions.map((a) => ({ center: a.y + a.height / 2, height: a.height })),
       };
     });
@@ -47,7 +46,9 @@ test("spell links keep rank through effect reading, explanations and full-page n
     expect(action.height).toBe(34);
   }
   expect(beforeHeader.kindHeight).toBe(34);
-  expect(beforeHeader.traitsGap).toBe(8);
+  expect(
+    Math.abs(beforeHeader.titleRowBottom - beforeHeader.rowBottom),
+  ).toBeLessThanOrEqual(1);
   await expect(header.getByRole("button", { name: /: Change rank$/ })).toHaveText(
     "Spell 4",
   );
