@@ -187,6 +187,12 @@ The content interpretation identity is `foundry-content/v9`; older prepared
 content requires re-preparation even when the physical schema is unchanged.
 Exact compatible embedding checkpoints remain reusable.
 
+Localization preparation uses `selected-source-catalog/english-fallback/v2`.
+Its English catalog digest covers all manifest-declared English catalog paths
+and bytes in declaration order. Version 1 preparation requires source-backed
+re-preparation so unresolved passages are not retained through cache reuse;
+unchanged native embedding inputs remain reusable.
+
 App-service derives transient semantic family presentation from these checked
 snapshots and selected caches. Those response DTOs are not stored family bodies
 or another authored authority. Presentation changes alone require neither an

@@ -69,6 +69,13 @@ impl SourceCapture {
                 collect_files(&path, &mut files)?;
             }
         }
+        for language in &parsed.manifest.languages {
+            let path =
+                crate::source::localization::resolve_catalog_path(source_root, &language.path)?;
+            if path.is_file() {
+                files.insert(path);
+            }
+        }
         let mut hasher = Sha256::new();
         frame(&mut hasher, SOURCE_FINGERPRINT_VERSION.as_bytes());
         // Definitions remain in the manifest bytes; explicit resolved bindings make

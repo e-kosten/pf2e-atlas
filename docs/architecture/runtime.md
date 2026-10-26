@@ -112,6 +112,16 @@ the profile's vec0 index and also supply incremental rebuild reuse. Trait chunks
 reference the same registry and retain a binary native value only when no document
 occurrence supplies it. Derived trait centroids remain separate binary values.
 
+Ingest composes the English catalog from every `lang: en` entry in the chosen
+source manifest, in declaration order; later entries override earlier keys.
+Package-relative catalog paths resolve directly in packaged sources or beneath
+`static/` in source checkouts. Minimal exports without English declarations use
+`static/lang/en.json`. Ordered source paths and exact catalog bytes bind the
+English preparation hash, including catalogs used only by nested `@Localize`
+passages. Undeclared files, such as SF2e overrides in a PF2e checkout, are not
+merged. The existing selected-locale file override remains separate; this does
+not add translation-module ingestion or multilingual product support.
+
 Ingest prepares current literal inputs with the pinned tokenizers. Lookup first
 resolves compatible unfinished computations, then published native values, in
 batched SQL scans. Profile-native preparation produces one immutable checked batch

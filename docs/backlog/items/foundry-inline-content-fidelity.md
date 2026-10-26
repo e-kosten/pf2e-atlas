@@ -41,6 +41,13 @@ cases retain a local explanation and the checked destination when available.
 Do not infer complete Foundry runtime parity from the supported corpus examples.
 See [the read-time composition boundary](../../architecture/decisions/0044-shared-source-content-interpretation.md).
 
+English `@Localize` preparation composes the manifest-declared catalogs, including
+`action-en.json`, `re-en.json` and `kingmaker-en.json` in the PF2e 8.6.1 source.
+Catalog composition is covered separately from translating the product or
+ingesting translation-module overlays. Remaining localization comparison covers
+unobserved options, malformed input and runtime-specific behavior, rather than
+the previously omitted English catalog files.
+
 ## Completion and boundaries
 
 Produce a bounded discrepancy report and regression fixtures for any accepted
