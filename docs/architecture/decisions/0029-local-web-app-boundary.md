@@ -44,8 +44,12 @@ cargo test -p atlas-app-model export_typescript_bindings -- --ignored
 The web transport owns a compatibility check independent of workspace readiness.
 `GET /api/compatibility` responds without opening a database or using an app-service
 worker. The browser completes this check before mounting feature components. Missing
-support in an older server, or a different contract, blocks feature requests with
-an explicit version mismatch and Retry.
+support in an older server, or a different contract, blocks feature requests.
+An installed frontend automatically reloads the current URL once during startup.
+A session-storage marker is written before reloading and cleared only after a
+successful handshake. A persistent mismatch or unavailable storage leaves a manual
+Reload page action. Development/Vite frontends show a backend/proxy diagnostic and
+Retry instead of automatically reloading a pair that cannot repair itself.
 
 `crates/atlas-web/api-contract-inputs.json` selects the app-model source and generated
 bindings, app-service source, and HTTP transport source. Vite and the Rust build hash
@@ -71,8 +75,17 @@ revision checks still apply independently.
 
 The startup check is cached for this loaded frontend. Ordinary background connection
 failures must not unmount the app and discard editor drafts. Later API requests
-continue to advertise/check the fingerprint, so a replaced incompatible backend
-cannot execute the browser's subsequent mutations.
+continue to advertise/check the fingerprint. A detected mismatch becomes sticky in
+the shared API client and stops subsequent feature requests. AppShell subscribes to
+this failure and offers Reload page while keeping the existing page and editor
+drafts mounted. No automatic reload or mutation replay occurs during use. Supported
+backends reject incompatible requests before executing mutations; the startup
+handshake detects legacy servers without that guard. This cannot make a legacy
+server enforce the new request header after an in-flight backend replacement.
+
+HTML remains `no-cache` so page loads validate the entry document. Content-hashed
+JavaScript/CSS/font assets retain long-lived immutable caching; recovery does not
+clear browser storage or require a cache purge.
 
 ## Consequences
 

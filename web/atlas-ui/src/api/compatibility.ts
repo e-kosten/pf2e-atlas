@@ -4,13 +4,33 @@ export const API_CONTRACT_HEADER = "x-atlas-api-contract";
 export class AtlasCompatibilityError extends Error {
   constructor(readonly backendContract: string | null) {
     super(
-      "Atlas frontend and backend versions differ. Reload this page. For local development, rebuild and restart the backend from this checkout and check ATLAS_API_PROXY.",
+      "This page and Atlas are running different versions. Reload the page to continue.",
     );
     this.name = "AtlasCompatibilityError";
   }
 }
 
+let failure: AtlasCompatibilityError | null = null;
+const listeners = new Set<() => void>();
+export function getCompatibilityFailure() {
+  return failure;
+}
+export function subscribeCompatibilityFailures(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+export function clearCompatibilityFailure() {
+  failure = null;
+  for (const listener of listeners) listener();
+}
+
 export function checkResponseCompatibility(response: Response): void {
   const actual = response.headers.get(API_CONTRACT_HEADER);
-  if (actual !== API_CONTRACT) throw new AtlasCompatibilityError(actual);
+  if (actual !== API_CONTRACT) {
+    failure = new AtlasCompatibilityError(actual);
+    for (const listener of listeners) listener();
+    throw failure;
+  }
 }

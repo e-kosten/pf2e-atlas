@@ -41,7 +41,8 @@ fn build() -> Result<(), Box<dyn std::error::Error>> {
         );
         return Err("Build the frontend before compiling atlas-web".into());
     }
-    let frontend = fs::read_to_string(dist.join("api-contract.txt"))?;
+    let frontend = fs::read_to_string(dist.join("api-contract.txt"))
+        .map_err(|error| format!("Missing built frontend API identifier ({error}); run `just web-ui-build` before compiling atlas-web"))?;
     if frontend.trim() != contract {
         return Err("Built Atlas frontend uses another API contract; run `just web-ui-build` before compiling atlas-web".into());
     }

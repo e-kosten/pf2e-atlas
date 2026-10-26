@@ -1,10 +1,12 @@
-import { getReadiness, verifyBackendCompatibility } from "./atlasApi";
+import { createSavedList, getReadiness, verifyBackendCompatibility } from "./atlasApi";
 import {
   API_CONTRACT,
   API_CONTRACT_HEADER,
   AtlasCompatibilityError,
+  clearCompatibilityFailure,
 } from "./compatibility";
 
+beforeEach(() => clearCompatibilityFailure());
 afterEach(() => vi.unstubAllGlobals());
 
 it("advertises the frontend contract and admits a matching backend", async () => {
@@ -60,4 +62,18 @@ it("preserves a proxy outage as a connection failure", async () => {
   await expect(verifyBackendCompatibility()).rejects.not.toBeInstanceOf(
     AtlasCompatibilityError,
   );
+});
+
+it("does not send subsequent mutations or replay the failed request after a mismatch", async () => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue(
+      new Response("{}", { headers: { [API_CONTRACT_HEADER]: "other" } }),
+    );
+  vi.stubGlobal("fetch", fetchMock);
+  await expect(getReadiness()).rejects.toBeInstanceOf(AtlasCompatibilityError);
+  await expect(
+    createSavedList({ name: "Research", slug: "research", tags: [] }),
+  ).rejects.toBeInstanceOf(AtlasCompatibilityError);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
