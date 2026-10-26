@@ -176,28 +176,31 @@ describe("Atlas product palette", () => {
           .slice(1)
           .match(/../g)!
           .map((part) => parseInt(part, 16));
-      const foreground = channels(mix[1]);
-      const background = channels(mix[3]);
-      const weight = Number(mix[2]) / 100;
-      const color =
-        "#" +
-        foreground
-          .map((value, index) =>
-            Math.round(value * weight + background[index] * (1 - weight))
-              .toString(16)
-              .padStart(2, "0"),
-          )
-          .join("");
+      const mixedHex = (match: RegExpMatchArray) => {
+        const foreground = channels(match[1]);
+        const background = channels(match[3]);
+        const weight = Number(match[2]) / 100;
+        return (
+          "#" +
+          foreground
+            .map((value, index) =>
+              Math.round(value * weight + background[index] * (1 - weight))
+                .toString(16)
+                .padStart(2, "0"),
+            )
+            .join("")
+        );
+      };
+      const color = mixedHex(mix);
       const referenceContrast = contrast(color, mix[3]);
       expect(referenceContrast).toBeGreaterThanOrEqual(4.5);
       expect(referenceContrast).toBeLessThanOrEqual(5);
       expect(contrast(mix[1], mix[3])).toBeGreaterThan(referenceContrast * 2);
-      expect(
-        contrast(
-          mix[1],
-          String(variables["--comparison-selected-bg" as keyof typeof variables]),
-        ),
-      ).toBeGreaterThanOrEqual(7);
+      const selectedMix = String(
+        variables["--comparison-selected-bg" as keyof typeof variables],
+      ).match(/color-mix\(in srgb, (#[a-f0-9]+) (\d+)%, (#[a-f0-9]+)\)/i)!;
+      expect(selectedMix).not.toBeNull();
+      expect(contrast(mix[1], mixedHex(selectedMix))).toBeGreaterThanOrEqual(7);
     },
   );
 
