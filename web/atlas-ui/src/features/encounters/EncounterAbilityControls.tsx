@@ -1,6 +1,6 @@
-import { UndoOutlined } from "@ant-design/icons";
-import { Button, Select, Space, Switch, Tooltip } from "antd";
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { DownOutlined, UndoOutlined } from "@ant-design/icons";
+import { Button, Dropdown, Space, Switch, Tooltip } from "antd";
+import { useLayoutEffect, useRef, useState } from "react";
 import type {
   EncounterAbilityStateAction,
   EncounterAbilityStateView,
@@ -24,7 +24,8 @@ export function EncounterAbilityControls({
   const [error, setError] = useState<string>();
   const inFlight = useRef(false);
   const container = useRef<HTMLDivElement>(null);
-  const choiceId = useId();
+  const choiceTrigger = useRef<HTMLButtonElement>(null);
+  const [choiceOpen, setChoiceOpen] = useState(false);
   const restoreFocus = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
     if (pending || disabled || !restoreFocus.current) return;
@@ -43,6 +44,10 @@ export function EncounterAbilityControls({
       )?.focus({ preventScroll: true });
   }, [pending, disabled]);
   const state = ability.state;
+  const effectLabel =
+    state.kind === "option" && state.active
+      ? (state.choices.find((choice) => choice.value === state.selection)?.label ?? "—")
+      : "Off";
   const unavailable = disabled || pending || !onChange;
   const update = async (action: EncounterAbilityStateAction) => {
     if (inFlight.current || unavailable || !onChange) return;
@@ -93,37 +98,56 @@ export function EncounterAbilityControls({
             )}
             {state.choices.length > 0 && (
               <div className="encounter-ability-controls__choice-label">
-                <label htmlFor={choiceId}>Effect</label>
-                <Select
-                  id={choiceId}
-                  aria-label={`${ability.label} option`}
-                  value={state.active ? state.selection : "__off"}
-                  loading={pending}
-                  popupMatchSelectWidth={false}
-                  options={
-                    state.always_active
-                      ? state.choices
-                      : [
-                          { value: "__off", label: "Off", consequence: null },
-                          ...state.choices,
-                        ]
-                  }
-                  optionRender={(option) => (
-                    <span>
-                      {option.data.label}
-                      {option.data.consequence ? ` · ${option.data.consequence}` : ""}
-                    </span>
-                  )}
+                <span>Effect</span>
+                <Dropdown
+                  autoFocus
+                  trigger={["click"]}
+                  open={choiceOpen && !unavailable}
+                  onOpenChange={setChoiceOpen}
                   disabled={unavailable}
-                  onChange={(selection: string) =>
-                    void update({
-                      kind: "set_option",
-                      active: selection !== "__off",
-                      selection: selection === "__off" ? state.selection : selection,
-                    })
-                  }
-                  className="encounter-ability-controls__choice"
-                />
+                  menu={{
+                    "aria-label": `${ability.label} effect`,
+                    selectable: true,
+                    selectedKeys: [state.active ? (state.selection ?? "") : "__off"],
+                    items: [
+                      ...(!state.always_active ? [{ key: "__off", label: "Off" }] : []),
+                      ...state.choices.map((choice) => ({
+                        key: choice.value,
+                        label: `${choice.label}${choice.consequence ? ` · ${choice.consequence}` : ""}`,
+                      })),
+                    ],
+                    onClick: ({ key }) => {
+                      setChoiceOpen(false);
+                      choiceTrigger.current?.focus({ preventScroll: true });
+                      void update({
+                        kind: "set_option",
+                        active: key !== "__off",
+                        selection: key === "__off" ? state.selection : key,
+                      });
+                    },
+                  }}
+                >
+                  <Button
+                    ref={choiceTrigger}
+                    type="text"
+                    icon={<DownOutlined />}
+                    iconPlacement="end"
+                    loading={pending ? { delay: 300 } : false}
+                    disabled={unavailable}
+                    aria-label={`${ability.label} effect: ${effectLabel}`}
+                    aria-haspopup="menu"
+                    aria-expanded={choiceOpen && !unavailable}
+                    className="encounter-ability-controls__choice"
+                    onKeyDown={(event) => {
+                      if (event.key === "ArrowDown") {
+                        event.preventDefault();
+                        setChoiceOpen(true);
+                      }
+                    }}
+                  >
+                    {effectLabel}
+                  </Button>
+                </Dropdown>
               </div>
             )}
           </>

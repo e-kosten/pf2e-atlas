@@ -41,6 +41,7 @@ export function EncounterAbilityStates({
           className="encounter-ability-states__row"
         >
           <Typography.Link
+            className="encounter-ability-states__name"
             href={destinationHref(
               recordDestination({
                 recordKey: ability.navigation.record_key,
