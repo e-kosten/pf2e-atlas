@@ -284,6 +284,103 @@ fn stunned_consumption_and_allocation_are_atomic_and_retries_never_refill_spent_
     );
 }
 #[test]
+fn an_early_reaction_is_explicit_and_does_not_start_a_turn() {
+    let (f, key, _, b) = fixture();
+    next(&f, &key, "a1");
+    let initial = resources(&f, &key, &b);
+    assert!(initial.can_grant_reaction);
+    assert_eq!(initial.reactions_remaining, None);
+    let grant = change(&f, &key, &b, "early-b", TurnResourceAction::GrantReaction);
+    let granted = resources(&f, &key, &b);
+    assert!(!granted.can_grant_reaction);
+    assert_eq!(granted.reactions_remaining, Some(1));
+    assert_eq!(granted.regular_total, None);
+    assert!(!granted.can_edit_actions);
+
+    let spent = change(
+        &f,
+        &key,
+        &b,
+        "early-b-spent",
+        TurnResourceAction::Spend {
+            resource: TurnResourceKind::Reaction,
+        },
+    );
+    assert_eq!(resources(&f, &key, &b).reactions_remaining, Some(0));
+    // Retrying the original grant recovers its receipt without refilling stock.
+    f.worker.update_turn_resources(&key, grant).unwrap();
+    assert_eq!(resources(&f, &key, &b).reactions_remaining, Some(0));
+    let second_grant = UpdateTurnResourcesRequest {
+        request_id: "another-early-b".into(),
+        expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
+        participant_key: b.clone(),
+        turn_key: resources(&f, &key, &b).turn_key,
+        action: TurnResourceAction::GrantReaction,
+    };
+    assert!(f.worker.update_turn_resources(&key, second_grant).is_err());
+
+    next(&f, &key, "b1");
+    let started = resources(&f, &key, &b);
+    assert_eq!(started.regular_remaining, Some(3));
+    assert_eq!(started.reactions_remaining, Some(1));
+    assert!(!started.can_grant_reaction);
+    // An old pre-turn control cannot spend the newly refreshed reaction.
+    let stale = UpdateTurnResourcesRequest {
+        request_id: "stale-early-b".into(),
+        expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
+        ..spent
+    };
+    assert!(f.worker.update_turn_resources(&key, stale).is_err());
+    assert_eq!(resources(&f, &key, &b).reactions_remaining, Some(1));
+}
+
+#[test]
+fn an_early_reaction_does_not_block_regaining_actions_after_manual_turn_selection() {
+    let (f, key, a, _) = fixture();
+    change(&f, &key, &a, "early-a", TurnResourceAction::GrantReaction);
+    f.worker
+        .set_encounter_turn(SetEncounterTurnRequest {
+            encounter_ref: key.clone(),
+            participant_key: a.clone(),
+        })
+        .unwrap();
+    assert_eq!(resources(&f, &key, &a).regular_remaining, None);
+    change(&f, &key, &a, "regain-a", TurnResourceAction::Regain);
+    let started = resources(&f, &key, &a);
+    assert_eq!(started.regular_remaining, Some(3));
+    assert_eq!(started.reactions_remaining, Some(1));
+    assert!(!started.can_grant_reaction);
+}
+
+#[test]
+fn granting_an_early_reaction_does_not_consume_stunned_or_bypass_its_restriction() {
+    let (f, key, _, b) = fixture();
+    add(&f, &b, "Stunned", Some(1));
+    next(&f, &key, "a1");
+    change(&f, &key, &b, "early-b", TurnResourceAction::GrantReaction);
+    let granted = resources(&f, &key, &b);
+    assert_eq!(granted.reactions_remaining, Some(1));
+    assert!(!granted.can_spend_reactions.available);
+    assert_eq!(granted.forecast.adjusted_value, Some(2));
+    assert!(granted.start_results.is_empty());
+    let spend = UpdateTurnResourcesRequest {
+        request_id: "stunned-early-b".into(),
+        expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
+        participant_key: b.clone(),
+        turn_key: granted.turn_key,
+        action: TurnResourceAction::Spend {
+            resource: TurnResourceKind::Reaction,
+        },
+    };
+    assert!(f.worker.update_turn_resources(&key, spend).is_err());
+    next(&f, &key, "b1");
+    let started = resources(&f, &key, &b);
+    assert_eq!(started.regular_remaining, Some(2));
+    assert!(started.can_spend_reactions.available);
+    assert_eq!(started.reactions_remaining, Some(1));
+}
+
+#[test]
 fn reactions_can_be_spent_off_turn_and_only_their_owners_regain_refills_them() {
     let (f, key, a, b) = fixture();
     next(&f, &key, "a1");
