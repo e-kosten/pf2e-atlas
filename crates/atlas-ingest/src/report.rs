@@ -21,7 +21,7 @@ pub fn analyze_foundry_source(
     root: &Path,
     manifest: Option<&Path>,
 ) -> Result<SourceAnalysisReport, IngestError> {
-    let catalog = LocalizationCatalog::load(root, "en")?;
+    let catalog = LocalizationCatalog::load(root, "en", manifest)?;
     let source = enrich_loaded_source(
         load_foundry_documents(root, manifest)?,
         SourceEnrichmentContext {
