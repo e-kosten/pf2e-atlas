@@ -652,10 +652,23 @@ test("reference rank menus accept pointer selection and retain their trigger", a
   const drawer = page.getByRole("dialog", { name: "Lantern Ward", exact: true });
   await expect(drawer).toBeVisible();
   const changeRank = drawer.getByRole("button", { name: /: Change rank$/ });
+  // This populated spell exercises the traits row; Battle Form has no traits.
+  const traitsGap = () =>
+    drawer.locator(".record-reference__header").evaluate((header) => {
+      const title = header
+        .querySelector(".record-reference__title")!
+        .getBoundingClientRect();
+      const traits = header
+        .querySelector(".record-reference__metadata")!
+        .getBoundingClientRect();
+      return traits.top - title.bottom;
+    });
+  expect(await traitsGap()).toBeCloseTo(8, 1);
   const trigger = await changeRank.elementHandle();
   await activate(changeRank, info);
   await activate(page.getByRole("menuitem", { name: "Rank 4", exact: true }), info);
   await expect(drawer.getByText("Spell 4", { exact: true })).toBeVisible();
+  expect(await traitsGap()).toBeCloseTo(8, 1);
   expect(await trigger!.evaluate((node) => node.isConnected)).toBe(true);
   await expect(changeRank).toBeFocused();
   const href = await drawer
