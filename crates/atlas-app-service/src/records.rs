@@ -240,7 +240,7 @@ pub(crate) fn read_record_detail(
         fields,
         r,
     )?;
-    let spell_rank = crate::presentation::apply_spell_rank(
+    let spell_rank = crate::presentation::apply_casting_rank(
         &detail.source,
         node,
         request.spell_rank,
@@ -315,6 +315,7 @@ pub(crate) fn read_record_detail(
         relationships_truncated: relationships.truncated || !content.bounded.is_empty(),
     };
     crate::contextual_references::attach_consumable_spell(&mut view, r)?;
+    crate::contextual_references::attach_ranked_effects(&mut view, r)?;
     Ok((detail, view))
 }
 pub(crate) fn validate_request(r: &RecordDetailRequest) -> AppServiceResult<()> {

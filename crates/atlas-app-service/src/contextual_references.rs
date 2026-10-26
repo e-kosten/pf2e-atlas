@@ -158,3 +158,66 @@ mod tests {
         }
     }
 }
+
+/// Preserve a selected casting rank on exact effect links without replacing identity.
+pub(crate) fn attach_ranked_effects(
+    view: &mut RecordDetailView,
+    retrieval: &AtlasRetrievalService,
+) -> crate::AppServiceResult<()> {
+    use atlas_record::source_record::{ItemSourceView, SourceNodeView};
+    let Some(rank) = view.selected.spell_rank else {
+        return Ok(());
+    };
+    let from_spell = matches!(view.presentation.body, RecordBodyView::Spell(_));
+    let from_effect =
+        matches!(&view.presentation.body, RecordBodyView::Activity(a) if a.spell_effect.is_some());
+    if !from_spell && !from_effect {
+        return Ok(());
+    }
+    let mut records = std::collections::HashMap::new();
+    for edge in &mut view.relationships {
+        if edge.origin != "content" || edge.source.owners != view.selected.owners {
+            continue;
+        }
+        let Some(target) = &edge.target else {
+            continue;
+        };
+        if !records.contains_key(&target.record_key) {
+            let key = RecordKey::parse(&target.record_key)
+                .map_err(|e| crate::AppServiceError::invalid_request(e.to_string()))?;
+            records.insert(
+                target.record_key.clone(),
+                retrieval.get_record(atlas_search::GetRecordRequest {
+                    record_key: &key,
+                    selected_content: &[],
+                })?,
+            );
+        }
+        let Some(detail) = records.get(&target.record_key).and_then(Option::as_ref) else {
+            continue;
+        };
+        let Some(node) = detail.source.node_at(&target.owners) else {
+            continue;
+        };
+        let base_rank = match node {
+            SourceNodeView::Item(ItemSourceView::EffectSource(source))
+                if from_spell
+                    && crate::presentation::spell_effect::supports(
+                        ItemSourceView::EffectSource(source),
+                    ) =>
+            {
+                crate::presentation::spell_effect::base_rank(source)
+            }
+            SourceNodeView::Item(ItemSourceView::SpellSource(source)) if from_effect => {
+                crate::presentation::spell_context::base_rank(source)
+            }
+            _ => None,
+        };
+        if base_rank.is_some_and(|base| rank >= base) {
+            let mut contextual = target.clone();
+            contextual.spell_rank = Some(rank);
+            edge.contextual_target = Some(contextual);
+        }
+    }
+    Ok(())
+}

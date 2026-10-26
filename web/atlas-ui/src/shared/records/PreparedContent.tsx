@@ -203,7 +203,7 @@ export function PreparedContentBody({
           createPortal(
             <EffectReferenceLink
               label={fact.effect_label}
-              target={fact.target}
+              target={fact.contextual_target ?? fact.target}
               onReference={openReference}
             />,
             host,
@@ -236,7 +236,12 @@ export function PreparedContentBody({
       }
       const readingTarget = fact?.contextual_target ?? fact?.target;
       if (readingTarget) {
-        if (fact?.contextual_target)
+        if (
+          fact?.contextual_target &&
+          (fact.contextual_target.record_key !== fact.target?.record_key ||
+            JSON.stringify(fact.contextual_target.embedded_path) !==
+              JSON.stringify(fact.target?.embedded_path))
+        )
           marker.setAttribute("title", "Spell from this item");
         marker.removeAttribute("aria-disabled");
         if (marker.tagName !== "A") {
