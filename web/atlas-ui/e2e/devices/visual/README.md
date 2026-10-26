@@ -58,6 +58,20 @@ byte-identical. Pair evidence and hashes are in
 `scratch/pr-heightening-review/linux-capture-40269847894`.
 Ordinary hosted comparison with snapshot updates disabled remains required.
 
+Current-main integration `318258e8` retains the newer HP workflow references below.
+[Linux capture 40271798183](https://github.com/e-kosten/pf2e-atlas/actions/runs/40271798183)
+passed four focused Quickened cases against CI40271508269's authenticated fixture,
+synthetic merge `c318559a8d14d95b3f8970e929776c6c3a623ad0` (parents `d22a68f3`
+and `318258e8`). Binary SHA-256:
+`da64a3a8c388c696b6613f131bf988876a083c445878f1ef80ce2cda9f9848da`;
+index SHA-256: `656fa09e98695af8d78492e3adda772978a75d41bcb12e825c2004fc410d8033`.
+Parent and independent Astra authenticated all 40 pairs. Only phone Chromium
+Quickened changes: 113 dimmed-background pixels, none inside the modal. Its current
+SHA-256 is `e807aee4550e94786fc7d5721feab617958622a38fb9cce834e53c60afe951fb`.
+This resolves the overlapping HP/underline reference; all other imported references
+remain intact. Combined macOS ordinary matrix passes all 143 cases. Evidence:
+`scratch/pr-heightening-review/linux-integration-40271798183`.
+
 ### Accepted encounter workflow references
 
 macOS arm64, Playwright 1.62.1: source `5ddfb9be795d8d1784b48675d7ac2c3582685083`
