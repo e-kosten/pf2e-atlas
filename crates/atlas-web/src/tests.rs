@@ -390,6 +390,30 @@ async fn stateless_search_route_carries_criteria_and_generation_and_rejects_stal
 }
 
 #[tokio::test]
+async fn search_page_routes_typed_trait_seeds_and_reference_scopes() {
+    for criteria in [
+        json!({"kind":"similar_traits","seed_trait_key":"trait:agile","filter":null}),
+        json!({"kind":"trait_references","trait_key":"trait:agile","query":null,"filter":null}),
+    ] {
+        let kind = criteria["kind"].clone();
+        let (status, body) = route_json(
+            Method::POST,
+            "/api/search/page",
+            Some(json!({
+                "criteria": criteria, "page":{"number":1,"size":25},
+                "expected_artifact_generation":"current-generation"
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            body["mode"],
+            json!({"kind":kind,"trait_key":"trait:agile","title":"Agile"})
+        );
+    }
+}
+
+#[tokio::test]
 async fn search_page_rejects_malformed_criteria_and_retired_window_routes() {
     let (status, body) = route_json(
         Method::POST,
@@ -1242,6 +1266,18 @@ impl AtlasWebService for MockService {
                 seed.record_key = seed_record_key;
                 SearchModeSummary::SimilarRecords {
                     seed: Box::new(seed),
+                }
+            }
+            atlas_app_model::SearchCriteria::SimilarTraits { seed_trait_key, .. } => {
+                SearchModeSummary::SimilarTraits {
+                    trait_key: seed_trait_key,
+                    title: "Agile".into(),
+                }
+            }
+            atlas_app_model::SearchCriteria::TraitReferences { trait_key, .. } => {
+                SearchModeSummary::TraitReferences {
+                    trait_key,
+                    title: "Agile".into(),
                 }
             }
             atlas_app_model::SearchCriteria::ListRecords { .. } => SearchModeSummary::ListRecords,

@@ -3,9 +3,9 @@ use atlas_domain::{SourceByteRange, SourcePassageAddress};
 use atlas_foundry_model::{
     SNAPSHOT_VERSION, SOURCE_CONTRACT_ID, SourceContext, admit_document_source,
 };
-pub use atlas_index::SourceReadMetrics;
 pub use atlas_index::test_support::publish_input;
 use atlas_index::*;
+pub use atlas_index::{SourceReadMetrics, TraitSeedChunk, TraitVectorInput};
 use atlas_record::{
     source_content::{CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentVisibilityRule},
     source_record::{

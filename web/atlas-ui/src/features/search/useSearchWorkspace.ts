@@ -471,6 +471,7 @@ export function useSearchWorkspace({
     filterEditor: filterDiscovery.filterEditor,
     filterCountsEnabled:
       filterDiscovery.filterCountsEnabled &&
+      !search.traitReferenceSeed &&
       searchProfile !== null &&
       searchProfileStored,
     filterCountQueryKey: filterDiscovery.filterCountQueryKey,

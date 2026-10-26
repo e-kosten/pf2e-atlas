@@ -47,6 +47,13 @@ impl AtlasRetrievalService {
         let page = SearchPageInfo::from_page(request.page, entries.len(), total)?;
         Ok(TraitMembershipResult { entries, page })
     }
+    /// Full root scope for composing trait references with ordinary retrieval filters.
+    pub fn trait_reference_record_keys(
+        &self,
+        key: &TraitKey,
+    ) -> Result<Vec<atlas_domain::RecordKey>, SearchError> {
+        Ok(self.index.trait_reference_record_keys(key)?)
+    }
     pub fn trait_references(
         &self,
         request: TraitAssociationRequest<'_>,

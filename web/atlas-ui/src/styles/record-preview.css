@@ -25,11 +25,6 @@
   }
 }
 
-.related-records__item {
-  padding-block: 8px;
-  border-bottom: 1px solid var(--line);
-}
-
 .record-preview-toolbar {
   min-width: 0;
   display: grid;

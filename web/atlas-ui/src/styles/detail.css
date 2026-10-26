@@ -10,38 +10,11 @@
 .detail-status {
   margin-block-end: var(--space-group);
 }
-.detail-status[role="status"],
-.related-records__status {
+.detail-status[role="status"] {
   display: flex;
   align-items: center;
   gap: 8px;
   color: var(--muted);
-}
-.related-records {
-  margin-block-start: var(--space-section);
-}
-.related-records__body {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.related-records__actions {
-  margin-block-end: 16px;
-}
-.related-records__body h3 {
-  margin: 16px 0 8px;
-  font-size: 1rem;
-}
-.related-records__list {
-  padding-inline-start: 20px;
-  margin-block: 0 16px;
-}
-.related-records__list > li {
-  margin-block: 6px;
-  content-visibility: auto;
-}
-.related-records__compare {
-  width: 100%;
-  max-width: 400px;
 }
 @media (max-width: 600px) {
   .detail-panel:not(.detail-panel--compact) {
@@ -134,4 +107,43 @@
   .record-view__pane--document {
     max-width: calc(var(--document-measure) + 2 * var(--space-group));
   }
+}
+
+.record-workspace {
+  min-width: 0;
+}
+.record-workspace > .record-reference__header {
+  margin-block-end: var(--record-identity-gap, var(--space-section));
+}
+.record-explore {
+  margin-block-start: var(--space-control);
+  min-width: 0;
+}
+.record-explore__other {
+  margin-block-start: var(--space-group);
+}
+.record-explore__task h3 {
+  margin-block: var(--space-group) var(--space-control);
+}
+
+.record-explore__results {
+  --browse-pane-inset: var(--space-group);
+}
+.record-explore__loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-control);
+  margin-block: var(--space-group);
+}
+
+.record-explore__search-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-control) var(--space-group);
+  margin-block: var(--space-group);
+}
+.record-explore__search-summary {
+  color: var(--muted);
 }

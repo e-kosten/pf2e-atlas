@@ -1,3 +1,6 @@
+import { RouterTestContext } from "../../test/router";
+import { RecordReadingWorkspace } from "./RecordReadingWorkspace";
+import type { SearchResultsRequest, SearchResultRow } from "../../generated/atlas";
 import type { ResultSort } from "../../generated/atlas";
 import { linkLeaf } from "../filters/linkPredicates";
 import { decodeFilterUrl, encodeFilterUrl } from "../filters/filterUrl";
@@ -94,16 +97,28 @@ function graphFixture(): GraphContextView {
     },
   };
 }
-function renderRelated(detail = detailFixture("actors:seed", "Viewed creature")) {
+function renderRelated(
+  detail = detailFixture("actors:seed", "Viewed creature"),
+  providedClient?: QueryClient,
+) {
   const onReference = vi.fn();
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
-  });
+  const queryClient =
+    providedClient ??
+    new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <QueryClientProvider client={queryClient}>
         <SearchProfileProvider>
-          <RelatedRecords detail={detail} onReference={onReference} />
+          <RouterTestContext>
+            <RecordReadingWorkspace
+              identity={(action) => <header>{action}</header>}
+              explore={<RelatedRecords detail={detail} onReference={onReference} />}
+            >
+              Reading the document
+            </RecordReadingWorkspace>
+          </RouterTestContext>
         </SearchProfileProvider>
       </QueryClientProvider>
     </ConfigProvider>,
@@ -111,7 +126,7 @@ function renderRelated(detail = detailFixture("actors:seed", "Viewed creature"))
   return onReference;
 }
 function openRelated() {
-  fireEvent.click(screen.getByRole("button", { name: "Related records" }));
+  fireEvent.click(screen.getByRole("button", { name: "Explore related records" }));
 }
 
 function relatedFixture() {
@@ -126,423 +141,440 @@ function relatedFixture() {
   };
 }
 
-describe("shared related disclosure", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    api.getRelatedRecords.mockResolvedValue(relatedFixture());
-    api.searchPage.mockResolvedValue({
-      sort: { kind: "relevance" } as const,
-      ranking: "score" as const,
-      search_profile: "bge-base",
-      artifact_generation: "test-generation",
-      mode: { kind: "similar_records", seed: summaryFixture("actors:seed") },
-      rows: [],
-      page: {
-        number: 1,
-        size: 5,
-        count: 0,
-        total: 0n,
-        has_more: false,
-        next_page: null,
-      },
-      coverage: {
-        exhaustive: false,
-        semantic_unit_window: 100,
-        candidate_roots: 12,
-        count_basis: "internal-count-basis",
-      },
-    });
-  });
-  it("requests one bounded availability operation on opening and hides empty category controls", async () => {
-    renderRelated();
-    expect(api.getRelatedRecords).not.toHaveBeenCalled();
-    expect(
-      screen.queryByRole("link", { name: "Find records linking here" }),
-    ).toBeNull();
-    openRelated();
-    expect(
-      screen.getByRole("link", { name: "Find records linking here" }),
-    ).toBeVisible();
-    expect(await screen.findByRole("link", { name: "Referenced spell" })).toBeVisible();
-    expect(api.getRelatedRecords).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("tab", { name: "Remaster" })).toBeNull();
-    expect(screen.queryByRole("tab", { name: "Variants" })).toBeNull();
-    expect(screen.queryByRole("tab", { name: "Similar" })).toBeNull();
-    expect(api.searchPage).not.toHaveBeenCalled();
-  });
-  it("preserves distinct incoming occurrences and checked navigation; modified links stay native", async () => {
-    const onReference = renderRelated();
-    openRelated();
-    const incoming = await screen.findAllByRole("link", { name: "Referring creature" });
-    expect(incoming).toHaveLength(2);
-    const expected = graphFixture().backlinks.occurrences[0].source_navigation;
-    expect(
-      JSON.parse(
-        new URL(
-          incoming[0].getAttribute("href")!,
-          "http://atlas.local",
-        ).searchParams.get("selection")!,
-      ),
-    ).toEqual(expected);
-    fireEvent.click(incoming[0]);
-    expect(onReference).toHaveBeenCalledWith("actors:referrer", incoming[0], expected);
-    onReference.mockClear();
-    expect(fireEvent.click(incoming[0], { metaKey: true })).toBe(true);
-    expect(onReference).not.toHaveBeenCalled();
-    expect(screen.queryByText("Compendium.raw.internal.uuid")).toBeNull();
-  });
-  it("reloads the exact record query when the artifact generation changes", async () => {
-    const oldDetail = detailFixture("actors:seed", "Viewed creature");
-    const newDetail = { ...oldDetail, artifact_generation: "new-preparation" };
-    api.getRecordDetail.mockResolvedValueOnce(oldDetail).mockResolvedValue(newDetail);
-    api.getRelatedRecords.mockRejectedValueOnce(
-      new AtlasApiError(409, "Generation changed", {
-        code: "artifact_generation_changed",
-        message: "Generation changed",
-        recoverable_action: "reload_record",
-      }),
-    );
-    function Reader() {
-      const detail = useRecordDetail("actors:seed");
-      return detail.data ? (
-        <RelatedRecords
-          detail={detail.data}
-          onReference={vi.fn()}
-          onReload={() => void detail.refetch()}
-        />
-      ) : null;
-    }
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <ConfigProvider theme={{ token: { motion: false } }}>
-        <QueryClientProvider client={client}>
-          <Reader />
-        </QueryClientProvider>
-      </ConfigProvider>,
-    );
-    fireEvent.click(await screen.findByRole("button", { name: "Related records" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Reload record" }));
-    await waitFor(() =>
-      expect(api.getRelatedRecords).toHaveBeenLastCalledWith(
-        {
-          selection: newDetail.selected,
-          artifact_generation: "new-preparation",
-        },
-        expect.any(AbortSignal),
-      ),
-    );
-    expect(api.getRecordDetail).toHaveBeenCalledTimes(2);
-    client.clear();
-  });
+function page(
+  request: SearchResultsRequest,
+  rows: SearchResultRow[] = [],
+  total = rows.length,
+): SearchResultsPage {
+  return {
+    sort:
+      request.sort ??
+      (request.criteria.kind === "list_records"
+        ? { kind: "attributes", rules: [{ field: "name", direction: "asc" }] }
+        : { kind: "relevance" }),
+    ranking: "score",
+    search_profile: request.search_profile ?? "bge-base",
+    artifact_generation: request.expected_artifact_generation ?? "test-generation",
+    mode:
+      request.criteria.kind === "similar_records"
+        ? { kind: "similar_records", seed: summaryFixture("actors:seed") }
+        : { kind: "list_records" },
+    rows,
+    relationship_clauses: [],
+    coverage: null,
+    page: {
+      number: 1,
+      size: 5,
+      count: rows.length,
+      total: BigInt(total),
+      has_more: total > rows.length,
+      next_page: total > rows.length ? 2 : null,
+    },
+  };
+}
+const row = (key: string, title: string): SearchResultRow => ({
+  record: summaryFixture(key, title),
+  matches: [],
+  relationship_evidence: [],
+});
+function preview(request: SearchResultsRequest) {
+  if (request.criteria.kind === "similar_records") return page(request);
+  return page(request, [row("actors:referrer", "Referring creature")], 64);
+}
+async function selectTab(name: string) {
+  fireEvent.click(await screen.findByRole("tab", { name }));
+}
+beforeEach(() => {
+  history.replaceState(null, "", "/records/actors:seed");
+  vi.clearAllMocks();
+  api.getRelatedRecords.mockResolvedValue(relatedFixture());
+  api.searchPage.mockImplementation(async (request: SearchResultsRequest) =>
+    preview(request),
+  );
+});
 
-  it("uses local retry and distinguishes unavailable checks from verified empty", async () => {
-    api.getRelatedRecords.mockRejectedValueOnce(new Error("Service unavailable"));
-    renderRelated();
-    openRelated();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Service unavailable");
-    api.getRelatedRecords.mockResolvedValue({
-      ...relatedFixture(),
-      references: { kind: "empty" },
-      variants: { kind: "unavailable", reason: "Compatibility facts are unavailable" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-    expect(
-      await screen.findByText(/Compatibility facts are unavailable/),
-    ).toBeVisible();
-    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
-    expect(screen.queryByRole("tab")).toBeNull();
+it("defers exploration until requested, previews five distinct roots, and leaves the full set to Search", async () => {
+  api.searchPage.mockImplementation(async (request: SearchResultsRequest) =>
+    page(
+      request,
+      Array.from({ length: 5 }, (_, i) => row("actors:record" + i, "Creature " + i)),
+      164,
+    ),
+  );
+  renderRelated();
+  expect(api.getRelatedRecords).not.toHaveBeenCalled();
+  expect(api.searchPage).not.toHaveBeenCalled();
+  openRelated();
+  expect(await screen.findByText("5 of 164 records")).toBeVisible();
+  expect(screen.getAllByRole("listitem")).toHaveLength(5);
+  expect(api.getRelatedRecords).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull();
+  expect(screen.queryByText(/Showing a limited|See more|View all/i)).toBeNull();
+  expect(screen.queryByRole("button", { name: /Next page/i })).toBeNull();
+  const link = screen.getByRole("link", { name: "Search referring records" });
+  expect(link).not.toHaveClass("ant-btn-primary");
+  expect(new URL(link.getAttribute("href")!, location.origin).pathname).toBe("/search");
+  expect(
+    api.searchPage.mock.calls.every(
+      ([request]) => request.page.number === 1 && request.page.size === 5,
+    ),
+  ).toBe(true);
+});
+
+it("hides verified-empty reference and version tabs", async () => {
+  api.searchPage.mockImplementation(async (request: SearchResultsRequest) =>
+    page(request),
+  );
+  api.getRelatedRecords.mockResolvedValue({
+    ...relatedFixture(),
+    references: { kind: "empty" },
   });
-  it("sends complete embedded selection and generation and uses root discovery separately", async () => {
-    const detail = detailFixture("actors:seed", "Viewed creature");
-    detail.selected = {
-      ...detail.selected,
-      embedded_path: [{ collection: "items", identity: { Stable: "embedded" } }],
-      field: "/system/description/value",
-    };
-    renderRelated(detail);
-    openRelated();
-    await waitFor(() =>
-      expect(api.getRelatedRecords).toHaveBeenCalledWith(
-        {
-          selection: detail.selected,
-          artifact_generation: detail.artifact_generation,
-        },
-        expect.any(AbortSignal),
-      ),
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Similar to parent record: Viewed creature" }),
-    );
-    expect(await screen.findByText("No similar records found.")).toBeVisible();
-    expect(api.searchPage).toHaveBeenCalledWith(
+  renderRelated();
+  openRelated();
+  expect(
+    await screen.findByRole("tab", { name: "Similar", selected: true }),
+  ).toBeVisible();
+  expect(screen.queryByRole("tab", { name: "References" })).toBeNull();
+  expect(screen.queryByRole("tab", { name: "Referenced by" })).toBeNull();
+  expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull();
+});
+
+it("uses the shared Matches interaction and preserves precise native destinations", async () => {
+  const expected = graphFixture().backlinks.occurrences[0].source_navigation;
+  api.searchPage.mockImplementation(async (request: SearchResultsRequest) =>
+    page(request, [
       {
-        search_profile: "bge-base",
-        criteria: {
-          kind: "similar_records",
-          seed_record_key: "actors:seed",
-          filter: null,
-        },
-        page: { number: 1, size: 5 },
-        expected_artifact_generation: detail.artifact_generation,
-      },
-      expect.any(AbortSignal),
-    );
-    const link = screen.getByRole("link", { name: "See more similar records" });
-    expect(
-      new URL(link.getAttribute("href")!, "http://atlas.local").searchParams.get(
-        "similar",
-      ),
-    ).toBe("actors:seed");
-    expect(fireEvent.click(link, { metaKey: true })).toBe(true);
-    expect(screen.queryByText("About these suggestions")).toBeNull();
-    expect(screen.queryByText(/internal-count-basis/)).toBeNull();
-  });
-  it("retains active search constraints and explicit order in the Similar escape link", async () => {
-    const state = {
-      ...DEFAULT_SEARCH_STATE,
-      query: "fire",
-      sort: {
-        kind: "attributes",
-        rules: [{ field: "unit_price", direction: "desc" }],
-      } satisfies ResultSort,
-      filter: {
-        kind: "all_of" as const,
-        children: [
-          { kind: "in" as const, field: "kind", values: ["creature"] },
+        ...row("actors:referrer", "Referring creature"),
+        matches: [
           {
-            kind: "relationship" as const,
-            clause_id: "link-0",
-            relationship: {
-              direction: "incoming" as const,
-              include_contents: false,
-              selection: {
-                record_key: "items:armor",
-                embedded_path: [],
-                field: null,
-                passage: null,
-                source_fingerprint: "source",
-              },
-            },
+            navigation: expected,
+            label: "Checked ability",
+            snippet: null,
+            lane: "lexical",
+            lexical_rank: null,
+            semantic_similarity: null,
           },
         ],
       },
-    };
-    history.replaceState(null, "", "/search" + searchStateQueryString(state));
-    renderRelated();
+    ]),
+  );
+  const onReference = renderRelated();
+  openRelated();
+  const result = await screen.findByRole("link", { name: /^Referring creature/ });
+  expect(screen.getAllByRole("link", { name: /^Referring creature/ })).toHaveLength(1);
+  fireEvent.click(result);
+  expect(onReference).toHaveBeenCalledWith("actors:referrer", result);
+  onReference.mockClear();
+  expect(fireEvent.click(result, { metaKey: true })).toBe(true);
+  expect(onReference).not.toHaveBeenCalled();
+  const matches = screen.getByRole("button", {
+    name: "1 matches in Referring creature",
+  });
+  fireEvent.click(matches);
+  const match = await screen.findByRole("link", { name: "Checked ability" });
+  expect(
+    JSON.parse(
+      new URL(match.getAttribute("href")!, location.origin).searchParams.get(
+        "selection",
+      )!,
+    ),
+  ).toEqual(expected);
+  fireEvent.keyDown(document, { key: "Escape" });
+  expect(matches).toHaveFocus();
+  fireEvent.click(matches);
+  fireEvent.click(await screen.findByRole("link", { name: "Checked ability" }));
+  expect(onReference).toHaveBeenCalledWith(expected.record_key, matches, expected);
+  expect(screen.queryByText("Compendium.raw.internal.uuid")).toBeNull();
+});
+
+it("reloads the exact record generation after an unavailable association check", async () => {
+  const oldDetail = detailFixture("actors:seed", "Viewed creature");
+  const newDetail = { ...oldDetail, artifact_generation: "new-preparation" };
+  api.getRecordDetail.mockResolvedValueOnce(oldDetail).mockResolvedValue(newDetail);
+  api.getRelatedRecords.mockRejectedValueOnce(
+    new AtlasApiError(409, "Generation changed", {
+      code: "artifact_generation_changed",
+      message: "Generation changed",
+      recoverable_action: "reload_record",
+    }),
+  );
+  function Reader() {
+    const detail = useRecordDetail("actors:seed");
+    return detail.data ? (
+      <RelatedRecords
+        detail={detail.data}
+        onReference={vi.fn()}
+        onReload={() => void detail.refetch()}
+      />
+    ) : null;
+  }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <RouterTestContext>
+      <QueryClientProvider client={client}>
+        <SearchProfileProvider>
+          <Reader />
+        </SearchProfileProvider>
+      </QueryClientProvider>
+    </RouterTestContext>,
+  );
+  await selectTab("References");
+  fireEvent.click(await screen.findByRole("button", { name: "Reload record" }));
+  await waitFor(() =>
+    expect(api.getRelatedRecords).toHaveBeenLastCalledWith(
+      { selection: newDetail.selected, artifact_generation: "new-preparation" },
+      expect.any(AbortSignal),
+    ),
+  );
+  expect(api.getRecordDetail).toHaveBeenCalledTimes(2);
+  client.clear();
+});
+
+it("retries failed checks and keeps unavailable versions distinguishable from verified empty", async () => {
+  api.getRelatedRecords.mockRejectedValue(new Error("Service unavailable"));
+  renderRelated();
+  openRelated();
+  await selectTab("References");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Service unavailable");
+  api.getRelatedRecords.mockResolvedValue({
+    ...relatedFixture(),
+    variants: { kind: "unavailable", reason: "Compatibility facts are unavailable" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await selectTab("Versions");
+  expect(await screen.findByText("Compatibility facts are unavailable")).toBeVisible();
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it.each([false, true])(
+  "keeps complete selection and effective contents scope in each Search handoff (embedded: %s)",
+  async (embedded) => {
+    const detail = detailFixture("actors:seed", "Viewed creature");
+    if (embedded)
+      detail.selected = {
+        ...detail.selected,
+        embedded_path: [
+          { collection: "/items", identity: { Stable: "checked-ability" } },
+        ],
+        field: "/system/description/value",
+        source_fingerprint: "exact-snapshot",
+      };
+    renderRelated(detail);
     openRelated();
-    fireEvent.click(await screen.findByRole("button", { name: "Similar records" }));
-    const link = await screen.findByRole("link", { name: "See more similar records" });
-    const restored = decodeSearchStateFromParams(
-      new URL(link.getAttribute("href")!, window.location.origin).searchParams,
-    );
-    expect(restored).toMatchObject({
-      query: "",
-      similarSeed: "actors:seed",
-      sort: {
-        kind: "attributes",
-        rules: [{ field: "unit_price", direction: "desc" }],
-      } satisfies ResultSort,
-      filter: decodeFilterUrl(encodeFilterUrl(state.filter)),
-    });
-    expect(api.searchPage).toHaveBeenCalledWith(
-      expect.not.objectContaining({ sort: expect.anything() }),
+    for (const [tab, direction, label] of [
+      ["Referenced by", "incoming", "Search referring records"],
+      ["References", "outgoing", "Search referenced records"],
+    ] as const) {
+      await selectTab(tab);
+      const link = await screen.findByRole("link", { name: label });
+      const filter = decodeFilterUrl(
+        new URL(link.getAttribute("href")!, location.origin).searchParams.get(
+          "filter",
+        )!,
+      );
+      expect(filter).toEqual(
+        decodeFilterUrl(
+          encodeFilterUrl(
+            linkLeaf(
+              { direction, selection: detail.selected, include_contents: !embedded },
+              "record-explore-reference",
+            ),
+          ),
+        ),
+      );
+      expect(fireEvent.click(link, { metaKey: true })).toBe(true);
+    }
+    expect(api.getRelatedRecords).toHaveBeenCalledWith(
+      { selection: detail.selected, artifact_generation: detail.artifact_generation },
       expect.any(AbortSignal),
     );
-  });
-
-  it("switches only Similar evidence and deep links, retaining graph discovery and native navigation", async () => {
-    const detail = detailFixture("actors:seed", "Viewed creature");
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    let finishOld!: (value: SearchResultsPage) => void;
-    let finishNew!: (value: SearchResultsPage) => void;
-    api.searchPage
-      .mockReturnValueOnce(
-        new Promise((resolve) => {
-          finishOld = resolve;
-        }),
-      )
-      .mockReturnValueOnce(
-        new Promise((resolve) => {
-          finishNew = resolve;
-        }),
-      );
-    const content = (id: string) => (
-      <ConfigProvider theme={{ token: { motion: false } }}>
-        <QueryClientProvider client={client}>
-          <SearchProfileProvider id={id} usable={false}>
-            <RelatedRecords detail={detail} onReference={vi.fn()} />
-          </SearchProfileProvider>
-        </QueryClientProvider>
-      </ConfigProvider>
-    );
-    const view = render(content("bge-base"));
-    openRelated();
-    fireEvent.click(await screen.findByRole("button", { name: "Similar records" }));
-    await waitFor(() => expect(api.searchPage).toHaveBeenCalledTimes(1));
-    view.rerender(content("embeddinggemma"));
-    await waitFor(() => expect(api.searchPage).toHaveBeenCalledTimes(2));
-    expect(api.searchPage.mock.calls[1][0]).toMatchObject({
-      search_profile: "embeddinggemma",
-      expected_artifact_generation: detail.artifact_generation,
-    });
-    const page = (profile: string, title: string): SearchResultsPage => ({
-      relationship_clauses: [],
-      sort: { kind: "relevance" } as const,
-      ranking: "score" as const,
-      search_profile: profile,
-      artifact_generation: detail.artifact_generation,
-      mode: { kind: "similar_records", seed: detail.record },
-      coverage: null,
-      page: {
-        number: 1,
-        size: 5,
-        count: 1,
-        total: 1n,
-        next_page: null,
-        has_more: false,
-      },
-      rows: [
-        {
-          record: summaryFixture("actors:" + profile, title),
-          relationship_evidence: [],
-          matches: [],
-        },
-      ],
-    });
-    await act(async () => finishNew(page("embeddinggemma", "Current suggestion")));
-    await act(async () => finishOld(page("bge-base", "Old suggestion")));
-    expect(
-      await screen.findByRole("link", { name: "Current suggestion" }),
-    ).toBeVisible();
-    expect(screen.queryByText("Old suggestion")).toBeNull();
-    expect(api.getRelatedRecords).toHaveBeenCalledTimes(1);
-    const link = screen.getByRole("link", { name: "See more similar records" });
-    const params = new URL(link.getAttribute("href")!, window.location.origin)
-      .searchParams;
-    expect(params.get("search_profile")).toBe("embeddinggemma");
-    expect(params.get("similar")).toBe(detail.record.record_key);
-    expect(fireEvent.click(link, { metaKey: true })).toBe(true);
-    client.clear();
-  });
-  it("comparison uses shared family panes without recursive related queries", async () => {
-    api.getRelatedRecords.mockResolvedValue({
-      ...relatedFixture(),
-      variants: {
-        kind: "content",
-        content: {
-          seed: summaryFixture("actors:seed"),
-          base_name: "Viewed creature",
-          variants: [
-            summaryFixture("actors:seed", "Viewed creature"),
-            summaryFixture("actors:variant", "Greater creature"),
-          ],
-          evidence: [],
-          ambiguous: false,
-          truncated: false,
-        },
-      },
-    });
-    api.getRecordDetail.mockImplementation((key: string) =>
-      Promise.resolve(
-        detailFixture(
-          key,
-          key === "actors:seed" ? "Viewed creature" : "Greater creature",
-        ),
-      ),
-    );
-    renderRelated();
-    openRelated();
-    fireEvent.click(await screen.findByRole("tab", { name: "Variants" }));
-    fireEvent.mouseDown(
-      await screen.findByRole("combobox", { name: "Compare variant" }),
-    );
-    const choices = screen.getAllByText("Greater creature");
-    fireEvent.click(choices[choices.length - 1]);
-    const dialog = await screen.findByRole("dialog");
-    await waitFor(() =>
+    if (embedded) {
+      expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull();
+      await selectTab("Similar");
       expect(
-        within(dialog).getByRole("heading", { name: "Greater creature" }),
-      ).toBeVisible(),
-    );
-    expect(
-      within(dialog).queryByRole("button", { name: "Related records" }),
-    ).toBeNull();
-    expect(api.getRelatedRecords).toHaveBeenCalledTimes(1);
-  });
-});
+        await screen.findByText("Similar to parent record: Viewed creature"),
+      ).toBeVisible();
+    }
+  },
+);
 
-it("opens each Related direction with its checked selection and effective contents scope", async () => {
-  history.replaceState(null, "", "/");
-  const detail = detailFixture("actors:seed", "Viewed creature");
-  detail.selected = {
-    ...detail.selected,
-    embedded_path: [{ collection: "items", identity: { Stable: "checked-ability" } }],
-    source_fingerprint: "exact-snapshot",
+it("retains active Search filters and explicit order in the Similar handoff", async () => {
+  const state = {
+    ...DEFAULT_SEARCH_STATE,
+    query: "fire",
+    sort: {
+      kind: "attributes",
+      rules: [{ field: "unit_price", direction: "desc" }],
+    } satisfies ResultSort,
+    filter: linkLeaf(
+      {
+        direction: "incoming",
+        include_contents: false,
+        selection: { ...navigation("items:armor"), source_fingerprint: "source" },
+      },
+      "link-0",
+    ),
   };
-  const response = relatedFixture();
-  const graph = response.references.content;
-  graph.outgoing.filter = linkLeaf(
-    {
-      direction: "outgoing",
-      selection: detail.selected,
-      include_contents: false,
-    },
-    "outgoing",
-  );
-  graph.backlinks.filter = linkLeaf(
-    {
-      direction: "incoming",
-      selection: detail.selected,
-      include_contents: true,
-    },
-    "incoming",
-  );
-  api.getRelatedRecords.mockResolvedValue(response);
-  renderRelated(detail);
-  openRelated();
-  const links = await screen.findAllByRole("link", { name: "View all" });
-  expect(links).toHaveLength(2);
-  for (const [index, link] of links.entries()) {
-    const url = new URL(link.getAttribute("href")!, "http://atlas.local");
-    const criteria = decodeFilterUrl(url.searchParams.get("filter")!);
-    expect(criteria).toEqual(
-      decodeFilterUrl(
-        encodeFilterUrl(index === 0 ? graph.outgoing.filter! : graph.backlinks.filter!),
-      ),
-    );
-  }
-});
-
-it("keeps discovery actions inside Related and exact View all links available for empty directions", async () => {
-  const response = relatedFixture();
-  const graph = response.references.content;
-  const selected = detailFixture("actors:seed", "Viewed creature").selected;
-  graph.outgoing = {
-    records: [],
-    occurrences: [],
-    truncated: false,
-    filter: linkLeaf({
-      direction: "outgoing",
-      selection: selected,
-      include_contents: false,
-    }),
-  };
-  graph.backlinks = {
-    records: [],
-    occurrences: [],
-    truncated: false,
-    filter: linkLeaf({
-      direction: "incoming",
-      selection: selected,
-      include_contents: true,
-    }),
-  };
-  api.getRelatedRecords.mockResolvedValue(response);
+  history.replaceState(null, "", "/search" + searchStateQueryString(state));
   renderRelated();
-  expect(screen.queryByRole("link", { name: "Browse links from here" })).toBeNull();
+  openRelated();
+  await selectTab("Similar");
+  const link = await screen.findByRole("link", { name: "Search similar records" });
+  const restored = decodeSearchStateFromParams(
+    new URL(link.getAttribute("href")!, location.origin).searchParams,
+  );
+  expect(restored).toMatchObject({
+    query: "",
+    similarSeed: "actors:seed",
+    sort: state.sort,
+    filter: decodeFilterUrl(encodeFilterUrl(state.filter)),
+  });
+  expect(
+    api.searchPage.mock.calls.find(([r]) => r.criteria.kind === "similar_records")?.[0],
+  ).not.toHaveProperty("sort");
+});
+
+it("rejects late Similar responses from the previous model and updates the Search handoff", async () => {
+  const detail = detailFixture("actors:seed", "Viewed creature");
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let finishOld!: (value: SearchResultsPage) => void;
+  let finishNew!: (value: SearchResultsPage) => void;
+  api.searchPage.mockImplementation((request: SearchResultsRequest) =>
+    request.criteria.kind !== "similar_records"
+      ? Promise.resolve(preview(request))
+      : new Promise((resolve) => {
+          if (request.search_profile === "bge-base") finishOld = resolve;
+          else finishNew = resolve;
+        }),
+  );
+  const content = (id: string) => (
+    <RouterTestContext>
+      <QueryClientProvider client={client}>
+        <SearchProfileProvider id={id} usable={false}>
+          <RelatedRecords detail={detail} onReference={vi.fn()} />
+        </SearchProfileProvider>
+      </QueryClientProvider>
+    </RouterTestContext>
+  );
+  const view = render(content("bge-base"));
+  await selectTab("Similar");
+  await waitFor(() => expect(finishOld).toBeTypeOf("function"));
+  view.rerender(content("embeddinggemma"));
+  await waitFor(() => expect(finishNew).toBeTypeOf("function"));
+  const request = (profile: string): SearchResultsRequest => ({
+    search_profile: profile,
+    criteria: {
+      kind: "similar_records",
+      seed_record_key: detail.record.record_key,
+      filter: null,
+    },
+    page: { number: 1, size: 5 },
+    expected_artifact_generation: detail.artifact_generation,
+  });
+  await act(async () =>
+    finishNew(
+      page(request("embeddinggemma"), [row("actors:current", "Current suggestion")]),
+    ),
+  );
+  await act(async () =>
+    finishOld(page(request("bge-base"), [row("actors:old", "Old suggestion")])),
+  );
+  expect(
+    await screen.findByRole("link", { name: /^Current suggestion/ }),
+  ).toBeVisible();
+  expect(screen.queryByText("Old suggestion")).toBeNull();
+  expect(api.getRelatedRecords).toHaveBeenCalledTimes(1);
+  expect(
+    new URL(
+      screen
+        .getByRole("link", { name: "Search similar records" })
+        .getAttribute("href")!,
+      location.origin,
+    ).searchParams.get("search_profile"),
+  ).toBe("embeddinggemma");
+  client.clear();
+});
+
+it("renders Versions with shared result cards and compares complete records without recursive exploration", async () => {
+  api.getRelatedRecords.mockResolvedValue({
+    ...relatedFixture(),
+    variants: {
+      kind: "content",
+      content: {
+        seed: summaryFixture("actors:seed"),
+        base_name: "Viewed creature",
+        variants: [
+          summaryFixture("actors:seed", "Viewed creature"),
+          summaryFixture("actors:variant", "Greater creature"),
+        ],
+        evidence: [],
+        ambiguous: false,
+        truncated: false,
+      },
+    },
+  });
+  api.getRecordDetail.mockImplementation((key: string) =>
+    Promise.resolve(
+      detailFixture(
+        key,
+        key === "actors:seed" ? "Viewed creature" : "Greater creature",
+      ),
+    ),
+  );
+  const onReference = renderRelated();
+  openRelated();
+  await selectTab("Versions");
+  const result = await screen.findByRole("link", { name: /^Greater creature/ });
+  expect(result).toHaveAttribute("data-record-key", "actors:variant");
+  fireEvent.click(result);
+  expect(onReference).toHaveBeenCalledWith("actors:variant", result);
+  const compare = screen.getByRole("button", { name: "Compare" });
+  compare.focus();
+  fireEvent.click(compare);
+  const dialog = await screen.findByRole("dialog");
+  await waitFor(() =>
+    expect(
+      within(dialog).getByRole("heading", { name: "Greater creature" }),
+    ).toBeVisible(),
+  );
+  expect(
+    within(dialog).getByRole("heading", { name: "Viewed creature" }),
+  ).toBeVisible();
+  expect(
+    within(dialog).queryByRole("button", { name: "Explore related records" }),
+  ).toBeNull();
+  expect(
+    api.getRelatedRecords.mock.calls.every(
+      ([request]) => request.selection.record_key === "actors:seed",
+    ),
+  ).toBe(true);
+  fireEvent.keyDown(dialog, { key: "Escape", code: "Escape", keyCode: 27 });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(compare).toHaveFocus();
+});
+
+it("retires preview rows after a generation conflict and retains a local recovery action", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  renderRelated(detailFixture("actors:seed", "Viewed creature"), client);
   openRelated();
   expect(
-    await screen.findByRole("link", { name: "Browse links from here" }),
+    await screen.findByRole("link", { name: /^Referring creature/ }),
   ).toBeVisible();
-  expect(await screen.findAllByRole("link", { name: "View all" })).toHaveLength(2);
+  api.searchPage.mockRejectedValue(
+    new AtlasApiError(409, "Reference generation changed", {
+      code: "artifact_generation_changed",
+      message: "Reference generation changed",
+      recoverable_action: "reload_record",
+    }),
+  );
+  await act(async () => {
+    await client.invalidateQueries({ queryKey: ["record-reference-preview"] });
+  });
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Reference generation changed",
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("link", { name: /^Referring creature/ })).toBeNull(),
+  );
+  expect(screen.getByRole("button", { name: "Reload record" })).toBeVisible();
 });
