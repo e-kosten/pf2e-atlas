@@ -1126,6 +1126,7 @@ fn failed_start_resource_write_rolls_back_turn_condition_changes_and_receipts()
                                 condition_id: condition.condition_id,
                             }],
                             turn_resources: vec![TurnResources {
+                                before_first_turn: false,
                                 allocation: None,
                                 actions_open: true,
                                 pending_reason: None,
@@ -1890,6 +1891,7 @@ fn consumed_application_claim_and_stock_roll_back_when_receipt_fails()
             origin,
         }],
         turn_resources: vec![TurnResources {
+            before_first_turn: false,
             allocation: None,
             actions_open: true,
             pending_reason: None,

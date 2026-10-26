@@ -68,6 +68,11 @@ recorded separately from the initial allotment; manual spending/restoring does n
 rewrite it. When the turn ends, the explanation returns to the live regain forecast.
 Older turns without allocation facts retain usable stock and explicitly unavailable
 historical detail; reads never reconstruct that history from current conditions.
+Before a creature's first turn, reaction tracking starts ungranted. An explicit
+GM grant saves reaction stock without allocating actions or starting a turn.
+That stock supports the usual spend/restore controls and refreshes normally when
+the first turn begins. Persisted pre-turn stock remains distinct from an allocated
+turn, including when regaining actions is pending.
 Grant immunity uses the shared checked immunity policy. Conditional, equipment-
 dependent, altered or unsupported-lifetime grants remain unautomated authored
 rules. Prose-only restrictions, including Zombie Slow's reaction prohibition, are

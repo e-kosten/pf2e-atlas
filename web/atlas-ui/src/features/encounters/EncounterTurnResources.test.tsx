@@ -25,6 +25,7 @@ function value(): TurnResourcesView {
     extra_uses: [],
     reactions_total: 1n,
     reactions_remaining: 1n,
+    can_grant_reaction: false,
     start_results: [
       {
         condition_name: "Stunned",
@@ -46,6 +47,62 @@ function value(): TurnResourcesView {
     can_spend_reactions: { available: true },
   };
 }
+it("keeps an ungranted reaction visible before the first turn and tracks an explicit grant", async () => {
+  const onChange = vi.fn().mockResolvedValue(undefined);
+  const initial: TurnResourcesView = {
+    ...value(),
+    turn_key: null,
+    round_number: null,
+    regular_total: null,
+    regular_remaining: null,
+    extra_total: null,
+    extra_remaining: null,
+    reactions_total: null,
+    reactions_remaining: null,
+    can_grant_reaction: true,
+    can_edit_actions: false,
+    start_results: [],
+  };
+  const { rerender } = render(
+    <EncounterTurnResources
+      value={initial}
+      disabled={false}
+      isCurrent={false}
+      onChange={onChange}
+    />,
+  );
+  expect(screen.getByText("At turn start")).toBeVisible();
+  expect(screen.getByText("Not granted")).toBeVisible();
+  expect(onChange).not.toHaveBeenCalled();
+  const grant = screen.getByRole("button", { name: "Grant reaction" });
+  grant.focus();
+  fireEvent.click(grant);
+  await waitFor(() =>
+    expect(onChange).toHaveBeenCalledWith({ kind: "grant_reaction" }),
+  );
+  rerender(
+    <EncounterTurnResources
+      value={{
+        ...initial,
+        reactions_total: 1n,
+        reactions_remaining: 1n,
+        can_grant_reaction: false,
+      }}
+      disabled={false}
+      isCurrent={false}
+      onChange={onChange}
+    />,
+  );
+  expect(screen.queryByText("Not granted")).toBeNull();
+  expect(screen.getByText("At turn start")).toBeVisible();
+  const spend = screen.getByRole("button", { name: "Spend reaction" });
+  expect(spend).toHaveFocus();
+  fireEvent.click(spend);
+  await waitFor(() =>
+    expect(onChange).toHaveBeenLastCalledWith({ kind: "spend", resource: "reaction" }),
+  );
+});
+
 it("spends only on explicit input and retains the recorded allowance and start result across updates", async () => {
   const onChange = vi.fn().mockResolvedValue(undefined),
     initial = value();

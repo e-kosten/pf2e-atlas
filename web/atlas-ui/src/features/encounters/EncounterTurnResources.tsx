@@ -58,6 +58,7 @@ export function EncounterTurnResources({
     blockedReactions &&
     value.can_spend_actions.reason === value.can_spend_reactions.reason;
   const stock = value.reactions_remaining;
+  const grantReaction = value.can_grant_reaction;
   return (
     <section className="encounter-turn-resources" aria-label="Turn" aria-busy={busy}>
       <div className="encounter-turn-resources__controls">
@@ -116,19 +117,22 @@ export function EncounterTurnResources({
             )}
           </div>
         )}
-        {stock !== null && (
+        {(stock !== null || grantReaction) && (
           <div className="encounter-turn-resources__group">
             <strong>Reaction</strong>
-            {Number(value.reactions_total) === 0 ? (
+            {grantReaction && <span>Not granted</span>}
+            {stock !== null && Number(value.reactions_total) === 0 ? (
               <span>None this turn</span>
             ) : (
               <Tooltip
                 title={
-                  Number(stock) > 0
-                    ? value.can_spend_reactions.available
-                      ? "Spend reaction"
-                      : value.can_spend_reactions.reason
-                    : "Restore reaction"
+                  grantReaction
+                    ? "Grant reaction before the first turn (GM discretion)"
+                    : Number(stock) > 0
+                      ? value.can_spend_reactions.available
+                        ? "Spend reaction"
+                        : value.can_spend_reactions.reason
+                      : "Restore reaction"
                 }
                 trigger={["hover", "focus"]}
               >
@@ -142,7 +146,13 @@ export function EncounterTurnResources({
                     unavailable ||
                     (Number(stock) > 0 && !value.can_spend_reactions.available)
                   }
-                  aria-label={Number(stock) > 0 ? "Spend reaction" : "Restore reaction"}
+                  aria-label={
+                    grantReaction
+                      ? "Grant reaction"
+                      : Number(stock) > 0
+                        ? "Spend reaction"
+                        : "Restore reaction"
+                  }
                   aria-pressed={Number(stock) > 0}
                   color={Number(stock) > 0 ? "primary" : "default"}
                   variant={Number(stock) > 0 ? "solid" : "outlined"}
@@ -154,10 +164,14 @@ export function EncounterTurnResources({
                     />
                   }
                   onClick={() => {
-                    void act({
-                      kind: Number(stock) > 0 ? "spend" : "restore",
-                      resource: "reaction",
-                    }).catch(() => {});
+                    void act(
+                      grantReaction
+                        ? { kind: "grant_reaction" }
+                        : {
+                            kind: Number(stock) > 0 ? "spend" : "restore",
+                            resource: "reaction",
+                          },
+                    ).catch(() => {});
                   }}
                 />
               </Tooltip>
