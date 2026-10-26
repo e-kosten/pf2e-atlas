@@ -903,7 +903,7 @@ document body, not in its heading or classification. Keep
 rank selection and exact owner/reference links in this shared identity, without
 duplicating them in the body. Phone action groups wrap by row; substantial header
 details can scroll within a bounded header so the document body remains
-reachable. Transient references omit Related sections;
+reachable. Transient references omit Explore;
 full pages retain relationship discovery. The Drawer body owns one content
 inset; the embedded detail/family presentation does not add another.
 
@@ -1225,7 +1225,7 @@ For inline record inclusions, prioritize reading over occasional source navigati
 Reuse a meaningful existing rule heading or authored prose reference as the link;
 keep description-only inclusions in the document flow. For example, Censer
 Implement's introductory Censer text needs no invented heading or standalone
-“Source record” row; its underlying record remains available in Related records.
+“Source record” row; its underlying record remains available in Explore.
 Paragon Benefit and Spiritual Scar can link from their existing named rule titles,
 while an in-sentence reference stays in its sentence. Do not add a floating icon,
 toolbar or repeated card solely to expose an inclusion's provenance. Explicitly
@@ -1285,24 +1285,42 @@ parent and associated customized spells; base and authored cast ranks do not imp
 rank or form changes. A hazard's backend defense-block fact controls its primary
 AC/HP/hardness display; keep independent zero saves and unavailable facts intact.
 
-`RelatedRecords` starts closed and requests one bounded availability response on
-opening, cached by complete selection and artifact generation. Render only content
-categories; keep loading, unavailable checks and local retryable errors distinct
-from known empty categories. Similar is a separate root discovery preview using
-stateless search pages, with a native link into the ordinary search workspace.
-Similarity URLs preserve the root seed and canonical filters. The active Similar
-criterion occupies the main search control with its selectable, read-only human
-name; retain the same input shell, clear/search affordances and toolbar dimensions
-as keyword entry. Clearing it
-preserves other filters and returns focus to keyword entry. Contextual text counts are disabled while
-catalog choices and vocabulary remain available. Label bounded pages Top matches.
-Comparison panes reuse family presentation without recursively mounting related disclosures.
-Incoming references use checked `source_navigation`, outgoing references use the
-checked target, and separate occurrence ordinals remain attribution metadata;
-they do not imply automatic scrolling to an individual marker. Counterparts and variants apply only to root selections; they never appear as
-relationships of an embedded selection. A separate Similar action can name the
-parent root explicitly. Exact root references use an empty owner path, not an
-all-owners graph query.
+`RecordReadingWorkspace` keeps reading as the default and exposes Explore through
+an icon action beside the classification and list action. These header icons share
+34px targets and a 4px gap; the badge and actions remain aligned when the icon
+switches to Read. Mode changes push URL history (`record_view`); task changes
+replace that Explore entry (`record_tab`). Back/Forward restores both. Keep the
+reading subtree mounted and restore its scroll when returning from Explore.
+
+`RelatedRecords` composes Referenced by, References, Similar and Versions tabs.
+Hide verified-empty reference/version categories; pending, unavailable and failed
+checks are distinct from empty and retain local recovery. Reference and Similar
+previews request the first five distinct roots from stateless Search. Their
+neutral header action opens primary Search with the exact relationship predicate
+or Similar seed, preserving applicable Search filters and explicit order. Do not
+add inline result pagination or See more. Use `ReferenceResult` for all four
+categories, including the shared Matches interaction and Versions Compare action.
+Trait pages keep their association tabs below the definition, use the same result
+cards and bounded previews, and hand off to primary Search. Membership uses the
+existing exact root-trait predicate; references resolve the complete indexed root
+scope, and Similar uses the typed stored trait seed. A contained member's trait is
+not promoted to its owning record's membership. Never construct a capped key list
+from preview rows to simulate a full search. The small Other references list
+retains explicit external/unavailable source links outside searchable records.
+
+The active Similar criterion occupies the main search control with its selectable,
+read-only human name; clearing it preserves other filters and returns focus to
+keyword entry. Trait references display a removable named scope beside keyword
+entry. Contextual counts are disabled where the scope is unsupported; count-free
+catalog choices remain available. Label bounded semantic results Top matches.
+
+Comparison panes reuse family presentation without recursive exploration. Keep the
+comparison mounted through Ant Modal's closing lifecycle so Escape and Close
+restore focus to Compare. Exact Matches links use checked source/target navigation;
+occurrence ordinals remain attribution metadata, not scroll destinations.
+Counterparts and variants apply only to root selections. Similar for an embedded
+selection names its parent root explicitly. Exact root references use an empty
+owner path, not an all-owners graph query.
 
 Record-link conditions are structural leaves in the same predicate edited by
 common controls and Advanced. Use the existing group AND/OR/NOT owner and a Record
@@ -1344,8 +1362,8 @@ IDs and the full predicate/generation. Negative absence and failed Boolean branc
 have no invented occurrence evidence; preview limits do not truncate result roots.
 Existing unsupported count states remain honest, with count-free vocabulary retained.
 
-Keep relationship discovery actions inside the Related experience with its
-reference previews and full-result escapes. Result relationship evidence reuses
+Keep relationship discovery actions inside Explore beside its reference previews
+and primary Search links. Result relationship evidence reuses
 the shared Matches button/popover and its focus/dismissal behavior; do not expand
 a separate disclosure into each row. Source-to-target labels supply the useful
 evidence without a repeated Text reference label. Scope options use the existing
@@ -1451,7 +1469,9 @@ Essential creature ability and hazard rules remain inline through the shared
 bounded reading owner; additional reference navigation is explicit. HP mutations
 carry an explicit action, raw integer/addition/subtraction input and the read
 participant revision. Rust interprets formulas, damage/healing and correction
-intent. Damage and Heal accept signed raw amounts; Rust reverses the operation
+intent. Inline HP edits accept the same addition/subtraction formulas as Edit HP;
+clearing temporary HP submits a blank input that Rust interprets as zero.
+Damage and Heal accept signed raw amounts; Rust reverses the operation
 for a negative result. Enter in participant HP change submits Heal intent once
 (positive heals, negative damages). Enter remains inert in the Damage-only turn
 review. Unknown current HP disables amount operations
@@ -1521,9 +1541,9 @@ The roster owns one inset around its turn area, scrolling participant region and
 persistent Add/Roll initiative footer. Shared `WorkspaceLayout` keeps other
 workspaces' explicit collapse choices and browsing defaults.
 Encounter reference Drawers explicitly carry encounter context and omit
-owner-return captions and Related records; actual
+owner-return captions and Explore; actual
 reading-history Back and Original record provenance remain independent. Direct
-record pages retain owner context and Related records. Drawers use their native
+record pages retain owner context and Explore. Drawers use their native
 header and close control, with the document title shown once.
 Creature Lore rows use the authored title and signed modifier once. Actor spell
 lists display known authored casting rank, preserving an unavailable casting

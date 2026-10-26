@@ -543,167 +543,112 @@ test("semantic coverage, typed catalog and RollTables remain product surfaces", 
     fullPage: true,
   });
 });
-test("suggested variants compare authored details and Similar uses its real route", async ({
+test("versions compare complete records and Similar hands off to Search with browser history", async ({
   page,
 }) => {
+  const seed = "equipment-srd:7jolv0cuttvjI1JD";
   const relatedRequests: string[] = [];
   page.on("request", (request) => {
-    const path = new URL(request.url()).pathname;
-    if (path === "/api/related") {
-      relatedRequests.push(path);
-    }
+    if (new URL(request.url()).pathname === "/api/related")
+      relatedRequests.push(request.url());
   });
-  await page.goto("/records/equipment-srd%3A7jolv0cuttvjI1JD");
+  await page.goto(`/records/${seed}`);
   await expect(
-    page.getByRole("heading", {
-      name: "Wovenwood Shield (Minor)",
-      exact: true,
-    }),
+    page.getByRole("heading", { name: "Wovenwood Shield (Minor)", exact: true }),
   ).toBeVisible();
-  const related = page.getByRole("region", {
-    name: "Related records",
-    exact: true,
-  });
-  await expect(related.getByRole("tab")).toHaveCount(0);
-  expect(relatedRequests).toEqual([]);
-  const relatedResponse = page.waitForResponse(
+  expect(relatedRequests).toHaveLength(0);
+  const response = page.waitForResponse(
     (response) =>
       new URL(response.url()).pathname === "/api/related" &&
       response.request().method() === "POST",
   );
-  await related.getByRole("button", { name: "Related records", exact: true }).click();
-  const response = await relatedResponse;
-  expect(response.ok()).toBeTruthy();
-  const availability: RelatedRecordsView = await response.json();
-  expect(relatedRequests).toEqual(["/api/related"]);
+  await page
+    .getByRole("button", { name: "Explore related records", exact: true })
+    .click();
+  const availability: RelatedRecordsView = await (await response).json();
   expect(availability.variants.kind).toBe("content");
-  await related.getByRole("tab", { name: "Variants", exact: true }).click();
-  await expect(
-    related.getByText(
-      /These records share a naming pattern and compatible source facts|These suggestions are uncertain; compare the records/,
-    ),
-  ).toBeVisible();
-  await page.getByRole("combobox", { name: "Compare variant", exact: true }).click();
-  await page
-    .locator(".atlas-select-popup:visible")
-    .getByText("Wovenwood Shield (Moderate)", { exact: true })
-    .click();
-  const comparison = page.getByRole("dialog");
-  await expect(
-    comparison.getByRole("heading", {
-      name: "Wovenwood Shield (Minor)",
-      exact: true,
-    }),
-  ).toBeVisible();
-  await expect(
-    comparison.getByRole("heading", {
-      name: "Wovenwood Shield (Moderate)",
-      exact: true,
-    }),
-  ).toBeVisible();
-  await expect(comparison).not.toHaveClass(/ant-zoom/);
-  await expect(
-    comparison.getByRole("button", { name: "Related records", exact: true }),
-  ).toHaveCount(0);
-  await expect(comparison.getByText("85 gp", { exact: true })).toBeVisible();
-  await expect(comparison.getByText("850 gp", { exact: true })).toBeVisible();
-  await page.screenshot({
-    path: "../../scratch/browser-validation/variant-comparison.png",
-    fullPage: true,
+  const explore = page.getByRole("region", { name: "Explore record", exact: true });
+  await explore.getByRole("tab", { name: "Versions", exact: true }).click();
+  const variant = explore.locator(".reference-result").filter({
+    has: page.getByRole("link", { name: /^Wovenwood Shield \(Moderate\)/ }),
   });
-  await comparison.getByRole("button", { name: "Close", exact: true }).click();
-  await expect(comparison).not.toBeVisible();
-  await page.getByRole("combobox", { name: "Compare variant", exact: true }).click();
-  await page
-    .locator(".atlas-select-popup:visible")
-    .getByText("Wovenwood Shield (Moderate)", { exact: true })
-    .click();
+  const compare = variant.getByRole("button", { name: "Compare", exact: true });
+  await compare.click();
+  const dialog = page.getByRole("dialog", { name: "Variant comparison", exact: true });
   await expect(
-    comparison.getByRole("heading", {
-      name: "Wovenwood Shield (Moderate)",
-      exact: true,
-    }),
+    dialog.getByRole("heading", { name: "Wovenwood Shield (Minor)", exact: true }),
   ).toBeVisible();
-  await comparison.getByRole("button", { name: "Close", exact: true }).click();
-  await expect(comparison).not.toBeVisible();
-  if (availability.references.kind === "content") {
-    await related.getByRole("tab", { name: "References", exact: true }).click();
-    const graph = availability.references.content;
-    const referenceHrefs = await related
-      .locator("a[href]")
-      .evaluateAll((links) => links.map((link) => (link as HTMLAnchorElement).href));
-    for (const occurrence of graph.backlinks.occurrences) {
-      expect(
-        referenceHrefs.some((href) => {
-          const url = new URL(href);
-          const selection = url.searchParams.get("selection");
-          return (
-            decodeURIComponent(url.pathname) ===
-              "/records/" + occurrence.source_navigation.record_key &&
-            selection !== null &&
-            JSON.stringify(JSON.parse(selection)) ===
-              JSON.stringify(occurrence.source_navigation)
-          );
-        }),
-      ).toBeTruthy();
-    }
-  } else {
-    await expect(
-      related.getByRole("tab", { name: "References", exact: true }),
-    ).toHaveCount(0);
-  }
+  await expect(
+    dialog.getByRole("heading", { name: "Wovenwood Shield (Moderate)", exact: true }),
+  ).toBeVisible();
+  await expect(dialog.getByText("85 gp", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("850 gp", { exact: true })).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Explore related records", exact: true }),
+  ).toHaveCount(0);
+  await dialog.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(compare).toBeFocused();
+  await compare.press("Enter");
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(compare).toBeFocused();
   const similarResponse = page.waitForResponse(
     (response) =>
       new URL(response.url()).pathname === "/api/search/page" &&
       response.request().postDataJSON()?.criteria?.kind === "similar_records",
   );
-  await related.getByRole("button", { name: "Similar records", exact: true }).click();
-  const similarResult = await similarResponse;
-  expect(similarResult.ok()).toBeTruthy();
-  const similar: SearchResultsPage = await similarResult.json();
+  await explore.getByRole("tab", { name: "Similar", exact: true }).click();
+  const similar: SearchResultsPage = await (await similarResponse).json();
   expect(similar.mode.kind).toBe("similar_records");
   expect(similar.page.size).toBe(5);
-  expect(
-    similar.rows.every(
-      (row) => row.record.record_key !== "equipment-srd:7jolv0cuttvjI1JD",
-    ),
-  ).toBeTruthy();
+  expect(similar.rows.every((row) => row.record.record_key !== seed)).toBe(true);
+  await expect(explore.locator(".reference-result")).toHaveCount(similar.rows.length);
   await expect(
-    related.getByRole("button", { name: "About these suggestions" }),
+    explore.getByRole("button", { name: /Next page|See more/i }),
   ).toHaveCount(0);
-  await related.getByRole("link", { name: "See more similar records" }).click();
-  await expect(page).toHaveURL(/\/search\?similar=/);
+  const search = explore.getByRole("link", {
+    name: "Search similar records",
+    exact: true,
+  });
+  await expect(search).not.toHaveClass(/ant-btn-primary/);
+  await search.click();
+  expect(new URL(page.url()).searchParams.get("similar")).toBe(seed);
   await expect(
-    page.getByText("Similar to Wovenwood Shield (Minor)", { exact: true }),
-  ).toBeVisible();
+    page.getByRole("searchbox", { name: "Similar search", exact: true }),
+  ).toHaveValue("Wovenwood Shield (Minor)");
   await expect(page.getByText("Top matches", { exact: true })).toBeVisible();
   await page.reload();
   await expect(
-    page.getByText("Similar to Wovenwood Shield (Minor)", { exact: true }),
+    page.getByRole("searchbox", { name: "Similar search", exact: true }),
+  ).toHaveValue("Wovenwood Shield (Minor)");
+  await page.goBack();
+  await expect(
+    explore.getByRole("tab", { name: "Similar", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await page.goBack();
+  await expect(
+    page.getByRole("button", { name: "Explore related records", exact: true }),
   ).toBeVisible();
+  await expect(explore).not.toBeVisible();
+  await page.goForward();
+  await expect(
+    explore.getByRole("tab", { name: "Similar", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await search.click();
+  await page
+    .getByRole("button", { name: "Clear similar criterion", exact: true })
+    .click();
+  await expect(page).not.toHaveURL(/similar=/);
   await page
     .getByRole("searchbox", { name: "Search records", exact: true })
     .fill("dragon");
   await page
     .getByRole("searchbox", { name: "Search records", exact: true })
     .press("Enter");
-  await expect(page).not.toHaveURL(/similar=/);
-  await page.goBack();
-  await expect(page).toHaveURL(/similar=/);
-  await expect(
-    page.getByText("Similar to Wovenwood Shield (Minor)", { exact: true }),
-  ).toBeVisible();
-  await page.goForward();
   await expect(
     page.getByRole("searchbox", { name: "Search records", exact: true }),
   ).toHaveValue("dragon");
-  await page.goBack();
-  await page.getByRole("button", { name: "Clear similar criterion" }).click();
-  await expect(page).not.toHaveURL(/similar=/);
-  await page.screenshot({
-    path: "../../scratch/browser-validation/similar.png",
-    fullPage: true,
-  });
 });
 test("missing keys and malformed selected routes report errors", async ({ page }) => {
   await page.goto("/records/spells-srd%3A0000000000000000");

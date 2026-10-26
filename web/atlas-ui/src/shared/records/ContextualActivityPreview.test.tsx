@@ -245,7 +245,7 @@ it("renders a complete casting entry, its local spell roster, and one title thro
   expect(screen.getByRole("link", { name: /Local Fireball/ })).toBeVisible();
   expect(screen.queryByRole("heading", { name: "Description" })).toBeNull();
   expect(screen.queryByText("Reference")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Related records" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Explore related records" })).toBeNull();
   expect(api.getRecordDetail).not.toHaveBeenCalled();
 });
 
@@ -347,7 +347,9 @@ it.each([
     await waitFor(() =>
       expect(screen.getByText(/Exact local Jaws prose/)).toBeVisible(),
     );
-    expect(screen.queryByRole("button", { name: "Related records" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Explore related records" }),
+    ).toBeNull();
     expect(api.getRelatedRecords).not.toHaveBeenCalled();
     expect(api.searchPage).not.toHaveBeenCalled();
   },
