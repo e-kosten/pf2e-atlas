@@ -1207,7 +1207,9 @@ test("named parties add everyone directly and archive views stay separate", asyn
     await page.goto(`/encounters/${encounter.slug}`);
     const add = page.getByRole("button", { name: "Add participants", exact: true });
     if (!info.project.use.hasTouch) {
+      await expect(add).toBeEnabled();
       await add.focus();
+      await expect(add).toBeFocused();
       await page.keyboard.press("Enter");
       await expect(
         page.getByRole("menu", { name: "Add participants", exact: true }),

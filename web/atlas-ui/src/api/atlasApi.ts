@@ -44,8 +44,21 @@ import type {
   UpdateEncounterRequest,
   UpdateSavedListRequest,
 } from "../generated/atlas";
+import {
+  API_CONTRACT,
+  API_CONTRACT_HEADER,
+  checkResponseCompatibility,
+  clearCompatibilityFailure,
+  getCompatibilityFailure,
+} from "./compatibility";
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_BASE ?? "";
+
+export async function verifyBackendCompatibility(): Promise<true> {
+  await atlasFetch("/api/compatibility", { cache: "no-store" });
+  clearCompatibilityFailure();
+  return true;
+}
 
 export class AtlasApiError extends Error {
   readonly appError?: AppError;
@@ -816,13 +829,25 @@ export async function reorderSavedListItem(
 }
 
 async function atlasFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const failure = getCompatibilityFailure();
+  if (failure && path !== "/api/compatibility") throw failure;
+  const headers = new Headers(init.headers);
+  headers.set("Content-Type", "application/json");
+  headers.set(API_CONTRACT_HEADER, API_CONTRACT);
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init.headers,
-    },
+    headers,
   });
+  // Preserve genuine proxy/service failures while rejecting old successful APIs
+  // before attempting to interpret their DTOs. Old servers return 404 here.
+  if (
+    response.headers.has(API_CONTRACT_HEADER) ||
+    response.ok ||
+    response.status === 409 ||
+    (path === "/api/compatibility" && response.status === 404)
+  ) {
+    checkResponseCompatibility(response);
+  }
   const text = await response.text();
   const parsed = parseJsonResponse(text);
   const payload = parsed.ok ? parsed.value : undefined;

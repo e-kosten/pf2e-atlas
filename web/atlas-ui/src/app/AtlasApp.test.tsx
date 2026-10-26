@@ -48,6 +48,7 @@ const apiMocks = vi.hoisted(() => ({
   discoverFilterEditor: vi.fn(),
   discoverFilterValues: vi.fn(),
   getReadiness: vi.fn(),
+  verifyBackendCompatibility: vi.fn(),
   getRecordDetail: vi.fn(),
   getRelatedRecords: vi.fn(),
   getSavedLists: vi.fn(),
@@ -60,6 +61,7 @@ vi.mock("../api/atlasApi", async (original) => ({
   discoverFilterEditor: apiMocks.discoverFilterEditor,
   discoverFilterValues: apiMocks.discoverFilterValues,
   getReadiness: apiMocks.getReadiness,
+  verifyBackendCompatibility: apiMocks.verifyBackendCompatibility,
   getRecordDetail: apiMocks.getRecordDetail,
   getRelatedRecords: apiMocks.getRelatedRecords,
   getSavedLists: apiMocks.getSavedLists,
@@ -75,6 +77,7 @@ describe("AtlasApp routing", () => {
     window.sessionStorage.clear();
     history.replaceState(null, "", "/search");
     apiMocks.getReadiness.mockResolvedValue(readinessFixture());
+    apiMocks.verifyBackendCompatibility.mockResolvedValue(true);
     apiMocks.discoverFilterEditor.mockResolvedValue(emptyFilterEditor());
     apiMocks.discoverFilterValues.mockResolvedValue({
       field_id: "kind",

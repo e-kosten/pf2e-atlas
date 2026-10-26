@@ -6,6 +6,11 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Reusable development baseline](items/development-baseline.md)
+  PR85 and PR86 delivered validated executable/workspace seeds, isolated
+  missing-only initialization, provenance, and explicit candidate selection.
+  Refresh and retention use the contributor workflow. Status: done.
+
 - [Product color system](items/product-color-system.md)
   PR108 delivered the Parchment and Oxblood light identity, warmer Oxblood and
   Brass dark identity, centralized theme roles, semantic rarity and HP colors,
