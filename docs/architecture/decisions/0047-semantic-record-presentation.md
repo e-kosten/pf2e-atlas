@@ -194,9 +194,14 @@ resources; encounter casting is a separate mutable workflow under ADR 0048.
 Verified rank changes carry app-service field/component provenance relative to
 the same owned spell's authored base. A successful preview is not a statement of
 complete heightening coverage; absent patches cannot establish rank independence.
-The browser renders a small persistent marker with base context in an Ant Tooltip,
-including hover, keyboard focus, touch activation and local Escape dismissal.
-Unchanged facts and unavailable calculations do not receive an applied-change marker.
+The browser makes the changed fact an underlined explanation button using the
+shared Ant Popover composition. Activation by click, tap, Enter or Space opens
+brief base context; hover/focus highlights the fact without opening it. Local
+Escape dismisses the explanation before its surrounding Drawer. Encounter
+calculations use the same explanation cue while retaining their cause/value
+tables. This cue indicates available context, including overridden modifiers or
+cancellations; rank explanations still require verified changes. Unchanged spell
+facts and unavailable calculations do not receive an applied-change cue.
 
 Read-only casting forms compose supported authored overrides before using the
 same heightening owner. Their displayed differences compare against the primary

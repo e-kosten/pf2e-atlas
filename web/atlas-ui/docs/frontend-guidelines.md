@@ -376,17 +376,33 @@ available before its description and authored Heightened paragraphs. Preserve
 both authored prose and typed heightening; do not parse or deduplicate one against
 the other.
 
-Use `SpellRankMarker` beside facts with backend-supplied rank-change provenance.
-Its persistent small marker opens an Ant Tooltip on hover, keyboard focus or tap;
-Escape dismisses that explanation before a surrounding Drawer. Keep the current
-fact inline and put its base value and useful scaling context in the tooltip.
-For Fireball at rank 5, mark 10d6 fire with base rank 3: 6d6 fire and +2d6 per rank.
-Allfood marks its changed target. Compare against the selected copy's base, not
-the previously viewed rank or a replacement compendium record. Do not mark a row
-merely because rank was selected, imply completeness through color, or hide an
-unavailable fact or unresolved choice in a tooltip. Prose remains authored even
-when a nearby structured fact changes. Casting-form differences use the selected
-rank; raw form patches with an unavailable preview retain their local explanation.
+Use `ValueExplanation` for readable values with optional calculation or source
+context. A thin neutral underline is the persistent cue; hover and keyboard focus
+change the value and line to Ant's semantic link-hover color. Click, tap, Enter or
+Space opens the anchored explanation. Hover and focus alone do not open it.
+Escape closes this explanation before a surrounding Drawer; close returns focus
+unless the user deliberately moved elsewhere. Opening it must not reflow the fact.
+
+For example, adjusted AC and condition-modified saves open their existing
+cause/value tables. Keep applied, overridden and contextual entries even when
+modifiers cancel or the final number is unchanged. The cue means explanation
+available, not necessarily a net change. Keep a useful calculation title, but do
+not repeat a neighboring fact heading above a one-line explanation. Unavailable
+facts remain explicit; the underline is not a substitute for an error or choice.
+Do not wrap another control in `ValueExplanation`: condition names and trait pills
+keep their native rule links, HP retains its editing cue, and action-spending
+chips remain direct actions. A changed trait group can use an adjacent underlined
+"Trait changes" explanation rather than hijacking each trait's destination.
+
+Use `SpellRankValue` around facts with backend-supplied rank-change provenance.
+Fireball's rank-5 damage reads 10d6 fire; activating it shows only
+"Base rank: 6d6 fire". Allfood's changed target uses the same cue. Compare against
+the selected copy's base, not the previously viewed rank or a replacement
+compendium record. Do not underline an unchanged spell fact merely because rank
+was selected, imply complete heightening coverage through color, or hide an
+unresolved choice in the explanation. Prose remains authored even when a nearby
+structured fact changes. Casting-form differences use the selected rank; raw
+form patches with an unavailable preview retain their local explanation.
 
 Omit the renderer-added Description heading when a simple record has
 one principal description field. Battle Medicine then reads Prerequisites,

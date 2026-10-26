@@ -413,7 +413,7 @@ describe("semantic family presentation", () => {
       );
       const signed = ["Fortitude", "Reflex", "Will", "Stealth"].includes(label);
       const control = screen.getByRole("button", {
-        name: `Show explanation for ${label}`,
+        name: new RegExp(`Show explanation for ${label}:`),
       });
       expect(control.closest(".record-fact")).toHaveTextContent(signed ? "+11" : "11");
       fireEvent.click(control);
@@ -631,10 +631,10 @@ describe("semantic family presentation", () => {
       /category|materials|modifier|Empty|Cleared/,
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "Heightening details for Damage" }),
+      screen.getByRole("button", { name: /Heightening details for Damage:/ }),
     );
-    expect(await screen.findByRole("tooltip")).toHaveTextContent(
-      "Base rank 1: 1d8+8 vitality; healing",
+    expect(await screen.findByRole("dialog")).toHaveTextContent(
+      "Base rank: 1d8+8 vitality; healing",
     );
   });
 

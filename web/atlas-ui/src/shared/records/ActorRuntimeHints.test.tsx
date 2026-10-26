@@ -123,7 +123,7 @@ it("separates current reactions and Stunned restrictions from the next-turn acti
   expect(within(turn).getByText("Cannot act or react · Stunned")).toBeVisible();
   expect(within(turn).getByText("At turn start")).toBeVisible();
   expect(
-    within(turn).getByRole("button", { name: "Show explanation for Actions" }),
+    within(turn).getByRole("button", { name: /Show explanation for Actions:/ }),
   ).toHaveTextContent("2 actions");
   expect(within(turn).getByText("Lost to Stunned")).toBeVisible();
   expect(within(turn).queryByText("Reactions now")).toBeNull();
@@ -157,6 +157,6 @@ it("retains an unavailable reaction count beside a current restriction", () => {
   const turn = screen.getByRole("region", { name: "Turn" });
   expect(within(turn).getByText("Reactions now")).toBeVisible();
   expect(
-    within(turn).getByRole("button", { name: "Show explanation for Reactions" }),
+    within(turn).getByRole("button", { name: /Show explanation for Reactions:/ }),
   ).toHaveTextContent("Needs review");
 });

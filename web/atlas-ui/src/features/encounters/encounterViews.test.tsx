@@ -1005,7 +1005,7 @@ describe("encounter views", () => {
     ).toBeNull();
     expect(
       within(runtimeSection).getByRole("button", {
-        name: "Actions: calculation details",
+        name: /Actions: calculation details:/,
       }),
     ).toBeVisible();
     expect(
@@ -1018,7 +1018,7 @@ describe("encounter views", () => {
     expect(within(movementSection).getAllByText("Speed").length).toBeGreaterThan(0);
     expect(within(movementSection).getByText("15 feet")).toBeInTheDocument();
     expect(
-      within(movementSection).getByLabelText("Show explanation for Speed"),
+      within(movementSection).getByLabelText(/Show explanation for Speed:/),
     ).toBeInTheDocument();
     const activitiesSection = screen
       .getByRole("heading", { name: "Strikes" })

@@ -506,8 +506,8 @@ it("keeps sense summaries concise and explains contextual Perception beside its 
   expect(screen.queryByText(/Availability unknown|Confirm the target/)).toBeNull();
   expect(screen.queryByText(/Perception \+11/)).toBeNull();
   expect(screen.getByText("Perception").parentElement).toHaveTextContent("+11");
-  const info = screen.getByRole("button", { name: "Show explanation for Perception" });
-  expect(info).toHaveTextContent("");
+  const info = screen.getByRole("button", { name: /Show explanation for Perception:/ });
+  expect(info).toHaveTextContent("+11");
   fireEvent.click(info);
   await waitFor(() =>
     expect(screen.getByText(/If vision is your only precise sense/)).toBeVisible(),
@@ -620,7 +620,7 @@ it.each([
     );
     expect(screen.queryByText("Stride, Strike")).toBeNull();
     fireEvent.click(
-      screen.getByRole("button", { name: "Show explanation for Actions" }),
+      screen.getByRole("button", { name: /Show explanation for Actions:/ }),
     );
     const calculation = within(
       await screen.findByRole("region", { name: "Actions calculation" }),
