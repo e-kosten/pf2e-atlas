@@ -94,20 +94,33 @@ impl AtlasAppService {
         if let Some(saved) = &saved_boundary {
             retain_outgoing_frightened(&mut participant, saved);
         }
-        let subject = if action_needs_source(&request.action) {
+        let subject = if action_needs_source(&request.action)
+            || (matches!(
+                request.action,
+                ConditionLifecycleActionView::StunnedActionsLost { .. }
+            ) && participant
+                .turn_resources
+                .as_ref()
+                .is_none_or(|r| r.pending_reason.is_some() || !r.actions_open))
+        {
             workflow::condition_subject_context(self, &participant)?
         } else {
             workflow::ConditionSubjectContext::from_saved(&participant)
         };
         let selected_pending = pending_for_action(&pending, &request.action);
         validate_action(&participant, &request.action)?;
-        let offer =
-            rules::lifecycle::available_actions(&participant, subject.fortitude, &pending, &[])
-                .into_iter()
-                .find(|offer| rules::lifecycle::matches_action(&offer.action, &request.action))
-                .ok_or_else(|| {
-                    AppServiceError::invalid_request("Recovery action is no longer available")
-                })?;
+        let offer = rules::lifecycle::available_actions(
+            &participant,
+            subject.fortitude,
+            &pending,
+            &[],
+            &subject.source_actions,
+        )
+        .into_iter()
+        .find(|offer| rules::lifecycle::matches_action(&offer.action, &request.action))
+        .ok_or_else(|| {
+            AppServiceError::invalid_request("Recovery action is no longer available")
+        })?;
         let check = prepare_check(&request.action, &offer.action)?;
         // Validate source decisions and prepare consequences once, before any RNG.
         let planned = rules::lifecycle::prepare_lifecycle(
@@ -115,6 +128,7 @@ impl AtlasAppService {
             &request.action,
             selected_pending,
             &request.request_id,
+            &subject.source_actions,
         )?;
         let claims = if matches!(
             request.action,
@@ -268,6 +282,7 @@ impl AtlasAppService {
                 source.fortitude,
                 &pending,
                 &effective_claims,
+                &source.source_actions,
             );
             for option in &mut options {
                 if matches!(
@@ -289,9 +304,16 @@ impl AtlasAppService {
             options
         };
         let mut actions = options(&workflow::ConditionSubjectContext::from_saved(participant));
-        let needs_source = actions
-            .iter()
-            .any(|option| offer_needs_source(&option.action));
+        let needs_source = actions.iter().any(|option| {
+            offer_needs_source(&option.action)
+                || (matches!(
+                    option.action,
+                    ConditionRecoveryOfferView::StunnedActionsLost { .. }
+                ) && participant
+                    .turn_resources
+                    .as_ref()
+                    .is_none_or(|r| r.pending_reason.is_some() || !r.actions_open))
+        });
         if boundary.is_none() && needs_source {
             match workflow::condition_subject_context(self, participant) {
                 Ok(source) => actions = options(&source),
@@ -307,8 +329,22 @@ impl AtlasAppService {
                     ) {
                         return Err(error.into());
                     }
-                    // Hints and table outcomes remain usable without reference
-                    // statistics; only the integrated roll requires those facts.
+                    // Other hints and table outcomes remain usable. An unrecorded
+                    // action allowance cannot be guessed for Stunned resolution.
+                    for option in &mut actions {
+                        if let ConditionRecoveryOfferView::StunnedActionsLost {
+                            actions_lost, ..
+                        } = &mut option.action
+                            && participant
+                                .turn_resources
+                                .as_ref()
+                                .is_none_or(|r| r.pending_reason.is_some() || !r.actions_open)
+                        {
+                            *actions_lost = None;
+                            option.available = false;
+                            option.unavailable_reason = Some("This creature's action allotment is unavailable. Refresh reference data before resolving Stunned.".into());
+                        }
+                    }
                 }
             }
         }

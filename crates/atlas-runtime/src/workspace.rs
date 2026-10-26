@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 13;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 15;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -85,6 +85,18 @@ const MIGRATIONS: &[Migration] = &[
         sql: atlas_local_state::CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 14,
+        name: "party-member-levels",
+        sql: atlas_local_state::PARTY_LEVELS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 15,
+        name: "encounter-difficulty",
+        sql: atlas_local_state::ENCOUNTER_DIFFICULTY_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -116,7 +128,7 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atlas_local_state::{LocalStateRead, LocalStateWrite, NewEncounter, NewSavedList};
+    use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
 
     #[test]
     fn consumed_application_upgrade_preserves_markers_receipts_and_saved_state() {
@@ -137,22 +149,34 @@ mod tests {
             INSERT INTO encounter_condition_applications VALUES(1,'actor','removed-application','condition',99);
             INSERT INTO encounter_event_receipts VALUES(1,'kept-request','{}','{"version":1,"payload":{}}');
         "#).unwrap();
-        let before = LocalStateWrite::new(&write)
-            .encounters()
-            .get_with_participants("kept")
-            .unwrap()
-            .unwrap();
+        // Read the old schema directly: current domain readers require all current columns.
+        let snapshot = |connection: &rusqlite::Connection| {
+            connection.query_row("SELECT name,status,round_number,current_turn_participant_key,revision FROM encounters WHERE encounter_key='kept'", [], |row| Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?,row.get::<_,i64>(2)?,row.get::<_,String>(3)?,row.get::<_,i64>(4)?))).unwrap()
+        };
+        let before = snapshot(write.connection());
         write.commit().unwrap();
         let upgraded = initialize_workspace(&path).unwrap();
         {
             let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+            assert_eq!(snapshot(read.connection()), before);
+            let detail = LocalStateRead::new(&read)
+                .encounters()
+                .get_with_participants("kept")
+                .unwrap()
+                .unwrap();
+            assert_eq!(detail.encounter.difficulty_reference, Default::default());
             assert_eq!(
-                LocalStateRead::new(&read)
-                    .encounters()
-                    .get_with_participants("kept")
-                    .unwrap()
-                    .unwrap(),
-                before
+                (
+                    detail.participants[0].current_hp,
+                    detail.participants[0].max_hp,
+                    detail.participants[0].temporary_hp,
+                    detail.participants[0].revision
+                ),
+                (Some(13), Some(20), 3, 5)
+            );
+            assert_eq!(
+                detail.participants[0].conditions[0].note.as_deref(),
+                Some("Keep note")
             );
             let mut statement = read.connection().prepare("SELECT application_id,condition_id FROM encounter_condition_applications ORDER BY application_id").unwrap();
             let markers = statement
@@ -282,18 +306,11 @@ mod tests {
         let workspace = Workspace::at(&path).unwrap();
         workspace.migrate(&MIGRATIONS[..10], |_| Ok(())).unwrap();
         let write = workspace.write(10).unwrap();
-        let encounter = LocalStateWrite::new(&write)
-            .encounters()
-            .create(NewEncounter {
-                slug: "retained".into(),
-                name: "Retained".into(),
-                description: None,
-                note: None,
-            })
-            .unwrap();
-        write.connection().execute("INSERT INTO encounter_participants (encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,temporary_hp,created_at,updated_at) SELECT id,'retained-actor','pc',1,'PC',1,20,13,3,'now','now' FROM encounters WHERE encounter_key=?1",[&encounter.encounter_key]).unwrap();
-        write.connection().execute("INSERT INTO encounter_event_receipts SELECT id,'retained-request','{}','{\"version\":1,\"payload\":{}}' FROM encounters WHERE encounter_key=?1",[&encounter.encounter_key]).unwrap();
-        write.connection().execute("INSERT INTO encounter_boundary_claims SELECT id,'retained-actor',4,'persistent_damage','','retained-request' FROM encounters WHERE encounter_key=?1",[&encounter.encounter_key]).unwrap();
+        write.connection().execute("INSERT INTO encounters(encounter_key,slug,name,status,round_number,created_at,updated_at) VALUES('retained-key','retained','Retained','draft',1,'now','now')",[]).unwrap();
+        let encounter_key = "retained-key";
+        write.connection().execute("INSERT INTO encounter_participants (encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,temporary_hp,created_at,updated_at) SELECT id,'retained-actor','pc',1,'PC',1,20,13,3,'now','now' FROM encounters WHERE encounter_key=?1",[encounter_key]).unwrap();
+        write.connection().execute("INSERT INTO encounter_event_receipts SELECT id,'retained-request','{}','{\"version\":1,\"payload\":{}}' FROM encounters WHERE encounter_key=?1",[encounter_key]).unwrap();
+        write.connection().execute("INSERT INTO encounter_boundary_claims SELECT id,'retained-actor',4,'persistent_damage','','retained-request' FROM encounters WHERE encounter_key=?1",[encounter_key]).unwrap();
         write.commit().unwrap();
         let workspace = initialize_workspace(&path).unwrap();
         let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
@@ -329,15 +346,7 @@ mod tests {
                 tags: vec![],
             })
             .unwrap();
-        state
-            .encounters()
-            .create(NewEncounter {
-                slug: "ambush".into(),
-                name: "Ambush".into(),
-                description: None,
-                note: None,
-            })
-            .unwrap();
+        write.connection().execute("INSERT INTO encounters(encounter_key,slug,name,status,round_number,created_at,updated_at) VALUES('ambush-key','ambush','Ambush','draft',1,'now','now')",[]).unwrap();
         write.commit().unwrap();
         let workspace = initialize_workspace(&path).unwrap();
         let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
@@ -470,6 +479,7 @@ mod tests {
             .create(
                 "Party",
                 &[atlas_local_state::PartyMemberInput {
+                    level: None,
                     member_key: None,
                     name: "PC".into(),
                 }],
@@ -497,16 +507,18 @@ mod tests {
             .unwrap();
         workspace.migrate(&MIGRATIONS[..index], |_| Ok(())).unwrap();
         let write = workspace.write(MIGRATIONS[index - 1].version).unwrap();
-        let party = LocalStateWrite::new(&write)
-            .parties()
-            .create(
-                "Kept party",
-                &[atlas_local_state::PartyMemberInput {
-                    member_key: None,
-                    name: "Kept PC".into(),
-                }],
-            )
-            .unwrap();
+        // Seed the old schema directly; current services require the current migration.
+        write.connection().execute_batch("INSERT INTO parties(party_key,name) VALUES('kept-party','Kept party'); INSERT INTO party_members(member_key,party_key,position,name) VALUES('kept-member','kept-party',0,'Kept PC');").unwrap();
+        let party = atlas_local_state::Party {
+            party_key: "kept-party".into(),
+            name: "Kept party".into(),
+            revision: 0,
+            members: vec![atlas_local_state::PartyMember {
+                member_key: "kept-member".into(),
+                name: "Kept PC".into(),
+                level: None,
+            }],
+        };
         write.connection().execute_batch("INSERT INTO encounters(id,encounter_key,slug,name,status,note,created_at,updated_at) VALUES(1,'kept','kept','Kept encounter','running','Keep encounter note','before','before');
             INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,created_at,updated_at) VALUES(1,1,'pc','pc',0,'Kept PC',0,20,13,'before','before');
             INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,created_at,updated_at) VALUES(2,1,'creature','creature',1,'Kept creature',1,'before','before');

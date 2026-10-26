@@ -358,3 +358,104 @@ it("shows a detail-free persistent condition without an internal Reminder label 
   expect(screen.queryByText(/Reminder/)).toBeNull();
   expect(row?.querySelector(".encounter-condition-meta")).toBeNull();
 });
+
+it("keeps inherited conditions read-only and preserves distinct rules and exact source links", () => {
+  const source = {
+    record_key: "actors:aaaaaaaaaaaaaaaa",
+    embedded_path: [{ collection: "/items", identity: { Stable: "bbbbbbbbbbbbbbbb" } }],
+    field: null,
+    passage: null,
+    source_fingerprint: "source-fingerprint",
+  };
+  const current = encounterParticipant({
+    turn_resources: {
+      action_calculation: {
+        kind: "next_turn",
+        count: {
+          label: "Actions",
+          base_value: 3n,
+          adjusted_value: 2n,
+          segments: [],
+          adjustments: [],
+          suppressed_adjustments: [],
+        },
+      },
+      turn_key: null,
+      round_number: null,
+      regular_total: null,
+      regular_remaining: null,
+      extra_total: null,
+      extra_remaining: null,
+      extra_uses: [],
+      reactions_total: null,
+      reactions_remaining: null,
+      start_results: [],
+      pending_reason: null,
+      can_edit_actions: false,
+      can_spend_actions: { available: false },
+      can_spend_reactions: { available: true },
+      forecast: {
+        label: "Actions",
+        base_value: 3n,
+        adjusted_value: 2n,
+        segments: [],
+        adjustments: [],
+        suppressed_adjustments: [],
+      },
+      inherent_conditions: {
+        entries: [
+          {
+            name: "Slowed",
+            has_value: true,
+            value: 1n,
+            condition_ref: "conditionitems:xYTAsEpcJE1Ccni3",
+            source_name: "Slow",
+            source,
+          },
+        ],
+        unavailable_reason: null,
+      },
+    },
+  });
+  const onReference = vi.fn(),
+    onRemove = vi.fn(),
+    onUpdate = vi.fn();
+  render(
+    <EncounterConditionControls
+      current={current}
+      encounterRef="encounter"
+      encounterRevision={1n}
+      disabled={false}
+      pending={false}
+      addDisabled={false}
+      conditionDefinitions={[]}
+      participants={[current]}
+      onAddCondition={vi.fn()}
+      onPreviewCondition={vi.fn()}
+      onUpdateCondition={onUpdate}
+      onRemoveCondition={onRemove}
+      onReference={onReference}
+    />,
+  );
+  expect(screen.queryByText("No conditions")).toBeNull();
+  expect(screen.getByText(/^Inherent/)).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: /Edit Slowed|Remove Slowed/ }),
+  ).toBeNull();
+  expect(screen.queryByRole("spinbutton")).toBeNull();
+  const rule = screen.getByRole("link", { name: "Slowed 1" });
+  fireEvent.click(rule);
+  expect(onReference).toHaveBeenCalledWith("conditionitems:xYTAsEpcJE1Ccni3", rule);
+  onReference.mockClear();
+  const provenance = screen.getByRole("link", { name: "Slow" });
+  expect(provenance).toHaveAttribute(
+    "href",
+    expect.stringContaining("records/actors:aaaaaaaaaaaaaaaa"),
+  );
+  fireEvent.click(provenance, { ctrlKey: true });
+  expect(onReference).not.toHaveBeenCalled();
+  fireEvent.click(provenance);
+  expect(onReference).toHaveBeenCalledWith(source.record_key, provenance, source);
+  expect(onRemove).not.toHaveBeenCalled();
+  expect(onUpdate).not.toHaveBeenCalled();
+});

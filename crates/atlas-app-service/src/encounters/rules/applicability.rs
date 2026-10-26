@@ -21,6 +21,31 @@ pub(in crate::encounters) struct ConditionImmunityFacts {
     pub authored_complete: bool,
     pub uncertain_types: Vec<&'static str>,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ConditionImmunityState {
+    Immune,
+    Conditional,
+    Unknown,
+    Available,
+}
+
+pub(super) fn condition_immunity(
+    facts: &ConditionImmunityFacts,
+    slug: &str,
+) -> ConditionImmunityState {
+    if facts.entries.iter().any(|immunity| {
+        immunity.slug == slug && immunity.coverage == ImmunityCoverage::Unconditional
+    }) {
+        ConditionImmunityState::Immune
+    } else if facts.entries.iter().any(|immunity| immunity.slug == slug) {
+        ConditionImmunityState::Conditional
+    } else if !facts.authored_complete || facts.uncertain_types.contains(&slug) {
+        ConditionImmunityState::Unknown
+    } else {
+        ConditionImmunityState::Available
+    }
+}
 impl From<Vec<ConditionImmunity>> for ConditionImmunityFacts {
     fn from(entries: Vec<ConditionImmunity>) -> Self {
         Self {
@@ -69,29 +94,18 @@ pub(in crate::encounters) fn condition_applicability(
             reason: "Broken Threshold is unavailable.".into(),
         });
     }
-    if facts.immunities.entries.iter().any(|immunity| {
-        immunity.slug == slug && immunity.coverage == ImmunityCoverage::Unconditional
-    }) {
-        return Some(EncounterConditionEligibilityView::Immune {
+    Some(match condition_immunity(&facts.immunities, slug) {
+        ConditionImmunityState::Immune => EncounterConditionEligibilityView::Immune {
             reason: format!("Immune to {}.", condition.name.to_ascii_lowercase()),
-        });
-    }
-    if facts
-        .immunities
-        .entries
-        .iter()
-        .any(|immunity| immunity.slug == slug)
-    {
-        return Some(EncounterConditionEligibilityView::NeedsContext {
+        },
+        ConditionImmunityState::Conditional => EncounterConditionEligibilityView::NeedsContext {
             reason: "Confirm whether the condition immunity's exceptions apply.".into(),
-        });
-    }
-    if !facts.immunities.authored_complete || facts.immunities.uncertain_types.contains(&slug) {
-        return Some(EncounterConditionEligibilityView::NeedsContext {
+        },
+        ConditionImmunityState::Unknown => EncounterConditionEligibilityView::NeedsContext {
             reason: "Condition immunities are unavailable.".into(),
-        });
-    }
-    Some(EncounterConditionEligibilityView::Available)
+        },
+        ConditionImmunityState::Available => EncounterConditionEligibilityView::Available,
+    })
 }
 
 #[cfg(test)]

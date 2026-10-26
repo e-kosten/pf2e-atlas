@@ -31,7 +31,10 @@ pub use encounters::{
     StoredStrikeOutcome, StoredStrikeReceipt, StoredStrikeRoll, UpdateEncounter,
     UpdateEncounterParticipant, UpdateEncounterParticipantCondition, WakingRule,
 };
-pub use encounters::{SavedOutgoingTurn, TurnResourceEffect, TurnResources};
+pub use encounters::{
+    EncounterDifficultyReference, SavedOutgoingTurn, TurnActionAdjustment, TurnActionAllocation,
+    TurnResourceEffect, TurnResources,
+};
 pub use error::{LocalStateError, LocalStateResult};
 pub use saved_lists::{
     AddSavedListItemOutcome, HydratedSavedListItem, ImportSavedList, ImportSavedListItem,
@@ -42,8 +45,9 @@ pub use saved_lists::{
 pub use schema::TURN_RESOURCES_SCHEMA_SQL;
 pub use schema::{
     CONDITION_SYSTEM_SCHEMA_SQL, CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL,
-    ENCOUNTER_STATUS_SCHEMA_SQL, HAZARD_PARTICIPATION_SCHEMA_SQL, LOCAL_STATE_SCHEMA_SQL,
-    PARTIES_SCHEMA_SQL, PERSISTENT_PREPARATION_SCHEMA_SQL,
+    ENCOUNTER_DIFFICULTY_SCHEMA_SQL, ENCOUNTER_STATUS_SCHEMA_SQL, HAZARD_PARTICIPATION_SCHEMA_SQL,
+    LOCAL_STATE_SCHEMA_SQL, PARTIES_SCHEMA_SQL, PARTY_LEVELS_SCHEMA_SQL,
+    PERSISTENT_PREPARATION_SCHEMA_SQL,
 };
 pub use slug::derive_slug;
 pub use store::{LocalStateRead, LocalStateWrite};

@@ -72,14 +72,14 @@ pub(super) fn read_encounter_reference(
         vec![],
         r,
     )?;
-    let baseline = super::rules::source_baseline(
+    let baseline = super::hydration::source_baseline(
         &source.source,
-        r.source_fingerprint(),
+        r,
         selected
             .selected
             .spell_rank
             .map(|rank| (selected.selected.owners.as_slice(), rank)),
-    )
+    )?
     .ok_or_else(|| {
         AppServiceError::invalid_request("this participant has no actor runtime context")
     })?;

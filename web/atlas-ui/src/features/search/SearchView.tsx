@@ -117,7 +117,10 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
         onRefreshResults={workspace.refreshResults}
         loading={loading}
         selectedRecordKey={workspace.selectedRecordKey}
-        onSelect={(row) => workspace.selectRecord(row.record.record_key)}
+        onSelect={(row, request) => {
+          workspace.selectRecord(row.record.record_key);
+          workspace.reading.select(request);
+        }}
         reading={workspace.reading}
         positions={workspace.positions}
         resultsHeader={<ResultPaneHeader workspace={workspace} />}

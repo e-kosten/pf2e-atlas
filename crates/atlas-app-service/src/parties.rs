@@ -83,6 +83,7 @@ impl AtlasAppService {
                 .members
                 .into_iter()
                 .map(|member| AddEncounterParticipant {
+                    level_override: member.level,
                     spell_resources: vec![],
                     participant_variant: ParticipantVariant::Normal,
                     hp_origin: ParticipantHpOrigin::Unknown,
@@ -117,6 +118,7 @@ fn member_inputs(
         .map(|m| atlas_local_state::PartyMemberInput {
             member_key: m.member_key,
             name: m.name,
+            level: m.level,
         })
         .collect()
 }
@@ -131,6 +133,7 @@ fn party_view(party: atlas_local_state::Party) -> PartyView {
             .map(|m| PartyMemberView {
                 member_key: m.member_key,
                 name: m.name,
+                level: m.level,
             })
             .collect(),
     }

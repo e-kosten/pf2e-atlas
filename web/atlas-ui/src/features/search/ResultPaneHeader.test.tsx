@@ -299,6 +299,7 @@ function workspace(
       restoringHistory: false,
       back: vi.fn(),
       detail: undefined,
+      parentDetail: undefined,
       landing: undefined,
       error: null,
       loading: false,

@@ -342,7 +342,10 @@ describe("encounter views", () => {
       conditionDefinitionsFixture(),
     );
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
-      Promise.resolve(recordDetailFixture(recordKey)),
+      Promise.resolve({
+        ...recordDetailFixture(recordKey),
+        artifact_generation: "generation-a",
+      }),
     );
     apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
       ...searchResultsFixture(),
@@ -602,6 +605,131 @@ describe("encounter views", () => {
     expect(rosterRow("Kyra")).toHaveClass("encounter-roster__row--current");
   });
 
+  it.each([
+    { name: "Goblin", key: "participant_a", neighbor: "Kyra", only: false },
+    { name: "Kyra", key: "participant_b", neighbor: "Goblin", only: false },
+    { name: "Goblin", key: "participant_a", neighbor: null, only: true },
+  ])(
+    "removes $name directly and restores adjacent focus (only=$only)",
+    async ({ name, key, neighbor, only }) => {
+      if (only)
+        setEncounterDetail({
+          ...serverEncounter,
+          participants: [serverEncounter.participants[0]],
+        });
+      let complete!: () => void;
+      apiMocks.removeEncounterParticipant.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            complete = () => {
+              const participants = serverEncounter.participants.filter(
+                (p) => p.participant_key !== key,
+              );
+              serverEncounter = {
+                ...serverEncounter,
+                participants,
+                current_turn_participant_key: participants[0]?.participant_key,
+              };
+              resolve({ encounter_key: "encounter_ambush" });
+            };
+          }),
+      );
+      render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+        wrapper: queryClientWrapper(),
+      });
+      const remove = await screen.findByRole("button", {
+        name: `Remove ${name}`,
+      });
+      remove.focus();
+      fireEvent.click(remove);
+      fireEvent.click(remove);
+      await waitFor(() =>
+        expect(apiMocks.removeEncounterParticipant).toHaveBeenCalledExactlyOnceWith(
+          "encounter_ambush",
+          key,
+        ),
+      );
+      expect(screen.queryByRole("dialog", { name: `Remove ${name}?` })).toBeNull();
+      expect(remove).toBeDisabled();
+      expect(remove).toBeInTheDocument();
+      await act(async () => complete());
+      await waitFor(() => expect(remove).not.toBeInTheDocument());
+      if (neighbor)
+        expect(
+          rosterRow(neighbor).querySelector("[data-participant-key]"),
+        ).toHaveFocus();
+      else
+        expect(screen.getByRole("button", { name: "Add participants" })).toHaveFocus();
+      expect(apiMocks.removeEncounterParticipant).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("retains a failed direct removal and permits retry on the same button", async () => {
+    apiMocks.removeEncounterParticipant.mockRejectedValueOnce(
+      new Error("Removal did not save"),
+    );
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const remove = await screen.findByRole("button", {
+      name: "Remove Goblin",
+    });
+    remove.focus();
+    fireEvent.click(remove);
+    await screen.findByText("Removal did not save");
+    expect(within(rosterRow("Goblin")).getByRole("alert")).toHaveTextContent(
+      "Try removing again.",
+    );
+    expect(remove).toBeInTheDocument();
+    expect(remove).toHaveFocus();
+    await waitFor(() => expect(remove).toBeEnabled());
+    expect(screen.queryByRole("dialog", { name: "Remove Goblin?" })).toBeNull();
+    apiMocks.removeEncounterParticipant.mockImplementationOnce(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        participants: [serverEncounter.participants[1]],
+        current_turn_participant_key: "participant_b",
+      };
+      return { encounter_key: "encounter_ambush" };
+    });
+    fireEvent.click(remove);
+    await waitFor(() =>
+      expect(apiMocks.removeEncounterParticipant).toHaveBeenCalledTimes(2),
+    );
+    await waitFor(() => expect(remove).not.toBeInTheDocument());
+  });
+
+  it("retries a committed removal's refresh without repeating the removal", async () => {
+    apiMocks.removeEncounterParticipant.mockImplementation(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        participants: [serverEncounter.participants[1]],
+        current_turn_participant_key: "participant_b",
+      };
+      apiMocks.getEncounter.mockRejectedValueOnce(new Error("Refresh disconnected"));
+      return { encounter_key: "encounter_ambush" };
+    });
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const remove = await screen.findByRole("button", {
+      name: "Remove Goblin",
+    });
+    remove.focus();
+    fireEvent.click(remove);
+    const retry = await screen.findByRole("button", {
+      name: "Retry encounter refresh",
+    });
+    expect(remove).toBeDisabled();
+    expect(remove).toBeInTheDocument();
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(remove).not.toBeInTheDocument());
+    expect(apiMocks.removeEncounterParticipant).toHaveBeenCalledOnce();
+    // Retry now owns focus; a completed removal must not steal it back to a row.
+    expect(rosterRow("Kyra").querySelector("[data-participant-key]")).not.toHaveFocus();
+  });
+
   it("advances turns from the roster play control", async () => {
     const { unmount } = render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -686,7 +814,9 @@ describe("encounter views", () => {
         wrapper: queryClientWrapper(),
       });
       await screen.findByLabelText("HP summary");
-      const roster = container.querySelector<HTMLElement>(".encounter-roster")!;
+      const roster = container.querySelector<HTMLElement>(
+        ".encounter-roster__participants",
+      )!;
       roster.scrollTop = 85;
       fireEvent.click(roster.querySelector('[data-participant-key="participant_a"]')!);
       const back = await screen.findByRole("button", { name: "Back to roster" });
@@ -1120,7 +1250,7 @@ describe("encounter views", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     const dialog = await screen.findByRole("dialog", { name: "Settings" });
-    await selectOption(within(dialog).getByRole("combobox"), "complete");
+    await selectOption(within(dialog).getByRole("combobox"), "Complete");
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(apiMocks.updateEncounter).toHaveBeenCalled());
@@ -1547,7 +1677,16 @@ describe("encounter views", () => {
 
     const goblinOption = await within(dialog).findByText("Goblin Warrior");
     fireEvent.click(goblinOption.closest("a")!);
-    expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled();
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled(),
+    );
+    await waitFor(() =>
+      expect(within(dialog).getByText("Normal", { exact: true })).toBeVisible(),
+    );
+    await selectOption(
+      within(dialog).getByRole("combobox", { name: "Adjustment" }),
+      "Elite",
+    );
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "2" },
     });
@@ -1568,6 +1707,7 @@ describe("encounter views", () => {
         record_ref: "actors:goblin",
         quantity: 2,
         initiative: 18n,
+        participant_variant: "elite",
       }),
     );
     await waitFor(() =>
@@ -1575,9 +1715,7 @@ describe("encounter views", () => {
     );
     expect(within(dialog).getByLabelText("Initiative")).toHaveValue("");
     expect(search).toHaveValue("goblin");
-    expect(within(dialog).getByRole("status")).toHaveTextContent(
-      "Added 2 × Goblin Warrior.",
-    );
+    expect(within(dialog).getByText("Added 2 × Goblin Warrior.")).toBeVisible();
     expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled();
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "3" },
@@ -1627,6 +1765,9 @@ describe("encounter views", () => {
     fireEvent.change(search, { target: { value: "goblin" } });
     fireEvent.keyDown(search, { key: "Enter", keyCode: 13 });
     fireEvent.click((await within(dialog).findByText("Goblin Warrior")).closest("a")!);
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled(),
+    );
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "2" },
     });
@@ -1645,9 +1786,7 @@ describe("encounter views", () => {
       expect(within(dialog).getByLabelText("Quantity")).toHaveValue("1"),
     );
     expect(within(dialog).getByLabelText("Initiative")).toHaveValue("");
-    expect(within(dialog).getByRole("status")).toHaveTextContent(
-      "Added 2 × Goblin Warrior.",
-    );
+    expect(within(dialog).getByText("Added 2 × Goblin Warrior.")).toBeVisible();
     expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledOnce();
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "4" },
@@ -2872,6 +3011,9 @@ function turnResourcesFixture(
   current = true,
 ): TurnResourcesView {
   return {
+    action_calculation: current
+      ? { kind: "this_turn", count: forecast, changes: [] }
+      : { kind: "next_turn", count: forecast },
     turn_key: "turn:test",
     round_number: 1n,
     regular_total: actions,
@@ -2898,6 +3040,22 @@ function encounterDetailFixture(
   firstParticipantOverrides: Partial<EncounterParticipantView> = {},
 ): EncounterDetailViewDto {
   return {
+    difficulty: {
+      rules: [],
+      reference: { party_level: null, party_size: null },
+      party_level: null,
+      party_size: null,
+      pc_count: 0,
+      basis: "Choose party reference.",
+      reference_note: null,
+      total_xp: null,
+      known_xp: 0,
+      xp_per_pc: null,
+      award_note: null,
+      rating: null,
+      budgets: [],
+      opposition: [],
+    },
     revision: 0n,
     artifact_generation: "test-generation",
     encounter: encounterIndexFixture().encounters[0],
@@ -3181,6 +3339,7 @@ function recordDetailFixture(recordKey: string): RecordDetailView {
     recordKey.startsWith("conditionitems:") ? "Frightened Condition" : "Goblin Warrior",
     "rules:linked",
   );
+  result.encounter_adjustment = "normal";
   const body = result.presentation.content[0]?.body;
   if (body?.kind === "html")
     body.html = body.html.replace("Nested Rule", "Linked Rule");
@@ -3194,7 +3353,11 @@ function deferred<T>() {
     resolve = yes;
     reject = no;
   });
-  return { promise, resolve, reject };
+  return {
+    promise,
+    resolve,
+    reject,
+  };
 }
 
 async function openHpEditor(target = "Current HP") {

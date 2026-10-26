@@ -220,6 +220,14 @@ impl RetrievalExecutor {
     }
 
     #[cfg(test)]
+    pub(super) fn remaining_submission_budget(&self) -> Option<usize> {
+        *self
+            .submission_budget
+            .lock()
+            .expect("test submission budget")
+    }
+
+    #[cfg(test)]
     pub(super) fn from_fixture_workers(worker_count: usize, queue_capacity: usize) -> Self {
         use crate::test_support::fixture_retrieval;
 

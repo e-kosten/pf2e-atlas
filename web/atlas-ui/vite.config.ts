@@ -2,9 +2,14 @@ import { fileURLToPath, URL } from "node:url";
 import react from "@vitejs/plugin-react";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { defineConfig } from "vitest/config";
+import { atlasApiContract } from "./apiContract.ts";
 
 export default defineConfig({
-  plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react()],
+  plugins: [
+    atlasApiContract(),
+    tanstackRouter({ target: "react", autoCodeSplitting: true }),
+    react(),
+  ],
   build: {
     rolldownOptions: {
       output: {

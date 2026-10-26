@@ -403,7 +403,11 @@ content must not bring another card into an overlay. For example, Battle Medicin
 in a Drawer has one reading surface, not a padded surround and nested card. The
 shared RecordPresentation arranges facts/prose and adds no outer padding. An
 encounter pane owns the inset around its product-specific content. Header/footer
-insets align with their body. A section supplies internal gaps, not another body
+insets align with their body: encounter pane bars and bodies inherit
+`--encounter-pane-inset`; browse headers and content inherit `--browse-pane-inset`.
+Include decorative borders inside that total inset, so selected and unselected
+result titles align with Results. Do not give a header its own smaller gutter.
+A section supplies internal gaps, not another body
 inset. Do not repair nesting with negative margins or arbitrary local padding.
 
 A single-entity page starts with the entity name and its actions. Do not put a
@@ -1014,6 +1018,18 @@ fingerprint, artifact refresh epoch or encounter-context change. An explicit
 generation mismatch invalidates retained content. `RelatedRecords` is the shared
 secondary disclosure inside that pane.
 
+Record pickers prepare a new candidate through the shared exact reading query,
+then commit its selection and displayed document together. Keep Goblin selected
+and readable while Ogre loads; disable Add until the swap completes. Do not select
+Ogre while showing Goblin's facts or borrow Goblin into Ogre's cache. Fast swaps
+have no blank loading frame; slow requests show Loading plus the requested name
+inside the existing header without changing its height. A local failure offers
+Retry and Cancel, which restores access to the current candidate. Preserve form
+drafts and deliberately focused inputs through completion. Abandoned, closed or
+retired requests cannot commit later; validate the expected collection generation
+before caching a prepared document. Ordinary direct navigation still uses its
+own initial loading state rather than retaining an unrelated page.
+
 Spell headers show the supplied classification/rank as static text, with a muted
 Change rank button and an anchored Ant menu. The menu identifies the base rank;
 do not repeat a Base rank caption beside the trigger. For an owned spell it exposes
@@ -1419,6 +1435,18 @@ Whole-list deletion and saved-member removal use the shared contextual danger
 confirmation and await their action. Keep membership/order semantics in the list
 owner; do not reconstruct undo from a partial display snapshot.
 
+An encounter's Add-preview meter can retain its last complete, named what-if
+scenario while the next selection loads. Keep its caption and values together
+for fast replacements; if the request takes longer, replace only the caption with
+Updating… while retaining the bar and total. Do not flash Previous between every
+quantity edit, relabel retained values as the new candidate, or reset the bar to
+the saved total between selections. A failure identifies the previous scenario
+and offers Retry. Start selection requests immediately, debounce typing, and
+count the slow-feedback delay from the request rather than the typing pause. Retain
+only within the same encounter revision, artifact generation and party settings;
+a new basis must not reuse an older calculation. A completed unavailable result
+remains unavailable rather than retaining a previous total as if it were current.
+
 Encounter detail and edit routes use `useEncounterMutations` as their route-local
 command owner. Keep controls pending through the write and canonical-key refresh;
 do not maintain optimistic HP, condition, or participant copies. A successful
@@ -1441,9 +1469,12 @@ gameplay derivation in Rust; the browser submits explicit edit intent and revisi
 
 ### Encounter reading context
 
-Encounter composition permits collapsing the roster only; its participant reader
-stays available and fills the remaining pane. Shared `WorkspaceLayout` accepts
-explicit collapsible pane identities without changing other browsing defaults.
+Encounter roster and participant panes stay available without collapse controls;
+the splitter still resizes them. Use the shared pane-header action slot for the
+compact text-button difficulty summary, with party settings inside its calculator.
+The roster owns one inset around its turn area, scrolling participant region and
+persistent Add/Roll initiative footer. Shared `WorkspaceLayout` keeps other
+workspaces' explicit collapse choices and browsing defaults.
 Encounter reference Drawers explicitly carry encounter context and omit
 owner-return captions and Related records; actual
 reading-history Back and Original record provenance remain independent. Direct
@@ -1494,9 +1525,15 @@ members writes their persisted positions, including unavailable records, without
 changing their snapshots or notes. Drag previews retain the complete member layout.
 Current turn uses the strong filled row treatment with `aria-current` and
 an accessible label; preview selection uses a separate outline. Each row's
-actions menu offers Set turn; the adjacent removal control retains confirmation.
-Cancelling a secondary dialog
-returns focus to its visible menu trigger. Fade defeated and disabled-hazard names and facts without dimming
+actions menu offers Set turn. The adjacent removal control acts directly, without
+confirmation, for creatures, hazards and PCs. Keep its accessible participant name,
+prevent repeat/competing writes, and retain the row on failure. Remove a row only
+after canonical refresh; a failed post-write refresh offers Retry without repeating
+the removal. When the focused row disappears, focus its next neighbor (previous for
+the last row), or Add when the roster is empty; preserve focus moved elsewhere
+while waiting. This encounter shortcut does not remove the confirmation for deleting
+an entire encounter or saved list. Cancelling a secondary dialog returns focus to
+its visible menu trigger. Fade defeated and disabled-hazard names and facts without dimming
 controls. Hazard Active/Disabled controls live beside the same participant HP/status
 controls; no HP display is required to disable or reactivate a hazard. Encounter-owned section spacing belongs under encounter styles; shared
 record CSS must not override HP borders, padding or encounter control spacing.

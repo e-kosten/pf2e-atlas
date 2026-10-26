@@ -259,6 +259,25 @@ pub(crate) fn read_record_detail(
         limit: 1024,
     })?;
     let mut view = RecordDetailView {
+        encounter_adjustment: request
+            .owners
+            .is_empty()
+            .then(|| {
+                crate::encounters::mechanics::initial_variant(&detail.source)
+                    .0
+                    .map(|variant| match variant {
+                        atlas_local_state::ParticipantVariant::Normal => {
+                            atlas_app_model::EncounterParticipantVariantView::Normal
+                        }
+                        atlas_local_state::ParticipantVariant::Elite => {
+                            atlas_app_model::EncounterParticipantVariantView::Elite
+                        }
+                        atlas_local_state::ParticipantVariant::Weak => {
+                            atlas_app_model::EncounterParticipantVariantView::Weak
+                        }
+                    })
+            })
+            .flatten(),
         artifact_generation: r.artifact_generation()?,
         record: summary,
         presentation,
