@@ -343,6 +343,19 @@ export function SearchPickerModal<FormValues>({
           layout="toolbar"
           searchRowEnd={
             <SearchSettings
+              seedTitle={
+                recordResults.data?.mode.kind === "similar_records" &&
+                request.criteria.kind === "similar_records" &&
+                recordResults.data.mode.seed.record_key ===
+                  request.criteria.seed_record_key
+                  ? recordResults.data.mode.seed.title
+                  : recordResults.data?.mode.kind === "similar_traits" &&
+                      request.criteria.kind === "similar_traits" &&
+                      recordResults.data.mode.trait_key ===
+                        request.criteria.seed_trait_key
+                    ? recordResults.data.mode.title
+                    : undefined
+              }
               search={
                 request.criteria.kind === "similar_records" ||
                 request.criteria.kind === "similar_traits"
