@@ -9,6 +9,85 @@ import {
   sentinel,
 } from "./reading";
 
+test("Explore keeps header geometry stable and restores mode and tab through browser history", async ({
+  page,
+}, info) => {
+  const key = "browser-rules:rule000000000001";
+  await page.goto(`/records/${key}`);
+  const exploreButton = page.getByRole("button", {
+    name: "Explore related records",
+    exact: true,
+  });
+  await expect(exploreButton).toBeVisible();
+  const tools = page.locator(".record-reference__tools");
+  const geometry = () =>
+    tools.evaluate((node) => {
+      const badge = node
+        .querySelector(".record-reference__kind")!
+        .getBoundingClientRect();
+      const buttons = [...node.querySelectorAll("button")].map((button) =>
+        button.getBoundingClientRect(),
+      );
+      return {
+        badge: { x: badge.x, y: badge.y, center: badge.y + badge.height / 2 },
+        buttons: buttons.map((rect) => ({
+          x: rect.x,
+          center: rect.y + rect.height / 2,
+          width: rect.width,
+          height: rect.height,
+        })),
+      };
+    });
+  const before = await geometry();
+  await activate(exploreButton, info);
+  const region = page.getByRole("region", { name: "Explore record", exact: true });
+  await expect(region).toBeVisible();
+  const after = await geometry();
+  expect(after).toEqual(before);
+  expect(after.buttons).toHaveLength(2);
+  expect(after.buttons[1].x - after.buttons[0].x - after.buttons[0].width).toBe(4);
+  for (const button of after.buttons) {
+    expect(button.width).toBe(34);
+    expect(button.height).toBe(34);
+    expect(Math.abs(button.center - after.badge.center)).toBeLessThanOrEqual(1);
+  }
+  await activate(region.getByRole("tab", { name: "Similar", exact: true }), info);
+  await expect(region.locator(".reference-result").first()).toBeVisible();
+  expect(await region.locator(".reference-result").count()).toBeLessThanOrEqual(5);
+  await expect(region.getByRole("button", { name: /Next page|See more/i })).toHaveCount(
+    0,
+  );
+  const search = region.getByRole("link", {
+    name: "Search similar records",
+    exact: true,
+  });
+  await expect(search).not.toHaveClass(/ant-btn-primary/);
+  const target = new URL((await search.getAttribute("href"))!, page.url());
+  expect(target.pathname).toBe("/search");
+  expect(target.searchParams.get("similar")).toBe(key);
+  await activate(search, info);
+  await expect(
+    page.getByRole("searchbox", { name: "Similar search", exact: true }),
+  ).toHaveValue("Signal Protocol");
+  await page.goBack();
+  await expect(
+    region.getByRole("tab", { name: "Similar", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.getByRole("button", { name: "Read document", exact: true }),
+  ).toBeVisible();
+  await page.goBack();
+  await expect(
+    page.getByRole("button", { name: "Explore related records", exact: true }),
+  ).toBeVisible();
+  await expect(region).not.toBeVisible();
+  await page.goForward();
+  await expect(
+    region.getByRole("tab", { name: "Similar", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await noPageOverflow(page);
+});
+
 test("variant comparison bounds complete documents on wide screens and stays reachable on touch layouts", async ({
   page,
 }, info) => {
@@ -49,20 +128,16 @@ test("variant comparison bounds complete documents on wide screens and stays rea
     await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto(`/records/${sourceKey}`);
   await activate(
-    page.getByRole("button", { name: "Related records", exact: true }),
+    page.getByRole("button", { name: "Explore related records", exact: true }),
     info,
   );
-  await activate(page.getByRole("tab", { name: "Variants", exact: true }), info);
-  const compare = page.getByRole("combobox", { name: "Compare variant", exact: true });
+  await activate(page.getByRole("tab", { name: "Versions", exact: true }), info);
+  const compare = page
+    .locator(".reference-result")
+    .filter({ has: page.locator(`[data-record-key="${targetKey}"]`) })
+    .getByRole("button", { name: "Compare", exact: true });
   await compare.scrollIntoViewIfNeeded();
   await activate(compare, info);
-  await expect(compare).toHaveAttribute("aria-expanded", "true");
-  await activate(
-    page
-      .locator(".ant-select-dropdown")
-      .getByText(target.record.title, { exact: true }),
-    info,
-  );
   const dialog = page.getByRole("dialog", { name: "Variant comparison", exact: true });
   await expect(dialog.getByRole("heading", { name: /^Signal Protocol/ })).toBeVisible();
   // Ant's prepare phase has no running animations yet, but the dialog is still

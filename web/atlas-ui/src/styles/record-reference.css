@@ -74,16 +74,25 @@
 }
 .record-reference__title {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px 16px;
+}
+.record-reference__tools {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-control) var(--space-group);
+  max-width: 100%;
+  margin-inline-start: auto;
 }
 .record-reference__classification {
   display: flex;
   align-items: flex-end;
   flex-direction: column;
   gap: 2px;
-  margin-inline-start: auto;
+  margin-inline-start: 0;
 }
 .record-reference__identity {
   flex: 1 1 12ch;
@@ -111,8 +120,12 @@
   font-size: 0.9rem;
   font-weight: 600;
 }
+.record-reference__header .record-reference__kind {
+  margin: 0 0 0 auto;
+}
+
 .record-reference__header--stacked .record-reference__title {
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-control) var(--space-group);
 }
 .record-reference__metadata {
@@ -129,6 +142,8 @@
   color: var(--muted);
 }
 .record-reference__actions {
+  display: flex;
+  align-items: center;
   min-width: 0;
   max-width: 100%;
   font-weight: normal;
@@ -253,19 +268,6 @@
   margin: 0;
 }
 @container record-pane (max-width: 420px) {
-  .record-reference__title .record-reference__actions {
-    order: 1;
-  }
-  .record-reference__title .record-reference__classification {
-    align-items: flex-start;
-    flex: 1 0 100%;
-    margin-inline-start: 0;
-    order: 2;
-  }
-  .record-reference__title .record-reference__classification > .record-reference__kind {
-    margin-inline-start: 0;
-    text-align: start;
-  }
   .prepared-content :is(th, td) {
     padding-inline: var(--space-control);
   }

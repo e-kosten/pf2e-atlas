@@ -1,5 +1,5 @@
 import { Button } from "antd";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
 
 export function EncounterHpValue({
@@ -7,18 +7,22 @@ export function EncounterHpValue({
   value,
   disabled,
   addLabel,
+  buttonRef,
   onCommit,
+  onRestoreFocus,
 }: {
   label: string;
   value?: bigint;
   disabled: boolean;
   addLabel?: string;
+  buttonRef?: RefObject<HTMLButtonElement | null>;
   onCommit: (input: string) => Promise<boolean>;
+  onRestoreFocus?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string>();
   const valueButton = useRef<HTMLButtonElement>(null);
+  const trigger = buttonRef ?? valueButton;
   const editor = useRef<HTMLSpanElement>(null);
   const returnFocus = useRef(false);
   const finishEditing = () => {
@@ -28,48 +32,43 @@ export function EncounterHpValue({
   useLayoutEffect(() => {
     if (!editing && returnFocus.current) {
       returnFocus.current = false;
-      valueButton.current?.focus({ preventScroll: true });
+      trigger.current?.focus({ preventScroll: true });
     }
-  }, [editing]);
+  }, [editing, trigger]);
   return editing ? (
-    <span ref={editor}>
+    <span ref={editor} className="encounter-hp-value__editor">
       <EditableCommitField
+        autoSize
         onCancel={() => {
           finishEditing();
-          setError(undefined);
         }}
         focusOnMount
         blurOnEnter={false}
         ariaLabel={label}
         className="encounter-hp-value__input"
         size="small"
-        inputMode="numeric"
         value={value?.toString() ?? ""}
         disabled={disabled && !saving}
         readOnly={saving}
         onCommit={async (input) => {
-          if (
-            input.trim() &&
-            (!/^\d+$/.test(input.trim()) || !Number.isSafeInteger(Number(input)))
-          ) {
-            setError("Enter a nonnegative whole number.");
-            throw new Error("Invalid HP");
-          }
-          setError(undefined);
+          const editingElement = editor.current;
+          const hadFocus = editingElement?.contains(document.activeElement);
           setSaving(true);
           try {
-            await onCommit(input);
-            finishEditing();
+            const refreshed = await onCommit(input);
+            if (editingElement?.isConnected) {
+              finishEditing();
+            }
+            if (refreshed && hadFocus) onRestoreFocus?.();
           } finally {
             setSaving(false);
           }
         }}
       />
-      {error && <span role="alert">{error}</span>}
     </span>
   ) : (
     <Button
-      ref={valueButton}
+      ref={trigger}
       size="small"
       color="default"
       variant={addLabel ? "outlined" : "filled"}

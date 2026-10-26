@@ -6,6 +6,7 @@ import {
 import { recordDestination } from "../../app/destinations";
 import { TraitBadge } from "./TraitBadge";
 import { Button } from "antd";
+import type { ReactNode } from "react";
 import type { RecordSummaryView } from "../../generated/atlas";
 import { RecordRarity } from "./RecordRarity";
 export function RecordBrowseSummary({
@@ -14,12 +15,14 @@ export function RecordBrowseSummary({
   disabled = false,
   onPreview,
   href,
+  context,
 }: {
   record: RecordSummaryView;
   selected: boolean;
   disabled?: boolean;
   onPreview: (anchor: HTMLElement) => void;
   href?: string;
+  context?: ReactNode;
 }) {
   const classification = [
     record.kind_label,
@@ -86,7 +89,7 @@ export function RecordBrowseSummary({
             event.preventDefault();
             const links = Array.from(
               event.currentTarget
-                .closest(".reference-results")
+                .closest('[role="list"], .reference-results')
                 ?.querySelectorAll<HTMLElement>("[data-record-key]") ?? [],
             );
             const index = links.indexOf(event.currentTarget);
@@ -110,6 +113,7 @@ export function RecordBrowseSummary({
           <RecordRarity rarity={record.rarity} />
           {record.unit_price_label && <span>{record.unit_price_label}</span>}
           <span>{record.publication ?? record.pack}</span>
+          {context && <span>{context}</span>}
         </div>
       </Button>
       {!!record.traits.length && (

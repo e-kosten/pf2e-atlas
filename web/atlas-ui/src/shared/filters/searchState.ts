@@ -9,6 +9,7 @@ import type {
 } from "../../generated/atlas";
 import { decodeFilterUrl, encodeFilterUrl } from "./filterUrl";
 export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
+export const SEARCH_SCOPE_CONFLICT = "Choose either Similar or trait references";
 export const UNKNOWN_SEARCH_RANKING = "Unknown search ranking";
 export const UNKNOWN_RESULT_SORT = "Unknown result order";
 export const INVALID_RESULT_SORT = "Choose an order available for this search";
@@ -18,6 +19,7 @@ export type SearchFormState = {
   query: string;
   mode: "browse" | "text_search" | "similar_records";
   similarSeed: string | null;
+  traitReferenceSeed?: string | null;
   filter: QueryPredicate | null;
   filterError: string | null;
   /** Transient URL recovery state, excluded from requests and execution identity. */
@@ -42,20 +44,42 @@ export function buildSearchRequest(
   search_profile?: string,
 ): SearchResultsRequest {
   if (state.filterError) throw new Error(state.filterError);
+  if (state.similarSeed && state.traitReferenceSeed)
+    throw new Error(SEARCH_SCOPE_CONFLICT);
   if (state.similarSeed && state.query.trim()) throw new Error(SIMILAR_QUERY_CONFLICT);
   const page = { number, size: state.pageSize };
   const sortRequest = state.sort ? { sort: state.sort } : {};
+  if (state.traitReferenceSeed)
+    return {
+      search_profile,
+      ...sortRequest,
+      page,
+      expected_artifact_generation,
+      ranking: state.ranking ?? "score",
+      criteria: {
+        kind: "trait_references",
+        trait_key: state.traitReferenceSeed,
+        query: state.query.trim() || null,
+        filter: state.filter,
+      },
+    };
   if (state.similarSeed)
     return {
       search_profile,
       ...sortRequest,
       page,
       expected_artifact_generation,
-      criteria: {
-        kind: "similar_records",
-        seed_record_key: state.similarSeed,
-        filter: state.filter,
-      },
+      criteria: state.similarSeed.startsWith("trait:")
+        ? {
+            kind: "similar_traits",
+            seed_trait_key: state.similarSeed,
+            filter: state.filter,
+          }
+        : {
+            kind: "similar_records",
+            seed_record_key: state.similarSeed,
+            filter: state.filter,
+          },
     };
   return {
     search_profile,
@@ -76,7 +100,10 @@ export function buildSearchRequest(
 export function hasExecutableSearch(state: SearchFormState): boolean {
   return (
     !state.filterError &&
-    (!!state.similarSeed || state.query.trim().length > 0 || state.filter !== null)
+    (!!state.similarSeed ||
+      !!state.traitReferenceSeed ||
+      state.query.trim().length > 0 ||
+      state.filter !== null)
   );
 }
 export function buildFilterDiscoveryContext(
@@ -118,6 +145,7 @@ export function encodeSearchExecutionState(
       sort: state.sort,
       query: state.query,
       similarSeed: state.similarSeed,
+      traitReferenceSeed: state.traitReferenceSeed,
       mode: state.mode,
       filter: state.filter,
       filterError: state.filterError,
@@ -135,6 +163,7 @@ export function searchStateQueryString(
   encodeResultSort(params, state.sort);
   if (state.query) params.set("q", state.query);
   if (state.similarSeed) params.set("similar", state.similarSeed);
+  if (state.traitReferenceSeed) params.set("trait_refs", state.traitReferenceSeed);
   if (state.filter) params.set("filter", encodeFilterUrl(state.filter));
   if (state.pageSize !== 25) params.set("limit", String(state.pageSize));
   return params.size ? "?" + params.toString() : "";
@@ -162,6 +191,7 @@ export function decodeSearchStateFromParams(
   const pageSize = Number(params.get("limit") || 25);
   const similarSeed = params.get("similar")?.trim() || null;
   if (similarSeed && params.get("q")?.trim()) filterError = SIMILAR_QUERY_CONFLICT;
+  if (similarSeed && params.get("trait_refs")) filterError = SEARCH_SCOPE_CONFLICT;
   const { sort, sortError } = decodeResultSort(
     params,
     surface,
@@ -174,6 +204,9 @@ export function decodeSearchStateFromParams(
     ...(sort ? { sort } : {}),
     query: params.get("q") || "",
     similarSeed,
+    ...(params.get("trait_refs")
+      ? { traitReferenceSeed: params.get("trait_refs") }
+      : {}),
     mode: similarSeed
       ? "similar_records"
       : params.get("q")?.trim()

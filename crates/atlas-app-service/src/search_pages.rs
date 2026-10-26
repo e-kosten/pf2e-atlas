@@ -17,12 +17,20 @@ impl AtlasAppService {
         let page = SearchPage::new(request.page.number, request.page.size)?;
         let sort = crate::result_order::search_sort(request.sort, &request.criteria)?;
         let projection_execution = execution.clone();
-        let prepared = if let SearchCriteria::TextSearch {
-            query,
-            filter,
-            mode,
-        } = &request.criteria
-        {
+        let query_request = match &request.criteria {
+            SearchCriteria::TextSearch {
+                query,
+                filter,
+                mode,
+            } => Some((query, filter, *mode)),
+            SearchCriteria::TraitReferences {
+                query: Some(query),
+                filter,
+                ..
+            } => Some((query, filter, atlas_app_model::RetrievalModeView::Hybrid)),
+            _ => None,
+        };
+        let prepared = if let Some((query, filter, mode)) = query_request {
             let expected = request.expected_artifact_generation.clone();
             let filter = filter.clone();
             self.with_retrieval(execution, move |r| {
@@ -41,11 +49,7 @@ impl AtlasAppService {
                 }
                 Ok(())
             })?;
-            self.prepare_query(
-                request.search_profile.as_ref(),
-                query,
-                retrieval_mode(*mode),
-            )?
+            self.prepare_query(request.search_profile.as_ref(), query, retrieval_mode(mode))?
         } else {
             None
         };
@@ -67,7 +71,9 @@ impl AtlasAppService {
             let filter = match &request.criteria {
                 SearchCriteria::ListRecords { filter }
                 | SearchCriteria::TextSearch { filter, .. }
-                | SearchCriteria::SimilarRecords { filter, .. } => filter.as_ref(),
+                | SearchCriteria::SimilarRecords { filter, .. }
+                | SearchCriteria::SimilarTraits { filter, .. }
+                | SearchCriteria::TraitReferences { filter, .. } => filter.as_ref(),
             };
             let relationship_summaries =
                 crate::relationship_search::prepare_filter(retrieval, filter)?;
@@ -108,6 +114,86 @@ impl AtlasAppService {
                         results.page,
                         Some(results.coverage),
                     )
+                }
+                SearchCriteria::SimilarTraits {
+                    seed_trait_key,
+                    filter,
+                } => {
+                    let key = seed_trait_key
+                        .parse::<atlas_domain::TraitKey>()
+                        .map_err(|error| AppServiceError::invalid_request(error.to_string()))?;
+                    let result = retrieval
+                        .similar_trait(atlas_search::SimilarTraitRequest {
+                            sort: sort.clone(),
+                            trait_key: &key,
+                            search_profile: request.search_profile.as_ref(),
+                            filter: filter.as_ref(),
+                            scope,
+                            page,
+                            prefer_remaster: true,
+                            ranking: request.ranking.unwrap_or_default(),
+                        })?
+                        .ok_or_else(|| {
+                            AppServiceError::invalid_request("Similar trait seed not found")
+                        })?;
+                    projection_execution.check()?;
+                    let mode = SearchModeSummary::SimilarTraits {
+                        trait_key: result.seed.key.to_string(),
+                        title: result.seed.label,
+                    };
+                    let results = search_results_view(result.results, retrieval);
+                    (mode, results.rows, results.page, Some(results.coverage))
+                }
+                SearchCriteria::TraitReferences {
+                    trait_key,
+                    query,
+                    filter,
+                } => {
+                    let key = trait_key
+                        .parse::<atlas_domain::TraitKey>()
+                        .map_err(|error| AppServiceError::invalid_request(error.to_string()))?;
+                    let definition = retrieval.trait_definition(&key)?.ok_or_else(|| {
+                        AppServiceError::invalid_request("Trait definition not found")
+                    })?;
+                    let keys = retrieval.trait_reference_record_keys(&key)?;
+                    let scope = RecordScope::Keys(&keys);
+                    let mode = SearchModeSummary::TraitReferences {
+                        trait_key,
+                        title: definition.label,
+                    };
+                    if let Some(query) = query {
+                        let result = retrieval.search_text(TextSearchRequest {
+                            sort: sort.clone(),
+                            ranking: request.ranking.unwrap_or_default(),
+                            search_profile: request.search_profile.as_ref(),
+                            query: &query,
+                            mode: atlas_search::RetrievalMode::Hybrid,
+                            filter: filter.as_ref(),
+                            scope,
+                            page,
+                            prefer_remaster: true,
+                        })?;
+                        projection_execution.check()?;
+                        let result = search_results_view(result, retrieval);
+                        (mode, result.rows, result.page, Some(result.coverage))
+                    } else {
+                        let result = retrieval.list_records(
+                            ListRecordsRequest::new(filter.as_ref(), page)
+                                .with_scope(scope)
+                                .with_sort(sort.clone()),
+                        )?;
+                        projection_execution.check()?;
+                        let rows = result
+                            .records
+                            .iter()
+                            .map(|record| SearchResultRow {
+                                relationship_evidence: vec![],
+                                record: localized_summary_view(record, retrieval),
+                                matches: vec![],
+                            })
+                            .collect();
+                        (mode, rows, search_page_view(result.page), None)
+                    }
                 }
                 SearchCriteria::ListRecords { filter } => {
                     let result = retrieval.list_records(

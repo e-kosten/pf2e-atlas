@@ -1,5 +1,183 @@
 import { expect, test } from "./fixtures";
 import { activate, noPageOverflow } from "./reading";
+
+test("inline HP formulas stay bounded without displacing facts or actions", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `HP formulas ${info.project.name} ${Date.now()}` },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    expect(
+      (
+        await page.request.post(`${path}/participants/manual`, {
+          data: {
+            encounter_ref: encounter.encounter_key,
+            display_name: "Formula Hero",
+            current_hp: 300,
+            max_hp: 500,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(
+      page.getByRole("button", { name: "Formula Hero", exact: true }),
+      info,
+    );
+    const current = page.getByRole("button", { name: "Edit Current HP", exact: true });
+    const panel = page.locator(".encounter-hp-panel");
+    const actions = panel.locator(".encounter-hp-panel__actions");
+    await expect(actions.getByRole("button")).toHaveCount(2);
+    await activate(current, info);
+    const input = page.getByRole("textbox", { name: "Current HP", exact: true });
+    const shortWidth = (await input.boundingBox())!.width;
+    const expectVisibleFormula = async (field: typeof input) => {
+      // WebKit reserves a couple of caret pixels within the leading padding.
+      const { overflow, hiddenStart } = await field.evaluate((node) => ({
+        overflow: node.scrollWidth - node.clientWidth,
+        hiddenStart:
+          Math.abs(node.scrollLeft) - parseFloat(getComputedStyle(node).paddingLeft),
+      }));
+      expect(overflow).toBeLessThanOrEqual(2);
+      expect(hiddenStart).toBeLessThanOrEqual(0);
+    };
+    // Check glyph visibility before the wider status group consumes the row cap.
+    for (const draft of ["300+300", "888+888"]) {
+      await input.fill("");
+      await input.pressSequentially(draft);
+      await expectVisibleFormula(input);
+    }
+    await input.press("Escape");
+    const state = await (await page.request.get(path)).json();
+    expect(
+      (
+        await page.request.patch(
+          `${path}/participants/${state.participants[0].participant_key}/life-settings`,
+          {
+            data: {
+              request_id: crypto.randomUUID(),
+              expected_encounter_revision: state.revision,
+              track_dying: false,
+            },
+          },
+        )
+      ).ok(),
+    ).toBeTruthy();
+    await page.reload();
+    await activate(
+      page.getByRole("button", { name: "Formula Hero", exact: true }),
+      info,
+    );
+    await activate(current, info);
+    await expect(actions.getByRole("button")).toHaveCount(3);
+    const actionPosition = (await actions.boundingBox())!;
+    const expectBoundedRow = async (field: typeof input) => {
+      const panelBounds = (await panel.boundingBox())!;
+      const fieldBounds = (await field.boundingBox())!;
+      const groupBounds = (await actions.boundingBox())!;
+      expect(fieldBounds.x).toBeGreaterThanOrEqual(panelBounds.x);
+      expect(fieldBounds.x + fieldBounds.width).toBeLessThanOrEqual(
+        panelBounds.x + panelBounds.width + 1,
+      );
+      expect(Math.abs(groupBounds.x - actionPosition.x)).toBeLessThan(2);
+      expect(Math.abs(groupBounds.y - actionPosition.y)).toBeLessThan(2);
+      const buttons = actions.getByRole("button");
+      await expect(buttons).toHaveCount(3);
+      for (const button of await buttons.all()) {
+        const bounds = (await button.boundingBox())!;
+        expect(bounds.x).toBeGreaterThanOrEqual(panelBounds.x);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(
+          panelBounds.x + panelBounds.width + 1,
+        );
+        expect(Math.abs(bounds.y - groupBounds.y)).toBeLessThan(2);
+      }
+      const maximum = (await panel.locator(".encounter-hp-maximum").boundingBox())!;
+      const values = panel.locator(".encounter-hp-panel__values");
+      const valuesBounds = (await values.boundingBox())!;
+      for (const fact of await values.locator(":scope > *").all()) {
+        const bounds = (await fact.boundingBox())!;
+        expect(bounds.x).toBeGreaterThanOrEqual(valuesBounds.x - 1);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(
+          valuesBounds.x + valuesBounds.width + 1,
+        );
+      }
+      if (!(await values.getByRole("textbox").count())) {
+        expect(fieldBounds.x).toBeGreaterThanOrEqual(
+          valuesBounds.x + valuesBounds.width,
+        );
+      }
+      expect(
+        Math.abs(
+          maximum.y + maximum.height / 2 - fieldBounds.y - fieldBounds.height / 2,
+        ),
+      ).toBeLessThan(3);
+      await noPageOverflow(page);
+    };
+    for (const draft of ["300+300", "888+888"]) {
+      await input.fill("");
+      await input.pressSequentially(draft);
+      await expectBoundedRow(input);
+    }
+    const formula = "300 - 10 + 5 - 2";
+    await input.fill(formula);
+    const grownWidth = (await input.boundingBox())!.width;
+    expect(grownWidth).toBeGreaterThan(shortWidth + 8);
+    await expectBoundedRow(input);
+    await input.fill(`300${"+1".repeat(180)}`);
+    await expectBoundedRow(input);
+    expect(await input.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(
+      true,
+    );
+    await input.fill("300");
+    expect((await input.boundingBox())!.width).toBeLessThan(grownWidth);
+    await input.press("Escape");
+    await expect(current).toHaveText("300");
+    await activate(current, info);
+    await input.fill(formula);
+    await input.press("Enter");
+    await expect(current).toHaveText("293");
+
+    await activate(
+      page.getByRole("button", { name: "Add temp HP", exact: true }),
+      info,
+    );
+    const temporary = page.getByRole("textbox", { name: "Temporary HP", exact: true });
+    await temporary.pressSequentially("300+300");
+    await expectVisibleFormula(temporary);
+    await expectBoundedRow(temporary);
+    await temporary.fill(`300${"+1".repeat(180)}`);
+    await expectBoundedRow(temporary);
+    expect(
+      await temporary.evaluate((node) => node.scrollWidth > node.clientWidth),
+    ).toBe(true);
+    await temporary.fill(formula);
+    await temporary.press("Enter");
+    const editTemporary = page.getByRole("button", {
+      name: "Edit Temporary HP",
+      exact: true,
+    });
+    await expect(editTemporary).toHaveText("293");
+    await activate(editTemporary, info);
+    await temporary.fill(`300${"+1".repeat(180)}`);
+    await expectBoundedRow(temporary);
+    await temporary.fill("");
+    await temporary.press("Enter");
+    await expect(
+      page.getByRole("button", { name: "Add temp HP", exact: true }),
+    ).toBeFocused();
+    const saved = await (await page.request.get(path)).json();
+    expect(saved.participants[0].current_hp).toBe(293);
+    expect(saved.participants[0].temporary_hp).toBe(0);
+    await noPageOverflow(page);
+  } finally {
+    expect((await page.request.delete(path)).ok()).toBeTruthy();
+  }
+});
+
 test("persistent form uses visible workarea, flat DC, accessible damage row and stable focused editing", async ({
   page,
 }, info) => {

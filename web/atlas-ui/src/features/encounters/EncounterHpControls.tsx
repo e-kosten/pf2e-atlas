@@ -3,7 +3,7 @@ import { NumberFact } from "../../shared/records/presentationFacts";
 import { EncounterModal } from "./EncounterModal";
 import { Button, Tooltip } from "antd";
 import { Pencil } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type {
   EncounterParticipantView,
   EncounterHpAction,
@@ -31,6 +31,26 @@ export function EncounterHpControls({
 }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [committed, setCommitted] = useState(false);
+  const addTemporaryButton = useRef<HTMLButtonElement>(null);
+  const [temporaryFocusRequest, setTemporaryFocusRequest] = useState<{
+    participantKey: string;
+    revision: bigint;
+  }>();
+  const restoredTemporaryFocus = useRef<typeof temporaryFocusRequest>(undefined);
+  useLayoutEffect(() => {
+    if (
+      !temporaryFocusRequest ||
+      restoredTemporaryFocus.current === temporaryFocusRequest ||
+      disabled
+    )
+      return;
+    const sameParticipant =
+      temporaryFocusRequest.participantKey === current.participant_key;
+    if (sameParticipant && temporaryFocusRequest.revision === current.revision) return;
+    restoredTemporaryFocus.current = temporaryFocusRequest;
+    if (sameParticipant && document.activeElement === document.body)
+      addTemporaryButton.current?.focus({ preventScroll: true });
+  }, [current.participant_key, current.revision, disabled, temporaryFocusRequest]);
   const hpKnown = current.current_hp !== undefined;
   const maxKnown = current.effective_max_hp.state === "value";
   const currentHp = asNumber(current.current_hp);
@@ -81,6 +101,12 @@ export function EncounterHpControls({
                   value={current.temporary_hp}
                   disabled={disabled}
                   onCommit={(input) => onAction({ kind: "set_temporary", input })}
+                  onRestoreFocus={() =>
+                    setTemporaryFocusRequest({
+                      participantKey: current.participant_key,
+                      revision: current.revision,
+                    })
+                  }
                 />
                 <span>temp</span>
               </>
@@ -91,6 +117,7 @@ export function EncounterHpControls({
               label="Temporary HP"
               value={0n}
               addLabel="Add temp HP"
+              buttonRef={addTemporaryButton}
               disabled={disabled}
               onCommit={(input) => onAction({ kind: "set_temporary", input })}
             />

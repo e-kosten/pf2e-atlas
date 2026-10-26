@@ -346,8 +346,9 @@ per-field/per-marker body reads. Reader connections stay on one generation while
 the writer atomically publishes later artifacts.
 
 App-service search pages reuse browse, text and stored-vector Similar retrieval.
-Similar mode carries the exact root seed and canonical filters, and returns a
-body-free seed summary beside bounded candidate pages. It adds no ranking lane or
+Record Similar carries the exact root seed and canonical filters, and returns a
+body-free seed summary beside bounded candidate pages. Trait Similar carries its
+typed trait key and projected label through the same search-page workflow. It adds no ranking lane or
 query embedding. Every request supplies its complete criteria, page and optional
 expected artifact generation. The generation check precedes embedding and ranking;
 a mismatch returns `ArtifactGenerationChanged` with HTTP409 and expected/actual
@@ -402,6 +403,14 @@ and typed variant checks apply only to roots. Variant checks retain their bounde
 source-snapshot compatibility verification; category discovery never runs Similar
 ranking. Responses and browser caches use the complete selection and immutable
 artifact-context hash, distinct from snapshot-local navigation fingerprints.
+
+Browser exploration previews are independent first-page Search requests limited
+to five rows. Full-result actions enter primary Search rather than an inline
+association pager. Typed trait Similar seeds reuse persisted trait vectors.
+Trait-reference searches obtain complete distinct owning-record eligibility from
+index evidence through search, then apply the ordinary predicates, ordering and
+paging. Exact contained-source membership remains distinct from a root trait
+filter. No browser preview supplies search eligibility.
 
 Relationship predicates share the ordinary AND/OR/NOT query tree and the stateless
 search-page workflow. Each exact selection has a direction, source-contents scope

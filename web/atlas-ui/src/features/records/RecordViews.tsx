@@ -7,10 +7,10 @@ import { recordLayout } from "../../shared/records/recordLayout";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { AddToListButton } from "../lists/AddToListButton";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
-import { RecordPresentationIdentity } from "../../shared/records/RecordPresentation";
 import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
+import { recordReadingIdentity } from "../../shared/records/useRetainedRecord";
 type RecordViewProps = {
   route: RecordPageInput;
 };
@@ -33,23 +33,11 @@ export function RecordView({ route }: RecordViewProps) {
   return (
     <>
       <main className="record-view">
-        <DocumentPagePane
-          layout={recordLayout(detail.data?.presentation)}
-          identity={
-            <RecordPresentationIdentity
-              presentation={detail.data?.presentation}
-              root={detail.data?.record}
-              selection={detail.data?.selected}
-              relationships={detail.data?.relationships}
-              onReference={preview.open}
-              onRankChange={changeRank}
-              actions={<AddToListButton recordKey={route.recordKey} />}
-            />
-          }
-        >
+        <DocumentPagePane layout={recordLayout(detail.data?.presentation)}>
           <RecordDetailPane
             sectionLanding={route.section}
-            identityInHost
+            identityActions={<AddToListButton recordKey={route.recordKey} />}
+            readingKey={recordReadingIdentity(route.recordKey, route.selection)}
             landing={
               route.landing?.record_key === route.recordKey ? route.landing : undefined
             }

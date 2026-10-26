@@ -4,6 +4,91 @@ import { encounterParticipant } from "./encounterTestFixtures";
 import { EncounterHpControls } from "./EncounterHpControls";
 import type { EncounterParticipantView } from "../../generated/atlas";
 
+it.each([
+  ["Current HP", "set_current"],
+  ["Temporary HP", "set_temporary"],
+])("submits inline %s arithmetic once on Enter", async (label, kind) => {
+  const onAction = vi.fn().mockResolvedValue(true);
+  render(
+    <EncounterHpControls
+      current={encounterParticipant({ temporary_hp: 300n })}
+      onAction={onAction}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: `Edit ${label}` }));
+  const input = screen.getByRole("textbox", { name: label });
+  fireEvent.change(input, { target: { value: "300-10" } });
+  fireEvent.keyDown(input, { key: "Enter" });
+  await waitFor(() =>
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({ kind, input: "300-10" }),
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("textbox", { name: label })).not.toBeInTheDocument(),
+  );
+});
+
+it.each(["before", "after"])(
+  "clears temporary HP with canonical rendering %s completion",
+  async (renderOrder) => {
+    const current = encounterParticipant({ temporary_hp: 5n });
+    const cleared = { ...current, temporary_hp: 0n, revision: current.revision + 1n };
+    const onAction = vi.fn().mockImplementation(async () => {
+      if (renderOrder === "before")
+        rerender(<EncounterHpControls current={cleared} onAction={onAction} />);
+      return true;
+    });
+    const { rerender } = render(
+      <EncounterHpControls current={current} onAction={onAction} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit Temporary HP" }));
+    const input = screen.getByRole("textbox", { name: "Temporary HP" });
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() =>
+      expect(onAction).toHaveBeenCalledExactlyOnceWith({
+        kind: "set_temporary",
+        input: "",
+      }),
+    );
+    if (renderOrder === "after") {
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Edit Temporary HP" })).toHaveFocus(),
+      );
+      rerender(<EncounterHpControls current={cleared} onAction={onAction} />);
+    }
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Add temp HP" })).toHaveFocus(),
+    );
+  },
+);
+
+it("retains a rejected inline formula for correction and retry", async () => {
+  const onAction = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("Invalid HP formula"))
+    .mockResolvedValue(true);
+  render(
+    <EncounterHpControls
+      current={encounterParticipant({ temporary_hp: 300n })}
+      onAction={onAction}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Edit Temporary HP" }));
+  const input = screen.getByRole("textbox", { name: "Temporary HP" });
+  fireEvent.change(input, { target: { value: "300-" } });
+  fireEvent.keyDown(input, { key: "Enter" });
+  await waitFor(() => expect(onAction).toHaveBeenCalledOnce());
+  await waitFor(() => expect(input).not.toHaveAttribute("readonly"));
+  expect(input).toHaveValue("300-");
+  fireEvent.change(input, { target: { value: "300-10" } });
+  fireEvent.keyDown(input, { key: "Enter" });
+  await waitFor(() => expect(onAction).toHaveBeenCalledTimes(2));
+  expect(onAction).toHaveBeenLastCalledWith({
+    kind: "set_temporary",
+    input: "300-10",
+  });
+});
+
 it("shows updated derived HP after a submitted edit and variant capacity change", async () => {
   const current: EncounterParticipantView = {
     revision: 0n,
