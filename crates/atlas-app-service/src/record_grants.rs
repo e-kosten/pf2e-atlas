@@ -87,11 +87,23 @@ pub(crate) fn attach(
     if destinations.is_empty() && unavailable.is_empty() && !truncated {
         return Ok(());
     }
+    let destinations = destinations
+        .into_iter()
+        .map(|navigation| {
+            RecordKey::parse(&navigation.record_key)
+                .map(|key| (navigation, key))
+                .map_err(|_| {
+                    crate::AppServiceError::new(
+                        atlas_app_model::AppErrorCode::ArtifactIncompatible,
+                        "A linked record has an invalid address.",
+                    )
+                })
+        })
+        .collect::<AppServiceResult<Vec<_>>>()?;
     let keys = destinations
         .iter()
-        .map(|nav| RecordKey::parse(&nav.record_key))
-        .collect::<Result<std::collections::BTreeSet<_>, _>>()
-        .expect("resolved relationship keys are canonical")
+        .map(|(_, key)| key.clone())
+        .collect::<std::collections::BTreeSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
     let summaries = retrieval
@@ -99,10 +111,10 @@ pub(crate) fn attach(
         .records;
     let locations = destinations
         .iter()
-        .filter(|nav| !nav.owners.is_empty())
-        .map(|nav| SourceUnitLocation {
+        .filter(|(nav, _)| !nav.owners.is_empty())
+        .map(|(nav, key)| SourceUnitLocation {
             unit_id: 0,
-            record: RecordKey::parse(&nav.record_key).expect("resolved relationship key"),
+            record: key.clone(),
             owners: nav.owners.clone(),
             field: None,
             address: None,
@@ -115,7 +127,7 @@ pub(crate) fn attach(
     let mut unavailable_count = unavailable.len();
     let entries = destinations
         .into_iter()
-        .filter_map(|navigation| {
+        .filter_map(|(navigation, _)| {
             let record = if navigation.owners.is_empty() {
                 let Some(summary) = summaries
                     .iter()
