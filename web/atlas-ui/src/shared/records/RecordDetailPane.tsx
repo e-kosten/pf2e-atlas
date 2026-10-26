@@ -45,10 +45,12 @@ export function RecordDetailPane({
   sectionLanding,
   identityActions,
   readingKey,
+  readingContext,
 }: {
   sectionLanding?: string;
   identityActions?: ReactNode;
   readingKey?: string;
+  readingContext?: ReactNode;
   detail: RecordDetailView | undefined;
   visibleOwnerRecordKey?: string;
   identityInHost?: boolean;
@@ -193,6 +195,7 @@ export function RecordDetailPane({
       >
         {detail ? (
           <>
+            {readingContext}
             <RecordPresentation
               sectionLanding={sectionLanding}
               identityInHost={identityInHost || showRelated}

@@ -129,6 +129,11 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
               : "Search or choose filters."
         }
         rows={workspace.resultPage?.rows ?? []}
+        query={
+          workspace.resultPage?.mode.kind === "text_search"
+            ? workspace.resultPage.mode.query
+            : undefined
+        }
         relationshipClauses={workspace.resultPage?.relationship_clauses}
         filter={workspace.resultFilter}
         generation={workspace.resultPage?.artifact_generation}
