@@ -42,6 +42,7 @@ import {
   similarityPreferences,
 } from "./similarityState";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
+import { HelpTooltip } from "../ui/HelpTooltip";
 
 type SettingsDraft = {
   model: string | null;
@@ -150,7 +151,7 @@ export function SearchSettings({
   const summary = [
     modelLabel,
     seed
-      ? similarityLabel(appliedSimilarity)
+      ? similarityLabel(appliedSimilarity, trait)
       : ranking === "rrf"
         ? "Rank-based ranking"
         : "Score-based ranking",
@@ -233,6 +234,14 @@ export function SearchSettings({
     draft?.parts === null
       ? "All parts"
       : `${draft?.parts.length ?? 0} selected ${draft?.parts.length === 1 ? "part" : "parts"}`;
+  const methodHelp =
+    draft?.similarity.method === "passages"
+      ? "Passage matches compares each selected part with its closest matching content in a result, then combines the part matches using Match decay."
+      : draft?.similarity.method === "content-average"
+        ? "Content average blends the meaning of the selected parts into an overall comparison. With Corresponding parts, it blends and compares each matching type of part separately."
+        : trait
+          ? "Trait definition compares the trait’s definition with content in other records. It uses the trait’s label when no definition is available."
+          : "Name and identity compares the record’s name and identity information with content in other records.";
   return (
     <>
       <Tooltip title={`Search settings: ${summary}`}>
@@ -311,7 +320,15 @@ export function SearchSettings({
               />
             )}
             {profile.profiles.filter((item) => item.stored_vectors).length > 1 && (
-              <Form.Item label="Embedding model" htmlFor={`${id}-model`}>
+              <Form.Item
+                label={
+                  <SettingLabel
+                    label="Embedding model"
+                    help="Changes how the search compares meaning, so choosing another model can change which results appear."
+                  />
+                }
+                htmlFor={`${id}-model`}
+              >
                 <Select
                   id={`${id}-model`}
                   aria-label="Search model"
@@ -322,7 +339,19 @@ export function SearchSettings({
               </Form.Item>
             )}
             {!seed ? (
-              <Form.Item label="Ranking" htmlFor={`${id}-ranking`}>
+              <Form.Item
+                label={
+                  <SettingLabel
+                    label="Ranking"
+                    help={
+                      draft.ranking === "rrf"
+                        ? "Rank-based combines the result positions of keyword and meaning-based matches."
+                        : "Score-based combines the strength of keyword and meaning-based matches."
+                    }
+                  />
+                }
+                htmlFor={`${id}-ranking`}
+              >
                 <Select
                   id={`${id}-ranking`}
                   aria-label="Search ranking"
@@ -336,7 +365,10 @@ export function SearchSettings({
               </Form.Item>
             ) : (
               <>
-                <Form.Item label="Comparison method" htmlFor={`${id}-method`}>
+                <Form.Item
+                  label={<SettingLabel label="Comparison method" help={methodHelp} />}
+                  htmlFor={`${id}-method`}
+                >
                   <Select
                     id={`${id}-method`}
                     aria-label="Comparison method"
@@ -344,7 +376,10 @@ export function SearchSettings({
                     options={[
                       { value: "passages", label: "Passage matches" },
                       { value: "content-average", label: "Content average" },
-                      { value: "baseline", label: "Current baseline" },
+                      {
+                        value: "baseline",
+                        label: trait ? "Trait definition" : "Name and identity",
+                      },
                     ]}
                     onChange={(method) =>
                       setDraft({
@@ -356,7 +391,12 @@ export function SearchSettings({
                 </Form.Item>
                 {draft.similarity.method === "passages" && (
                   <Form.Item
-                    label="Match decay"
+                    label={
+                      <SettingLabel
+                        label="Match decay"
+                        help="Parts are ordered by match strength for each result. 0 uses only the strongest part; 1 gives all selected parts equal weight. Values in between give each additional part less weight."
+                      />
+                    }
                     validateStatus={invalidDecay ? "error" : undefined}
                     help={invalidDecay ? "Enter a number from 0 through 1." : undefined}
                   >
@@ -420,7 +460,7 @@ export function SearchSettings({
                 {draft.similarity.method === "baseline" ? (
                   <Typography.Paragraph type="secondary">
                     {trait
-                      ? "Uses the stored trait definition vector."
+                      ? "Uses the trait’s definition, or its label when no definition is available."
                       : "Uses the record’s name and identity information."}
                   </Typography.Paragraph>
                 ) : (
@@ -430,7 +470,12 @@ export function SearchSettings({
                     items={[
                       {
                         key: "parts",
-                        label: "Compare parts",
+                        label: (
+                          <SettingLabel
+                            label="Compare parts"
+                            help={`Choose which sections of this ${trait ? "trait" : "record"} supply the comparison content. All parts uses every section that can be compared. This selection applies only to this ${trait ? "trait" : "record"}.`}
+                          />
+                        ),
                         extra: (
                           <Typography.Text type="secondary">
                             {selectionSummary}
@@ -513,7 +558,17 @@ export function SearchSettings({
                             )}
                             {!trait && (
                               <Form.Item
-                                label="Candidate content"
+                                label={
+                                  <SettingLabel
+                                    label="Candidate content"
+                                    help={
+                                      draft.similarity.candidateParts ===
+                                      "corresponding"
+                                        ? "Only parts with matching purposes can contribute, including across record kinds. For example, descriptions compare with descriptions. If a result lacks that type of part, it contributes no match."
+                                        : "Any selected source part can match any content in a result, even when the sections serve different purposes."
+                                    }
+                                  />
+                                }
                                 htmlFor={`${id}-candidate`}
                               >
                                 <Select
@@ -551,6 +606,15 @@ export function SearchSettings({
         )}
       </Modal>
     </>
+  );
+}
+
+function SettingLabel({ label, help }: { label: string; help: string }) {
+  return (
+    <span className="search-settings__label">
+      <span>{label}</span>
+      <HelpTooltip label={`About ${label.toLowerCase()}`}>{help}</HelpTooltip>
+    </span>
   );
 }
 

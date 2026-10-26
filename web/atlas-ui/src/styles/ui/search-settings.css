@@ -4,6 +4,11 @@
   justify-content: space-between;
   gap: var(--space-control);
 }
+.search-settings__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-control);
+}
 .search-settings__decay {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 6rem;
