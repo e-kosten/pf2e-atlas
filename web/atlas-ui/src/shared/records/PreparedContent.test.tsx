@@ -14,11 +14,17 @@ it.each(["Escape", "backdrop"])(
     content.body = {
       kind: "html",
       inclusions: [],
-      html: '<span data-atlas-interaction="0">Fortitude check</span>',
+      html: '<span data-atlas-interaction="0">Contextual damage</span>',
       controls: [
         {
           ordinal: 0,
-          control: { kind: "check", statistic: "Fortitude", options: { dc: "15" } },
+          control: {
+            kind: "damage",
+            formula: "(@actor.level)d6[fire]",
+            options: { traits: "fire" },
+            literal: null,
+            roll: null,
+          },
         },
       ],
     };
@@ -27,7 +33,7 @@ it.each(["Escape", "backdrop"])(
         <PreparedContent content={content} onReference={vi.fn()} />
       </ConfigProvider>,
     );
-    const trigger = screen.getByRole("button", { name: "Fortitude check" });
+    const trigger = screen.getByRole("button", { name: "Contextual damage" });
     fireEvent.click(trigger);
     const dialog = await screen.findByRole("dialog");
     if (interaction === "Escape") fireEvent.keyDown(dialog, { key: "Escape" });
@@ -147,7 +153,7 @@ describe("prepared source HTML", () => {
     expect(callback).toHaveBeenCalledTimes(3);
     for (const call of callback.mock.calls) expect(call[0]).toBe("rules:inner");
   });
-  it("handles nested controls once and leaves native child links uncancelled", async () => {
+  it("keeps checks as text within references and leaves native child links uncancelled", () => {
     const detail = detailFixture("actors:ghoul", "Ghoul", "rules:outer");
     const content = detail.presentation.content[0];
     content.body = {
@@ -180,7 +186,9 @@ describe("prepared source HTML", () => {
     fireEvent.click(marker);
     fireEvent.keyDown(marker, { key: "Enter" });
     fireEvent.keyDown(marker, { key: " " });
-    expect(await screen.findAllByRole("dialog")).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: "Reflex" })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(callback).toHaveBeenCalledTimes(3);
     for (const name of ["External", "Native"]) {
       const link = screen.getByRole("link", { name });
       const click = new MouseEvent("click", { bubbles: true, cancelable: true });
@@ -202,7 +210,7 @@ describe("prepared source HTML", () => {
       link.dispatchEvent(key);
       expect(key.defaultPrevented).toBe(false);
     }
-    expect(callback).not.toHaveBeenCalled();
+    expect(callback).toHaveBeenCalledTimes(3);
   });
   it("opens keyboard control dialogs with the surrounding Ant configuration in dark mode", async () => {
     const content = detailFixture("actors:ghoul", "Ghoul", "rules:outer").presentation
@@ -210,11 +218,17 @@ describe("prepared source HTML", () => {
     content.body = {
       kind: "html",
       inclusions: [],
-      html: '<span data-atlas-interaction="0">Fortitude check</span>',
+      html: '<span data-atlas-interaction="0">Contextual damage</span>',
       controls: [
         {
           ordinal: 0,
-          control: { kind: "check", statistic: "Fortitude", options: { dc: "15" } },
+          control: {
+            kind: "damage",
+            formula: "(@actor.level)d6[fire]",
+            options: { traits: "fire" },
+            literal: null,
+            roll: null,
+          },
         },
       ],
     };
@@ -223,13 +237,13 @@ describe("prepared source HTML", () => {
         <PreparedContent content={content} onReference={vi.fn()} />
       </ConfigProvider>,
     );
-    fireEvent.keyDown(screen.getByRole("button", { name: "Fortitude check" }), {
+    fireEvent.keyDown(screen.getByRole("button", { name: "Contextual damage" }), {
       key: "Enter",
     });
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toHaveClass("themed-modal");
-    expect(dialog).toHaveTextContent("Fortitude");
-    expect(dialog).toHaveTextContent("15");
+    expect(dialog).toHaveTextContent("(@actor.level)d6[fire]");
+    expect(dialog).toHaveTextContent("fire");
   });
   it("renders HTML semantics and references from field-local facts", () => {
     const detail = detailFixture("actors:ghoul", "Ghoul", "rules:nested");
@@ -486,7 +500,7 @@ it("keeps authored table nodes, links and horizontal position across unchanged-c
   expect(screen.getByText("Replacement record")).toBeVisible();
 });
 
-it("binds repeated inclusion ordinals to their own exact links and controls", async () => {
+it("binds inclusion links to their own exact targets while checks remain plain text", () => {
   const detail = detailFixture("spells:host", "Host", "actions:host-link");
   const field = detail.presentation.content[0];
   const nested = {
@@ -536,10 +550,10 @@ it("binds repeated inclusion ordinals to their own exact links and controls", as
   expect(onReference).not.toHaveBeenCalled();
   fireEvent.click(link);
   expect(onReference.mock.calls[0][0]).toBe("actions:nested");
-  fireEvent.click(screen.getByRole("button", { name: "Nested check" }));
-  const dialog = await screen.findByRole("dialog");
-  expect(dialog).toHaveTextContent("22");
-  expect(dialog).not.toHaveTextContent("10");
+  fireEvent.click(screen.getByText("Nested check"));
+  expect(screen.queryByRole("button", { name: "Nested check" })).toBeNull();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(onReference).toHaveBeenCalledTimes(1);
 });
 
 it.each([false, true])(
@@ -856,3 +870,45 @@ it("keeps an authored self-action label readable without reopening the same acti
   expect(onReference).not.toHaveBeenCalled();
   expect(reference.target?.record_key).toBe("actions:seek");
 });
+
+it.each([
+  {
+    text: "DC 28 basic Reflex save",
+    control: {
+      kind: "check" as const,
+      statistic: "reflex",
+      options: { dc: "28", basic: "" },
+    },
+  },
+  {
+    text: "120-foot line (10 feet wide)",
+    control: {
+      kind: "template" as const,
+      shape: "line",
+      options: { distance: "120", width: "10" },
+    },
+  },
+])(
+  "renders $text as plain text without a popup or keyboard stop",
+  ({ text, control }) => {
+    const field = detailFixture("items:source", "Source", "rules:target").presentation
+      .content[0];
+    field.body = {
+      kind: "html",
+      html: `<p><span data-atlas-interaction="0" role="button" tabindex="0">${text}</span></p>`,
+      controls: [{ ordinal: 0, control }],
+      inclusions: [],
+    };
+    const onReference = vi.fn();
+    render(<PreparedContent content={field} onReference={onReference} />);
+    const label = screen.getByText(text);
+    expect(label).not.toHaveAttribute("role");
+    expect(label).not.toHaveAttribute("tabindex");
+    fireEvent.click(label);
+    fireEvent.keyDown(label, { key: "Enter" });
+    fireEvent.keyDown(label, { key: " " });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(onReference).not.toHaveBeenCalled();
+  },
+);

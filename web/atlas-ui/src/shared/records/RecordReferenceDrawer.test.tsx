@@ -294,11 +294,17 @@ describe("RecordReferenceDrawer", () => {
       detail.presentation.content[0].body = {
         kind: "html",
         inclusions: [],
-        html: '<span data-atlas-interaction="0">Fortitude check</span>',
+        html: '<span data-atlas-interaction="0">Contextual damage</span>',
         controls: [
           {
             ordinal: 0,
-            control: { kind: "check", statistic: "Fortitude", options: { dc: "15" } },
+            control: {
+              kind: "damage",
+              formula: "(@actor.level)d6[fire]",
+              options: { traits: "fire" },
+              literal: null,
+              roll: null,
+            },
           },
         ],
       };
@@ -319,12 +325,12 @@ describe("RecordReferenceDrawer", () => {
       await waitFor(() =>
         expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toHaveFocus(),
       );
-      const marker = screen.getByRole("button", { name: "Fortitude check" });
+      const marker = screen.getByRole("button", { name: "Contextual damage" });
       marker.focus();
       fireEvent.keyDown(marker, { key: "Enter" });
       await waitFor(() => expect(screen.getAllByRole("dialog")).toHaveLength(2));
-      const modal = screen.getByRole("dialog", { name: "Fortitude" });
-      expect(modal).toHaveTextContent("Fortitude");
+      const modal = screen.getByRole("dialog", { name: "(@actor.level)d6[fire]" });
+      expect(modal).toHaveTextContent("(@actor.level)d6[fire]");
       expect(close).not.toHaveBeenCalled();
       const modalAction = within(modal).getByRole("button", { name: "OK" });
       act(() => modalAction.focus());
