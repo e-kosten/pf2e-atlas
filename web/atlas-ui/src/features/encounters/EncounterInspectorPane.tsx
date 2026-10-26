@@ -631,12 +631,21 @@ function EncounterParticipantSurface({
                       const matching = abilities.filter(
                         (ability) => ability.state.kind === kind,
                       );
+                      const visibleOptions = matching.filter(
+                        ({ state }) =>
+                          state.kind === "option" &&
+                          (!state.always_active || state.choices.length > 0),
+                      );
                       return matching.length ? (
                         <Space wrap>
                           {matching.map((ability) => (
                             <EncounterAbilityControls
                               key={`${participant.participant_key}:${String(ability.rule_ordinal)}`}
                               ability={ability}
+                              showLabel={
+                                visibleOptions.length > 1 &&
+                                visibleOptions.includes(ability)
+                              }
                               disabled={disabled}
                               onChange={onAbilityState}
                             />
