@@ -49,6 +49,15 @@ source navigation uses the inclusion's exact reference namespace. Description-on
 insertions add neither a heading nor a source shortcut. Existing Related records
 provides secondary access to the underlying record.
 
+Explicit declared-grant destinations likewise belong in Explore's References,
+using the canonical graph and navigation. For example, Sisterhood Orphan links to
+Inflict Punishment, and Eagle Hunter links to Pet and Train Animal. These links
+refer to rules; they do not say that an actor qualifies for or has received the
+grant. Preserve authored restrictions and existing links in prose rather than
+adding grant tables, matching ability names in text or executing choices and
+predicates. Conditional or altered grants can still identify a reference record;
+its ordinary preview does not represent an applied, altered copy.
+
 Borrowed record views remain storage and presentation neutral. They preserve
 availability and typed values; app-service owns labels and semantic composition.
 Renderers format those values independently, including signs and units. Neither

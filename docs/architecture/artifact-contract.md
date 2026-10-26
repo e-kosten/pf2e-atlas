@@ -436,9 +436,16 @@ unavailable entries remain explicit; renderers never parse or fall back to raw m
 
 Item provenance includes the declared open `flags.core.sourceId` namespace and
 `_stats.compendiumSource`. Duplicate or non-string core source identities do not
-supply a resolved target. Relationship policy `typed-authored-occurrences/v5`
-requires re-preparation to include core provenance; the schema and source snapshot
-codec are unchanged. Contextual consumable reading is a transient app projection:
+supply a resolved target. Relationship policy `typed-authored-occurrences/v6`
+also retains literal compendium targets from atomically interpreted, non-ignored
+GrantItem rules and ancestry/class/background feature lists. These DeclaredGrant
+occurrences retain exact owner and source-field attribution; they are references,
+not evidence of active or applied grants. Injected targets are not resolved or
+expanded. Predicates, alterations, level gates and grant lifecycle behavior are
+not evaluated. Actual owned ItemGrant/GrantedBy occurrences remain distinct.
+Older relationship preparation requires normal source-backed republication;
+the schema and source snapshot codec are unchanged.
+Contextual consumable reading is a transient app projection:
 `target` preserves the authored citation while optional `contextual_target` points
 to the checked embedded spell. It does not replace the stored graph edge.
 
