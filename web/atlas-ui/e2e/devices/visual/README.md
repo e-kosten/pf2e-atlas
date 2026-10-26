@@ -7,7 +7,33 @@ and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
 ## Product theme references
 
-The current references capture the accepted parchment-and-oxblood light theme,
+The current references capture the accepted Ink dark neutral ramp, bright dark
+text family and stronger overlay/control contrast while retaining the
+parchment-and-oxblood light theme. All four projects passed their 12 interaction
+and geometry scenarios during both captures. Review of every changed frame found
+no layout, content, focus-target or overlay-anchor changes: 27 macOS and 33 Linux
+frames changed, while the remaining 20 frames are byte-identical to the preceding
+product-theme references. Parent review covered all before/candidate contact
+sheets; independent presentation review covered all four projects on both
+platforms.
+
+macOS arm64, Playwright 1.62.1: captured locally from PR head
+`e1874061a458a9471a4282367f307697b55c6625` using all four maintained projects.
+
+Linux x64, Ubuntu 24.04, Playwright 1.62.1:
+[capture 40248877625](https://github.com/e-kosten/pf2e-atlas/actions/runs/40248877625)
+passed all 12 scenarios using the authenticated fixture from CI 40239066738,
+PR head `e1874061a458a9471a4282367f307697b55c6625` and synthetic merge commit
+`00082a026c4f02230be5b952969201794581a0dc`. Binary SHA-256:
+`e31d99d8ee1f065ad8918d4f42a64b73c5e86b8c0d677c3b9c5ecdbb4e2511f4`;
+frontend index SHA-256:
+`bf677e939007b4ceda2492f419bebc6809ed6a8fbe899affe30e3f9c4d4e52e2`.
+An ordinary hosted comparison with snapshot updates disabled remains the final
+acceptance check for the published candidate.
+
+### Pre-Ink product-theme baseline
+
+The preceding references captured the accepted parchment-and-oxblood light theme,
 oxblood-and-brass dark theme, workbench layout and revised record identity. The
 live product direction was accepted before capture. All 80 macOS/Linux frames
 were then reviewed in per-project contact sheets, with the editor, preview,

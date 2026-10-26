@@ -58,7 +58,9 @@ it("spends only on explicit input and retains the recorded allowance and start r
     />,
   );
   expect(onChange).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Spend action 1" }));
+  const availableAction = screen.getByRole("button", { name: "Spend action 1" });
+  expect(availableAction).toHaveClass("ant-btn-color-primary", "ant-btn-variant-solid");
+  fireEvent.click(availableAction);
   await waitFor(() =>
     expect(onChange).toHaveBeenCalledWith({ kind: "spend", resource: "action" }),
   );
@@ -70,10 +72,9 @@ it("spends only on explicit input and retains the recorded allowance and start r
       onChange={onChange}
     />,
   );
-  expect(screen.getByRole("button", { name: "Restore action 1" })).toHaveAttribute(
-    "aria-pressed",
-    "false",
-  );
+  const spentAction = screen.getByRole("button", { name: "Restore action 1" });
+  expect(spentAction).toHaveAttribute("aria-pressed", "false");
+  expect(spentAction).toHaveClass("ant-btn-color-default", "ant-btn-variant-outlined");
   expect(screen.queryByText("0 / 1")).toBeNull();
   expect(screen.getByText(initial.start_results[0].outcome)).toBeVisible();
   expect(onChange).toHaveBeenCalledTimes(1);
@@ -89,7 +90,12 @@ it("keeps an off-turn reaction usable and distinguishes spent stock from a condi
       onChange={onChange}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Spend reaction" }));
+  const availableReaction = screen.getByRole("button", { name: "Spend reaction" });
+  expect(availableReaction).toHaveClass(
+    "ant-btn-color-primary",
+    "ant-btn-variant-solid",
+  );
+  fireEvent.click(availableReaction);
   await waitFor(() =>
     expect(onChange).toHaveBeenCalledWith({ kind: "spend", resource: "reaction" }),
   );

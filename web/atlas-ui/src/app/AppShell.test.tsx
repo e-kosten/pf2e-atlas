@@ -39,6 +39,11 @@ describe("application navigation and accessibility", () => {
     const brand = screen.getByRole("link", { name: "PF2e Atlas" });
     expect(brand).toHaveAttribute("href", "/search");
     expect(brand).toHaveStyle({ color: "var(--brand-text)" });
+    expect(brand.querySelector("svg.atlas-mark")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    expect(brand).toHaveTextContent("PF2e Atlas");
     const encounters = screen.getByRole("link", { name: "Encounters" });
     expect(encounters).toHaveAttribute("href", "/encounters");
     expect(screen.getByRole("link", { name: "Lists" })).toHaveAttribute(
@@ -109,6 +114,7 @@ describe("application navigation and accessibility", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("button", { name: "Reference status" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Theme" }));
+    expect(screen.getByRole("radiogroup", { name: "Appearance" })).toBeInTheDocument();
     fireEvent.click(screen.getByText("System"));
     expect(changeTheme).toHaveBeenCalledWith("system");
   });

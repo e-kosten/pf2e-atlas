@@ -3,13 +3,62 @@
 Atlas uses one product identity with independent light, dark and system appearance.
 The light composition draws from printed rulebooks: parchment canvas, warm paper
 surfaces, oxblood actions and restrained sage links. The dark composition uses an
-ordered Warm Umber neutral ramp, oxblood actions and brass links without
-flattening the interface into pure black.
+ordered warm-neutral ramp, oxblood actions and brass links without flattening the
+interface into pure black. Its current default combines the Ink neutral ramp
+with the Bright text palette.
 
 The authored anchors live in `src/shared/theme/themeDefinitions.ts`. Ant Design
 receives those roles through the root `ConfigProvider`; Atlas CSS consumes the
 matching semantic custom properties. Layout, spacing and typography do not change
 with appearance.
+
+## Active dark palette and retained references
+
+The product default is **Ink + Bright**. These values are semantic anchors; they
+are projected through `atlasTheme.ts` rather than used directly by features.
+
+| Ink neutral role | Value     |
+| ---------------- | --------- |
+| Shell            | `#090908` |
+| Background       | `#0E0D0C` |
+| Surface          | `#151311` |
+| Elevated         | `#1B1815` |
+| Subtle           | `#221D19` |
+| Separator        | `#342C25` |
+| Border           | `#705F50` |
+
+| Bright text role | Value     |
+| ---------------- | --------- |
+| Primary text     | `#F7F1E7` |
+| Muted text       | `#D0C6B7` |
+
+The product exposes one dark palette. Retain the following earlier anchors only
+as historical developer references; they are not runtime tokens or selectable
+themes. Prior Standard Umber records the original neutral ramp, whose border
+predates the current 3:1 control-boundary requirement. Exploratory palettes do
+not need permanent documentation unless they are deliberately accepted for
+possible reuse.
+
+| Standard Umber neutral role | Value     |
+| --------------------------- | --------- |
+| Shell                       | `#111110` |
+| Background                  | `#171615` |
+| Surface                     | `#211F1C` |
+| Elevated                    | `#28241F` |
+| Subtle                      | `#302A23` |
+| Separator                   | `#4A4136` |
+| Border                      | `#5C5144` |
+
+| Warm text role | Value     |
+| -------------- | --------- |
+| Primary text   | `#F3E9D7` |
+| Muted text     | `#C4B6A1` |
+
+When changing the product palette, update the active anchors in
+`themeDefinitions.ts` and this section together. A future experiment may start
+from either retained direction without changing semantic accents such as brass,
+rarity, status or HP colors, but should not add runtime alternatives until the
+product requires a user-selectable theme.
 
 Components select a semantic role, not a hue. Each appearance may map that role
 to a different foreground when contrast requires it: selected search results use
@@ -54,9 +103,27 @@ Table headers use the neutral content surface and separators rather than a brown
 fill. The light palette assigns oxblood to active navigation, while the dark
 palette assigns brass, so active views remain distinct from inactive labels.
 
+## Brand and typography
+
+The header pairs the full `PF2e Atlas` wordmark in bundled Lora with the shared
+sans-serif interface typography. `--wordmark-font` owns that narrow brand role;
+do not apply it to navigation, headings, controls or reference content. The
+wordmark remains visible at every supported width.
+
+The shared header mark is an inline, theme-driven SVG. Its ring compass uses the
+approved tucked-under secondary points around the restrained faceted d20. Every
+fill and stroke comes from the palette's `brand.mark` roles. Browser-tab icons
+use simplified light and dark SVGs without the smallest points and ticks, which
+would become visual noise at favicon sizes. The resolved application appearance
+selects the matching favicon.
+
+Pathfinder action glyphs in reference content use the surrounding body-text
+color. Glyphs inside solid encounter resource controls inherit the control
+foreground, so their contrast follows the Ant `primary`/`onPrimary` token pair.
+
 ## Validation
 
 Check authored text/background pairs, solid-control foregrounds, HP fills against
-their missing-HP track, and rendered Ant tokens. Visual acceptance in both
-appearances remains separate from focused contrast tests and the full frontend
-gate.
+their missing-HP track, and rendered Ant tokens. Review the full header mark and
+simplified favicon at their actual sizes. Visual acceptance in both appearances
+remains separate from focused contrast tests and the full frontend gate.

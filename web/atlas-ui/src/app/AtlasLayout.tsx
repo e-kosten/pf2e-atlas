@@ -4,8 +4,9 @@ import { Activity, Suspense, lazy, useEffect, useLayoutEffect, useState } from "
 import { Outlet, useRouterState } from "@tanstack/react-router";
 import {
   COLOR_SCHEME_STORAGE_KEY,
+  applyAtlasDocumentTheme,
+  atlasPopoverStyles,
   antDesignTheme,
-  atlasCssVariables,
   type ColorSchemePreference,
   type ResolvedColorScheme,
 } from "../shared/theme/atlasTheme";
@@ -50,13 +51,7 @@ export function AtlasLayout() {
       !searchProfile.storedVectors,
   });
   useLayoutEffect(() => {
-    document.documentElement.dataset.theme = resolvedColorScheme;
-    document.documentElement.style.colorScheme = resolvedColorScheme;
-    Object.entries(atlasCssVariables(resolvedColorScheme)).forEach(
-      ([property, value]) => {
-        document.documentElement.style.setProperty(property, String(value));
-      },
-    );
+    applyAtlasDocumentTheme(document, resolvedColorScheme);
   }, [resolvedColorScheme]);
   const updateColorScheme = (preference: ColorSchemePreference) => {
     setColorScheme(preference);
@@ -69,6 +64,9 @@ export function AtlasLayout() {
   return (
     <ConfigProvider
       theme={antDesignTheme(resolvedColorScheme)}
+      popover={{
+        styles: atlasPopoverStyles(resolvedColorScheme),
+      }}
       select={{
         classNames: {
           popup: { root: "atlas-select-popup", listItem: "atlas-select-option" },
