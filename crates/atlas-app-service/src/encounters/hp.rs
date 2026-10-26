@@ -85,7 +85,7 @@ impl AtlasAppService {
                 update.max_hp_edit = true;
             }
             EncounterHpAction::SetTemporary { input } => {
-                update.temporary_hp = formula_value(&input, true)?
+                update.temporary_hp = temporary_hp_value(&input)?
             }
             EncounterHpAction::SetValues {
                 current,
@@ -115,7 +115,7 @@ impl AtlasAppService {
                     update.max_hp_edit = true;
                 }
                 if let Some(temporary) = temporary {
-                    update.temporary_hp = formula_value(&temporary, true)?;
+                    update.temporary_hp = temporary_hp_value(&temporary)?;
                 }
             }
             EncounterHpAction::UseDerivedMaximum => update.use_derived_max = true,
@@ -123,6 +123,14 @@ impl AtlasAppService {
         // Reuse provenance/derivation policy and the local-state revision check
         // under its write transaction. Never hydrate presentation after commit.
         self.update_encounter_participant(&detail.encounter.encounter_key, update)
+    }
+}
+
+fn temporary_hp_value(input: &str) -> AppServiceResult<i64> {
+    if input.trim().is_empty() {
+        Ok(0)
+    } else {
+        formula_value(input, true)
     }
 }
 

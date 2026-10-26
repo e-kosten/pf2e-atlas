@@ -1388,7 +1388,9 @@ Essential creature ability and hazard rules remain inline through the shared
 bounded reading owner; additional reference navigation is explicit. HP mutations
 carry an explicit action, raw integer/addition/subtraction input and the read
 participant revision. Rust interprets formulas, damage/healing and correction
-intent. Damage and Heal accept signed raw amounts; Rust reverses the operation
+intent. Inline HP edits accept the same addition/subtraction formulas as Edit HP;
+clearing temporary HP submits a blank input that Rust interprets as zero.
+Damage and Heal accept signed raw amounts; Rust reverses the operation
 for a negative result. Enter in participant HP change submits Heal intent once
 (positive heals, negative damages). Enter remains inert in the Damage-only turn
 review. Unknown current HP disables amount operations
