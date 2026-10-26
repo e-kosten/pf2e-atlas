@@ -493,6 +493,28 @@ fn legacy_action_font_letters_use_the_same_accessible_glyphs_as_numeric_actions(
 }
 
 #[test]
+fn lowercase_free_and_reaction_font_letters_have_the_same_accessible_output() {
+    // PF2e 8.6.1's pinned Pathfinder action font maps each pair to the same glyph.
+    for class in ["action-glyph", "pf2-icon"] {
+        for (lower, upper, glyph, label) in [
+            ("f", "F", "free_action", "free action"),
+            ("r", "R", "reaction", "reaction"),
+        ] {
+            let lower = prepare(&format!("<span class='{class}'> {lower} </span>"));
+            let upper = prepare(&format!("<span class='{class}'>{upper}</span>"));
+            assert_eq!(lower.html, upper.html);
+            assert_eq!(lower.text, label);
+            assert!(
+                lower
+                    .html
+                    .contains(&format!("data-atlas-action-glyph=\"{glyph}\""))
+            );
+            assert!(lower.diagnostics.is_empty());
+        }
+    }
+}
+
+#[test]
 fn unknown_and_dynamic_content_survives_without_runtime_evaluation() {
     let content = prepare(
         "@Mystery[odd]{Label} @Damage[(@actor.level+2)d6[fire]] @Check[type:reflex|dc:resolve(@actor.level)] <span class='action-glyph'>unknown</span> @Template[cone|distance:resolve(@actor.level)] <span class='pf2-icon'>R</span>",

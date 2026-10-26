@@ -112,6 +112,16 @@ pub struct SearchResultRow {
     pub relationship_evidence: Vec<RelationshipEvidenceView>,
     pub record: RecordSummaryView,
     pub matches: Vec<SearchWitnessView>,
+    /// Display destinations coalesced across retrieval lanes; raw witnesses remain above.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub matching_sections: Option<Vec<SearchMatchSectionView>>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct SearchMatchSectionView {
+    pub navigation: RecordNavigationView,
+    pub label: String,
+    pub snippet: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchWitnessView {

@@ -1,3 +1,4 @@
+export type { SearchMatchSectionView } from "../../../../crates/atlas-app-model/bindings/SearchMatchSectionView";
 export type { EncounterDifficultyAddition } from "../../../../crates/atlas-app-model/bindings/EncounterDifficultyAddition";
 export type { PreviewEncounterDifficultyRequest } from "../../../../crates/atlas-app-model/bindings/PreviewEncounterDifficultyRequest";
 export type { TurnResourceResultView } from "../../../../crates/atlas-app-model/bindings/TurnResourceResultView";

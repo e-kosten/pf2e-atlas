@@ -12,7 +12,6 @@ import type {
   TraitDetailView,
   TraitRecordsRequest,
   TraitRecordsPage,
-  RecordNavigationView,
 } from "../../generated/atlas";
 import type { RecordReferenceHandler } from "../../shared/records/PreparedContent";
 import { ReferenceResult } from "../../shared/records/ReferenceResult";
@@ -486,8 +485,6 @@ function TraitAssociatedRecords({
                     row={{ record: row.record, matches: [], relationship_evidence: [] }}
                     selected={false}
                     disabled={false}
-                    matchesOpen={false}
-                    onMatchesOpenChange={() => {}}
                     navigation={row.navigation}
                     context={[
                       kind === "members" &&
@@ -505,9 +502,6 @@ function TraitAssociatedRecords({
                       .join(" · ")}
                     onPreview={(anchor) =>
                       onReference(row.navigation.record_key, anchor, row.navigation)
-                    }
-                    onMatch={(selection: RecordNavigationView, anchor: HTMLElement) =>
-                      onReference(selection.record_key, anchor, selection)
                     }
                   />
                 </div>

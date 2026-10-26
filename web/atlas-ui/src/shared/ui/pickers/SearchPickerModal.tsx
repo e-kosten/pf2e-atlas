@@ -417,6 +417,11 @@ export function SearchPickerModal<FormValues>({
         )}
         <ReferenceBrowser
           rows={currentRows}
+          query={
+            recordResults.data?.mode.kind === "text_search"
+              ? recordResults.data.mode.query
+              : undefined
+          }
           relationshipClauses={recordResults.data?.relationship_clauses}
           filter={request.criteria.filter}
           generation={recordResults.data?.artifact_generation}

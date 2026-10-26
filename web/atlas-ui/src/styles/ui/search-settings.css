@@ -34,25 +34,6 @@
 .search-settings__part-fields {
   padding-inline-start: var(--space-group);
 }
-.similarity-explanation {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-group);
-  width: min(32rem, calc(100vw - 64px));
-  max-height: 60dvh;
-  overflow: auto;
-}
-.similarity-explanation__pair {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-group);
-}
-@media (max-width: 480px) {
-  .similarity-explanation__pair {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 .reference-search-entry--similar {
   min-width: 0;
 }

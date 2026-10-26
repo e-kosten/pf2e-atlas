@@ -436,7 +436,37 @@ fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_fie
         passage: Some(address),
         source_fingerprint: activity.navigation.source_fingerprint.clone(),
     };
-    assert!(f.worker.record_detail_at(request.clone()).is_ok());
+    let selected = f.worker.record_detail_at(request.clone()).unwrap();
+    assert!(selected.presentation.content.iter().any(|field| matches!(
+        &field.body,
+        PreparedFieldBodyView::Html { html, .. } if html.contains("data-atlas-passage-target")
+    )));
+    let annotated = selected
+        .presentation
+        .content
+        .iter()
+        .find_map(|field| field.section_rendering.as_ref())
+        .unwrap();
+    assert!(annotated.html.contains("data-atlas-passage-target"));
+    assert!(annotated.html.contains("data-atlas-source-section=\"0\""));
+    assert_eq!(
+        annotated.selection_version,
+        atlas_record::source_record::SOURCE_CONTENT_SELECTION_VERSION
+    );
+    let mut full_field = request.clone();
+    full_field.passage = None;
+    let unchanged = f.worker.record_detail_at(full_field).unwrap();
+    assert!(unchanged.presentation.content.iter().all(|field| !matches!(
+        &field.body,
+        PreparedFieldBodyView::Html { html, .. } if html.contains("data-atlas-passage-target")
+    )));
+    assert_eq!(unchanged.presentation.content, owned.presentation.content);
+    assert!(unchanged.presentation.content.iter().all(|field| {
+        field
+            .section_rendering
+            .as_ref()
+            .is_none_or(|rendering| !rendering.html.contains("data-atlas-passage-target"))
+    }));
     if let Some(atlas_domain::SourcePassageAddress::HtmlSection {
         canonical_text_sha256,
         ..
