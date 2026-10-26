@@ -7,7 +7,18 @@ pub struct PreparedContentFieldView {
     pub role: String,
     pub source_fingerprint: Option<String>,
     pub body: PreparedFieldBodyView,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub section_rendering: Option<PreparedSectionRenderingView>,
 }
+/// Optional, transient rendering copy. Canonical section ordinals annotate the
+/// original block topology; persisted prepared HTML and its hashes stay separate.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct PreparedSectionRenderingView {
+    pub html: String,
+    pub selection_version: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PreparedFieldBodyView {

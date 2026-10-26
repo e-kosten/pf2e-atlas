@@ -448,6 +448,21 @@ bounded operation. App-service embedded-reading batches check one parent, select
 most 32 immediate Ability-class activities or table results and reuse this prepared batch without
 recursive detail projection or a second fact authority.
 
+Prepared-content views may carry an optional transient section-rendering HTML
+sidecar. `atlas-record` derives record annotations from the same canonical section
+partition as search (`structural-source-sections/v4`); a trait definition
+(`trait-definition-centroid/v1`) and a plain field each retain their one logical
+section. Reserved authored annotation attributes are stripped from the rendering
+copy before canonical annotations are applied. The original prepared HTML, passage
+hashes and persisted content remain unchanged. The sidecar preserves container, list and table topology, and
+annotates block nodes by ordinal, wrapping substantive bare text only when needed.
+App-service reuses each already-computed inline-inclusion insertion map for both
+renderings; included foreign content retains its own namespaces without inheriting
+source annotations. This adds one bounded, constant-factor rendering string and
+linear parsing per selected field, without extra source lookups or stored metadata.
+Consumers require the supported selection version and matching seed, generation,
+owner and field identity before applying draft-only source emphasis.
+
 Structured ability/feat self-effect UUIDs use the same attributed relationship
 preparation and exact identity resolution as other authored links. The relationship
 policy version invalidates old preparation when these occurrences are added; no

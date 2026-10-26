@@ -66,6 +66,9 @@ pub struct TraitRecordsPage {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct TraitContentView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub section_rendering: Option<crate::PreparedSectionRenderingView>,
     pub body: crate::PreparedFieldBodyView,
     pub references: Vec<crate::PreparedReferenceView>,
 }

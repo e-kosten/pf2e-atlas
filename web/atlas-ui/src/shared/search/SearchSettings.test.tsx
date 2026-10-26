@@ -14,17 +14,20 @@ vi.mock("./SimilaritySourceDocument", () => ({
     seed,
     target,
     generation,
+    selection,
     onReloadSections,
   }: {
     seed: SimilaritySeed;
     target: { part: { label: string } } | null;
     generation: string;
+    selection: { selected: string[] | null } | null;
     onReloadSections: () => void;
   }) => (
     <section
       aria-label="Seed source"
       data-seed={JSON.stringify(seed)}
       data-generation={generation}
+      data-selected={JSON.stringify(selection?.selected)}
     >
       {target?.part.label ?? "Whole document"}
       <button onClick={onReloadSections}>Reload sections</button>
@@ -490,4 +493,35 @@ it("retires loaded source when a model-switch inventory reports a new generation
     screen.queryByRole("region", { name: "Seed source", hidden: true }),
   ).toBeNull();
   expect(screen.getByRole("button", { name: "Reload sections" })).toBeVisible();
+});
+
+it("updates only the local source selection immediately and restores the applied selection after Cancel", async () => {
+  const { apply } = setup();
+  fireEvent.click(screen.getByText("Sections to compare"));
+  const description = await screen.findByRole("checkbox", { name: "Description" });
+  const source = screen.getByRole("region", { name: "Seed source", hidden: true });
+  expect(source).toHaveAttribute("data-selected", "null");
+  const inventoryRequests = api.parts.mock.calls.length;
+  fireEvent.click(description);
+  expect(source).toHaveAttribute("data-selected", '["part-1"]');
+  fireEvent.click(screen.getByRole("checkbox", { name: "Reset" }));
+  expect(source).toHaveAttribute("data-selected", "[]");
+  expect(api.parts).toHaveBeenCalledTimes(inventoryRequests);
+  expect(apply).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+  fireEvent.click(screen.getByText("Sections to compare"));
+  await screen.findByRole("checkbox", { name: "Description" });
+  expect(
+    screen.getByRole("region", { name: "Seed source", hidden: true }),
+  ).toHaveAttribute("data-selected", "null");
+});
+
+it("keeps the active settings summary without a customization marker", () => {
+  setup({ ...DEFAULT_SEARCH_STATE, query: "heal", ranking: "rrf" });
+  expect(
+    screen.getByRole("button", { name: "Search settings" }),
+  ).toHaveAccessibleDescription(/Rank-based ranking/);
+  expect(screen.queryByText(/Customized/)).toBeNull();
+  expect(document.querySelector(".ant-badge")).toBeNull();
 });

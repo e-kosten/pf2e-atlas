@@ -42,7 +42,8 @@ pub use resolver::SourceReferenceIndex;
 pub use search_selection::{
     SOURCE_CONTENT_SELECTION_VERSION, SourceSearchSelection, SourceSelectedField,
     SourceSelectedIdentity, SourceSelectedSection, SourceSelectedSectionKind, SourceSelectionError,
-    recover_source_passage, select_prepared_html_sections, select_record_search,
+    recover_source_passage, section_annotated_prepared_html, select_prepared_html_sections,
+    select_record_search, single_section_annotated_prepared_html,
 };
 pub use text::{SourceTextKind, SourceTextSource};
 

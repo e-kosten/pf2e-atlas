@@ -44,6 +44,7 @@ pub(crate) fn prepared_fields(
                         locator: locator.into(),
                         role: format!("{:?}", s.role).to_lowercase(),
                         source_fingerprint: navigation_fingerprint(owners, fingerprint),
+                        section_rendering: None,
                         body: PreparedFieldBodyView::Bounded {
                             reason: "This field exceeds the reference-link reading limit.".into(),
                         },
@@ -85,7 +86,9 @@ pub(crate) fn prepared_fields(
                 },
             },
         };
+        let section_rendering = section_rendering(&body)?;
         fields.push(PreparedContentFieldView {
+            section_rendering,
             locator: locator.into(),
             role: format!("{:?}", s.role).to_lowercase(),
             source_fingerprint: navigation_fingerprint(owners, fingerprint),
@@ -133,4 +136,60 @@ pub(crate) fn content_controls(
             },
         })
         .collect()
+}
+
+/// One bounded rendering copy per selected field. Selection policy remains in
+/// atlas-record; the original body is never rewritten to carry view metadata.
+fn section_rendering(
+    body: &PreparedFieldBodyView,
+) -> AppServiceResult<Option<PreparedSectionRenderingView>> {
+    use atlas_record::source_record::{
+        SOURCE_CONTENT_SELECTION_VERSION, section_annotated_prepared_html,
+    };
+    let html = match body {
+        PreparedFieldBodyView::Html { html, .. } => {
+            section_annotated_prepared_html(html).map_err(|error| {
+                AppServiceError::new(AppErrorCode::ArtifactIncompatible, error.to_string())
+            })?
+        }
+        PreparedFieldBodyView::Plain { text } => format!(
+            "<span data-atlas-source-section=\"0\">{}</span>",
+            atlas_record::source_content::escape_content_text(text)
+        ),
+        _ => return Ok(None),
+    };
+    Ok(Some(PreparedSectionRenderingView {
+        html,
+        selection_version: SOURCE_CONTENT_SELECTION_VERSION.into(),
+    }))
+}
+
+#[cfg(test)]
+mod section_rendering_tests {
+    use super::*;
+
+    #[test]
+    fn plain_rendering_escapes_original_text_and_unavailable_has_no_metadata() {
+        let body = PreparedFieldBodyView::Plain {
+            text: "<rules> & facts".into(),
+        };
+        let rendering = section_rendering(&body).unwrap().unwrap();
+        assert_eq!(
+            rendering.html,
+            "<span data-atlas-source-section=\"0\">&lt;rules&gt; &amp; facts</span>"
+        );
+        assert_eq!(
+            body,
+            PreparedFieldBodyView::Plain {
+                text: "<rules> & facts".into()
+            }
+        );
+        assert!(
+            section_rendering(&PreparedFieldBodyView::Bounded {
+                reason: "bounded".into()
+            })
+            .unwrap()
+            .is_none()
+        );
+    }
 }

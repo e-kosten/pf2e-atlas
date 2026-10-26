@@ -628,3 +628,13 @@
 .physical-reference__kit-items > li {
   margin-block: var(--space-control);
 }
+
+/* Excluded comparison prose stays readable; links retain their native emphasis. */
+.prepared-content--source .source-section-excluded {
+  color: var(--muted);
+}
+.prepared-content
+  .source-section-excluded
+  :is(.prepared-inclusion, .prepared-inclusion-unavailable) {
+  color: var(--text);
+}

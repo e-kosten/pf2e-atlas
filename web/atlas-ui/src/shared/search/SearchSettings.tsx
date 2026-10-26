@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
   App,
-  Badge,
   Button,
   Checkbox,
   Collapse,
@@ -18,7 +17,6 @@ import {
   Spin,
   Tooltip,
   Typography,
-  theme,
 } from "antd";
 import { SlidersHorizontal } from "lucide-react";
 import type {
@@ -78,7 +76,6 @@ export function SearchSettings({
 }) {
   const profile = useSearchProfile();
   const { message } = App.useApp();
-  const { token } = theme.useToken();
   const id = useId();
   const wide = Boolean(Grid.useBreakpoint().lg);
   const [sourceView, setSourceView] = useState("sections");
@@ -202,16 +199,6 @@ export function SearchSettings({
     (!Number.isFinite(draft.similarity.decay) ||
       draft.similarity.decay < 0 ||
       draft.similarity.decay > 1);
-  const customized =
-    (profile.id !== null &&
-      profile.defaultId !== null &&
-      profile.id !== profile.defaultId) ||
-    (seed
-      ? appliedPreferences.method !== "passages" ||
-        appliedPreferences.decay !== 0.5 ||
-        appliedPreferences.candidateParts !== "any" ||
-        appliedParts !== null
-      : ranking !== "score");
   const validModel = profile.profiles.some(
     (item) => item.id === draft?.model && item.stored_vectors,
   );
@@ -338,18 +325,15 @@ export function SearchSettings({
   return (
     <>
       <Tooltip title={`Search settings: ${summary}`}>
-        <Badge dot={customized} color={token.colorPrimaryText}>
-          <Button
-            icon={<SlidersHorizontal size={18} />}
-            aria-label="Search settings"
-            aria-describedby={`${id}-summary`}
-            disabled={disabled || profile.loading}
-            onClick={openSettings}
-          />
-        </Badge>
+        <Button
+          icon={<SlidersHorizontal size={18} />}
+          aria-label="Search settings"
+          aria-describedby={`${id}-summary`}
+          disabled={disabled || profile.loading}
+          onClick={openSettings}
+        />
       </Tooltip>
       <span id={`${id}-summary`} className="sr-only">
-        {customized ? "Customized. " : ""}
         {summary}
       </span>
       <Modal
@@ -748,6 +732,15 @@ export function SearchSettings({
                         seed={seed}
                         generation={sourceGeneration}
                         target={currentTarget}
+                        selection={
+                          inventory.data &&
+                          inventory.data.artifact_generation === sourceGeneration &&
+                          !inventoryRetired &&
+                          !inventory.isFetching &&
+                          inventory.error === null
+                            ? { inventory: inventory.data, selected: draft.parts }
+                            : null
+                        }
                         active={showingSource && (wide || sourceView === "document")}
                         onReloadSections={reloadSections}
                       />
