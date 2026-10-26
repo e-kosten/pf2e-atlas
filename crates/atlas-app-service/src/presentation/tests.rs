@@ -960,6 +960,7 @@ fn encounter_save_adjustments_restore_an_omitted_legacy_hazard_block() {
     for (effective, explanation, expected) in [(0, false, false), (1, false, true), (0, true, true)]
     {
         let block = StatBlockView {
+            source_actions: Default::default(),
             senses_known: false,
             senses: vec![],
             sense_facts: vec![],

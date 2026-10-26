@@ -20,13 +20,14 @@ pub(super) fn get(connection: &Connection, key: &str) -> LocalStateResult<Option
         return Ok(None);
     };
     let mut statement = connection.prepare(
-        "SELECT member_key, name FROM party_members WHERE party_key=?1 ORDER BY position",
+        "SELECT member_key, name, level FROM party_members WHERE party_key=?1 ORDER BY position",
     )?;
     party.members = statement
         .query_map([key], |row| {
             Ok(PartyMember {
                 member_key: row.get(0)?,
                 name: row.get(1)?,
+                level: row.get(2)?,
             })
         })?
         .collect::<Result<_, _>>()?;
@@ -57,8 +58,8 @@ pub(super) fn replace_members(
             .clone()
             .unwrap_or_else(|| new_key("member"));
         connection.execute(
-            "INSERT INTO party_members(member_key,party_key,position,name) VALUES(?1,?2,?3,?4)",
-            params![member_key, key, position as i64, member.name.trim()],
+            "INSERT INTO party_members(member_key,party_key,position,name,level) VALUES(?1,?2,?3,?4,?5)",
+            params![member_key, key, position as i64, member.name.trim(), member.level],
         )?;
     }
     Ok(())

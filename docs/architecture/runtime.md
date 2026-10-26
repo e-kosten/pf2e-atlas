@@ -515,18 +515,40 @@ maximum; unknown does not become zero. Source adjustments apply once, explicit
 participant choices replace them, and saved HP/overrides/edit intent survive
 artifact rebuilds. No Foundry world execution or guessed aggregate mechanics is
 introduced. Local-state migrations preserve existing ambiguous values.
+Adding creatures accepts an optional Normal/Elite/Weak choice. Omission inherits
+the source (As listed); an explicit choice replaces it and initializes every added
+copy from the same effective HP owner. Hazards cannot receive NPC adjustments.
+Record detail projects the resolved encounter adjustment using that same source
+default owner. The picker shows Normal/Elite/Weak when known and retains inherited
+intent until the user changes the selector; unavailable defaults stay unknown.
+
+Encounter difficulty is an app-service projection of the planned roster, typed
+source levels/complexity and the existing effective-level owner. PC levels copied
+from parties remain encounter-owned snapshots. Local-state stores only nullable GM
+reference level/count overrides, guarded by the encounter revision; it does not
+persist calculated XP or ratings. A read-only preview calculates an edited reference
+within one workspace snapshot before submission. Defeated/disabled state does not
+change the planned rating; sides, participant membership, level/adjustment and the
+chosen reference do. Missing facts and creatures above party level +4 remain
+unavailable. Creatures below party level −4 use the pinned Foundry calculator's
+10 XP floor, including each copy in a prospective addition; this is an explicit
+Atlas calculation policy beyond the published table. Hazards keep their existing
+zero-XP lower-range policy, while unknown complexity stays unavailable. Mixed-level
+suggestions are explained and remain GM choices.
 
 Encounter HP actions carry participant identity, expected revision and one explicit
 operation: damage, heal, exact current/temporary/maximum correction, or derived
 maximum reset. App-service interprets raw integer addition/subtraction input against
 the checked current participant, then reuses provenance policy and the transactional
-replacement guard. The bounded shortcut accepts one initial plus/minus sign.
+replacement guard. The bounded shortcut accepts parentheses and one initial
+plus/minus sign per grouped expression (for example, `-(10+5-2)`).
 Enter sends signed Heal intent (positive heals, negative damages); negative Damage
 or Heal amounts reverse the operation in Rust before applying its complete policy.
 Exact correction formulas retain their zero floor and never acquire a maximum
 clamp. Null explicitly clears
 current/maximum availability. Formula length, arithmetic and browser-safe final
-input bounds are checked; dice and general expressions are unsupported. Damage
+input bounds are checked, with at most 512 bytes and 64 nested groups; dice,
+multiplication and general expressions are unsupported. Damage
 absorbs temporary HP first and floors current HP at zero. Participants tracking
 Dying enter the shared mortality/lifecycle planner; untracked participants retain
 Defeated/Disabled participation behavior. Healing caps at condition-adjusted maximum
@@ -594,10 +616,16 @@ data does not imply runtime execution support. See the active backlog and ADR004
 
 App-service projects current acting/reacting capability separately from a
 PF2e 8.6.1 next-regain forecast. Unknown condition values produce an unavailable
-forecast. Quickened restrictions and overlapping Stunned/Slowed losses remain
-visible; reads never recover conditions. Explicit Stunned action-loss events use
-the same forecast and record the GM-confirmed loss without maintaining a current
-action ledger. Ordinary strikes retain direct guarded rolls with optional reference
+forecast. Checked source-owned Slowed/Quickened and supported passive in-memory
+grants contribute distinct read-only causes alongside temporary encounter
+conditions. They use checked reference resolution and immunity facts; no source
+restriction is inferred from prose. Quickened restrictions and overlapping
+Stunned/Slowed losses remain visible; reads never recover conditions. Turn start
+and explicit regain allocate retained action/reaction stock through the guarded
+event owner. Explicit Stunned loss uses that recorded remaining stock or the same
+source-backed regain forecast. Turn receipts recover before reference loading;
+new source-dependent allocations check the prepared reference revision. Ordinary
+strikes retain direct guarded rolls with optional reference
 checks; ordinary casting records table-resolved use from the spell popover. Casting reminders and optional strike context are read-only, with no durable
 action-attempt workflow. Source-specific judgments support the actual Retch
 lifecycle action. Scoped detection effects derive from active conditions, without

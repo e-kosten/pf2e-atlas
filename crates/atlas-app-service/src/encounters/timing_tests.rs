@@ -614,6 +614,7 @@ fn expired_rounds_do_not_disable_modeled_condition_effects() {
     let (f, key, _, _) = fixture();
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: key.clone(),
             record_ref: "Test Creature 1".into(),
             quantity: 1,

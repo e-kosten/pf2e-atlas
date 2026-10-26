@@ -49,6 +49,7 @@
 }
 
 .encounter-detail-view {
+  --encounter-pane-inset: var(--space-group);
   width: 100%;
   max-width: 100rem;
   margin-inline: auto;
@@ -79,16 +80,11 @@
   overflow-wrap: anywhere;
 }
 
-.encounter-detail-header p {
-  color: var(--muted);
-  margin: 4px 0 0;
-}
-
 .encounter-pane {
   background: var(--panel);
   min-height: 100%;
   overflow: auto;
-  padding: 16px;
+  padding: var(--encounter-pane-inset);
 }
 
 .encounter-record-pane {

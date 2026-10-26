@@ -144,17 +144,120 @@ it("keeps a failed party creation draft and permits an explicit retry", async ()
     target: { value: "Campaign" },
   });
   fireEvent.click(within(dialog).getByRole("button", { name: "Add PC" }));
-  fireEvent.change(within(dialog).getByLabelText("PC 1"), {
+  fireEvent.change(within(dialog).getByLabelText("PC 1 name"), {
     target: { value: "Aster" },
+  });
+  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "Party level" }), {
+    target: { value: "5" },
   });
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
   expect(await screen.findByText("Could not save")).toBeInTheDocument();
-  expect(within(dialog).getByLabelText("PC 1")).toHaveValue("Aster");
+  expect(within(dialog).getByLabelText("PC 1 name")).toHaveValue("Aster");
   expect(onClose).not.toHaveBeenCalled();
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   expect(api.createParty).toHaveBeenLastCalledWith({
     name: "Campaign",
-    members: [{ name: "Aster" }],
+    members: [{ name: "Aster", level: 5 }],
   });
+});
+
+it("uses one shared level for every PC, including PCs added after entering it", async () => {
+  api.createParty.mockResolvedValue(party);
+  render(<PartyManager initialCreate onClose={vi.fn()} />, { wrapper });
+  const dialog = await screen.findByRole("dialog", { name: "New Party" });
+  expect(within(dialog).getByRole("radio", { name: "Same level" })).toBeChecked();
+  fireEvent.change(within(dialog).getByLabelText("Party name"), {
+    target: { value: "Shared" },
+  });
+  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "Party level" }), {
+    target: { value: "7" },
+  });
+  for (const [index, name] of ["Aster", "Bram"].entries()) {
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add PC" }));
+    fireEvent.change(within(dialog).getByLabelText(`PC ${index + 1} name`), {
+      target: { value: name },
+    });
+  }
+  expect(within(dialog).queryByRole("spinbutton", { name: "PC 1 level" })).toBeNull();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+  await waitFor(() =>
+    expect(api.createParty).toHaveBeenCalledWith({
+      name: "Shared",
+      members: [
+        { name: "Aster", level: 7 },
+        { name: "Bram", level: 7 },
+      ],
+    }),
+  );
+});
+
+it("retains mixed individual drafts while switching level entry modes", async () => {
+  api.getParties.mockResolvedValue({
+    parties: [
+      {
+        ...party,
+        members: party.members.map((member, index) => ({
+          ...member,
+          level: index === 0 ? 4 : 6,
+        })),
+      },
+    ],
+  });
+  api.updateParty.mockResolvedValue(party);
+  render(<PartyManager onClose={vi.fn()} />, { wrapper });
+  fireEvent.click(await screen.findByRole("button", { name: "Campaign" }));
+  const dialog = await screen.findByRole("dialog", { name: "Edit Party" });
+  expect(
+    within(dialog).getByRole("radio", { name: "Individual levels" }),
+  ).toBeChecked();
+  fireEvent.click(within(dialog).getByRole("radio", { name: "Same level" }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+  await within(dialog).findByText("Use 1–20.");
+  expect(api.updateParty).not.toHaveBeenCalled();
+  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "Party level" }), {
+    target: { value: "9" },
+  });
+  fireEvent.click(within(dialog).getByRole("radio", { name: "Individual levels" }));
+  expect(within(dialog).getByRole("spinbutton", { name: "PC 1 level" })).toHaveValue(
+    "4",
+  );
+  expect(within(dialog).getByRole("spinbutton", { name: "PC 2 level" })).toHaveValue(
+    "6",
+  );
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+  await waitFor(() =>
+    expect(api.updateParty).toHaveBeenCalledWith("party", {
+      name: "Campaign",
+      expected_revision: 4,
+      members: [
+        { member_key: "pc-a", name: "Aster", level: 4 },
+        { member_key: "pc-b", name: "Bram", level: 6 },
+      ],
+    }),
+  );
+});
+
+it("seeds individual entry from the shared level then preserves subsequent individual edits", async () => {
+  render(<PartyManager initialCreate onClose={vi.fn()} />, { wrapper });
+  const dialog = await screen.findByRole("dialog", { name: "New Party" });
+  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "Party level" }), {
+    target: { value: "5" },
+  });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Add PC" }));
+  fireEvent.click(within(dialog).getByRole("radio", { name: "Individual levels" }));
+  expect(within(dialog).getByRole("spinbutton", { name: "PC 1 level" })).toHaveValue(
+    "5",
+  );
+  fireEvent.change(within(dialog).getByRole("spinbutton", { name: "PC 1 level" }), {
+    target: { value: "6" },
+  });
+  fireEvent.click(within(dialog).getByRole("radio", { name: "Same level" }));
+  expect(within(dialog).getByRole("spinbutton", { name: "Party level" })).toHaveValue(
+    "6",
+  );
+  fireEvent.click(within(dialog).getByRole("radio", { name: "Individual levels" }));
+  expect(within(dialog).getByRole("spinbutton", { name: "PC 1 level" })).toHaveValue(
+    "6",
+  );
 });

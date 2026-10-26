@@ -26,7 +26,9 @@ fn create(service: &crate::AtlasAppService, name: &str) -> PartyView {
             name: name.into(),
             members: ["First PC", "Second PC", "Second PC"]
                 .into_iter()
-                .map(|name| PartyMemberInput {
+                .enumerate()
+                .map(|(index, name)| PartyMemberInput {
+                    level: [None, Some(4), Some(5)][index],
                     member_key: None,
                     name: name.into(),
                 })
@@ -69,6 +71,7 @@ fn party_addition_is_source_free_ordered_and_independent_of_later_edits_and_dele
                 expected_revision: party.revision,
                 name: "Renamed".into(),
                 members: vec![PartyMemberInput {
+                    level: None,
                     member_key: Some(party.members[0].member_key.clone()),
                     name: "Changed PC".into(),
                 }],
@@ -93,6 +96,14 @@ fn party_addition_is_source_free_ordered_and_independent_of_later_edits_and_dele
             .map(|p| p.display_name.as_str())
             .collect::<Vec<_>>(),
         ["First PC", "Second PC", "Second PC"]
+    );
+    assert_eq!(
+        detail
+            .participants
+            .iter()
+            .map(|pc| pc.level_override)
+            .collect::<Vec<_>>(),
+        vec![None, Some(4), Some(5)]
     );
     for pc in detail.participants {
         assert_eq!(pc.participant_kind, EncounterParticipantKindView::Pc);
@@ -169,10 +180,12 @@ fn invalid_party_edit_preserves_the_complete_roster_and_rejects_foreign_member_k
     let other = create(&service, "Other");
     for member in [
         PartyMemberInput {
+            level: None,
             member_key: None,
             name: " ".into(),
         },
         PartyMemberInput {
+            level: None,
             member_key: Some(other.members[0].member_key.clone()),
             name: "Foreign PC".into(),
         },

@@ -965,3 +965,32 @@ pub(crate) async fn update_turn_resources(
         .await?,
     ))
 }
+
+pub(crate) async fn set_encounter_difficulty(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+    payload: Result<Json<atlas_app_model::SetEncounterDifficultyRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.set_encounter_difficulty(&encounter_ref, request)
+        })
+        .await?,
+    ))
+}
+pub(crate) async fn preview_encounter_difficulty(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+    payload: Result<Json<atlas_app_model::PreviewEncounterDifficultyRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.preview_encounter_difficulty(&encounter_ref, request)
+        })
+        .await?,
+    ))
+}
