@@ -433,7 +433,7 @@ export function SearchPickerModal<FormValues>({
           }}
         >
           <div className="reference-picker__fields">
-            {typeof children === "function" ? children(reading.detail) : children}
+            {typeof children === "function" ? children(reading.parentDetail) : children}
           </div>
           {summary && <div className="reference-picker__summary">{summary}</div>}
           {!summary && status}

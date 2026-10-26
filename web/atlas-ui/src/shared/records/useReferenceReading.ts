@@ -91,9 +91,9 @@ export function referenceReadingQueryOptions(
           recordDetailRequest(match),
           signal,
         );
-        return { detail: checked(detail), landing: undefined };
+        return { detail: checked(detail), parent, landing: undefined };
       }
-      return { detail: parent, landing: match ?? request!.landing };
+      return { detail: parent, parent, landing: match ?? request!.landing };
     },
   });
 }
@@ -177,6 +177,7 @@ export function useReferenceReading(
     canGoBack: session.history.length > 0,
     back: () => dispatch({ kind: "back" }),
     detail: retained?.detail,
+    parentDetail: retained?.parent,
     landing: retained?.landing,
     loading: query.isFetching,
     error: query.error,
