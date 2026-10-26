@@ -100,6 +100,9 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
       [
         'Not a stable release',
         '',
+        '<details>',
+        '<summary>Install instructions</summary>',
+        '',
         'Install with the installer for your platform:',
         '',
         '**macOS / Linux**',
@@ -118,6 +121,8 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
         '```',
         '',
         'For first-time setup, see the [Quick Start](https://github.com/e-kosten/pf2e-atlas#quick-start).',
+        '',
+        '</details>',
         '',
         `Built from main commit ${sha}.`,
         '',
