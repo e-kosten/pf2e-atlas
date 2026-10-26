@@ -104,7 +104,6 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   position: relative;
   border-inline-start: 3px solid transparent;
   border-bottom: 1px solid var(--line);
-  padding-bottom: 4px;
   content-visibility: auto;
   contain-intrinsic-size: auto 135px;
 }
@@ -113,7 +112,11 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   border-inline-start-color: var(--selection-border);
 }
 .reference-result__summary {
-  display: flex;
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-template-columns: subgrid;
+  grid-row: 1 / 4;
+  grid-column: 1 / -1;
   height: auto;
   border-radius: 0;
   text-align: left;
@@ -153,10 +156,6 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   gap: 8px;
   color: var(--muted);
   font-size: 12px;
-}
-.reference-result > .reference-result__traits {
-  padding: 0 var(--browse-pane-inset) 10px;
-  padding-inline-start: calc(var(--browse-pane-inset) - 3px);
 }
 .reference-result__traits {
   grid-column: 1 / -1;
