@@ -570,11 +570,48 @@ test("standalone records scroll as pages from the gutter and keyboard", async ({
     await page.mouse.move(8, 320);
     await page.mouse.wheel(0, 600);
     await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
+    // The first zero-position sample can precede Home's native scroll completion.
+    const homeScroll = await page.evaluateHandle(() => {
+      const state = { finished: false };
+      const finish = () => {
+        if (scrollY !== 0) return;
+        state.finished = true;
+        document.removeEventListener("scrollend", finish);
+      };
+      document.addEventListener("scrollend", finish);
+      return { state, cancel: () => document.removeEventListener("scrollend", finish) };
+    });
+    try {
+      await page.keyboard.press("Home");
+      await expect
+        .poll(() => homeScroll.evaluate(({ state }) => state.finished))
+        .toBe(true);
+    } finally {
+      await homeScroll.evaluate(({ cancel }) => cancel());
+      await homeScroll.dispose();
+    }
+  } else {
+    await page.keyboard.press("Home");
   }
-  await page.keyboard.press("Home");
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   await page.keyboard.press("PageDown");
-  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
+  try {
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
+  } catch (error) {
+    await info.attach("page-scroll-state", {
+      contentType: "application/json",
+      body: JSON.stringify(
+        await page.evaluate(() => ({
+          focused: document.hasFocus(),
+          activeElement: document.activeElement?.outerHTML.slice(0, 500),
+          scrollY,
+          documentHeight: document.documentElement.scrollHeight,
+          viewportHeight: innerHeight,
+        })),
+      ),
+    });
+    throw error;
+  }
   expect(
     await page.locator(".record-view__pane").evaluate((node) => node.scrollTop),
   ).toBe(0);
