@@ -11,7 +11,7 @@ pub(crate) struct SimilarOptions {
         long,
         value_enum,
         conflicts_with = "list_parts",
-        help = "Comparison method: passages, content-average or current baseline"
+        help = "Comparison method: passages, content-average or baseline (Name and identity for records; Trait definition for traits)"
     )]
     pub(crate) method: Option<CliSimilarityMethod>,
     #[arg(long, value_parser = parse_decay, conflicts_with = "list_parts", help = "Passage match decay, 0 for strongest part through 1 for equal parts (default 0.5)")]

@@ -1,4 +1,4 @@
-import { App } from "antd";
+import { App, ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SearchProfileContext } from "./SearchProfileContext";
@@ -56,38 +56,41 @@ function setup(
     similarSeed: seed.record_key,
     similarity: options,
   },
+  selectedSeed: SimilaritySeed = seed,
 ) {
   const apply = vi.fn();
   const remember = vi.fn(() => true);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <App>
-        <SearchProfileContext
-          value={{
-            id: "bge-base",
-            defaultId: "bge-base",
-            pendingUrlProfile: null,
-            profiles: readinessFixture().search_profiles,
-            storedVectors: true,
-            usable: true,
-            loading: false,
-            error: null,
-            canResetLink: false,
-            resetLink: vi.fn(),
-            select: vi.fn(),
-            preferences: DEFAULT_SEARCH_PREFERENCES,
-            applyPreferences: remember,
-          }}
-        >
-          <SearchSettings
-            search={search}
-            seed={search.similarSeed ? seed : null}
-            onApply={apply}
-            generation="generation-1"
-          />
-        </SearchProfileContext>
-      </App>
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <App>
+          <SearchProfileContext
+            value={{
+              id: "bge-base",
+              defaultId: "bge-base",
+              pendingUrlProfile: null,
+              profiles: readinessFixture().search_profiles,
+              storedVectors: true,
+              usable: true,
+              loading: false,
+              error: null,
+              canResetLink: false,
+              resetLink: vi.fn(),
+              select: vi.fn(),
+              preferences: DEFAULT_SEARCH_PREFERENCES,
+              applyPreferences: remember,
+            }}
+          >
+            <SearchSettings
+              search={search}
+              seed={search.similarSeed ? selectedSeed : null}
+              onApply={apply}
+              generation="generation-1"
+            />
+          </SearchProfileContext>
+        </App>
+      </ConfigProvider>
     </QueryClientProvider>,
   );
   fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
@@ -169,7 +172,7 @@ it("retains an exact selection and prevents Apply when inventory cannot validate
 it("omits controls that do not apply to the baseline", async () => {
   setup();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Comparison method" }));
-  fireEvent.click(screen.getByText("Current baseline"));
+  fireEvent.click(screen.getByText("Name and identity"));
   await waitFor(() =>
     expect(screen.queryByRole("spinbutton", { name: "Match decay" })).toBeNull(),
   );
@@ -183,7 +186,7 @@ it("suspends an empty part draft when switching to the baseline", async () => {
   fireEvent.click(screen.getByRole("checkbox", { name: "All parts" }));
   expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Comparison method" }));
-  fireEvent.click(screen.getByText("Current baseline"));
+  fireEvent.click(screen.getByText("Name and identity"));
   expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled();
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   expect(apply).toHaveBeenCalledWith(
@@ -191,6 +194,114 @@ it("suspends an empty part draft when switching to the baseline", async () => {
       similarity: { method: "baseline" },
       similarityGeneration: undefined,
     }),
+    "bge-base",
+  );
+});
+
+it("explains model and the selected text ranking without exposing Similar controls", async () => {
+  const { apply, remember } = setup({ ...DEFAULT_SEARCH_STATE, query: "heal" });
+  const modelHelp = screen.getByRole("button", { name: "About embedding model" });
+  fireEvent.click(modelHelp);
+  await waitFor(() =>
+    expect(screen.getByText(/Changes how the search compares meaning/)).toBeVisible(),
+  );
+  fireEvent.keyDown(modelHelp, { key: "Escape" });
+  const rankingHelp = screen.getByRole("button", { name: "About ranking" });
+  fireEvent.click(rankingHelp);
+  await waitFor(() =>
+    expect(screen.getByText(/Score-based combines the strength/)).toBeVisible(),
+  );
+  fireEvent.keyDown(rankingHelp, { key: "Escape" });
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search ranking" }));
+  fireEvent.click(screen.getByText("Rank-based"));
+  fireEvent.click(rankingHelp);
+  await waitFor(() =>
+    expect(screen.getByText(/Rank-based combines the result positions/)).toBeVisible(),
+  );
+  expect(screen.queryByRole("combobox", { name: "Comparison method" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "About compare parts" })).toBeNull();
+  fireEvent.keyDown(rankingHelp, { key: "Escape" });
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(apply).not.toHaveBeenCalled();
+  expect(remember).not.toHaveBeenCalled();
+});
+
+it("explains selected Similar choices and keeps help separate from opening Compare parts", async () => {
+  setup();
+  expect(screen.queryByRole("combobox", { name: "Search ranking" })).toBeNull();
+  const methodHelp = screen.getByRole("button", { name: "About comparison method" });
+  fireEvent.click(methodHelp);
+  await waitFor(() =>
+    expect(
+      screen.getByText(/Passage matches compares each selected part/),
+    ).toBeVisible(),
+  );
+  fireEvent.keyDown(methodHelp, { key: "Escape" });
+  const decayHelp = screen.getByRole("button", { name: "About match decay" });
+  fireEvent.click(decayHelp);
+  await waitFor(() =>
+    expect(screen.getByText(/0 uses only the strongest part/)).toBeVisible(),
+  );
+  fireEvent.keyDown(decayHelp, { key: "Escape" });
+  const partsHelp = screen.getByRole("button", { name: "About compare parts" });
+  fireEvent.click(partsHelp);
+  await waitFor(() =>
+    expect(screen.getByText(/Choose which sections of this record/)).toBeVisible(),
+  );
+  expect(api.parts).not.toHaveBeenCalled();
+  fireEvent.keyDown(partsHelp, { key: "Escape" });
+  fireEvent.click(screen.getByText("Compare parts"));
+  await screen.findByRole("checkbox", { name: "Description" });
+  const candidateHelp = screen.getByRole("button", { name: "About candidate content" });
+  fireEvent.click(candidateHelp);
+  await waitFor(() =>
+    expect(
+      screen.getByText(/Any selected source part can match any content/),
+    ).toBeVisible(),
+  );
+  fireEvent.keyDown(candidateHelp, { key: "Escape" });
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Candidate content" }));
+  fireEvent.click(screen.getByText("Corresponding parts"));
+  fireEvent.click(candidateHelp);
+  await waitFor(() =>
+    expect(
+      screen.getByText(/If a result lacks that type of part, it contributes no match/),
+    ).toBeVisible(),
+  );
+  fireEvent.keyDown(candidateHelp, { key: "Escape" });
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Comparison method" }));
+  fireEvent.click(screen.getByText("Content average"));
+  fireEvent.click(methodHelp);
+  await waitFor(() =>
+    expect(screen.getByText(/Content average blends the meaning/)).toBeVisible(),
+  );
+  expect(screen.queryByRole("spinbutton", { name: "Match decay" })).toBeNull();
+});
+
+it("names the trait baseline by its content while preserving its wire value", async () => {
+  const { apply } = setup(
+    {
+      ...DEFAULT_SEARCH_STATE,
+      similarSeed: "trait:fire",
+      similarity: { method: "baseline" },
+    },
+    { kind: "trait", trait_key: "trait:fire" },
+  );
+  await waitFor(() => expect(screen.getByText("Trait definition")).toBeVisible());
+  expect(screen.queryByText("Name and identity")).toBeNull();
+  expect(screen.queryByText("Current baseline")).toBeNull();
+  expect(screen.getByText(/Uses the trait’s definition, or its label/)).toBeVisible();
+  const methodHelp = screen.getByRole("button", { name: "About comparison method" });
+  fireEvent.click(methodHelp);
+  await waitFor(() =>
+    expect(
+      screen.getByText(/Trait definition compares the trait’s definition/),
+    ).toBeVisible(),
+  );
+  fireEvent.keyDown(methodHelp, { key: "Escape" });
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ similarity: { method: "baseline" } }),
     "bge-base",
   );
 });

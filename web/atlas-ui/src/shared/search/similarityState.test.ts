@@ -1,4 +1,5 @@
 import { DEFAULT_SEARCH_PREFERENCES } from "./searchPreferences";
+import { similarityLabel } from "./similarityState";
 import {
   buildSearchRequest,
   decodeSearchStateFromParams,
@@ -73,4 +74,17 @@ it.each([
       new URLSearchParams(`similar=hazards:brown-mold&${query}`),
     ).filterError,
   ).toContain("Invalid similarity settings");
+});
+
+it("labels the baseline according to its seed while keeping passage summaries", () => {
+  expect(similarityLabel({ method: "baseline" })).toBe("Name and identity");
+  expect(similarityLabel({ method: "baseline" }, true)).toBe("Trait definition");
+  expect(
+    similarityLabel({
+      method: "passages",
+      decay: 0.5,
+      parts: null,
+      candidate_parts: "any",
+    }),
+  ).toBe("Passage matches, decay 0.5");
 });

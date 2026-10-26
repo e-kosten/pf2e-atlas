@@ -362,8 +362,9 @@ paired match evidence for CLI and web; the browser does not infer correspondence
 roles or calculate scores. Inventory can report missing vectors without requiring
 model weights. The index-owned section/role projection is backfilled from retained
 checked data by workspace migration 16 and refreshed during publication. Existing
-record and trait algorithms remain explicit Current baseline methods; the new
-passage and centroid recipes reuse stored vectors. See
+record and trait algorithms remain explicit `baseline` methods, labeled Name and
+identity and Trait definition respectively; the new passage and centroid recipes
+reuse stored vectors. See
 [ADR0059](./decisions/0059-configurable-similarity.md).
 Record Similar carries the exact root seed and canonical filters, and returns a
 body-free seed summary beside bounded candidate pages. Trait Similar carries its

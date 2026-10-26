@@ -12,7 +12,8 @@ vectors support richer comparisons without another embedding inference pass.
 ## Decision
 
 Expose three explicit methods through shared retrieval and app-service workflows:
-Passage matches, Content average and Current baseline. Keep embedding-profile
+Passage matches, Content average and `baseline`. Label the baseline Name and
+identity for records and Trait definition for traits. Keep embedding-profile
 selection independent. Preserve the old record/trait algorithms as baselines;
 their different seed representations remain explicit.
 

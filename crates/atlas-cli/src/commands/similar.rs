@@ -239,7 +239,14 @@ fn print_results(result: &SearchResultsPage, explain: bool) {
                     candidate_mode_label(*candidate_parts)
                 )
             }
-            SimilarityOptions::Baseline {} => "Current baseline".into(),
+            SimilarityOptions::Baseline {} => {
+                if matches!(result.mode, SearchModeSummary::SimilarTraits { .. }) {
+                    "Trait definition"
+                } else {
+                    "Name and identity"
+                }
+                .into()
+            }
         };
         println!("{method}; model {}\n", result.search_profile);
         if explain && matches!(configuration.options, SimilarityOptions::Baseline {}) {
@@ -248,7 +255,7 @@ fn print_results(result: &SearchResultsPage, explain: bool) {
                 if matches!(result.mode, SearchModeSummary::SimilarTraits { .. }) {
                     "stored trait definition average"
                 } else {
-                    "stored root identity"
+                    "stored name and identity vector"
                 }
             );
         }

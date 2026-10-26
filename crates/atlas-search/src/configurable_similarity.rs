@@ -203,7 +203,7 @@ impl crate::AtlasRetrievalService {
         }
         if seed_units.is_empty() {
             return Err(SearchError::invalid_search_options(
-                "this seed has no indexed prose to compare; choose Current baseline instead",
+                "this seed has no indexed prose to compare; choose Name and identity instead",
             ));
         }
         let seed_parts = crate::similarity_scoring::parts(&seed_units);
@@ -595,7 +595,7 @@ fn selected_parts(
         .unwrap_or_else(|| available.clone());
     if selected.is_empty() {
         return Err(SearchError::invalid_search_options(
-            "this seed has no indexed prose; choose Current baseline instead",
+            "this seed has no indexed prose; choose Name and identity instead",
         ));
     }
     if !selected.is_subset(&available) {

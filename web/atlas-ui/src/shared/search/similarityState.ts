@@ -29,13 +29,13 @@ export function similarityPreferences(
   };
 }
 
-export function similarityLabel(options: SimilarityOptions): string {
+export function similarityLabel(options: SimilarityOptions, trait = false): string {
   switch (options.method) {
     case "passages":
       return `Passage matches, decay ${options.decay}`;
     case "content-average":
       return "Content average";
     case "baseline":
-      return "Current baseline";
+      return trait ? "Trait definition" : "Name and identity";
   }
 }
