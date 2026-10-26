@@ -1072,14 +1072,18 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
     await picker.getByLabel("Quantity", { exact: true }).fill("2");
     await picker.getByLabel("Initiative", { exact: true }).fill("7");
     await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
-    await expect(picker.getByRole("status")).toContainText("Added 2 × Atlas Sentinel");
+    await expect(
+      picker.getByRole("status").filter({ hasText: "Added 2 × Atlas Sentinel" }),
+    ).toBeVisible();
     await expect(picker.getByLabel("Quantity", { exact: true })).toHaveValue("1");
     await expect(picker.getByLabel("Initiative", { exact: true })).toHaveValue("");
     await expect(
       picker.getByRole("button", { name: "Add", exact: true }),
     ).toBeEnabled();
     await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
-    await expect(picker.getByRole("status")).toContainText("Added 1 × Atlas Sentinel");
+    await expect(
+      picker.getByRole("status").filter({ hasText: "Added 1 × Atlas Sentinel" }),
+    ).toBeVisible();
     await activate(picker.getByRole("button", { name: "Done", exact: true }), info);
     await activate(page.getByRole("button", { name: "Start turn", exact: true }), info);
     await expect
@@ -1230,8 +1234,9 @@ test("named parties add everyone directly and archive views stay separate", asyn
       page.getByRole("button", { name: "Remove Dain", exact: true }),
       info,
     );
-    const removal = page.getByRole("dialog", { name: "Remove Dain?", exact: true });
-    await activate(removal.getByRole("button", { name: "Remove", exact: true }), info);
+    await expect(
+      page.getByRole("dialog", { name: "Remove Dain?", exact: true }),
+    ).toHaveCount(0);
     await expect(page.locator("[data-participant-key]")).toHaveCount(3);
     await page.reload();
     await expect(page.locator("[data-participant-key]")).toHaveCount(3);

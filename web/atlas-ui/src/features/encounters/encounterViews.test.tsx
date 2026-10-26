@@ -342,7 +342,10 @@ describe("encounter views", () => {
       conditionDefinitionsFixture(),
     );
     apiMocks.getRecordDetail.mockImplementation((recordKey: string) =>
-      Promise.resolve(recordDetailFixture(recordKey)),
+      Promise.resolve({
+        ...recordDetailFixture(recordKey),
+        artifact_generation: "generation-a",
+      }),
     );
     apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
       ...searchResultsFixture(),
@@ -1674,7 +1677,9 @@ describe("encounter views", () => {
 
     const goblinOption = await within(dialog).findByText("Goblin Warrior");
     fireEvent.click(goblinOption.closest("a")!);
-    expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled();
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled(),
+    );
     await waitFor(() =>
       expect(within(dialog).getByText("Normal", { exact: true })).toBeVisible(),
     );
@@ -1760,6 +1765,9 @@ describe("encounter views", () => {
     fireEvent.change(search, { target: { value: "goblin" } });
     fireEvent.keyDown(search, { key: "Enter", keyCode: 13 });
     fireEvent.click((await within(dialog).findByText("Goblin Warrior")).closest("a")!);
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled(),
+    );
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "2" },
     });
