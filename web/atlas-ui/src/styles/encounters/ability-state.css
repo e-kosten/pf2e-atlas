@@ -1,12 +1,28 @@
 .encounter-ability-controls {
-  display: grid;
+  display: inline-grid;
   gap: var(--space-control);
-  padding-block: var(--space-control);
+  vertical-align: middle;
+  font-size: 1rem;
+  font-weight: normal;
+}
+
+.encounter-ability-controls__remaining {
+  font-variant-numeric: tabular-nums;
+}
+
+.embedded-ability-reading__usage {
+  margin-block-start: var(--space-control);
 }
 
 .encounter-ability-controls__choice {
   min-width: 10rem;
   max-width: 100%;
+}
+
+.encounter-ability-controls__choice-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-control);
 }
 
 .encounter-ability-controls__use {

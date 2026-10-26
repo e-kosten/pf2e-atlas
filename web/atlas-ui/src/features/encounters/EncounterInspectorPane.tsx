@@ -619,18 +619,24 @@ function EncounterParticipantSurface({
                           JSON.stringify(ability.navigation.embedded_path) ===
                           JSON.stringify(navigation.embedded_path),
                       ) ?? [];
-                    return abilities.length ? (
-                      <Space wrap>
-                        {abilities.map((ability) => (
-                          <EncounterAbilityControls
-                            key={`${participant.participant_key}:${String(ability.rule_ordinal)}`}
-                            ability={ability}
-                            disabled={disabled}
-                            onChange={onAbilityState}
-                          />
-                        ))}
-                      </Space>
-                    ) : null;
+                    const render = (kind: "option" | "uses") => {
+                      const matching = abilities.filter(
+                        (ability) => ability.state.kind === kind,
+                      );
+                      return matching.length ? (
+                        <Space wrap>
+                          {matching.map((ability) => (
+                            <EncounterAbilityControls
+                              key={`${participant.participant_key}:${String(ability.rule_ordinal)}`}
+                              ability={ability}
+                              disabled={disabled}
+                              onChange={onAbilityState}
+                            />
+                          ))}
+                        </Space>
+                      ) : null;
+                    };
+                    return { activation: render("option"), usage: render("uses") };
                   },
                   parent: {
                     record_key: participant.record_key,

@@ -1,5 +1,6 @@
-import { Button, Select, Space, Switch } from "antd";
-import { useLayoutEffect, useRef, useState } from "react";
+import { UndoOutlined } from "@ant-design/icons";
+import { Button, Select, Space, Switch, Tooltip } from "antd";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import type {
   EncounterAbilityStateAction,
   EncounterAbilityStateView,
@@ -23,6 +24,7 @@ export function EncounterAbilityControls({
   const [error, setError] = useState<string>();
   const inFlight = useRef(false);
   const container = useRef<HTMLDivElement>(null);
+  const choiceId = useId();
   const restoreFocus = useRef<HTMLElement | null>(null);
   useLayoutEffect(() => {
     if (pending || disabled || !restoreFocus.current) return;
@@ -90,41 +92,45 @@ export function EncounterAbilityControls({
               />
             )}
             {state.choices.length > 0 && (
-              <Select
-                aria-label={`${ability.label} option`}
-                value={state.active ? state.selection : "__off"}
-                loading={pending}
-                popupMatchSelectWidth={false}
-                options={
-                  state.always_active
-                    ? state.choices
-                    : [
-                        { value: "__off", label: "Off", consequence: null },
-                        ...state.choices,
-                      ]
-                }
-                optionRender={(option) => (
-                  <span>
-                    {option.data.label}
-                    {option.data.consequence ? ` · ${option.data.consequence}` : ""}
-                  </span>
-                )}
-                disabled={unavailable}
-                onChange={(selection: string) =>
-                  void update({
-                    kind: "set_option",
-                    active: selection !== "__off",
-                    selection: selection === "__off" ? state.selection : selection,
-                  })
-                }
-                className="encounter-ability-controls__choice"
-              />
+              <div className="encounter-ability-controls__choice-label">
+                <label htmlFor={choiceId}>Effect</label>
+                <Select
+                  id={choiceId}
+                  aria-label={`${ability.label} option`}
+                  value={state.active ? state.selection : "__off"}
+                  loading={pending}
+                  popupMatchSelectWidth={false}
+                  options={
+                    state.always_active
+                      ? state.choices
+                      : [
+                          { value: "__off", label: "Off", consequence: null },
+                          ...state.choices,
+                        ]
+                  }
+                  optionRender={(option) => (
+                    <span>
+                      {option.data.label}
+                      {option.data.consequence ? ` · ${option.data.consequence}` : ""}
+                    </span>
+                  )}
+                  disabled={unavailable}
+                  onChange={(selection: string) =>
+                    void update({
+                      kind: "set_option",
+                      active: selection !== "__off",
+                      selection: selection === "__off" ? state.selection : selection,
+                    })
+                  }
+                  className="encounter-ability-controls__choice"
+                />
+              </div>
             )}
           </>
         ) : (
           <>
-            <span>
-              {String(state.remaining)} / {String(state.maximum)} uses ·{" "}
+            <span className="encounter-ability-controls__remaining">
+              {String(state.remaining)} of {String(state.maximum)} remaining · per{" "}
               {state.interval}
             </span>
             <Button
@@ -136,20 +142,22 @@ export function EncounterAbilityControls({
             >
               Use
             </Button>
-            <Button
-              aria-label={`Restore use of ${ability.label}`}
-              disabled={unavailable || state.remaining >= state.maximum}
-              onClick={() => void update({ kind: "restore_use" })}
-            >
-              Restore
-            </Button>
+            <Tooltip title="Restore one use">
+              <Button
+                type="text"
+                icon={<UndoOutlined />}
+                aria-label={`Restore use of ${ability.label}`}
+                disabled={unavailable || state.remaining >= state.maximum}
+                onClick={() => void update({ kind: "restore_use" })}
+              />
+            </Tooltip>
           </>
         )}
       </Space>
       {error && (
-        <div className="encounter-inline-error" role="alert">
+        <span className="encounter-inline-error" role="alert">
           {error}
-        </div>
+        </span>
       )}
     </div>
   );
