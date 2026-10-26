@@ -83,18 +83,20 @@ impl AtlasAppService {
                         )
                     })?;
                 let current = ability.remaining(participant, sources.source_fingerprint.as_deref());
-                let remaining = if matches!(request.action, EncounterAbilityStateAction::SpendUse) {
-                    current - 1
+                let spending = matches!(request.action, EncounterAbilityStateAction::SpendUse);
+                let remaining = if spending {
+                    current.checked_sub(1)
                 } else {
-                    current + 1
-                };
-                if !(0..=ability.maximum).contains(&remaining) {
-                    return Err(AppServiceError::invalid_request(if remaining < 0 {
+                    current.checked_add(1)
+                }
+                .filter(|remaining| (0..=ability.maximum).contains(remaining))
+                .ok_or_else(|| {
+                    AppServiceError::invalid_request(if spending {
                         "No uses remaining."
                     } else {
                         "All uses are available."
-                    }));
-                }
+                    })
+                })?;
                 AbilityStateValue::Uses { remaining }
             }
         };
@@ -309,24 +311,42 @@ fn choice_consequence(
 /// Per-turn uses refresh at every initiative advance; per-round uses refresh at
 /// their owner's turn start, matching the pinned actor/encounter recharge policy.
 /// Longer intervals require an explicit restore because Atlas has no game clock.
-pub(super) fn prepare_turn_refresh(
+/// Incoming condition causes and ability refreshes share one reference snapshot.
+#[derive(Default)]
+pub(super) struct PreparedTurnSources {
+    pub conditions: rules::source_conditions::SourceConditions,
+    pub ability_refresh: Vec<AbilityStateChange>,
+    pub reference_revision: Option<u64>,
+}
+
+pub(super) fn prepare_turn_sources(
     service: &AtlasAppService,
     snapshot: &atlas_local_state::EncounterWithParticipants,
     incoming: Option<&str>,
-) -> AppServiceResult<(Vec<AbilityStateChange>, Option<u64>)> {
+) -> AppServiceResult<PreparedTurnSources> {
     if snapshot
         .participants
         .iter()
         .all(|participant| participant.record_key.is_none())
     {
-        return Ok((vec![], None));
+        return Ok(PreparedTurnSources::default());
     }
+    let incoming_needs_source = snapshot.participants.iter().any(|participant| {
+        incoming == Some(participant.participant_key.as_str())
+            && participant.record_key.is_some()
+            && participant.participant_kind != atlas_local_state::ParticipantKind::Hazard
+    });
     let participants = snapshot.participants.clone();
     let incoming = incoming.map(str::to_owned);
     let result = service.with_workspace(
         &crate::ReadExecutionContext::uncancellable(),
         move |session| {
             let mut changes = vec![];
+            let mut incoming_conditions = if incoming_needs_source {
+                rules::source_conditions::SourceConditions::unavailable()
+            } else {
+                Default::default()
+            };
             let mut baselines = std::collections::BTreeMap::new();
             for participant in &participants {
                 let Some(key) = participant.record_key.as_deref() else {
@@ -360,6 +380,11 @@ pub(super) fn prepare_turn_refresh(
                     continue;
                 };
                 let sources = &baseline.source_conditions;
+                if incoming_needs_source
+                    && incoming.as_deref() == Some(participant.participant_key.as_str())
+                {
+                    incoming_conditions = sources.clone();
+                }
                 for ability in &sources.uses {
                     use atlas_foundry_model::generated::AbilitySystemSourceFrequencyPer as Per;
                     let due = ability.per == Per::Turn
@@ -388,7 +413,11 @@ pub(super) fn prepare_turn_refresh(
                     });
                 }
             }
-            Ok((changes, Some(session.reference_revision()?)))
+            Ok(PreparedTurnSources {
+                conditions: incoming_conditions,
+                ability_refresh: changes,
+                reference_revision: Some(session.reference_revision()?),
+            })
         },
     );
     match result {
@@ -403,7 +432,14 @@ pub(super) fn prepare_turn_refresh(
                     | AppErrorCode::IndexUnavailable
                     | AppErrorCode::ArtifactNotReady
             ) {
-                Ok((vec![], None))
+                Ok(PreparedTurnSources {
+                    conditions: if incoming_needs_source {
+                        rules::source_conditions::SourceConditions::unavailable()
+                    } else {
+                        Default::default()
+                    },
+                    ..Default::default()
+                })
             } else {
                 Err(error.into())
             }

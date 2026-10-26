@@ -652,30 +652,15 @@ impl AtlasAppService {
             super::event_execution::snapshot(self, encounter_ref, request.expected_revision)?;
         let encounter_key = snapshot.encounter.encounter_key.clone();
         let next = super::turns::next_turn(&snapshot);
-        let (source_conditions, reference_revision) = if let Some(participant) = snapshot
-            .participants
-            .iter()
-            .find(|p| Some(&p.participant_key) == next.participant_key.as_ref())
-        {
-            super::turn_resources::source_action_context(self, participant)?
-        } else {
-            (Default::default(), None)
-        };
-        let (ability_refresh, ability_reference_revision) =
-            super::ability_state::prepare_turn_refresh(
-                self,
-                &snapshot,
-                next.participant_key.as_deref(),
-            )?;
-        if reference_revision
-            .zip(ability_reference_revision)
-            .is_some_and(|(left, right)| left != right)
-        {
-            return Err(AppServiceError::invalid_request(
-                "Reference changed; retry advancing the turn.",
-            ));
-        }
-        let reference_revision = reference_revision.or(ability_reference_revision);
+        let super::ability_state::PreparedTurnSources {
+            conditions: source_conditions,
+            ability_refresh,
+            reference_revision,
+        } = super::ability_state::prepare_turn_sources(
+            self,
+            &snapshot,
+            next.participant_key.as_deref(),
+        )?;
         self.with_write(move |session| {
             // A concurrent matching request still recovers before the source guard.
             if let Some(encounter) = session.local_state().encounters().advance_turn_receipt(

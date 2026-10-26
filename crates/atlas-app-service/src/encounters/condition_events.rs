@@ -199,13 +199,17 @@ impl AtlasAppService {
             return Ok(mutation(receipt));
         }
         let snapshot = snapshot(self, encounter_ref, request.expected_encounter_revision)?;
-        workflow::condition_in_snapshot(&snapshot, participant_key, condition_id)?;
+        let selected = workflow::condition_in_snapshot(&snapshot, participant_key, condition_id)?;
         let participant = snapshot
             .participants
             .iter()
             .find(|p| p.participant_key == participant_key)
             .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?;
-        let subject = workflow::condition_subject_context(self, participant)?;
+        let subject = if selected.condition_key.is_none() {
+            workflow::ConditionSubjectContext::from_saved(participant)
+        } else {
+            workflow::condition_subject_context(self, participant)?
+        };
         let consequences = plan_condition_change(
             participant,
             &subject.source_conditions,
