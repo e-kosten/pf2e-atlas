@@ -23,6 +23,35 @@ test("inline HP formulas stay bounded without displacing facts or actions", asyn
         })
       ).ok(),
     ).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(
+      page.getByRole("button", { name: "Formula Hero", exact: true }),
+      info,
+    );
+    const current = page.getByRole("button", { name: "Edit Current HP", exact: true });
+    const panel = page.locator(".encounter-hp-panel");
+    const actions = panel.locator(".encounter-hp-panel__actions");
+    await expect(actions.getByRole("button")).toHaveCount(2);
+    await activate(current, info);
+    const input = page.getByRole("textbox", { name: "Current HP", exact: true });
+    const shortWidth = (await input.boundingBox())!.width;
+    const expectVisibleFormula = async (field: typeof input) => {
+      // WebKit reserves a couple of caret pixels within the leading padding.
+      const { overflow, hiddenStart } = await field.evaluate((node) => ({
+        overflow: node.scrollWidth - node.clientWidth,
+        hiddenStart:
+          Math.abs(node.scrollLeft) - parseFloat(getComputedStyle(node).paddingLeft),
+      }));
+      expect(overflow).toBeLessThanOrEqual(2);
+      expect(hiddenStart).toBeLessThanOrEqual(0);
+    };
+    // Check glyph visibility before the wider status group consumes the row cap.
+    for (const draft of ["300+300", "888+888"]) {
+      await input.fill("");
+      await input.pressSequentially(draft);
+      await expectVisibleFormula(input);
+    }
+    await input.press("Escape");
     const state = await (await page.request.get(path)).json();
     expect(
       (
@@ -38,17 +67,13 @@ test("inline HP formulas stay bounded without displacing facts or actions", asyn
         )
       ).ok(),
     ).toBeTruthy();
-    await page.goto(`/encounters/${encounter.slug}`);
+    await page.reload();
     await activate(
       page.getByRole("button", { name: "Formula Hero", exact: true }),
       info,
     );
-    const current = page.getByRole("button", { name: "Edit Current HP", exact: true });
     await activate(current, info);
-    const input = page.getByRole("textbox", { name: "Current HP", exact: true });
-    const shortWidth = (await input.boundingBox())!.width;
-    const panel = page.locator(".encounter-hp-panel");
-    const actions = panel.locator(".encounter-hp-panel__actions");
+    await expect(actions.getByRole("button")).toHaveCount(3);
     const actionPosition = (await actions.boundingBox())!;
     const expectBoundedRow = async (field: typeof input) => {
       const panelBounds = (await panel.boundingBox())!;
@@ -92,20 +117,9 @@ test("inline HP formulas stay bounded without displacing facts or actions", asyn
       ).toBeLessThan(3);
       await noPageOverflow(page);
     };
-    const expectVisibleFormula = async (field: typeof input) => {
-      // WebKit reserves a couple of caret pixels within the leading padding.
-      const { overflow, hiddenStart } = await field.evaluate((node) => ({
-        overflow: node.scrollWidth - node.clientWidth,
-        hiddenStart:
-          Math.abs(node.scrollLeft) - parseFloat(getComputedStyle(node).paddingLeft),
-      }));
-      expect(overflow).toBeLessThanOrEqual(2);
-      expect(hiddenStart).toBeLessThanOrEqual(0);
-    };
     for (const draft of ["300+300", "888+888"]) {
       await input.fill("");
       await input.pressSequentially(draft);
-      await expectVisibleFormula(input);
       await expectBoundedRow(input);
     }
     const formula = "300 - 10 + 5 - 2";
