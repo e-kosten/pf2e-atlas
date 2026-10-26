@@ -634,6 +634,7 @@
   --comparison-normal-text: var(--text);
   --comparison-normal-heading: var(--heading-color);
   --comparison-normal-muted: var(--muted);
+  --comparison-marker-bg: var(--comparison-selected-bg);
 }
 .comparison-source .record-reference {
   --text: var(--comparison-reference-text);
@@ -659,14 +660,37 @@
   --heading-color: var(--comparison-normal-heading);
   color: var(--comparison-normal-text);
 }
-.comparison-source .source-section-selected,
+.comparison-source .source-section-selected {
+  background: var(--comparison-marker-bg);
+}
+/* A whole-section surface requires every own canonical marker to be selected.
+   Activity facts/usage stay outside it. Foreign inclusions keep their own surface. */
 .comparison-source
-  .record-reference__content:has(.source-section-selected)
-  > :is(h3, h5),
-.comparison-source
-  .embedded-ability-reading__entry:has(.source-section-selected)
-  .actor-activity__title {
+  :is(
+    .record-reference__content,
+    .embedded-ability-reading__entry:not(
+      :has(
+        > .actor-activity .actor-activity__facts:not(:empty),
+        > .actor-activity .actor-activity__usage
+      )
+    )
+  ):has(.source-section-selected):not(
+    :has(
+      [data-atlas-source-section]:not(.source-section-selected):not(
+          .prepared-inclusion,
+          .prepared-inclusion *,
+          .prepared-inclusion-unavailable,
+          .prepared-inclusion-unavailable *
+        )
+    )
+  ) {
+  --comparison-marker-bg: transparent;
+  --text: var(--comparison-normal-text);
+  --muted: var(--comparison-normal-muted);
+  --heading-color: var(--comparison-normal-heading);
+  color: var(--comparison-normal-text);
   background: var(--comparison-selected-bg);
+  box-shadow: 0 0 0 calc(var(--space-control) / 2) var(--comparison-selected-bg);
 }
 .comparison-source
   .embedded-ability-reading__entry:not(:has(.source-section-selected))
