@@ -725,8 +725,7 @@ export function SearchSettings({
                   hidden={!showingSource || (!wide && sourceView !== "document")}
                 >
                   <p className="search-settings__comparison-key">
-                    Highlighted sections are used for comparison. Other content is shown
-                    for reference.
+                    Only highlighted sections are used for comparison.
                   </p>
                   {sourceVisited &&
                     sourceGeneration !== null &&

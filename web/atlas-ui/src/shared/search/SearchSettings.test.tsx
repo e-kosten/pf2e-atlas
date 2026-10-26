@@ -375,6 +375,9 @@ it("opens a section's source separately from its checkbox and preserves the comp
   fireEvent.click(link);
   const source = screen.getByRole("region", { name: "Seed source" });
   expect(source).toHaveTextContent("Description");
+  expect(
+    screen.getByText("Only highlighted sections are used for comparison."),
+  ).toBeVisible();
   expect(source).toHaveAttribute("data-generation", "generation-1");
   expect(description).toBeChecked();
   expect(screen.getByRole("radio", { name: "Source document" })).toBeChecked();
