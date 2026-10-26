@@ -199,7 +199,7 @@ export function RecordIdentity({
         </>
       }
       classification={classification}
-      classificationAction={rankControl}
+      classificationControl={rankControl}
       stacked={stacked}
       headingRef={headingRef}
       headingId={headingId}
@@ -342,6 +342,7 @@ export function RecordPresentationIdentity({
           <SpellRankControl
             key={recordReadingIdentity(selection?.record_key ?? null, selection)}
             spell={body.value}
+            classification={presentation ? recordClassification(presentation) : ""}
             embedded={Boolean(selection?.embedded_path.length)}
             onChange={onRankChange}
           />

@@ -651,7 +651,7 @@ test("reference rank menus accept pointer selection and retain their trigger", a
   await activate(link, info);
   const drawer = page.getByRole("dialog", { name: "Lantern Ward", exact: true });
   await expect(drawer).toBeVisible();
-  const changeRank = drawer.getByRole("button", { name: "Change rank", exact: true });
+  const changeRank = drawer.getByRole("button", { name: /: Change rank$/ });
   const trigger = await changeRank.elementHandle();
   await activate(changeRank, info);
   await activate(page.getByRole("menuitem", { name: "Rank 4", exact: true }), info);
@@ -679,7 +679,7 @@ test("reference rank keyboard selection and Tab exit retain the reading context"
   await page.goto("/records/browser-rules:rule000000000001");
   await activate(page.getByRole("link", { name: "Lantern Ward", exact: true }), info);
   const drawer = page.getByRole("dialog", { name: "Lantern Ward", exact: true });
-  const trigger = drawer.getByRole("button", { name: "Change rank", exact: true });
+  const trigger = drawer.getByRole("button", { name: /: Change rank$/ });
   const menu = page.getByRole("menu", { name: "Spell rank", exact: true });
   await trigger.press("ArrowDown");
   await expect(page.getByRole("menuitem", { name: "Rank 2 (base)" })).toBeFocused();

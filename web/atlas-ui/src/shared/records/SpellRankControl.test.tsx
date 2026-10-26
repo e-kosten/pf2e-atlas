@@ -10,12 +10,13 @@ it.each([false, true])(
     const view = (rank: number) => (
       <SpellRankControl
         spell={{ ...spell, rank: numberFact(rank) }}
+        classification={`Spell ${rank}`}
         embedded={embedded}
         onChange={onChange}
       />
     );
     const { rerender } = render(view(3));
-    const trigger = screen.getByRole("button", { name: "Change rank" });
+    const trigger = screen.getByRole("button", { name: /Change rank/ });
     rerender(view(4));
     fireEvent.click(trigger);
     const reset = await screen.findByRole("menuitem", {
@@ -25,7 +26,7 @@ it.each([false, true])(
     const openingRank = embedded ? 3 : 1;
     expect(onChange).toHaveBeenCalledWith(openingRank);
     rerender(view(openingRank));
-    expect(screen.getByRole("button", { name: "Change rank" })).toBe(trigger);
+    expect(screen.getByRole("button", { name: /Change rank/ })).toBe(trigger);
     expect(trigger).toHaveFocus();
     expect(trigger).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText("Base rank 1")).toBeNull();
@@ -35,9 +36,14 @@ it.each([false, true])(
 it("opens from ArrowDown without its default scrolling behavior and selects an explicit rank", async () => {
   const onChange = vi.fn();
   render(
-    <SpellRankControl spell={spellFixture()} embedded={false} onChange={onChange} />,
+    <SpellRankControl
+      classification="Spell 1"
+      spell={spellFixture()}
+      embedded={false}
+      onChange={onChange}
+    />,
   );
-  const trigger = screen.getByRole("button", { name: "Change rank" });
+  const trigger = screen.getByRole("button", { name: /Change rank/ });
   trigger.focus();
   expect(fireEvent.keyDown(trigger, { key: "ArrowDown" })).toBe(false);
   await waitFor(() =>
@@ -56,11 +62,16 @@ it.each([
   render(
     <div role="dialog" aria-label="Reference">
       <button>Previous action</button>
-      <SpellRankControl spell={spellFixture()} embedded={false} onChange={onChange} />
+      <SpellRankControl
+        classification="Spell 1"
+        spell={spellFixture()}
+        embedded={false}
+        onChange={onChange}
+      />
       <button>Following action</button>
     </div>,
   );
-  const trigger = screen.getByRole("button", { name: "Change rank" });
+  const trigger = screen.getByRole("button", { name: /Change rank/ });
   fireEvent.click(trigger);
   const item = await screen.findByRole("menuitem", { name: "Rank 1 (base)" });
   expect(
@@ -79,9 +90,14 @@ it.each([
 it("closes its menu on Escape and restores the initiating control without selecting a rank", async () => {
   const onChange = vi.fn();
   render(
-    <SpellRankControl spell={spellFixture()} embedded={false} onChange={onChange} />,
+    <SpellRankControl
+      classification="Spell 1"
+      spell={spellFixture()}
+      embedded={false}
+      onChange={onChange}
+    />,
   );
-  const trigger = screen.getByRole("button", { name: "Change rank" });
+  const trigger = screen.getByRole("button", { name: /Change rank/ });
   fireEvent.click(trigger);
   const item = await screen.findByRole("menuitem", { name: "Rank 5" });
   item.focus();
@@ -95,9 +111,14 @@ it("keeps focus on the trigger after a quick selection and the opening animation
   vi.useFakeTimers();
   try {
     render(
-      <SpellRankControl spell={spellFixture()} embedded={false} onChange={vi.fn()} />,
+      <SpellRankControl
+        classification="Spell 1"
+        spell={spellFixture()}
+        embedded={false}
+        onChange={vi.fn()}
+      />,
     );
-    const trigger = screen.getByRole("button", { name: "Change rank" });
+    const trigger = screen.getByRole("button", { name: /Change rank/ });
     fireEvent.click(trigger);
     fireEvent.click(screen.getByRole("menuitem", { name: "Rank 5" }));
     await act(() => vi.advanceTimersByTimeAsync(250));
@@ -112,11 +133,16 @@ it("respects focus deliberately moved before the menu's opening frame", async ()
   try {
     render(
       <>
-        <SpellRankControl spell={spellFixture()} embedded={false} onChange={vi.fn()} />
+        <SpellRankControl
+          classification="Spell 1"
+          spell={spellFixture()}
+          embedded={false}
+          onChange={vi.fn()}
+        />
         <button>Another action</button>
       </>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Change rank" }));
+    fireEvent.click(screen.getByRole("button", { name: /Change rank/ }));
     const destination = screen.getByRole("button", { name: "Another action" });
     destination.focus();
     await act(() => vi.advanceTimersByTimeAsync(250));
@@ -129,9 +155,14 @@ it("respects focus deliberately moved before the menu's opening frame", async ()
 it("consumes Enter activation when selection returns focus to the button", async () => {
   const onChange = vi.fn();
   render(
-    <SpellRankControl spell={spellFixture()} embedded={false} onChange={onChange} />,
+    <SpellRankControl
+      classification="Spell 1"
+      spell={spellFixture()}
+      embedded={false}
+      onChange={onChange}
+    />,
   );
-  const trigger = screen.getByRole("button", { name: "Change rank" });
+  const trigger = screen.getByRole("button", { name: /Change rank/ });
   fireEvent.click(trigger);
   const item = await screen.findByRole("menuitem", { name: "Rank 5" });
   expect(fireEvent.keyDown(item, { key: "Enter", keyCode: 13 })).toBe(false);

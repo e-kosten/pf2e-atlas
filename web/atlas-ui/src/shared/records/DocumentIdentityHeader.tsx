@@ -6,7 +6,7 @@ export function DocumentIdentityHeader({
   classification,
   navigation,
   identityActions,
-  classificationAction,
+  classificationControl,
   stacked = true,
   headingRef,
   headingId,
@@ -18,7 +18,7 @@ export function DocumentIdentityHeader({
   classification: string;
   navigation?: ReactNode;
   identityActions?: ReactNode;
-  classificationAction?: ReactNode;
+  classificationControl?: ReactNode;
   stacked?: boolean;
   headingRef?: Ref<HTMLHeadingElement>;
   headingId?: string;
@@ -28,12 +28,14 @@ export function DocumentIdentityHeader({
 }) {
   const kind = classification ? (
     <div className="record-reference__classification">
-      <p className="record-reference__kind">{classification}</p>
+      {classificationControl ?? (
+        <p className="record-reference__kind">{classification}</p>
+      )}
     </div>
   ) : null;
   return (
     <header
-      className={`record-reference__header${stacked ? " record-reference__header--stacked" : ""}${classificationAction ? " record-reference__header--with-classification-action" : ""}`}
+      className={`record-reference__header${stacked ? " record-reference__header--stacked" : ""}`}
     >
       {navigation && <div className="record-reference__navigation">{navigation}</div>}
       <div className="record-reference__title">
@@ -43,19 +45,10 @@ export function DocumentIdentityHeader({
           </h2>
           {identityActions}
         </div>
-        {(kind || actions || classificationAction) && (
+        {(kind || actions) && (
           <div className="record-reference__tools">
-            {(kind || actions) && (
-              <div className="record-reference__tools-row">
-                {kind}
-                {actions && <div className="record-reference__actions">{actions}</div>}
-              </div>
-            )}
-            {classificationAction && (
-              <div className="record-reference__classification-action">
-                {classificationAction}
-              </div>
-            )}
+            {kind}
+            {actions && <div className="record-reference__actions">{actions}</div>}
           </div>
         )}
       </div>
