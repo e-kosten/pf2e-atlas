@@ -2186,6 +2186,7 @@ fn search_results_page(page_number: u32) -> SearchResultsPage {
             relationship_evidence: vec![],
             record: record_summary(),
             matches: vec![],
+            matching_sections: None,
         }],
     }
 }

@@ -187,6 +187,8 @@ beforeEach(() => {
 it("keeps the root selection default when a match opens an exact embedded document", async () => {
   const page = result();
   const navigation = activityFixture("Command", "actors:ghoul").navigation;
+  page.mode = { kind: "text_search", query: "command", mode: "hybrid" };
+  page.rows[0].matching_sections = [{ navigation, label: "Command", snippet: null }];
   page.rows[0].matches = [
     {
       navigation,
@@ -208,13 +210,19 @@ it("keeps the root selection default when a match opens an exact embedded docume
     artifact_generation: "generation-a",
     selected: navigation,
   };
-  vi.mocked(getRecordDetail).mockResolvedValueOnce(parent).mockResolvedValueOnce(child);
+  vi.mocked(getRecordDetail).mockImplementation((_key, request) =>
+    Promise.resolve(request?.embedded_path.length ? child : parent),
+  );
   renderPicker();
-  fireEvent.click(await screen.findByRole("button", { name: "1 matches in Ghoul" }));
+  fireEvent.click(await screen.findByRole("link", { name: /^Ghoul/ }));
   fireEvent.click(await screen.findByRole("link", { name: /Command/ }));
   expect(await screen.findByRole("heading", { name: "Command" })).toBeVisible();
   expect(screen.getByLabelText("Selected adjustment")).toHaveTextContent("elite");
-  expect(getRecordDetail).toHaveBeenCalledTimes(2);
+  expect(getRecordDetail).toHaveBeenCalledWith(
+    "actors:ghoul",
+    expect.objectContaining({ embedded_path: navigation.embedded_path }),
+    expect.any(AbortSignal),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Add" }));
   await waitFor(() => expect(addSelected).toHaveBeenLastCalledWith("actors:ghoul"));
 });
