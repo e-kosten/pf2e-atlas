@@ -7,12 +7,16 @@
 
 .encounter-roster {
   container: encounter-roster / inline-size;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  overflow: hidden;
+  padding-block-end: 0;
 }
 
 .encounter-roster__header {
   display: grid;
-  gap: 16px;
-  margin-bottom: 12px;
+  padding-block-end: var(--space-group);
 }
 
 .encounter-roster__turn-bar {
@@ -20,8 +24,6 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
 }
 
 .encounter-roster__turn-summary {
@@ -34,6 +36,17 @@
 .encounter-roster__turn-caption {
   color: var(--muted);
   font-size: 12px;
+}
+
+.encounter-roster__participants {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.encounter-roster__footer {
+  border-block-start: 1px solid var(--line);
+  padding-block: var(--space-group);
 }
 
 .encounter-roster__management {
@@ -201,4 +214,16 @@
 }
 .encounter-roster__hp--critical {
   color: var(--hp-critical-text, var(--text));
+}
+
+.encounter-add-adjustment {
+  width: 6.5rem;
+}
+
+.encounter-roster__remove-error {
+  display: grid;
+  gap: 4px;
+  grid-column: 1 / -1;
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }

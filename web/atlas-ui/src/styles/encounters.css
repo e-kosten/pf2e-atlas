@@ -4,3 +4,5 @@
 @import "./encounters/participant.css";
 @import "./encounters/conditions.css";
 @import "./encounters/responsive.css";
+
+@import "./encounters/difficulty.css";

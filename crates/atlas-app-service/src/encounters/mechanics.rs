@@ -31,7 +31,7 @@ pub(super) fn authored_variant(record: &SourceBackedRecord) -> Option<Participan
             SourceNpcAdjustment::Weak => ParticipantVariant::Weak,
         })
 }
-pub(super) fn initial_variant(
+pub(crate) fn initial_variant(
     record: &SourceBackedRecord,
 ) -> (
     Option<ParticipantVariant>,

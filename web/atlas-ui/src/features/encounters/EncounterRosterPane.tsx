@@ -1,5 +1,17 @@
+import { encounterStatusLabels } from "./encounterStatus";
 import { EncounterModal } from "./EncounterModal";
-import { Alert, Button, Dropdown, Form, Input, InputNumber, Tooltip } from "antd";
+import {
+  Alert,
+  Button,
+  Dropdown,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Tooltip,
+  Typography,
+} from "antd";
+import type { FormInstance } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableRow, useSortableList } from "../../shared/ui/sortable/SortableList";
@@ -10,6 +22,7 @@ import type {
   AddEncounterRecordParticipantRequest,
   EncounterParticipantView,
   SearchResultsRequest,
+  RecordDetailView,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
 import { EncounterAddMenu } from "./EncounterAddMenu";
@@ -19,10 +32,11 @@ import { participantUpdate } from "./participantEdits";
 import { InitiativePopover } from "./InitiativeRollModal";
 import { SearchPickerModal } from "../../shared/ui/pickers/SearchPickerModal";
 
-type AddRecordForm = {
-  quantity?: number | null;
-  initiative?: number | null;
-};
+import type { EncounterDifficultyProps } from "./EncounterDifficulty";
+import {
+  EncounterAddDifficulty,
+  type EncounterRecordAddForm as AddRecordForm,
+} from "./EncounterAddDifficulty";
 
 type AddPcForm = {
   name: string;
@@ -32,6 +46,9 @@ type AddPcForm = {
 
 export function EncounterRosterPane({
   currentTurnParticipantKey,
+  encounterSummary,
+  difficulty,
+  removeError,
   loading,
   onAddRecord,
   onAddManual,
@@ -54,6 +71,9 @@ export function EncounterRosterPane({
   slug,
 }: {
   currentTurnParticipantKey: string | null;
+  encounterSummary?: import("../../generated/atlas").EncounterSummaryView;
+  difficulty?: EncounterDifficultyProps;
+  removeError?: { participantKey: string; message: string };
   loading: boolean;
   onAddRecord: (request: AddEncounterRecordParticipantRequest) => Promise<boolean>;
   onAddParty: (
@@ -101,6 +121,7 @@ export function EncounterRosterPane({
   const [recordOpen, setRecordOpen] = useState(false);
   const [pcOpen, setPcOpen] = useState(false);
   const [selectedRecordKey, setSelectedRecordKey] = useState<string | null>(null);
+  const [selectedIsCreature, setSelectedIsCreature] = useState(false);
   const [recordForm] = Form.useForm<AddRecordForm>();
   const [pcForm] = Form.useForm<AddPcForm>();
   useEffect(() => {
@@ -123,6 +144,11 @@ export function EncounterRosterPane({
         encounter_ref: slug,
         record_ref: selectedRecordKey ?? "",
         quantity: values.quantity ?? 1,
+        ...(selectedIsCreature &&
+        values.adjustment &&
+        recordForm.isFieldTouched("adjustment")
+          ? { participant_variant: values.adjustment }
+          : {}),
         ...(values.initiative == null ? {} : { initiative: BigInt(values.initiative) }),
       });
       if (saved) {
@@ -248,6 +274,16 @@ export function EncounterRosterPane({
               onSetTurn={() => onSetTurn(participant)}
               onRemove={() => onRemove(participant)}
             />
+            {removeError?.participantKey === participant.participant_key && (
+              <Typography.Text
+                type="danger"
+                role="alert"
+                className="encounter-roster__remove-error"
+              >
+                <span>{removeError.message}</span>
+                <span>Try removing again.</span>
+              </Typography.Text>
+            )}
           </>
         )}
       </SortableRow>
@@ -259,7 +295,11 @@ export function EncounterRosterPane({
       <header className="encounter-roster__header">
         <PrimaryToolbar className="encounter-roster__turn-bar">
           <div className="encounter-roster__turn-summary">
-            <span className="encounter-roster__turn-caption">Current turn</span>
+            <span className="encounter-roster__turn-caption">
+              {encounterSummary
+                ? `${encounterStatusLabels[encounterSummary.status]} · Round ${encounterSummary.round_number}`
+                : "Current turn"}
+            </span>
             <strong>
               {currentParticipant?.display_name ??
                 (loading ? "Loading…" : "Not started")}
@@ -277,6 +317,64 @@ export function EncounterRosterPane({
             {currentTurnParticipantKey ? "Next turn" : "Start turn"}
           </Button>
         </PrimaryToolbar>
+      </header>
+      <div
+        className="encounter-roster__participants"
+        role="region"
+        aria-label="Encounter participants"
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The bounded roster needs keyboard scrolling, including in WebKit.
+        tabIndex={0}
+      >
+        {loading ? (
+          <div className="detail-empty">Loading encounter...</div>
+        ) : participants.length === 0 ? (
+          <div className="detail-empty">Add a creature, hazard, or PC.</div>
+        ) : (
+          <DndContext {...sortable.context}>
+            <SortableContext
+              items={sortable.items.map((p) => p.participant_key)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="encounter-roster__list">
+                <div className="encounter-roster__columns" aria-hidden="true">
+                  <span />
+                  <span className="encounter-roster__initiative-heading">Init</span>
+                  <span className="encounter-roster__name-heading">Participant</span>
+                  <span className="encounter-roster__hp-heading">HP</span>
+                  <span />
+                </div>
+                {sortable.items.map(renderParticipant)}
+              </div>
+            </SortableContext>
+            <DragOverlay dropAnimation={null}>
+              {sortable.activeItem && (
+                <div
+                  className="encounter-roster__row encounter-roster__drag-preview"
+                  aria-hidden
+                >
+                  <GripVertical size={16} />
+                  <span>{inputNumberValue(sortable.activeItem.initiative) || "—"}</span>
+                  <span className="encounter-roster__name">
+                    {sortable.activeItem.display_name}
+                  </span>
+                  <span
+                    className={`encounter-roster__hp ${rosterHpTone(sortable.activeItem)}`}
+                  >
+                    {sortable.activeItem.current_hp == null
+                      ? "—"
+                      : (
+                          sortable.activeItem.current_hp +
+                          sortable.activeItem.temporary_hp
+                        ).toString()}
+                  </span>
+                  <Ellipsis size={16} />
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
+        )}
+      </div>
+      <footer className="encounter-roster__footer">
         <PrimaryToolbar className="encounter-roster__management">
           <EncounterAddMenu
             onAdd={onAddParty}
@@ -303,55 +401,7 @@ export function EncounterRosterPane({
             </Button>
           )}
         </PrimaryToolbar>
-      </header>
-      {loading ? (
-        <div className="detail-empty">Loading encounter...</div>
-      ) : participants.length === 0 ? (
-        <div className="detail-empty">Add a creature, hazard, or PC.</div>
-      ) : (
-        <DndContext {...sortable.context}>
-          <SortableContext
-            items={sortable.items.map((p) => p.participant_key)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="encounter-roster__list">
-              <div className="encounter-roster__columns" aria-hidden="true">
-                <span />
-                <span className="encounter-roster__initiative-heading">Init</span>
-                <span className="encounter-roster__name-heading">Participant</span>
-                <span className="encounter-roster__hp-heading">HP</span>
-                <span />
-              </div>
-              {sortable.items.map(renderParticipant)}
-            </div>
-          </SortableContext>
-          <DragOverlay dropAnimation={null}>
-            {sortable.activeItem && (
-              <div
-                className="encounter-roster__row encounter-roster__drag-preview"
-                aria-hidden
-              >
-                <GripVertical size={16} />
-                <span>{inputNumberValue(sortable.activeItem.initiative) || "—"}</span>
-                <span className="encounter-roster__name">
-                  {sortable.activeItem.display_name}
-                </span>
-                <span
-                  className={`encounter-roster__hp ${rosterHpTone(sortable.activeItem)}`}
-                >
-                  {sortable.activeItem.current_hp == null
-                    ? "—"
-                    : (
-                        sortable.activeItem.current_hp +
-                        sortable.activeItem.temporary_hp
-                      ).toString()}
-                </span>
-                <Ellipsis size={16} />
-              </div>
-            )}
-          </DragOverlay>
-        </DndContext>
-      )}
+      </footer>
       <SearchPickerModal<AddRecordForm>
         buildRequest={encounterRecordPickerRequest}
         emptyPrompt="Search for a creature or hazard"
@@ -363,12 +413,25 @@ export function EncounterRosterPane({
         onFinish={(values) => void addRecord(values)}
         onSelectionChange={(selection) => {
           setSelectedRecordKey(selection?.record.record_key ?? null);
+          setSelectedIsCreature(selection?.record.kind === "creature");
           if (selection) setCandidateName(selection.record.title);
         }}
         open={recordOpen}
         selectedRecordKey={selectedRecordKey}
         title="Add creature or hazard"
         dismissLabel="Done"
+        summary={
+          difficulty && recordOpen ? (
+            <EncounterAddDifficulty
+              {...difficulty}
+              form={recordForm}
+              selectedRecordKey={selectedRecordKey}
+              creature={selectedIsCreature}
+              recordName={candidateName}
+              disabled={disabled}
+            />
+          ) : undefined
+        }
         status={
           added || (!disabled && committedAdd) ? (
             <span role="status" className="encounter-add-receipt">
@@ -377,33 +440,45 @@ export function EncounterRosterPane({
           ) : undefined
         }
       >
-        {recovery}
-        {error && (
-          <Alert
-            type="error"
-            title="Participant could not be added"
-            description={error}
-          />
+        {(detail) => (
+          <>
+            {recovery}
+            {error && (
+              <Alert
+                type="error"
+                title="Participant could not be added"
+                description={error}
+              />
+            )}
+            {selectedIsCreature && selectedRecordKey && (
+              <EncounterRecordAdjustment
+                key={selectedRecordKey}
+                recordKey={selectedRecordKey}
+                detail={detail}
+                form={recordForm}
+              />
+            )}
+            <Form.Item
+              name="quantity"
+              label="Quantity"
+              initialValue={1}
+              rules={[
+                {
+                  required: true,
+                  type: "integer",
+                  min: 1,
+                  max: 50,
+                  message: "Enter a whole number from 1 to 50.",
+                },
+              ]}
+            >
+              <InputNumber aria-label="Quantity" min={1} max={50} />
+            </Form.Item>
+            <Form.Item name="initiative" label="Initiative" rules={[initiativeRule]}>
+              <InputNumber aria-label="Initiative" />
+            </Form.Item>
+          </>
         )}
-        <Form.Item
-          name="quantity"
-          label="Quantity"
-          initialValue={1}
-          rules={[
-            {
-              required: true,
-              type: "integer",
-              min: 1,
-              max: 50,
-              message: "Enter a whole number from 1 to 50.",
-            },
-          ]}
-        >
-          <InputNumber aria-label="Quantity" min={1} max={50} />
-        </Form.Item>
-        <Form.Item name="initiative" label="Initiative" rules={[initiativeRule]}>
-          <InputNumber aria-label="Initiative" />
-        </Form.Item>
       </SearchPickerModal>
       <EncounterModal
         title="Add PC"
@@ -586,4 +661,41 @@ function rosterHpTone(participant: EncounterParticipantView): string {
     : ratio <= 0.5
       ? "encounter-roster__hp--bloodied"
       : "encounter-roster__hp--healthy";
+}
+
+function EncounterRecordAdjustment({
+  recordKey,
+  detail,
+  form,
+}: {
+  recordKey: string;
+  detail?: RecordDetailView;
+  form: FormInstance<AddRecordForm>;
+}) {
+  const matches =
+    detail?.record.record_key === recordKey &&
+    detail.selected.embedded_path.length === 0;
+  const resolved = matches ? detail.encounter_adjustment : undefined;
+  useEffect(() => {
+    if (matches && !form.isFieldTouched("adjustment"))
+      form.setFields([{ name: "adjustment", value: resolved, touched: false }]);
+  }, [form, matches, resolved]);
+  return (
+    <Form.Item
+      className="encounter-add-adjustment"
+      name="adjustment"
+      label="Adjustment"
+      preserve={false}
+    >
+      <Select
+        aria-label="Adjustment"
+        placeholder="Unknown"
+        options={[
+          { value: "normal", label: "Normal" },
+          { value: "elite", label: "Elite" },
+          { value: "weak", label: "Weak" },
+        ]}
+      />
+    </Form.Item>
+  );
 }

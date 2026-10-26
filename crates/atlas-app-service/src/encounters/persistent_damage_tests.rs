@@ -312,6 +312,7 @@ fn petrified_hardness_reduces_the_simultaneous_event_once() {
     let (f, key, _) = fixture();
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: key.clone(),
             record_ref: "actors:testCreature1000".into(),
             quantity: 1,
@@ -1326,6 +1327,7 @@ fn prepared_rolls_keep_shared_hardness_and_reject_changed_subjects() {
     let (f, key, _) = fixture();
     f.worker
         .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
             encounter_ref: key.clone(),
             record_ref: "actors:testCreature1000".into(),
             quantity: 1,

@@ -8,9 +8,13 @@ fn connection() -> Connection {
     connection.execute_batch(LOCAL_STATE_SCHEMA_SQL).unwrap();
     connection.execute_batch(PARTIES_SCHEMA_SQL).unwrap();
     connection
+        .execute_batch(crate::PARTY_LEVELS_SCHEMA_SQL)
+        .unwrap();
+    connection
 }
 fn member(name: &str) -> PartyMemberInput {
     PartyMemberInput {
+        level: None,
         member_key: None,
         name: name.into(),
     }
@@ -57,6 +61,7 @@ fn stale_edits_and_deletions_preserve_newer_party_names_and_members() {
             party.revision,
             "Latest",
             &[PartyMemberInput {
+                level: None,
                 member_key: Some(party.members[0].member_key.clone()),
                 name: "Renamed PC".into(),
             }],
@@ -71,4 +76,85 @@ fn stale_edits_and_deletions_preserve_newer_party_names_and_members() {
         Err(LocalStateError::PartyConflict)
     ));
     assert_eq!(parties.get(&party.party_key).unwrap(), latest);
+}
+
+#[test]
+fn levels_remain_optional_and_invalid_edits_preserve_the_whole_roster() {
+    let mut connection = connection();
+    let tx = connection.transaction().unwrap();
+    let parties = PartiesWrite::from_connection(&tx);
+    let party = parties
+        .create(
+            "Mixed",
+            &[
+                PartyMemberInput {
+                    member_key: None,
+                    name: "Same".into(),
+                    level: Some(4),
+                },
+                PartyMemberInput {
+                    member_key: None,
+                    name: "Same".into(),
+                    level: None,
+                },
+            ],
+        )
+        .unwrap();
+    assert_eq!(
+        party.members.iter().map(|m| m.level).collect::<Vec<_>>(),
+        vec![Some(4), None]
+    );
+    for level in [-1, 0, 21, i64::MAX] {
+        assert!(
+            parties
+                .update(
+                    &party.party_key,
+                    party.revision,
+                    "Invalid",
+                    &[PartyMemberInput {
+                        member_key: Some(party.members[0].member_key.clone()),
+                        name: "Changed".into(),
+                        level: Some(level)
+                    }]
+                )
+                .is_err()
+        );
+        assert_eq!(parties.get(&party.party_key).unwrap(), party);
+    }
+    let changed = parties
+        .update(
+            &party.party_key,
+            party.revision,
+            "Mixed",
+            &[
+                PartyMemberInput {
+                    member_key: Some(party.members[1].member_key.clone()),
+                    name: "Same".into(),
+                    level: Some(20),
+                },
+                PartyMemberInput {
+                    member_key: Some(party.members[0].member_key.clone()),
+                    name: "Same".into(),
+                    level: None,
+                },
+            ],
+        )
+        .unwrap();
+    assert_eq!(changed.members[1].member_key, party.members[0].member_key);
+    assert_eq!(
+        changed.members.iter().map(|m| m.level).collect::<Vec<_>>(),
+        vec![Some(20), None]
+    );
+    assert!(
+        parties
+            .update(&party.party_key, party.revision, "Stale", &[])
+            .is_err()
+    );
+    tx.commit().unwrap();
+    assert_eq!(
+        PartiesRead::from_connection(&connection)
+            .get(&party.party_key)
+            .unwrap(),
+        changed
+    );
 }

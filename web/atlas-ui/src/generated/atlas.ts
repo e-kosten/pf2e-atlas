@@ -1,8 +1,13 @@
+export type { EncounterDifficultyAddition } from "../../../../crates/atlas-app-model/bindings/EncounterDifficultyAddition";
+export type { PreviewEncounterDifficultyRequest } from "../../../../crates/atlas-app-model/bindings/PreviewEncounterDifficultyRequest";
 export type { TurnResourceResultView } from "../../../../crates/atlas-app-model/bindings/TurnResourceResultView";
 export type { TurnResourceAction } from "../../../../crates/atlas-app-model/bindings/TurnResourceAction";
 export type { TurnResourceKind } from "../../../../crates/atlas-app-model/bindings/TurnResourceKind";
 export type { TurnResourcesView } from "../../../../crates/atlas-app-model/bindings/TurnResourcesView";
 export type { UpdateTurnResourcesRequest } from "../../../../crates/atlas-app-model/bindings/UpdateTurnResourcesRequest";
+export type { EncounterDifficultyView } from "../../../../crates/atlas-app-model/bindings/EncounterDifficultyView";
+export type { EncounterDifficultyReferenceView } from "../../../../crates/atlas-app-model/bindings/EncounterDifficultyReferenceView";
+export type { SetEncounterDifficultyRequest } from "../../../../crates/atlas-app-model/bindings/SetEncounterDifficultyRequest";
 export type { StrikeRangeView } from "../../../../crates/atlas-app-model/bindings/StrikeRangeView";
 export type { ActorAbilityGroupView } from "../../../../crates/atlas-app-model/bindings/ActorAbilityGroupView";
 export type { ActionBudgetView } from "../../../../crates/atlas-app-model/bindings/ActionBudgetView";

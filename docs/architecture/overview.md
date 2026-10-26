@@ -199,8 +199,8 @@ Encounter Damage/Heal and exact HP correction inputs are explicit revision-check
 actions interpreted by app-service; the browser sends raw integer formulas and
 does not calculate persisted HP. Enter sends a signed Heal action; negative Damage
 or Heal amounts reverse the operation in Rust and use its complete HP policy.
-The bounded addition/subtraction shortcut permits one initial sign and is not
-a general expression or dice engine. The HP editor saves its supplied corrections
+The bounded integer addition/subtraction shortcut supports parentheses and one
+initial sign per grouped expression. It is not a general expression or dice engine. The HP editor saves its supplied corrections
 in one guarded action, preserving omitted fields and explicit unknowns. Condition
 manual-effect notes carry their exact condition ID; unrelated diagnostics remain
 separate from condition cards.
@@ -214,13 +214,25 @@ unknown/conflicting states. See [ADR0055](./decisions/0055-encounter-condition-e
 
 Do not implement a Foundry world/rule/macro execution engine through presentation.
 
-Saved parties are ordered, name-only reusable PC definitions owned by local-state.
-App-service copies every member into independent manual encounter participants
-in one workspace write, checking the reviewed party revision.
+Saved parties are ordered reusable PC names and optional levels owned by local-state.
+App-service copies every member, including its supplied level, into independent
+manual encounter participants in one workspace write, checking the reviewed party
+revision. Unknown levels remain unknown; level changes on a party do not rewrite
+previously added PCs.
 Party edits and deletion do not affect existing encounters. Party/member identities
 are independent of names; no live HP, conditions, initiative or reference records
 are stored on parties. Web exposes party management through shared app contracts.
 Foundry import and character sheets remain separate future capabilities.
+
+Encounter difficulty is an app-service projection of planned opposition, effective
+source levels and typed hazard complexity against the encounter PC snapshot and
+optional guarded level/count overrides. Defeated/disabled state does not change
+planned XP. Missing source facts remain unavailable. The add-record footer uses a
+read-only revision-guarded projection; prospective entries have no saved participant
+identity. Actual addition and its preview share source/default preparation and the
+same effective-level and XP owners. Suggested XP per PC is separate from encounter
+budget XP: the pinned Foundry normalization is floor(XP × 4 / effective party size),
+with normally zero for trivial encounters. It does not award or persist character XP.
 
 Local-state owns complete atomic user actions and coherent aggregate reads.
 Participant replacements require the revision the caller read; stale writes
