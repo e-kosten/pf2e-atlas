@@ -2277,7 +2277,7 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
 async fn content_damage_reference_roll_transport_checks_the_request_shape() {
     let (status, body) = route_json(
         Method::POST, "/api/rolls/content-damage",
-        Some(json!({"source":{"record":"items:example","embedded_path":[],"field":"/system/description/value"},"source_fingerprint":"current","content_interpretation_version":"foundry-content/v11","ordinal":0,"authored_formula":"2d6[fire]"})),
+        Some(json!({"source":{"record":"items:example","embedded_path":[],"field":"/system/description/value"},"source_fingerprint":"current","content_interpretation_version":"foundry-content/v12","ordinal":0,"authored_formula":"2d6[fire]"})),
     ).await;
     assert_eq!(status, StatusCode::OK);
     assert!(body["components"].is_array());

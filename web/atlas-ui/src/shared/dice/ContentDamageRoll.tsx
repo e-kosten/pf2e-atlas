@@ -36,6 +36,7 @@ export function ContentDamageRoll({
         if (next && !roll.result && !roll.error && !roll.busy) act();
       }}
       content={
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- The focusable nonmodal roll dialog consumes Escape before its surrounding reader Drawer.
         <div
           ref={content}
           tabIndex={-1}

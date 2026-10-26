@@ -209,7 +209,10 @@ export function PreparedContentBody({
             host = document.createElement("span");
             damageHosts.current.set(identity, host);
           }
-          marker.before(host);
+          const formula = Array.from(
+            marker.querySelectorAll<HTMLElement>("[data-atlas-damage-formula]"),
+          ).find((node) => node.closest("[data-atlas-interaction]") === marker);
+          (formula ?? marker).after(host);
           effects.push(
             createPortal(
               <ContentDamageRoll request={control.roll} components={control.literal} />,
