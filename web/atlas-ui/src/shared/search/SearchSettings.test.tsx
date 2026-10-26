@@ -1,6 +1,6 @@
 import { App, ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { SearchProfileContext } from "./SearchProfileContext";
 import { DEFAULT_SEARCH_PREFERENCES } from "./searchPreferences";
 import { DEFAULT_SEARCH_STATE, type SearchFormState } from "../filters/searchState";
@@ -222,6 +222,52 @@ it("discovers exact parts and carries their collection guard when applying", asy
     }),
     "bge-base",
   );
+});
+
+it("flattens single-section entries while retaining independent source links and multi-section selection", async () => {
+  const ability = {
+    ...inventory.parts[0],
+    selector: "part-ability",
+    owner_label: "Leech Warmth",
+    owners: [{ collection: "/items", identity: { Stable: "leech-warmth" } }],
+    label: "Ability",
+    role: "ability",
+    role_label: "Ability",
+  } satisfies SimilarityPartsView["parts"][number];
+  api.parts.mockResolvedValue({ ...inventory, parts: [...inventory.parts, ability] });
+  const { apply } = setup();
+  fireEvent.click(screen.getByText("Sections to compare"));
+  const choice = await screen.findByRole("checkbox", { name: "Leech Warmth: Ability" });
+  expect(
+    screen.queryByRole("checkbox", { name: "All sections in Leech Warmth" }),
+  ).toBeNull();
+  const link = screen.getByRole("link", { name: "Leech Warmth" });
+  expect(link).toHaveAttribute("href", expect.stringContaining("selection="));
+  fireEvent.click(link);
+  expect(screen.getByRole("region", { name: "Seed source" })).toHaveTextContent(
+    "Ability",
+  );
+  expect(choice).toBeChecked();
+  fireEvent.click(screen.getByRole("radio", { name: "Search settings" }));
+  fireEvent.click(choice);
+  const group = screen.getByRole("checkbox", { name: "All sections in Brown Mold" });
+  expect(group).toBeChecked();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Description" }));
+  expect(group).toBePartiallyChecked();
+  fireEvent.click(group);
+  expect(screen.getByRole("checkbox", { name: "Description" })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Reset" })).toBeChecked();
+  expect(choice).not.toBeChecked();
+  expect(within(link.parentElement!).getByText("Ability")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      similarity: { ...options, parts: expect.arrayContaining(["part-0", "part-1"]) },
+      similarityGeneration: "generation-1",
+    }),
+    "bge-base",
+  );
+  expect(apply.mock.calls[0][0].similarity.parts).toHaveLength(2);
 });
 
 it("retains an exact selection and prevents Apply when inventory cannot validate it", async () => {
