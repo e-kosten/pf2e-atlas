@@ -90,6 +90,12 @@
   flex-shrink: 0;
 }
 
+.backend-status {
+  max-width: 800px;
+  margin: 24px auto;
+  padding: 0 24px;
+}
+
 .workspace-grid {
   display: grid;
   grid-template-columns: var(--pane-columns);

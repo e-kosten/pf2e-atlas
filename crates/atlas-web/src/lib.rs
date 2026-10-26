@@ -1,6 +1,7 @@
 #![deny(unsafe_code)]
 
 mod assets;
+mod compatibility;
 mod error;
 mod handlers;
 mod parties;

@@ -24,6 +24,7 @@ pub fn router(service: AtlasAppService) -> Router {
 pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
     Router::new()
         .route("/", get(root))
+        .route("/api/compatibility", get(crate::compatibility::handshake))
         .route("/api/readiness", get(readiness))
         .route("/api/parties", get(crate::parties::parties).post(crate::parties::create_party))
         .route("/api/parties/{party_key}", axum::routing::patch(crate::parties::update_party).delete(crate::parties::delete_party))
@@ -132,5 +133,6 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/records/detail", post(crate::handlers::record_detail_at))
         .route("/api/records/embedded-reading", post(crate::handlers::embedded_reading))
         .fallback(get(static_asset))
+        .layer(axum::middleware::from_fn(crate::compatibility::check))
         .with_state(state)
 }

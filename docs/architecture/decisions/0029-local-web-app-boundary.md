@@ -39,6 +39,41 @@ TypeScript bindings are generated from the app DTO graph and checked into the ap
 cargo test -p atlas-app-model export_typescript_bindings -- --ignored
 ```
 
+## Browser/backend compatibility
+
+The web transport owns a compatibility check independent of workspace readiness.
+`GET /api/compatibility` responds without opening a database or using an app-service
+worker. The browser completes this check before mounting feature components. Missing
+support in an older server, or a different contract, blocks feature requests with
+an explicit version mismatch and Retry.
+
+`crates/atlas-web/api-contract-inputs.json` selects the app-model source and generated
+bindings, app-service source, and HTTP transport source. Vite and the Rust build hash
+the same sorted relative paths and UTF-8 contents, normalizing CRLF to LF and framing
+each path/content with NUL separators. The identifier is `atlas-web-v1-<sha256>`.
+It is conservative source compatibility, not a semantic equivalence proof: even a
+test/comment edit under an input directory can require a matching backend. It does
+not depend on the Git commit, checkout path, platform, UI styles, or build profile.
+
+Vite embeds the expected identifier in the browser bundle and writes
+`dist/api-contract.txt`. The Rust build rejects a missing or mismatched bundle
+identifier before embedding it. Vite restarts when a contract input changes.
+This catches stale dist output as well as accidentally pointing a current Vite
+frontend at an older frozen development backend.
+
+The browser sends `x-atlas-api-contract` on every API request; transport middleware
+returns HTTP 409 before executing an advertised incompatible request, including
+mutations. Every API response carries the backend identifier and `no-store`.
+The browser checks the header before interpreting successful DTOs or a conflict.
+Non-browser clients may omit the request header. This is a local compatibility
+guard, not authentication or database-generation validation. Existing source and
+revision checks still apply independently.
+
+The startup check is cached for this loaded frontend. Ordinary background connection
+failures must not unmount the app and discard editor drafts. Later API requests
+continue to advertise/check the fingerprint, so a replaced incompatible backend
+cannot execute the browser's subsequent mutations.
+
 ## Consequences
 
 - Web and future TUI workflows share Rust app contracts and service semantics without forcing the web frontend into WASM.

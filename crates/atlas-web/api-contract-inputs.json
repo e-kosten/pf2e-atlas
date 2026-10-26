@@ -1,0 +1,6 @@
+[
+  "crates/atlas-app-model/src",
+  "crates/atlas-app-model/bindings",
+  "crates/atlas-app-service/src",
+  "crates/atlas-web/src"
+]
