@@ -51,8 +51,12 @@ pub(crate) fn prepare_build(
     )?;
     let fingerprint = capture.fingerprint.clone();
     progress("load_catalog", "Loading translations");
-    let catalog =
-        LocalizationCatalog::load_captured(&options.source_root, &options.locale, Some(&capture))?;
+    let catalog = LocalizationCatalog::load_captured(
+        &options.source_root,
+        &options.locale,
+        options.manifest_path.as_deref(),
+        Some(&capture),
+    )?;
     let mut search_profiles = options
         .search_profiles
         .iter()
@@ -369,7 +373,11 @@ pub(crate) fn build_artifact(
     progress("recheck_source", "Checking source for changes");
     let final_fingerprint =
         compute_source_fingerprint(&options.source_root, options.manifest_path.as_deref())?;
-    let final_catalog = LocalizationCatalog::load(&options.source_root, &options.locale)?;
+    let final_catalog = LocalizationCatalog::load(
+        &options.source_root,
+        &options.locale,
+        options.manifest_path.as_deref(),
+    )?;
     if fingerprint != final_fingerprint
         || catalog.locale_sha256 != final_catalog.locale_sha256
         || catalog.english_sha256 != final_catalog.english_sha256
