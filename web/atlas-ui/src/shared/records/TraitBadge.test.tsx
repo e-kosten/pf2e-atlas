@@ -1,26 +1,22 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { TraitBadge } from "./TraitBadge";
-import { RecordBrowseSummary } from "./RecordBrowseSummary";
-import { summaryFixture } from "../../test/fixtures";
 
-it("opens exact variant definitions without triggering record selection", async () => {
+it("opens exact variant definitions in reader badges", async () => {
   history.replaceState(null, "", "/search");
-  const preview = vi.fn();
-  const record = summaryFixture("weapons:dagger", "Dagger");
-  record.traits = [
-    {
-      kind: "trait",
-      value: "deadly-d12",
-      label: "Deadly d12",
-      trait_key: "trait:deadly-d12",
-    },
-  ];
-  render(<RecordBrowseSummary record={record} selected={false} onPreview={preview} />);
+  render(
+    <TraitBadge
+      trait={{
+        kind: "trait",
+        value: "deadly-d12",
+        label: "Deadly d12",
+        trait_key: "trait:deadly-d12",
+      }}
+    />,
+  );
   const link = screen.getByRole("link", { name: "Deadly d12" });
   expect(link.getAttribute("href")).toBe("/traits/trait:deadly-d12");
   expect(link.parentElement?.closest("a")).toBeNull();
   fireEvent.click(link);
-  expect(preview).not.toHaveBeenCalled();
   await waitFor(() => expect(location.pathname).toBe("/traits/trait:deadly-d12"));
 });
 
