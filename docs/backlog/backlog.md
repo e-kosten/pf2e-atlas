@@ -14,6 +14,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
+- [Browser URL improvements](items/browser-url-improvements.md)
+  Implement concise record links, stable list navigation, shareable view state,
+  and clear link recovery. Status: in_progress.
+
 - [Reusable encounter party definitions](items/encounter-party-presets.md)
   Define a party once and add its members to encounters without repeatedly
   entering their details. Name-only implementation in progress; awaiting UX review. Status: in_progress.

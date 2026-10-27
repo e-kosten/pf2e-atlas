@@ -1,6 +1,8 @@
+import { routeSearch } from "../app/routeSearch";
 import { createFileRoute } from "@tanstack/react-router";
 import { ListIndexView } from "../features/lists/ListIndexView";
 export const Route = createFileRoute("/lists/")({
+  ...routeSearch("lists"),
   staticData: { section: "lists" },
   component: Page,
 });

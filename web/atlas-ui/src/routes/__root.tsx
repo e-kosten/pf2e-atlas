@@ -1,12 +1,11 @@
 import { createRootRoute } from "@tanstack/react-router";
-import { AtlasLayout, InvalidRoute } from "../app/AtlasLayout";
+import { AtlasLayout } from "../app/AtlasLayout";
+import { InvalidUrl } from "../app/InvalidUrl";
 import type { AtlasSearchParams } from "../app/urlState";
 export const Route = createRootRoute({
   validateSearch: (search: AtlasSearchParams) => search,
   component: AtlasLayout,
   errorComponent: ({ error }) => (
-    <InvalidRoute
-      message={error instanceof Error ? error.message : "Invalid navigation URL"}
-    />
+    <AtlasLayout routeError={<InvalidUrl error={error} />} />
   ),
 });

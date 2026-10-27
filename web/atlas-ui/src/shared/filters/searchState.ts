@@ -43,6 +43,8 @@ export function buildSearchRequest(
   expected_artifact_generation: string | null = null,
   search_profile?: string,
 ): SearchResultsRequest {
+  if (state.filterWasReset)
+    throw new Error("This search link must be reset before requesting results");
   if (state.filterError) throw new Error(state.filterError);
   if (state.similarSeed && state.traitReferenceSeed)
     throw new Error(SEARCH_SCOPE_CONFLICT);
@@ -99,6 +101,7 @@ export function buildSearchRequest(
 }
 export function hasExecutableSearch(state: SearchFormState): boolean {
   return (
+    !state.filterWasReset &&
     !state.filterError &&
     (!!state.similarSeed ||
       !!state.traitReferenceSeed ||
@@ -176,7 +179,10 @@ export function decodeSearchStateFromParams(
   let filterError: string | null = null;
   let filterWasReset = false;
   try {
-    const encoded = params.get("filter");
+    const filters = params.getAll("filter");
+    if (filters.some((value) => value !== filters[0]))
+      throw new Error("Conflicting filters");
+    const encoded = filters[0] ?? null;
     if (encoded !== null) filter = decodeFilterUrl(encoded);
   } catch {
     filterWasReset = true;
@@ -185,6 +191,7 @@ export function decodeSearchStateFromParams(
     filter = null;
     filterWasReset = true;
   }
+  if (filterWasReset) return { ...DEFAULT_SEARCH_STATE, filterWasReset: true };
   const ranking = params.get("ranking") ?? "score";
   if (!filterError && ranking !== "rrf" && ranking !== "score")
     filterError = UNKNOWN_SEARCH_RANKING;
@@ -214,7 +221,6 @@ export function decodeSearchStateFromParams(
         : "browse",
     filter,
     filterError,
-    ...(filterWasReset ? { filterWasReset: true } : {}),
     pageSize:
       Number.isInteger(pageSize) && pageSize >= 1 && pageSize <= 100 ? pageSize : 25,
   };

@@ -7,6 +7,32 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   <ConfigProvider theme={{ token: { motion: false } }}>{children}</ConfigProvider>
 );
 
+it.each([undefined, 0, 3, 8])(
+  "puts only requested rank %s into the native full-page link",
+  (rank) => {
+    const detail = detailFixture("spells:fireball", "Fireball");
+    detail.selected = { ...detail.selected, spell_rank: 3 };
+    render(
+      <RecordReferenceDrawer
+        anchor={document.createElement("button")}
+        detail={detail}
+        requestedNavigation={{ ...detail.selected, spell_rank: rank }}
+        loading={false}
+        onClose={vi.fn()}
+        onOpenFullPage={vi.fn()}
+        onReference={vi.fn()}
+      />,
+      { wrapper },
+    );
+    expect(
+      screen.getByRole("link", { name: "Open reference full page" }),
+    ).toHaveAttribute(
+      "href",
+      "/records/spells:fireball" + (rank === undefined ? "" : "?rank=" + rank),
+    );
+  },
+);
+
 it("groups identity facts in the Drawer header without duplicating the title or textual action cost", () => {
   const detail = detailFixture("actionspf2e:treat-wounds", "Treat Wounds");
   detail.presentation.classification = "Rule";

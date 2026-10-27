@@ -1,4 +1,9 @@
-import { useFilterUrlRecovery } from "../../shared/filters/useFilterUrlRecovery";
+import { atlasRouter } from "../../app/router";
+import { useRouterState } from "@tanstack/react-router";
+import {
+  FILTER_URL_RESET_NOTICE,
+  useFilterUrlRecovery,
+} from "../../shared/filters/useFilterUrlRecovery";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { Alert, Button, Select, Tag } from "antd";
 import { AddToListButton } from "../lists/AddToListButton";
@@ -17,6 +22,12 @@ import {
 export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
   usePageTitle("Search");
   useFilterUrlRecovery(workspace.search, workspace.recoverFilterUrl);
+  const reset = useRouterState({
+    select: (state) => ({
+      token: state.location.state.atlasSearchReset,
+      notice: state.location.state.atlasFilterResetNotice,
+    }),
+  });
   const profile = useSearchProfile();
   const hasCriteria = hasExecutableSearch(workspace.search);
   const failed = Boolean(
@@ -40,7 +51,25 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
           : "Loading record…";
   return (
     <main className="search-workspace">
+      {reset.notice && (
+        <Alert
+          type="info"
+          showIcon
+          title={FILTER_URL_RESET_NOTICE}
+          closable={{
+            onClose: () =>
+              void atlasRouter.navigate({
+                to: ".",
+                search: true,
+                replace: true,
+                resetScroll: false,
+                state: (state) => ({ ...state, atlasFilterResetNotice: false }),
+              }),
+          }}
+        />
+      )}
       <FilterControls
+        key={reset.token ?? "search"}
         filterState={workspace}
         layout="toolbar"
         similarSearch={

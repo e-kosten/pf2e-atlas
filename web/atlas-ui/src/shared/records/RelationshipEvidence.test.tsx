@@ -1,3 +1,4 @@
+import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -95,10 +96,11 @@ it("shows bounded provenance on demand and requests further pages with the compl
   expect(screen.getByText("1 of 2 links")).toBeVisible();
   const source = screen.getByRole("link", { name: "Goblin" });
   expect(
-    JSON.parse(
-      new URL(source.getAttribute("href")!, "http://atlas.local").searchParams.get(
-        "selection",
-      )!,
+    selectedNavigation(
+      parseSearchParams(
+        new URL(source.getAttribute("href")!, "http://atlas.local").search,
+      ),
+      occurrence.source_navigation.record_key,
     ),
   ).toEqual(occurrence.source_navigation);
   expect(view.container).not.toHaveTextContent("technical:uuid");

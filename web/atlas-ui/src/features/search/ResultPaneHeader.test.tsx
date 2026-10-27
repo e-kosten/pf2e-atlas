@@ -1,3 +1,4 @@
+import { RouterTestContext } from "../../test/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { fireEvent, render as rtlRender, screen, within } from "@testing-library/react";
@@ -13,7 +14,9 @@ function render(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return rtlRender(ui, {
     wrapper: ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      <RouterTestContext>
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      </RouterTestContext>
     ),
   });
 }
