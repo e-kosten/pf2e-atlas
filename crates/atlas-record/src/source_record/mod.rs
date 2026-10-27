@@ -40,7 +40,8 @@ pub use resolver::SourceReferenceIndex;
 pub use search_selection::{
     SOURCE_CONTENT_SELECTION_VERSION, SourceSearchSelection, SourceSelectedField,
     SourceSelectedIdentity, SourceSelectedSection, SourceSelectedSectionKind, SourceSelectionError,
-    recover_source_passage, select_prepared_html_sections, select_record_search,
+    mark_source_html_passage, recover_source_passage, select_prepared_html_sections,
+    select_record_search,
 };
 pub use text::{SourceTextKind, SourceTextSource};
 

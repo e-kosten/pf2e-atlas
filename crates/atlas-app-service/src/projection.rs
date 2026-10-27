@@ -189,14 +189,18 @@ pub(crate) fn search_results_view(
         rows: result
             .records
             .into_iter()
-            .map(|r| atlas_app_model::SearchResultRow {
-                relationship_evidence: vec![],
-                record: localized_summary_view(&r.record, retrieval),
-                matches: r
+            .map(|r| {
+                let matches: Vec<_> = r
                     .matches
                     .into_iter()
                     .map(|w| search_witness_view(w, retrieval.source_fingerprint()))
-                    .collect(),
+                    .collect();
+                atlas_app_model::SearchResultRow {
+                    relationship_evidence: vec![],
+                    record: localized_summary_view(&r.record, retrieval),
+                    matching_sections: crate::search_match_sections::matching_sections(&matches),
+                    matches,
+                }
             })
             .collect(),
         page: search_page_view(result.page),

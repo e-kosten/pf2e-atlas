@@ -233,16 +233,16 @@ pub(crate) fn read_record_detail(
                 ));
             }
             let field = fields
-                .iter()
+                .iter_mut()
                 .find(|f| f.locator.field == request.fields[0])
                 .ok_or_else(|| {
                     AppServiceError::invalid_request("selected passage field is unavailable")
                 })?;
-            let (html, plain) = match &field.body {
+            let (html, plain, interactions) = match &field.body {
                 atlas_app_model::PreparedFieldBodyView::Html { .. } => {
                     // Search passages bind canonical prepared content, before
                     // selected-rank or runtime substitutions change its text.
-                    let canonical = content
+                    let cached = content
                         .content
                         .fields
                         .iter()
@@ -250,16 +250,18 @@ pub(crate) fn read_record_detail(
                             cached.locator.field == field.locator.field
                                 && cached.locator.owners == field.locator.owners
                         })
-                        .and_then(|cached| cached.html.as_deref())
                         .ok_or_else(|| {
                             AppServiceError::invalid_request(
                                 "selected passage field is unavailable",
                             )
                         })?;
-                    (Some(canonical), None)
+                    let canonical = cached.html.as_deref().ok_or_else(|| {
+                        AppServiceError::invalid_request("selected passage field is unavailable")
+                    })?;
+                    (Some(canonical), None, Some(cached.interactions.as_slice()))
                 }
                 atlas_app_model::PreparedFieldBodyView::Plain { text } => {
-                    (None, Some(text.as_str()))
+                    (None, Some(text.as_str()), None)
                 }
                 _ => {
                     return Err(AppServiceError::invalid_request(
@@ -270,6 +272,25 @@ pub(crate) fn read_record_detail(
             recover_source_passage(html, plain, address).map_err(|e| {
                 AppServiceError::invalid_request(format!("stale or invalid passage: {e}"))
             })?;
+            if let (
+                atlas_app_model::PreparedFieldBodyView::Html { html, .. },
+                Some(canonical),
+                Some(interactions),
+            ) = (&mut field.body, html, interactions)
+            {
+                let marked =
+                    atlas_record::source_record::mark_source_html_passage(canonical, address)
+                        .map_err(|e| {
+                            AppServiceError::invalid_request(format!(
+                                "stale or invalid passage: {e}"
+                            ))
+                        })?;
+                *html = atlas_record::source_content::render_contextual_interactions(
+                    &marked,
+                    interactions,
+                    &context.formula,
+                );
+            }
         }
     }
     crate::inline_content::compose_inline_content(r, fields.iter_mut(), &content.relationships)?;

@@ -356,6 +356,17 @@ per-field/per-marker body reads. Reader connections stay on one generation while
 the writer atomically publishes later artifacts.
 
 App-service search pages reuse browse, text and stored-vector Similar retrieval.
+For query-backed reader context, app-service also projects `matching_sections`:
+whole-entry and precise witnesses for the same checked entry share one useful
+destination, while distinct embedded identities and passages remain separate.
+Raw witnesses, retrieval-lane attribution and ranking remain unchanged; adapters
+render the projected labels, excerpts and exact navigation. Selected HTML passage
+responses mark the checked section start using the same source selection policy;
+the reader lands, focuses and briefly highlights that marker while retaining the
+complete field. The marker is added only to the response after passage validation;
+stored HTML, passage hashes and artifact policy identities remain unchanged.
+Cross-record reference evidence uses the shared linked-record Drawer, preserving
+the selected result and its return context.
 Record Similar carries the exact root seed and canonical filters, and returns a
 body-free seed summary beside bounded candidate pages. Trait Similar carries its
 typed trait key and projected label through the same search-page workflow. It adds no ranking lane or
@@ -679,15 +690,17 @@ remain shared, while compiler targets stay checkout-local. See
 App-service resolves a selected source field and interaction ordinal from the
 checked record, verifies its source fingerprint, interpretation version, authored
 command mode and exact formula, then
-validates every supported literal instance before rolling. Only complete bounded
-static damage expressions with recognized options receive a roll offer. Literal
+validates every supported instance before rolling. Complete bounded damage
+expressions with recognized options receive a roll offer after any supported
+variables resolve from checked source, selected rank or encounter context. Literal
 `/r`, `/gmr` and `/br` commands share the same source-bound endpoint and transient
 local result surface, retaining their original modes without Foundry chat routing. These are authored
 base-formula reference rolls: known traits/domains/roll options stay attributed
 metadata and never trigger actor synthetics. Unknown options or dynamic option
 values receive no roll offer. Mixed types
 retain separate labeled outcomes. This stateless endpoint performs no saved-state
-writes, HP changes or actor/item expression evaluation. The reader holds transient
+writes or HP changes. Numeric context is reread and checked before rolling;
+unresolved values receive no executable offer. The reader holds transient
 results, reuses them when reopening the popover, and replaces them only on explicit
 Reroll; there is no persistent roll history. The browser renders supplied previews
 and outcomes using the shared dice surface rather than parsing formulas.

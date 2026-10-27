@@ -512,6 +512,39 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
     let old = get_roll(&selected);
     assert!(old.encounter.is_some());
     assert!(f.worker.roll_content(old.clone()).is_ok());
+    let canonical = f
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            Ok(
+                r.read_attributed_content(&[atlas_record::source_content::SourceContentLocator {
+                    record: "actors:contextActor0001".parse().unwrap(),
+                    owners: vec![],
+                    field: "/system/details/publicNotes".into(),
+                }])?
+                .content
+                .fields[0]
+                    .html
+                    .clone()
+                    .unwrap(),
+            )
+        })
+        .unwrap();
+    let section = atlas_record::source_record::select_prepared_html_sections(&canonical)
+        .unwrap()
+        .remove(0);
+    let mut passage_request = request.clone();
+    passage_request.selection.fields = vec!["/system/details/publicNotes".into()];
+    passage_request.selection.passage = Some(atlas_domain::SourcePassageAddress::HtmlSection {
+        prepared_html_sha256: atlas_search::test_support::hash(canonical.as_bytes()),
+        canonical_text_sha256: atlas_search::test_support::hash(section.text.as_bytes()),
+        selection_version: atlas_record::source_record::SOURCE_CONTENT_SELECTION_VERSION.into(),
+        section_ordinal: 0,
+        label: section.label,
+        chunk_bytes: atlas_domain::SourceByteRange {
+            start: 0,
+            end: section.text.len(),
+        },
+    });
     let mut update = super::tests::update(participant);
     update.participant_variant = EncounterParticipantVariantView::Weak;
     update.variant_edit = true;
@@ -532,6 +565,25 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
         .unwrap();
     let outcome = f.worker.roll_content(get_roll(&updated)).unwrap();
     assert!((3..=18).contains(&outcome.components[0].outcome.total));
+    let addressed = f
+        .worker
+        .encounter_reference(
+            &encounter.slug,
+            &participant.participant_key,
+            passage_request,
+        )
+        .unwrap();
+    let addressed_html = addressed
+        .presentation
+        .content
+        .iter()
+        .find_map(|field| match &field.body {
+            PreparedFieldBodyView::Html { html, .. } => Some(html.as_str()),
+            _ => None,
+        })
+        .unwrap();
+    assert!(addressed_html.contains("data-atlas-passage-target"));
+    assert!(addressed_html.contains(">3d6</span> damage"));
     let current = f.worker.encounter(&encounter.slug).unwrap();
     f.worker
         .add_encounter_participant_condition(

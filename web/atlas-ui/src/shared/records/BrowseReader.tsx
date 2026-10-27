@@ -19,10 +19,10 @@ export function BrowseReader({
   reading,
   readerActions,
   readerStatus,
+  readerContext,
   onReaderClose,
   readerFooter,
   positions,
-  onResultsScroll,
 }: {
   children: ReactNode;
   resultsHeader?: ReactNode;
@@ -31,12 +31,12 @@ export function BrowseReader({
   resultsLoading: boolean;
   selectedRecordKey: string | null;
   reading: ReferenceReading;
+  readerContext?: ReactNode;
   readerActions?: ReactNode;
   readerStatus?: ReactNode;
   onReaderClose?: () => void;
   readerFooter?: ReactNode;
   positions?: BrowsePositions;
-  onResultsScroll?: () => void;
 }) {
   const narrow = !Grid.useBreakpoint().lg;
   const root = useRef<HTMLDivElement>(null);
@@ -63,7 +63,7 @@ export function BrowseReader({
   function rememberOpener(target: EventTarget) {
     const element =
       target instanceof Element
-        ? target.closest<HTMLElement>("[data-record-key],.reference-result__matches")
+        ? target.closest<HTMLElement>("[data-record-key]")
         : null;
     if (element) {
       beforePreview.current = element;
@@ -103,7 +103,6 @@ export function BrowseReader({
         aria-busy={resultsLoading}
         onScroll={(event) => {
           if (!narrow || !readerOpen) saved.saveList(event.currentTarget.scrollTop);
-          onResultsScroll?.();
         }}
       >
         {children}
@@ -115,6 +114,7 @@ export function BrowseReader({
       reading={reading}
       selectedRecordKey={selectedRecordKey}
       readerActions={readerActions}
+      readerContext={readerContext}
       status={readerStatus}
       readerFooter={readerFooter}
       positions={saved}

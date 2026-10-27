@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { encodeFilterUrl, decodeFilterUrl } from "../src/shared/filters/filterUrl";
 import type { RelatedRecordsView, SearchResultsPage } from "../src/generated/atlas";
 
-test("narrow preview restores focus after closing during opening, reopening and nested Escape", async ({
+test("narrow preview restores focus after reopening and keeps checks as plain text", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -26,43 +26,51 @@ test("narrow preview restores focus after closing during opening, reopening and 
     await picker
       .getByRole("searchbox", { name: "Search records", exact: true })
       .press("Enter");
-    await picker.locator("[data-record-key]").filter({ hasText: "Ghoul" }).click();
+    await picker
+      .locator('[data-record-key="pathfinder-bestiary:LHHgGSs0ELCR4CYK"]')
+      .click();
     await picker.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(picker.getByText("Added 1 × Ghoul.", { exact: true })).toBeVisible();
+    await picker.getByRole("button", { name: "Close", exact: true }).click();
     await expect(picker).not.toBeVisible();
     await page.getByText("Ghoul", { exact: true }).first().click();
-    const jaws = page.getByRole("button", { name: "Jaws", exact: true });
-    const preview = page.getByRole("dialog", {
-      name: "Reference",
-      exact: true,
+    const ability = page.getByRole("link", { name: "Consume Flesh", exact: true });
+    const preview = page.getByRole("dialog").filter({
+      has: page.getByRole("button", { name: "Close reference preview", exact: true }),
     });
-    const openPage = page.getByRole("link", {
-      name: "Open reference full page",
-      exact: true,
-    });
+    const abilityHeading = preview.getByRole("heading", { name: /^Consume Flesh\b/ });
 
-    // Close before the opening callback focuses the first preview action.
-    await jaws.focus();
-    await jaws.press("Enter");
+    // Close while opening, before the final focus callback settles.
+    await ability.focus();
+    await ability.press("Enter");
     await expect(preview).toBeVisible();
-    await expect(openPage).not.toBeFocused();
     await page.keyboard.press("Escape");
     await expect(preview).toHaveCount(0);
-    await expect(jaws).toBeFocused();
+    await expect(ability).toBeFocused();
 
     // The same selection must reopen with fresh lifecycle state.
-    await jaws.press("Enter");
-    await expect(
-      preview.getByRole("heading", { name: "Jaws", exact: true }),
-    ).toBeVisible();
-    await expect(openPage).toBeFocused();
+    await ability.press("Enter");
+    await expect(abilityHeading).toBeFocused();
+    const healing = preview.getByRole("button", {
+      name: /^(Roll|View roll for) 1d6 healing$/,
+    });
+    await healing.focus();
+    await healing.press("Enter");
+    const roll = page.getByRole("dialog", { name: "Healing", exact: true });
+    await expect(roll).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(roll).not.toBeVisible();
+    await expect(healing).toBeFocused();
+    await expect(preview).toBeVisible();
     await preview
       .getByRole("button", { name: "Close reference preview", exact: true })
       .click();
     await expect(preview).toHaveCount(0);
-    await expect(jaws).toBeFocused();
+    await expect(ability).toBeFocused();
 
-    // Requested Seize prose links to Grabbed, whose prepared description has a real
-    // flat-check control; this exercises a modal nested inside the native Drawer.
+    // Following a real source link stays in the same Drawer. Grabbed's flat
+    // check is readable prose rather than another interactive overlay.
+    await page.getByRole("button", { name: "Back to roster", exact: true }).click();
     await page.getByRole("button", { name: "Add participants", exact: true }).click();
     await page
       .getByRole("menuitem", { name: "Add creature or hazard…", exact: true })
@@ -75,56 +83,42 @@ test("narrow preview restores focus after closing during opening, reopening and 
       .getByRole("searchbox", { name: "Search records", exact: true })
       .press("Enter");
     await hazardPicker
-      .locator("[data-record-key]")
-      .filter({ hasText: "Waking Nightmare" })
+      .locator('[data-record-key="pfs-season-3-bestiary:wun5VzDIMSZCVLuI"]')
       .click();
     await hazardPicker.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(
+      hazardPicker.getByText("Added 1 × Waking Nightmare.", { exact: true }),
+    ).toBeVisible();
+    await hazardPicker.getByRole("button", { name: "Close", exact: true }).click();
     await expect(hazardPicker).not.toBeVisible();
     await page.getByText("Waking Nightmare", { exact: true }).first().click();
-    const seize = page.getByRole("button", { name: /^Seize\b/ });
+    const seize = page.getByRole("link", { name: /^Seize\b/ });
     await seize.click();
-    await expect(
-      preview.getByRole("heading", { name: "Description", exact: true }),
-    ).toBeVisible();
+    await expect(preview.getByRole("heading", { name: /^Seize\b/ })).toBeVisible();
     await expect(preview.locator(".prepared-content")).toContainText("Trigger");
     await expect(preview.locator(".prepared-content")).toContainText("Effect");
     const grabbedReference = preview
       .locator(".prepared-content")
-      .getByRole("button", { name: "Grabbed", exact: true });
+      .getByRole("link", { name: "Grabbed", exact: true });
     await grabbedReference.focus();
     await grabbedReference.press("Enter");
     await expect(
       preview.getByRole("heading", { name: "Grabbed", exact: true }),
     ).toBeVisible();
-    const control = preview.locator('[data-atlas-interaction][role="button"]').first();
-    await control.focus();
-    await control.press("Enter");
-    const info = page
-      .getByRole("dialog")
-      .filter({ has: page.getByRole("button", { name: "OK", exact: true }) });
-    await expect(info).toBeVisible();
-    await info.getByRole("button", { name: "OK", exact: true }).focus();
-    await page.keyboard.press("Escape");
-    await expect(info).toHaveCount(0);
-    await expect(control).toBeFocused();
-    await page.keyboard.press("Escape");
-    await expect(preview).toHaveCount(0);
-    await expect(seize).toBeFocused();
-    await seize.press("Enter");
-    await expect(openPage).toBeFocused();
-    const next = preview.getByRole("button", { name: "Grabbed", exact: true });
-    await next.focus();
-    await next.press("Enter");
-    await expect(
-      preview.getByRole("heading", { name: "Grabbed", exact: true }),
-    ).toBeVisible();
+    const check = preview.locator('[data-atlas-interaction-kind="check"]').first();
+    await expect(check).toHaveText("DC 5 flat check");
+    await expect(check).not.toHaveAttribute("role");
+    await expect(check).not.toHaveAttribute("tabindex");
     const content = preview.getByLabel("Reference content", { exact: true });
     await expect(content).toBeFocused();
+    await content.press("Enter");
+    await expect(page.getByRole("dialog")).toHaveCount(1);
     await page.keyboard.press("Escape");
     await expect(preview).toHaveCount(0);
     await expect(seize).toBeFocused();
     await seize.press("Enter");
-    await expect(openPage).toBeFocused();
+    await expect(preview.getByRole("heading", { name: /^Seize\b/ })).toBeFocused();
+    const next = preview.getByRole("link", { name: "Grabbed", exact: true });
     await next.focus();
     await next.press("Enter");
     await expect(
@@ -132,16 +126,9 @@ test("narrow preview restores focus after closing during opening, reopening and 
     ).toBeVisible();
     await expect(content).toBeFocused();
     await page.keyboard.press("Tab");
-    await expect(
-      preview.getByRole("button", { name: "DC 5 flat", exact: true }),
-    ).toBeFocused();
-    await page.keyboard.press("Shift+Tab");
-    await expect(
-      preview.getByRole("button", {
-        name: "Close reference preview",
-        exact: true,
-      }),
-    ).toBeFocused();
+    expect(
+      await check.evaluate((element) => element.contains(document.activeElement)),
+    ).toBe(false);
     await page.keyboard.press("Escape");
     await expect(preview).toHaveCount(0);
     await expect(seize).toBeFocused();
@@ -431,20 +418,24 @@ test("owned Ghoul Fever and named GM passage use actual selected detail routes",
   const ghoul = page.locator(".reference-result").filter({
     has: page.locator('[data-record-key="pathfinder-bestiary:LHHgGSs0ELCR4CYK"]'),
   });
-  await ghoul.getByRole("button", { name: /matches in Ghoul$/ }).click();
-  await page
-    .locator(".reference-match-list:visible")
+  await ghoul.locator("[data-record-key]").click();
+  const feverLink = page
+    .getByRole("region", { name: "Record preview", exact: true })
+    .getByRole("heading", { name: /^Ghoul Fever/ })
     .getByRole("link", { name: "Ghoul Fever", exact: true })
-    .first()
-    .click();
-  await page
-    .getByRole("link", { name: "Open Ghoul Fever full reference", exact: true })
-    .click();
+    .first();
+  // Use the parent ability's native link to check the complete owned identity,
+  // including action cost, rather than the search match's selected prose field.
+  await expect(feverLink).toBeVisible();
+  const inlineFever = feverLink.locator("..");
+  await expect(inlineFever).toHaveText("Ghoul Fever passive");
+  await expect(inlineFever.locator('.action-cost[title="passive"]')).toHaveCount(1);
+  await expect(inlineFever.locator("[data-atlas-action-glyph]")).toHaveCount(0);
+  await page.goto((await feverLink.getAttribute("href"))!);
   await expect(page).toHaveURL(/\/records\/.*selection=/);
   const fever = page.getByRole("heading", { name: /^Ghoul Fever\b/ });
   await expect(fever).toBeVisible();
-  await expect(fever).toHaveText("Ghoul Fever passive");
-  await expect(fever.locator('.action-cost[title="passive"]')).toHaveCount(1);
+  await expect(fever).toHaveText(/^[\s]*Ghoul Fever[\s]*$/);
   await expect(fever.locator("[data-atlas-action-glyph]")).toHaveCount(0);
   await expect(page.getByText(/rises as a Ghoul the next midnight/)).toBeVisible();
   await page.screenshot({
@@ -452,13 +443,9 @@ test("owned Ghoul Fever and named GM passage use actual selected detail routes",
     fullPage: true,
   });
   await page.goto("/search?q=%22Soul%20Degradation%22");
+  await page.locator(".reference-result").first().locator("[data-record-key]").click();
   await page
-    .locator(".reference-result")
-    .first()
-    .getByRole("button", { name: /matches in/ })
-    .click();
-  await page
-    .locator(".reference-match-list:visible")
+    .getByRole("region", { name: "Search matches", exact: true })
     .getByRole("link", { name: "Soul Degradation (Curse 7)", exact: true })
     .first()
     .click();

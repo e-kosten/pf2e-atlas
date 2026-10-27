@@ -1,5 +1,4 @@
 import { Empty, Spin } from "antd";
-import { useState } from "react";
 import type { ReactNode } from "react";
 import type {
   RelationshipClauseSummaryView,
@@ -13,6 +12,7 @@ import {
 } from "./useReferenceReading";
 import { BrowseReader } from "./BrowseReader";
 import { ReferenceResult } from "./ReferenceResult";
+import { SearchMatchContext } from "./SearchMatchContext";
 export function ReferenceBrowser({
   rows,
   loading,
@@ -30,8 +30,10 @@ export function ReferenceBrowser({
   filter,
   generation,
   onRefreshResults,
+  query,
 }: {
   rows: SearchResultRow[];
+  query?: string;
   loading: boolean;
   selectedRecordKey: string | null;
   onSelect: (row: SearchResultRow, request: ReadingRequest) => void;
@@ -48,7 +50,16 @@ export function ReferenceBrowser({
   generation?: string;
   onRefreshResults?: () => Promise<void>;
 }) {
-  const [openMatchKey, setOpenMatchKey] = useState<string | null>(null);
+  const selected = rows.find((row) => row.record.record_key === selectedRecordKey);
+  const detail = reading.detail;
+  const showContext =
+    selected &&
+    detail &&
+    detail.record.record_key === selected.record.record_key &&
+    detail.artifact_generation === generation &&
+    !detail.selected.embedded_path.length &&
+    !detail.selected.field &&
+    !detail.selected.passage;
   return (
     <BrowseReader
       reading={reading}
@@ -61,7 +72,18 @@ export function ReferenceBrowser({
       readerStatus={readerStatus}
       onReaderClose={onReaderClose}
       positions={positions}
-      onResultsScroll={() => setOpenMatchKey(null)}
+      readerContext={
+        showContext ? (
+          <SearchMatchContext
+            row={selected}
+            query={query}
+            clauses={relationshipClauses}
+            filter={filter}
+            generation={generation}
+            onRefresh={onRefreshResults}
+          />
+        ) : undefined
+      }
     >
       {loading && !rows.length ? (
         <div className="reference-loading" role="status" aria-label="Searching…">
@@ -80,19 +102,9 @@ export function ReferenceBrowser({
           generation={generation}
           onRefreshResults={onRefreshResults}
           selected={row.record.record_key === selectedRecordKey}
-          matchesOpen={openMatchKey === row.record.record_key}
-          onMatchesOpenChange={(open) =>
-            setOpenMatchKey(open ? row.record.record_key : null)
-          }
           disabled={disabled}
           onPreview={() => {
             onSelect(row, { navigation: rootNavigation(row.record.record_key) });
-          }}
-          onMatch={(navigation) => {
-            onSelect(row, {
-              navigation: rootNavigation(navigation.record_key),
-              match: navigation,
-            });
           }}
         />
       ))}

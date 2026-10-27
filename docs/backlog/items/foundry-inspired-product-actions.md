@@ -26,14 +26,16 @@ readiness, display, dice execution and contextual gameplay adjudication distinct
 
 ## Authored content reference rolls
 
-Supported literal damage expressions use the shared bounded dice engine and an
+Supported damage expressions use the shared bounded dice engine and an
 inline one-click roll control. Results stay in the current reader with explicit
 Reroll; no persistent history, encounter mutation or contextual modifier evaluation
 is involved. Unknown runtime expressions/options remain authored data. This bounded
-workflow also covers bounded literal `/r`, `/gmr` and `/br` formulas with the
-same transient local result surface. `/act` supplies readable action labels and
-references. General Macro execution, actor action execution and contextual
-checks/formulas remain separate work below.
+workflow also covers bounded `/r`, `/gmr` and `/br` formulas with the
+same transient local result surface. Checked source, selected rank and addressed
+encounter values can resolve supported contextual formulas; missing values remain
+symbolic prose. `/act` supplies readable action labels and references. Checks and
+area templates render as plain text. General Macro execution, actor action
+execution and broader Foundry runtime evaluation remain separate work below.
 
 ## Runtime callback research
 

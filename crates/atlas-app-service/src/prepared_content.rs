@@ -342,6 +342,18 @@ pub(crate) fn resolve_runtime_content(
             })
             && let Some(authored) = &cached.html
         {
+            let marked;
+            let authored = if let Some(address) = view.selected.passage.as_ref()
+                && view.selected.field.as_deref() == Some(field.locator.field.as_str())
+            {
+                marked = atlas_record::source_record::mark_source_html_passage(authored, address)
+                    .map_err(|e| {
+                    AppServiceError::invalid_request(format!("stale or invalid passage: {e}"))
+                })?;
+                marked.as_str()
+            } else {
+                authored
+            };
             *html = atlas_record::source_content::render_contextual_interactions(
                 authored,
                 &cached.interactions,
