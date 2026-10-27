@@ -791,7 +791,7 @@ fn similar_trait_search_uses_persisted_seed_and_normal_filters() {
     let mut search = request(
         SearchCriteria::SimilarTraits {
             seed_trait_key: "trait:agile".into(),
-            similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
+            similarity: None,
             filter: None,
         },
         1,
@@ -809,6 +809,10 @@ fn similar_trait_search_uses_persisted_seed_and_normal_filters() {
     );
     assert!(!first.rows.is_empty());
     assert!(first.coverage.is_some());
+    assert_eq!(
+        first.similarity.unwrap().options,
+        atlas_domain::SimilarityOptions::Baseline {}
+    );
     search.criteria = SearchCriteria::SimilarTraits {
         seed_trait_key: "trait:agile".into(),
         similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),

@@ -356,6 +356,10 @@ per-field/per-marker body reads. Reader connections stay on one generation while
 the writer atomically publishes later artifacts.
 
 App-service search pages reuse browse, text and stored-vector Similar retrieval.
+An omitted record method selects Passage matches, Any content and decay 0.5; an
+omitted trait method selects the baseline Trait definition recipe. Domain owns
+that seed-aware default; explicit options and valid browser preferences retain
+their meaning. CLI content flags without a method explicitly select Passage matches.
 Configurable Similar carries typed method/decay/part/candidate-role options for
 record or trait seeds. The same app workflow projects an exact part inventory and
 paired match evidence for CLI and web; the browser does not infer correspondence

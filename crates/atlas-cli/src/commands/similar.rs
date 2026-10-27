@@ -65,6 +65,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
             Err(error) => return report_app_error(error, o.json),
         }
     };
+    let options = options.unwrap_or_else(|| SimilarityOptions::default_for_seed(&seed));
     if let Err(error) = options.validate(&seed) {
         return report_app_error(invalid(error), o.json);
     }
@@ -153,7 +154,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
-fn comparison_options(o: &SimilarOptions) -> Result<SimilarityOptions, AppError> {
+fn comparison_options(o: &SimilarOptions) -> Result<Option<SimilarityOptions>, AppError> {
     let parts = (!o.parts.is_empty()).then(|| {
         o.parts
             .iter()
@@ -165,7 +166,14 @@ fn comparison_options(o: &SimilarOptions) -> Result<SimilarityOptions, AppError>
         CliCandidateParts::Any => SimilarityCandidateParts::Any,
         CliCandidateParts::Corresponding => SimilarityCandidateParts::Corresponding,
     };
-    match o.method.unwrap_or(CliSimilarityMethod::Passages) {
+    let method = o.method.or_else(|| {
+        (o.decay.is_some() || parts.is_some() || o.candidate_parts.is_some())
+            .then_some(CliSimilarityMethod::Passages)
+    });
+    let Some(method) = method else {
+        return Ok(None);
+    };
+    match method {
         CliSimilarityMethod::Passages => Ok(SimilarityOptions::Passages {
             decay: o
                 .decay
@@ -191,6 +199,7 @@ fn comparison_options(o: &SimilarOptions) -> Result<SimilarityOptions, AppError>
             Ok(SimilarityOptions::Baseline {})
         }
     }
+    .map(Some)
 }
 
 fn has_candidate_filters(filters: &crate::cli::args::FilterOptions) -> bool {
@@ -405,7 +414,12 @@ mod tests {
             "generation",
         ]);
         assert_eq!(
-            comparison_options(&options).unwrap().parts().unwrap().len(),
+            comparison_options(&options)
+                .unwrap()
+                .unwrap()
+                .parts()
+                .unwrap()
+                .len(),
             2
         );
     }
@@ -435,10 +449,27 @@ mod tests {
     }
 
     #[test]
+    fn bare_trait_uses_its_default_while_content_flags_select_passages() {
+        let seed = SimilaritySeed::Trait {
+            trait_key: "trait:fire".parse().unwrap(),
+        };
+        let bare = parse(&["atlas", "similar", "trait:fire"]);
+        let options = comparison_options(&bare)
+            .unwrap()
+            .unwrap_or_else(|| SimilarityOptions::default_for_seed(&seed));
+        assert_eq!(options, SimilarityOptions::Baseline {});
+        let explicit = parse(&["atlas", "similar", "trait:fire", "--decay", "0.75"]);
+        assert!(matches!(
+            comparison_options(&explicit).unwrap(),
+            Some(SimilarityOptions::Passages { decay, .. }) if decay == 0.75
+        ));
+    }
+
+    #[test]
     fn decay_preserves_precision_and_rejects_nonfinite_values() {
         let options = parse(&["atlas", "similar", "Brown Mold", "--decay", "0.123456"]);
         assert!(
-            matches!(comparison_options(&options).unwrap(), SimilarityOptions::Passages { decay, .. } if decay == 0.123456)
+            matches!(comparison_options(&options).unwrap(), Some(SimilarityOptions::Passages { decay, .. }) if decay == 0.123456)
         );
         for value in ["NaN", "inf", "1.01", "-0.01"] {
             assert!(

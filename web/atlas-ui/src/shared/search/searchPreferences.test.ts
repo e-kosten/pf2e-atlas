@@ -8,6 +8,25 @@ import {
 
 beforeEach(() => localStorage.clear());
 
+it("keeps record and trait launch defaults independent", () => {
+  const preferences = readSearchPreferences();
+  expect(preferences.recordSimilarity.method).toBe("passages");
+  expect(preferences.traitSimilarity.method).toBe("baseline");
+});
+
+it("preserves a stored trait content method and its inactive values", () => {
+  const preferences = {
+    ...DEFAULT_SEARCH_PREFERENCES,
+    traitSimilarity: {
+      method: "passages" as const,
+      decay: 0.75,
+      candidateParts: "any" as const,
+    },
+  };
+  expect(writeSearchPreferences(preferences)).toBe(true);
+  expect(readSearchPreferences()).toEqual(preferences);
+});
+
 it("remembers general preferences across browser-owner launches", () => {
   const preferences = {
     ...DEFAULT_SEARCH_PREFERENCES,

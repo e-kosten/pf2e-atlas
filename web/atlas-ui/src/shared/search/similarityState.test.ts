@@ -43,6 +43,27 @@ it("uses remembered preferences only where the URL has no explicit choice", () =
   });
 });
 
+it("pins the trait default in new links and preserves an explicit content method", () => {
+  const bare = decodeSearchStateFromParams(new URLSearchParams("similar=trait:fire"));
+  expect(bare.similarity).toEqual({ method: "baseline" });
+  expect(searchStateQueryString(bare)).toContain("similarity_method=baseline");
+  expect(buildSearchRequest(bare, 1).criteria).toMatchObject({
+    kind: "similar_traits",
+    similarity: { method: "baseline" },
+  });
+  const explicit = decodeSearchStateFromParams(
+    new URLSearchParams(
+      "similar=trait:fire&similarity_method=passages&similarity_decay=0.75&candidate_parts=any",
+    ),
+  );
+  expect(explicit.similarity).toEqual({
+    method: "passages",
+    decay: 0.75,
+    parts: null,
+    candidate_parts: "any",
+  });
+});
+
 it("round trips exact selected parts and their generation into the request", () => {
   const search = decodeSearchStateFromParams(
     new URLSearchParams(

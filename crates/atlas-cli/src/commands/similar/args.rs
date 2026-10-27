@@ -4,7 +4,7 @@ use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas similar 'Brown Mold' --list-parts\n  atlas similar 'Brown Mold' --method passages --decay 0.5 --explain\n  atlas similar 'Brown Mold' --method content-average --kind hazard\n  atlas similar trait:fire --method baseline --json\n\nSimilarity uses stored vectors and does not require model weights. Filters constrain candidates, not seed resolution. Candidate coverage is bounded. Copy exact --part selectors and --artifact-generation from --list-parts."
+    after_help = "Examples:\n  atlas similar 'Brown Mold' --list-parts\n  atlas similar 'Brown Mold' --method passages --decay 0.5 --explain\n  atlas similar 'Brown Mold' --method content-average --kind hazard\n  atlas similar trait:fire --method baseline --json\n\nDefaults: Passage matches for records; Trait definition for traits. Content options without --method select Passage matches.\n\nSimilarity uses stored vectors and does not require model weights. Filters constrain candidates, not seed resolution. Candidate coverage is bounded. Copy exact --part selectors and --artifact-generation from --list-parts."
 )]
 pub(crate) struct SimilarOptions {
     #[arg(

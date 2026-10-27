@@ -96,6 +96,14 @@ impl Default for SimilarityOptions {
     }
 }
 impl SimilarityOptions {
+    /// Select the product default for an omitted method after resolving its seed.
+    pub fn default_for_seed(seed: &SimilaritySeed) -> Self {
+        match seed {
+            SimilaritySeed::Record { .. } => Self::default(),
+            SimilaritySeed::Trait { .. } => Self::Baseline {},
+        }
+    }
+
     pub fn parts(&self) -> Option<&[SimilarityPartSelector]> {
         match self {
             Self::Passages { parts, .. } | Self::ContentAverage { parts, .. } => parts.as_deref(),
@@ -156,6 +164,28 @@ pub struct SimilarityParts {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn omitted_methods_use_independent_record_and_trait_defaults() {
+        let record = SimilaritySeed::Record {
+            record_key: "items:0000000000000000".parse().unwrap(),
+        };
+        let trait_seed = SimilaritySeed::Trait {
+            trait_key: "trait:fire".parse().unwrap(),
+        };
+        assert_eq!(
+            SimilarityOptions::default_for_seed(&record),
+            SimilarityOptions::Passages {
+                decay: 0.5,
+                parts: None,
+                candidate_parts: SimilarityCandidateParts::Any,
+            }
+        );
+        assert_eq!(
+            SimilarityOptions::default_for_seed(&trait_seed),
+            SimilarityOptions::Baseline {}
+        );
+    }
+
     #[test]
     fn baseline_wire_options_reject_method_specific_fields() {
         assert_eq!(
