@@ -92,8 +92,9 @@
   align-items: center;
 }
 .record-reference__identity {
-  flex: 1 1 12ch;
+  flex: 1 1 max-content;
   min-width: 0;
+  max-width: 100%;
 }
 .record-reference__title h2 {
   font-family: var(--theme-font);
