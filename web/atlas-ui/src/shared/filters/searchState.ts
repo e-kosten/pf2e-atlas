@@ -7,6 +7,8 @@ import type {
   SortField,
   SortDirection,
   SimilarityOptions,
+  SearchContentScope,
+  SimilaritySourceSections,
 } from "../../generated/atlas";
 import { decodeFilterUrl, encodeFilterUrl } from "./filterUrl";
 import {
@@ -24,6 +26,8 @@ export type SearchFormState = {
   sort?: ResultSort;
   ranking?: SearchRanking;
   similarity?: SimilarityOptions;
+  searchContent?: SearchContentScope;
+  sourceSections?: SimilaritySourceSections;
   similarityGeneration?: string;
   query: string;
   mode: "browse" | "text_search" | "similar_records";
@@ -85,12 +89,22 @@ export function buildSearchRequest(
             seed_trait_key: state.similarSeed,
             filter: state.filter,
             similarity: state.similarity,
+            search_content: state.searchContent ?? "all",
+            source_sections:
+              state.similarity?.method === "baseline"
+                ? undefined
+                : state.sourceSections,
           }
         : {
             kind: "similar_records",
             seed_record_key: state.similarSeed,
             filter: state.filter,
             similarity: state.similarity,
+            search_content: state.searchContent ?? "all",
+            source_sections:
+              state.similarity?.method === "baseline"
+                ? undefined
+                : state.sourceSections,
           },
     };
   return {
@@ -105,6 +119,7 @@ export function buildSearchRequest(
           query: state.query.trim(),
           filter: state.filter,
           mode: "hybrid",
+          search_content: state.searchContent ?? "all",
         }
       : { kind: "list_records", filter: state.filter },
   };
@@ -130,6 +145,9 @@ export function buildFilterDiscoveryContext(
     filter: state.filter,
     text: state.query.trim() || null,
     mode: "hybrid",
+    ...(state.query.trim() && !state.traitReferenceSeed
+      ? { search_content: state.searchContent ?? "all" }
+      : {}),
   };
 }
 export function buildSavedListFilterDiscoveryContext(
@@ -137,7 +155,7 @@ export function buildSavedListFilterDiscoveryContext(
   state: SearchFormState,
 ): FilterDiscoveryContext {
   return {
-    ...buildFilterDiscoveryContext(state),
+    ...buildFilterDiscoveryContext({ ...state, searchContent: "all" }),
     kind: "saved_list",
     list_ref,
     mode: "lexical",
@@ -155,6 +173,14 @@ export function encodeSearchExecutionState(
       search_profile,
       ranking: state.ranking ?? "score",
       similarity: state.similarSeed ? state.similarity : undefined,
+      searchContent:
+        state.similarSeed || state.query.trim()
+          ? (state.searchContent ?? "all")
+          : undefined,
+      sourceSections:
+        state.similarSeed && state.similarity?.method !== "baseline"
+          ? (state.sourceSections ?? (state.similarity?.parts ? "custom" : "all"))
+          : undefined,
       similarityGeneration: state.similarSeed ? state.similarityGeneration : undefined,
       sort: state.sort,
       query: state.query,
@@ -177,11 +203,17 @@ export function searchStateQueryString(
   encodeResultSort(params, state.sort);
   if (state.query) params.set("q", state.query);
   if (state.similarSeed) params.set("similar", state.similarSeed);
+  if (!state.traitReferenceSeed && (state.similarSeed || state.query.trim()))
+    params.set("search_content", state.searchContent ?? "all");
   if (state.similarSeed && state.similarity) {
     const settings = state.similarity;
     params.set("similarity_method", settings.method);
     if (settings.method !== "baseline") {
       params.set("candidate_parts", settings.candidate_parts);
+      params.set(
+        "similarity_sections",
+        state.sourceSections ?? (settings.parts ? "custom" : "all"),
+      );
       if (settings.method === "passages")
         params.set("similarity_decay", String(settings.decay));
       if (settings.parts)
@@ -218,6 +250,18 @@ export function decodeSearchStateFromParams(
     filterError = UNKNOWN_SEARCH_RANKING;
   const pageSize = Number(params.get("limit") || 25);
   const similarSeed = params.get("similar")?.trim() || null;
+  if (
+    (params.has("similarity_sections") && !similarSeed) ||
+    params.getAll("similarity_sections").length > 1 ||
+    params.getAll("search_content").length > 1
+  )
+    filterError = INVALID_SIMILARITY_SETTINGS;
+  const populated = [...params.keys()].some((key) => key !== "search_profile");
+  const rawContent =
+    params.get("search_content") ?? (populated ? "all" : preferences.searchContent);
+  if (rawContent !== "all" && rawContent !== "core")
+    filterError = "Invalid search content in this search link";
+  let sourceSections: SimilaritySourceSections | undefined;
   let similarity: SimilarityOptions | undefined;
   if (similarSeed) {
     try {
@@ -226,6 +270,22 @@ export function decodeSearchStateFromParams(
         preferences,
         similarSeed.startsWith("trait:"),
       );
+      const rawSections = params.get("similarity_sections");
+      if (similarity.method === "baseline") {
+        if (rawSections !== null) throw new Error(INVALID_SIMILARITY_SETTINGS);
+      } else {
+        sourceSections =
+          rawSections === null
+            ? similarity.parts
+              ? "custom"
+              : "all"
+            : (rawSections as SimilaritySourceSections);
+        if (
+          !["all", "core", "custom"].includes(sourceSections) ||
+          (sourceSections === "custom" ? !similarity.parts : similarity.parts !== null)
+        )
+          throw new Error(INVALID_SIMILARITY_SETTINGS);
+      }
     } catch {
       filterError = INVALID_SIMILARITY_SETTINGS;
     }
@@ -241,6 +301,8 @@ export function decodeSearchStateFromParams(
   return {
     ...DEFAULT_SEARCH_STATE,
     ranking: ranking === "rrf" ? "rrf" : "score",
+    searchContent: rawContent === "core" ? "core" : "all",
+    ...(sourceSections ? { sourceSections } : {}),
     ...(sort ? { sort } : {}),
     query: params.get("q") || "",
     similarSeed,

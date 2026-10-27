@@ -1,5 +1,9 @@
 use super::*;
-use atlas_domain::{SimilarityPartSelector, SourceByteRange};
+use atlas_domain::{SimilarityPart, SimilarityPartSelector, SimilarityRole, SourceByteRange};
+
+fn parts(units: &[SourceSimilarityUnit]) -> Vec<Part<'_>> {
+    super::parts(units).unwrap()
+}
 
 fn passages<'a>(
     seed: &[Part<'a>],
@@ -25,16 +29,18 @@ fn unit(
     end: usize,
 ) -> SourceSimilarityUnit {
     SourceSimilarityUnit {
-        part: SimilarityPart {
-            selector: SimilarityPartSelector(selector.into()),
-            label: selector.into(),
-            owner_label: "Fixture".into(),
-            owners: vec![],
-            field: format!("/{selector}"),
-            section_ordinal: 0,
-            role,
-            has_vectors: true,
-            label_only: false,
+        component: SimilarityComponent::Section {
+            part: SimilarityPart {
+                selector: SimilarityPartSelector(selector.into()),
+                label: selector.into(),
+                owner_label: "Fixture".into(),
+                owners: vec![],
+                field: format!("/{selector}"),
+                section_ordinal: 0,
+                role,
+                has_vectors: true,
+                label_only: false,
+            },
         },
         location: None,
         address: SourcePassageAddress::PlainSection {
@@ -137,9 +143,9 @@ fn strongest_part_is_not_the_strongest_isolated_chunk_pair() {
         0.,
     );
     close(score.score, 0.8);
-    assert_eq!(score.parts[0].part.selector.0, "short");
+    assert_eq!(score.parts[0].part.selector().0, "short");
     assert_eq!(score.pairs.len(), 1);
-    assert_eq!(score.pairs[0].seed.part.selector.0, "short");
+    assert_eq!(score.pairs[0].seed.component.selector().0, "short");
 }
 
 #[test]
@@ -363,7 +369,7 @@ fn reused_maxima_reselect_evidence_after_decay_when_tied_parts_have_different_pe
         !passages(&seed, &candidate, SimilarityCandidateParts::Any, 1.0)
             .pairs
             .iter()
-            .any(|pair| pair.seed.part.selector.0 == "a")
+            .any(|pair| pair.seed.component.selector().0 == "a")
     );
     for decay in [0.0, 0.25, 0.5, 1.0] {
         let weights = super::decay_weights(maxima.parts.len(), decay);
@@ -374,7 +380,7 @@ fn reused_maxima_reselect_evidence_after_decay_when_tied_parts_have_different_pe
                     .parts
                     .iter()
                     .zip(&weights)
-                    .find(|(part, _)| part.part.selector == pair.seed.part.selector)
+                    .find(|(part, _)| part.part.selector() == pair.seed.component.selector())
                     .map_or(0.0, |(part, weight)| part.score * weight)
             },
             3,
@@ -383,12 +389,12 @@ fn reused_maxima_reselect_evidence_after_decay_when_tied_parts_have_different_pe
         assert_eq!(
             chosen
                 .iter()
-                .map(|pair| (&pair.seed.part.selector, pair.cosine))
+                .map(|pair| (pair.seed.component.selector(), pair.cosine))
                 .collect::<Vec<_>>(),
             direct
                 .pairs
                 .iter()
-                .map(|pair| (&pair.seed.part.selector, pair.cosine))
+                .map(|pair| (pair.seed.component.selector(), pair.cosine))
                 .collect::<Vec<_>>()
         );
         close(
@@ -401,4 +407,189 @@ fn reused_maxima_reselect_evidence_after_decay_when_tied_parts_have_different_pe
             direct.score,
         );
     }
+}
+
+fn identity(selector: &str, vector: [f32; 2]) -> SourceSimilarityUnit {
+    SourceSimilarityUnit {
+        component: SimilarityComponent::Identity {
+            selector: SimilarityPartSelector(selector.into()),
+            label: "Name and identity".into(),
+            owner_label: "Fixture".into(),
+            has_vectors: true,
+        },
+        location: None,
+        address: SourcePassageAddress::Identity {},
+        vector: vector.to_vec(),
+        trait_text: None,
+    }
+}
+
+#[test]
+fn frozen_identity_and_description_scores_use_one_weight_per_logical_component() {
+    let seed = vec![
+        identity("identity", [1., 0.]),
+        unit("description", SimilarityRole::Description, [0., 1.], 0, 10),
+        unit("description", SimilarityRole::Description, [0., 1.], 5, 15),
+    ];
+    let candidate = vec![
+        identity("candidate-identity", [1., 0.]),
+        unit(
+            "candidate-description",
+            SimilarityRole::Description,
+            [0.6, 0.8],
+            0,
+            10,
+        ),
+    ];
+    let seed = parts(&seed);
+    let candidate = parts(&candidate);
+    assert_eq!(seed.len(), 2);
+    assert_eq!(
+        seed.iter()
+            .find(|part| part.metadata.is_identity())
+            .unwrap()
+            .weights,
+        vec![1.]
+    );
+    for mode in [
+        SimilarityCandidateParts::Any,
+        SimilarityCandidateParts::Corresponding,
+    ] {
+        for (decay, expected) in [(0., 1.), (0.5, 14. / 15.), (1., 0.9)] {
+            close(passages(&seed, &candidate, mode, decay).score, expected);
+        }
+    }
+    close(
+        content_average(&seed, &candidate, SimilarityCandidateParts::Any)
+            .unwrap()
+            .score,
+        0.9486832980505138,
+    );
+    close(
+        content_average(&seed, &candidate, SimilarityCandidateParts::Corresponding)
+            .unwrap()
+            .score,
+        0.9,
+    );
+}
+
+#[test]
+fn frozen_cross_component_matches_require_any_alignment() {
+    let seed = vec![
+        identity("identity", [1., 0.]),
+        unit("description", SimilarityRole::Description, [0., 1.], 0, 10),
+    ];
+    let candidate = vec![
+        identity("candidate-identity", [0., 1.]),
+        unit(
+            "candidate-description",
+            SimilarityRole::Description,
+            [1., 0.],
+            0,
+            10,
+        ),
+    ];
+    let seed = parts(&seed);
+    let candidate = parts(&candidate);
+    for (mode, expected) in [
+        (SimilarityCandidateParts::Any, 1.),
+        (SimilarityCandidateParts::Corresponding, 0.),
+    ] {
+        close(passages(&seed, &candidate, mode, 0.5).score, expected);
+        close(
+            content_average(&seed, &candidate, mode).unwrap().score,
+            expected,
+        );
+    }
+}
+
+#[test]
+fn missing_description_does_not_renormalize_identity_contribution() {
+    let seed = vec![
+        identity("identity", [1., 0.]),
+        unit("description", SimilarityRole::Description, [0., 1.], 0, 10),
+    ];
+    let candidate = vec![identity("candidate-identity", [1., 0.])];
+    let seed = parts(&seed);
+    let candidate = parts(&candidate);
+    let passage = passages(
+        &seed,
+        &candidate,
+        SimilarityCandidateParts::Corresponding,
+        0.5,
+    );
+    close(passage.score, 2. / 3.);
+    assert_eq!(passage.comparable_parts, 1);
+    let average =
+        content_average(&seed, &candidate, SimilarityCandidateParts::Corresponding).unwrap();
+    close(average.score, 0.5);
+    assert_eq!(average.comparable_parts, 1);
+}
+
+#[test]
+fn identity_only_is_decay_invariant_and_keeps_the_positive_floor() {
+    let seed = vec![identity("identity", [1., 0.])];
+    let positive = vec![identity("candidate", [0.6, 0.8])];
+    let negative = vec![identity("candidate", [-1., 0.])];
+    let seed = parts(&seed);
+    for (units, expected) in [(&positive, 0.6), (&negative, 0.)] {
+        let candidate = parts(units);
+        for mode in [
+            SimilarityCandidateParts::Any,
+            SimilarityCandidateParts::Corresponding,
+        ] {
+            for decay in [0., 0.25, 0.5, 0.85, 1.] {
+                close(passages(&seed, &candidate, mode, decay).score, expected);
+            }
+            close(
+                content_average(&seed, &candidate, mode).unwrap().score,
+                expected,
+            );
+        }
+    }
+}
+
+#[test]
+fn duplicate_identity_and_fake_section_identity_addresses_are_rejected() {
+    let duplicate = vec![
+        identity("identity", [1., 0.]),
+        identity("second-identity", [1., 0.]),
+    ];
+    assert_eq!(
+        super::parts(&duplicate).err().unwrap().kind(),
+        crate::SearchErrorKind::ArtifactContractViolation
+    );
+    let mut fake = unit("fake", SimilarityRole::Description, [1., 0.], 0, 10);
+    fake.address = SourcePassageAddress::Identity {};
+    assert_eq!(
+        super::parts(&[fake]).err().unwrap().kind(),
+        crate::SearchErrorKind::ArtifactContractViolation
+    );
+}
+
+#[test]
+fn undefined_global_identity_plus_prose_average_never_becomes_identity_fallback() {
+    let seed = vec![
+        identity("identity", [1., 0.]),
+        unit("description", SimilarityRole::Description, [-1., 0.], 0, 10),
+    ];
+    let candidate = vec![identity("candidate", [1., 0.])];
+    assert!(
+        content_average(
+            &parts(&seed),
+            &parts(&candidate),
+            SimilarityCandidateParts::Any
+        )
+        .is_none()
+    );
+    close(
+        passages(
+            &parts(&seed),
+            &parts(&candidate),
+            SimilarityCandidateParts::Corresponding,
+            0.5,
+        )
+        .score,
+        2. / 3.,
+    );
 }

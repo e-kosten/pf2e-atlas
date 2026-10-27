@@ -14,6 +14,7 @@ fn context<'a>(
     filter: Option<&'a QueryPredicate>,
 ) -> FilterDiscoveryContext<'a> {
     FilterDiscoveryContext {
+        content_scope: atlas_domain::SearchContentScope::All,
         search_profile: None,
         text: None,
         mode: RetrievalMode::Fts,

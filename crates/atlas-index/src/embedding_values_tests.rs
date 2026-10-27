@@ -228,13 +228,15 @@ fn new_record_reuses_native_inputs_and_keeps_distinct_filtered_witnesses() {
     let mut occurrence_ids = std::collections::BTreeSet::new();
     for record in [original, key] {
         let hits = reader
-            .vector_candidates(
-                &model.profile_id,
-                &new_units[0].vector,
-                &all,
-                Some(std::slice::from_ref(&record)),
-                100,
-            )
+            .vector_candidates(crate::SourceVectorCandidateRequest {
+                profile: &model.profile_id,
+                vector: &new_units[0].vector,
+                query: &all,
+                keys: Some(std::slice::from_ref(&record)),
+                exclude: None,
+                content_scope: atlas_domain::SearchContentScope::All,
+                limit: 100,
+            })
             .unwrap();
         assert_eq!(hits.len(), new_units.len());
         for hit in hits {
@@ -258,13 +260,15 @@ fn publication_updates_slots_in_place_and_retains_attribution_per_occurrence() {
     let model = &input.context.search_profiles[0];
     let reader = open_reader(&path).unwrap();
     let old_passage = reader
-        .vector_candidates(
-            &model.profile_id,
-            &input.semantic_units[0].vector,
-            &all,
-            None,
-            100,
-        )
+        .vector_candidates(crate::SourceVectorCandidateRequest {
+            profile: &model.profile_id,
+            vector: &input.semantic_units[0].vector,
+            query: &all,
+            keys: None,
+            exclude: None,
+            content_scope: atlas_domain::SearchContentScope::All,
+            limit: 100,
+        })
         .unwrap()
         .into_iter()
         .find(|hit| {
@@ -330,13 +334,15 @@ fn publication_updates_slots_in_place_and_retains_attribution_per_occurrence() {
     let reader = open_reader(&path).unwrap();
     let model = &input.context.search_profiles[0];
     let new_passage = reader
-        .vector_candidates(
-            &model.profile_id,
-            &input.semantic_units[0].vector,
-            &all,
-            None,
-            100,
-        )
+        .vector_candidates(crate::SourceVectorCandidateRequest {
+            profile: &model.profile_id,
+            vector: &input.semantic_units[0].vector,
+            query: &all,
+            keys: None,
+            exclude: None,
+            content_scope: atlas_domain::SearchContentScope::All,
+            limit: 100,
+        })
         .unwrap()
         .into_iter()
         .find(|hit| hit.location.unit_id == old_passage.unit_id)

@@ -82,3 +82,6 @@ mod result_order_tests;
 
 mod relationship_selection;
 pub use relationship_selection::CheckedRelationshipSelection;
+
+#[cfg(test)]
+mod core_search_tests;

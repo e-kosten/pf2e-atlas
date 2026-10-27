@@ -50,6 +50,7 @@ fn operation(reader: &SqliteIndexReader, name: &str) -> usize {
                 "Ghoul Fever",
                 &atlas_index::parse_where("true").unwrap(),
                 None,
+                atlas_domain::SearchContentScope::All,
             )
             .unwrap()
             .len(),

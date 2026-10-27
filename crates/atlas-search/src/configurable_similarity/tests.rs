@@ -73,7 +73,13 @@ fn section_navigation_combines_overlapping_chunks_across_profiles_without_hydrat
         let inventory = service
             .similarity_parts(&seed, Some(&SearchProfileId::new(profile)))
             .unwrap();
-        assert!(addresses.contains_key(&inventory.parts[0].selector));
+        assert!(
+            inventory
+                .parts
+                .iter()
+                .filter_map(|component| component.part())
+                .all(|part| addresses.contains_key(&part.selector))
+        );
     }
 }
 
@@ -129,7 +135,9 @@ fn corresponding_roles_filter_before_the_bounded_knn_and_other_never_corresponds
             query: &query,
             keys: None,
             exclude: Some(&exclude),
-            role: Some(SimilarityRole::Reset),
+            comparison_key: Some(SimilarityComparisonKey::Role(SimilarityRole::Reset)),
+            content_scope: SearchContentScope::All,
+            include_identity: false,
             limit: 1,
         })
         .unwrap();
@@ -151,7 +159,9 @@ fn corresponding_roles_filter_before_the_bounded_knn_and_other_never_corresponds
                 query: &query,
                 keys: None,
                 exclude: None,
-                role: Some(SimilarityRole::Other),
+                comparison_key: Some(SimilarityComparisonKey::Role(SimilarityRole::Other)),
+                content_scope: SearchContentScope::All,
+                include_identity: false,
                 limit: 1,
             })
             .unwrap()
@@ -169,6 +179,7 @@ fn exact_part_inventory_is_profile_independent_and_models_are_not_loaded() {
     let reset = inventory
         .parts
         .iter()
+        .filter_map(|component| component.part())
         .find(|part| part.role == SimilarityRole::Reset)
         .unwrap();
     let options = SimilarityOptions::Passages {
@@ -178,6 +189,8 @@ fn exact_part_inventory_is_profile_independent_and_models_are_not_loaded() {
     };
     let result = service
         .configurable_similar(ConfigurableSimilarRequest {
+            source_sections: None,
+            content_scope: atlas_domain::SearchContentScope::All,
             seed: &seed,
             options: &options,
             search_profile: None,
@@ -256,10 +269,16 @@ fn selecting_a_small_part_of_a_large_seed_reads_only_selected_vectors() {
         .unwrap()
         .parts
         .into_iter()
+        .filter_map(|component| match component {
+            atlas_domain::SimilarityComponent::Section { part } => Some(part),
+            atlas_domain::SimilarityComponent::Identity { .. } => None,
+        })
         .find(|part| part.role == SimilarityRole::Reset)
         .unwrap();
     let run = |options: &SimilarityOptions| {
         service.configurable_similar(ConfigurableSimilarRequest {
+            source_sections: None,
+            content_scope: atlas_domain::SearchContentScope::All,
             seed: &seed,
             options,
             search_profile: None,
@@ -295,6 +314,8 @@ fn stale_parts_and_cancellation_are_explicit() {
         candidate_parts: SimilarityCandidateParts::Any,
     };
     let request = ConfigurableSimilarRequest {
+        source_sections: None,
+        content_scope: atlas_domain::SearchContentScope::All,
         seed: &seed,
         options: &options,
         search_profile: None,
@@ -311,6 +332,8 @@ fn stale_parts_and_cancellation_are_explicit() {
     );
     let cancelled = || true;
     let request = ConfigurableSimilarRequest {
+        source_sections: None,
+        content_scope: atlas_domain::SearchContentScope::All,
         seed: &seed,
         options: &SimilarityOptions::Baseline {},
         search_profile: None,
@@ -333,6 +356,7 @@ fn current_baseline_preserves_the_direct_record_algorithm() {
     let key = "hazards:aaaaaaaaaaaaaaaa".parse().unwrap();
     let direct = service
         .similar_records(crate::SimilarRecordRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             sort: ResultSort::Relevance {},
             search_profile: None,
             record_key: &key,
@@ -346,6 +370,8 @@ fn current_baseline_preserves_the_direct_record_algorithm() {
     let seed = SimilaritySeed::Record { record_key: key };
     let configured = service
         .configurable_similar(ConfigurableSimilarRequest {
+            source_sections: None,
+            content_scope: atlas_domain::SearchContentScope::All,
             seed: &seed,
             options: &SimilarityOptions::Baseline {},
             search_profile: None,
@@ -417,9 +443,11 @@ fn trait_label_only_parts_use_stored_chunks_without_fabricating_record_navigatio
     let (service, _artifact) = open_input_fixture(input).unwrap();
     let seed = SimilaritySeed::Trait { trait_key: key };
     let inventory = service.similarity_parts(&seed, None).unwrap();
-    assert!(inventory.parts[0].label_only);
+    assert!(inventory.parts[0].part().unwrap().label_only);
     let result = service
         .configurable_similar(ConfigurableSimilarRequest {
+            source_sections: None,
+            content_scope: atlas_domain::SearchContentScope::All,
             seed: &seed,
             options: &SimilarityOptions::default(),
             search_profile: None,
@@ -435,6 +463,33 @@ fn trait_label_only_parts_use_stored_chunks_without_fabricating_record_navigatio
     let pair = &result.evidence[0].1.pairs[0];
     assert!(pair.seed.is_none());
     assert_eq!(pair.seed_text, "Fire");
+    let core = service
+        .configurable_similar(ConfigurableSimilarRequest {
+            source_sections: Some(SimilaritySourceSections::Core),
+            content_scope: SearchContentScope::Core,
+            seed: &seed,
+            options: &SimilarityOptions::default(),
+            search_profile: None,
+            filter: None,
+            scope: RecordScope::All,
+            page: Default::default(),
+            sort: ResultSort::Relevance {},
+            prefer_remaster: false,
+            cancelled: None,
+        })
+        .unwrap()
+        .unwrap();
+    assert_eq!(core.diagnostics.seed_units, 1);
+    assert_eq!(
+        core.core.unwrap().representation,
+        atlas_domain::CoreSectionRepresentation::TraitLabelOnly
+    );
+    assert!(
+        core.evidence
+            .iter()
+            .flat_map(|(_, evidence)| &evidence.parts)
+            .all(|part| !part.part.is_identity())
+    );
 }
 
 #[test]
@@ -463,6 +518,8 @@ fn page_explanations_share_prepared_fields_and_plain_snapshots_and_reuse_candida
     };
     let options = SimilarityOptions::default();
     let request = || ConfigurableSimilarRequest {
+        source_sections: None,
+        content_scope: atlas_domain::SearchContentScope::All,
         seed: &seed,
         options: &options,
         search_profile: None,

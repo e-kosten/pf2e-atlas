@@ -41,6 +41,7 @@ pub enum ReferenceUpgrade {
     Current,
     QueryProjections,
     LexicalProjections,
+    CoreProjections,
     SourcePreparation,
     SourceReplacement,
 }
@@ -111,6 +112,12 @@ fn upgrade_plan(
         crate::input::LEXICAL_SELECTION_VERSION,
     )?;
     target.lexical_selection_version = crate::input::LEXICAL_SELECTION_VERSION.into();
+    let core_changed = target.core_sections_recipe.is_empty()
+        || older_policy(
+            &target.core_sections_recipe,
+            atlas_domain::CORE_SECTIONS_RECIPE,
+        )?;
+    target.core_sections_recipe = atlas_domain::CORE_SECTIONS_RECIPE.into();
     let mut source_changed = match target.trait_policy.as_str() {
         "" => true,
         "trait-definition-centroid/v1" => false,
@@ -162,6 +169,9 @@ fn upgrade_plan(
     if query_changed {
         return Ok((ReferenceUpgrade::QueryProjections, Some(target)));
     }
+    if core_changed {
+        return Ok((ReferenceUpgrade::CoreProjections, Some(target)));
+    }
     crate::validation::validate_open(c)?;
     Ok((ReferenceUpgrade::Current, None))
 }
@@ -198,7 +208,8 @@ pub fn ensure_reference_projections(
         let stored = read_stored_reference_context(c)?.ok_or_else(|| IndexError::Invalid("projection upgrade lost its reference context".into()))?;
         let query_changed = stored.query_catalog_version != target.query_catalog_version || stored.query_projection_version != target.query_projection_version;
         let lexical_changed = stored.lexical_selection_version != target.lexical_selection_version;
-        let records = crate::read_persisted_inputs(c, &target)?;
+        let core_changed = stored.core_sections_recipe != target.core_sections_recipe;
+        let records = if query_changed || lexical_changed { crate::read_persisted_inputs(c, &target)? } else { Vec::new() };
         let mut lexical = Vec::new();
         let mut ids = std::collections::BTreeMap::new();
         for source in records {
@@ -243,6 +254,7 @@ pub fn ensure_reference_projections(
             row.insert(c)?;
         }
         }
+        if core_changed { crate::core_projection::backfill_core_sections(c,&target)?; }
         let json = serde_json::to_string(&target)?;
         c.execute("UPDATE artifact_context SET context_hash=?,context_json=? WHERE singleton=1", rusqlite::params![sha256(json.as_bytes()), json])?;
         crate::validate_reference(c)?;

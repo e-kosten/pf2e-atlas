@@ -108,9 +108,9 @@ mod record;
 mod search;
 mod similarity;
 pub use similarity::{
-    SimilarityConfigurationView, SimilarityDiagnosticsView, SimilarityEvidenceView,
-    SimilarityPairView, SimilarityPartScoreView, SimilarityPartView, SimilarityPartsRequest,
-    SimilarityPartsView, SimilarityRoleScoreView,
+    SimilarityComponentView, SimilarityConfigurationView, SimilarityDiagnosticsView,
+    SimilarityEvidenceView, SimilarityPairView, SimilarityPartScoreView, SimilarityPartView,
+    SimilarityPartsRequest, SimilarityPartsView, SimilarityRoleScoreView,
 };
 
 pub use embedded_reading::{
@@ -249,6 +249,7 @@ mod tests {
     fn export_bindings_to(path: &Path) {
         SimilarityPartsRequest::export_all_to(path).expect("similarity inventory request bindings");
         SimilarityPartsView::export_all_to(path).expect("similarity inventory bindings");
+        SimilarityPartView::export_all_to(path).expect("similarity section bindings");
         SimilarityConfigurationView::export_all_to(path)
             .expect("similarity configuration bindings");
         RollContentRequest::export_all_to(path).expect("content roll request bindings");

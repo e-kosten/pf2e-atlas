@@ -1,24 +1,25 @@
 //! Pure hierarchical aggregation over already selected, normalized vectors.
 use crate::SearchError;
 use atlas_domain::{
-    SimilarityCandidateParts, SimilarityPart, SimilarityRole, SourceByteRange, SourcePassageAddress,
+    SimilarityCandidateParts, SimilarityComparisonKey, SimilarityComponent, SourceByteRange,
+    SourcePassageAddress,
 };
 use atlas_index::SourceSimilarityUnit;
 use std::collections::BTreeMap;
 
 pub(crate) struct Part<'a> {
-    pub metadata: SimilarityPart,
+    pub metadata: SimilarityComponent,
     pub units: Vec<&'a SourceSimilarityUnit>,
     pub weights: Vec<f64>,
 }
 pub(crate) struct PartScore {
-    pub part: SimilarityPart,
+    pub part: SimilarityComponent,
     pub score: f64,
     pub weight: f64,
     pub comparable: bool,
 }
 pub(crate) struct RoleScore {
-    pub role: SimilarityRole,
+    pub key: SimilarityComparisonKey,
     pub score: f64,
     pub weight: f64,
     pub comparable: bool,
@@ -78,20 +79,44 @@ fn byte_range(address: &SourcePassageAddress) -> Option<SourceByteRange> {
     }
 }
 
-pub(crate) fn parts(units: &[SourceSimilarityUnit]) -> Vec<Part<'_>> {
+pub(crate) fn parts(units: &[SourceSimilarityUnit]) -> Result<Vec<Part<'_>>, SearchError> {
+    if units
+        .iter()
+        .filter(|unit| unit.component.is_identity())
+        .count()
+        > 1
+    {
+        return Err(SearchError::artifact_contract_violation(
+            "root identity must have exactly one stored vector",
+        ));
+    }
+    if units.iter().any(|unit| {
+        unit.component.is_identity() != matches!(unit.address, SourcePassageAddress::Identity {})
+    }) {
+        return Err(SearchError::artifact_contract_violation(
+            "comparison component does not match its native source address",
+        ));
+    }
     let mut grouped = BTreeMap::new();
     for unit in units {
         grouped
-            .entry(unit.part.selector.clone())
+            .entry(unit.component.selector().clone())
             .or_insert_with(Vec::new)
             .push(unit);
     }
-    grouped
+    Ok(grouped
         .into_values()
         .map(|mut units| {
             units.sort_by_key(|unit| {
                 byte_range(&unit.address).map(|range| (range.start, range.end))
             });
+            if units[0].component.is_identity() {
+                return Part {
+                    metadata: units[0].component.clone(),
+                    units,
+                    weights: vec![1.0],
+                };
+            }
             let mut covered = 0;
             let mut weights = Vec::with_capacity(units.len());
             for unit in &units {
@@ -108,12 +133,12 @@ pub(crate) fn parts(units: &[SourceSimilarityUnit]) -> Vec<Part<'_>> {
                 }
             }
             Part {
-                metadata: units[0].part.clone(),
+                metadata: units[0].component.clone(),
                 units,
                 weights,
             }
         })
-        .collect()
+        .collect())
 }
 
 pub(crate) fn centroid<'a>(
@@ -160,8 +185,8 @@ fn cosine(a: &[f32], b: &[f32]) -> f64 {
         .clamp(-1.0, 1.0)
 }
 fn allowed(
-    seed: SimilarityRole,
-    candidate: SimilarityRole,
+    seed: SimilarityComparisonKey,
+    candidate: SimilarityComparisonKey,
     mode: SimilarityCandidateParts,
 ) -> bool {
     mode == SimilarityCandidateParts::Any || seed.corresponds_to(candidate)
@@ -238,7 +263,13 @@ fn passages_with_limit<'a>(
     for part in seed {
         let eligible = candidate
             .iter()
-            .filter(|candidate| allowed(part.metadata.role, candidate.metadata.role, mode))
+            .filter(|candidate| {
+                allowed(
+                    part.metadata.comparison_key(),
+                    candidate.metadata.comparison_key(),
+                    mode,
+                )
+            })
             .flat_map(|part| part.units.iter().copied())
             .collect::<Vec<_>>();
         let mut score = 0.0;
@@ -283,7 +314,7 @@ fn passages_with_limit<'a>(
     part_scores.sort_by(|a, b| {
         b.score
             .total_cmp(&a.score)
-            .then(a.part.selector.cmp(&b.part.selector))
+            .then(a.part.selector().cmp(b.part.selector()))
     });
     for (part, weight) in part_scores.iter_mut().zip(decay_weights(seed.len(), decay)) {
         part.weight = weight;
@@ -296,7 +327,7 @@ fn passages_with_limit<'a>(
     let contribution = |pair: &Pair<'_>| {
         part_scores
             .iter()
-            .find(|part| part.part.selector == pair.seed.part.selector)
+            .find(|part| part.part.selector() == pair.seed.component.selector())
             .map_or(0.0, |part| part.score * part.weight)
     };
     let pairs = select_passage_pairs(&pairs, contribution, evidence_limit);
@@ -443,12 +474,15 @@ pub(crate) fn content_average<'a>(
             evidence.pairs.extend(pair);
         }
     } else {
-        let mut roles = BTreeMap::<SimilarityRole, Vec<&Part<'_>>>::new();
+        let mut roles = BTreeMap::<SimilarityComparisonKey, Vec<&Part<'_>>>::new();
         for part in seed {
-            roles.entry(part.metadata.role).or_default().push(part);
+            roles
+                .entry(part.metadata.comparison_key())
+                .or_default()
+                .push(part);
         }
         let mut representative_pairs = Vec::new();
-        for (role, parts) in roles {
+        for (key, parts) in roles {
             let mut seed_vectors = Vec::with_capacity(parts.len());
             for part in &parts {
                 let Some(vector) = checked_part_centroid(part, &mut control)? else {
@@ -465,7 +499,7 @@ pub(crate) fn content_average<'a>(
             };
             let eligible = candidate
                 .iter()
-                .filter(|candidate| role.corresponds_to(candidate.metadata.role))
+                .filter(|candidate| key.corresponds_to(candidate.metadata.comparison_key()))
                 .collect::<Vec<_>>();
             let candidate_vectors = eligible
                 .iter()
@@ -493,7 +527,7 @@ pub(crate) fn content_average<'a>(
             let weight = parts.len() as f64 / seed.len() as f64;
             evidence.score += score * weight;
             evidence.roles.push(RoleScore {
-                role,
+                key,
                 score,
                 weight,
                 comparable: !eligible.is_empty(),

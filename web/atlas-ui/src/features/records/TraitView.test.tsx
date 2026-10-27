@@ -58,6 +58,7 @@ beforeEach(() => {
         if (request.criteria.kind !== "similar_traits" || !request.criteria.similarity)
           throw new Error("Expected an explicit trait Similar request");
         return {
+          search_content: "all",
           search_profile: request.search_profile ?? "embeddinggemma",
           artifact_generation: request.expected_artifact_generation ?? "generation-one",
           sort: request.sort ?? { kind: "relevance" },

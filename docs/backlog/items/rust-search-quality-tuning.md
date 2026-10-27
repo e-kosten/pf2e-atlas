@@ -33,6 +33,26 @@ reranking remain outside this scope. The lexical/hybrid algorithms below are
 unchanged by moving their existing chooser into the shared settings dialog.
 Broader lexical and associated-content evaluation remains open.
 
+## Core sections extension
+
+Initial opt-in implementation is in progress: independent All/Core destination
+scope and All/Core/Custom source selection, typed recipes including vehicles,
+armies, PCs and familiars, and identity-plus-prose Core with identity-only fallback.
+The metadata projection restricts existing lexical/vector units without adding
+prose to FTS or generating embeddings. See
+[ADR0060](../../architecture/decisions/0060-core-sections-and-search-scope.md).
+The [typed Core census](../../research/core-section-census.md) records retained
+source coverage and operational-probe limits separately from relevance evidence.
+
+The broader relevance/decay evaluation is a separate remaining milestone. Compare
+identity-only, Core prose-only and combined representation, independent source
+and candidate restrictions, equipment's own versus intrinsic spell content, and
+multiple decay values. Extend fresh cohorts to all four added actor families;
+keep candidate admission, fixed-pool ordering, witness support and runtime
+evidence separate. Existing exposed Similar examples and the old holdout are
+development evidence. Retain current defaults until a frozen confirmation
+supports changing them.
+
 ## Current Baseline
 
 Precision FTS covers identity, verified aliases, typed vocabulary and named

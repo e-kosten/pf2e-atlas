@@ -74,6 +74,7 @@ pub(crate) fn prepare_build(
         ));
     }
     let mut context = SourceArtifactBuildContext {
+        core_sections_recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
         trait_policy: "trait-definition-centroid/v1".into(),
         used_trait_labels: BTreeMap::new(),
         format_version: ARTIFACT_FORMAT_VERSION,

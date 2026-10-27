@@ -116,6 +116,8 @@ fn exact_matrix_matches_product_scores_for_both_profiles_and_every_method() {
         for (variant, run) in variants.iter().zip(&exact.runs) {
             let product = service
                 .configurable_similar(ConfigurableSimilarRequest {
+                    source_sections: None,
+                    content_scope: atlas_domain::SearchContentScope::All,
                     seed: &seed,
                     options: &variant.options,
                     search_profile: Some(&profile),
@@ -189,6 +191,10 @@ fn explicit_selection_has_exact_role_coverage_and_filtering_reports_each_key() {
         .unwrap()
         .parts
         .into_iter()
+        .filter_map(|component| match component {
+            atlas_domain::SimilarityComponent::Section { part } => Some(part),
+            atlas_domain::SimilarityComponent::Identity { .. } => None,
+        })
         .find(|part| part.role == SimilarityRole::Reset)
         .unwrap();
     let variants = [SimilarityEvaluationVariant {
@@ -279,6 +285,8 @@ fn direct_oracle_finds_a_winner_absent_from_every_bounded_knn_lane() {
         .collect::<Vec<_>>();
     let bounded = service
         .configurable_similar(ConfigurableSimilarRequest {
+            source_sections: None,
+            content_scope: atlas_domain::SearchContentScope::All,
             seed: &seed,
             options: &options,
             search_profile: Some(&profile),
@@ -428,6 +436,8 @@ fn label_only_trait_baseline_and_content_oracles_match_both_product_profiles() {
         for (variant, run) in variants.iter().zip(&exact.runs) {
             let bounded = service
                 .configurable_similar(ConfigurableSimilarRequest {
+                    source_sections: None,
+                    content_scope: atlas_domain::SearchContentScope::All,
                     seed: &seed,
                     options: &variant.options,
                     search_profile: Some(&profile),
@@ -541,4 +551,70 @@ fn cancellation_during_a_matrix_does_not_return_a_partial_success() {
         crate::SearchErrorKind::OperationCancelled
     );
     assert!(checks.get() > 6);
+}
+
+#[test]
+fn exact_custom_identity_is_scored_and_versioned_instead_of_silently_dropped() {
+    let (service, _artifact) = open_input_fixture(fixture()).unwrap();
+    let seed = SimilaritySeed::Record {
+        record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
+    };
+    let identity = service
+        .similarity_parts(&seed, None)
+        .unwrap()
+        .parts
+        .into_iter()
+        .find(|component| component.is_identity())
+        .unwrap()
+        .selector()
+        .clone();
+    let variants = [SimilarityEvaluationVariant {
+        id: "identity".into(),
+        options: SimilarityOptions::Passages {
+            decay: 0.5,
+            parts: Some(vec![identity]),
+            candidate_parts: SimilarityCandidateParts::Corresponding,
+        },
+    }];
+    let keys = ["hazards:bbbbbbbbbbbbbbbb".parse().unwrap()];
+    for profile in ["bge-base", "embeddinggemma"] {
+        let profile = SearchProfileId::new(profile);
+        let exact = service
+            .evaluate_similarity_candidates(SimilarityEvaluationRequest {
+                seed: &seed,
+                profile: &profile,
+                variants: &variants,
+                candidate_keys: &keys,
+                filter: None,
+                cancelled: None,
+            })
+            .unwrap();
+        assert!(exact.content_candidate_identity);
+        assert_eq!(
+            exact.runs[0].recipe,
+            atlas_domain::SIMILARITY_COMPONENT_RECIPE
+        );
+        assert_eq!(exact.runs[0].rows[0].parts.len(), 1);
+        assert!(exact.runs[0].rows[0].parts[0].part.is_identity());
+        let product = service
+            .configurable_similar(ConfigurableSimilarRequest {
+                seed: &seed,
+                options: &variants[0].options,
+                source_sections: None,
+                content_scope: atlas_domain::SearchContentScope::All,
+                search_profile: Some(&profile),
+                filter: None,
+                scope: RecordScope::Keys(&keys),
+                page: Default::default(),
+                sort: ResultSort::Relevance {},
+                prefer_remaster: false,
+                cancelled: None,
+            })
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            exact.runs[0].rows[0].score,
+            Some(product.results.records[0].score)
+        );
+    }
 }

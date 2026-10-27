@@ -51,13 +51,21 @@ const options = {
   parts: null,
   candidate_parts: "any",
 } as const;
-const inventory: SimilarityPartsView = {
+const inventory = {
   seed,
   artifact_generation: "generation-1",
   search_profile: "bge-base",
   role_recipe: "roles/v1",
   supports_corresponding_parts: true,
+  core: {
+    family: "hazard",
+    selectors: ["part-0"],
+    representation: "identity_and_prose",
+    fallback_reason: null,
+    recipe: "core-sections/v1",
+  },
   parts: ["Description", "Reset"].map((label, index) => ({
+    kind: "section" as const,
     label,
     selector: `part-${index}`,
     owner_label: "Brown Mold",
@@ -76,7 +84,7 @@ const inventory: SimilarityPartsView = {
       source_fingerprint: "source-1",
     },
   })),
-};
+} satisfies SimilarityPartsView;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -665,4 +673,113 @@ it("keeps the active settings summary without a customization marker", () => {
   ).toHaveAccessibleDescription(/Rank-based ranking/);
   expect(screen.queryByText(/Customized/)).toBeNull();
   expect(document.querySelector(".ant-badge")).toBeNull();
+});
+
+function coreInventory(): SimilarityPartsView {
+  return {
+    ...inventory,
+    core: { ...inventory.core, selectors: ["identity-root", "part-0"] },
+    parts: [
+      ...inventory.parts,
+      {
+        kind: "identity",
+        selector: "identity-root",
+        label: "Name and identity",
+        owner_label: "Brown Mold",
+        has_vectors: true,
+        navigation: {
+          record_key: seed.record_key,
+          embedded_path: [],
+          field: null,
+          passage: null,
+          source_fingerprint: "source-1",
+        },
+      },
+    ],
+  };
+}
+it("applies Core source and result controls atomically without storing exact selectors", async () => {
+  api.parts.mockResolvedValue(coreInventory());
+  const { apply, remember } = setup();
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Source sections" }));
+  fireEvent.click(screen.getByText("Core sections"));
+  await screen.findByRole("checkbox", { name: "Brown Mold: Name and identity" });
+  expect(screen.getByRole("checkbox", { name: "Description" })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Reset" })).not.toBeChecked();
+  expect(
+    screen.getByRole("checkbox", { name: "Brown Mold: Name and identity" }),
+  ).toBeChecked();
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search content" }));
+  fireEvent.click(screen.getAllByText("Core sections").slice(-1)[0]);
+  expect(apply).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      sourceSections: "core",
+      searchContent: "core",
+      similarity: { ...options, parts: null },
+      similarityGeneration: undefined,
+    }),
+    "bge-base",
+  );
+  expect(remember).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      searchContent: "core",
+      sourceSectionsByFamily: { hazard: "core" },
+    }),
+  );
+});
+it("turns a Core checkbox edit into generation-bound Custom and permits deselecting identity", async () => {
+  api.parts.mockResolvedValue(coreInventory());
+  const { apply, remember } = setup({
+    ...DEFAULT_SEARCH_STATE,
+    similarSeed: seed.record_key,
+    similarity: options,
+    sourceSections: "core",
+  });
+  const identity = await screen.findByRole("checkbox", {
+    name: "Brown Mold: Name and identity",
+  });
+  fireEvent.click(identity);
+  await waitFor(() => expect(screen.getByText("Custom")).toBeVisible());
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      sourceSections: "custom",
+      similarity: { ...options, parts: ["part-0"] },
+      similarityGeneration: "generation-1",
+    }),
+    "bge-base",
+  );
+  expect(remember).toHaveBeenCalledWith(
+    expect.objectContaining({ sourceSectionsByFamily: {} }),
+  );
+});
+it("shows identity-only Core and keeps a missing required identity actionable", async () => {
+  const current = coreInventory();
+  api.parts.mockResolvedValue({
+    ...current,
+    core: {
+      ...current.core,
+      selectors: ["identity-root"],
+      representation: "identity_only",
+      fallback_reason: "no_core_prose",
+    },
+    parts: current.parts.map((part) =>
+      part.kind === "identity" ? { ...part, has_vectors: false } : part,
+    ),
+  });
+  const { apply } = setup({
+    ...DEFAULT_SEARCH_STATE,
+    similarSeed: seed.record_key,
+    similarity: options,
+    sourceSections: "core",
+  });
+  await screen.findByText("Name and identity only");
+  await waitFor(() =>
+    expect(screen.getByText(/Some core content is unavailable/)).toBeVisible(),
+  );
+  expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(apply).not.toHaveBeenCalled();
 });

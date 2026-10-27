@@ -359,7 +359,8 @@ App-service search pages reuse browse, text and stored-vector Similar retrieval.
 An omitted record method selects Passage matches, Any content and decay 0.5; an
 omitted trait method selects the baseline Trait definition recipe. Domain owns
 that seed-aware default; explicit options and valid browser preferences retain
-their meaning. CLI content flags without a method explicitly select Passage matches.
+their meaning. CLI source-comparison flags without a method explicitly select
+Passage matches; destination scope alone preserves the seed-aware default.
 Configurable Similar carries typed method/decay/part/candidate-role options for
 record or trait seeds. The same app workflow projects an exact part inventory and
 paired match evidence for CLI and web. Configured responses acknowledge both the
@@ -373,6 +374,21 @@ record and trait algorithms remain explicit `baseline` methods, labeled Name and
 identity and Trait definition respectively; the new passage and centroid recipes
 reuse stored vectors. See
 [ADR0059](./decisions/0059-configurable-similarity.md).
+
+Core source presets and result scope are independent typed request choices.
+`atlas-record` classifies exact admitted fields/owners; index-owned membership
+restricts existing lexical/vector units before bounded admission and scoring.
+Core includes one native record identity component plus its selected prose,
+with explicit identity-only resolution when no allowed prose exists. Traits keep
+their existing definition/label representation. The same scorer handles typed
+Identity/Section components; correspondence does not invent an Identity prose
+role. Legacy All/prose-only requests retain their old behavior. Query-backed
+discovery shares scope, while unsupported browse/membership requests reject it.
+Offline Core metadata publication is separately versioned and generation-atomic,
+without source/model access or new vector inference. The browser remembers one
+result scope across text/Similar and source presets by projected family; exact
+Custom selections remain local to a seed/generation. See
+[ADR0060](./decisions/0060-core-sections-and-search-scope.md).
 
 Developer similarity evaluation uses `atlas-search`'s direct candidate-scoring
 workflow over an explicit eligible key universe. It bypasses KNN and scores every

@@ -25,6 +25,16 @@ pub(super) fn command(options: &SimilarOptions, seed: Option<&SimilaritySeed>) -
         identity,
         "--list-parts".into(),
     ];
+    if let Some(sections) = options.sections {
+        words.extend([
+            "--sections".into(),
+            match sections {
+                crate::cli::args::CliSearchContent::All => "all",
+                crate::cli::args::CliSearchContent::Core => "core",
+            }
+            .into(),
+        ]);
+    }
     if let Some(profile) = &options.search_profile {
         words.extend(["--search-profile".into(), profile.to_string()]);
     }
@@ -94,6 +104,8 @@ mod tests {
             "atlas",
             "similar",
             "Brown's $(touch /tmp/nope)",
+            "--sections",
+            "core",
             "--search-profile",
             "embeddinggemma",
             "--index",
@@ -111,7 +123,7 @@ mod tests {
             record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
         };
         let actual = command(&options, Some(&seed));
-        assert!(actual.starts_with("atlas similar hazards:aaaaaaaaaaaaaaaa --list-parts --search-profile embeddinggemma --path-mode repo --index "));
+        assert!(actual.starts_with("atlas similar hazards:aaaaaaaaaaaaaaaa --list-parts --sections core --search-profile embeddinggemma --path-mode repo --index "));
         assert!(actual.ends_with(" --json"));
         #[cfg(not(windows))]
         assert!(actual.contains("'/tmp/Atlas'\"'\"'s data/artifact.sqlite'"));

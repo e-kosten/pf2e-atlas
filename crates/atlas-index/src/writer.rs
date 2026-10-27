@@ -110,6 +110,9 @@ impl SourceSearchProfileIdentity {
     }
 }
 pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), IndexError> {
+    if c.core_sections_recipe != atlas_domain::CORE_SECTIONS_RECIPE {
+        return Err(IndexError::Unsupported("Core section projection requires an offline metadata update; run atlas setup --offline".into()));
+    }
     if c.trait_policy != "trait-definition-centroid/v1" {
         return Err(IndexError::Unsupported("trait preparation policy".into()));
     }
@@ -292,7 +295,8 @@ fn write_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError>
     c.execute("DELETE FROM trait_definitions", [])?;
     write_record_rows(c, input)?;
     crate::traits::write_traits(c, input)?;
-    crate::similarity_projection::write_similarity_parts(c, input)
+    crate::similarity_projection::write_similarity_parts(c, input)?;
+    crate::core_projection::write_core_sections(c, input)
 }
 
 /// Record-component composition is shared with deliberately historical fixtures;

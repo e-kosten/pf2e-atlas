@@ -187,6 +187,7 @@ impl AtlasAppService {
                 TraitAssociationKind::Similar => {
                     let result = retrieval
                         .similar_trait(SimilarTraitRequest {
+                            content_scope: atlas_domain::SearchContentScope::All,
                             sort: sort
                                 .clone()
                                 .unwrap_or(atlas_domain::ResultSort::Relevance {}),

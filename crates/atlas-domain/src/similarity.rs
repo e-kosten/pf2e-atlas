@@ -1,5 +1,5 @@
 //! Shared, stored-vector similarity options and exact selectable content parts.
-use crate::{OwnedContentLocator, RecordKey, TraitKey};
+use crate::{CoreSectionSelection, OwnedContentLocator, RecordKey, SimilarityComponent, TraitKey};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -157,7 +157,8 @@ pub struct SimilarityPart {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct SimilarityParts {
     pub seed: SimilaritySeed,
-    pub parts: Vec<SimilarityPart>,
+    pub parts: Vec<SimilarityComponent>,
+    pub core: CoreSectionSelection,
     pub role_recipe: String,
 }
 

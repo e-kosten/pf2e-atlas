@@ -147,10 +147,18 @@ function page(
   total = rows.length,
 ): SearchResultsPage {
   return {
+    search_content: "all",
     ...(request.criteria.kind === "similar_records" && request.criteria.similarity
       ? {
           similarity: {
             options: request.criteria.similarity,
+            source_sections:
+              request.criteria.similarity.method === "baseline" ? null : "all",
+            search_content: "all",
+            candidate_identity: request.criteria.similarity.method === "baseline",
+            core_recipe: null,
+            resolved_selectors: [],
+            core: null,
             recipe: "test-recipe",
             role_recipe: "typed-content-correspondence/v1",
             diagnostics: {

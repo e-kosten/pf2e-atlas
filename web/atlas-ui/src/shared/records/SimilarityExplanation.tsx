@@ -17,9 +17,12 @@ export function SimilarityExplanation({
   onNavigate?: (navigation: RecordNavigationView, anchor: HTMLElement) => void;
   showSmallerWeights?: boolean;
 }) {
+  const includesIdentity =
+    evidence.parts.some((part) => part.part.kind === "identity") ||
+    evidence.roles.some((role) => role.key.kind === "identity");
   const contributions = evidence.roles.length
     ? evidence.roles.map((role) => ({
-        key: role.role,
+        key: JSON.stringify(role.key),
         label: role.role_label,
         score: role.score,
         weight: role.weight,
@@ -40,12 +43,12 @@ export function SimilarityExplanation({
     <div className="similarity-explanation">
       {evidence.truncated && (
         <Typography.Paragraph type="secondary">
-          Showing part of the comparison evidence. The score includes all selected
-          sections.
+          Showing part of the comparison evidence. The score includes the full
+          selection.
         </Typography.Paragraph>
       )}
       <Typography.Text>
-        {evidence.comparable_parts} of {evidence.selected_parts} selected sections have
+        {evidence.comparable_parts} of {evidence.selected_parts} selections have
         comparable content.
       </Typography.Text>
       {visibleContributions.length > 0 && (
@@ -56,7 +59,7 @@ export function SimilarityExplanation({
           dataSource={visibleContributions}
           columns={[
             {
-              title: "Section",
+              title: includesIdentity ? "Selected content" : "Section",
               dataIndex: "label",
               render: (label: string, row) => (
                 <>

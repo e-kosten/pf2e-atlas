@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Spin } from "antd";
-import type { SimilarityPartView, SimilaritySeed } from "../../generated/atlas";
+import type { SimilarityComponentView, SimilaritySeed } from "../../generated/atlas";
 import { AtlasApiError, getTraitDetail } from "../../api/atlasApi";
 import { rootNavigation, useReferenceReading } from "../records/useReferenceReading";
 import { ReferenceReader } from "../records/ReferenceReader";
@@ -19,7 +19,7 @@ import {
 } from "../records/SourceSectionSelectionContext";
 
 export type SimilaritySourceTarget = {
-  part: SimilarityPartView;
+  part: SimilarityComponentView;
   visit: number;
   opener?: HTMLElement;
 } | null;

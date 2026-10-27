@@ -37,6 +37,7 @@ export function useSourceOwnerSelection() {
   ) {
     for (const part of inventory.parts) {
       if (
+        part.kind === "section" &&
         part.has_vectors &&
         (selection.selected === null || selection.selected.includes(part.selector))
       )
@@ -82,15 +83,17 @@ export function useSourceSectionSelection(
     // Keep the same source rendering while a profile's inventory is pending.
     // Eligibility emphasis waits for an authoritative seed/generation match.
     return { selected: [] as number[], excluded: [] as number[] };
-  const parts = inventory.parts.filter(
-    (part) =>
-      part.has_vectors &&
-      ("record" in location
-        ? part.field === location.field &&
-          part.navigation?.source_fingerprint === sourceFingerprint &&
-          JSON.stringify(part.owners) === JSON.stringify(location.embedded_path)
-        : part.field === "/definition" && part.owners.length === 0),
-  );
+  const parts = inventory.parts
+    .filter((part) => part.kind === "section")
+    .filter(
+      (part) =>
+        part.has_vectors &&
+        ("record" in location
+          ? part.field === location.field &&
+            part.navigation?.source_fingerprint === sourceFingerprint &&
+            JSON.stringify(part.owners) === JSON.stringify(location.embedded_path)
+          : part.field === "/definition" && part.owners.length === 0),
+    );
   return {
     selected: parts
       .filter(

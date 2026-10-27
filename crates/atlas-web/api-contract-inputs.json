@@ -1,5 +1,7 @@
 [
   "crates/atlas-domain/src/similarity.rs",
+  "crates/atlas-domain/src/core_sections.rs",
+  "crates/atlas-domain/src/similarity_component.rs",
   "crates/atlas-app-model/src",
   "crates/atlas-app-model/bindings",
   "crates/atlas-app-service/src",

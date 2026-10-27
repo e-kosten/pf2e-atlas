@@ -389,6 +389,32 @@ generation and diagnostics and project bounded paired source evidence. Evidence
 limits do not alter ranking. All methods use stored vectors without query-model
 weights. See [ADR0059](./decisions/0059-configurable-similarity.md).
 
+Core eligibility is a separately versioned metadata projection. Migration18 adds
+`core_roots`, `core_parts`, `core_lexical_units` and `core_semantic_locations`.
+The pure record policy selects exact admitted owners/fields; index binds their
+existing section addresses and unit IDs. Root/alias lexical rows retain their
+current vocabulary. Allowed owned names remain eligible even without prose;
+section labels require exact section membership. No descriptive prose or other
+new term is added to FTS, and both scopes use the same BM25 corpus statistics.
+
+`core_sections_recipe` is excluded from preparation/native-input identity.
+Offline maintenance rebuilds membership from retained checked snapshots and
+content, validates it and publishes the context/reference generation atomically.
+It preserves existing lexical rows/postings, semantic locations/native inputs,
+vector bytes and saved state. Source-preparation upgrades take precedence over
+metadata upgrades; an unrelated preparation-version change must not be presented
+as evidence that Core regenerated embeddings.
+
+Core includes one stored root identity plus the permitted prose for each record
+type. Missing/unmodelled prose resolves identity-only with a reason; required
+missing vectors remain readiness errors. Traits retain their single existing
+definition/label-only representation. Identity components use their native
+header address, without a fake section or comparison role. Scoped SQL filters
+before candidate limits and final aggregation. Legacy All/prose-only scores and
+baselines retain their original contracts; new component-aware requests
+acknowledge their effective representation and recipe. See
+[ADR0060](./decisions/0060-core-sections-and-search-scope.md).
+
 Attribute ordering uses the existing root name, level/rank and per-item-price
 projections. Index shares one comparison contract between complete browse SQL
 and ordering an accepted candidate-key set. Keys are bound as data, without a

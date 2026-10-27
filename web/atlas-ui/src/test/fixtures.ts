@@ -388,14 +388,14 @@ export function similarityEvidenceFixture(
     parts: [],
     roles: [
       {
-        role: "description",
+        key: { kind: "role", role: "description" },
         role_label: "Description",
         score: 0.8,
         weight: 1,
         comparable: true,
       },
       {
-        role: "ability",
+        key: { kind: "role", role: "ability" },
         role_label: "Ability",
         score: 0,
         weight: 0.5,

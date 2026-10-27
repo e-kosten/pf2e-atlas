@@ -78,6 +78,8 @@ pub(super) fn capture(
         service.reset_read_metrics();
         let started = Instant::now();
         let outcome = service.configurable_similar(ConfigurableSimilarRequest {
+            source_sections: None,
+            content_scope: atlas_domain::SearchContentScope::All,
             seed: &scenario.seed,
             options: &variant.options,
             search_profile: Some(profile),

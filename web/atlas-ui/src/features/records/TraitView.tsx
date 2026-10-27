@@ -24,7 +24,10 @@ import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHea
 import { useTraitDetail } from "../../shared/records/useTraitDetail";
 import { PreparedContentBody } from "../../shared/records/PreparedContent";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
-import { similarityFromPreferences } from "../../shared/search/similarityState";
+import {
+  preferredSourceSections,
+  similarityFromPreferences,
+} from "../../shared/search/similarityState";
 import { SearchPreviewRows } from "../../shared/records/SearchPreviewRows";
 import {
   DEFAULT_SEARCH_STATE,
@@ -291,12 +294,19 @@ function TraitSimilarRecords({
     profile.preferences.traitSimilarity,
     true,
   );
+  const sourceSections =
+    similarity.method === "baseline"
+      ? undefined
+      : preferredSourceSections(profile.preferences, "trait");
+  const searchContent = profile.preferences.searchContent;
   const request = {
     criteria: {
       kind: "similar_traits" as const,
       seed_trait_key: detail.trait_key,
       filter: null,
       similarity,
+      source_sections: sourceSections,
+      search_content: searchContent,
     },
     search_profile: profile.id ?? undefined,
     expected_artifact_generation: detail.artifact_generation,
@@ -310,7 +320,7 @@ function TraitSimilarRecords({
     queryFn: async ({ signal }) => {
       const page = await searchPage(request, signal);
       assertSearchIdentity(page, profile.id, detail.artifact_generation, request.sort);
-      assertSimilarityIdentity(page, similarity);
+      assertSimilarityIdentity(page, similarity, sourceSections, searchContent);
       return page;
     },
   });
@@ -323,6 +333,8 @@ function TraitSimilarRecords({
         query: "",
         similarSeed: detail.trait_key,
         similarity,
+        searchContent,
+        sourceSections,
         traitReferenceSeed: null,
       },
       profile.id ?? profile.pendingUrlProfile,

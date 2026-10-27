@@ -4,9 +4,23 @@ use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas similar 'Brown Mold' --list-parts\n  atlas similar 'Brown Mold' --method passages --decay 0.5 --explain\n  atlas similar 'Brown Mold' --method content-average --kind hazard\n  atlas similar trait:fire --method baseline --json\n\nDefaults: Passage matches for records; Trait definition for traits. Content options without --method select Passage matches.\n\nSimilarity uses stored vectors and does not require model weights. Filters constrain candidates, not seed resolution. Candidate coverage is bounded. Copy exact --part selectors and --artifact-generation from --list-parts."
+    after_help = "Examples:\n  atlas similar 'Brown Mold' --list-parts\n  atlas similar 'Brown Mold' --list-parts --sections core\n  atlas similar 'Lich' --sections core --search-content core --method passages\n  atlas similar 'Brown Mold' --method passages --decay 0.5 --explain\n  atlas similar 'Brown Mold' --method content-average --kind hazard\n  atlas similar trait:fire --method baseline --json\n\nDefaults: Passage matches for records; Trait definition for traits. Source comparison options without --method select Passage matches. --search-content alone keeps the seed method default.\n\nSimilarity uses stored vectors and does not require model weights. Filters constrain candidates, not seed resolution. Candidate coverage is bounded. Copy exact --part selectors and --artifact-generation from --list-parts."
 )]
 pub(crate) struct SimilarOptions {
+    #[arg(
+        long,
+        value_enum,
+        conflicts_with = "parts",
+        help = "Source selection: all existing prose sections, or Core identity and sections chosen for this record kind"
+    )]
+    pub(crate) sections: Option<crate::cli::args::CliSearchContent>,
+    #[arg(
+        long,
+        value_enum,
+        conflicts_with = "list_parts",
+        help = "Candidate content: all sections, or Core identity and sections chosen for each candidate kind (default all)"
+    )]
+    pub(crate) search_content: Option<crate::cli::args::CliSearchContent>,
     #[arg(
         long,
         value_enum,

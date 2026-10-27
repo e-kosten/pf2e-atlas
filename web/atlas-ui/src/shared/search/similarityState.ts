@@ -1,5 +1,5 @@
-import type { SimilarityOptions } from "../../generated/atlas";
-import type { SimilarityPreferences } from "./searchPreferences";
+import type { CoreSectionFamily, SimilarityOptions } from "../../generated/atlas";
+import type { SearchPreferences, SimilarityPreferences } from "./searchPreferences";
 
 export function similarityFromPreferences(
   preferences: SimilarityPreferences,
@@ -38,4 +38,17 @@ export function similarityLabel(options: SimilarityOptions, trait = false): stri
     case "baseline":
       return trait ? "Trait definition" : "Name and identity";
   }
+}
+
+/** A remembered semantic preset never contains record-specific selectors. */
+export function preferredSourceSections(
+  preferences: SearchPreferences,
+  family: CoreSectionFamily,
+): "all" | "core" {
+  return preferences.sourceSectionsByFamily[family] ?? "all";
+}
+export function hasCoreSourcePreference(preferences: SearchPreferences): boolean {
+  return Object.values(preferences.sourceSectionsByFamily).some(
+    (preset) => preset === "core",
+  );
 }

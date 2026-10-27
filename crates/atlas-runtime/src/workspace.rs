@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 17;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 18;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -111,6 +111,12 @@ const MIGRATIONS: &[Migration] = &[
             id: "typed-content-correspondence/v1",
             apply: atlas_index::backfill_similarity_parts,
         }),
+    },
+    Migration {
+        version: 18,
+        name: "core-section-eligibility",
+        sql: atlas_index::CORE_SECTIONS_SCHEMA_SQL,
+        backfill: None,
     },
 ];
 
@@ -293,10 +299,22 @@ mod tests {
             )
             .unwrap();
         // Model main's ability-state schema before adding the Similar projection.
+        let mut historical_context = input.context.clone();
+        historical_context.core_sections_recipe.clear();
+        write
+            .connection()
+            .execute(
+                "UPDATE artifact_context SET context_hash=?,context_json=?",
+                rusqlite::params![
+                    historical_context.sha256().unwrap(),
+                    serde_json::to_string(&historical_context).unwrap()
+                ],
+            )
+            .unwrap();
         write
             .connection()
             .execute_batch(
-                "DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version=17; PRAGMA user_version=16;",
+                "DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=17; PRAGMA user_version=16;",
             )
             .unwrap();
         write.commit().unwrap();
@@ -327,7 +345,123 @@ mod tests {
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
         assert_eq!(roles, vec!["description", "reset"]);
+        drop(read);
+        assert!(
+            atlas_index::ensure_reference_projections(&upgraded, WORKSPACE_SCHEMA_VERSION).unwrap()
+        );
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         atlas_index::validate_reference(read.connection()).unwrap();
+    }
+
+    #[test]
+    fn runtime_automatically_upgrades_core_without_source_models_or_changed_reference_values() {
+        use atlas_index::IndexArtifactWriter;
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("core-runtime.sqlite");
+        let workspace = initialize_workspace(&path).unwrap();
+        let input = atlas_search::test_support::input_with_both_profiles(vec![
+            atlas_search::test_support::record(
+                "actors",
+                "Actor",
+                serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Core creature","type":"npc","system":{"details":{"publicNotes":"<h2>Description</h2><p>A cold guardian.</p>","blurb":"Guardian"}}}),
+            ),
+        ]);
+        {
+            let owner = workspace.update_owner().unwrap();
+            let maintenance = owner
+                .maintenance(WORKSPACE_SCHEMA_VERSION, "runtime Core fixture")
+                .unwrap();
+            atlas_index::SqliteIndexWriter::new(&maintenance)
+                .write(&input)
+                .unwrap();
+        }
+        let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        LocalStateWrite::new(&write)
+            .saved_lists()
+            .create(NewSavedList {
+                slug: "kept".into(),
+                name: "Kept".into(),
+                description: Some("Preserved source note".into()),
+                tags: vec![],
+            })
+            .unwrap();
+        let revision = write.reference_revision().unwrap();
+        let stable_values = |c: &rusqlite::Connection| {
+            let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations') ORDER BY name").unwrap().query_map([],|row|row.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+            tables
+                .into_iter()
+                .map(|table| {
+                    let quoted = format!("\"{}\"", table.replace('"', "\"\""));
+                    let mut statement = c.prepare(&format!("SELECT * FROM {quoted}")).unwrap();
+                    let count = statement.column_count();
+                    let mut rows = statement
+                        .query_map([], |row| {
+                            (0..count)
+                                .map(|column| row.get::<_, rusqlite::types::Value>(column))
+                                .collect::<Result<Vec<_>, _>>()
+                        })
+                        .unwrap()
+                        .collect::<Result<Vec<_>, _>>()
+                        .unwrap();
+                    rows.sort_by_key(|row| format!("{row:?}"));
+                    (table, rows)
+                })
+                .collect::<Vec<_>>()
+        };
+        let before = stable_values(write.connection());
+        let ledger=write.connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=17 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        let mut historical_context = input.context.clone();
+        historical_context.core_sections_recipe.clear();
+        write
+            .connection()
+            .execute(
+                "UPDATE artifact_context SET context_hash=?,context_json=?",
+                rusqlite::params![
+                    historical_context.sha256().unwrap(),
+                    serde_json::to_string(&historical_context).unwrap()
+                ],
+            )
+            .unwrap();
+        write.connection().execute_batch("DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version=18; PRAGMA user_version=17;").unwrap();
+        write.commit().unwrap();
+        let source = directory.path().join("absent-source");
+        let models = directory.path().join("absent-models");
+        let runtime = crate::AtlasRuntime::resolve(crate::AtlasRuntimeOptions {
+            path_mode: crate::AtlasPathMode::Global,
+            overrides: crate::AtlasPathOverrides {
+                source_root: Some(source.clone()),
+                embedding_cache_root: Some(models.clone()),
+                index_path: Some(path.clone()),
+            },
+            ..Default::default()
+        })
+        .unwrap();
+        assert!(runtime.upgrade_workspace_if_present().unwrap());
+        assert!(!source.exists());
+        assert!(!models.exists());
+        let reader = runtime.open_index().unwrap();
+        assert_eq!(
+            reader.workspace_session().reference_revision().unwrap(),
+            revision + 1
+        );
+        assert_eq!(
+            stable_values(reader.workspace_session().connection()),
+            before
+        );
+        let actual_ledger=reader.workspace_session().connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=17 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        assert_eq!(actual_ledger, ledger);
+        assert_eq!(
+            reader
+                .core_selection(
+                    input.records[0].record.key(),
+                    Some(&atlas_domain::SearchProfileId::new("bge-base"))
+                )
+                .unwrap()
+                .representation,
+            atlas_domain::CoreSectionRepresentation::IdentityAndProse
+        );
+        drop(reader);
+        assert!(!runtime.upgrade_workspace_if_present().unwrap());
     }
 
     #[test]

@@ -4,6 +4,9 @@ mod actor_presentation;
 mod actor_query;
 mod availability;
 mod content;
+mod core_sections;
+#[cfg(test)]
+mod core_sections_tests;
 #[cfg(test)]
 mod declared_grant_tests;
 mod identity;
@@ -34,6 +37,7 @@ pub use content::{
     SourceContentFormat, SourceContentOutcome, SourceContentRole, SourceContentSelection,
     SourceContentStatus, prepare_record_content, trait_record_localization_references,
 };
+pub use core_sections::{CoreSearchSelection, core_search_selection};
 pub use identity::{SourceIdentityError, source_record_key};
 pub use item_query::spell_casting_form;
 pub use model::{SourceBackedRecord, SourceRecordConstructionError, source_owned_document_count};

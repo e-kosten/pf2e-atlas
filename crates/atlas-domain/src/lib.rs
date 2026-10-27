@@ -50,3 +50,14 @@ pub use similarity::{
     SimilarityPart, SimilarityPartSelector, SimilarityParts, SimilarityRole, SimilaritySeed,
     default_similarity_decay,
 };
+
+mod core_sections;
+pub use core_sections::{
+    CORE_SECTIONS_RECIPE, CoreFallbackReason, CoreSectionFamily, CoreSectionRepresentation,
+    CoreSectionSelection, SearchContentScope, SimilaritySourceSections,
+};
+
+mod similarity_component;
+pub use similarity_component::{
+    SIMILARITY_COMPONENT_RECIPE, SimilarityComparisonKey, SimilarityComponent,
+};
