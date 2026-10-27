@@ -222,13 +222,20 @@ describe("AtlasApp routing", () => {
     await act(() => vi.dynamicImportSettled());
     await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole("combobox", { name: "Search model" })).toBeNull();
-    expect(screen.getByRole("status", { name: "Searching…" })).toBeVisible();
+    expect(await screen.findByRole("status", { name: "Searching…" })).toBeVisible();
     expect(screen.queryByRole("textbox", { name: "Current page" })).toBeNull();
     expect(apiMocks.searchPage).not.toHaveBeenCalled();
     await act(async () => finish(readinessFixture()));
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     expect(apiMocks.searchPage.mock.calls[0][0].search_profile).toBe("embeddinggemma");
-    expect(screen.getByText("EmbeddingGemma")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+    const settings = screen.getByRole("dialog", { name: "Search settings" });
+    const model = within(settings).getByRole("combobox", { name: "Search model" });
+    expect(model).toBeEnabled();
+    fireEvent.mouseDown(model);
+    expect(
+      await screen.findByRole("option", { name: "EmbeddingGemma" }),
+    ).toHaveAttribute("aria-selected", "true");
   });
 
   it.each([false, true])(
@@ -482,14 +489,19 @@ describe("AtlasApp routing", () => {
     expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
     const input = screen.getByRole("searchbox", { name: "Search records" });
     expect(input.closest(".filter-controls__search-row")).toContainElement(
-      screen.getByRole("combobox", { name: "Search model" }),
+      screen.getByRole("button", { name: "Search settings" }),
     );
     fireEvent.change(input, { target: { value: "unsubmitted dragon" } });
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
     fireEvent.click(await screen.findByRole("button", { name: "Add group" }));
     expect(screen.getAllByRole("button", { name: "Add condition" })).toHaveLength(2);
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search model" }));
     fireEvent.click(await screen.findByText("EmbeddingGemma"));
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
     await waitFor(() =>
       expect(
         apiMocks.searchPage.mock.calls[apiMocks.searchPage.mock.calls.length - 1]?.[0],
@@ -525,7 +537,13 @@ describe("AtlasApp routing", () => {
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     expect(apiMocks.searchPage.mock.calls[0][0].search_profile).toBe("bge-base");
     expect(screen.queryByRole("combobox", { name: "Search model" })).toBeNull();
-    expect(screen.queryByText(/Search model|EmbeddingGemma|BGE Base/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+    const settings = screen.getByRole("dialog", { name: "Search settings" });
+    expect(
+      within(settings).queryByRole("combobox", { name: "Search model" }),
+    ).toBeNull();
+    expect(within(settings).queryByText("Embedding model")).toBeNull();
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
   });
 
   it("resets an unavailable single-profile search link without a chooser or loss of criteria and reader", async () => {
@@ -587,7 +605,12 @@ describe("AtlasApp routing", () => {
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     expect(apiMocks.searchPage.mock.calls[0][0].search_profile).toBe("bge-base");
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.queryByText(/Search model|EmbeddingGemma|BGE Base/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+    const settings = screen.getByRole("dialog", { name: "Search settings" });
+    expect(
+      within(settings).queryByRole("combobox", { name: "Search model" }),
+    ).toBeNull();
+    expect(within(settings).queryByText("Embedding model")).toBeNull();
   });
 
   it("uses ordinary availability copy when the sole stored profile lacks text-search assets", async () => {
@@ -626,8 +649,11 @@ describe("AtlasApp routing", () => {
     );
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search model" }));
     fireEvent.click(await screen.findByText("EmbeddingGemma"));
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
     expect(apiMocks.searchPage.mock.calls[1][0].search_profile).toBe("embeddinggemma");
   });

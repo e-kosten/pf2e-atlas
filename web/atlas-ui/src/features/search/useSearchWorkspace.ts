@@ -203,9 +203,14 @@ export function useSearchWorkspace({
     const incomingCriteria = urlCriteria(atlasRouter.latestLocation.searchStr);
     const criteriaChanged = previousUrlCriteria.current !== incomingCriteria;
     previousUrlCriteria.current = incomingCriteria;
+    // Decoding fills an omitted ranking; that alone must not commit a local edit.
     if (
       criteriaChanged &&
-      (searchStateQueryString(restored.search) !== searchStateQueryString(search) ||
+      (searchStateQueryString(restored.search) !==
+        searchStateQueryString({
+          ...search,
+          ranking: search.ranking ?? searchPreferences.ranking,
+        }) ||
         restored.search.filterError !== search.filterError ||
         restored.search.filterWasReset !== search.filterWasReset)
     ) {

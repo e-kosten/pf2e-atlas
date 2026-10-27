@@ -458,6 +458,7 @@ describe("trait search handoffs", () => {
     expect(buildSearchRequest(decoded, 1).criteria).toEqual({
       kind: "similar_traits",
       seed_trait_key: "trait:consumable",
+      similarity: { method: "baseline" },
       filter: expect.objectContaining(state.filter),
     });
   });
