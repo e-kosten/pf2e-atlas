@@ -2,4 +2,4 @@
 import type { SimilarityDiagnosticsView } from "./SimilarityDiagnosticsView";
 import type { SimilarityOptions } from "./SimilarityOptions";
 
-export type SimilarityConfigurationView = { options: SimilarityOptions, recipe: string, diagnostics: SimilarityDiagnosticsView, };
+export type SimilarityConfigurationView = { options: SimilarityOptions, recipe: string, role_recipe: string, diagnostics: SimilarityDiagnosticsView, };

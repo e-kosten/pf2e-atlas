@@ -1,9 +1,9 @@
 //! Stored-vector similarity workflows shared by terminal and browser consumers.
 use crate::{RecordScope, SearchError, SearchPage, SearchWitness, TextSearchResult};
 use atlas_domain::{
-    QueryPredicate, RecordKey, ResultSort, SIMILARITY_RECIPE, SearchProfileId,
-    SimilarityCandidateParts, SimilarityOptions, SimilarityPart, SimilarityPartSelector,
-    SimilarityParts, SimilarityRole, SimilaritySeed,
+    QueryPredicate, RecordKey, ResultSort, SIMILARITY_RECIPE, SIMILARITY_ROLE_RECIPE,
+    SearchProfileId, SimilarityCandidateParts, SimilarityOptions, SimilarityPart,
+    SimilarityPartSelector, SimilarityParts, SimilarityRole, SimilaritySeed,
 };
 use atlas_index::{SourceSimilarityUnit, SourceUnitLocation};
 use std::collections::{BTreeMap, BTreeSet};
@@ -33,6 +33,7 @@ pub struct ConfigurableSimilarResult {
     pub evidence: Vec<(RecordKey, SimilarityEvidence)>,
     pub effective: SimilarityOptions,
     pub recipe: String,
+    pub role_recipe: String,
     pub diagnostics: SimilarityDiagnostics,
     /// Complete pre-reranking root union for content methods; legacy baseline
     /// retains its separate candidate pipeline and does not expose this union.
@@ -195,6 +196,7 @@ impl crate::AtlasRetrievalService {
                 evidence: vec![],
                 effective: request.options.clone(),
                 recipe: "current-baseline/v1".into(),
+                role_recipe: SIMILARITY_ROLE_RECIPE.into(),
                 diagnostics: SimilarityDiagnostics {
                     timings: SimilarityTimings {
                         total_ms: Some(started.elapsed().as_secs_f64() * 1000.0),
@@ -533,6 +535,7 @@ impl crate::AtlasRetrievalService {
             evidence,
             effective: request.options.clone(),
             recipe: SIMILARITY_RECIPE.into(),
+            role_recipe: inventory.role_recipe,
             diagnostics,
             candidate_keys: Some(keys),
         }))

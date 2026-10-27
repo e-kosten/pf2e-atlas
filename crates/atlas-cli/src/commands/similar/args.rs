@@ -18,7 +18,6 @@ pub(crate) struct SimilarOptions {
     pub(crate) decay: Option<f64>,
     #[arg(
         long = "part",
-        requires = "artifact_generation",
         conflicts_with = "list_parts",
         help = "Exact part selector from --list-parts; repeat to select several parts"
     )]

@@ -29,6 +29,7 @@ pub struct SimilarityPartsView {
 pub struct SimilarityConfigurationView {
     pub options: SimilarityOptions,
     pub recipe: String,
+    pub role_recipe: String,
     pub diagnostics: SimilarityDiagnosticsView,
 }
 

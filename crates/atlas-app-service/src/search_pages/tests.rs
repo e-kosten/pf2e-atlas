@@ -939,7 +939,14 @@ fn similarity_inventory_and_explicit_parts_share_generation_and_effective_config
         .search_page(query.clone(), &execution)
         .unwrap();
     assert!(!page.rows.is_empty());
-    assert_eq!(page.similarity.unwrap().options, options);
+    let configuration = page.similarity.as_ref().unwrap();
+    assert_eq!(configuration.options, options);
+    assert_eq!(configuration.role_recipe, inventory.role_recipe);
+    let serialized = serde_json::to_value(&page).unwrap();
+    assert_eq!(
+        serialized["similarity"]["role_recipe"],
+        inventory.role_recipe
+    );
     assert!(page.rows.iter().all(|row| row.similarity.is_some()));
     for row in &page.rows {
         let destinations = row
@@ -1134,5 +1141,52 @@ fn similarity_section_labels_preserve_authored_headings_and_navigate_checked_sou
                 .code,
             AppErrorCode::ArtifactGenerationChanged
         );
+    }
+}
+
+#[test]
+fn similar_record_and_trait_responses_acknowledge_scoring_and_mapping_recipes() {
+    let fixture = trait_search_fixture(true, 3);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    for trait_seed in [false, true] {
+        for options in [
+            atlas_domain::SimilarityOptions::Baseline {},
+            atlas_domain::SimilarityOptions::default(),
+        ] {
+            let criteria = if trait_seed {
+                SearchCriteria::SimilarTraits {
+                    seed_trait_key: "trait:agile".into(),
+                    filter: None,
+                    similarity: Some(options.clone()),
+                }
+            } else {
+                SearchCriteria::SimilarRecords {
+                    seed_record_key: "items:0000000000000000".into(),
+                    filter: None,
+                    similarity: Some(options.clone()),
+                }
+            };
+            let page = fixture
+                .worker
+                .search_page(request(criteria, 1), &execution)
+                .unwrap();
+            let value = serde_json::to_value(&page).unwrap();
+            assert_eq!(
+                value["similarity"]["role_recipe"],
+                atlas_domain::SIMILARITY_ROLE_RECIPE
+            );
+            assert_eq!(
+                value["similarity"]["options"],
+                serde_json::to_value(&options).unwrap()
+            );
+            assert_eq!(
+                value["similarity"]["recipe"],
+                if matches!(options, atlas_domain::SimilarityOptions::Baseline {}) {
+                    "current-baseline/v1"
+                } else {
+                    atlas_domain::SIMILARITY_RECIPE
+                }
+            );
+        }
     }
 }

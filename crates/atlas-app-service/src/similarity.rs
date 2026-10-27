@@ -151,6 +151,7 @@ pub(crate) fn configured_results(
         atlas_app_model::SimilarityConfigurationView {
             options: result.effective,
             recipe: result.recipe,
+            role_recipe: result.role_recipe,
             diagnostics: atlas_app_model::SimilarityDiagnosticsView {
                 seed_units: result.diagnostics.seed_units,
                 knn_queries: result.diagnostics.knn_queries,

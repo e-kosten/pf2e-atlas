@@ -152,6 +152,7 @@ function page(
           similarity: {
             options: request.criteria.similarity,
             recipe: "test-recipe",
+            role_recipe: "typed-content-correspondence/v1",
             diagnostics: {
               seed_units: 1,
               knn_queries: 1,
