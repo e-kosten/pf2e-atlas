@@ -1,0 +1,2855 @@
+{
+  "version": 1,
+  "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+  "source_revision": "28d9d156f252d084371d994dc359509b49eadf18",
+  "selection": {
+    "algorithm": "stratified fixed-seed identity-only product browse, followed by pre-ranking scenario/source nominations",
+    "sort": "random",
+    "seed": 20261026,
+    "sample_count": 240,
+    "sample_per_stratum": 60,
+    "strata": [
+      "hazard",
+      "creature",
+      "spell",
+      "other"
+    ],
+    "other_filter_cel": "kind != \"hazard\" && kind != \"creature\" && kind != \"spell\"",
+    "nomination_unique_count": 38,
+    "union_count": 278,
+    "prefer_remaster": false,
+    "source_nominations_are_not_grades": true
+  },
+  "records": [
+    {
+      "record_key": "abomination-vaults-bestiary:ChRgdkplhO1D81Lg",
+      "title": "Bright Walker",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 53
+    },
+    {
+      "record_key": "abomination-vaults-bestiary:xj1Qn0VA4H4aKSjW",
+      "title": "Jaul's Wolf",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 58
+    },
+    {
+      "record_key": "actionspf2e:EcDcowQ8vS6cEfXd",
+      "title": "Scout Location",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 43
+    },
+    {
+      "record_key": "actionspf2e:dypCcXb9mwVbg6xD",
+      "title": "Flyby Attack",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 38
+    },
+    {
+      "record_key": "actionspf2e:hi56uHG1aAb84Zzu",
+      "title": "Fight with Fear",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 41
+    },
+    {
+      "record_key": "actionspf2e:izvfZ561JTdeyh6i",
+      "title": "Goblin Jubilee",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 60
+    },
+    {
+      "record_key": "adventure-specific-actions:5DVnTrN2xt3NINGZ",
+      "title": "Make General Repairs",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 21
+    },
+    {
+      "record_key": "age-of-ashes-bestiary:DxlauoGqSVDZWBOM",
+      "title": "Acidic Needle Launcher",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 18
+    },
+    {
+      "record_key": "age-of-ashes-bestiary:HI2xA7LCpNPkpV03",
+      "title": "Wailing Crystals",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 37
+    },
+    {
+      "record_key": "age-of-ashes-bestiary:KEbmwWwmpAmIoBcm",
+      "title": "Mental Scream Trap",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "age-of-ashes-bestiary:SVh7cPwyGgmZORVz",
+      "title": "Scarlet Triad Boss",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 10
+    },
+    {
+      "record_key": "age-of-ashes-bestiary:VQiBBu6D2srK6Fmj",
+      "title": "Wrath of the Destroyer",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 8
+    },
+    {
+      "record_key": "age-of-ashes-bestiary:qemmmfu7exswGMGZ",
+      "title": "Kelda Halrig",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 5
+    },
+    {
+      "record_key": "age-of-ashes-bestiary:sqXPqmuUYOgxspV3",
+      "title": "Barzillai's Hounds",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 16
+    },
+    {
+      "record_key": "agents-of-edgewatch-bestiary:LACpbwnVT7m2ZqBi",
+      "title": "The Winder",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 57
+    },
+    {
+      "record_key": "agents-of-edgewatch-bestiary:QHcBauLnHzfwkDBK",
+      "title": "Summoning Rune (Cinder Rat)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 41
+    },
+    {
+      "record_key": "agents-of-edgewatch-bestiary:XTHcALqbg5kgxtPw",
+      "title": "Arcane Feedback Trap",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 60
+    },
+    {
+      "record_key": "agents-of-edgewatch-bestiary:giVkjJeVZjhbR6eA",
+      "title": "Gas Trap",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 48
+    },
+    {
+      "record_key": "agents-of-edgewatch-bestiary:k1s8syi5E2FoR3Q3",
+      "title": "Freezing Alarm",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 20
+    },
+    {
+      "record_key": "agents-of-edgewatch-bestiary:l3AqEkQwRJS8TY7f",
+      "title": "Canopy Drop",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 33
+    },
+    {
+      "record_key": "backgrounds:IObZEUz8wneEMgR3",
+      "title": "Deckhand",
+      "kind": "character_option",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 15
+    },
+    {
+      "record_key": "battlecry-bestiary:rdS6HBEtST3WKnSA",
+      "title": "Vordine Legion",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 27
+    },
+    {
+      "record_key": "bestiary-effects:D8ppWzEIt853rlyW",
+      "title": "Effect: Break the Weak Link",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 28
+    },
+    {
+      "record_key": "bestiary-effects:oYeMCbirbpPZTlQL",
+      "title": "Effect: Consume Fear",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 35
+    },
+    {
+      "record_key": "bestiary-family-ability-glossary:7RxVsRFGtZX9eIxq",
+      "title": "(Failed Prophet) Broken Mindscape",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 17
+    },
+    {
+      "record_key": "blog-bestiary:uPeDOylL6zsZKSIs",
+      "title": "Goblin Zombie",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 24
+    },
+    {
+      "record_key": "blood-lords-bestiary:Lk0Ekva2RstJ0PNm",
+      "title": "Soul Stasis",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 40
+    },
+    {
+      "record_key": "book-of-the-dead-bestiary:FVXCVh3Y0LdfoIC5",
+      "title": "Siphoning Spirit",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 43
+    },
+    {
+      "record_key": "book-of-the-dead-bestiary:mDe4WW1pSWXS113j",
+      "title": "Flood of Spirits",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 46
+    },
+    {
+      "record_key": "criticaldeck:YcQEfWxkmpMWXUz4",
+      "title": "Critical Hit Deck #49",
+      "kind": "lore",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 55
+    },
+    {
+      "record_key": "crown-of-the-kobold-king-bestiary:kV8HuA48rVKxuUks",
+      "title": "Pendulum Blades",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 35
+    },
+    {
+      "record_key": "curtain-call-bestiary:q7jRJq8kl9JXDPWY",
+      "title": "Rooftop Guardian",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 12
+    },
+    {
+      "record_key": "curtain-call-bestiary:yBd3PYNJoUTrJVgM",
+      "title": "The Final Herald",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 18
+    },
+    {
+      "record_key": "deities:8xYnD5FuLI4RSJN8",
+      "title": "Faith in the Fallen",
+      "kind": "lore",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 24
+    },
+    {
+      "record_key": "deities:lPU0bl88a7cWWuyu",
+      "title": "Zugero",
+      "kind": "lore",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 56
+    },
+    {
+      "record_key": "equipment-effects:rXM6njevpwqSMNRt",
+      "title": "Effect: Tallowheart Mass",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 6
+    },
+    {
+      "record_key": "equipment-srd:2EC73UbxVP9f0SR9",
+      "title": "Cryomister (Moderate)",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 44
+    },
+    {
+      "record_key": "equipment-srd:5Q6EFM1MSRX6WNTE",
+      "title": "Exsanguinating Ammunition (Greater)",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 52
+    },
+    {
+      "record_key": "equipment-srd:81Ejj6xXLN3l6uDb",
+      "title": "Sunweave",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 19
+    },
+    {
+      "record_key": "equipment-srd:A5pqQcVhPVtNc7Ol",
+      "title": "Toothy Knife (Greater)",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 53
+    },
+    {
+      "record_key": "equipment-srd:ANzB9WzlGQXDn76G",
+      "title": "Antidote (Major)",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 29
+    },
+    {
+      "record_key": "equipment-srd:C9VvYnjbWertzgMc",
+      "title": "Ka Stone",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 8
+    },
+    {
+      "record_key": "equipment-srd:HKSpj0db5owAuA1v",
+      "title": "Dazerien's Thumbscrew",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 33
+    },
+    {
+      "record_key": "equipment-srd:HhtZl2pr7xChKu2c",
+      "title": "Quenching (Greater)",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 51
+    },
+    {
+      "record_key": "equipment-srd:NEbr7nKuiluJgBHT",
+      "title": "Lich Soul Cage",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/equipment/lich-soul-cage.json",
+        "sha256": "13a65a4b0999c238cab3afa8264fc222ce185c4e9b98aaa33396447d61c23c37"
+      }
+    },
+    {
+      "record_key": "equipment-srd:POKglmR5IdpEEefR",
+      "title": "Radiant Prism (Greater)",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 11
+    },
+    {
+      "record_key": "equipment-srd:RoySt3EKFgcicm7D",
+      "title": "Wand of Shattering Images",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 9
+    },
+    {
+      "record_key": "equipment-srd:VvJo7xIJANfoqRKr",
+      "title": "Horselord's Longbow",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 13
+    },
+    {
+      "record_key": "equipment-srd:WKp751kO2ba4qPeN",
+      "title": "Ranging Shot",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 49
+    },
+    {
+      "record_key": "equipment-srd:Xjjj7uHQzbOwENYV",
+      "title": "Healing Vapor (Moderate)",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 1
+    },
+    {
+      "record_key": "equipment-srd:YMQr577asquZIP65",
+      "title": "Scale Mail",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 5
+    },
+    {
+      "record_key": "equipment-srd:cSGWhw4Wn6Z98tVK",
+      "title": "Lancer",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 58
+    },
+    {
+      "record_key": "equipment-srd:fzScFR5aAl0YhtDd",
+      "title": "Pact of the Herald and Host",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 27
+    },
+    {
+      "record_key": "equipment-srd:nI9shR1EG3P09I8r",
+      "title": "Staff of the Magi",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 36
+    },
+    {
+      "record_key": "equipment-srd:nrAaCGSppPhPxOj3",
+      "title": "Sack of Rotten Fruit",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 12
+    },
+    {
+      "record_key": "equipment-srd:nvYrpdzZzH50t52q",
+      "title": "Kraken Figurehead (Wracking)",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 45
+    },
+    {
+      "record_key": "equipment-srd:qLwwxk1j04rgXSF9",
+      "title": "Deadweight Mutagen (Moderate)",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 59
+    },
+    {
+      "record_key": "equipment-srd:wQUGBFZ5QNWXodU7",
+      "title": "Deadly Slashing Claws",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 25
+    },
+    {
+      "record_key": "equipment-srd:wYruARP1YLfTQBsc",
+      "title": "Fangwire",
+      "kind": "equipment",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 26
+    },
+    {
+      "record_key": "extinction-curse-bestiary:wQHcJGJ9rSyFQFPB",
+      "title": "Envenomed Thorns Trap",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/extinction-curse-bestiary/book-1-the-show-must-go-on/envenomed-thorns-trap.json",
+        "sha256": "a9227f519a2bc1e5210764310c6709c46223accfa901b6a5cf4000cd5348d690"
+      }
+    },
+    {
+      "record_key": "feat-effects:1VwsQa7SyUviSoFA",
+      "title": "Effect: Protective Cycle",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 16
+    },
+    {
+      "record_key": "feat-effects:3wA2IOyZXjFssheT",
+      "title": "Effect: Vindication Edge",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 31
+    },
+    {
+      "record_key": "feat-effects:W8CKuADdbODpBh6O",
+      "title": "Stance: Lunging Stance",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 34
+    },
+    {
+      "record_key": "feat-effects:rp1YauUSULuqW8rs",
+      "title": "Stance: Stoked Flame Stance",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 32
+    },
+    {
+      "record_key": "feats-srd:5gj6tZyQLfA1iQwn",
+      "title": "Thorn in Hell's Side",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 22
+    },
+    {
+      "record_key": "feats-srd:7RFjTTzznsdPcaYB",
+      "title": "Emblazon Armament",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 46
+    },
+    {
+      "record_key": "feats-srd:9Q0tPGtOawPTU2TU",
+      "title": "Follow-Up Assault",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 20
+    },
+    {
+      "record_key": "feats-srd:AtidbY3lU49taaUR",
+      "title": "Rejuvenation",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 3
+    },
+    {
+      "record_key": "feats-srd:GdZLxDtFXaQI3Fop",
+      "title": "Expeditious Search",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 7
+    },
+    {
+      "record_key": "feats-srd:NT1U4UF1WqIkR5tA",
+      "title": "Cadre",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 42
+    },
+    {
+      "record_key": "feats-srd:Q0A9V0zoY7MMXEqE",
+      "title": "Destined Victory",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 37
+    },
+    {
+      "record_key": "feats-srd:R8yrfP6GDYT7gb0z",
+      "title": "Hedge Mage Dedication",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 23
+    },
+    {
+      "record_key": "feats-srd:ZXkVo5iTTT8Uc8jv",
+      "title": "Sacred Wilds Oath",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 48
+    },
+    {
+      "record_key": "feats-srd:ZiSmhTsnQMLqsmyw",
+      "title": "Final Rest",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 50
+    },
+    {
+      "record_key": "feats-srd:cCv9pgyXzZ0TQmZg",
+      "title": "Big Mouth",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 14
+    },
+    {
+      "record_key": "feats-srd:hrITlxkBqHvaiiRS",
+      "title": "Right-Hand Blood",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 54
+    },
+    {
+      "record_key": "feats-srd:mOWtfL7lhW9XpdBN",
+      "title": "Stranglehold",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 39
+    },
+    {
+      "record_key": "feats-srd:opeP0JF9WGmNG0pb",
+      "title": "Avatar's Audience",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 57
+    },
+    {
+      "record_key": "feats-srd:psr9lxsnj9aOiqlK",
+      "title": "Sacral Monarch",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 10
+    },
+    {
+      "record_key": "feats-srd:v68xj9gPsXFsehQn",
+      "title": "Astral Compound Invocation",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 47
+    },
+    {
+      "record_key": "feats-srd:zDmc6JlvdVzHEtcE",
+      "title": "Ascended Celestial Dedication",
+      "kind": "feat",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 18
+    },
+    {
+      "record_key": "gatewalkers-bestiary:KgazbWdxKgGNP6jF",
+      "title": "Sacred Geyser",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 32
+    },
+    {
+      "record_key": "gatewalkers-bestiary:ZzVs5T27LnLhRZ5u",
+      "title": "Kaneepo the Slim",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 42
+    },
+    {
+      "record_key": "hazards:8ewUvJlvn6LVjoXJ",
+      "title": "Second Chance",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 21
+    },
+    {
+      "record_key": "hazards:C6nFe8SCWJ8FmLOT",
+      "title": "Quicksand",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "hazards:H2GX04CQXLPQHT8h",
+      "title": "Wheel Of Misery",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 31
+    },
+    {
+      "record_key": "hazards:HnPd9Vqh5NHKEdRq",
+      "title": "Spinning Blade Pillar",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "hazards:OekigjNLNp9XENjx",
+      "title": "Drowning Pit",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/hazards/drowning-pit.json",
+        "sha256": "dea6fe28c1c5ade94179d2c47fdf30116d1d141c0236b931627d4b5395548eba"
+      }
+    },
+    {
+      "record_key": "hazards:Q8bXKgDm8eguqThB",
+      "title": "Brown Mold",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "hazards:g9HovYB4pfHgIML9",
+      "title": "Flensing Blades",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/hazards/flensing-blades.json",
+        "sha256": "b6c8c87ae03c2d48708ea40a3b46ff608cc14274795a278ac24fdbdb4ae97476"
+      }
+    },
+    {
+      "record_key": "hells-destiny-bestiary:NR6G3uioSuMeR3IP",
+      "title": "Threshold Kerulkagon",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 39
+    },
+    {
+      "record_key": "hells-destiny-bestiary:R34RybN7nVDrGkgz",
+      "title": "Urdun Gravelhands",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 40
+    },
+    {
+      "record_key": "hells-destiny-bestiary:WO7OC8vMhKYc1Be3",
+      "title": "Red-Tinged Doorway",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 11
+    },
+    {
+      "record_key": "hells-destiny-bestiary:rDPyK576gsRLZFeL",
+      "title": "Golden Fiend Sister",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 56
+    },
+    {
+      "record_key": "hells-destiny-bestiary:vjfC6CxewN3VABbp",
+      "title": "Force and Flame",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 34
+    },
+    {
+      "record_key": "howl-of-the-wild-bestiary:FUnnTzkARhfNi5cP",
+      "title": "Prismhydra",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 48
+    },
+    {
+      "record_key": "howl-of-the-wild-bestiary:VhS8LupBXLEcuztc",
+      "title": "Holdfast",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 20
+    },
+    {
+      "record_key": "kingmaker-bestiary:CwFSRj4DEOTvCtEe",
+      "title": "Smoke-Filled Room",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 17
+    },
+    {
+      "record_key": "kingmaker-bestiary:QF2AIby1vQRq5b9E",
+      "title": "Ameon Trask",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 33
+    },
+    {
+      "record_key": "kingmaker-bestiary:etrlNmJRUWDKbKwG",
+      "title": "Terrion Numesti",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 37
+    },
+    {
+      "record_key": "kingmaker-bestiary:hFHdGOMRuhXIuAJo",
+      "title": "Test of Agility",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 29
+    },
+    {
+      "record_key": "lost-omens-bestiary:G8SJadHan9OctTZq",
+      "title": "Stormcrown Dragon (Young, Spellcaster)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 49
+    },
+    {
+      "record_key": "lost-omens-bestiary:IG23I5XqPXeICaOH",
+      "title": "Adamantine Archdragon (Spellcaster)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 7
+    },
+    {
+      "record_key": "lost-omens-bestiary:KUK73LAL7jEGGPTf",
+      "title": "Wish Dragon (Ancient)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 17
+    },
+    {
+      "record_key": "malevolence-bestiary:Gywa8GSJtDCPSjbt",
+      "title": "Architect and Hunter",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 55
+    },
+    {
+      "record_key": "menace-under-otari-bestiary:7VqibTAEXXX6PIhh",
+      "title": "Scythe Blades (BB)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 53
+    },
+    {
+      "record_key": "menace-under-otari-bestiary:BHq5wpQU8hQEke8D",
+      "title": "Hidden Pit (BB)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 25
+    },
+    {
+      "record_key": "myth-speaker-bestiary:X5VGzifC2pKuttRq",
+      "title": "Metal Scamp",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 19
+    },
+    {
+      "record_key": "night-of-the-gray-death-bestiary:JbSbUomIHYwkqgAM",
+      "title": "Planar Eviction Trap",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 5
+    },
+    {
+      "record_key": "one-shot-bestiary:JhQqV8t4BPk2Ixg8",
+      "title": "Precarious Pile",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 15
+    },
+    {
+      "record_key": "one-shot-bestiary:vTJkvG8rDs0O8HzF",
+      "title": "Meliosa's Leshy (Golden Bamboo Leshy)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 16
+    },
+    {
+      "record_key": "pathfinder-bestiary-2:DWQzgPL1WjXfu4rV",
+      "title": "Assassin Vine",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "pathfinder-bestiary-2:WjZCNuHNKfeeHCQS",
+      "title": "Worm That Walks Cultist",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 50
+    },
+    {
+      "record_key": "pathfinder-bestiary-2:cu6Bl5pFByrpinxd",
+      "title": "Planetar",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 14
+    },
+    {
+      "record_key": "pathfinder-bestiary-2:oKogG9AwUZ9iBsm3",
+      "title": "Derghodaemon",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 29
+    },
+    {
+      "record_key": "pathfinder-bestiary-2:xUtl7Nkb6iJpPUMK",
+      "title": "Destrachan",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "pathfinder-bestiary-2:xjV0TmPNfKR7UcKu",
+      "title": "Osyluth",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 60
+    },
+    {
+      "record_key": "pathfinder-bestiary-3:JHrINFX7a7fYhP4w",
+      "title": "Gliminal",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 31
+    },
+    {
+      "record_key": "pathfinder-bestiary-3:fViWNHKjjL7fYbjW",
+      "title": "Common Eurypterid",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 1
+    },
+    {
+      "record_key": "pathfinder-bestiary:S35DifoycBwkxaGq",
+      "title": "Demilich",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/pathfinder-bestiary/demilich.json",
+        "sha256": "b7bede34e350b5053a5a4b92d628e24e231bcf99080cdd1078db3753d19cb135"
+      }
+    },
+    {
+      "record_key": "pathfinder-bestiary:ar0tszs8NAgQamHX",
+      "title": "Blue Dragon (Young)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 51
+    },
+    {
+      "record_key": "pathfinder-dark-archive:3RL07afKtflSq5Ff",
+      "title": "Entrapping Chair",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 3
+    },
+    {
+      "record_key": "pathfinder-dark-archive:IyE7jYfltfPSYzNy",
+      "title": "False Floor",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 50
+    },
+    {
+      "record_key": "pathfinder-monster-core-2:HZHEXtTSAxAC01N4",
+      "title": "Golem",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 54
+    },
+    {
+      "record_key": "pathfinder-monster-core-2:o5B1pNYv2hglQa6v",
+      "title": "Iceberg Clam",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 9
+    },
+    {
+      "record_key": "pathfinder-monster-core-2:qdelXqVZKfk1MlAB",
+      "title": "Striding Fire",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "pathfinder-monster-core-2:wpu3AsCPAKMSvDqN",
+      "title": "Sand Sentry",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 3
+    },
+    {
+      "record_key": "pathfinder-monster-core:0rm0UDbXvwg4sSxQ",
+      "title": "Arboreal Warden",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/pathfinder-monster-core/arboreal-warden.json",
+        "sha256": "4ec38e8f6b778aac10e1854a9e6e011dda319239c887a2e71186c42ce22a634b"
+      }
+    },
+    {
+      "record_key": "pathfinder-monster-core:1AZoRkLec47xrTqY",
+      "title": "Living Waterfall",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/pathfinder-monster-core/living-waterfall.json",
+        "sha256": "a4d128d014bb13509a7975997b9266e2ba954c912d0f206e8f8f41f6a754a0ec"
+      }
+    },
+    {
+      "record_key": "pathfinder-monster-core:DQbHmsmYuodcQ2KC",
+      "title": "Conspirator Dragon (Young)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 46
+    },
+    {
+      "record_key": "pathfinder-monster-core:IuVoyT5lkzcWJ6sK",
+      "title": "Clay Effigy",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 47
+    },
+    {
+      "record_key": "pathfinder-monster-core:MX2cLbODuo4gECPJ",
+      "title": "Firewyrm",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/pathfinder-monster-core/firewyrm.json",
+        "sha256": "c467e62d856272fa7237abb0a0e8118cee042e294064260b042f3b609597bbb3"
+      }
+    },
+    {
+      "record_key": "pathfinder-monster-core:RqX0vfUjlycKjGyp",
+      "title": "Changeling Exile",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 30
+    },
+    {
+      "record_key": "pathfinder-monster-core:WamGnH8v0QHz8NFr",
+      "title": "Giant Moray Eel",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/pathfinder-monster-core/giant-moray-eel.json",
+        "sha256": "5a5cc553bfe76abb1019f567bd520b8a44e0e3da97413ee10da6ba556e7246d6"
+      }
+    },
+    {
+      "record_key": "pathfinder-monster-core:k5p4mRDT26DrDXPA",
+      "title": "Giant Octopus",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "pathfinder-monster-core:pVbggIyXxCo8pPue",
+      "title": "Living Wildfire",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/pathfinder-monster-core/living-wildfire.json",
+        "sha256": "b990a3a1296984b9bb4b3fd9557405a61ef7c64e9ea3f4e9dd95447eed02f78b"
+      }
+    },
+    {
+      "record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+      "title": "Lich",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "pathfinder-monster-core:uBNm3R9wbLTPrM9i",
+      "title": "Harpy",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/pathfinder-monster-core/harpy.json",
+        "sha256": "94acf67abeed3be7c651a6b07608cf514923c420b4a60c53366c28d85977fd38"
+      }
+    },
+    {
+      "record_key": "pathfinder-monster-core:ybkelAOtSIA06fnj",
+      "title": "Animated Broom",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 15
+    },
+    {
+      "record_key": "pathfinder-npc-core:6CRUvM2p9csP735v",
+      "title": "Poacher",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 52
+    },
+    {
+      "record_key": "pathfinder-npc-core:fSwCwS75z9FeUazU",
+      "title": "Knight",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 13
+    },
+    {
+      "record_key": "pathfinder-npc-core:ylxh6qisFZuVWVaf",
+      "title": "Veteran War Horse",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 11
+    },
+    {
+      "record_key": "pfs-season-1-bestiary:32ifzPZVkaLfVkDa",
+      "title": "Collapsing Ceiling (1-2)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 4
+    },
+    {
+      "record_key": "pfs-season-1-bestiary:FcqRRAWeUzV89Z2s",
+      "title": "Mitflit (PFS 1-02)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 4
+    },
+    {
+      "record_key": "pfs-season-1-bestiary:IsNHPVT7c6K42rIR",
+      "title": "Malfunctioning Annihilator",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 45
+    },
+    {
+      "record_key": "pfs-season-1-bestiary:KorFY6YT3UBrzXOL",
+      "title": "Spitting Acid 'Bushes' (5-6)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 42
+    },
+    {
+      "record_key": "pfs-season-1-bestiary:Nh3mKGv0uy1tovpL",
+      "title": "Keff The Lion (3-4)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 25
+    },
+    {
+      "record_key": "pfs-season-1-bestiary:ORzg1jprbdWl64gA",
+      "title": "Murderous Bathhouse (3-4)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 23
+    },
+    {
+      "record_key": "pfs-season-1-bestiary:RUXPx9VPJCmuD1V8",
+      "title": "Mr. Chitters (5-6)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 38
+    },
+    {
+      "record_key": "pfs-season-1-bestiary:awImEAjEPe1LOY8m",
+      "title": "Ralthiss (1-2)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 59
+    },
+    {
+      "record_key": "pfs-season-1-bestiary:hpz50kmKMKVQWxW9",
+      "title": "Scrabbling Hands",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 28
+    },
+    {
+      "record_key": "pfs-season-1-bestiary:wGjNDVC0mDsk7rrH",
+      "title": "Pile of Fireworks (3-4)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 22
+    },
+    {
+      "record_key": "pfs-season-2-bestiary:1TYxfz5Q4iVQUOa5",
+      "title": "Bloody Vortex (5-6)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 12
+    },
+    {
+      "record_key": "pfs-season-2-bestiary:5qyOQeszMplJXw8s",
+      "title": "Flooding Monolith (3-4)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 49
+    },
+    {
+      "record_key": "pfs-season-2-bestiary:urrUBt8FFtuw3LNv",
+      "title": "Drandlesticks (9-10)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 14
+    },
+    {
+      "record_key": "pfs-season-3-bestiary:Ce5z95Z1twvMCsw9",
+      "title": "Arabuk Yearling",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 34
+    },
+    {
+      "record_key": "pfs-season-3-bestiary:JteHqFsY5wFDnrcF",
+      "title": "Volatile Tidal Controls",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 39
+    },
+    {
+      "record_key": "pfs-season-3-bestiary:Ol8JpWfZKdJ28K5L",
+      "title": "Sorrowful Tombstone Door",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 44
+    },
+    {
+      "record_key": "pfs-season-3-bestiary:bgwjxU9MmKJtcxx5",
+      "title": "Old Drakauthix (PFS 3-15)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 36
+    },
+    {
+      "record_key": "pfs-season-3-bestiary:fRIyhOmNon1GtQeT",
+      "title": "Mutated Brown Mold",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/pfs-season-3-bestiary/3-98/mutated-brown-mold.json",
+        "sha256": "cc162de779ab6b89b6257a37dd4376ed9628fedbb008755201188765a7c21fb6"
+      }
+    },
+    {
+      "record_key": "pfs-season-3-bestiary:rXNQ9zxsf9rN7zUQ",
+      "title": "Enhanced Brown Mold",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/pfs-season-3-bestiary/3-98/enhanced-brown-mold.json",
+        "sha256": "5e8f575202dc8cfab34c4b1a37edf8dfab3bf94a11fed93c1eea6017ef9b47d2"
+      }
+    },
+    {
+      "record_key": "pfs-season-4-bestiary:6pg2w3qRLK4h6alz",
+      "title": "Tempest-Forged Chains",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 27
+    },
+    {
+      "record_key": "pfs-season-4-bestiary:vTndTdmCdHiNxJ6x",
+      "title": "Abyssal Warhound",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 6
+    },
+    {
+      "record_key": "pfs-season-5-bestiary:1sNZB3csh38LOZMm",
+      "title": "Consonite Needles",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 10
+    },
+    {
+      "record_key": "pfs-season-5-bestiary:Hfh8jRPyXBw4B4ic",
+      "title": "Elite Mutant Cryptid Snapdrake",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 57
+    },
+    {
+      "record_key": "pfs-season-5-bestiary:XboRToJXP1ij2iVB",
+      "title": "Treasure Avalanche (3-4)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 47
+    },
+    {
+      "record_key": "pfs-season-5-bestiary:tITdboNp18nGRhBT",
+      "title": "Pit of Lives Lost (3-4)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 38
+    },
+    {
+      "record_key": "pfs-season-6-bestiary:4o1vFYUf5wJ36IhL",
+      "title": "History's Repetition (5-6)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 52
+    },
+    {
+      "record_key": "pfs-season-6-bestiary:Tx53uPtEt55FwP1U",
+      "title": "Maralictor Marius Salutio",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 8
+    },
+    {
+      "record_key": "pfs-season-6-bestiary:b0QDFxRb41HUcG0C",
+      "title": "Azlanti-Altered Tiger (Armor Plating)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 22
+    },
+    {
+      "record_key": "pfs-season-6-bestiary:f8UBHh3tE7o8S1PO",
+      "title": "Young Giant Viper",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 2
+    },
+    {
+      "record_key": "pfs-season-7-bestiary:3gBUZhK7Dc2WuuRF",
+      "title": "Scaling the Chain",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 13
+    },
+    {
+      "record_key": "pfs-season-7-bestiary:KuLrLeOFWFte579M",
+      "title": "Dragged to the Depths",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 19
+    },
+    {
+      "record_key": "pfs-season-7-bestiary:VQbocHpHJzxg91tq",
+      "title": "Talhindir's Fall",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 51
+    },
+    {
+      "record_key": "pfs-season-7-bestiary:VbQMn1mSY5fUY6YC",
+      "title": "Hunted by Duty's Bonds",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 59
+    },
+    {
+      "record_key": "pfs-season-7-bestiary:b1xe6qPYygPr7MH5",
+      "title": "Unruly Crowd",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 1
+    },
+    {
+      "record_key": "quest-for-the-frozen-flame-bestiary:EsMrRuDoACAxLxno",
+      "title": "Soul Draining Cage",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 2
+    },
+    {
+      "record_key": "quest-for-the-frozen-flame-bestiary:VA2L044R2WXupQl4",
+      "title": "Graylok Ambusher",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 23
+    },
+    {
+      "record_key": "rage-of-elements-bestiary:YTTKgBLXSIna2KNO",
+      "title": "Abysium Horror",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 55
+    },
+    {
+      "record_key": "revenge-of-the-runelords-bestiary:1o0nvZRwGkqxP1D9",
+      "title": "Ancient One (The Ashen Man's Anger)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 43
+    },
+    {
+      "record_key": "revenge-of-the-runelords-bestiary:yAepc1moNAHAvnbW",
+      "title": "Killing Fugue",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 9
+    },
+    {
+      "record_key": "seven-dooms-for-sandpoint-bestiary:Pttsmgi4axxOY06h",
+      "title": "Fires of Abraxas",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 56
+    },
+    {
+      "record_key": "seven-dooms-for-sandpoint-bestiary:pnLPdcv5ROaICESe",
+      "title": "Abstalar Zantus",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 35
+    },
+    {
+      "record_key": "shades-of-blood-bestiary:Xt0VCSZRaGbaw0FA",
+      "title": "Silvered Retribution",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 36
+    },
+    {
+      "record_key": "shades-of-blood-bestiary:oRPyPtY3u9iESh0L",
+      "title": "Shadow Discharge",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 58
+    },
+    {
+      "record_key": "shades-of-blood-bestiary:obnOPigZBszDZu77",
+      "title": "Miranette",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 45
+    },
+    {
+      "record_key": "shades-of-blood-bestiary:yJ5AQKizmrPVIr6A",
+      "title": "Mournful Petals Haunt",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 7
+    },
+    {
+      "record_key": "sky-kings-tomb-bestiary:cl4km3px8OJAniju",
+      "title": "Juvenile Cave Worm (Azure)",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 21
+    },
+    {
+      "record_key": "spell-effects:0L9LAkGW2FtmZOgb",
+      "title": "Spell Effect: Veil of Spirits",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 40
+    },
+    {
+      "record_key": "spell-effects:GcEFca6I8f5Y06z7",
+      "title": "Spell Effect: Swear Oath",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 4
+    },
+    {
+      "record_key": "spell-effects:HDT5oiQXXnRdDIKR",
+      "title": "Spell Effect: Sweetest Solstice",
+      "kind": "rule",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 30
+    },
+    {
+      "record_key": "spells-srd:1H3T9UwxW44Y0YaS",
+      "title": "Luminous Stardust Healing",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 31
+    },
+    {
+      "record_key": "spells-srd:1xbFBQDRs0hT5xZ9",
+      "title": "Shatter",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/spells/spells/rank-2/shatter.json",
+        "sha256": "86f5b549ef4d47c558b27b897d37d94f1b9865aacb65d6623f2a58b47a2c3183"
+      }
+    },
+    {
+      "record_key": "spells-srd:37ESlJzUvVbOudOT",
+      "title": "Reverse Gravity",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 40
+    },
+    {
+      "record_key": "spells-srd:3K4FA2XgE5tPQYBv",
+      "title": "Saturate",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 44
+    },
+    {
+      "record_key": "spells-srd:4GE2ZdODgIQtg51c",
+      "title": "Darkness",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 22
+    },
+    {
+      "record_key": "spells-srd:4ONjK2hoMBmuAAyk",
+      "title": "Summon Irii",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 49
+    },
+    {
+      "record_key": "spells-srd:5SDKyUShSMbv0Vh1",
+      "title": "Magnetize",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 38
+    },
+    {
+      "record_key": "spells-srd:6WZgtQ2Iw9CTbv2c",
+      "title": "Ocean's Roar",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 48
+    },
+    {
+      "record_key": "spells-srd:8kJbiBEjMWG4VUjs",
+      "title": "Warp Mind",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 46
+    },
+    {
+      "record_key": "spells-srd:9mm8RvPlD0wyb4S5",
+      "title": "Sudden Swarm",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 26
+    },
+    {
+      "record_key": "spells-srd:A0sMo1L0271yLeDA",
+      "title": "Clone Companion",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 39
+    },
+    {
+      "record_key": "spells-srd:ANtTpeXo9nw7BnEb",
+      "title": "Chosen Gravity",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 45
+    },
+    {
+      "record_key": "spells-srd:AlCFTjSBaCHuRHBv",
+      "title": "Prismatic Shield",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 25
+    },
+    {
+      "record_key": "spells-srd:AuIiqc7jjiy1GZ75",
+      "title": "Manifestation",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 3
+    },
+    {
+      "record_key": "spells-srd:BBw5oGFvoQc3gg52",
+      "title": "Wild Allegiance",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 24
+    },
+    {
+      "record_key": "spells-srd:BKIet436snMNcnez",
+      "title": "Polar Ray",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 5
+    },
+    {
+      "record_key": "spells-srd:BokwLLK7OjK6ggHs",
+      "title": "Tanglecurse",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 56
+    },
+    {
+      "record_key": "spells-srd:EX6gTy8s4wNyhOnl",
+      "title": "Heinous Future",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 33
+    },
+    {
+      "record_key": "spells-srd:FFBYPZEmAQoll09t",
+      "title": "Rubble Step",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 16
+    },
+    {
+      "record_key": "spells-srd:GurWFDj4IjKv73kL",
+      "title": "Excise Lexicon",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 41
+    },
+    {
+      "record_key": "spells-srd:HWJODX2zPg5cg34F",
+      "title": "Dragon Wings",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 29
+    },
+    {
+      "record_key": "spells-srd:I7oklLZy4aTHIdc3",
+      "title": "Confusing Cry",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 19
+    },
+    {
+      "record_key": "spells-srd:IERHT6v4o5ISvuJG",
+      "title": "Halcyon Mists",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 14
+    },
+    {
+      "record_key": "spells-srd:IarZrgCeaiUqOuRu",
+      "title": "Wall of Fire",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "spells-srd:Ifc2b6bNVdjKV7Si",
+      "title": "Stormburst",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 54
+    },
+    {
+      "record_key": "spells-srd:J6vNvrUT3b1hx2iA",
+      "title": "Entangling Flora",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/spells/spells/rank-2/entangling-flora.json",
+        "sha256": "19d01126171c54d05989fef64a48077b2a899b75311d9522ff175d4f48c2eac2"
+      }
+    },
+    {
+      "record_key": "spells-srd:K2bTUhucPyhXlzjw",
+      "title": "Personal Ocean",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 2
+    },
+    {
+      "record_key": "spells-srd:KsWhliKfUs3IpW3c",
+      "title": "Wall of Thorns",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "spells-srd:LbPLNWlLCxKCo5gF",
+      "title": "Access Lore",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 9
+    },
+    {
+      "record_key": "spells-srd:LegaamqrflbArbWN",
+      "title": "Vindicator's Mark",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 43
+    },
+    {
+      "record_key": "spells-srd:MVrxZarUTnJxAUN8",
+      "title": "Tether",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 10
+    },
+    {
+      "record_key": "spells-srd:MZGkMsPBztFN0pUO",
+      "title": "Water Breathing",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/spells/spells/rank-2/water-breathing.json",
+        "sha256": "29de22d3a4e734aeb9d7af15d397f753a750e663da67c2e963c8d5a0a0b223b0"
+      }
+    },
+    {
+      "record_key": "spells-srd:Mt6ZzkVX8Q4xigFq",
+      "title": "Create Food",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 18
+    },
+    {
+      "record_key": "spells-srd:OyiKIbWllLZC6sGz",
+      "title": "Genie's Veil",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 20
+    },
+    {
+      "record_key": "spells-srd:PHVHBbdHeQRfjLmE",
+      "title": "Spirit Blast",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 37
+    },
+    {
+      "record_key": "spells-srd:PRrZ7anETWPm90YY",
+      "title": "Disguise Magic",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 42
+    },
+    {
+      "record_key": "spells-srd:Pmhlv3fzPTuIhTrT",
+      "title": "Ranage's Circle",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 50
+    },
+    {
+      "record_key": "spells-srd:TLmkJ8ga8s057HBp",
+      "title": "Soft Landing",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 15
+    },
+    {
+      "record_key": "spells-srd:TRlI5zAbNW2hDiH9",
+      "title": "Share Vision",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 17
+    },
+    {
+      "record_key": "spells-srd:TTwOKGqmZeKSyNMH",
+      "title": "Gentle Landing",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 32
+    },
+    {
+      "record_key": "spells-srd:X56VdA98VedAfGTU",
+      "title": "Thicket of Knives",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 36
+    },
+    {
+      "record_key": "spells-srd:Y3G6Y6EDgCY0s3fq",
+      "title": "Hydraulic Torrent",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/spells/spells/rank-4/hydraulic-torrent.json",
+        "sha256": "a7389b9e7cd078a660e8cb48c999097a0277c4b7e011b8417491ad2d6d1513e7"
+      }
+    },
+    {
+      "record_key": "spells-srd:YtBZq49N4Um1cwm7",
+      "title": "Nature's Reprisal",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 30
+    },
+    {
+      "record_key": "spells-srd:aFd00WT266VYPqOG",
+      "title": "Unblinking Flame Ignition",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 59
+    },
+    {
+      "record_key": "spells-srd:b4cst3WNzl4X7Bdr",
+      "title": "Unbounded Sphere",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 57
+    },
+    {
+      "record_key": "spells-srd:hoR6w8BqX2F35Tdx",
+      "title": "Blistering Invective",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 27
+    },
+    {
+      "record_key": "spells-srd:i88Vi47PDDoP6gQv",
+      "title": "Geyser",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/spells/spells/rank-5/geyser.json",
+        "sha256": "924639a8ac0569151c91cbb1db15d075a6e793cf9ba5f1329269d73519781b6d"
+      }
+    },
+    {
+      "record_key": "spells-srd:iCzdCea2tm1oVpRf",
+      "title": "Living Graveyard",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 51
+    },
+    {
+      "record_key": "spells-srd:jfVCuOpzC6mUrf6f",
+      "title": "Hydraulic Push",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "spells-srd:jtvMJEkiads8a4zj",
+      "title": "Reanimate Foe",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 28
+    },
+    {
+      "record_key": "spells-srd:jyYBuGRfpkZz2kxs",
+      "title": "Sting of the Sea",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 7
+    },
+    {
+      "record_key": "spells-srd:lY9fOk1qBDDhBT8s",
+      "title": "Protective Wards",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 60
+    },
+    {
+      "record_key": "spells-srd:ma3sndEAZdz0Cy2H",
+      "title": "Mercurial Stride",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 1
+    },
+    {
+      "record_key": "spells-srd:o0l57UfBm9ScEUMW",
+      "title": "Rune Trap",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 12
+    },
+    {
+      "record_key": "spells-srd:oPVyu2a0K3aTVIR8",
+      "title": "Elysian Whimsy",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 55
+    },
+    {
+      "record_key": "spells-srd:pib9AhtUlVclvm02",
+      "title": "Release the Ego to Restore the Soul",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 53
+    },
+    {
+      "record_key": "spells-srd:qJGW6BbIcU6sfA1d",
+      "title": "Time Jump",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 34
+    },
+    {
+      "record_key": "spells-srd:qlxM7Ik3uUeUIOcv",
+      "title": "Canticle of Everlasting Grief",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 52
+    },
+    {
+      "record_key": "spells-srd:rfZpqmj0AIIdkVIs",
+      "title": "Heal",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "spells-srd:ro0omoBKiJiMuDRa",
+      "title": "Overselling Flourish",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 35
+    },
+    {
+      "record_key": "spells-srd:s3abwDbTV43pGFFW",
+      "title": "Shillelagh",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 58
+    },
+    {
+      "record_key": "spells-srd:sDUOJoLUEvD5Xe8E",
+      "title": "Incarnate Shadow Minuet",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 21
+    },
+    {
+      "record_key": "spells-srd:sUr5KCpeE6AXfvPp",
+      "title": "Imaginary Weapon",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/spells/focus/imaginary-weapon.json",
+        "sha256": "2871e937a6715546d3b002bdb6517d8e34cfd595e1460df78cf8b8c09cc0cbab"
+      }
+    },
+    {
+      "record_key": "spells-srd:sxQZ6yqTn0czJxVd",
+      "title": "Fireball",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "spells-srd:szIyEsvihc5e1w8n",
+      "title": "Soothe",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/spells/spells/rank-1/soothe.json",
+        "sha256": "9781a1ced76ff412e322e66f98f8fbda94a018f276ec47e03ad46e0e9579cc2c"
+      }
+    },
+    {
+      "record_key": "spells-srd:tKF4TwqOFQxlwMvq",
+      "title": "Artistic Recollection",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 47
+    },
+    {
+      "record_key": "spells-srd:tvUfRH7q4NSvTFTx",
+      "title": "Vanish Weapon",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 11
+    },
+    {
+      "record_key": "spells-srd:vUEkyqkjDwBDLMZZ",
+      "title": "Rude Awakening",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 8
+    },
+    {
+      "record_key": "spells-srd:wdA52JJnsuQWeyqz",
+      "title": "Harm",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/spells/spells/rank-1/harm.json",
+        "sha256": "591c79aa7d1e4b959778310ec03a22786f6a05d031f69e1d979ef28a7a4fc09e"
+      }
+    },
+    {
+      "record_key": "spells-srd:wzLkNU3AAqOSKFPR",
+      "title": "Noise Blast",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "spells-srd:x0rWq0wS06dns4G2",
+      "title": "Final Sacrifice",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 4
+    },
+    {
+      "record_key": "spells-srd:xabHqik5SoyDc5Db",
+      "title": "Moth's Supper",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 13
+    },
+    {
+      "record_key": "spells-srd:z39jFoNJrobyn3MQ",
+      "title": "Undertaker",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 6
+    },
+    {
+      "record_key": "spells-srd:zdNUbHqqZzjA07oM",
+      "title": "Boneshaker",
+      "kind": "spell",
+      "stratum": "spell",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 23
+    },
+    {
+      "record_key": "stolen-fate-bestiary:nBhR5WE7M1cp1fEm",
+      "title": "Drustan",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 26
+    },
+    {
+      "record_key": "strength-of-thousands-bestiary:iKhMNWK6FB7ICach",
+      "title": "Agitated Carnivorous Plants",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "scenario-seed"
+      ]
+    },
+    {
+      "record_key": "the-dead-gods-hand-bestiary:qE7748DOHm0MxppT",
+      "title": "Shevala Iorae",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 32
+    },
+    {
+      "record_key": "the-slithering-bestiary:HFKh5iq1UV06HP4F",
+      "title": "Angazhan's Rake Trap",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 6
+    },
+    {
+      "record_key": "troubles-in-grayce-bestiary:EfADWv5gic1nL12f",
+      "title": "Hampering Web (Troubles in Grayce)",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 26
+    },
+    {
+      "record_key": "troubles-in-grayce-bestiary:TwrwjR9OPZTDyVZB",
+      "title": "Aezar",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 44
+    },
+    {
+      "record_key": "troubles-in-grayce-bestiary:VhSM52HVyIX8PWT9",
+      "title": "Balance Point",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 30
+    },
+    {
+      "record_key": "troubles-in-grayce-bestiary:mLRU9uQeanf96GCP",
+      "title": "Automatic Butler",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 41
+    },
+    {
+      "record_key": "troubles-in-grayce-bestiary:sTLLeVohXDezulem",
+      "title": "Hot Oven",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 24
+    },
+    {
+      "record_key": "troubles-in-otari-bestiary:aqDFxmLMx6cOnGlx",
+      "title": "Tongues of Flame",
+      "kind": "hazard",
+      "stratum": "hazard",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 54
+    },
+    {
+      "record_key": "vehicles:L6CKdeFyJcZTaRvD",
+      "title": "Sea Fort",
+      "kind": "vehicle",
+      "stratum": "other",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 2
+    },
+    {
+      "record_key": "war-of-immortals-bestiary:Roj3l7HjnV0kFq9a",
+      "title": "Mythic Lich",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "source-nomination"
+      ],
+      "source": {
+        "path": "packs/pf2e/war-of-immortals-bestiary/mythic-lich.json",
+        "sha256": "12592e9b1986c89d8fc7924c0eec88efa6dd54e7ac9360ca70e9335f59e1a0c0"
+      }
+    },
+    {
+      "record_key": "wardens-of-wildwood-bestiary:vOeCcqkOZsYalDol",
+      "title": "Timber Titan",
+      "kind": "creature",
+      "stratum": "creature",
+      "origins": [
+        "identity-sample"
+      ],
+      "sample_ordinal": 28
+    }
+  ]
+}

@@ -114,10 +114,10 @@ impl SimilarityOptions {
         }
     }
     pub fn validate(&self, seed: &SimilaritySeed) -> Result<(), String> {
-        if let Self::Passages { decay, .. } = self {
-            if !decay.is_finite() || !(0.0..=1.0).contains(decay) {
-                return Err("match decay must be a finite number from 0 through 1".into());
-            }
+        if let Self::Passages { decay, .. } = self
+            && (!decay.is_finite() || !(0.0..=1.0).contains(decay))
+        {
+            return Err("match decay must be a finite number from 0 through 1".into());
         }
         if self.parts().is_some_and(<[_]>::is_empty) {
             return Err("select at least one comparison part".into());

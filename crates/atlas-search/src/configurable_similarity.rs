@@ -34,14 +34,27 @@ pub struct ConfigurableSimilarResult {
     pub effective: SimilarityOptions,
     pub recipe: String,
     pub diagnostics: SimilarityDiagnostics,
+    /// Complete pre-reranking root union for content methods; legacy baseline
+    /// retains its separate candidate pipeline and does not expose this union.
+    pub candidate_keys: Option<Vec<RecordKey>>,
 }
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct SimilarityDiagnostics {
     pub seed_units: usize,
     pub knn_queries: usize,
     pub candidate_vectors: usize,
     pub pairwise_comparisons: usize,
     pub undefined_candidate_centroids: usize,
+    pub timings: SimilarityTimings,
+}
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct SimilarityTimings {
+    pub seed_preparation_ms: Option<f64>,
+    pub candidate_generation_ms: Option<f64>,
+    pub vector_read_ms: Option<f64>,
+    pub scoring_ms: Option<f64>,
+    pub evidence_hydration_ms: Option<f64>,
+    pub total_ms: Option<f64>,
 }
 #[derive(Debug, Clone)]
 pub struct SimilarityEvidence {
@@ -55,14 +68,14 @@ pub struct SimilarityEvidence {
     pub representative: bool,
     pub truncated: bool,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct SimilarityPartScore {
     pub part: SimilarityPart,
     pub score: f64,
     pub weight: f64,
     pub comparable: bool,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct SimilarityRoleScore {
     pub role: SimilarityRole,
     pub score: f64,
@@ -119,12 +132,12 @@ impl crate::AtlasRetrievalService {
         seed: &SimilaritySeed,
         profile: Option<&SearchProfileId>,
     ) -> Result<SimilarityParts, SearchError> {
-        if let SimilaritySeed::Record { record_key } = seed {
-            if self.index.read_summary(record_key)?.is_none() {
-                return Err(SearchError::invalid_search_options(format!(
-                    "comparison seed {record_key} was not found"
-                )));
-            }
+        if let SimilaritySeed::Record { record_key } = seed
+            && self.index.read_summary(record_key)?.is_none()
+        {
+            return Err(SearchError::invalid_search_options(format!(
+                "comparison seed {record_key} was not found"
+            )));
         }
         let profile = self.resolve_search_profile(profile, false)?;
         Ok(self.index.similarity_parts(seed, Some(&profile))?)
@@ -134,6 +147,7 @@ impl crate::AtlasRetrievalService {
         &self,
         request: ConfigurableSimilarRequest<'_>,
     ) -> Result<Option<ConfigurableSimilarResult>, SearchError> {
+        let started = std::time::Instant::now();
         request.check()?;
         request
             .options
@@ -181,7 +195,14 @@ impl crate::AtlasRetrievalService {
                 evidence: vec![],
                 effective: request.options.clone(),
                 recipe: "current-baseline/v1".into(),
-                diagnostics: SimilarityDiagnostics::default(),
+                diagnostics: SimilarityDiagnostics {
+                    timings: SimilarityTimings {
+                        total_ms: Some(started.elapsed().as_secs_f64() * 1000.0),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                candidate_keys: None,
             }));
         }
         let profile = self.resolve_search_profile(request.search_profile, true)?;
@@ -281,18 +302,23 @@ impl crate::AtlasRetrievalService {
                 }
             }
         }
+        diagnostics.timings.seed_preparation_ms = Some(started.elapsed().as_secs_f64() * 1000.0);
+        let generation_started = std::time::Instant::now();
         let mut keys = BTreeSet::new();
         for (vector, role) in queries {
             request.check()?;
-            for hit in self.index.similarity_candidates(
-                &profile,
-                &vector,
-                &predicate,
-                request.scope.keys(),
-                exclude,
-                role,
-                CANDIDATE_WINDOW,
-            )? {
+            for hit in
+                self.index
+                    .similarity_candidates(atlas_index::SourceSimilarityCandidateRequest {
+                        profile: &profile,
+                        vector: &vector,
+                        query: &predicate,
+                        keys: request.scope.keys(),
+                        exclude,
+                        role,
+                        limit: CANDIDATE_WINDOW,
+                    })?
+            {
                 keys.insert(hit.location.record);
             }
             diagnostics.knn_queries += 1;
@@ -302,6 +328,10 @@ impl crate::AtlasRetrievalService {
                 )));
             }
         }
+        diagnostics.timings.candidate_generation_ms =
+            Some(generation_started.elapsed().as_secs_f64() * 1000.0);
+        diagnostics.timings.vector_read_ms = Some(0.0);
+        diagnostics.timings.scoring_ms = Some(0.0);
         let keys = keys.into_iter().collect::<Vec<_>>();
         let mut roots = Vec::new();
         let mut pending = BTreeMap::new();
@@ -314,7 +344,11 @@ impl crate::AtlasRetrievalService {
                     "comparison exceeded its candidate vector budget; narrow the selected parts or candidate filters",
                 ));
             }
+            let reading_started = std::time::Instant::now();
             let units = self.index.similarity_units(&profile, batch, remaining)?;
+            *diagnostics.timings.vector_read_ms.get_or_insert(0.0) +=
+                reading_started.elapsed().as_secs_f64() * 1000.0;
+            let scoring_started = std::time::Instant::now();
             diagnostics.candidate_vectors += units.len();
             let workload = if matches!(request.options, SimilarityOptions::Passages { .. }) {
                 units.len().checked_mul(seed_units.len())
@@ -436,10 +470,13 @@ impl crate::AtlasRetrievalService {
                     },
                 );
             }
+            *diagnostics.timings.scoring_ms.get_or_insert(0.0) +=
+                scoring_started.elapsed().as_secs_f64() * 1000.0;
         }
         roots.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.key.cmp(&b.key)));
         let roots = self.suppress_pairs(roots, request.prefer_remaster)?;
         request.check()?;
+        let hydration_started = std::time::Instant::now();
         let mut results = self.finish_results(
             &profile,
             roots,
@@ -487,6 +524,9 @@ impl crate::AtlasRetrievalService {
                     .collect();
             }
         }
+        diagnostics.timings.evidence_hydration_ms =
+            Some(hydration_started.elapsed().as_secs_f64() * 1000.0);
+        diagnostics.timings.total_ms = Some(started.elapsed().as_secs_f64() * 1000.0);
         Ok(Some(ConfigurableSimilarResult {
             seed: request.seed.clone(),
             results,
@@ -494,6 +534,7 @@ impl crate::AtlasRetrievalService {
             effective: request.options.clone(),
             recipe: SIMILARITY_RECIPE.into(),
             diagnostics,
+            candidate_keys: Some(keys),
         }))
     }
 
@@ -588,7 +629,7 @@ fn raw_witness(location: SourceUnitLocation, cosine: f64, label: &str) -> Search
         semantic_similarity: Some(cosine),
     }
 }
-fn selected_parts(
+pub(crate) fn selected_parts(
     inventory: &SimilarityParts,
     options: &SimilarityOptions,
 ) -> Result<BTreeSet<SimilarityPartSelector>, SearchError> {
