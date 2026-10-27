@@ -10,7 +10,7 @@ use atlas_app_model::{
     AppError, AppErrorCode, SearchCriteria, SearchModeSummary, SearchPageRequest,
     SearchResultsPage, SearchResultsRequest, SimilarityEvidenceView, SimilarityPartsRequest,
 };
-use atlas_cli_support::write_json_data;
+use atlas_cli_support::{write_json_data, write_json_error};
 use atlas_domain::{
     SimilarityCandidateParts, SimilarityOptions, SimilarityPartSelector, SimilaritySeed,
 };
@@ -20,8 +20,13 @@ mod recovery;
 use args::{CliCandidateParts, CliSimilarityMethod, SimilarOptions};
 
 pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
-    if let Some(error) = recovery::missing_generation(&o) {
-        return report_app_error(error, o.json);
+    if let Some(message) = recovery::missing_generation(&o) {
+        if o.json {
+            write_json_error("invalid_input", message)?;
+        } else {
+            eprintln!("{message}");
+        }
+        return Ok(ExitCode::from(2));
     }
     let options = match comparison_options(&o) {
         Ok(options) => options,
@@ -410,13 +415,8 @@ mod tests {
     #[test]
     fn explicit_parts_require_the_discovery_generation() {
         let unguarded = parse(&["atlas", "similar", "Brown Mold", "--part", "part-123"]);
-        let error = recovery::missing_generation(&unguarded).unwrap();
-        assert_eq!(error.code, AppErrorCode::InvalidRequest);
-        assert!(
-            error
-                .message
-                .contains("atlas similar 'Brown Mold' --list-parts")
-        );
+        let message = recovery::missing_generation(&unguarded).unwrap();
+        assert!(message.contains("atlas similar 'Brown Mold' --list-parts"));
         let options = parse(&[
             "atlas",
             "similar",
