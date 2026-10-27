@@ -193,7 +193,7 @@ remain visible with their source diagnostic.
 Prepared unresolved references preserve an explicit authored label or a qualified
 authored root name; opaque UUIDs display as unavailable. Their exact authored
 targets and unresolved status remain in relationship evidence and diagnostics.
-The content interpretation identity is `foundry-content/v21`; older prepared
+The content interpretation identity is `foundry-content/v22`; older prepared
 content requires re-preparation even when the physical schema is unchanged.
 Exact compatible embedding checkpoints remain reusable.
 
@@ -230,6 +230,8 @@ Contextual formulas use a bounded transient arithmetic interpreter in atlas-reco
 integer/decimal constants, arithmetic, dice, floor/ceil/min/max and resolve, with
 an explicit variable allowlist. Canonical preparation supplies source-kind labels
 only and emits symbolic prose; neither FTS nor embeddings acquire runtime values.
+Symbolic halving and rounding retain compound operand grouping, so their prose
+preserves the authored arithmetic order.
 The sidecar records generated-label provenance, authored healing units and adjacent
 check nouns/secret qualifiers, not an expression AST. An immediately adjacent clause is absorbed
 only when it exactly repeats the generated symbolic DC; custom labels stay intact.
