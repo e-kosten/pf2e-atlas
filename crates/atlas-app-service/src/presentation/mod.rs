@@ -391,6 +391,7 @@ pub(crate) fn record_presentation(
     activity_references::resolve(&mut body, record.key(), retrieval)?;
     reference_profiles::resolve_links(&mut body, retrieval)?;
     Ok(RecordPresentationView {
+        grants: None,
         classification: classification(node, &identity),
         identity,
         content,

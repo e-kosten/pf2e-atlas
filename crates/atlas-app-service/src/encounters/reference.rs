@@ -75,12 +75,15 @@ pub(crate) fn read_encounter_reference(
                 AppRecoverableAction::ReloadRecord,
             ));
         }
+        let (_, records) =
+            super::hydration::hydrate_participant_records(r, std::slice::from_ref(participant))?;
+        let sources = super::hydration::participant_source_conditions(participant, &records);
         let (source, mut selected) = crate::records::read_record_detail(r, request.selection)?;
         let badge_value = super::conditions::condition_rule_for_key(
             condition.condition_key.as_deref(),
         )
         .and_then(|rule| {
-            let causes = super::rules::causes::condition_causes(participant, None);
+            let causes = super::rules::causes::condition_causes(participant, None, &sources);
             causes
                 .iter()
                 .filter(|c| c.rule == rule)

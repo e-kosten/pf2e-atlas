@@ -1,13 +1,16 @@
 //! Bounded PF2e 8.6.1 assistance: current permission and a read-only regain forecast.
 use super::super::conditions::{ConditionRule, condition_rule_for_key};
-use super::source_action_conditions::SourceActionConditions;
+use super::source_conditions::SourceConditions;
 use atlas_app_model::{
     ActionBudgetView, RuntimeAdjustmentView, RuntimeCapabilityView, RuntimeCountView,
     RuntimeEffectNoteView,
 };
 use atlas_local_state::{EncounterParticipant, TurnActionAdjustment, TurnActionAllocation};
 
-pub(in crate::encounters) fn cannot_act_reason(p: &EncounterParticipant) -> Option<&'static str> {
+pub(in crate::encounters) fn cannot_act_reason(
+    p: &EncounterParticipant,
+    sources: &SourceConditions,
+) -> Option<&'static str> {
     if p.mortality == atlas_local_state::MortalityState::Dead {
         return Some("Dead.");
     }
@@ -17,7 +20,7 @@ pub(in crate::encounters) fn cannot_act_reason(p: &EncounterParticipant) -> Opti
     if p.hazard_disabled {
         return Some("Hazard disabled.");
     }
-    super::causes::condition_causes(p, None)
+    super::causes::condition_causes(p, None, sources)
         .into_iter()
         .find_map(|cause| match cause.rule {
             ConditionRule::Stunned if cause.value != Some(0) => Some("Stunned."),
@@ -39,23 +42,20 @@ struct RegainForecast {
     lost_to_stun: i64,
     lost_to_slowed: i64,
 }
-fn regain_forecast(p: &EncounterParticipant, sources: &SourceActionConditions) -> RegainForecast {
+fn regain_forecast(p: &EncounterParticipant, sources: &SourceConditions) -> RegainForecast {
     let mut slowed = 0;
     let mut stunned = 0;
     let mut quickened = false;
     let mut duration_stun = false;
-    let mut unknown = sources.unavailable_reason.is_some();
-    let saved = super::causes::condition_causes(p, None);
-    let causes = saved
-        .iter()
-        .map(|cause| (cause.rule, cause.value, cause.source.duration.is_some()))
-        .chain(
-            sources
-                .entries
-                .iter()
-                .map(|cause| (cause.rule, cause.value, false)),
-        );
-    for (rule, value, has_duration) in causes {
+    let mut unknown = sources.unavailable_reason.is_some()
+        || sources.unresolved_entries(p).iter().any(|source| {
+            matches!(
+                source.rule,
+                ConditionRule::Slowed | ConditionRule::Quickened | ConditionRule::Stunned
+            )
+        });
+    for cause in super::causes::condition_causes(p, None, sources) {
+        let (rule, value, has_duration) = (cause.rule, cause.value, cause.source.has_duration());
         match rule {
             ConditionRule::Quickened => quickened = true,
             ConditionRule::Slowed => match value {
@@ -90,7 +90,7 @@ fn regain_forecast(p: &EncounterParticipant, sources: &SourceActionConditions) -
 }
 pub(in crate::encounters) fn numeric_stunned_actions_lost(
     p: &EncounterParticipant,
-    sources: &SourceActionConditions,
+    sources: &SourceConditions,
 ) -> Option<i64> {
     let forecast = regain_forecast(p, sources);
     if forecast.unknown {
@@ -107,7 +107,7 @@ pub(in crate::encounters) fn numeric_stunned_actions_lost(
 /// Explicit Stunned resolution uses a recorded remaining pool when this turn has begun.
 pub(in crate::encounters) fn stunned_resolution_loss(
     p: &EncounterParticipant,
-    sources: &SourceActionConditions,
+    sources: &SourceConditions,
 ) -> Option<i64> {
     if p.defeated || p.hazard_disabled || p.mortality == atlas_local_state::MortalityState::Dead {
         return Some(0);
@@ -119,13 +119,13 @@ pub(in crate::encounters) fn stunned_resolution_loss(
     {
         let remaining = resources.regular_remaining + resources.extra_remaining;
         let mut stunned = 0;
-        for cause in super::causes::condition_causes(p, None)
+        for cause in super::causes::condition_causes(p, None, sources)
             .into_iter()
             .filter(|c| c.rule == ConditionRule::Stunned)
         {
             match cause.value {
                 Some(v) if v >= 0 => stunned = stunned.max(v),
-                None if cause.source.duration.is_some() => return Some(remaining),
+                None if cause.source.has_duration() => return Some(remaining),
                 _ => return None,
             }
         }
@@ -135,7 +135,7 @@ pub(in crate::encounters) fn stunned_resolution_loss(
 }
 pub(in crate::encounters) fn action_budget(
     p: &EncounterParticipant,
-    sources: &SourceActionConditions,
+    sources: &SourceConditions,
 ) -> ActionBudgetView {
     let forecast = regain_forecast(p, sources);
     let RegainForecast {
@@ -157,18 +157,22 @@ pub(in crate::encounters) fn action_budget(
     let mut notes = Vec::new();
     if unknown {
         let reason = sources.unavailable_reason.as_deref().unwrap_or_else(|| {
-                if sources.entries.iter().any(|c| c.rule == ConditionRule::Slowed && c.value.is_none()) {
-                    "The source record does not supply a usable Slowed value."
-                } else {
-                    "A condition has no usable value or duration. Edit it before relying on the forecast."
-                }
-            });
+            if sources
+                .entries
+                .iter()
+                .any(|c| c.rule == ConditionRule::Slowed && c.value.is_none())
+            {
+                "The source record does not supply a usable Slowed value."
+            } else {
+                "An action condition's value or activation needs context."
+            }
+        });
         actions.explanation = Some(reason.into());
         notes.push(note("unresolved", "Needs review", reason));
     }
-    let reason = cannot_act_reason(p);
+    let reason = cannot_act_reason(p, sources);
     let reaction_reason = reason.or_else(|| {
-        super::causes::condition_causes(p, None)
+        super::causes::condition_causes(p, None, sources)
             .iter()
             .any(|cause| cause.rule == ConditionRule::Confused)
             .then_some("Confused.")
@@ -206,8 +210,8 @@ pub(in crate::encounters) fn action_budget(
             .map(|c| super::super::projection::condition_extra_action_view(c.extra_action.clone()))
             .chain(
                 sources
-                    .entries
-                    .iter()
+                    .active_entries(p)
+                    .into_iter()
                     .filter(|c| c.rule == ConditionRule::Quickened)
                     .map(|_| atlas_app_model::ConditionExtraActionView::Unspecified),
             )
@@ -222,7 +226,7 @@ pub(in crate::encounters) fn action_budget(
 /// Capture the same evaluated regain facts before Stunned is consumed.
 pub(in crate::encounters) fn action_allocation(
     p: &EncounterParticipant,
-    sources: &SourceActionConditions,
+    sources: &SourceConditions,
 ) -> Option<TurnActionAllocation> {
     let forecast = regain_forecast(p, sources);
     let inactive =
@@ -398,6 +402,7 @@ mod tests {
 
     fn participant() -> EncounterParticipant {
         EncounterParticipant {
+            ability_states: vec![],
             turn_resources: None,
             level_override: None,
             base_death_threshold: 4,
@@ -630,26 +635,42 @@ mod tests {
         let mut independent = condition("Off-Guard", None);
         independent.condition_id = 20;
         p.conditions = vec![grabbed, independent];
-        let general = condition_causes(&p, None);
+        let general = condition_causes(
+            &p,
+            None,
+            crate::encounters::rules::source_conditions::SourceConditions::empty(),
+        );
         assert_eq!(
             general
                 .iter()
                 .filter(|cause| cause.rule == ConditionRule::OffGuard)
-                .map(|cause| cause.source.condition_id)
+                .filter_map(|cause| cause.source.condition_id())
                 .collect::<Vec<_>>(),
             vec![20]
         );
-        let targeted = condition_causes(&p, Some("a"));
+        let targeted = condition_causes(
+            &p,
+            Some("a"),
+            crate::encounters::rules::source_conditions::SourceConditions::empty(),
+        );
         assert_eq!(
             targeted
                 .iter()
                 .filter(|cause| cause.rule == ConditionRule::OffGuard)
-                .map(|cause| cause.source.condition_id)
+                .filter_map(|cause| cause.source.condition_id())
                 .collect::<Vec<_>>(),
             vec![10, 20]
         );
         p.conditions.remove(0);
-        assert_eq!(condition_causes(&p, Some("a")).len(), 1);
+        assert_eq!(
+            condition_causes(
+                &p,
+                Some("a"),
+                crate::encounters::rules::source_conditions::SourceConditions::empty()
+            )
+            .len(),
+            1
+        );
     }
     #[test]
     fn conditional_immunity_is_contextual_and_does_not_become_a_prohibition() {
@@ -728,17 +749,29 @@ mod tests {
             other_participant: None,
             facts: &facts,
         };
-        let result = evaluate_action(&p, &context);
+        let result = evaluate_action(
+            &p,
+            crate::encounters::rules::source_conditions::SourceConditions::empty(),
+            &context,
+        );
         assert!(result.issues.is_empty());
         assert_eq!(
             result.disruption,
             Some(DisruptionCheck {
                 dc: 7,
-                source_ids: vec![1, 2, 3]
+                source_ids: vec![1.into(), 2.into(), 3.into()]
             })
         );
         p.conditions.reverse();
-        assert_eq!(evaluate_action(&p, &context).disruption, result.disruption);
+        assert_eq!(
+            evaluate_action(
+                &p,
+                crate::encounters::rules::source_conditions::SourceConditions::empty(),
+                &context
+            )
+            .disruption,
+            result.disruption
+        );
     }
 
     #[test]
@@ -753,9 +786,14 @@ mod tests {
             facts: &[],
         };
         assert_eq!(
-            evaluate_action(&p, &context).issues,
+            evaluate_action(
+                &p,
+                crate::encounters::rules::source_conditions::SourceConditions::empty(),
+                &context
+            )
+            .issues,
             vec![ActionIssue::NeedsFact {
-                source_id: 1,
+                source_id: crate::encounters::rules::causes::ConditionSourceKey::Saved(1),
                 fact: ActionFact::MentalOnly
             }]
         );
@@ -768,7 +806,15 @@ mod tests {
             facts: &facts,
             ..context
         };
-        assert!(evaluate_action(&p, &allowed).issues.is_empty());
+        assert!(
+            evaluate_action(
+                &p,
+                crate::encounters::rules::source_conditions::SourceConditions::empty(),
+                &allowed
+            )
+            .issues
+            .is_empty()
+        );
     }
 
     #[test]
@@ -803,9 +849,14 @@ mod tests {
             facts: &facts,
         };
         assert_eq!(
-            evaluate_action(&p, &context).issues,
+            evaluate_action(
+                &p,
+                crate::encounters::rules::source_conditions::SourceConditions::empty(),
+                &context
+            )
+            .issues,
             vec![ActionIssue::NeedsFact {
-                source_id: 2,
+                source_id: crate::encounters::rules::causes::ConditionSourceKey::Saved(2),
                 fact: ActionFact::RelatesToFascination
             }]
         );

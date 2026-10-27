@@ -24,3 +24,6 @@ pub const CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL: &str =
 
 /// Optional encounter difficulty references; existing encounters follow their PCs.
 pub const ENCOUNTER_DIFFICULTY_SCHEMA_SQL: &str = include_str!("encounter_difficulty.sql");
+
+/// Source-defined switches, choices and ability expenditure.
+pub const ABILITY_STATE_SCHEMA_SQL: &str = include_str!("ability_state.sql");

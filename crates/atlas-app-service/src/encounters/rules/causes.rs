@@ -1,18 +1,108 @@
 //! Maintained grants carry their original source; scope is resolved before overrides.
 use super::super::conditions::{ConditionRule, condition_rule_for_key};
 use super::projection::scope_applies;
+use super::source_conditions::{SourceCondition, SourceConditions};
 use atlas_local_state::{EncounterParticipant, EncounterParticipantCondition};
+
+/// Authored causes never pretend to be editable saved condition rows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(in crate::encounters) enum ConditionSourceKey {
+    Saved(i64),
+    Authored {
+        participant_key: String,
+        record_key: String,
+        source_fingerprint: Option<String>,
+        owner: atlas_domain::OwnedContentLocator,
+        ordinal: Option<usize>,
+        name: String,
+    },
+}
+impl ConditionSourceKey {
+    pub fn label(&self, participants: &[EncounterParticipant]) -> String {
+        match self {
+            Self::Saved(id) => participants
+                .iter()
+                .flat_map(|p| &p.conditions)
+                .find(|c| c.condition_id == *id)
+                .map(|c| c.name.clone())
+                .unwrap_or_default(),
+            Self::Authored { name, .. } => name.clone(),
+        }
+    }
+    pub fn key(&self) -> String {
+        match self {
+            Self::Saved(id) => format!("condition:{id}"),
+            _ => format!("source-condition:{self:?}"),
+        }
+    }
+    pub fn saved_id(&self) -> Option<i64> {
+        match self {
+            Self::Saved(id) => Some(*id),
+            _ => None,
+        }
+    }
+}
+impl From<i64> for ConditionSourceKey {
+    fn from(id: i64) -> Self {
+        Self::Saved(id)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(in crate::encounters) enum ConditionSource<'a> {
+    Saved(&'a EncounterParticipantCondition),
+    Authored(&'a SourceCondition, Option<&'a str>, &'a str),
+}
+impl<'a> ConditionSource<'a> {
+    pub fn saved(self) -> Option<&'a EncounterParticipantCondition> {
+        match self {
+            Self::Saved(source) => Some(source),
+            _ => None,
+        }
+    }
+    pub fn condition_id(self) -> Option<i64> {
+        self.saved().map(|source| source.condition_id)
+    }
+    pub fn name(self) -> &'a str {
+        match self {
+            Self::Saved(source) => &source.name,
+            Self::Authored(source, ..) => source.rule.definition().name,
+        }
+    }
+    pub fn key(self) -> ConditionSourceKey {
+        match self {
+            Self::Saved(source) => ConditionSourceKey::Saved(source.condition_id),
+            Self::Authored(source, fingerprint, participant_key) => ConditionSourceKey::Authored {
+                participant_key: participant_key.to_owned(),
+                record_key: source.record_key.clone(),
+                source_fingerprint: fingerprint.map(str::to_owned),
+                owner: source.owner.clone(),
+                ordinal: source.grant_ordinal,
+                name: source.rule.definition().name.into(),
+            },
+        }
+    }
+    pub fn explanation_key(self) -> String {
+        match self {
+            Self::Saved(source) => format!("condition:{}", source.condition_id),
+            Self::Authored(..) => self.key().key(),
+        }
+    }
+    pub fn has_duration(self) -> bool {
+        self.saved().is_some_and(|source| source.duration.is_some())
+    }
+}
 
 #[derive(Clone, Copy)]
 pub(in crate::encounters) struct ConditionCause<'a> {
-    pub source: &'a EncounterParticipantCondition,
+    pub source: ConditionSource<'a>,
     pub rule: ConditionRule,
     pub value: Option<i64>,
 }
 
 #[derive(Clone, Copy)]
 pub(in crate::encounters) struct ScopedConditionCause<'a> {
-    pub source: &'a EncounterParticipantCondition,
+    pub source: ConditionSource<'a>,
     pub rule: ConditionRule,
     pub value: Option<i64>,
     /// The participant against whom this cause applies; None is universal.
@@ -22,14 +112,16 @@ pub(in crate::encounters) struct ScopedConditionCause<'a> {
 pub(in crate::encounters) fn condition_causes<'a>(
     participant: &'a EncounterParticipant,
     opponent: Option<&str>,
+    sources: &'a SourceConditions,
 ) -> Vec<ConditionCause<'a>> {
-    resolve_causes(participant, opponent, &[])
+    resolve_causes(participant, opponent, &[], sources)
 }
 
 pub(in crate::encounters) fn resolve_causes<'a>(
     participant: &'a EncounterParticipant,
     opponent: Option<&str>,
     additional: &[ScopedConditionCause<'a>],
+    sources: &'a SourceConditions,
 ) -> Vec<ConditionCause<'a>> {
     let mut causes: Vec<_> = participant
         .conditions
@@ -37,7 +129,7 @@ pub(in crate::encounters) fn resolve_causes<'a>(
         .filter(|source| scope_applies(&source.scope, opponent))
         .filter_map(|source| {
             condition_rule_for_key(source.condition_key.as_deref()).map(|rule| ConditionCause {
-                source,
+                source: ConditionSource::Saved(source),
                 rule,
                 value: source.value,
             })
@@ -53,6 +145,50 @@ pub(in crate::encounters) fn resolve_causes<'a>(
                 value: cause.value,
             }),
     );
+    // Evaluate bounded predicates against effective known conditions. Iterate only to
+    // a stable state; circular activation is left unresolved rather than guessed.
+    let saved = causes.clone();
+    let mut prior = vec![];
+    let mut seen = vec![];
+    for _ in 0..=sources.entries.len() + 1 {
+        let rules = suppress_and_expand(causes.clone())
+            .iter()
+            .map(|cause| cause.rule)
+            .collect::<Vec<_>>();
+        let active = sources
+            .entries
+            .iter()
+            .enumerate()
+            .filter(|(_, source)| source.active(&rules, sources, participant) == Some(true))
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        if active == prior {
+            break;
+        }
+        if seen.contains(&active) {
+            causes = saved.clone();
+            break;
+        }
+        seen.push(active.clone());
+        causes = saved.clone();
+        causes.extend(active.iter().map(|index| {
+            let source = &sources.entries[*index];
+            ConditionCause {
+                source: ConditionSource::Authored(
+                    source,
+                    sources.source_fingerprint.as_deref(),
+                    &participant.participant_key,
+                ),
+                rule: source.rule,
+                value: source.value,
+            }
+        }));
+        prior = active;
+    }
+    suppress_and_expand(causes)
+}
+
+fn suppress_and_expand(mut causes: Vec<ConditionCause<'_>>) -> Vec<ConditionCause<'_>> {
     // Reachability establishes derived suppressors without erasing independent sources.
     let reachable = expand(causes.clone());
     causes.retain(|cause| {
@@ -67,7 +203,14 @@ pub(in crate::encounters) fn resolve_causes<'a>(
             .iter()
             .any(|other| suppresses(other.rule, cause.rule))
     });
-    causes.sort_by_key(|cause| (cause.source.condition_id, cause.rule));
+
+    causes.sort_by_key(|cause| {
+        (
+            cause.source.condition_id().is_none(),
+            cause.source.condition_id().unwrap_or(0),
+            cause.rule,
+        )
+    });
     causes
 }
 
@@ -106,7 +249,7 @@ pub(in crate::encounters) fn application_grants(
         .any(|grant| grant.target == target && grant.in_memory_only != Some(true))
 }
 
-fn expand(mut causes: Vec<ConditionCause<'_>>) -> Vec<ConditionCause<'_>> {
+pub(super) fn expand(mut causes: Vec<ConditionCause<'_>>) -> Vec<ConditionCause<'_>> {
     let mut cursor = 0;
     while cursor < causes.len() {
         let cause = causes[cursor];
@@ -118,8 +261,7 @@ fn expand(mut causes: Vec<ConditionCause<'_>>) -> Vec<ConditionCause<'_>> {
             .filter(|grant| maintained(cause.rule, grant))
         {
             if !causes.iter().any(|existing| {
-                existing.source.condition_id == cause.source.condition_id
-                    && existing.rule == grant.target
+                existing.source.key() == cause.source.key() && existing.rule == grant.target
             }) {
                 causes.push(ConditionCause {
                     source: cause.source,
