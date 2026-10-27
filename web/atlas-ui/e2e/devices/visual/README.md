@@ -5,6 +5,32 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Early reaction controls
+
+macOS arm64, Playwright 1.62.1, source
+`c68cf7795b191ab4fbec498ade4ef026f87aed0c`: all 12 condition-refinement cases
+pass with snapshot updates disabled after adopting 24 reviewed frames. Six frames
+per project now include the pre-turn `Reaction [Allow]` control and consequent
+condition-list positions. Parent review covers desktop Chromium and tablet WebKit;
+independent Astra review covers both phone projects. Phone WebKit also has small
+viewport/modal-position shifts, with field layout, focus and reachable controls
+preserved. Unrelated tiny border differences in three turn-damage frames were
+discarded; those original references pass the ordinary comparison run.
+
+Linux x64, Ubuntu 24.04, Playwright 1.62.1:
+[capture 40421151327](https://github.com/e-kosten/pf2e-atlas/actions/runs/40421151327)
+passes all 12 cases against CI 40420614895's fixture, synthetic merge
+`fa90cff879538b4bc355e4c8c892f454309a86fd`. Its tree matches source `c68cf779`
+(`33cce1b29310db995d338b81f593d5ffc52f924e`). Parent reviewed desktop/tablet;
+independent Astra reviewed both phone projects. Adopted 22 product frames, keeping
+two incidental border-only changes out of the update. Phone WebKit wraps Allow
+onto a separate row and changes viewport/modal positions while preserving fields,
+focus and reachable actions. Ordinary hosted comparison with updates disabled
+remains required. Fixture SHA-256:
+`2f3165ca4f80d4360a3cf72e6d3339ced123487fff832ad66ea10fab714ed8bf`;
+frontend index SHA-256:
+`2180e87aef2d9cc541b8f8809c35cf43ba2f28ddd956b4689e6047df3d84e555`.
+
 ## Bounded HP editor references
 
 The accepted HP layout reserves space for the numeric facts and action buttons.
