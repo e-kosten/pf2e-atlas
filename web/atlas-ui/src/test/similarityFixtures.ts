@@ -9,6 +9,13 @@ export function similarityConfigurationFixture(
 ): SimilarityConfigurationView {
   return {
     options,
+    source_sections:
+      options.method === "baseline" ? null : options.parts ? "custom" : "all",
+    search_content: "all",
+    candidate_identity: options.method === "baseline",
+    core_recipe: null,
+    resolved_selectors: options.method === "baseline" ? [] : (options.parts ?? []),
+    core: null,
     recipe: "roles/v1",
     role_recipe: "typed-content-correspondence/v1",
     diagnostics: {
@@ -30,8 +37,16 @@ export function similarityPartsFixture(
     search_profile: "bge-base",
     role_recipe: "roles/v1",
     supports_corresponding_parts: true,
+    core: {
+      family: "hazard",
+      selectors: ["description-b"],
+      representation: "identity_and_prose",
+      fallback_reason: null,
+      recipe: "core-sections/v1",
+    },
     parts: [
       {
+        kind: "section",
         selector: "description-b",
         label: "Description",
         owner_label: "Brown Mold",
@@ -45,6 +60,7 @@ export function similarityPartsFixture(
         navigation: null,
       },
       {
+        kind: "section",
         selector: "reset-b",
         label: "Reset",
         owner_label: "Brown Mold",

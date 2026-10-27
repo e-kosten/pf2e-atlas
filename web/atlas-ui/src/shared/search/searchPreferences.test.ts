@@ -112,3 +112,34 @@ it("uses defaults when storage cannot be read", () => {
     read.mockRestore();
   }
 });
+
+it("extends existing browser preferences with independent content and family presets", () => {
+  const previous = {
+    version: 1,
+    model: "embeddinggemma",
+    ranking: "rrf",
+    showSimilarityDetails: true,
+    showSmallerWeights: true,
+    searchContent: "core",
+    sourceSectionsByFamily: { npc: "core", hazard: "all", equipment: "custom" },
+    recordSimilarity: {
+      method: "passages",
+      decay: 0.85,
+      candidateParts: "corresponding",
+    },
+  };
+  localStorage.setItem(SEARCH_PREFERENCES_KEY, JSON.stringify(previous));
+  const preferences = readSearchPreferences();
+  expect(preferences).toMatchObject({
+    model: "embeddinggemma",
+    ranking: "rrf",
+    showSimilarityDetails: true,
+    showSmallerWeights: true,
+    searchContent: "core",
+    sourceSectionsByFamily: { npc: "core", hazard: "all" },
+    recordSimilarity: previous.recordSimilarity,
+  });
+  expect(preferences.sourceSectionsByFamily).not.toHaveProperty("equipment");
+  expect(writeSearchPreferences(preferences)).toBe(true);
+  expect(readSearchPreferences()).toEqual(preferences);
+});

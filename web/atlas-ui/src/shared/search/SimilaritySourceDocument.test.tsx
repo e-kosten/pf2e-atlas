@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type {
-  SimilarityPartView,
+  SimilarityComponentView,
   SimilarityPartsView,
   RecordDetailView,
 } from "../../generated/atlas";
@@ -18,7 +18,8 @@ vi.mock("../../api/atlasApi", async (original) => ({
 }));
 const recordKey = "hazards:brown-mold";
 const seed = { kind: "record", record_key: recordKey } as const;
-const part: SimilarityPartView = {
+const part = {
+  kind: "section" as const,
   selector: "section-reset",
   label: "Reset",
   owner_label: "Brown Mold",
@@ -34,7 +35,7 @@ const part: SimilarityPartView = {
     field: "/system/details/reset",
     source_fingerprint: "snapshot-1",
   },
-};
+} satisfies SimilarityComponentView;
 function content(detail: RecordDetailView, text: string) {
   detail.presentation.content = [
     {
@@ -276,6 +277,13 @@ it("emphasizes a source only with the matching seed and generation inventory", a
     seed,
     role_recipe: "roles/v1",
     supports_corresponding_parts: true,
+    core: {
+      family: "hazard",
+      selectors: [part.selector],
+      representation: "identity_and_prose",
+      fallback_reason: null,
+      recipe: "core-sections/v1",
+    },
     parts: [part],
   };
   const source = (currentInventory: SimilarityPartsView | null) => (

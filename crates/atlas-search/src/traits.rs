@@ -18,6 +18,7 @@ pub struct TraitReferenceResult {
     pub page: SearchPageInfo,
 }
 pub struct SimilarTraitRequest<'a> {
+    pub content_scope: atlas_domain::SearchContentScope,
     pub sort: atlas_domain::ResultSort,
     pub trait_key: &'a TraitKey,
     pub search_profile: Option<&'a SearchProfileId>,
@@ -83,6 +84,7 @@ impl AtlasRetrievalService {
         let vector=self.index.trait_vector(request.trait_key,&profile)?.ok_or_else(||SearchError::vector_readiness_required("trait has no stored definition vector; update the reference workspace with embeddings"))?;
         let predicate = self.predicate(request.filter)?;
         let (roots, window) = self.rank_candidates(crate::text::CandidateRequest {
+            content_scope: request.content_scope,
             ranking: request.ranking,
             search_profile: &profile,
             text: "",
@@ -158,6 +160,7 @@ mod tests {
         let (service, _artifact) = open_input_fixture(fixture).unwrap();
         let result = service
             .similar_trait(SimilarTraitRequest {
+                content_scope: atlas_domain::SearchContentScope::All,
                 sort: atlas_domain::ResultSort::Relevance {},
                 trait_key: &key,
                 search_profile: None,
@@ -182,6 +185,7 @@ mod tests {
         let (fixture, key) = fixture(false);
         let (service, _artifact) = open_input_fixture(fixture).unwrap();
         let result = service.similar_trait(SimilarTraitRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             trait_key: &key,
             search_profile: None,

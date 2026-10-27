@@ -1,9 +1,11 @@
 //! Stored-vector similarity workflows shared by terminal and browser consumers.
 use crate::{RecordScope, SearchError, SearchPage, SearchWitness, TextSearchResult};
 use atlas_domain::{
-    QueryPredicate, RecordKey, ResultSort, SIMILARITY_RECIPE, SIMILARITY_ROLE_RECIPE,
-    SearchProfileId, SimilarityCandidateParts, SimilarityOptions, SimilarityPart,
-    SimilarityPartSelector, SimilarityParts, SimilarityRole, SimilaritySeed,
+    CORE_SECTIONS_RECIPE, CoreSectionSelection, QueryPredicate, RecordKey, ResultSort,
+    SIMILARITY_COMPONENT_RECIPE, SIMILARITY_RECIPE, SIMILARITY_ROLE_RECIPE, SearchContentScope,
+    SearchProfileId, SimilarityCandidateParts, SimilarityComparisonKey, SimilarityComponent,
+    SimilarityOptions, SimilarityPartSelector, SimilarityParts, SimilaritySeed,
+    SimilaritySourceSections,
 };
 use atlas_index::{SourceSimilarityUnit, SourceUnitLocation};
 use std::collections::{BTreeMap, BTreeSet};
@@ -18,6 +20,8 @@ const MAX_EXPLANATION_PARTS: usize = 32;
 pub struct ConfigurableSimilarRequest<'a> {
     pub seed: &'a SimilaritySeed,
     pub options: &'a SimilarityOptions,
+    pub source_sections: Option<SimilaritySourceSections>,
+    pub content_scope: SearchContentScope,
     pub search_profile: Option<&'a SearchProfileId>,
     pub filter: Option<&'a QueryPredicate>,
     pub scope: RecordScope<'a>,
@@ -32,6 +36,12 @@ pub struct ConfigurableSimilarResult {
     pub results: TextSearchResult,
     pub evidence: Vec<(RecordKey, SimilarityEvidence)>,
     pub effective: SimilarityOptions,
+    pub source_sections: Option<SimilaritySourceSections>,
+    pub content_scope: SearchContentScope,
+    pub candidate_identity: bool,
+    pub core_recipe: Option<String>,
+    pub resolved_selectors: Vec<SimilarityPartSelector>,
+    pub core: Option<CoreSectionSelection>,
     pub recipe: String,
     pub role_recipe: String,
     pub diagnostics: SimilarityDiagnostics,
@@ -71,14 +81,14 @@ pub struct SimilarityEvidence {
 }
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SimilarityPartScore {
-    pub part: SimilarityPart,
+    pub part: SimilarityComponent,
     pub score: f64,
     pub weight: f64,
     pub comparable: bool,
 }
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SimilarityRoleScore {
-    pub role: SimilarityRole,
+    pub key: SimilarityComparisonKey,
     pub score: f64,
     pub weight: f64,
     pub comparable: bool,
@@ -155,6 +165,19 @@ impl crate::AtlasRetrievalService {
             .validate(request.seed)
             .map_err(SearchError::invalid_search_options)?;
         Self::validate_search_sort(&request.sort)?;
+        let source_sections = if matches!(request.options, SimilarityOptions::Baseline {}) {
+            if request.source_sections.is_some() {
+                return Err(SearchError::invalid_search_options(
+                    "Name and identity / Trait definition does not support a source section preset",
+                ));
+            }
+            None
+        } else {
+            Some(resolve_source_sections(
+                request.options,
+                request.source_sections,
+            )?)
+        };
         let found = match request.seed {
             SimilaritySeed::Record { record_key } => self.index.read_summary(record_key)?.is_some(),
             SimilaritySeed::Trait { trait_key } => {
@@ -173,6 +196,7 @@ impl crate::AtlasRetrievalService {
                         record_key,
                         filter: request.filter,
                         scope: request.scope,
+                        content_scope: request.content_scope,
                         page: request.page,
                         prefer_remaster: request.prefer_remaster,
                     })?
@@ -184,6 +208,7 @@ impl crate::AtlasRetrievalService {
                         trait_key,
                         filter: request.filter,
                         scope: request.scope,
+                        content_scope: request.content_scope,
                         page: request.page,
                         prefer_remaster: request.prefer_remaster,
                         ranking: Default::default(),
@@ -195,6 +220,13 @@ impl crate::AtlasRetrievalService {
                 results,
                 evidence: vec![],
                 effective: request.options.clone(),
+                source_sections: None,
+                content_scope: request.content_scope,
+                candidate_identity: true,
+                core_recipe: (request.content_scope == SearchContentScope::Core)
+                    .then(|| CORE_SECTIONS_RECIPE.into()),
+                resolved_selectors: vec![],
+                core: None,
                 recipe: "current-baseline/v1".into(),
                 role_recipe: SIMILARITY_ROLE_RECIPE.into(),
                 diagnostics: SimilarityDiagnostics {
@@ -209,12 +241,34 @@ impl crate::AtlasRetrievalService {
         }
         let profile = self.resolve_search_profile(request.search_profile, true)?;
         let inventory = self.similarity_parts(request.seed, Some(&profile))?;
-        let selected = selected_parts(&inventory, request.options)?;
+        let Some(source_sections) = source_sections else {
+            return Err(SearchError::artifact_contract_violation(
+                "content comparison source mode was not resolved",
+            ));
+        };
+        let selected = selected_components(&inventory, request.options, source_sections)?;
+        if inventory
+            .parts
+            .iter()
+            .any(|component| selected.contains(component.selector()) && !component.has_vectors())
+        {
+            return Err(SearchError::vector_readiness_required(
+                "a selected comparison component has no stored vectors; refresh the sections inventory or update the reference workspace",
+            ));
+        }
+        let source_identity = inventory
+            .parts
+            .iter()
+            .any(|component| component.is_identity() && selected.contains(component.selector()));
+        let candidate_identity =
+            source_identity || request.content_scope == SearchContentScope::Core;
         let mut seed_units = match request.seed {
             SimilaritySeed::Record { record_key } => self.index.selected_similarity_units(
                 &profile,
                 std::slice::from_ref(record_key),
                 Some(&selected.iter().cloned().collect::<Vec<_>>()),
+                SearchContentScope::All,
+                source_identity,
                 MAX_SEED_UNITS,
             )?,
             SimilaritySeed::Trait { trait_key } => {
@@ -222,11 +276,11 @@ impl crate::AtlasRetrievalService {
                     .trait_similarity_units(&profile, trait_key, MAX_SEED_UNITS)?
             }
         };
-        seed_units.retain(|unit| selected.contains(&unit.part.selector));
+        seed_units.retain(|unit| selected.contains(unit.component.selector()));
         if selected.iter().any(|selector| {
             !seed_units
                 .iter()
-                .any(|unit| &unit.part.selector == selector)
+                .any(|unit| unit.component.selector() == selector)
         }) {
             return Err(SearchError::vector_readiness_required(
                 "a selected comparison part has no stored vectors; refresh the parts inventory or update the reference workspace",
@@ -237,7 +291,7 @@ impl crate::AtlasRetrievalService {
                 "this seed has no indexed prose to compare; choose Name and identity instead",
             ));
         }
-        let seed_parts = crate::similarity_scoring::parts(&seed_units);
+        let seed_parts = crate::similarity_scoring::parts(&seed_units)?;
         let mode = request.options.candidate_parts();
         let predicate = self.predicate(request.filter)?;
         let exclude = match request.seed {
@@ -254,7 +308,7 @@ impl crate::AtlasRetrievalService {
                 (
                     unit.vector.clone(),
                     if mode == SimilarityCandidateParts::Corresponding {
-                        Some(unit.part.role)
+                        Some(unit.component.comparison_key())
                     } else {
                         None
                     },
@@ -274,7 +328,7 @@ impl crate::AtlasRetrievalService {
                 queries.push((average, None));
             }
         } else {
-            let mut roles = BTreeMap::<SimilarityRole, Vec<Vec<f32>>>::new();
+            let mut roles = BTreeMap::<SimilarityComparisonKey, Vec<Vec<f32>>>::new();
             for part in &seed_parts {
                 let vector = crate::similarity_scoring::part_centroid(part);
                 if matches!(request.options, SimilarityOptions::ContentAverage { .. })
@@ -285,7 +339,10 @@ impl crate::AtlasRetrievalService {
                     ));
                 }
                 if let Some(vector) = vector {
-                    roles.entry(part.metadata.role).or_default().push(vector);
+                    roles
+                        .entry(part.metadata.comparison_key())
+                        .or_default()
+                        .push(vector);
                 }
             }
             for (role, vectors) in roles {
@@ -317,7 +374,9 @@ impl crate::AtlasRetrievalService {
                         query: &predicate,
                         keys: request.scope.keys(),
                         exclude,
-                        role,
+                        comparison_key: role,
+                        content_scope: request.content_scope,
+                        include_identity: candidate_identity,
                         limit: CANDIDATE_WINDOW,
                     })?
             {
@@ -347,7 +406,13 @@ impl crate::AtlasRetrievalService {
                 ));
             }
             let reading_started = std::time::Instant::now();
-            let units = self.index.similarity_units(&profile, batch, remaining)?;
+            let units = self.index.similarity_units(
+                &profile,
+                batch,
+                request.content_scope,
+                candidate_identity,
+                remaining,
+            )?;
             *diagnostics.timings.vector_read_ms.get_or_insert(0.0) +=
                 reading_started.elapsed().as_secs_f64() * 1000.0;
             let scoring_started = std::time::Instant::now();
@@ -384,7 +449,7 @@ impl crate::AtlasRetrievalService {
             }
             for (key, units) in grouped {
                 request.check()?;
-                let candidate_parts = crate::similarity_scoring::parts(&units);
+                let candidate_parts = crate::similarity_scoring::parts(&units)?;
                 let score = match request.options {
                     SimilarityOptions::Passages { decay, .. } => {
                         Some(crate::similarity_scoring::passages(
@@ -419,13 +484,13 @@ impl crate::AtlasRetrievalService {
                     .into_iter()
                     .filter_map(|pair| {
                         Some(PendingPair {
-                            seed_part: pair.seed.part.selector.clone(),
+                            seed_part: pair.seed.component.selector().clone(),
                             seed: pair.seed.location.clone(),
                             seed_text: pair.seed.trait_text.clone(),
                             candidate: pair.candidate.location.clone()?,
                             cosine: pair.cosine,
-                            seed_label: pair.seed.part.label.clone(),
-                            candidate_label: pair.candidate.part.label.clone(),
+                            seed_label: pair.seed.component.label().to_owned(),
+                            candidate_label: pair.candidate.component.label().to_owned(),
                         })
                     })
                     .collect::<Vec<_>>();
@@ -461,7 +526,7 @@ impl crate::AtlasRetrievalService {
                             .roles
                             .into_iter()
                             .map(|role| SimilarityRoleScore {
-                                role: role.role,
+                                key: role.key,
                                 score: role.score,
                                 weight: role.weight,
                                 comparable: role.comparable,
@@ -534,7 +599,24 @@ impl crate::AtlasRetrievalService {
             results,
             evidence,
             effective: request.options.clone(),
-            recipe: SIMILARITY_RECIPE.into(),
+            source_sections: Some(source_sections),
+            content_scope: request.content_scope,
+            candidate_identity,
+            core_recipe: (source_sections == SimilaritySourceSections::Core
+                || candidate_identity
+                || request.content_scope == SearchContentScope::Core)
+                .then(|| CORE_SECTIONS_RECIPE.into()),
+            resolved_selectors: selected.into_iter().collect(),
+            core: (source_sections == SimilaritySourceSections::Core).then_some(inventory.core),
+            recipe: if source_sections == SimilaritySourceSections::Core
+                || candidate_identity
+                || request.content_scope == SearchContentScope::Core
+            {
+                SIMILARITY_COMPONENT_RECIPE
+            } else {
+                SIMILARITY_RECIPE
+            }
+            .into(),
             role_recipe: inventory.role_recipe,
             diagnostics,
             candidate_keys: Some(keys),
@@ -632,27 +714,67 @@ fn raw_witness(location: SourceUnitLocation, cosine: f64, label: &str) -> Search
         semantic_similarity: Some(cosine),
     }
 }
-pub(crate) fn selected_parts(
+pub(crate) fn resolve_source_sections(
+    options: &SimilarityOptions,
+    source_sections: Option<SimilaritySourceSections>,
+) -> Result<SimilaritySourceSections, SearchError> {
+    let mode = source_sections.unwrap_or_else(|| {
+        if options.parts().is_some() {
+            SimilaritySourceSections::Custom
+        } else {
+            SimilaritySourceSections::All
+        }
+    });
+    match (mode, options.parts()) {
+        (SimilaritySourceSections::All | SimilaritySourceSections::Core, Some(_)) => {
+            Err(SearchError::invalid_search_options(
+                "a source section preset cannot be combined with exact section selectors",
+            ))
+        }
+        (SimilaritySourceSections::Custom, None) => Err(SearchError::invalid_search_options(
+            "Custom sections requires exact section selectors from the current inventory",
+        )),
+        _ => Ok(mode),
+    }
+}
+
+pub(crate) fn selected_components(
     inventory: &SimilarityParts,
     options: &SimilarityOptions,
+    source_sections: SimilaritySourceSections,
 ) -> Result<BTreeSet<SimilarityPartSelector>, SearchError> {
     let available = inventory
         .parts
         .iter()
-        .map(|part| part.selector.clone())
+        .map(|component| component.selector().clone())
         .collect::<BTreeSet<_>>();
-    let selected = options
-        .parts()
-        .map(|parts| parts.iter().cloned().collect::<BTreeSet<_>>())
-        .unwrap_or_else(|| available.clone());
+    let selected: BTreeSet<SimilarityPartSelector> = match source_sections {
+        SimilaritySourceSections::All => inventory
+            .parts
+            .iter()
+            .filter(|component| !component.is_identity())
+            .map(|component| component.selector().clone())
+            .collect(),
+        SimilaritySourceSections::Core => inventory.core.selectors.iter().cloned().collect(),
+        SimilaritySourceSections::Custom => options
+            .parts()
+            .ok_or_else(|| {
+                SearchError::invalid_search_options(
+                    "Custom sections requires exact section selectors",
+                )
+            })?
+            .iter()
+            .cloned()
+            .collect(),
+    };
     if selected.is_empty() {
         return Err(SearchError::invalid_search_options(
-            "this seed has no indexed prose; choose Name and identity instead",
+            "this seed has no indexed prose; choose Core sections or Name and identity instead",
         ));
     }
     if !selected.is_subset(&available) {
         return Err(SearchError::invalid_search_options(
-            "a selected comparison part is stale or unavailable; refresh the parts inventory",
+            "a selected comparison section is stale or unavailable; refresh the sections inventory",
         ));
     }
     Ok(selected)

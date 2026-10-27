@@ -5,13 +5,23 @@ import { useState } from "react";
 import { SearchPreviewRows } from "./SearchPreviewRows";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
-import { AtlasApiError, getRelatedRecords, searchPage } from "../../api/atlasApi";
+import {
+  AtlasApiError,
+  getRelatedRecords,
+  getSimilarityParts,
+  searchPage,
+} from "../../api/atlasApi";
 import { useSearchProfile } from "../search/SearchProfileContext";
-import { similarityFromPreferences } from "../search/similarityState";
+import {
+  hasCoreSourcePreference,
+  preferredSourceSections,
+  similarityFromPreferences,
+} from "../search/similarityState";
 import { SearchProfileNotice } from "../search/SearchProfileNotice";
 import {
   assertSearchIdentity,
   assertSimilarityIdentity,
+  assertSimilarityInventoryIdentity,
 } from "../search/searchIdentity";
 import { currentSearchLocation } from "../../app/searchLocation";
 import {
@@ -455,6 +465,53 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
   const seed = detail.record.record_key;
   const profile = useSearchProfile();
   const similarity = similarityFromPreferences(profile.preferences.recordSimilarity);
+  const needsFamily =
+    similarity.method !== "baseline" && hasCoreSourcePreference(profile.preferences);
+  const seedInventory = useQuery({
+    queryKey: [
+      "similarity-parts",
+      { kind: "record", record_key: seed },
+      profile.id,
+      detail.artifact_generation,
+      0,
+    ],
+    enabled: needsFamily && profile.id !== null && profile.storedVectors,
+    staleTime: Infinity,
+    queryFn: async ({ signal }) => {
+      const source = { kind: "record" as const, record_key: seed };
+      const inventory = await getSimilarityParts(
+        {
+          seed: source,
+          search_profile: profile.id ?? undefined,
+          expected_artifact_generation: detail.artifact_generation,
+        },
+        signal,
+      );
+      assertSimilarityInventoryIdentity(
+        inventory,
+        source,
+        profile.id!,
+        detail.artifact_generation,
+      );
+      return inventory;
+    },
+  });
+  const sourceSections =
+    similarity.method === "baseline"
+      ? undefined
+      : seedInventory.data
+        ? preferredSourceSections(profile.preferences, seedInventory.data.core.family)
+        : "all";
+  const currentSearch =
+    currentSearchLocation() !== null
+      ? decodeSearchStateFromParams(
+          new URLSearchParams(window.location.search),
+          "search",
+          profile.preferences,
+        )
+      : null;
+  const searchContent =
+    currentSearch?.searchContent ?? profile.preferences.searchContent;
   const similar = useQuery({
     queryKey: [
       "similar-preview",
@@ -462,8 +519,13 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       detail.artifact_generation,
       profile.id,
       similarity,
+      sourceSections,
+      searchContent,
     ],
-    enabled: profile.id !== null && profile.storedVectors,
+    enabled:
+      profile.id !== null &&
+      profile.storedVectors &&
+      (!needsFamily || seedInventory.data !== undefined),
     staleTime: Infinity,
     queryFn: async ({ signal }) => {
       const page = await searchPage(
@@ -474,6 +536,8 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
             seed_record_key: seed,
             filter: null,
             similarity,
+            source_sections: sourceSections,
+            search_content: searchContent,
           },
           page: { number: 1, size: 5 },
           expected_artifact_generation: detail.artifact_generation,
@@ -483,22 +547,23 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       assertSearchIdentity(page, profile.id, detail.artifact_generation, {
         kind: "relevance",
       });
-      assertSimilarityIdentity(page, similarity);
+      assertSimilarityIdentity(page, similarity, sourceSections, searchContent);
       return page;
     },
   });
   const data = isArtifactGenerationChanged(similar.error) ? undefined : similar.data;
+  const previewError = seedInventory.error ?? similar.error;
   const route = searchDestination({
     selectedRecordKey: null,
     query: searchStateQueryString(
       {
-        ...(currentSearchLocation() !== null
-          ? decodeSearchStateFromParams(new URLSearchParams(window.location.search))
-          : DEFAULT_SEARCH_STATE),
+        ...(currentSearch ?? DEFAULT_SEARCH_STATE),
         query: "",
         mode: "similar_records",
         similarSeed: seed,
         similarity,
+        searchContent,
+        sourceSections,
         similarityGeneration: undefined,
         traitReferenceSeed: null,
       },
@@ -507,7 +572,11 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
   });
   return (
     <div className="record-explore__task">
-      <ExploreSearchAction route={route} summary="Top matches">
+      <ExploreSearchAction
+        route={route}
+        summary="Top matches"
+        disabled={needsFamily && !seedInventory.data}
+      >
         Search similar records
       </ExploreSearchAction>
       {!!detail.selected.embedded_path.length && (
@@ -521,10 +590,12 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
           <Spin size="small" delay={400} /> Loading similar records…
         </div>
       )}
-      {similar.error && (
+      {previewError && (
         <QueryError
-          error={similar.error}
-          retry={() => void similar.refetch()}
+          error={previewError}
+          retry={() =>
+            void (seedInventory.error ? seedInventory.refetch() : similar.refetch())
+          }
           onReload={onReload}
           reloadLabel={reloadLabel}
         />

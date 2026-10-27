@@ -3178,6 +3178,7 @@ function participantFixture(
 
 function searchResultsFixture(): SearchResultsPage {
   return {
+    search_content: "all",
     relationship_clauses: [],
     sort: { kind: "relevance" } as const,
     ranking: "score" as const,

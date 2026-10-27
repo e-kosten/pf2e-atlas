@@ -37,6 +37,24 @@ use super::error::status_for_error;
 use super::router::router_with_state;
 use super::service::{AtlasWebService, AtlasWebState, call_service};
 
+#[test]
+fn browser_contract_tracks_stored_similarity_recipe_owners() {
+    let inputs: Vec<String> =
+        serde_json::from_str(include_str!("../api-contract-inputs.json")).unwrap();
+    for owner in [
+        "crates/atlas-domain/src/similarity.rs",
+        "crates/atlas-domain/src/core_sections.rs",
+        "crates/atlas-domain/src/similarity_component.rs",
+    ] {
+        assert!(
+            inputs
+                .iter()
+                .any(|input| owner == input || owner.starts_with(&format!("{input}/"))),
+            "the browser contract does not cover recipe owner {owner}"
+        );
+    }
+}
+
 #[tokio::test]
 async fn compatibility_handshake_is_available_without_service_capacity() {
     let app = router_with_state(AtlasWebState::from_service_with_blocking_capacity(
@@ -426,6 +444,23 @@ async fn search_page_rejects_malformed_criteria_and_retired_window_routes() {
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["code"], "invalid_request");
+
+    for criteria in [
+        json!({"kind":"list_records","filter":null,"search_content":"core"}),
+        json!({"kind":"trait_references","trait_key":"trait:agile","query":null,"filter":null,"search_content":"core"}),
+        json!({"kind":"text_search","query":"fire","filter":null,"mode":"lexical","source_sections":"core"}),
+    ] {
+        let (status, body) = route_json(
+            Method::POST,
+            "/api/search/page",
+            Some(json!({
+                "criteria":criteria,"page":{"number":1,"size":25}
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(body["code"], "invalid_request");
+    }
 
     for path in ["/api/result-windows", "/api/result-windows/1/page"] {
         let response = test_router()
@@ -1108,6 +1143,13 @@ impl AtlasWebService for MockService {
                 .unwrap_or_else(|| atlas_domain::SearchProfileId::new("bge-base")),
             seed: request.seed,
             parts: vec![],
+            core: atlas_domain::CoreSectionSelection {
+                family: atlas_domain::CoreSectionFamily::Unmodelled,
+                selectors: vec![],
+                representation: atlas_domain::CoreSectionRepresentation::IdentityOnly,
+                fallback_reason: Some(atlas_domain::CoreFallbackReason::UnmodelledKind),
+                recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
+            },
             role_recipe: atlas_domain::SIMILARITY_ROLE_RECIPE.into(),
         })
     }
@@ -2210,6 +2252,8 @@ fn record_summary() -> RecordSummaryView {
 
 fn search_results_page(page_number: u32) -> SearchResultsPage {
     SearchResultsPage {
+        core_recipe: None,
+        search_content: atlas_domain::SearchContentScope::All,
         similarity: None,
         sort: atlas_domain::ResultSort::attribute(
             atlas_domain::SortField::Name,

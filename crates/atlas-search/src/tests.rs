@@ -64,6 +64,7 @@ fn hybrid_choices_preserve_identity_tiers_and_single_lane_scores() {
     let rank = |mode, ranking| {
         service
             .rank_candidates(crate::text::CandidateRequest {
+                content_scope: atlas_domain::SearchContentScope::All,
                 ranking,
                 search_profile: &profile,
                 text: "Ember",
@@ -166,6 +167,7 @@ fn key(id: &str) -> RecordKey {
 fn search(service: &mut AtlasRetrievalService, text: &str) -> TextSearchResult {
     service
         .search_text(TextSearchRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             ranking: Default::default(),
             search_profile: None,
@@ -277,6 +279,7 @@ fn strict_identity_alias_ambiguity_and_macro_exclusion() {
     assert!(
         service
             .similar_records(SimilarRecordRequest {
+                content_scope: atlas_domain::SearchContentScope::All,
                 sort: atlas_domain::ResultSort::Relevance {},
                 search_profile: None,
                 record_key: &macro_key,
@@ -370,6 +373,7 @@ fn pair_preference_is_conditional_and_precedes_paging() {
     let filter = service.parse_where("level == 1").unwrap();
     let filtered = service
         .search_text(TextSearchRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             ranking: Default::default(),
             search_profile: None,
@@ -385,6 +389,7 @@ fn pair_preference_is_conditional_and_precedes_paging() {
     assert_eq!(filtered.records[0].record.key, key("aaaaaaaaaaaaaaaa"));
     let page2 = service
         .search_text(TextSearchRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             ranking: Default::default(),
             search_profile: None,
@@ -503,6 +508,7 @@ fn similar_uses_max_passage_score_excludes_seed_and_applies_key_scope_before_knn
     let seed = key("aaaaaaaaaaaaaaaa");
     let result = service
         .similar_records(SimilarRecordRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             search_profile: None,
             record_key: &seed,
@@ -524,6 +530,7 @@ fn similar_uses_max_passage_score_excludes_seed_and_applies_key_scope_before_knn
     let keys = [key("cccccccccccccccc")];
     let scoped = service
         .similar_records(SimilarRecordRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             search_profile: None,
             record_key: &seed,
@@ -733,6 +740,7 @@ fn contextual_numeric_bounds_restore_target_clause_and_apply_complete_text_scope
             field: "level",
             clause_id: Some("level-choice"),
             context: FilterDiscoveryContext {
+                content_scope: atlas_domain::SearchContentScope::All,
                 search_profile: None,
                 text: Some("flame"),
                 mode: RetrievalMode::Fts,
@@ -817,6 +825,7 @@ fn summary_browse_stays_body_free_and_plain_passages_decode_each_root_once() {
     service.index.reset_read_metrics();
     let (roots, window) = service
         .rank_candidates(crate::text::CandidateRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             ranking: Default::default(),
             search_profile: &atlas_domain::SearchProfileId::new("bge-base"),
             text: "",
@@ -898,6 +907,7 @@ fn full_production_artifact_preserves_owned_and_gm_definition_navigation() {
         service.index.reset_read_metrics();
         let result = service
             .search_text(TextSearchRequest {
+                content_scope: atlas_domain::SearchContentScope::All,
                 sort: atlas_domain::ResultSort::Relevance {},
                 ranking: Default::default(),
                 search_profile: None,
@@ -1026,6 +1036,7 @@ fn many_embedded_spell_units_expand_a_fixed_window_without_a_root_score_bonus() 
     let (_dir, service) = service(fixture);
     let result = service
         .similar_records(SimilarRecordRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             search_profile: None,
             record_key: &key("aaaaaaaaaaaaaaaa"),
@@ -1050,6 +1061,7 @@ fn many_embedded_spell_units_expand_a_fixed_window_without_a_root_score_bonus() 
     );
     let page2 = service
         .similar_records(SimilarRecordRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             search_profile: None,
             record_key: &key("aaaaaaaaaaaaaaaa"),
@@ -1076,6 +1088,7 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
     ));
     let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"any_of","children":[{"clause_id":"target","kind":"compare","field":"rarity","op":"eq","value":"common"},{"kind":"compare","field":"rarity","op":"eq","value":"rare"}]})).unwrap();
     let context = FilterDiscoveryContext {
+        content_scope: atlas_domain::SearchContentScope::All,
         search_profile: None,
         text: Some("flame"),
         mode: RetrievalMode::Hybrid,
@@ -1126,6 +1139,7 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
         field: "rarity",
         clause_id: None,
         context: FilterDiscoveryContext {
+            content_scope: atlas_domain::SearchContentScope::All,
             filter: Some(&positive),
             ..context
         },
@@ -1248,6 +1262,7 @@ fn similar_filters_and_verified_remaster_policy_are_preserved() {
     let filtered = service.parse_where("level >= 2").unwrap();
     let result = service
         .similar_records(SimilarRecordRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             search_profile: None,
             record_key: &key("aaaaaaaaaaaaaaaa"),
@@ -1264,6 +1279,7 @@ fn similar_filters_and_verified_remaster_policy_are_preserved() {
     ));
     let result = service
         .similar_records(SimilarRecordRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             search_profile: None,
             record_key: &key("aaaaaaaaaaaaaaaa"),

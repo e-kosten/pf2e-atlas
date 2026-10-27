@@ -743,6 +743,7 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
             .discover_raw_filter_counts(crate::RawFilterCountsRequest {
                 field: "defenses.hp.maximum".into(),
                 context: atlas_app_model::FilterDiscoveryContext::Filtered {
+                    search_content: None,
                     filter: Some(disjunction),
                     text: None,
                     mode: atlas_app_model::RetrievalModeView::Lexical,
@@ -947,6 +948,7 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
     let f = fixture_worker();
     let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"any_of","children":[{"clause_id":"choice","kind":"compare","field":"rarity","op":"eq","value":"rare"},{"kind":"compare","field":"rarity","op":"eq","value":"common"}]})).unwrap();
     let context = FilterDiscoveryContext::Filtered {
+        search_content: None,
         search_profile: None,
         expected_artifact_generation: None,
         filter: Some(predicate),
@@ -1013,6 +1015,7 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
 fn explicit_option_counts_defer_text_without_inference_and_validate_literals_first() {
     let f = fixture_worker();
     let context = FilterDiscoveryContext::Filtered {
+        search_content: None,
         search_profile: None,
         expected_artifact_generation: None,
         filter: None,

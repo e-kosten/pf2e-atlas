@@ -337,69 +337,6 @@ fn section_rendering(
     }))
 }
 
-#[cfg(test)]
-mod section_rendering_tests {
-    use super::*;
-
-    #[test]
-    fn contextual_copy_retains_source_section_and_passage_markers() {
-        use atlas_record::source_content::{ContentInteraction, ContentInteractionLabel};
-        let canonical = "<h2>Breath</h2><p data-atlas-passage-target=\"true\">Deals <span data-atlas-interaction=\"0\">unresolved damage</span>.</p>";
-        let interactions = [ContentInteraction {
-            ordinal: 0,
-            path: "/system/description/value".into(),
-            kind: ContentInteractionKind::Damage {
-                formula: "@actor.level[fire]".into(),
-                options: Default::default(),
-            },
-            label: ContentInteractionLabel::Damage,
-        }];
-        let rendering = contextual_section_rendering(
-            canonical,
-            &interactions,
-            &atlas_record::source_content::FormulaContext {
-                actor_level: Some(7),
-                ..Default::default()
-            },
-        )
-        .unwrap()
-        .unwrap();
-        assert!(rendering.html.contains("7 fire damage"));
-        assert!(rendering.html.contains("data-atlas-source-section=\"0\""));
-        assert!(
-            rendering
-                .html
-                .contains("data-atlas-passage-target=\"true\"")
-        );
-        assert!(canonical.contains("unresolved damage"));
-    }
-
-    #[test]
-    fn plain_rendering_escapes_original_text_and_unavailable_has_no_metadata() {
-        let body = PreparedFieldBodyView::Plain {
-            text: "<rules> & facts".into(),
-        };
-        let rendering = section_rendering(&body).unwrap().unwrap();
-        assert_eq!(
-            rendering.html,
-            "<span data-atlas-source-section=\"0\">&lt;rules&gt; &amp; facts</span>"
-        );
-        assert_eq!(
-            body,
-            PreparedFieldBodyView::Plain {
-                text: "<rules> & facts".into()
-            }
-        );
-        assert!(
-            section_rendering(&PreparedFieldBodyView::Bounded {
-                reason: "bounded".into()
-            })
-            .unwrap()
-            .is_none()
-        );
-    }
-}
-
 /// Rebuild the host namespace from its checked prepared row before composing
 /// inclusions. A participant's values never reach an included foreign record.
 pub(crate) fn resolve_runtime_content(
@@ -494,4 +431,67 @@ pub(crate) fn resolve_runtime_content(
         view.presentation.content.iter_mut(),
         &content.relationships,
     )
+}
+
+#[cfg(test)]
+mod section_rendering_tests {
+    use super::*;
+
+    #[test]
+    fn contextual_copy_retains_source_section_and_passage_markers() {
+        use atlas_record::source_content::{ContentInteraction, ContentInteractionLabel};
+        let canonical = "<h2>Breath</h2><p data-atlas-passage-target=\"true\">Deals <span data-atlas-interaction=\"0\">unresolved damage</span>.</p>";
+        let interactions = [ContentInteraction {
+            ordinal: 0,
+            path: "/system/description/value".into(),
+            kind: ContentInteractionKind::Damage {
+                formula: "@actor.level[fire]".into(),
+                options: Default::default(),
+            },
+            label: ContentInteractionLabel::Damage,
+        }];
+        let rendering = contextual_section_rendering(
+            canonical,
+            &interactions,
+            &atlas_record::source_content::FormulaContext {
+                actor_level: Some(7),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .unwrap();
+        assert!(rendering.html.contains("7 fire damage"));
+        assert!(rendering.html.contains("data-atlas-source-section=\"0\""));
+        assert!(
+            rendering
+                .html
+                .contains("data-atlas-passage-target=\"true\"")
+        );
+        assert!(canonical.contains("unresolved damage"));
+    }
+
+    #[test]
+    fn plain_rendering_escapes_original_text_and_unavailable_has_no_metadata() {
+        let body = PreparedFieldBodyView::Plain {
+            text: "<rules> & facts".into(),
+        };
+        let rendering = section_rendering(&body).unwrap().unwrap();
+        assert_eq!(
+            rendering.html,
+            "<span data-atlas-source-section=\"0\">&lt;rules&gt; &amp; facts</span>"
+        );
+        assert_eq!(
+            body,
+            PreparedFieldBodyView::Plain {
+                text: "<rules> & facts".into()
+            }
+        );
+        assert!(
+            section_rendering(&PreparedFieldBodyView::Bounded {
+                reason: "bounded".into()
+            })
+            .unwrap()
+            .is_none()
+        );
+    }
 }

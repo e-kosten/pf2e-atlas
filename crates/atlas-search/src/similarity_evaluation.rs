@@ -61,6 +61,10 @@ pub struct SimilarityEvaluationResult {
     pub requested_candidates: usize,
     pub eligible_candidates: usize,
     pub candidate_vectors: usize,
+    /// Identity participation in the content-method candidate reads. Baseline
+    /// reads remain separately reported and always retain their native identity.
+    pub content_candidate_identity: bool,
+    pub core_recipe: Option<String>,
     pub baseline_vectors: usize,
     pub pairwise_comparisons: usize,
     pub seed_preparation_ms: f64,
@@ -147,14 +151,21 @@ impl AtlasRetrievalService {
         }
         let seed_units = if let Some(variant) = content {
             let inventory = self.similarity_parts(request.seed, Some(request.profile))?;
-            let selected =
-                super::configurable_similarity::selected_parts(&inventory, &variant.options)?;
+            let selected = super::configurable_similarity::selected_components(
+                &inventory,
+                &variant.options,
+                super::configurable_similarity::resolve_source_sections(&variant.options, None)?,
+            )?;
             let selectors = selected.iter().cloned().collect::<Vec<_>>();
             let mut units = match request.seed {
                 SimilaritySeed::Record { record_key } => self.index.selected_similarity_units(
                     request.profile,
                     std::slice::from_ref(record_key),
                     Some(&selectors),
+                    atlas_domain::SearchContentScope::All,
+                    inventory.parts.iter().any(|component| {
+                        component.is_identity() && selected.contains(component.selector())
+                    }),
                     128,
                 )?,
                 SimilaritySeed::Trait { trait_key } => {
@@ -162,11 +173,13 @@ impl AtlasRetrievalService {
                         .trait_similarity_units(request.profile, trait_key, 128)?
                 }
             };
-            units.retain(|unit| selected.contains(&unit.part.selector));
+            units.retain(|unit| selected.contains(unit.component.selector()));
             if units.is_empty()
-                || selected
-                    .iter()
-                    .any(|selector| !units.iter().any(|unit| &unit.part.selector == selector))
+                || selected.iter().any(|selector| {
+                    !units
+                        .iter()
+                        .any(|unit| unit.component.selector() == selector)
+                })
             {
                 return Err(SearchError::vector_readiness_required(
                     "selected evaluation content has no stored vectors",
@@ -176,7 +189,8 @@ impl AtlasRetrievalService {
         } else {
             vec![]
         };
-        let seed_parts = super::similarity_scoring::parts(&seed_units);
+        let candidate_identity = seed_units.iter().any(|unit| unit.component.is_identity());
+        let seed_parts = super::similarity_scoring::parts(&seed_units)?;
         let mut average_seed_defined = BTreeMap::new();
         for variant in request.variants {
             if let SimilarityOptions::ContentAverage {
@@ -247,6 +261,8 @@ impl AtlasRetrievalService {
             requested_candidates: request.candidate_keys.len(),
             eligible_candidates: eligible.len(),
             candidate_vectors: 0,
+            content_candidate_identity: candidate_identity,
+            core_recipe: candidate_identity.then(|| atlas_domain::CORE_SECTIONS_RECIPE.into()),
             baseline_vectors: 0,
             pairwise_comparisons: 0,
             seed_preparation_ms: started.elapsed().as_secs_f64() * 1000.0,
@@ -262,6 +278,8 @@ impl AtlasRetrievalService {
                     options: v.options.clone(),
                     recipe: if matches!(v.options, SimilarityOptions::Baseline {}) {
                         "current-baseline/v1".into()
+                    } else if candidate_identity {
+                        atlas_domain::SIMILARITY_COMPONENT_RECIPE.into()
                     } else {
                         atlas_domain::SIMILARITY_RECIPE.into()
                     },
@@ -280,7 +298,12 @@ impl AtlasRetrievalService {
             let read_started = Instant::now();
             let baseline = if let Some(vector) = &baseline_vector {
                 self.index
-                    .baseline_similarity_scores(request.profile, &eligible_keys, vector)?
+                    .baseline_similarity_scores(
+                        request.profile,
+                        &eligible_keys,
+                        vector,
+                        atlas_domain::SearchContentScope::All,
+                    )?
                     .into_iter()
                     .map(|(key, score, count)| {
                         result.baseline_vectors += count;
@@ -296,8 +319,13 @@ impl AtlasRetrievalService {
             }
             let read_started = Instant::now();
             let units = if content.is_some() {
-                self.index
-                    .similarity_units(request.profile, &eligible_keys, 100000)?
+                self.index.similarity_units(
+                    request.profile,
+                    &eligible_keys,
+                    atlas_domain::SearchContentScope::All,
+                    candidate_identity,
+                    100000,
+                )?
             } else {
                 vec![]
             };
@@ -320,7 +348,7 @@ impl AtlasRetrievalService {
             for key in keys {
                 request.check()?;
                 let candidate_units = grouped.remove(key).unwrap_or_default();
-                let candidate_parts = super::similarity_scoring::parts(&candidate_units);
+                let candidate_parts = super::similarity_scoring::parts(&candidate_units)?;
                 let mut maxima = BTreeMap::new();
                 for (variant, run) in request.variants.iter().zip(&mut result.runs) {
                     if !eligible.contains(key) {
@@ -389,7 +417,9 @@ impl AtlasRetrievalService {
                                 |pair| {
                                     parts
                                         .iter()
-                                        .find(|part| part.part.selector == pair.seed.part.selector)
+                                        .find(|part| {
+                                            part.part.selector() == pair.seed.component.selector()
+                                        })
                                         .map_or(0.0, |part| part.score * part.weight)
                                 },
                                 3,
@@ -471,7 +501,7 @@ impl AtlasRetrievalService {
                                             .roles
                                             .into_iter()
                                             .map(|role| SimilarityRoleScore {
-                                                role: role.role,
+                                                key: role.key,
                                                 score: role.score,
                                                 weight: role.weight,
                                                 comparable: role.comparable,

@@ -57,6 +57,8 @@ pub struct SourceSearchProfileIdentity {
 #[serde(deny_unknown_fields)]
 pub struct SourceArtifactBuildContext {
     #[serde(default)]
+    pub core_sections_recipe: String,
+    #[serde(default)]
     pub trait_policy: String,
     pub format_version: u32,
     pub snapshot_version: u32,
@@ -270,6 +272,7 @@ mod preparation_tests {
         changed.query_projection_version.push_str("-next");
         changed.lookup_version.push_str("-next");
         changed.lexical_selection_version.push_str("-next");
+        changed.core_sections_recipe.push_str("-next");
         changed.fts_tokenizer.push_str(" changed");
         assert_eq!(
             original.preparation_sha256().unwrap(),

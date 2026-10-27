@@ -42,3 +42,7 @@ ranking plugin framework.
 Lexical version changes rebuild only lexical rows from retained source/content.
 Schema migration adds separate alias rows without changing prior migration checksums.
 Saved state, semantic inputs, vector bytes and model checkpoints are preserved.
+
+[ADR0060](0060-core-sections-and-search-scope.md) restricts these existing rows in
+Core scope. It preserves their vocabulary, postings, BM25 weights and shared
+corpus statistics; descriptive prose remains outside precision FTS.

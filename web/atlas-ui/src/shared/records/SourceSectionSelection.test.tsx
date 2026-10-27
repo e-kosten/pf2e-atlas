@@ -36,13 +36,21 @@ const content: PreparedContentFieldView = {
     html: '<h2 data-atlas-source-section="0">Shared heading</h2><p data-atlas-source-section="0">First prose <a href="https://example.com">Native reference</a></p><h2 data-atlas-source-section="1">Shared heading</h2><p data-atlas-source-section="1">Second prose</p><p data-atlas-source-section="2">No vector prose</p><div class="prepared-inclusion"><p data-atlas-source-section="0">Foreign included prose</p></div>',
   },
 };
-const inventory: SimilarityPartsView = {
+const inventory = {
   artifact_generation: "generation-1",
   search_profile: "bge-base",
   seed: { kind: "record", record_key: location.record },
   role_recipe: "roles/v1",
   supports_corresponding_parts: true,
+  core: {
+    family: "hazard",
+    selectors: ["part-0"],
+    representation: "identity_and_prose",
+    fallback_reason: null,
+    recipe: "core-sections/v1",
+  },
   parts: [0, 1, 2].map((ordinal) => ({
+    kind: "section" as const,
     selector: `part-${ordinal}`,
     label: "Shared heading",
     owner_label: "Source",
@@ -61,7 +69,7 @@ const inventory: SimilarityPartsView = {
       source_fingerprint: "source-1",
     },
   })),
-};
+} satisfies SimilarityPartsView;
 function source(
   selected: string[] | null,
   field = content,
@@ -421,4 +429,34 @@ it("treats a trait definition with several headings as its one canonical part", 
   expect(screen.getByRole("heading", { name: "Second trait heading" })).toHaveClass(
     "source-section-excluded",
   );
+});
+
+it("never paints an identity component as a selected prose section", () => {
+  const current: SimilarityPartsView = {
+    ...inventory,
+    parts: [
+      ...inventory.parts,
+      {
+        kind: "identity",
+        selector: "identity-root",
+        label: "Name and identity",
+        owner_label: "Source",
+        has_vectors: true,
+        navigation: {
+          record_key: location.record,
+          embedded_path: [],
+          field: null,
+          passage: null,
+          source_fingerprint: "source-1",
+        },
+      },
+    ],
+  };
+  const view = render(source(["identity-root"], content, current));
+  const first = screen.getByText(/First prose/);
+  expect(first).not.toHaveClass("source-section-selected");
+  expect(first).toHaveClass("source-section-excluded");
+  view.rerender(source(["identity-root", "part-0"], content, current));
+  expect(first).toHaveClass("source-section-selected");
+  expect(screen.getByText("Second prose")).toHaveClass("source-section-excluded");
 });

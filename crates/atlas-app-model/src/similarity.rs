@@ -1,7 +1,8 @@
 //! Stored-vector similarity controls and selectable source content.
 use atlas_domain::{
-    OwnedContentLocator, SearchProfileId, SimilarityOptions, SimilarityPartSelector,
-    SimilarityRole, SimilaritySeed,
+    CoreSectionSelection, OwnedContentLocator, SearchContentScope, SearchProfileId,
+    SimilarityComparisonKey, SimilarityOptions, SimilarityPartSelector, SimilarityRole,
+    SimilaritySeed, SimilaritySourceSections,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -20,13 +21,20 @@ pub struct SimilarityPartsView {
     pub artifact_generation: String,
     pub search_profile: SearchProfileId,
     pub seed: SimilaritySeed,
-    pub parts: Vec<SimilarityPartView>,
+    pub parts: Vec<SimilarityComponentView>,
+    pub core: CoreSectionSelection,
     pub role_recipe: String,
     pub supports_corresponding_parts: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SimilarityConfigurationView {
+    pub source_sections: Option<SimilaritySourceSections>,
+    pub search_content: SearchContentScope,
+    pub candidate_identity: bool,
+    pub core_recipe: Option<String>,
+    pub resolved_selectors: Vec<SimilarityPartSelector>,
+    pub core: Option<CoreSectionSelection>,
     pub options: SimilarityOptions,
     pub recipe: String,
     pub role_recipe: String,
@@ -60,6 +68,61 @@ pub struct SimilarityPartView {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SimilarityComponentView {
+    Identity {
+        navigation: Option<crate::RecordNavigationView>,
+        selector: SimilarityPartSelector,
+        label: String,
+        owner_label: String,
+        has_vectors: bool,
+    },
+    Section {
+        #[serde(flatten)]
+        part: SimilarityPartView,
+    },
+}
+
+impl SimilarityComponentView {
+    pub fn part(&self) -> Option<&SimilarityPartView> {
+        match self {
+            Self::Identity { .. } => None,
+            Self::Section { part } => Some(part),
+        }
+    }
+    pub fn navigation(&self) -> Option<&crate::RecordNavigationView> {
+        match self {
+            Self::Identity { navigation, .. } => navigation.as_ref(),
+            Self::Section { part } => part.navigation.as_ref(),
+        }
+    }
+    pub fn selector(&self) -> &SimilarityPartSelector {
+        match self {
+            Self::Identity { selector, .. } => selector,
+            Self::Section { part } => &part.selector,
+        }
+    }
+    pub fn label(&self) -> &str {
+        match self {
+            Self::Identity { label, .. } => label,
+            Self::Section { part } => &part.label,
+        }
+    }
+    pub fn owner_label(&self) -> &str {
+        match self {
+            Self::Identity { owner_label, .. } => owner_label,
+            Self::Section { part } => &part.owner_label,
+        }
+    }
+    pub fn has_vectors(&self) -> bool {
+        match self {
+            Self::Identity { has_vectors, .. } => *has_vectors,
+            Self::Section { part } => part.has_vectors,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SimilarityEvidenceView {
     pub truncated: bool,
     pub score: f64,
@@ -74,7 +137,7 @@ pub struct SimilarityEvidenceView {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SimilarityPartScoreView {
-    pub part: SimilarityPartView,
+    pub part: SimilarityComponentView,
     pub score: f64,
     pub weight: f64,
     pub comparable: bool,
@@ -82,7 +145,7 @@ pub struct SimilarityPartScoreView {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SimilarityRoleScoreView {
-    pub role: SimilarityRole,
+    pub key: SimilarityComparisonKey,
     pub role_label: String,
     pub score: f64,
     pub weight: f64,
@@ -132,5 +195,78 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn content_scope_is_search_only_and_legacy_links_keep_omitted_scope() {
+        for value in [
+            json!({"kind":"list_records","filter":null,"search_content":"core"}),
+            json!({"kind":"trait_references","trait_key":"trait:fire","query":null,"filter":null,"search_content":"core"}),
+            json!({"kind":"text_search","query":"fire","filter":null,"mode":"hybrid","source_sections":"core"}),
+        ] {
+            assert!(serde_json::from_value::<crate::SearchCriteria>(value).is_err());
+        }
+        let legacy = serde_json::from_value::<crate::SearchCriteria>(json!({
+            "kind":"text_search","query":"fire","filter":null,"mode":"hybrid"
+        }))
+        .unwrap();
+        assert!(matches!(
+            legacy,
+            crate::SearchCriteria::TextSearch {
+                search_content: None,
+                ..
+            }
+        ));
+        let core = serde_json::from_value::<crate::SearchCriteria>(json!({
+            "kind":"similar_records","seed_record_key":"items:0000000000000000",
+            "filter":null,"source_sections":"core","search_content":"all"
+        }))
+        .unwrap();
+        assert!(matches!(
+            core,
+            crate::SearchCriteria::SimilarRecords {
+                source_sections: Some(SimilaritySourceSections::Core),
+                search_content: Some(SearchContentScope::All),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn component_view_has_flat_fields_and_identity_has_no_fake_prose_metadata() {
+        let section = SimilarityComponentView::Section {
+            part: SimilarityPartView {
+                navigation: None,
+                selector: SimilarityPartSelector("section".into()),
+                label: "Description".into(),
+                owner_label: "Creature".into(),
+                owners: vec![],
+                field: "/system/details/publicNotes".into(),
+                section_ordinal: 0,
+                role: SimilarityRole::Description,
+                role_label: "Description and background".into(),
+                has_vectors: true,
+                label_only: false,
+            },
+        };
+        let wire = serde_json::to_value(&section).unwrap();
+        assert_eq!(wire["kind"], "section");
+        assert_eq!(wire["selector"], "section");
+        assert!(wire.get("part").is_none());
+        assert_eq!(
+            serde_json::from_value::<SimilarityComponentView>(wire).unwrap(),
+            section
+        );
+        let identity = SimilarityComponentView::Identity {
+            navigation: None,
+            selector: SimilarityPartSelector("identity".into()),
+            label: "Name and identity".into(),
+            owner_label: "Creature".into(),
+            has_vectors: true,
+        };
+        let wire = serde_json::to_value(identity).unwrap();
+        for field in ["field", "owners", "section_ordinal", "role", "label_only"] {
+            assert!(wire.get(field).is_none(), "identity contains {field}");
+        }
     }
 }

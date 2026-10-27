@@ -47,6 +47,12 @@ pub enum SearchCriteria {
         #[serde(default)]
         #[ts(optional)]
         similarity: Option<atlas_domain::SimilarityOptions>,
+        #[serde(default)]
+        #[ts(optional)]
+        source_sections: Option<atlas_domain::SimilaritySourceSections>,
+        #[serde(default)]
+        #[ts(optional)]
+        search_content: Option<atlas_domain::SearchContentScope>,
     },
     SimilarTraits {
         seed_trait_key: String,
@@ -54,6 +60,12 @@ pub enum SearchCriteria {
         #[serde(default)]
         #[ts(optional)]
         similarity: Option<atlas_domain::SimilarityOptions>,
+        #[serde(default)]
+        #[ts(optional)]
+        source_sections: Option<atlas_domain::SimilaritySourceSections>,
+        #[serde(default)]
+        #[ts(optional)]
+        search_content: Option<atlas_domain::SearchContentScope>,
     },
     TraitReferences {
         trait_key: String,
@@ -67,6 +79,9 @@ pub enum SearchCriteria {
         query: String,
         filter: Option<QueryPredicate>,
         mode: RetrievalModeView,
+        #[serde(default)]
+        #[ts(optional)]
+        search_content: Option<atlas_domain::SearchContentScope>,
     },
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -91,6 +106,10 @@ pub enum SearchModeSummary {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsPage {
+    pub search_content: atlas_domain::SearchContentScope,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub core_recipe: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub similarity: Option<crate::SimilarityConfigurationView>,

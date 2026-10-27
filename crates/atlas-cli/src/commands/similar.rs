@@ -81,7 +81,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
         return report_app_error(invalid(error), o.json);
     }
     if o.list_parts {
-        let inventory = match app_result(
+        let mut inventory = match app_result(
             service.similarity_parts(
                 SimilarityPartsRequest {
                     seed,
@@ -95,28 +95,46 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
             std::ops::ControlFlow::Continue(value) => value,
             std::ops::ControlFlow::Break(exit) => return Ok(exit),
         };
+        if matches!(o.sections, Some(crate::cli::args::CliSearchContent::Core)) {
+            inventory
+                .parts
+                .retain(|part| inventory.core.selectors.contains(part.selector()));
+        } else if matches!(o.sections, Some(crate::cli::args::CliSearchContent::All)) {
+            inventory.parts.retain(|part| {
+                matches!(
+                    part,
+                    atlas_app_model::SimilarityComponentView::Section { .. }
+                )
+            });
+        }
         if o.json {
             write_json_data(&inventory)?;
         } else {
-            println!("Comparison parts for {}", o.record_ref);
+            println!("Comparison content for {}", o.record_ref);
             println!("Generation: {}", inventory.artifact_generation);
             println!("Model: {}\n", inventory.search_profile);
+            if matches!(o.sections, Some(crate::cli::args::CliSearchContent::Core)) {
+                println!(
+                    "Core selection: {}\n",
+                    core_representation_label(inventory.core.representation)
+                );
+            }
             for part in inventory.parts {
                 println!(
-                    "{} / {} — {}{}",
-                    part.owner_label,
-                    part.label,
-                    part.role.label(),
-                    if part.has_vectors {
+                    "{} / {}{}",
+                    part.owner_label(),
+                    part.label(),
+                    if part.has_vectors() {
                         ""
                     } else {
                         " (vectors unavailable)"
                     }
                 );
-                if part.label_only {
+                if matches!(&part, atlas_app_model::SimilarityComponentView::Section { part } if part.label_only)
+                {
                     println!("  Label only; no definition text");
                 }
-                println!("  --part '{}'", part.selector.0);
+                println!("  --part '{}'", part.selector().0);
             }
             println!(
                 "\nUse --artifact-generation '{}' with explicit parts.",
@@ -127,11 +145,15 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
     }
     let criteria = match seed {
         SimilaritySeed::Record { record_key } => SearchCriteria::SimilarRecords {
+            source_sections: o.sections.map(Into::into),
+            search_content: o.search_content.map(Into::into),
             seed_record_key: record_key.to_string(),
             filter,
             similarity: Some(options),
         },
         SimilaritySeed::Trait { trait_key } => SearchCriteria::SimilarTraits {
+            source_sections: o.sections.map(Into::into),
+            search_content: o.search_content.map(Into::into),
             seed_trait_key: trait_key.to_string(),
             filter,
             similarity: Some(options),
@@ -182,8 +204,11 @@ fn comparison_options(o: &SimilarOptions) -> Result<Option<SimilarityOptions>, A
         CliCandidateParts::Corresponding => SimilarityCandidateParts::Corresponding,
     };
     let method = o.method.or_else(|| {
-        (o.decay.is_some() || parts.is_some() || o.candidate_parts.is_some())
-            .then_some(CliSimilarityMethod::Passages)
+        (o.decay.is_some()
+            || parts.is_some()
+            || o.candidate_parts.is_some()
+            || o.sections.is_some())
+        .then_some(CliSimilarityMethod::Passages)
     });
     let Some(method) = method else {
         return Ok(None);
@@ -206,9 +231,9 @@ fn comparison_options(o: &SimilarOptions) -> Result<Option<SimilarityOptions>, A
             })
         }
         CliSimilarityMethod::Baseline => {
-            if o.decay.is_some() || parts.is_some() || o.candidate_parts.is_some() {
+            if o.decay.is_some() || parts.is_some() || o.candidate_parts.is_some() || o.sections.is_some() {
                 return Err(invalid(
-                    "--method baseline does not accept --decay, --part or --candidate-parts",
+                    "--method baseline does not accept --decay, --part, --sections or --candidate-parts",
                 ));
             }
             Ok(SimilarityOptions::Baseline {})
@@ -273,6 +298,30 @@ fn print_results(result: &SearchResultsPage, explain: bool) {
             }
         };
         println!("{method}; model {}\n", result.search_profile);
+        if let Some(source) = configuration.source_sections {
+            println!(
+                "Source selection: {}",
+                match source {
+                    atlas_domain::SimilaritySourceSections::All => "All prose sections",
+                    atlas_domain::SimilaritySourceSections::Core => "Core sections",
+                    atlas_domain::SimilaritySourceSections::Custom => "Custom selection",
+                }
+            );
+        }
+        println!(
+            "Search content: {}",
+            match configuration.search_content {
+                atlas_domain::SearchContentScope::All => "All sections",
+                atlas_domain::SearchContentScope::Core => "Core sections",
+            }
+        );
+        if let Some(core) = &configuration.core {
+            println!(
+                "Core selection: {}",
+                core_representation_label(core.representation)
+            );
+        }
+        println!();
         if explain && matches!(configuration.options, SimilarityOptions::Baseline {}) {
             println!(
                 "Seed representation: {}",
@@ -313,8 +362,8 @@ fn print_evidence(evidence: &SimilarityEvidenceView, explain: bool) {
         for part in &evidence.parts {
             println!(
                 "  {} / {}: score {:.4}, weight {:.4}{}",
-                part.part.owner_label,
-                part.part.label,
+                part.part.owner_label(),
+                part.part.label(),
                 part.score,
                 part.weight,
                 if part.comparable {
@@ -368,6 +417,17 @@ fn candidate_mode_label(mode: SimilarityCandidateParts) -> &'static str {
     match mode {
         SimilarityCandidateParts::Any => "any candidate content",
         SimilarityCandidateParts::Corresponding => "corresponding parts",
+    }
+}
+
+fn core_representation_label(value: atlas_domain::CoreSectionRepresentation) -> &'static str {
+    match value {
+        atlas_domain::CoreSectionRepresentation::IdentityAndProse => {
+            "Name and identity with Core prose"
+        }
+        atlas_domain::CoreSectionRepresentation::IdentityOnly => "Name and identity only",
+        atlas_domain::CoreSectionRepresentation::TraitDefinition => "Trait definition",
+        atlas_domain::CoreSectionRepresentation::TraitLabelOnly => "Trait label only",
     }
 }
 
@@ -478,6 +538,78 @@ mod tests {
             comparison_options(&explicit).unwrap(),
             Some(SimilarityOptions::Passages { decay, .. }) if decay == 0.75
         ));
+    }
+
+    #[test]
+    fn core_source_and_candidate_scope_are_independent_and_discovery_is_strict() {
+        let trait_seed = SimilaritySeed::Trait {
+            trait_key: "trait:fire".parse().unwrap(),
+        };
+        let candidate_only = parse(&["atlas", "similar", "trait:fire", "--search-content", "core"]);
+        assert_eq!(
+            comparison_options(&candidate_only)
+                .unwrap()
+                .unwrap_or_else(|| SimilarityOptions::default_for_seed(&trait_seed)),
+            SimilarityOptions::Baseline {}
+        );
+        let source = parse(&[
+            "atlas",
+            "similar",
+            "Lich",
+            "--sections",
+            "core",
+            "--search-content",
+            "all",
+        ]);
+        assert!(matches!(
+            comparison_options(&source).unwrap(),
+            Some(SimilarityOptions::Passages { .. })
+        ));
+        let baseline = parse(&[
+            "atlas",
+            "similar",
+            "Lich",
+            "--method",
+            "baseline",
+            "--sections",
+            "all",
+        ]);
+        assert!(comparison_options(&baseline).is_err());
+        assert!(
+            parse(&[
+                "atlas",
+                "similar",
+                "Lich",
+                "--list-parts",
+                "--sections",
+                "core"
+            ])
+            .list_parts
+        );
+        for flags in [
+            vec!["--sections", "core", "--part", "selector"],
+            vec!["--list-parts", "--search-content", "core"],
+            vec!["--list-parts", "--decay", "0.5"],
+        ] {
+            assert!(
+                Cli::try_parse_from(["atlas", "similar", "Lich"].into_iter().chain(flags)).is_err()
+            );
+        }
+        assert!(Cli::try_parse_from(["atlas", "search", "--search-content", "core"]).is_err());
+        assert!(
+            Cli::try_parse_from(["atlas", "search", "fire", "--search-content", "core"]).is_ok()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "atlas",
+                "search",
+                "fire",
+                "--search-content",
+                "core",
+                "--print-filter"
+            ])
+            .is_err()
+        );
     }
 
     #[test]

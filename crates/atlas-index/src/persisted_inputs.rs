@@ -89,8 +89,11 @@ fn read_selected_persisted_inputs(
         ));
     }
     let preparation_hash = context.preparation_sha256()?;
-    let mut statement = c.prepare("SELECT r.record_id,r.key,r.pack_id,r.source_path,r.content_hash,b.codec_version,b.encoding,b.snapshot FROM records r JOIN record_bodies b USING(record_id) WHERE (?1 IS NULL OR r.key=?1) ORDER BY r.record_id")?;
-    let mut rows = statement.query([key.map(ToString::to_string)])?;
+    let mut statement = c.prepare_cached(record_input_sql(key.is_some()))?;
+    let mut rows = match key {
+        Some(key) => statement.query([key.to_string()])?,
+        None => statement.query([])?,
+    };
     let mut inputs = Vec::new();
     while let Some(row) = rows.next()? {
         let id: i64 = row.get(0)?;
@@ -246,4 +249,58 @@ fn read_selected_persisted_inputs(
         });
     }
     Ok(inputs)
+}
+
+fn record_input_sql(selected: bool) -> &'static str {
+    // An optional-key OR predicate prevents SQLite from using the unique key
+    // index, turning bounded metadata backfills into one corpus scan per root.
+    if selected {
+        "SELECT r.record_id,r.key,r.pack_id,r.source_path,r.content_hash,b.codec_version,b.encoding,b.snapshot FROM records r JOIN record_bodies b USING(record_id) WHERE r.key=?1 ORDER BY r.record_id"
+    } else {
+        "SELECT r.record_id,r.key,r.pack_id,r.source_path,r.content_hash,b.codec_version,b.encoding,b.snapshot FROM records r JOIN record_bodies b USING(record_id) ORDER BY r.record_id"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn selected_checked_input_uses_key_lookup_instead_of_a_corpus_scan() {
+        let input = crate::foundation_tests::fixture(false);
+        let (_directory, path) = crate::foundation_tests::build(&input);
+        let connection = rusqlite::Connection::open(&path).unwrap();
+        let plan = connection
+            .prepare(&format!(
+                "EXPLAIN QUERY PLAN {}",
+                super::record_input_sql(true)
+            ))
+            .unwrap()
+            .query_map([input.records[0].record.key().to_string()], |row| {
+                row.get::<_, String>(3)
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(
+            plan.iter()
+                .any(|step| step.starts_with("SEARCH r ") && step.contains("key=?")),
+            "{plan:?}"
+        );
+        assert!(
+            !plan.iter().any(|step| step.starts_with("SCAN r")),
+            "{plan:?}"
+        );
+        let expected = crate::read_persisted_inputs(&connection, &input.context).unwrap();
+        let selected =
+            super::read_persisted_input(&connection, &input.context, input.records[0].record.key())
+                .unwrap()
+                .unwrap();
+        assert_eq!(selected.record, expected[0].record);
+        assert_eq!(selected.content, expected[0].content);
+        let missing = "actors:zzzzzzzzzzzzzzzz".parse().unwrap();
+        assert!(
+            super::read_persisted_input(&connection, &input.context, &missing)
+                .unwrap()
+                .is_none()
+        );
+    }
 }

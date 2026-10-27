@@ -25,7 +25,7 @@ impl AtlasAppService {
                 .parts
                 .into_iter()
                 .map(|part| {
-                    part_view(
+                    component_view(
                         part,
                         &inventory.seed,
                         &addresses,
@@ -42,6 +42,7 @@ impl AtlasAppService {
                 search_profile: profile,
                 seed: inventory.seed,
                 parts,
+                core: inventory.core,
                 role_recipe: inventory.role_recipe,
             })
         })
@@ -149,6 +150,12 @@ pub(crate) fn configured_results(
         mode,
         results,
         atlas_app_model::SimilarityConfigurationView {
+            source_sections: result.source_sections,
+            search_content: result.content_scope,
+            candidate_identity: result.candidate_identity,
+            core_recipe: result.core_recipe,
+            resolved_selectors: result.resolved_selectors,
+            core: result.core,
             options: result.effective,
             recipe: result.recipe,
             role_recipe: result.role_recipe,
@@ -180,7 +187,7 @@ fn evidence_view(
             .parts
             .into_iter()
             .map(|part| atlas_app_model::SimilarityPartScoreView {
-                part: part_view(part.part, seed, addresses, fingerprint),
+                part: component_view(part.part, seed, addresses, fingerprint),
                 score: part.score,
                 weight: part.weight,
                 comparable: part.comparable,
@@ -190,8 +197,8 @@ fn evidence_view(
             .roles
             .into_iter()
             .map(|role| atlas_app_model::SimilarityRoleScoreView {
-                role: role.role,
-                role_label: role.role.label().into(),
+                key: role.key,
+                role_label: role.key.label().into(),
                 score: role.score,
                 weight: role.weight,
                 comparable: role.comparable,
@@ -226,6 +233,48 @@ fn part_addresses(
         SimilaritySeed::Record { record_key } => retrieval.similarity_part_addresses(record_key)?,
         SimilaritySeed::Trait { .. } => Default::default(),
     })
+}
+
+fn component_view(
+    component: atlas_domain::SimilarityComponent,
+    seed: &SimilaritySeed,
+    addresses: &PartAddresses,
+    fingerprint: &str,
+) -> atlas_app_model::SimilarityComponentView {
+    match component {
+        atlas_domain::SimilarityComponent::Identity {
+            selector,
+            label,
+            owner_label,
+            has_vectors,
+        } => {
+            let navigation = match seed {
+                SimilaritySeed::Record { record_key } => {
+                    Some(atlas_app_model::RecordNavigationView {
+                        spell_rank: None,
+                        record_key: record_key.to_string(),
+                        owners: vec![],
+                        field: None,
+                        passage: Some(atlas_domain::SourcePassageAddress::Identity {}),
+                        source_fingerprint: None,
+                    })
+                }
+                SimilaritySeed::Trait { .. } => None,
+            };
+            atlas_app_model::SimilarityComponentView::Identity {
+                navigation,
+                selector,
+                label,
+                owner_label,
+                has_vectors,
+            }
+        }
+        atlas_domain::SimilarityComponent::Section { part } => {
+            atlas_app_model::SimilarityComponentView::Section {
+                part: part_view(part, seed, addresses, fingerprint),
+            }
+        }
+    }
 }
 
 fn part_view(
@@ -310,6 +359,8 @@ mod tests {
             atlas_search::ConfigurableSimilarRequest {
                 seed: &seed,
                 options: &options,
+                source_sections: None,
+                content_scope: atlas_domain::SearchContentScope::All,
                 search_profile: None,
                 filter: None,
                 scope: atlas_search::RecordScope::All,

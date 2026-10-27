@@ -22,7 +22,9 @@ import {
 import { SlidersHorizontal } from "lucide-react";
 import type {
   SearchRanking,
-  SimilarityPartView,
+  SimilarityComponentView,
+  SearchContentScope,
+  SimilaritySourceSections,
   SimilaritySeed,
 } from "../../generated/atlas";
 import {
@@ -30,7 +32,7 @@ import {
   UNKNOWN_SEARCH_RANKING,
   type SearchFormState,
 } from "../filters/searchState";
-import { AtlasApiError, getSimilarityParts } from "../../api/atlasApi";
+import { getSimilarityParts } from "../../api/atlasApi";
 import { useSearchProfile } from "./SearchProfileContext";
 import {
   DEFAULT_SIMILARITY_PREFERENCES,
@@ -50,12 +52,15 @@ import {
   SimilaritySourceDocument,
   type SimilaritySourceTarget,
 } from "./SimilaritySourceDocument";
+import { assertSimilarityInventoryIdentity } from "./searchIdentity";
 import { HelpTooltip } from "../ui/HelpTooltip";
 
 type SettingsDraft = {
   seedIdentity: string;
   model: string | null;
   ranking: SearchRanking;
+  searchContent: SearchContentScope;
+  sourceSections: SimilaritySourceSections;
   showSimilarityDetails: boolean;
   showSmallerWeights: boolean;
   similarity: SimilarityPreferences;
@@ -96,6 +101,9 @@ export function SearchSettings({
   );
   const appliedParts = selectedSimilarityParts(appliedSimilarity);
   const ranking = search.ranking ?? profile.preferences.ranking;
+  const appliedSourceSections =
+    search.sourceSections ?? (appliedParts ? "custom" : "all");
+  const searchContent = search.searchContent ?? "all";
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
   const [partsOpen, setPartsOpen] = useState(false);
   const [sourceVisited, setSourceVisited] = useState(false);
@@ -119,7 +127,7 @@ export function SearchSettings({
       draft !== null &&
       seed !== null &&
       draft.similarity.method !== "baseline" &&
-      (partsOpen || draft.parts !== null) &&
+      (partsOpen || draft.sourceSections !== "all" || draft.parts !== null) &&
       draft.model !== null,
     staleTime: Infinity,
     queryFn: async ({ signal }) => {
@@ -133,18 +141,12 @@ export function SearchSettings({
         },
         signal,
       );
-      if (
-        JSON.stringify(value.seed) !== JSON.stringify(seed) ||
-        value.search_profile !== draft!.model
-      )
-        throw new Error("The comparison sections do not match this source. Retry.");
-      const expected = reloadInventory ? null : (draft!.generation ?? generation);
-      if (expected && value.artifact_generation !== expected)
-        throw new AtlasApiError(409, "The reference collection changed.", {
-          code: "artifact_generation_changed",
-          message: "The reference collection changed.",
-          recoverable_action: "refresh_results",
-        });
+      assertSimilarityInventoryIdentity(
+        value,
+        seed!,
+        draft!.model!,
+        reloadInventory ? null : (draft!.generation ?? generation),
+      );
       return value;
     },
   });
@@ -157,7 +159,24 @@ export function SearchSettings({
   }
   const allParts = inventory.data?.parts ?? [];
   const available = allParts.filter((part) => part.has_vectors);
-  const selectedCount = draft?.parts === null ? available.length : draft?.parts.length;
+  const selectedParts =
+    draft?.sourceSections === "core"
+      ? (inventory.data?.core.selectors ?? [])
+      : draft?.sourceSections === "all"
+        ? available
+            .filter((part) => part.kind === "section")
+            .map((part) => part.selector)
+        : (draft?.parts ?? []);
+  const selectedCount = selectedParts.length;
+  const missingCore =
+    draft?.sourceSections === "core" &&
+    inventory.data !== undefined &&
+    selectedParts.some(
+      (selector) => !available.some((part) => part.selector === selector),
+    );
+  const identitySelected = allParts.some(
+    (part) => part.kind === "identity" && selectedParts.includes(part.selector),
+  );
   const usesParts = draft !== null && draft.similarity.method !== "baseline";
   const showingSource = Boolean(seed && usesParts && partsOpen);
   if (
@@ -181,9 +200,11 @@ export function SearchSettings({
   const sourceIdentity = JSON.stringify([seed, sourceGeneration]);
   const [targetIdentity, setTargetIdentity] = useState<string | null>(null);
   const currentTarget = targetIdentity === sourceIdentity ? sourceTarget : null;
-  const invalidParts = usesParts && draft?.parts?.length === 0;
+  const invalidParts =
+    usesParts && draft?.sourceSections === "custom" && draft.parts?.length === 0;
   const staleParts =
     usesParts &&
+    draft?.sourceSections === "custom" &&
     draft?.parts !== null &&
     draft?.parts !== undefined &&
     inventory.data !== undefined &&
@@ -193,7 +214,7 @@ export function SearchSettings({
   const uncheckedParts =
     draft !== null &&
     draft.similarity.method !== "baseline" &&
-    draft.parts !== null &&
+    draft.sourceSections !== "all" &&
     (inventoryRetired ||
       !inventory.data ||
       inventory.isFetching ||
@@ -216,9 +237,11 @@ export function SearchSettings({
         ? "Rank-based ranking"
         : "Score-based ranking",
     seed && appliedSimilarity.method !== "baseline"
-      ? appliedParts
-        ? `${appliedParts.length} selected ${appliedParts.length === 1 ? "section" : "sections"}`
-        : "All sections"
+      ? appliedSourceSections === "core"
+        ? "Core sections"
+        : appliedParts
+          ? `${appliedParts.length} selections`
+          : "All sections"
       : null,
   ]
     .filter(Boolean)
@@ -227,14 +250,16 @@ export function SearchSettings({
     setSourceView("sections");
     setSourceTarget(null);
     setSourceSnapshot(null);
-    setPartsOpen(appliedParts !== null);
-    setSourceVisited(appliedParts !== null);
+    setPartsOpen(appliedParts !== null || appliedSourceSections === "core");
+    setSourceVisited(appliedParts !== null || appliedSourceSections === "core");
     setReloadInventory(0);
     setSourceRetired(false);
     setDraft({
       seedIdentity,
       model: profile.id,
       ranking,
+      searchContent,
+      sourceSections: appliedSourceSections,
       showSimilarityDetails: profile.preferences.showSimilarityDetails,
       showSmallerWeights: profile.preferences.showSmallerWeights,
       similarity: appliedPreferences,
@@ -263,13 +288,18 @@ export function SearchSettings({
       !draft?.model ||
       !validModel ||
       invalidParts ||
+      missingCore ||
       staleParts ||
       uncheckedParts ||
       invalidDecay
     )
       return;
     const nextSimilarity = seed
-      ? similarityFromPreferences(draft.similarity, trait, draft.parts)
+      ? similarityFromPreferences(
+          draft.similarity,
+          trait,
+          draft.sourceSections === "custom" ? draft.parts : null,
+        )
       : search.similarity;
     const presentationOnly =
       (draft.showSimilarityDetails !== profile.preferences.showSimilarityDetails ||
@@ -277,6 +307,8 @@ export function SearchSettings({
       !search.filterError &&
       draft.model === profile.id &&
       draft.ranking === ranking &&
+      draft.searchContent === searchContent &&
+      draft.sourceSections === appliedSourceSections &&
       draft.similarity.method === appliedPreferences.method &&
       draft.similarity.decay === appliedPreferences.decay &&
       draft.similarity.candidateParts === appliedPreferences.candidateParts &&
@@ -285,6 +317,16 @@ export function SearchSettings({
     const nextPreferences = {
       ...profile.preferences,
       model: draft.model,
+      searchContent: draft.searchContent,
+      sourceSectionsByFamily:
+        inventory.data &&
+        draft.sourceSections !== "custom" &&
+        draft.similarity.method !== "baseline"
+          ? {
+              ...profile.preferences.sourceSectionsByFamily,
+              [inventory.data.core.family]: draft.sourceSections,
+            }
+          : profile.preferences.sourceSectionsByFamily,
       showSimilarityDetails: draft.showSimilarityDetails,
       showSmallerWeights: draft.showSmallerWeights,
       ...(seed
@@ -299,11 +341,17 @@ export function SearchSettings({
         {
           ...search,
           ranking: seed ? search.ranking : draft.ranking,
+          searchContent: draft.searchContent,
           ...(seed
             ? {
                 similarity: nextSimilarity,
+                sourceSections:
+                  nextSimilarity?.method === "baseline"
+                    ? undefined
+                    : draft.sourceSections,
                 similarityGeneration:
-                  nextSimilarity?.method !== "baseline" && draft.parts !== null
+                  nextSimilarity?.method !== "baseline" &&
+                  draft.sourceSections === "custom"
                     ? (draft.generation ?? inventory.data?.artifact_generation)
                     : undefined,
               }
@@ -329,9 +377,13 @@ export function SearchSettings({
   if (draft?.model && !modelOptions.some((item) => item.value === draft.model))
     modelOptions.push({ value: draft.model, label: draft.model, disabled: true });
   const selectionSummary =
-    draft?.parts === null
-      ? "All sections"
-      : `${draft?.parts.length ?? 0} selected ${draft?.parts.length === 1 ? "section" : "sections"}`;
+    draft?.sourceSections === "core"
+      ? "Core sections"
+      : draft?.sourceSections === "all"
+        ? "All sections"
+        : identitySelected
+          ? `${selectedCount} selections`
+          : `${selectedCount} selected ${selectedCount === 1 ? "section" : "sections"}`;
   const sourcePossessive = seedTitle ? `${seedTitle}’s` : "the record’s";
   const partsHelp = `Choose which sections of this ${trait ? "trait" : "record"} to use when finding similar records.`;
   const methodHelp =
@@ -383,6 +435,8 @@ export function SearchSettings({
                         ...current,
                         model: profile.defaultId,
                         ranking: "score",
+                        searchContent: "all",
+                        sourceSections: "all",
                         showSimilarityDetails: false,
                         showSmallerWeights: false,
                         similarity: trait
@@ -408,6 +462,7 @@ export function SearchSettings({
             !draft?.model ||
             !validModel ||
             invalidParts ||
+            missingCore ||
             staleParts ||
             uncheckedParts ||
             invalidDecay,
@@ -475,6 +530,28 @@ export function SearchSettings({
                       />
                     </Form.Item>
                   )}
+                  <Form.Item
+                    label={
+                      <SettingLabel
+                        label="Search content"
+                        help="Limits content matches to core sections chosen for each record kind. Names and identifying information remain searchable."
+                      />
+                    }
+                    htmlFor={`${id}-content`}
+                  >
+                    <Select
+                      id={`${id}-content`}
+                      aria-label="Search content"
+                      value={draft.searchContent}
+                      options={[
+                        { value: "all", label: "All sections" },
+                        { value: "core", label: "Core sections" },
+                      ]}
+                      onChange={(searchContent) =>
+                        setDraft({ ...draft, searchContent })
+                      }
+                    />
+                  </Form.Item>
                   {!seed ? (
                     <Form.Item
                       label={
@@ -524,6 +601,64 @@ export function SearchSettings({
                           }
                         />
                       </Form.Item>
+                      {draft.similarity.method !== "baseline" && (
+                        <Form.Item
+                          label={
+                            <SettingLabel
+                              label="Source sections"
+                              help="All sections uses the document’s available sections. Core sections includes name and identity with a focused selection for this record kind. Custom lets you choose."
+                            />
+                          }
+                          htmlFor={`${id}-sections`}
+                        >
+                          <Select
+                            id={`${id}-sections`}
+                            aria-label="Source sections"
+                            value={draft.sourceSections}
+                            options={[
+                              { value: "all", label: "All sections" },
+                              { value: "core", label: "Core sections" },
+                              { value: "custom", label: "Custom" },
+                            ]}
+                            onChange={(sourceSections: SimilaritySourceSections) => {
+                              setDraft({
+                                ...draft,
+                                sourceSections,
+                                parts:
+                                  sourceSections === "custom" ? selectedParts : null,
+                                generation:
+                                  sourceSections === "custom"
+                                    ? inventory.data?.artifact_generation
+                                    : undefined,
+                              });
+                              if (sourceSections !== "all") {
+                                setPartsOpen(true);
+                                setSourceVisited(true);
+                              }
+                            }}
+                          />
+                          {draft.sourceSections === "core" &&
+                            inventory.data?.core.representation === "identity_only" && (
+                              <Typography.Text type="secondary">
+                                <SettingLabel
+                                  label="Name and identity only"
+                                  help={
+                                    inventory.data.core.fallback_reason ===
+                                    "unmodelled_kind"
+                                      ? "Core sections aren’t defined for this record kind."
+                                      : "This record has no available core sections."
+                                  }
+                                />
+                              </Typography.Text>
+                            )}
+                          {missingCore && (
+                            <Typography.Paragraph type="danger" role="alert">
+                              Some core content is unavailable for this model. Choose
+                              another model or update the collection.
+                            </Typography.Paragraph>
+                          )}
+                        </Form.Item>
+                      )}
                       {draft.similarity.method === "passages" && (
                         <Form.Item
                           label={
@@ -585,13 +720,23 @@ export function SearchSettings({
                             />
                           </div>
                           <div className="search-settings__scale">
-                            <span>Strongest section</span>
-                            <span>All sections equally</span>
+                            <span>
+                              {identitySelected
+                                ? "Strongest match"
+                                : "Strongest section"}
+                            </span>
+                            <span>
+                              {identitySelected
+                                ? "All selections equally"
+                                : "All sections equally"}
+                            </span>
                           </div>
                           {!invalidDecay && (
                             <Typography.Text type="secondary">
                               {selectedCount === 1
-                                ? "One section selected; decay has no effect."
+                                ? identitySelected
+                                  ? "One selection; decay has no effect."
+                                  : "One section selected; decay has no effect."
                                 : `Contributions: 1, ${Number(draft.similarity.decay.toFixed(4))}, ${Number((draft.similarity.decay ** 2).toFixed(4))}…`}
                             </Typography.Text>
                           )}
@@ -647,15 +792,17 @@ export function SearchSettings({
                                   {inventory.data && (
                                     <>
                                       <Checkbox
-                                        checked={draft.parts === null}
+                                        checked={draft.sourceSections === "all"}
                                         indeterminate={
-                                          draft.parts !== null &&
-                                          draft.parts.length > 0 &&
-                                          draft.parts.length < available.length
+                                          draft.sourceSections !== "all" &&
+                                          selectedParts.length > 0
                                         }
                                         onChange={(event) =>
                                           setDraft({
                                             ...draft,
+                                            sourceSections: event.target.checked
+                                              ? "all"
+                                              : "custom",
                                             parts: event.target.checked ? null : [],
                                             generation:
                                               inventory.data.artifact_generation,
@@ -676,11 +823,12 @@ export function SearchSettings({
                                           setTargetIdentity(sourceIdentity);
                                           setSourceView("document");
                                         }}
-                                        selected={draft.parts}
+                                        selected={selectedParts}
                                         onChange={(parts) =>
                                           setDraft({
                                             ...draft,
                                             parts,
+                                            sourceSections: "custom",
                                             generation:
                                               inventory.data.artifact_generation,
                                           })
@@ -696,7 +844,10 @@ export function SearchSettings({
                                             : "Select at least one section."}
                                         </Typography.Paragraph>
                                       )}
-                                      {allParts.some((part) => part.label_only) && (
+                                      {allParts.some(
+                                        (part) =>
+                                          part.kind === "section" && part.label_only,
+                                      ) && (
                                         <Typography.Paragraph type="secondary">
                                           This trait has no definition text; comparison
                                           uses its label.
@@ -775,7 +926,7 @@ export function SearchSettings({
                       label={
                         <SettingLabel
                           label="Show smaller weights"
-                          help="Includes rows whose weight rounds to 0.0%. All sections still contribute to ranking."
+                          help="Includes rows whose weight rounds to 0.0%. All selections still contribute to ranking."
                         />
                       }
                       htmlFor={`${id}-smaller-weights`}
@@ -798,7 +949,15 @@ export function SearchSettings({
                   hidden={!showingSource || (!wide && sourceView !== "document")}
                 >
                   <p className="search-settings__comparison-key">
-                    Only highlighted sections are used for comparison.
+                    {identitySelected
+                      ? allParts.some(
+                          (part) =>
+                            part.kind === "section" &&
+                            selectedParts.includes(part.selector),
+                        )
+                        ? "Name and identity and the highlighted sections are used for comparison."
+                        : "Only name and identity are used for comparison."
+                      : "Only highlighted sections are used for comparison."}
                   </p>
                   {sourceVisited &&
                     sourceGeneration !== null &&
@@ -814,7 +973,11 @@ export function SearchSettings({
                           !inventoryRetired &&
                           !inventory.isFetching &&
                           inventory.error === null
-                            ? { inventory: inventory.data, selected: draft.parts }
+                            ? {
+                                inventory: inventory.data,
+                                selected:
+                                  draft.sourceSections === "all" ? null : selectedParts,
+                              }
                             : null
                         }
                         active={showingSource && (wide || sourceView === "document")}
@@ -864,14 +1027,14 @@ function PartChoices({
   seed,
 }: {
   seed: SimilaritySeed;
-  onReference: (part: SimilarityPartView, opener: HTMLElement) => void;
-  parts: SimilarityPartView[];
+  onReference: (part: SimilarityComponentView, opener: HTMLElement) => void;
+  parts: SimilarityComponentView[];
   selected: string[] | null;
   onChange: (parts: string[] | null) => void;
 }) {
-  const groups = new Map<string, { label: string; parts: SimilarityPartView[] }>();
+  const groups = new Map<string, { label: string; parts: SimilarityComponentView[] }>();
   for (const part of parts) {
-    const key = JSON.stringify(part.owners);
+    const key = part.kind === "identity" ? "identity" : JSON.stringify(part.owners);
     const group = groups.get(key);
     if (group) group.parts.push(part);
     else groups.set(key, { label: part.owner_label || "Main entry", parts: [part] });
@@ -884,7 +1047,7 @@ function PartChoices({
     for (const selector of selectors)
       if (checked) next.add(selector);
       else next.delete(selector);
-    onChange(next.size === available.length ? null : [...next]);
+    onChange([...next]);
   }
   return (
     <div className="search-settings__parts">
@@ -934,9 +1097,13 @@ function PartChoices({
                         onReference(part, event.currentTarget);
                       }}
                     >
-                      {singleSection ? owner : part.label}
+                      {part.kind === "identity"
+                        ? part.label
+                        : singleSection
+                          ? owner
+                          : part.label}
                     </Typography.Link>
-                    {singleSection && (
+                    {singleSection && part.kind === "section" && (
                       <>
                         {" "}
                         <Typography.Text type="secondary">{part.label}</Typography.Text>

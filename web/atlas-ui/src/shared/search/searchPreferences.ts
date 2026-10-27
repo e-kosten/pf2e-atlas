@@ -1,4 +1,8 @@
-import type { SearchRanking } from "../../generated/atlas";
+import type {
+  CoreSectionFamily,
+  SearchContentScope,
+  SearchRanking,
+} from "../../generated/atlas";
 
 export const SEARCH_PREFERENCES_KEY = "atlas.search.preferences.v1";
 export const LEGACY_SEARCH_PROFILE_KEY = "atlas.search.profile.v1";
@@ -14,6 +18,8 @@ export type SearchPreferences = {
   version: 1;
   model: string | null;
   ranking: SearchRanking;
+  searchContent: SearchContentScope;
+  sourceSectionsByFamily: Partial<Record<CoreSectionFamily, "all" | "core">>;
   showSimilarityDetails: boolean;
   showSmallerWeights: boolean;
   recordSimilarity: SimilarityPreferences;
@@ -33,6 +39,8 @@ export const DEFAULT_SEARCH_PREFERENCES: SearchPreferences = {
   version: 1,
   model: null,
   ranking: "score",
+  searchContent: "all",
+  sourceSectionsByFamily: {},
   showSimilarityDetails: false,
   showSmallerWeights: false,
   recordSimilarity: DEFAULT_SIMILARITY_PREFERENCES,
@@ -80,6 +88,12 @@ export function readSearchPreferences(): SearchPreferences {
         version: 1,
         model: typeof input.model === "string" ? input.model : null,
         ranking: input.ranking === "rrf" ? "rrf" : "score",
+        searchContent: input.searchContent === "core" ? "core" : "all",
+        sourceSectionsByFamily: Object.fromEntries(
+          Object.entries(object(input.sourceSectionsByFamily) ?? {}).filter(
+            ([, value]) => value === "all" || value === "core",
+          ),
+        ),
         showSimilarityDetails: input.showSimilarityDetails === true,
         showSmallerWeights: input.showSmallerWeights === true,
         recordSimilarity: similarity(input.recordSimilarity),

@@ -71,3 +71,7 @@ options supplied to the CLI without a method select Passage matches.
 
 Ordinary hybrid search fusion, structured filters, authored section boundaries
 and exact trait membership/reference workflows are unchanged.
+
+[ADR0060](0060-core-sections-and-search-scope.md) adds independent Core source and
+result choices and a typed identity component for those new requests. Legacy
+All/prose-only comparisons retain this decision's representation and scoring.

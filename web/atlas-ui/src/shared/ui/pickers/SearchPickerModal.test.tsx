@@ -50,6 +50,7 @@ function result(
   profile = "bge-base",
 ): SearchResultsPage {
   return {
+    search_content: "all",
     sort: {
       kind: "attributes",
       rules: [{ field: "name", direction: "asc" }],

@@ -6,9 +6,17 @@ use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas search --kind spell --trait healing\n  atlas search 'Ghoul Fever' --retrieval fts --json\n  atlas search --where 'defenses.hp.maximum >= 80 && \"undead\" in traits'\n  atlas search --links-to \"Leather Armor\" --kind creature\n  atlas search --where 'links_to(\"equipment-srd:KEY\") || linked_from(\"bestiary:KEY\", \"main_entry\")'\n  atlas filters fields"
+    after_help = "Examples:\n  atlas search --kind spell --trait healing\n  atlas search 'Ghoul Fever' --retrieval fts --json\n  atlas search fire --search-content core\n  atlas search --where 'defenses.hp.maximum >= 80 && \"undead\" in traits'\n  atlas search --links-to \"Leather Armor\" --kind creature\n  atlas search --where 'links_to(\"equipment-srd:KEY\") || linked_from(\"bestiary:KEY\", \"main_entry\")'\n  atlas filters fields"
 )]
 pub(crate) struct SearchOptions {
+    #[arg(
+        long,
+        value_enum,
+        requires = "query",
+        conflicts_with = "print_filter",
+        help = "Search all content or only Core sections chosen for each record kind (default all)"
+    )]
+    pub(crate) search_content: Option<crate::cli::args::CliSearchContent>,
     #[arg(
         long,
         help = "Result order: relevance, random or repeat name_asc/name_desc, level_asc/level_desc, unit_price_asc/unit_price_desc"

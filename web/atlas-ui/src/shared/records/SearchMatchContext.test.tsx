@@ -85,7 +85,7 @@ it("shows similarity coverage, contributions, caveats and both exact passage des
   });
   const context = screen.getByRole("region", { name: "Similarity comparison" });
   expect(
-    within(context).getByText("1 of 2 selected sections have comparable content."),
+    within(context).getByText("1 of 2 selections have comparable content."),
   ).toBeVisible();
   expect(within(context).getByRole("table")).toHaveTextContent("Description");
   expect(within(context).getByRole("table")).toHaveTextContent(
@@ -187,7 +187,7 @@ it.each(["parts", "roles"] as const)(
     const weights = [0.99901, 0.00049, 0.0005];
     const labels = ["Largest", "Smaller", "Visible boundary"];
     const roles = weights.map((weight, index) => ({
-      role: "description" as const,
+      key: { kind: "role" as const, role: "description" as const },
       role_label: labels[index],
       weight,
       score: 0.8,
@@ -196,13 +196,17 @@ it.each(["parts", "roles"] as const)(
     if (kind === "roles")
       similarity.roles = roles.map((role, index) => ({
         ...role,
-        role: (["description", "ability", "reset"] as const)[index],
+        key: {
+          kind: "role",
+          role: (["description", "ability", "reset"] as const)[index],
+        },
       }));
     else {
       similarity.roles = [];
       similarity.parts = roles.map((role, index) => ({
         ...role,
         part: {
+          kind: "section",
           selector: `part-${index}`,
           label: labels[index],
           owner_label: "Source",
@@ -226,7 +230,7 @@ it.each(["parts", "roles"] as const)(
     expect(screen.queryByText("0.0%")).toBeNull();
     expect(screen.getByText("1 smaller weight hidden.")).toBeVisible();
     expect(
-      screen.getByText("1 of 2 selected sections have comparable content."),
+      screen.getByText("1 of 2 selections have comparable content."),
     ).toBeVisible();
     view.rerender(<SearchMatchContext {...props} showSmallerWeights />);
     expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(4);

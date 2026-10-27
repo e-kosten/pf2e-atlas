@@ -405,3 +405,11 @@ export type { ContentRollComponentResultView } from "../../../../crates/atlas-ap
 
 export type { ContentRollPresentationView } from "../../../../crates/atlas-app-model/bindings/ContentRollPresentationView";
 export type { RollUnitView } from "../../../../crates/atlas-app-model/bindings/RollUnitView";
+export type { CoreFallbackReason } from "../../../../crates/atlas-app-model/bindings/CoreFallbackReason";
+export type { CoreSectionFamily } from "../../../../crates/atlas-app-model/bindings/CoreSectionFamily";
+export type { CoreSectionRepresentation } from "../../../../crates/atlas-app-model/bindings/CoreSectionRepresentation";
+export type { CoreSectionSelection } from "../../../../crates/atlas-app-model/bindings/CoreSectionSelection";
+export type { SearchContentScope } from "../../../../crates/atlas-app-model/bindings/SearchContentScope";
+export type { SimilaritySourceSections } from "../../../../crates/atlas-app-model/bindings/SimilaritySourceSections";
+export type { SimilarityComparisonKey } from "../../../../crates/atlas-app-model/bindings/SimilarityComparisonKey";
+export type { SimilarityComponentView } from "../../../../crates/atlas-app-model/bindings/SimilarityComponentView";

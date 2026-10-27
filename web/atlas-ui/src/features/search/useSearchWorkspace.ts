@@ -9,10 +9,11 @@ import {
   useState,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { searchPage } from "../../api/atlasApi";
+import { getSimilarityParts, searchPage } from "../../api/atlasApi";
 import {
   assertSearchIdentity,
   assertSimilarityIdentity,
+  assertSimilarityInventoryIdentity,
 } from "../../shared/search/searchIdentity";
 import type {
   FilterEditorView,
@@ -56,7 +57,11 @@ import {
   DEFAULT_SEARCH_PREFERENCES,
   type SearchPreferences,
 } from "../../shared/search/searchPreferences";
-import { similarityFromPreferences } from "../../shared/search/similarityState";
+import {
+  hasCoreSourcePreference,
+  preferredSourceSections,
+  similarityFromPreferences,
+} from "../../shared/search/similarityState";
 import {
   isArtifactGenerationChanged,
   retireImmutableReferenceQueries,
@@ -142,6 +147,17 @@ export function useSearchWorkspace({
   const pageNumber =
     profileChanged && pagingProfile !== null ? 1 : interaction.pageNumber;
   const queryClient = useQueryClient();
+  const seedPreparation = useRef(0);
+  const [preparingSeed, setPreparingSeed] = useState(false);
+  const [sourcePreparationError, setSourcePreparationError] = useState<string | null>(
+    null,
+  );
+  if (!enabled && preparingSeed) setPreparingSeed(false);
+  useEffect(() => {
+    return () => {
+      seedPreparation.current += 1;
+    };
+  }, [enabled]);
   const [retrieval, setRetrieval] = useState({
     epoch: 0,
     generation: null as string | null,
@@ -170,7 +186,12 @@ export function useSearchWorkspace({
   );
   const inspectReading = reading.select;
   const positions = useBrowsePositions();
-  const liveRequest = useRef({ token: "", epoch: 0, retiring: false });
+  const liveRequest = useRef({
+    token: "",
+    epoch: 0,
+    retiring: false,
+    generation: null as string | null,
+  });
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
   const searchExecutionToken = useMemo(
     () => encodeSearchExecutionState(search, searchProfile),
@@ -190,11 +211,17 @@ export function useSearchWorkspace({
       token: activeSearchExecutionToken,
       epoch: retrieval.epoch,
       retiring: retrieval.recovering,
+      generation: retrieval.generation,
     };
     return () => {
       liveRequest.current.retiring = true;
     };
-  }, [activeSearchExecutionToken, retrieval.epoch, retrieval.recovering]);
+  }, [
+    activeSearchExecutionToken,
+    retrieval.epoch,
+    retrieval.recovering,
+    retrieval.generation,
+  ]);
   const restoreLocation = useEffectEvent(() => {
     if (!enabled) return;
     const route = currentSearchLocation();
@@ -202,6 +229,11 @@ export function useSearchWorkspace({
     const restored = initialWorkspaceInteractionState(searchPreferences);
     const incomingCriteria = urlCriteria(atlasRouter.latestLocation.searchStr);
     const criteriaChanged = previousUrlCriteria.current !== incomingCriteria;
+    if (criteriaChanged) {
+      seedPreparation.current += 1;
+      setPreparingSeed(false);
+      setSourcePreparationError(null);
+    }
     previousUrlCriteria.current = incomingCriteria;
     // Decoding fills an omitted ranking; that alone must not commit a local edit.
     if (
@@ -306,9 +338,18 @@ export function useSearchWorkspace({
         searchProfile,
         activeSearch.similarityGeneration ?? retrieval.generation,
         effectiveResultSort(activeSearch),
+        !activeSearch.traitReferenceSeed &&
+          (activeSearch.similarSeed || activeSearch.query.trim())
+          ? (activeSearch.searchContent ?? "all")
+          : undefined,
       );
       if (activeSearch.similarSeed)
-        assertSimilarityIdentity(page, activeSearch.similarity);
+        assertSimilarityIdentity(
+          page,
+          activeSearch.similarity,
+          activeSearch.sourceSections,
+          activeSearch.searchContent ?? "all",
+        );
       if (
         activeSearch.query.trim() &&
         page.ranking !== (activeSearch.ranking ?? "score")
@@ -409,6 +450,92 @@ export function useSearchWorkspace({
     catalogIdentity: [retrieval.epoch],
   });
   function setSearch(next: SearchFormState) {
+    const version = ++seedPreparation.current;
+    setSourcePreparationError(null);
+    setPreparingSeed(false);
+    if (next.similarSeed !== search.similarSeed && next.similarSeed) {
+      const nextSeed = next.similarSeed;
+      const trait = nextSeed.startsWith("trait:");
+      const preferences = trait
+        ? searchPreferences.traitSimilarity
+        : searchPreferences.recordSimilarity;
+      next = {
+        ...next,
+        sourceSections: preferences.method === "baseline" ? undefined : "all",
+      };
+      if (preferences.method !== "baseline" && trait)
+        next.sourceSections = preferredSourceSections(searchPreferences, "trait");
+      if (
+        preferences.method !== "baseline" &&
+        !trait &&
+        hasCoreSourcePreference(searchPreferences) &&
+        searchProfile !== null
+      ) {
+        const seed = { kind: "record" as const, record_key: nextSeed };
+        const nextSearch = next;
+        const epoch = retrieval.epoch;
+        const generation = retrieval.generation;
+        const token = liveRequest.current.token;
+        setPreparingSeed(true);
+        void queryClient
+          .fetchQuery({
+            queryKey: ["similarity-parts", seed, searchProfile, generation, 0],
+            staleTime: Infinity,
+            queryFn: ({ signal }) =>
+              getSimilarityParts(
+                {
+                  seed,
+                  search_profile: searchProfile,
+                  expected_artifact_generation: generation,
+                },
+                signal,
+              ),
+          })
+          .then((inventory) => {
+            if (
+              version !== seedPreparation.current ||
+              epoch !== liveRequest.current.epoch ||
+              token !== liveRequest.current.token ||
+              liveRequest.current.retiring
+            )
+              return;
+            assertSimilarityInventoryIdentity(
+              inventory,
+              seed,
+              searchProfile,
+              liveRequest.current.generation,
+            );
+            if (liveRequest.current.generation === null)
+              setRetrieval((current) =>
+                current.generation === null && current.epoch === epoch
+                  ? { ...current, generation: inventory.artifact_generation }
+                  : current,
+              );
+            commitSearch({
+              ...nextSearch,
+              sourceSections: preferredSourceSections(
+                searchPreferences,
+                inventory.core.family,
+              ),
+            });
+          })
+          .catch((error: unknown) => {
+            if (version === seedPreparation.current)
+              setSourcePreparationError(
+                error instanceof Error
+                  ? error.message
+                  : "Unable to load source sections. Choose this record again.",
+              );
+          })
+          .finally(() => {
+            if (version === seedPreparation.current) setPreparingSeed(false);
+          });
+        return;
+      }
+    }
+    commitSearch(next);
+  }
+  function commitSearch(next: SearchFormState) {
     if (next.similarSeed !== search.similarSeed)
       next = {
         ...next,
@@ -421,6 +548,7 @@ export function useSearchWorkspace({
             )
           : undefined,
         similarityGeneration: undefined,
+        sourceSections: next.similarSeed ? (next.sourceSections ?? "all") : undefined,
       };
     // A submitted canonical address is navigation, independent of search eligibility.
     const recordKey = next.query.trim();
@@ -468,7 +596,7 @@ export function useSearchWorkspace({
     });
     reading.select(recordKey ? { navigation: rootNavigation(recordKey) } : null);
   }
-  const errorMessage = messageFromError(resultsQuery.error);
+  const errorMessage = sourcePreparationError ?? messageFromError(resultsQuery.error);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
   const resultsRefreshing =
     canRunResultSearch &&
@@ -479,6 +607,9 @@ export function useSearchWorkspace({
     search,
     setSearch,
     applySettings: async (next, profile) => {
+      seedPreparation.current += 1;
+      setPreparingSeed(false);
+      setSourcePreparationError(null);
       const committed = normalizeSortTransition(search, next);
       const nextGeneration = committed.similarityGeneration;
       const collectionChanged =
@@ -552,7 +683,7 @@ export function useSearchWorkspace({
       (search.query.trim() ? searchProfileUsable : searchProfileStored) &&
       hasExecutableSearch(search) &&
       (resultsQuery.isLoading || searchDebouncing),
-    resultsRefreshing,
+    resultsRefreshing: resultsRefreshing || preparingSeed,
     resultsPaused,
     resultsRecovering: retrieval.recovering,
     refreshResults,
