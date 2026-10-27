@@ -30,7 +30,40 @@ Traits are separate reference entities: 668 substantive definitions and 116 labe
 
 The optimized debug probe used about 132 seconds and 60.6 MiB peak RSS. It ran with warm caches and concurrent background preparation, so these are observations rather than service guarantees or a controlled speedup. Net metadata/schema allocation was 12,795,904 bytes. The transaction rolled back; all 87 existing table fingerprints, reference context and generation matched before/after, including FTS, native-vector shadow blobs and saved state.
 
-Before a product preview, separately verify the real v22 runtime publication, unchanged lexical/native/saved bytes, idempotency and Core seed-unit ceiling availability. Do not infer relevance, candidate recall, a preferred decay or a new default from coverage or metadata cost. The original Similar study remains unchanged; broader Core evaluation is deferred.
+Do not infer relevance, candidate recall, a preferred decay or a new default from coverage or metadata cost. The original Similar study remains unchanged; broader Core evaluation is deferred.
+
+## Subsequent v22 implementation checks
+
+The separate real runtime upgrade was verified against implementation commit
+`74ef423e31eda87cbfce6a0f15e0844d4ccc2939`, on the same source pin with
+`foundry-content/v22`. Schema 17 became 18 and reference generation 8 became 9
+exactly once. All existing lexical/FTS, prepared content, native vector and saved
+state tables retained identical complete values. Only the expected Core context,
+reference revision and appended migration-ledger row changed. A second startup
+and deep validation left all 91 table fingerprints unchanged.
+
+The resulting 29,813 product roots have 33,475 Core prose sections and 67,233 Core
+semantic locations per profile. Both profiles passed complete native validation.
+The largest Core seed has 23 native units, below the existing 128-unit ceiling;
+no Core seed exceeds that ceiling. The one-location difference from the earlier
+67,234-location census follows the separate main content-format refresh.
+
+Whole-runtime startup, upgrade, complete validation and the first request took
+155.1 seconds and peaked at **1,562.4 MiB RSS**. Phase memory attribution was not
+measured. This is a different operation from the projection-only pilot above.
+Twenty subsequent serial fresh CLI requests across both profiles passed the
+provisional query budgets and peaked at **54.7 MiB RSS**. Those requests required
+no model weights; OS caches were not flushed. These bounded observations establish
+operational availability, not a p95 estimate or a general memory guarantee.
+
+Twelve bounded legacy All cases matched the pre-Core build exactly in result order,
+raw scores, witnesses, coverage and paging after expected wire/generation
+normalization. No score tolerance or tie expansion was used. This is regression
+evidence, not a comparative quality study. Original research bytes remain intact.
+
+Raw receipts are retained under `scratch/core-sections/v22-upgrade/`,
+`legacy-all-parity/` and `operational/`; preservation requirements are recorded in
+the [research handoff](search-evaluation-handoff.md).
 
 ## Receipt identity
 
