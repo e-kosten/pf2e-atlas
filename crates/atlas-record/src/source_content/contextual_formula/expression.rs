@@ -128,7 +128,7 @@ impl Expr {
             Self::Variable(name) => context.label(name),
             Self::Negate(v) => format!("−({})", v.description(context)),
             Self::Binary(Op::Divide, a, b) if **b == Self::Number(2.0) => {
-                format!("half {}", a.description(context))
+                format!("half {}", a.grouped(context))
             }
             Self::Binary(Op::Dice, a, b) if self.literal().is_some() => {
                 format!("{}d{}", a.description(context), b.description(context))
@@ -148,9 +148,9 @@ impl Expr {
                 },
                 b.grouped(context)
             ),
-            Self::Call(Function::Ceil, a) => format!("{} (rounded up)", a[0].description(context)),
+            Self::Call(Function::Ceil, a) => format!("{} (rounded up)", a[0].grouped(context)),
             Self::Call(Function::Floor, a) => {
-                format!("{} (rounded down)", a[0].description(context))
+                format!("{} (rounded down)", a[0].grouped(context))
             }
             Self::Call(Function::Resolve, a) => a[0].description(context),
             Self::Call(f, arguments) => {
