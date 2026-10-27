@@ -332,13 +332,8 @@ export function useSearchWorkspace({
     }));
   }
   useEffect(() => {
-    if (
-      !enabled ||
-      !reading.detail ||
-      search.filterWasReset ||
-      !currentSearchLocation()
-    )
-      return;
+    const view = currentSearchLocation();
+    if (!enabled || !reading.detail || search.filterWasReset || !view) return;
     const selected = reading.detail.selected;
     const selection =
       selected.spell_rank !== undefined ||
@@ -353,6 +348,8 @@ export function useSearchWorkspace({
       query: searchStateQueryString(search, urlProfile),
       selection,
       landing: reading.landing,
+      view: view.view,
+      tab: view.tab,
     });
     if (atlasRouter.buildLocation(destination).href !== atlasRouter.latestLocation.href)
       void atlasRouter.navigate({

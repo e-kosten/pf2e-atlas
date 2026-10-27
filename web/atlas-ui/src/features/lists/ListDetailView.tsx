@@ -1,6 +1,7 @@
 import type { ListPageInput } from "../../app/destinations";
 import { navigateDestination, destinationHref } from "../../app/navigation";
 import { listDestination } from "../../app/destinations";
+import { atlasRouter } from "../../app/router";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ListEntryNote } from "./ListEntryNote";
 import { ListRecordPicker } from "./ListRecordPicker";
@@ -29,6 +30,7 @@ import { useFilterUrlRecovery } from "../../shared/filters/useFilterUrlRecovery"
 import {
   rootNavigation,
   useReferenceReading,
+  type ReadingRequest,
 } from "../../shared/records/useReferenceReading";
 import { ListBrowseHeader } from "./ListBrowseHeader";
 import { ListItemsPane } from "./ListItemsPane";
@@ -68,6 +70,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   }
   const listQuery = searchStateQueryString(filters);
   const reading = useReferenceReading();
+  const readingNavigation = useRef(false);
   const activeFilters = useDebouncedSearchFilters(filters);
   const filterToken = useMemo(
     () => encodeSearchExecutionState(activeFilters),
@@ -98,29 +101,81 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   const inspectSelection = reading.select;
   const selectedRoute = useRef<
     | {
-        identity: string;
+        member: string;
+        address: string;
         blocked: boolean;
       }
     | undefined
   >(undefined);
   useEffect(() => {
-    const identity = JSON.stringify([route.slug, route.selectedRecordKey]);
+    const member = JSON.stringify([route.slug, route.selectedRecordKey]);
+    const address = JSON.stringify([route.selection, route.landing]);
     const previous = selectedRoute.current;
-    const changed = previous?.identity !== identity;
+    const changed = previous?.member !== member;
+    const addressChanged = previous?.address !== address;
     const unavailable = selectedItem?.status === "unresolved";
     const recovered = !changed && previous.blocked && selectedItem?.status === "active";
+    const blocked = unavailable || (!changed && previous.blocked && !recovered);
     selectedRoute.current = {
-      identity,
+      member,
+      address,
       // An omitted filtered member supplies no new availability information.
-      blocked: unavailable || (!changed && previous.blocked && !recovered),
+      blocked,
     };
-    if (!changed && !unavailable && !recovered) return;
-    inspectSelection(
-      route.selectedRecordKey && !unavailable
-        ? { navigation: rootNavigation(route.selectedRecordKey) }
-        : null,
-    );
-  }, [route.slug, route.selectedRecordKey, selectedItem?.status, inspectSelection]);
+    if (!changed && !addressChanged && !unavailable && !recovered) return;
+    const request =
+      route.selectedRecordKey && !blocked
+        ? {
+            navigation: route.selection ?? rootNavigation(route.selectedRecordKey),
+            landing: route.landing,
+          }
+        : null;
+    if (JSON.stringify(reading.request) !== JSON.stringify(request))
+      inspectSelection(request);
+  }, [
+    route.slug,
+    route.selectedRecordKey,
+    route.selection,
+    route.landing,
+    selectedItem?.status,
+    inspectSelection,
+    reading.request,
+  ]);
+  useEffect(() => {
+    if (!readingNavigation.current) return;
+    readingNavigation.current = false;
+    void atlasRouter.navigate({
+      ...listDestination({
+        ...route,
+        selectedRecordKey: reading.request ? route.selectedRecordKey : null,
+        query: listQuery,
+        selection: reading.request?.navigation,
+        landing: reading.request?.landing,
+      }),
+      replace: true,
+      resetScroll: false,
+      state: true,
+    });
+  }, [reading.request, route, listQuery]);
+  const addressableReading = {
+    ...reading,
+    select: (request: ReadingRequest | null) => {
+      readingNavigation.current = true;
+      reading.select(request);
+    },
+    inspect: (request: ReadingRequest | null) => {
+      readingNavigation.current = true;
+      reading.inspect(request);
+    },
+    back: () => {
+      readingNavigation.current = true;
+      reading.back();
+    },
+    changeRank: (navigation: ReadingRequest["navigation"]) => {
+      readingNavigation.current = true;
+      reading.changeRank(navigation);
+    },
+  };
   const removeItem = useMutation({
     mutationFn: (recordKey: string) =>
       removeSavedListItem({ list_ref: route.slug, record_ref: recordKey }),
@@ -193,7 +248,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
         onClose={() => setAddOpen(false)}
       />
       <BrowseReader
-        reading={reading}
+        reading={addressableReading}
         selectedRecordKey={route.selectedRecordKey}
         readerFooter={
           route.selectedRecordKey &&

@@ -21,6 +21,7 @@ import { rootNavigation, type ReferenceReading } from "./useReferenceReading";
 import { usePreviewContentFocus } from "./usePreviewContentFocus";
 import { landReadingTarget } from "./landReadingTarget";
 import { BrowsePaneHeader } from "./BrowsePaneHeader";
+import { useRecordExploreLocation } from "./recordExploreLocation";
 export function ReferenceReader({
   reading,
   selectedRecordKey = null,
@@ -43,6 +44,7 @@ export function ReferenceReader({
   active?: boolean;
 }) {
   const preview = useRecordPreview();
+  const { mode, tab } = useRecordExploreLocation();
   const localPositions = useBrowsePositions();
   const saved = positions ?? localPositions;
   const readerRef = useRef<HTMLElement>(null);
@@ -292,11 +294,13 @@ export function ReferenceReader({
           fullNavigation.embedded_path.length ||
           fullNavigation.field ||
           fullNavigation.passage ||
-          fullNavigation.spell_rank ||
+          fullNavigation.spell_rank !== undefined ||
           fullNavigation.source_fingerprint
             ? fullNavigation
             : undefined,
         landing: reading.landing ?? reading.request?.landing,
+        view: mode,
+        tab,
       })
     : null;
   return (

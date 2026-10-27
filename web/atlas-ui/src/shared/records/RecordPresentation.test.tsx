@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within, waitFor } from "@testing-library/rea
 import { RecordPresentation } from "./RecordPresentation";
 import { ActorActivities, ActorFacts, DamageComponents } from "./ActorReference";
 import { SpellChanges, SpellReference } from "./SpellReference";
+import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import {
   actorFixture,
   activityFixture,
@@ -155,8 +156,14 @@ describe("semantic family presentation", () => {
     const parent = screen.getByRole("link", { name: "Return to Ghoul" });
     const destination = new URL(parent.getAttribute("href")!, window.location.origin);
     expect(destination.pathname).toBe("/records/actors:ghoul");
-    expect(JSON.parse(destination.searchParams.get("landing")!)).toEqual(selected);
-    expect(destination.searchParams.has("selection")).toBe(false);
+    expect(
+      selectedNavigation(
+        parseSearchParams(destination.search),
+        "actors:ghoul",
+        "focus",
+      ),
+    ).toEqual(selected);
+    expect(destination.searchParams.has("at")).toBe(false);
     expect(onReference).not.toHaveBeenCalled();
   });
 
@@ -196,9 +203,7 @@ describe("semantic family presentation", () => {
     const original = await screen.findByRole("link", { name: "General entry: Staff" });
     const destination = new URL(original.getAttribute("href")!, window.location.origin);
     expect(destination.pathname).toBe("/records/equipment:catalog-staff");
-    expect(JSON.parse(destination.searchParams.get("selection")!)).toEqual(
-      relationship.target,
-    );
+    expect(destination.search).toBe("");
     fireEvent.click(original);
     expect(onReference).toHaveBeenCalledWith(
       "equipment:catalog-staff",

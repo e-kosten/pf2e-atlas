@@ -2,7 +2,12 @@ import type React from "react";
 import { atlasRouter } from "./router";
 import * as destinations from "./destinations";
 import { recordDestination } from "./destinations";
-import { selectedNavigation, parseSearchParams } from "./urlState";
+import {
+  selectedNavigation,
+  parseSearchParams,
+  validateReadingSearch,
+} from "./urlState";
+import { encodeReadingAddress } from "./readingUrl";
 import type { RecordNavigationView } from "../generated/atlas";
 
 export type Destination = ReturnType<(typeof destinations)[keyof typeof destinations]>;
@@ -13,12 +18,21 @@ export function destinationHref(destination: Destination) {
 /** Full-page embedded reading remembers its checked parent context. */
 export function navigateDestination(destination: Destination) {
   const next = atlasRouter.buildLocation(destination);
-  const selection = selectedNavigation(next.search);
+  const nextRecordKey = atlasRouter
+    .matchRoutes(next.pathname, next.search)
+    .flatMap((match) =>
+      "recordKey" in match.params ? [match.params.recordKey] : [],
+    )[0];
+  const selection = nextRecordKey
+    ? selectedNavigation(next.search, nextRecordKey)
+    : undefined;
   const current = atlasRouter.latestLocation;
-  const selected = selectedNavigation(current.search);
   const currentRecordKey = atlasRouter.state.matches.flatMap((match) =>
     "recordKey" in match.params ? [match.params.recordKey] : [],
   )[0];
+  const selected = currentRecordKey
+    ? selectedNavigation(current.search, currentRecordKey)
+    : undefined;
   const inherited = current.state.atlasOwnerOrigin;
   const origin = selection?.embedded_path.length
     ? inherited?.recordKey === selection.record_key
@@ -37,7 +51,9 @@ export function ownerReturnHref(parent: string, landing: RecordNavigationView): 
   const currentRecordKey = atlasRouter.state.matches.flatMap((match) =>
     "recordKey" in match.params ? [match.params.recordKey] : [],
   )[0];
-  const selected = selectedNavigation(current.search);
+  const selected = currentRecordKey
+    ? selectedNavigation(current.search, currentRecordKey)
+    : undefined;
   const knownParent =
     currentRecordKey === parent && !selected?.embedded_path.length
       ? current.href
@@ -49,7 +65,9 @@ export function ownerReturnHref(parent: string, landing: RecordNavigationView): 
     window.location.origin,
   );
   if (url.origin !== window.location.origin) return fallback;
-  url.searchParams.set("landing", JSON.stringify(landing));
+  const focus = encodeReadingAddress(parent, landing, true);
+  if (focus === undefined) url.searchParams.delete("focus");
+  else url.searchParams.set("focus", focus);
   return url.pathname + url.search;
 }
 
@@ -57,7 +75,7 @@ export function navigatePath(path: string) {
   const url = new URL(path, window.location.origin);
   if (url.origin !== window.location.origin) return;
   // Raw native destinations have already been projected by the shared reader.
-  selectedNavigation(parseSearchParams(url.search));
+  validateReadingSearch(parseSearchParams(url.search));
   return atlasRouter.navigate({ href: url.pathname + url.search + url.hash });
 }
 

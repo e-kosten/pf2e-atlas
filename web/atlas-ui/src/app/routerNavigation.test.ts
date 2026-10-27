@@ -4,7 +4,7 @@ import { atlasRouter } from "./router";
 import { destinationHref, navigateDestination, ownerReturnHref } from "./navigation";
 import { recordDestination, searchDestination, listDestination } from "./destinations";
 import { currentSearchLocation } from "./searchLocation";
-import { selectedNavigation } from "./urlState";
+import { selectedNavigation, parseSearchParams } from "./urlState";
 import type { RecordNavigationView } from "../generated/atlas";
 
 beforeEach(async () => {
@@ -37,7 +37,9 @@ it("uses generated routes for reserved and Unicode identities without double enc
       (match) => "recordKey" in match.params && match.params.recordKey === recordKey,
     ),
   ).toBe(true);
-  expect(selectedNavigation(atlasRouter.state.location.search)).toEqual(selection);
+  expect(selectedNavigation(atlasRouter.state.location.search, recordKey)).toEqual(
+    selection,
+  );
   expect(atlasRouter.state.location.hash).toBe("atlas-section-雪");
 });
 
@@ -82,8 +84,12 @@ it("retains the owner workspace when opening an embedded full page", async () =>
   };
   await navigateDestination(recordDestination({ recordKey: "actors:one", selection }));
   const back = ownerReturnHref("actors:one", selection);
-  expect(back).toContain("/search/records/actors:one?q=one&sort=name_asc&landing=");
+  expect(back).toContain("/search/records/actors:one?q=one&sort=name_asc&focus=");
   expect(
-    JSON.parse(new URL(back, "http://localhost").searchParams.get("landing")!),
+    selectedNavigation(
+      parseSearchParams(new URL(back, "http://localhost").search),
+      "actors:one",
+      "focus",
+    ),
   ).toEqual(selection);
 });

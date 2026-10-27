@@ -25,8 +25,15 @@ Search requests remain disabled outside Search. TanStack Query continues to own
 requests, immutable reference caches and generation retirement. Router loaders
 and preloading do not introduce a parallel data cache or semantic inference.
 
-Existing transport codecs retain string values and repeated sort priority.
-Selection, parent landing and native section fragments remain distinct. Filter
+Transport codecs retain string values and repeated sort priority. The record key
+in the pathname is the sole reading identity. Optional casting rank uses `rank`;
+exact selection and independent parent landing use the bounded, versioned compact
+`at` and `focus` address codecs. Those addresses omit the repeated record key and
+empty trailing values while retaining embedded owner identities, source
+fingerprints and passage hashes. The browser checks transport shape and bounds;
+backend policy remains authoritative for source availability and meaning. The
+retired JSON `selection`/`landing` parameters are rejected without a legacy
+decoder. Native section fragments remain separate from exact addresses. Filter
 recovery replaces only failed transport and preserves independent criteria and
 reading. Page and embedded-owner return context live in Router history state.
 Typed destination factories centralize native hrefs; embedded-owner return policy

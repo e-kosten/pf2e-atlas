@@ -1,4 +1,5 @@
 import { RouterTestContext } from "../../test/router";
+import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import type { ResultSort } from "../../generated/atlas";
 import {
   summaryFixture,
@@ -408,10 +409,7 @@ describe("useSearchWorkspace", () => {
       }),
     );
     await waitFor(() =>
-      expect(
-        JSON.parse(new URLSearchParams(location.search).get("selection") ?? "null")
-          ?.spell_rank,
-      ).toBe(5),
+      expect(Number(new URLSearchParams(location.search).get("rank"))).toBe(5),
     );
     first.unmount();
     const reloaded = renderHook(
@@ -580,7 +578,10 @@ describe("useSearchWorkspace", () => {
     expect(result.current.selectedRecordKey).toBe("spell:heal");
     expect(result.current.reading.request).toEqual(exact);
     expect(
-      JSON.parse(new URLSearchParams(window.location.search).get("selection")!),
+      selectedNavigation(
+        parseSearchParams(window.location.search),
+        exact.navigation.record_key,
+      ),
     ).toMatchObject(exact.navigation);
     expect(result.current.positions).toBe(positions);
     expect(client.getQueryData(graphKey)).toEqual({ retained: true });

@@ -18,7 +18,7 @@ import {
   encounterEditDestination,
   listEditDestination,
 } from "./destinations";
-import { selectedNavigation } from "./urlState";
+import { selectedNavigation, parseSearchParams } from "./urlState";
 import type { RecordNavigationView } from "../generated/atlas";
 
 beforeEach(async () => {
@@ -120,19 +120,23 @@ it.each(["search", "list", "record"])(
     expect(url.searchParams.get("similar")).toBe("spells:seed");
     expect(url.searchParams.get("filter")).toBe("3.opaque");
     expect(url.searchParams.getAll("sort")).toEqual(["level_desc", "name_asc"]);
-    expect(JSON.parse(url.searchParams.get("landing")!)).toEqual(selection);
-    expect(url.searchParams.has("selection")).toBe(false);
-    await navigatePath(href);
-    expect(selectedNavigation(atlasRouter.state.location.search, "landing")).toEqual(
+    expect(selectedNavigation(parseSearchParams(url.search), parent, "focus")).toEqual(
       selection,
     );
+    expect(url.searchParams.has("at")).toBe(false);
+    await navigatePath(href);
+    expect(
+      selectedNavigation(atlasRouter.state.location.search, parent, "focus"),
+    ).toEqual(selection);
   },
 );
 
 it("keeps document sections separate from exact selections, including malformed escapes", async () => {
   await navigatePath("/records/journals:classes#atlas-section-123-4");
   expect(atlasRouter.state.location.hash).toBe("atlas-section-123-4");
-  expect(selectedNavigation(atlasRouter.state.location.search)).toBeUndefined();
+  expect(
+    selectedNavigation(atlasRouter.state.location.search, "journals:classes"),
+  ).toBeUndefined();
   await navigatePath("/records/journals:classes#%");
   expect(atlasRouter.state.location.hash).toBe("%");
 });

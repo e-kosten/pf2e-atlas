@@ -1,37 +1,66 @@
 import { linkOptions } from "@tanstack/react-router";
 import type { RecordNavigationView } from "../generated/atlas";
-import { parseSearchParams, type AtlasSearchParams } from "./urlState";
+import {
+  parseSearchParams,
+  type AtlasSearchParams,
+  type ReadingViewInput,
+} from "./urlState";
+import { encodeReadingAddress } from "./readingUrl";
 
-export type RecordPageInput = {
+export type RecordPageInput = ReadingViewInput & {
   recordKey: string;
   selection?: RecordNavigationView;
   landing?: RecordNavigationView;
   section?: string;
 };
-export type ListPageInput = {
+export type ListPageInput = ReadingViewInput & {
   slug: string;
   query?: string;
   selectedRecordKey: string | null;
+  selection?: RecordNavigationView;
   landing?: RecordNavigationView;
 };
 export type TraitPageInput = { traitKey: string; query?: string };
-export type SearchPageInput = {
+export type SearchPageInput = ReadingViewInput & {
   selectedRecordKey?: string | null;
   query?: string;
   selection?: RecordNavigationView;
   landing?: RecordNavigationView;
 };
 
-function readingSearch(input: {
-  query?: string;
-  selection?: RecordNavigationView;
-  landing?: RecordNavigationView;
-}): AtlasSearchParams {
-  return {
-    ...parseSearchParams(input.query ?? ""),
-    ...(input.selection ? { selection: JSON.stringify(input.selection) } : {}),
-    ...(input.landing ? { landing: JSON.stringify(input.landing) } : {}),
-  };
+function readingSearch(
+  input: ReadingViewInput & {
+    recordKey?: string | null;
+    query?: string;
+    selection?: RecordNavigationView;
+    landing?: RecordNavigationView;
+  },
+): AtlasSearchParams {
+  const search = parseSearchParams(input.query ?? "");
+  for (const key of [
+    "selection",
+    "landing",
+    "rank",
+    "at",
+    "focus",
+    "record_view",
+    "record_tab",
+  ])
+    delete search[key];
+  if (!input.recordKey) return search;
+  if (input.selection) {
+    const at = encodeReadingAddress(input.recordKey, input.selection, false);
+    if (input.selection.spell_rank !== undefined)
+      search.rank = String(input.selection.spell_rank);
+    if (at !== undefined) search.at = at;
+  }
+  if (input.landing) {
+    const focus = encodeReadingAddress(input.recordKey, input.landing, true);
+    if (focus !== undefined) search.focus = focus;
+  }
+  if (input.view === "explore") search.record_view = "explore";
+  if (input.tab && input.tab !== "incoming") search.record_tab = input.tab;
+  return search;
 }
 export function recordDestination(input: RecordPageInput) {
   return linkOptions({
@@ -42,7 +71,7 @@ export function recordDestination(input: RecordPageInput) {
   });
 }
 export function searchDestination(input: SearchPageInput = {}) {
-  const search = readingSearch(input);
+  const search = readingSearch({ ...input, recordKey: input.selectedRecordKey });
   return input.selectedRecordKey
     ? linkOptions({
         to: "/search/records/$recordKey",
@@ -52,7 +81,7 @@ export function searchDestination(input: SearchPageInput = {}) {
     : linkOptions({ to: "/search", search });
 }
 export function listDestination(input: ListPageInput) {
-  const search = readingSearch(input);
+  const search = readingSearch({ ...input, recordKey: input.selectedRecordKey });
   return input.selectedRecordKey
     ? linkOptions({
         to: "/lists/$slug/records/$recordKey",

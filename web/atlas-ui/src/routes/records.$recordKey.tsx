@@ -4,6 +4,7 @@ import {
   documentSection,
   selectedNavigation,
   validateReadingSearch,
+  readingView,
 } from "../app/urlState";
 export const Route = createFileRoute("/records/$recordKey")({
   validateSearch: validateReadingSearch,
@@ -19,8 +20,9 @@ function Page() {
       key={params.recordKey}
       route={{
         recordKey: params.recordKey,
-        selection: selectedNavigation(search),
-        landing: selectedNavigation(search, "landing"),
+        selection: selectedNavigation(search, params.recordKey),
+        landing: selectedNavigation(search, params.recordKey, "focus"),
+        ...readingView(search),
         section: section || undefined,
       }}
     />
