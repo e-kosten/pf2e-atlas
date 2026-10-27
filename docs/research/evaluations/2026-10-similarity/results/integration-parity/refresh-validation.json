@@ -1,0 +1,43 @@
+{
+  "recorded_utc": "2026-10-27T09:08:51.331408+00:00",
+  "status": "ready_for_parent_validation_not_served",
+  "frozen_original_schema": 16,
+  "frozen_original_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+  "replacement_schema": 17,
+  "replacement_generation": "a9474928b73e8cf89e84c5ed6990a838:7",
+  "saved_tables_equal": 17,
+  "new_encounter_ability_states_rows": 0,
+  "standalone_source_backup_sha256": "409de403bd8b090df2c3ddd67fe4db603d43db1a92d768b59f5590d9dbe4e9cd",
+  "standalone_source_backup_bytes_unchanged": true,
+  "replacement_ready_check": true,
+  "inventory_cells": 10,
+  "changed_record_tokens": 96,
+  "stable_trait_tokens": 2,
+  "native_equivalence": [
+    {
+      "profile": "bge-base",
+      "frozen_inputs": 161515,
+      "new_inputs": 161515,
+      "common_exact_identity": 161515,
+      "frozen_only": 0,
+      "new_only": 0,
+      "common_published_checksum_differences": 22,
+      "checksum_differences_also_present_in_backup": 0
+    },
+    {
+      "profile": "embeddinggemma",
+      "frozen_inputs": 161515,
+      "new_inputs": 161515,
+      "common_exact_identity": 161515,
+      "frozen_only": 0,
+      "new_only": 0,
+      "common_published_checksum_differences": 665,
+      "checksum_differences_also_present_in_backup": 0
+    }
+  ],
+  "numeric_vector_difference_magnitude": "not independently measured; checksum differences are confined to re-inferred inputs",
+  "execution_helper_sha256": "6e47d6c381786d885d90e267ac8c8b16c4d4589771b71573509fa4e6e36128be",
+  "old_preview_touched": false,
+  "installed_workspace_touched": false,
+  "tracked_source_edited": false
+}
