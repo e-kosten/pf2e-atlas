@@ -20,6 +20,7 @@ Paths below are relative to the repository root, not an individual worktree.
 | Pinned source and original reference artifact | `scratch/full-corpus-search/source/` and `reference.sqlite` |
 | Ingest performance measurements | `scratch/ingest-performance/README.md`, logs and digest receipts |
 | Configurable Similar matrix, source packets and runtime probes | `scratch/similarity-evaluation/RUN-STATE.json`, `quality-v1/`, `blind-packets/`, `grades-v1/`, `adjudications-v1/`, `performance-v1/` and `product-probes/` under that experiment root |
+| Core implementation census, migration and regression evidence | `scratch/core-sections/RUN-STATE.json`, `v22-upgrade/`, `legacy-all-parity/`, `operational/` and `runtime/`; curated coverage in [Core section census](core-section-census.md) |
 
 Keep the whole experiment trees, not only final reports. Rank captures, model
 vectors, blind pools, raw reviewer outputs, adjudications, uncertainty analysis,
@@ -48,6 +49,16 @@ separate from a newer preview workspace; run setup against the preview copy, not
 the frozen study. Preserve live SQLite data through a consistent backup, including
 pending WAL state. When relocating an archive, retain bound file bytes and record
 a separate path map rather than rewriting hashed packets.
+
+The Core implementation also retains `.atlas/core-baseline-v22.sqlite` at
+generation 8/schema 17 and `.atlas/core-preview.sqlite` at generation 9/schema 18.
+Keep the immutable baseline with its pre-Core executable, the Core executable,
+input manifests and raw receipts under `scratch/core-sections/`. The preview is
+mutable review state; preserve its committed WAL through SQLite's backup API
+before moving or archiving it. Never open the baseline with a migrating Core
+runtime. The original generation-7 preview and generation-6 Similar study remain
+separate. These are implementation and preservation checks; the broader Core
+relevance and decay study has not run.
 
 ## Reanalysis rules
 
