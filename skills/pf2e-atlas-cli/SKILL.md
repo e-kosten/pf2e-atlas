@@ -202,13 +202,13 @@ restrict candidate content with `--search-content core`.
 
 Use `--list-parts` to discover available source content. Copy exact selectors into
 repeatable `--part` arguments and supply `--artifact-generation` from discovery.
-Omission selects all indexed prose. `--sections all` selects the same prose;
+For records, omission and `--sections all` select the stored root identity once plus all indexed sections;
 `--sections core` selects the stored root identity once plus the Core prose chosen
 for the seed's kind. The source preset and repeated `--part` conflict. Discover
 Core's exact resolved components with `--list-parts --sections core`; ordinary
 `--list-parts` also exposes the identity component for a Custom selection. A
 record without allowed Core prose retains identity only, with an explicit reason;
-missing required vectors are errors. Trait Core retains its existing definition
+missing required vectors are errors. Trait presets retain their existing definition
 or clearly labelled label-only representation without adding a second identity.
 Never construct selectors from labels or silently replace stale or unavailable
 explicit components. `--candidate-parts any`
@@ -217,7 +217,7 @@ roles across kinds. Trait definitions support only any-content matching.
 `--search-content all|core` independently chooses eligible candidate content in
 Similar and ordinary text search. Each candidate uses its own kind's Core recipe,
 not the seed's recipe. For example, `atlas similar 'Lich' --sections core --search-content all` compares the Lich's identity/description with all candidate
-prose and root identities. Existing All/prose-only requests retain their behavior.
+prose and root identities. Exact Custom selections can omit identity for a prose-only comparison.
 Core requests require current Core metadata; refresh setup on a readiness error
 rather than silently retrying with All. Candidate filters remain separate from
 seed content selection. `--explain`
@@ -249,7 +249,7 @@ paging. `--seed` accepts an unsigned32-bit integer only with Random; omission
 generates a seed reported in the result. Reuse it to retain the same order for
 unchanged matching records across pages. Random does not expand semantic coverage.
 A lexical-only workspace needs `--retrieval fts` for text queries.
-Similar uses the seed's stored root identity vector. Its filters constrain
+The Name and identity method uses the seed's stored root identity vector; Passage matches and Content average use the selected source components. Similar filters constrain
 candidates, not seed resolution; resolve an ambiguous seed separately.
 Similar also accepts `--page` and `--limit` for stateless result pages.
 Browse, text search and Similar JSON share `data.rows` (record, matches,

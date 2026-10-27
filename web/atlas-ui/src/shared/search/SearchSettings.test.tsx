@@ -1,6 +1,13 @@
 import { App, ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { SearchProfileContext } from "./SearchProfileContext";
 import { DEFAULT_SEARCH_PREFERENCES } from "./searchPreferences";
 import { DEFAULT_SEARCH_STATE, type SearchFormState } from "../filters/searchState";
@@ -89,7 +96,7 @@ const inventory = {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
-  api.parts.mockResolvedValue(inventory);
+  api.parts.mockReset().mockResolvedValue(inventory);
 });
 
 function setup(
@@ -155,9 +162,12 @@ it("keeps similarity details off by default and discards a canceled change", () 
   ).not.toBeChecked();
 });
 
-it("remembers a details-only change without submitting another search", () => {
+it("remembers a details-only change without submitting another search", async () => {
   const { apply, remember } = setup();
   fireEvent.click(screen.getByRole("switch", { name: "Show similarity details" }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   expect(remember).toHaveBeenCalledWith(
     expect.objectContaining({ showSimilarityDetails: true }),
@@ -174,7 +184,7 @@ it("resets the details preference with the other search settings", () => {
   ).not.toBeChecked();
 });
 
-it("remembers smaller weights as a presentation preference with Cancel and Reset support", () => {
+it("remembers smaller weights as a presentation preference with Cancel and Reset support", async () => {
   const { apply, remember } = setup(undefined, seed, {
     ...DEFAULT_SEARCH_PREFERENCES,
     showSimilarityDetails: true,
@@ -192,6 +202,9 @@ it("remembers smaller weights as a presentation preference with Cancel and Reset
   fireEvent.click(screen.getByRole("switch", { name: "Show similarity details" }));
   expect(choice()).not.toBeChecked();
   fireEvent.click(choice());
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   expect(remember).toHaveBeenCalledExactlyOnceWith(
     expect.objectContaining({ showSmallerWeights: true, showSimilarityDetails: true }),
@@ -412,7 +425,9 @@ it("explains selected Similar choices and keeps help separate from opening Secti
       ),
     ).toBeVisible(),
   );
-  expect(api.parts).not.toHaveBeenCalled();
+  expect(api.parts).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("checkbox", { name: "Description" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "Seed source" })).toBeNull();
   fireEvent.keyDown(partsHelp, { key: "Escape" });
   fireEvent.click(screen.getByText("Sections to compare"));
   await screen.findByRole("checkbox", { name: "Description" });
@@ -698,6 +713,90 @@ function coreInventory(): SimilarityPartsView {
     ],
   };
 }
+
+it("remembers an authoritative All preset for the backend's family with sections collapsed", async () => {
+  const npcSeed = { kind: "record", record_key: "creatures:lich" } as const;
+  api.parts.mockResolvedValue({
+    ...coreInventory(),
+    seed: npcSeed,
+    core: { ...coreInventory().core, family: "npc" },
+  } satisfies SimilarityPartsView);
+  const { apply, remember } = setup(
+    {
+      ...DEFAULT_SEARCH_STATE,
+      similarSeed: npcSeed.record_key,
+      similarity: options,
+      sourceSections: "all",
+    },
+    npcSeed,
+    {
+      ...DEFAULT_SEARCH_PREFERENCES,
+      sourceSectionsByFamily: { npc: "core", hazard: "core" },
+    },
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
+  );
+  expect(screen.queryByRole("checkbox", { name: "Select all" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "Seed source" })).toBeNull();
+  expect(remember).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(remember).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      sourceSectionsByFamily: { npc: "all", hazard: "core" },
+    }),
+  );
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ sourceSections: "all" }),
+    "bge-base",
+  );
+});
+
+it("blocks early All Apply and exposes loading, failure and retry with sections collapsed", async () => {
+  let rejectInventory!: (error: Error) => void;
+  let resolveInventory!: (value: SimilarityPartsView) => void;
+  api.parts
+    .mockImplementationOnce(
+      () =>
+        new Promise<SimilarityPartsView>((_, reject) => {
+          rejectInventory = reject;
+        }),
+    )
+    .mockImplementationOnce(
+      () =>
+        new Promise<SimilarityPartsView>((resolve) => {
+          resolveInventory = resolve;
+        }),
+    );
+  const { apply, remember } = setup();
+  const applyButton = screen.getByRole("button", { name: "Apply" });
+  expect(applyButton).toBeDisabled();
+  await waitFor(() =>
+    expect(screen.getByText("Loading comparison sections…")).toBeVisible(),
+  );
+  fireEvent.click(applyButton);
+  expect(apply).not.toHaveBeenCalled();
+  expect(remember).not.toHaveBeenCalled();
+  await act(async () => rejectInventory(new Error("Collection unavailable")));
+  expect(await screen.findByText("Unable to load comparison sections")).toBeVisible();
+  expect(screen.getByText("Collection unavailable")).toBeVisible();
+  expect(applyButton).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await waitFor(() => expect(api.parts).toHaveBeenCalledTimes(2));
+  expect(screen.getByText("Loading comparison sections…")).toBeVisible();
+  fireEvent.click(applyButton);
+  expect(remember).not.toHaveBeenCalled();
+  await act(async () => resolveInventory(coreInventory()));
+  await waitFor(() => expect(applyButton).toBeEnabled());
+  expect(screen.queryByText("Unable to load comparison sections")).toBeNull();
+  expect(screen.queryByRole("checkbox", { name: "Select all" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "Seed source" })).toBeNull();
+  fireEvent.click(applyButton);
+  expect(remember).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ sourceSectionsByFamily: { hazard: "all" } }),
+  );
+  expect(apply).toHaveBeenCalledTimes(1);
+});
 
 it("includes identity once in All and lets the backend resolve the preset on Apply", async () => {
   api.parts.mockResolvedValue(coreInventory());

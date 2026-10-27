@@ -99,13 +99,6 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
             inventory
                 .parts
                 .retain(|part| inventory.core.selectors.contains(part.selector()));
-        } else if matches!(o.sections, Some(crate::cli::args::CliSearchContent::All)) {
-            inventory.parts.retain(|part| {
-                matches!(
-                    part,
-                    atlas_app_model::SimilarityComponentView::Section { .. }
-                )
-            });
         }
         if o.json {
             write_json_data(&inventory)?;
@@ -302,7 +295,7 @@ fn print_results(result: &SearchResultsPage, explain: bool) {
             println!(
                 "Source selection: {}",
                 match source {
-                    atlas_domain::SimilaritySourceSections::All => "All prose sections",
+                    atlas_domain::SimilaritySourceSections::All => "All sections and identity",
                     atlas_domain::SimilaritySourceSections::Core => "Core sections",
                     atlas_domain::SimilaritySourceSections::Custom => "Custom selection",
                 }

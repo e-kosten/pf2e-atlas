@@ -127,7 +127,6 @@ export function SearchSettings({
       draft !== null &&
       seed !== null &&
       draft.similarity.method !== "baseline" &&
-      (partsOpen || draft.sourceSections !== "all" || draft.parts !== null) &&
       draft.model !== null,
     staleTime: Infinity,
     queryFn: async ({ signal }) => {
@@ -218,9 +217,9 @@ export function SearchSettings({
       (selector) => !available.some((part) => part.selector === selector),
     );
   const uncheckedParts =
+    seed !== null &&
     draft !== null &&
     draft.similarity.method !== "baseline" &&
-    draft.sourceSections !== "all" &&
     (inventoryRetired ||
       !inventory.data ||
       inventory.isFetching ||
@@ -693,6 +692,35 @@ export function SearchSettings({
                               another model or update the collection.
                             </Typography.Paragraph>
                           )}
+                          {inventory.isFetching && (
+                            <Space role="status">
+                              <Spin size="small" />
+                              <Typography.Text type="secondary">
+                                Loading comparison sections…
+                              </Typography.Text>
+                            </Space>
+                          )}
+                          {(inventory.error || inventoryRetired) && (
+                            <Alert
+                              type="error"
+                              title="Unable to load comparison sections"
+                              description={
+                                inventory.error?.message ??
+                                "The reference collection changed."
+                              }
+                              action={
+                                <Button
+                                  onClick={() => {
+                                    if (inventoryRetired) {
+                                      reloadSections();
+                                    } else void inventory.refetch();
+                                  }}
+                                >
+                                  {inventoryRetired ? "Reload sections" : "Retry"}
+                                </Button>
+                              }
+                            />
+                          )}
                         </Form.Item>
                       )}
                       {draft.similarity.method === "passages" && (
@@ -801,30 +829,6 @@ export function SearchSettings({
                               ),
                               children: (
                                 <>
-                                  {inventory.isPending && <Spin size="small" />}
-                                  {(inventory.error || inventoryRetired) && (
-                                    <Alert
-                                      type="error"
-                                      title="Unable to load comparison sections"
-                                      description={
-                                        inventory.error?.message ??
-                                        "The reference collection changed."
-                                      }
-                                      action={
-                                        <Button
-                                          onClick={() => {
-                                            if (inventoryRetired) {
-                                              reloadSections();
-                                            } else void inventory.refetch();
-                                          }}
-                                        >
-                                          {inventoryRetired
-                                            ? "Reload sections"
-                                            : "Retry"}
-                                        </Button>
-                                      }
-                                    />
-                                  )}
                                   {inventory.data && (
                                     <>
                                       <Checkbox
