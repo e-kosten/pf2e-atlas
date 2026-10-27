@@ -91,6 +91,7 @@ function setup(
     similarity: options,
   },
   selectedSeed: SimilaritySeed = seed,
+  preferences = DEFAULT_SEARCH_PREFERENCES,
 ) {
   const apply = vi.fn();
   const remember = vi.fn(() => true);
@@ -112,7 +113,7 @@ function setup(
               canResetLink: false,
               resetLink: vi.fn(),
               select: vi.fn(),
-              preferences: DEFAULT_SEARCH_PREFERENCES,
+              preferences,
               applyPreferences: remember,
             }}
           >
@@ -163,6 +164,31 @@ it("resets the details preference with the other search settings", () => {
   expect(
     screen.getByRole("switch", { name: "Show similarity details" }),
   ).not.toBeChecked();
+});
+
+it("remembers smaller weights as a presentation preference with Cancel and Reset support", () => {
+  const { apply, remember } = setup(undefined, seed, {
+    ...DEFAULT_SEARCH_PREFERENCES,
+    showSimilarityDetails: true,
+  });
+  const choice = () => screen.getByRole("switch", { name: "Show smaller weights" });
+  expect(choice()).not.toBeChecked();
+  fireEvent.click(choice());
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(remember).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+  expect(choice()).not.toBeChecked();
+  fireEvent.click(choice());
+  fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+  expect(screen.queryByRole("switch", { name: "Show smaller weights" })).toBeNull();
+  fireEvent.click(screen.getByRole("switch", { name: "Show similarity details" }));
+  expect(choice()).not.toBeChecked();
+  fireEvent.click(choice());
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(remember).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ showSmallerWeights: true, showSimilarityDetails: true }),
+  );
+  expect(apply).not.toHaveBeenCalled();
 });
 
 it("keeps edits local until Apply and discards them on Cancel", () => {

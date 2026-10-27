@@ -6,12 +6,16 @@ import type {
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 
+const formatWeight = (weight: number) => `${(weight * 100).toFixed(1)}%`;
+
 export function SimilarityExplanation({
   evidence,
   onNavigate,
+  showSmallerWeights = false,
 }: {
   evidence: SimilarityEvidenceView;
   onNavigate?: (navigation: RecordNavigationView, anchor: HTMLElement) => void;
+  showSmallerWeights?: boolean;
 }) {
   const contributions = evidence.roles.length
     ? evidence.roles.map((role) => ({
@@ -28,6 +32,10 @@ export function SimilarityExplanation({
         weight: part.weight,
         comparable: part.comparable,
       }));
+  const visibleContributions = showSmallerWeights
+    ? contributions
+    : contributions.filter((row) => formatWeight(row.weight) !== "0.0%");
+  const hiddenCount = contributions.length - visibleContributions.length;
   return (
     <div className="similarity-explanation">
       {evidence.truncated && (
@@ -40,12 +48,12 @@ export function SimilarityExplanation({
         {evidence.comparable_parts} of {evidence.selected_parts} selected sections have
         comparable content.
       </Typography.Text>
-      {contributions.length > 0 && (
+      {visibleContributions.length > 0 && (
         <Table
           size="small"
           rowKey="key"
           pagination={false}
-          dataSource={contributions}
+          dataSource={visibleContributions}
           columns={[
             {
               title: "Section",
@@ -73,10 +81,15 @@ export function SimilarityExplanation({
               title: "Weight",
               dataIndex: "weight",
               width: 68,
-              render: (weight: number) => `${(weight * 100).toFixed(1)}%`,
+              render: formatWeight,
             },
           ]}
         />
+      )}
+      {hiddenCount > 0 && (
+        <Typography.Paragraph type="secondary">
+          {hiddenCount} smaller {hiddenCount === 1 ? "weight" : "weights"} hidden.
+        </Typography.Paragraph>
       )}
       {evidence.representative && (
         <Typography.Paragraph type="secondary">

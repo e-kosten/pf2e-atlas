@@ -379,6 +379,8 @@ stored HTML, passage hashes and artifact policy identities remain unchanged.
 Similarity coverage, section/role contributions and paired seed/result excerpts
 use this same selected-reader match context when Show similarity details is enabled.
 When disabled, Similar results retain the compact matching-section links and excerpts.
+The detailed weight table hides rows rounding to 0.0% unless Show smaller weights
+is enabled. This saved presentation preference never removes scoring contributions.
 This browser preference defaults off, persists with the other search preferences,
 and does not alter retrieval or ranking. Same-record evidence navigates through
 the reader; cross-record seed or reference evidence uses the shared linked-record

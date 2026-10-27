@@ -179,3 +179,61 @@ it("switches Similar results between compact matches and details without hiding 
   expect(within(context).getByText("A cone of fire.")).toBeVisible();
   expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
 });
+
+it.each(["parts", "roles"] as const)(
+  "collapses only %s that round to 0.0 percent and restores them without changing evidence",
+  (kind) => {
+    const similarity = similarityEvidenceFixture(navigation, null);
+    const weights = [0.99901, 0.00049, 0.0005];
+    const labels = ["Largest", "Smaller", "Visible boundary"];
+    const roles = weights.map((weight, index) => ({
+      role: "description" as const,
+      role_label: labels[index],
+      weight,
+      score: 0.8,
+      comparable: true,
+    }));
+    if (kind === "roles")
+      similarity.roles = roles.map((role, index) => ({
+        ...role,
+        role: (["description", "ability", "reset"] as const)[index],
+      }));
+    else {
+      similarity.roles = [];
+      similarity.parts = roles.map((role, index) => ({
+        ...role,
+        part: {
+          selector: `part-${index}`,
+          label: labels[index],
+          owner_label: "Source",
+          owners: [],
+          field: "/description",
+          section_ordinal: index,
+          role: "description",
+          role_label: "Description",
+          has_vectors: true,
+          label_only: false,
+          navigation,
+        },
+      }));
+    }
+    const original = JSON.stringify(similarity);
+    const props = { row: { ...row, similarity }, showSimilarityDetails: true };
+    const view = render(<SearchMatchContext {...props} />);
+    expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(3);
+    expect(screen.getByText("99.9%")).toBeVisible();
+    expect(screen.getByText("0.1%")).toBeVisible();
+    expect(screen.queryByText("0.0%")).toBeNull();
+    expect(screen.getByText("1 smaller weight hidden.")).toBeVisible();
+    expect(
+      screen.getByText("1 of 2 selected sections have comparable content."),
+    ).toBeVisible();
+    view.rerender(<SearchMatchContext {...props} showSmallerWeights />);
+    expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(4);
+    expect(screen.getByText("0.0%")).toBeVisible();
+    expect(screen.queryByText("1 smaller weight hidden.")).toBeNull();
+    expect(JSON.stringify(similarity)).toBe(original);
+    view.rerender(<SearchMatchContext {...props} />);
+    expect(screen.queryByText("0.0%")).toBeNull();
+  },
+);

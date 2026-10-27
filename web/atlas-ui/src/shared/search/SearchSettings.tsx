@@ -56,6 +56,7 @@ type SettingsDraft = {
   model: string | null;
   ranking: SearchRanking;
   showSimilarityDetails: boolean;
+  showSmallerWeights: boolean;
   similarity: SimilarityPreferences;
   parts: string[] | null;
   generation?: string;
@@ -234,6 +235,7 @@ export function SearchSettings({
       model: profile.id,
       ranking,
       showSimilarityDetails: profile.preferences.showSimilarityDetails,
+      showSmallerWeights: profile.preferences.showSmallerWeights,
       similarity: appliedPreferences,
       parts: appliedParts,
       generation: search.similarityGeneration,
@@ -268,8 +270,9 @@ export function SearchSettings({
     const nextSimilarity = seed
       ? similarityFromPreferences(draft.similarity, trait, draft.parts)
       : search.similarity;
-    const detailsOnly =
-      draft.showSimilarityDetails !== profile.preferences.showSimilarityDetails &&
+    const presentationOnly =
+      (draft.showSimilarityDetails !== profile.preferences.showSimilarityDetails ||
+        draft.showSmallerWeights !== profile.preferences.showSmallerWeights) &&
       !search.filterError &&
       draft.model === profile.id &&
       draft.ranking === ranking &&
@@ -282,6 +285,7 @@ export function SearchSettings({
       ...profile.preferences,
       model: draft.model,
       showSimilarityDetails: draft.showSimilarityDetails,
+      showSmallerWeights: draft.showSmallerWeights,
       ...(seed
         ? trait
           ? { traitSimilarity: draft.similarity }
@@ -289,7 +293,7 @@ export function SearchSettings({
         : { ranking: draft.ranking }),
     };
     const saved = profile.applyPreferences(nextPreferences);
-    if (!detailsOnly)
+    if (!presentationOnly)
       onApply(
         {
           ...search,
@@ -379,6 +383,7 @@ export function SearchSettings({
                         model: profile.defaultId,
                         ranking: "score",
                         showSimilarityDetails: false,
+                        showSmallerWeights: false,
                         similarity: DEFAULT_SIMILARITY_PREFERENCES,
                         parts: null,
                         generation: undefined,
@@ -749,6 +754,26 @@ export function SearchSettings({
                         checked={draft.showSimilarityDetails}
                         onChange={(showSimilarityDetails) =>
                           setDraft({ ...draft, showSimilarityDetails })
+                        }
+                      />
+                    </Form.Item>
+                  )}
+                  {seed && draft.showSimilarityDetails && (
+                    <Form.Item
+                      label={
+                        <SettingLabel
+                          label="Show smaller weights"
+                          help="Includes rows whose weight rounds to 0.0%. All sections still contribute to ranking."
+                        />
+                      }
+                      htmlFor={`${id}-smaller-weights`}
+                    >
+                      <Switch
+                        id={`${id}-smaller-weights`}
+                        aria-label="Show smaller weights"
+                        checked={draft.showSmallerWeights}
+                        onChange={(showSmallerWeights) =>
+                          setDraft({ ...draft, showSmallerWeights })
                         }
                       />
                     </Form.Item>

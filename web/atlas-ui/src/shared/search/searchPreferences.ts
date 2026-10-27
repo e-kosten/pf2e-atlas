@@ -15,6 +15,7 @@ export type SearchPreferences = {
   model: string | null;
   ranking: SearchRanking;
   showSimilarityDetails: boolean;
+  showSmallerWeights: boolean;
   recordSimilarity: SimilarityPreferences;
   traitSimilarity: SimilarityPreferences;
 };
@@ -29,6 +30,7 @@ export const DEFAULT_SEARCH_PREFERENCES: SearchPreferences = {
   model: null,
   ranking: "score",
   showSimilarityDetails: false,
+  showSmallerWeights: false,
   recordSimilarity: DEFAULT_SIMILARITY_PREFERENCES,
   traitSimilarity: DEFAULT_SIMILARITY_PREFERENCES,
 };
@@ -72,6 +74,7 @@ export function readSearchPreferences(): SearchPreferences {
         model: typeof input.model === "string" ? input.model : null,
         ranking: input.ranking === "rrf" ? "rrf" : "score",
         showSimilarityDetails: input.showSimilarityDetails === true,
+        showSmallerWeights: input.showSmallerWeights === true,
         recordSimilarity: similarity(input.recordSimilarity),
         traitSimilarity: similarity(input.traitSimilarity, true),
       };
