@@ -18,6 +18,7 @@ impl TestStore {
             conn.execute_batch(LOCAL_STATE_SCHEMA_SQL)?;
             conn.execute_batch(ENCOUNTER_STATUS_SCHEMA_SQL)?;
             conn.execute_batch(ENCOUNTER_DIFFICULTY_SCHEMA_SQL)?;
+            conn.execute_batch(ABILITY_STATE_SCHEMA_SQL)?;
             conn.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
             conn.execute_batch(CONDITION_SYSTEM_SCHEMA_SQL)?;
             conn.execute_batch(TURN_RESOURCES_SCHEMA_SQL)?;
@@ -436,6 +437,7 @@ mod tests {
         connection.execute_batch(LOCAL_STATE_SCHEMA_SQL)?;
         connection.execute_batch(ENCOUNTER_STATUS_SCHEMA_SQL)?;
         connection.execute_batch(ENCOUNTER_DIFFICULTY_SCHEMA_SQL)?;
+        connection.execute_batch(ABILITY_STATE_SCHEMA_SQL)?;
         connection.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
         connection.execute_batch(CONDITION_SYSTEM_SCHEMA_SQL)?;
         Ok(connection)

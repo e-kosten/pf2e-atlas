@@ -17,9 +17,10 @@ pub(in crate::encounters) fn project_conditions(
         if condition_rule_for_key(condition.condition_key.as_deref()).is_none()
             && let Some(note) = condition.note.as_deref()
         {
-            block
-                .unapplied_effects
-                .push(condition_note(condition, note));
+            block.unapplied_effects.push(condition_note(
+                super::causes::ConditionSource::Saved(condition),
+                note,
+            ));
         }
     }
     let opponents: std::collections::BTreeSet<_> = participant
@@ -59,11 +60,12 @@ fn project_for_opponent(
     opponent: Option<&str>,
     additional: &[super::causes::ScopedConditionCause<'_>],
 ) -> StatBlockView {
-    if let Some(note) = stupefied_hint(participant, opponent) {
+    let sources = block.source_conditions.clone();
+    if let Some(note) = stupefied_hint(participant, opponent, &sources) {
         block.unapplied_effects.push(note);
     }
     let mut movement_restriction = None;
-    let deafened = super::causes::resolve_causes(participant, opponent, additional)
+    let deafened = super::causes::resolve_causes(participant, opponent, additional, &sources)
         .iter()
         .any(|cause| cause.rule == ConditionRule::Deafened);
     let available_senses = block
@@ -81,7 +83,7 @@ fn project_for_opponent(
         .senses_known
         .then(|| super::senses::blinded_penalty_applies(&available_senses, None))
         .flatten();
-    for cause in super::causes::resolve_causes(participant, opponent, additional) {
+    for cause in super::causes::resolve_causes(participant, opponent, additional, &sources) {
         let c = cause.source;
         let rule = cause.rule;
         use super::condition_effects::{Context, Target, modifiers};
@@ -95,7 +97,11 @@ fn project_for_opponent(
         {
             block.unapplied_effects.push(condition_note(
                 c,
-                "Enter the condition value to calculate its penalties.",
+                if c.saved().is_some() {
+                    "Enter the condition value to calculate its penalties."
+                } else {
+                    "The source does not supply a condition value."
+                },
             ));
             continue;
         }
@@ -117,8 +123,8 @@ fn project_for_opponent(
                         &mut stat.modifiers,
                         &mut stat.suppressed_modifiers,
                         Modifier {
-                            source: format!("condition:{}", c.condition_id),
-                            label: c.name.clone(),
+                            source: c.explanation_key(),
+                            label: c.name().to_owned(),
                             modifier_type,
                             value,
                         },
@@ -144,8 +150,8 @@ fn project_for_opponent(
                             &mut roll.modifiers,
                             &mut roll.suppressed_modifiers,
                             Modifier {
-                                source: format!("condition:{}", c.condition_id),
-                                label: c.name.clone(),
+                                source: c.explanation_key(),
+                                label: c.name().to_owned(),
                                 modifier_type,
                                 value,
                             },
@@ -163,8 +169,8 @@ fn project_for_opponent(
                             &mut dc.modifiers,
                             &mut dc.suppressed_modifiers,
                             Modifier {
-                                source: format!("condition:{}", c.condition_id),
-                                label: c.name.clone(),
+                                source: c.explanation_key(),
+                                label: c.name().to_owned(),
                                 modifier_type,
                                 value,
                             },
@@ -203,8 +209,8 @@ fn project_for_opponent(
                             &mut damage.modifiers,
                             &mut damage.suppressed_modifiers,
                             Modifier {
-                                source: format!("condition:{}", c.condition_id),
-                                label: c.name.clone(),
+                                source: c.explanation_key(),
+                                label: c.name().to_owned(),
                                 modifier_type,
                                 value,
                             },
@@ -226,7 +232,7 @@ fn project_for_opponent(
                 applied |= !block.speeds.is_empty();
             }
         }
-        if let Some(reason) = condition_effect_hint(c, rule, applied) {
+        if let Some(reason) = condition_effect_hint(rule, applied) {
             block.unapplied_effects.push(condition_note(c, &reason));
         }
     }
@@ -253,8 +259,8 @@ fn project_for_opponent(
             if let Some(restricted) = restricted {
                 speed.adjusted_value_feet = restricted;
                 speed.notes.push(RuntimeEffectNoteView {
-                    source: condition.name.clone(),
-                    label: condition.name.clone(),
+                    source: condition.name().to_owned(),
+                    label: condition.name().to_owned(),
                     reason: format!(
                         "Speed reduced by {} feet, to a minimum of 5 feet.",
                         adjustment.unsigned_abs()
@@ -281,9 +287,10 @@ fn project_for_opponent(
             }
         }
     }
-    let causes = super::causes::resolve_causes(participant, opponent, additional);
-    if let Some(maximum) = hp_maximum_stat(
+    let causes = super::causes::resolve_causes(participant, opponent, additional, &sources);
+    if let Some((maximum, uncertain)) = projected_hp_maximum(
         participant,
+        &sources,
         block.adjusted_level.as_ref().and_then(Number::as_i64),
     ) && let Some(stat) = block
         .values
@@ -291,16 +298,25 @@ fn project_for_opponent(
         .find(|stat| stat.target == StatisticTarget::HitPointMaximum)
     {
         *stat = maximum;
+        if uncertain
+            && !block
+                .unresolved_stats
+                .contains(&StatisticTarget::HitPointMaximum)
+        {
+            block
+                .unresolved_stats
+                .push(StatisticTarget::HitPointMaximum);
+        }
     }
     if effective_hp_maximum(
         participant,
+        &sources,
         block.adjusted_level.as_ref().and_then(Number::as_i64),
     )
     .is_none()
-        && participant.conditions.iter().any(|condition| {
-            condition_rule_for_key(condition.condition_key.as_deref())
-                == Some(ConditionRule::Drained)
-        })
+        && causes
+            .iter()
+            .any(|cause| cause.rule == ConditionRule::Drained)
     {
         block
             .unresolved_stats
@@ -320,8 +336,8 @@ fn project_for_opponent(
         // A conditional penalty is not a missing source statistic. Keep the known
         // value and explain the context instead of assuming a target or distance.
         perception.notes.push(RuntimeEffectNoteView {
-            source: format!("condition:{}", cause.source.condition_id),
-            label: cause.source.name.clone(),
+            source: cause.source.explanation_key(),
+            label: cause.source.name().to_owned(),
             reason: if blinded_applies.is_none() {
                 "Vision-based Perception checks automatically critically fail. If vision is your only precise sense, you take a –4 status penalty to Perception checks."
             } else {
@@ -343,16 +359,22 @@ fn project_for_opponent(
             block.replacements.push(StatReplacement {
                 target,
                 value: Number::from(value),
-                condition_id: cause.source.condition_id,
-                condition_name: cause.source.name.clone(),
+                source: cause.source.explanation_key(),
+                condition_name: cause.source.name().to_owned(),
             });
         }
     }
+    project_uncertain_sources(
+        &mut block,
+        participant,
+        opponent,
+        additional,
+        &sources,
+        blinded_applies,
+    );
     let perception = block
-        .values
-        .iter()
-        .find(|v| v.target == StatisticTarget::Perception)
-        .and_then(|v| v.adjusted_value.as_f64());
+        .effective_stat(&StatisticTarget::Perception)
+        .and_then(Number::as_f64);
     for (sense, facts) in block.senses.iter_mut().zip(&block.sense_facts) {
         // This overview has no target or distance: show intrinsic availability.
         let available = if petrified
@@ -386,18 +408,191 @@ fn project_for_opponent(
     }
     block.action_budget = Some(super::capabilities::action_budget(
         participant,
-        &block.source_actions,
+        &block.source_conditions,
     ));
     block
 }
+
+pub(super) fn uncertain_source_causes<'a>(
+    participant: &'a EncounterParticipant,
+    opponent: Option<&str>,
+    additional: &[super::causes::ScopedConditionCause<'a>],
+    sources: &'a super::source_conditions::SourceConditions,
+) -> Vec<super::causes::ConditionCause<'a>> {
+    let known = super::causes::resolve_causes(participant, opponent, additional, sources);
+    let rules = known.iter().map(|cause| cause.rule).collect::<Vec<_>>();
+    super::causes::expand(
+        sources.entries.iter().filter_map(|source| {
+            let activation = source.active(&rules, sources, participant);
+            let missing_value = source.rule.definition().has_value && source.value.is_none()
+                && known.iter().any(|cause| {
+                    matches!(cause.source, super::causes::ConditionSource::Authored(active, ..) if std::ptr::eq(active, source))
+                        && cause.rule == source.rule
+                });
+            (activation.is_none() || (activation == Some(true) && missing_value)).then_some(
+                super::causes::ConditionCause {
+                    source: super::causes::ConditionSource::Authored(
+                        source,
+                        sources.source_fingerprint.as_deref(),
+                        &participant.participant_key,
+                    ),
+                    rule: source.rule,
+                    value: source.value,
+                },
+            )
+        }).collect(),
+    )
+}
+
+fn modifier_can_change(modifiers: &[Modifier], kind: ModifierType, value: Option<i64>) -> bool {
+    let Some(value) = value else {
+        return true;
+    };
+    value != 0
+        && !modifiers.iter().any(|known| {
+            known.modifier_type == kind
+                && super::modifiers::competes(kind, known.value, value)
+                && !super::modifiers::stronger(value, known.value)
+        })
+}
+
+fn project_uncertain_sources(
+    block: &mut StatBlockView,
+    participant: &EncounterParticipant,
+    opponent: Option<&str>,
+    additional: &[super::causes::ScopedConditionCause<'_>],
+    sources: &super::source_conditions::SourceConditions,
+    blinded_applies: Option<bool>,
+) {
+    use super::condition_effects::{Context, Target, modifiers};
+    let level = participant
+        .level_override
+        .or_else(|| block.adjusted_level.as_ref().and_then(Number::as_i64));
+    for cause in uncertain_source_causes(participant, opponent, additional, sources) {
+        let reason = if cause.rule.definition().has_value && cause.value.is_none() {
+            "The source condition's value is unavailable."
+        } else {
+            "Condition activation needs context; check the source rule."
+        };
+        let note = RuntimeEffectNoteView {
+            source: cause.source.explanation_key(),
+            label: cause.source.name().into(),
+            reason: reason.into(),
+        };
+        for stat in &mut block.values {
+            if block
+                .replacements
+                .iter()
+                .any(|replacement| replacement.target == stat.target)
+            {
+                continue;
+            }
+            if cause.rule == ConditionRule::Blinded
+                && stat.target == StatisticTarget::Perception
+                && blinded_applies != Some(true)
+            {
+                stat.notes.push(RuntimeEffectNoteView {
+                    source: cause.source.explanation_key(),
+                    label: cause.source.name().into(),
+                    reason: "If Blinded applies, vision-based Perception checks automatically critically fail. If vision is your only precise sense, you take a –4 status penalty to Perception checks.".into(),
+                });
+                continue;
+            }
+            if modifiers(
+                cause.rule,
+                cause.value,
+                level,
+                &Context::statistic(&stat.target, stat.ability),
+            )
+            .any(|(kind, value)| modifier_can_change(&stat.modifiers, kind, value))
+            {
+                if !block.unresolved_stats.contains(&stat.target) {
+                    block.unresolved_stats.push(stat.target.clone());
+                }
+                if !stat.notes.contains(&note) {
+                    stat.notes.push(note.clone());
+                }
+            }
+        }
+        if cause.rule == ConditionRule::Petrified {
+            for (target, replacement) in [
+                (StatisticTarget::ArmorClass, 9),
+                (StatisticTarget::Hardness, 8),
+            ] {
+                if block.effective_stat(&target).and_then(Number::as_i64) != Some(replacement)
+                    && !block.unresolved_stats.contains(&target)
+                {
+                    block.unresolved_stats.push(target.clone());
+                    if let Some(stat) = block.values.iter_mut().find(|stat| stat.target == target) {
+                        stat.notes.push(note.clone());
+                    }
+                }
+            }
+        }
+        for activity in &mut block.activities {
+            let context = Context {
+                target: Target::Attack,
+                ability: activity.attack_ability,
+                initiative: false,
+                auditory: activity
+                    .traits_known
+                    .then(|| activity.traits.iter().any(|value| value == "auditory")),
+            };
+            let attack_uncertain = activity.rolls.iter().any(|roll| {
+                modifiers(cause.rule, cause.value, level, &context)
+                    .any(|(kind, value)| modifier_can_change(&roll.modifiers, kind, value))
+            });
+            let dc_uncertain = activity.difficulty_class.as_ref().is_some_and(|dc| {
+                modifiers(
+                    cause.rule,
+                    cause.value,
+                    level,
+                    &Context::statistic(&dc.target, dc.ability),
+                )
+                .any(|(kind, value)| modifier_can_change(&dc.modifiers, kind, value))
+            });
+            if attack_uncertain || dc_uncertain {
+                activity
+                    .calculation_unavailable
+                    .get_or_insert_with(|| reason.into());
+                if !activity.notes.contains(&note) {
+                    activity.notes.push(note.clone());
+                }
+            }
+            for damage in &mut activity.damage {
+                if damage.effect_kind == DamageEffectKindView::Damage
+                    && modifiers(
+                        cause.rule,
+                        cause.value,
+                        level,
+                        &Context {
+                            target: Target::Damage,
+                            ability: damage.ability,
+                            initiative: false,
+                            auditory: Some(false),
+                        },
+                    )
+                    .any(|(kind, value)| modifier_can_change(&damage.modifiers, kind, value))
+                {
+                    damage
+                        .unavailable_reason
+                        .get_or_insert_with(|| reason.into());
+                    if !activity.notes.contains(&note) {
+                        activity.notes.push(note.clone());
+                    }
+                }
+            }
+        }
+    }
+}
 fn condition_note(
-    condition: &atlas_local_state::EncounterParticipantCondition,
+    condition: super::causes::ConditionSource<'_>,
     reason: &str,
 ) -> UnappliedEffectView {
     UnappliedEffectView {
-        condition_id: Some(condition.condition_id),
-        source: condition.name.clone(),
-        label: condition.name.clone(),
+        condition_id: condition.condition_id(),
+        source: condition.explanation_key(),
+        label: condition.name().to_owned(),
         reason: reason.into(),
     }
 }
@@ -405,8 +600,10 @@ fn condition_note(
 fn stupefied_hint(
     participant: &EncounterParticipant,
     opponent: Option<&str>,
+    sources: &super::source_conditions::SourceConditions,
 ) -> Option<UnappliedEffectView> {
-    let requirement = super::action_context::stupefied_casting_hint(participant, opponent)?;
+    let requirement =
+        super::action_context::stupefied_casting_hint(participant, opponent, sources)?;
     Some(UnappliedEffectView {
         condition_id: None,
         source: "condition:stupefied".into(),
@@ -459,11 +656,7 @@ fn fascination_hint(subject: Option<&str>) -> String {
     )
 }
 
-fn condition_effect_hint(
-    _condition: &atlas_local_state::EncounterParticipantCondition,
-    rule: ConditionRule,
-    applied: bool,
-) -> Option<String> {
+fn condition_effect_hint(rule: ConditionRule, applied: bool) -> Option<String> {
     match rule {
         ConditionRule::Petrified => Some(
             "Bulk is doubled. Your body and mind are in stasis: you do not age or notice time passing.",
@@ -530,7 +723,7 @@ fn apply_modifier(
 
 pub(in crate::encounters) fn participant_runtime_block(p: &EncounterParticipant) -> StatBlockView {
     StatBlockView {
-        source_actions: Default::default(),
+        source_conditions: Default::default(),
         record_key: p.participant_key.clone(),
         title: p.display_name.clone(),
         level: None,
@@ -545,32 +738,43 @@ pub(in crate::encounters) fn participant_runtime_block(p: &EncounterParticipant)
         speeds: vec![],
         action_budget: Some(super::capabilities::action_budget(p, &Default::default())),
         activities: vec![],
-        unapplied_effects: super::causes::condition_causes(p, None)
-            .into_iter()
-            // Parent hints describe their maintained grants; do not duplicate child hints.
-            .filter(|cause| {
-                condition_rule_for_key(cause.source.condition_key.as_deref()) == Some(cause.rule)
-            })
-            .filter_map(|cause| {
-                condition_effect_hint(cause.source, cause.rule, false)
-                    .map(|reason| condition_note(cause.source, &reason))
-            })
-            .chain(stupefied_hint(p, None))
-            .chain(
-                p.conditions
-                    .iter()
-                    .filter(|condition| scope_applies(&condition.scope, None))
-                    .filter(|condition| {
-                        condition_rule_for_key(condition.condition_key.as_deref()).is_none()
+        unapplied_effects: super::causes::condition_causes(
+            p,
+            None,
+            crate::encounters::rules::source_conditions::SourceConditions::empty(),
+        )
+        .into_iter()
+        // Parent hints describe their maintained grants; do not duplicate child hints.
+        .filter(|cause| {
+            cause
+                .source
+                .saved()
+                .and_then(|source| condition_rule_for_key(source.condition_key.as_deref()))
+                == Some(cause.rule)
+        })
+        .filter_map(|cause| {
+            condition_effect_hint(cause.rule, false)
+                .map(|reason| condition_note(cause.source, &reason))
+        })
+        .chain(stupefied_hint(
+            p,
+            None,
+            super::source_conditions::SourceConditions::empty(),
+        ))
+        .chain(
+            p.conditions
+                .iter()
+                .filter(|condition| scope_applies(&condition.scope, None))
+                .filter(|condition| {
+                    condition_rule_for_key(condition.condition_key.as_deref()).is_none()
+                })
+                .filter_map(|condition| {
+                    condition.note.as_deref().map(|note| {
+                        condition_note(super::causes::ConditionSource::Saved(condition), note)
                     })
-                    .filter_map(|condition| {
-                        condition
-                            .note
-                            .as_deref()
-                            .map(|note| condition_note(condition, note))
-                    }),
-            )
-            .collect(),
+                }),
+        )
+        .collect(),
     }
 }
 
@@ -778,16 +982,29 @@ pub(in crate::encounters) fn project_participant(
 /// established it. Reads never charge Drained's current-HP consequence.
 pub(in crate::encounters) fn effective_hp_maximum(
     participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
     level: Option<i64>,
 ) -> Option<i64> {
-    hp_maximum_stat(participant, level)?.adjusted_value.as_i64()
+    hp_maximum_stat(participant, sources, level)?
+        .adjusted_value
+        .as_i64()
 }
 
 /// The same attributed maximum feeds saved HP presentation and healing limits.
 pub(in crate::encounters) fn hp_maximum_stat(
     participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
     level: Option<i64>,
 ) -> Option<StatValueView> {
+    let (stat, uncertain) = projected_hp_maximum(participant, sources, level)?;
+    (!uncertain).then_some(stat)
+}
+
+fn projected_hp_maximum(
+    participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
+    level: Option<i64>,
+) -> Option<(StatValueView, bool)> {
     use super::condition_effects::{Context, modifiers};
     let maximum = participant.max_hp?;
     let mut stat = StatValueView {
@@ -801,24 +1018,54 @@ pub(in crate::encounters) fn hp_maximum_stat(
         notes: vec![],
     };
     let context = Context::statistic(&stat.target, None);
-    for cause in super::causes::condition_causes(participant, None) {
+    let mut uncertain = false;
+    for cause in super::causes::condition_causes(participant, None, sources) {
         for (modifier_type, value) in modifiers(
             cause.rule,
             cause.value,
             participant.level_override.or(level),
             &context,
         ) {
+            let Some(value) = value else {
+                uncertain = true;
+                stat.notes.push(RuntimeEffectNoteView {
+                    source: cause.source.explanation_key(),
+                    label: cause.source.name().into(),
+                    reason: "Level or condition value needed to calculate maximum HP.".into(),
+                });
+                continue;
+            };
             apply_modifier(
                 &mut stat.adjusted_value,
                 &mut stat.modifiers,
                 &mut stat.suppressed_modifiers,
                 Modifier {
-                    source: format!("condition:{}", cause.source.condition_id),
-                    label: cause.source.name.clone(),
+                    source: cause.source.explanation_key(),
+                    label: cause.source.name().to_owned(),
                     modifier_type,
-                    value: value?,
+                    value,
                 },
             );
+        }
+    }
+    for cause in uncertain_source_causes(participant, None, &[], sources) {
+        if modifiers(
+            cause.rule,
+            cause.value,
+            participant.level_override.or(level),
+            &context,
+        )
+        .any(|(kind, value)| modifier_can_change(&stat.modifiers, kind, value))
+        {
+            uncertain = true;
+            let note = RuntimeEffectNoteView {
+                source: cause.source.explanation_key(),
+                label: cause.source.name().into(),
+                reason: "Condition value or activation needed to calculate maximum HP.".into(),
+            };
+            if !stat.notes.contains(&note) {
+                stat.notes.push(note);
+            }
         }
     }
     if stat.adjusted_value.as_i64()? < 0 {
@@ -829,7 +1076,7 @@ pub(in crate::encounters) fn hp_maximum_stat(
         });
         stat.adjusted_value = 0.into();
     }
-    Some(stat)
+    Some((stat, uncertain))
 }
 
 /// Deafened penalizes Perception initiative even when another sense can perceive.
@@ -837,6 +1084,7 @@ pub(in crate::encounters) fn project_initiative(
     mut block: StatBlockView,
     participant: &EncounterParticipant,
 ) -> StatBlockView {
+    let sources = block.source_conditions.clone();
     use super::condition_effects::{Context, modifiers};
     let target = StatisticTarget::Perception;
     let context = Context {
@@ -844,7 +1092,7 @@ pub(in crate::encounters) fn project_initiative(
         ..Context::statistic(&target, None)
     };
     let level = block.adjusted_level.as_ref().and_then(Number::as_i64);
-    for cause in super::causes::condition_causes(participant, None) {
+    for cause in super::causes::condition_causes(participant, None, &sources) {
         if !cause.rule.definition().modifiers.iter().any(|effect| {
             !matches!(
                 effect.predicate,
@@ -860,8 +1108,8 @@ pub(in crate::encounters) fn project_initiative(
                 apply(
                     stat,
                     Modifier {
-                        source: format!("condition:{}", cause.source.condition_id),
-                        label: cause.source.name.clone(),
+                        source: cause.source.explanation_key(),
+                        label: cause.source.name().to_owned(),
                         modifier_type,
                         value,
                     },

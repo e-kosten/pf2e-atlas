@@ -4,6 +4,8 @@ mod actor_presentation;
 mod actor_query;
 mod availability;
 mod content;
+#[cfg(test)]
+mod declared_grant_tests;
 mod identity;
 mod item_query;
 mod model;

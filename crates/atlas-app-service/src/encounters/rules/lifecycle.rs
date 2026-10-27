@@ -14,7 +14,7 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
     action: &ConditionLifecycleActionView,
     pending: Option<&SavedPendingConsequence>,
     request_id: &'a str,
-    sources: &super::source_action_conditions::SourceActionConditions,
+    sources: &super::source_conditions::SourceConditions,
 ) -> AppServiceResult<PreparedLifecycle<'a>> {
     let mut changes = PreparedConditionEvent::default();
     let mut effect = None;
@@ -111,14 +111,18 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
                 if resources.actions_open
                     && let Some(allocation) = &mut resources.allocation
                 {
-                    let value = super::causes::condition_causes(participant, None)
-                        .into_iter()
-                        .filter(|cause| cause.rule == ConditionRule::Stunned)
-                        .filter_map(|cause| cause.value)
-                        .max()
-                        .ok_or_else(|| {
-                            AppServiceError::invalid_request("Current Stunned value is unavailable")
-                        })?;
+                    let value = super::causes::condition_causes(
+                        participant,
+                        None,
+                        crate::encounters::rules::source_conditions::SourceConditions::empty(),
+                    )
+                    .into_iter()
+                    .filter(|cause| cause.rule == ConditionRule::Stunned)
+                    .filter_map(|cause| cause.value)
+                    .max()
+                    .ok_or_else(|| {
+                        AppServiceError::invalid_request("Current Stunned value is unavailable")
+                    })?;
                     allocation.adjustments.push(
                         atlas_local_state::TurnActionAdjustment::StunnedDuringTurn {
                             value,
@@ -414,7 +418,7 @@ pub(in crate::encounters) fn available_actions(
     fortitude: Option<i64>,
     pending: &[SavedPendingConsequence],
     claims: &[atlas_local_state::EncounterBoundaryClaim],
-    source_actions: &super::source_action_conditions::SourceActionConditions,
+    source_conditions: &super::source_conditions::SourceConditions,
 ) -> Vec<ConditionLifecycleOptionView> {
     use ConditionRecoveryOfferView as Offer;
     let sources = |rule| {
@@ -546,7 +550,7 @@ pub(in crate::encounters) fn available_actions(
                 condition_id: condition.condition_id,
                 actions_lost: super::capabilities::stunned_resolution_loss(
                     participant,
-                    source_actions,
+                    source_conditions,
                 ),
             },
             "Consume actions lost to stunned",
@@ -832,6 +836,7 @@ mod recovery_tests {
         };
         let planned = super::super::events::plan_condition_change(
             &actor,
+            crate::encounters::rules::source_conditions::SourceConditions::empty(),
             ConditionEventChange::Add(input),
             true,
             false,

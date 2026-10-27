@@ -273,6 +273,7 @@ mod tests {
                 let protection = super::super::damage::persistent_protection(
                     Some(&record),
                     &participant,
+                    super::super::source_conditions::SourceConditions::empty(),
                     "bleed",
                 )
                 .unwrap();

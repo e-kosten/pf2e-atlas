@@ -950,6 +950,22 @@ pub(crate) async fn relationship_occurrences(
     ))
 }
 
+pub(crate) async fn update_encounter_ability_state(
+    State(state): State<AtlasWebState>,
+    Path((encounter_ref, participant_key)): Path<(String, String)>,
+    payload: Result<Json<atlas_app_model::UpdateEncounterAbilityStateRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
+    request.participant_key = participant_key;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.update_encounter_ability_state(&encounter_ref, request)
+        })
+        .await?,
+    ))
+}
+
 pub(crate) async fn update_turn_resources(
     State(state): State<AtlasWebState>,
     Path((encounter_ref, participant_key)): Path<(String, String)>,

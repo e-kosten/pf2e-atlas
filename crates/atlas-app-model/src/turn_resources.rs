@@ -43,6 +43,9 @@ pub struct InherentActionConditionsView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct InherentActionConditionView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub unavailable_reason: Option<String>,
     pub name: String,
     pub has_value: bool,
     pub value: Option<i64>,

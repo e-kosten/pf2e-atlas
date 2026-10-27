@@ -5,6 +5,11 @@ pub use encounter_difficulty::{
     EncounterDifficultyReferenceView, EncounterDifficultyRuleView, EncounterDifficultyView,
     PreviewEncounterDifficultyRequest, SetEncounterDifficultyRequest,
 };
+mod encounter_ability_state;
+pub use encounter_ability_state::{
+    EncounterAbilityChoiceView, EncounterAbilityStateAction, EncounterAbilityStateKindView,
+    EncounterAbilityStateView, UpdateEncounterAbilityStateRequest,
+};
 mod turn_resources;
 pub use dice::{FlatCheckRollView, RollFlatCheckRequest};
 pub use turn_resources::{
@@ -171,14 +176,14 @@ pub use presentation::{
     HazardPresentationView, HeighteningDamageView, IwrEntryView, JournalPagePresentationView,
     JournalPresentationView, KitEntryReferenceView, KitReferenceView, NumberAdjustmentView,
     NumberFactView, PhysicalDetailsView, PhysicalMaterialReferenceView, PhysicalPresentationView,
-    PhysicalPriceView, RecordBodyView, RecordPresentationView, RitualCastingView,
-    RollTablePresentationView, RollTableRowView, ShieldReferenceView, SpellAreaView,
-    SpellChangeView, SpellDefenseView, SpellEffectChoiceView, SpellEffectFactView,
-    SpellEffectPreviewView, SpellEffectStrikeView, SpellFixedLevelView, SpellFormView,
-    SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView, SpellRankChangeView,
-    SpellRankFactView, StrikeRangeView, TableResultPresentationView, WeaponAmmunitionReferenceView,
-    WeaponDamageReferenceView, WeaponMeleeReferenceView, WeaponPersistentReferenceView,
-    WeaponReferenceView, WeaponRuneReferenceView,
+    PhysicalPriceView, RecordBodyView, RecordGrantLinkView, RecordGrantsView,
+    RecordPresentationView, RitualCastingView, RollTablePresentationView, RollTableRowView,
+    ShieldReferenceView, SpellAreaView, SpellChangeView, SpellDefenseView, SpellEffectChoiceView,
+    SpellEffectFactView, SpellEffectPreviewView, SpellEffectStrikeView, SpellFixedLevelView,
+    SpellFormView, SpellHeighteningChangeView, SpellHeighteningView, SpellPresentationView,
+    SpellRankChangeView, SpellRankFactView, StrikeRangeView, TableResultPresentationView,
+    WeaponAmmunitionReferenceView, WeaponDamageReferenceView, WeaponMeleeReferenceView,
+    WeaponPersistentReferenceView, WeaponReferenceView, WeaponRuneReferenceView,
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView, SearchProfileReadinessView};
 pub use record::{
@@ -234,6 +239,8 @@ mod tests {
     }
 
     fn export_bindings_to(path: &Path) {
+        UpdateEncounterAbilityStateRequest::export_all_to(path).expect("ability state bindings");
+        EncounterAbilityStateView::export_all_to(path).expect("ability state view bindings");
         UpdateTurnResourcesRequest::export_all_to(path).expect("turn resource request");
         TurnResourcesView::export_all_to(path).expect("turn resources");
         EncounterStrikeContextRequest::export_all_to(path).expect("strike attempt preview request");
