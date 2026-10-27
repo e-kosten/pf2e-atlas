@@ -6,7 +6,7 @@ import {
 } from "../../shared/filters/useFilterUrlRecovery";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { Alert, Button, Select, Tag } from "antd";
-import { AddToListButton } from "../lists/AddToListButton";
+import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { FilterControls } from "../../shared/filters/FilterPanel";
 import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
 import { ResultPaneHeader } from "./ResultPaneHeader";
@@ -176,11 +176,13 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
         reading={workspace.reading}
         positions={workspace.positions}
         resultsHeader={<ResultPaneHeader workspace={workspace} />}
-        readerActions={
-          workspace.reading.detail && (
-            <AddToListButton recordKey={workspace.reading.detail.record.record_key} />
-          )
-        }
+        recordActions={(record) => (
+          <AddToRecordButton
+            key={record.record_key}
+            recordKey={record.record_key}
+            record={record}
+          />
+        )}
       />
     </main>
   );

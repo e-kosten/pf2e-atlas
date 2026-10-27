@@ -1,5 +1,5 @@
 import { ReaderMatchNavigation } from "./ReaderMatchNavigation";
-import type { RecordNavigationView } from "../../generated/atlas";
+import type { RecordNavigationView, RecordSummaryView } from "../../generated/atlas";
 import {
   destinationHref,
   isPrimaryActivation,
@@ -26,7 +26,7 @@ import { readingNavigationForUrl } from "./readingUrlNavigation";
 export function ReferenceReader({
   reading,
   selectedRecordKey = null,
-  readerActions,
+  recordActions,
   readerContext,
   status,
   readerFooter,
@@ -37,7 +37,7 @@ export function ReferenceReader({
   reading: ReferenceReading;
   selectedRecordKey?: string | null;
   readerContext?: ReactNode;
-  readerActions?: ReactNode;
+  recordActions?: (record: RecordSummaryView) => ReactNode;
   status?: ReactNode;
   readerFooter?: ReactNode;
   positions?: BrowsePositions;
@@ -352,7 +352,7 @@ export function ReferenceReader({
                 Return to selection
               </Button>
             )}
-          {readerActions}
+          {detail && recordActions?.(detail.record)}
           {fullRoute && (
             <Button
               type="text"
@@ -403,6 +403,7 @@ export function ReferenceReader({
       {readerFooter}
       {preview.recordKey && (
         <RecordReferenceDrawer
+          actions={preview.detail && recordActions?.(preview.detail.record)}
           anchor={preview.anchor}
           visibleOwnerRecordKey={
             detail?.selected.embedded_path.length === 0
