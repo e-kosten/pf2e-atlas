@@ -27,3 +27,6 @@ pub const ENCOUNTER_DIFFICULTY_SCHEMA_SQL: &str = include_str!("encounter_diffic
 
 /// Source-defined switches, choices and ability expenditure.
 pub const ABILITY_STATE_SCHEMA_SQL: &str = include_str!("ability_state.sql");
+
+/// Remove obsolete display-only strike receipts while retaining durable gameplay receipts.
+pub const STATELESS_STRIKE_ROLLS_SCHEMA_SQL: &str = include_str!("stateless_strike_rolls.sql");

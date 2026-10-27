@@ -122,6 +122,8 @@ it("moves keyboard focus into a damage result and restores its exact opener", as
   expect(popup).toHaveFocus(); // Async result must not send focus back behind the popup.
   fireEvent.click(within(popup).getByRole("button", { name: "Close" }));
   await waitFor(() => expect(trigger).toHaveFocus());
+  fireEvent.click(trigger);
+  await screen.findByRole("button", { name: "Reroll" });
   expect(rollEncounterStrike).toHaveBeenCalledTimes(1);
 });
 
@@ -204,7 +206,7 @@ function strikeReceipt(request: RollEncounterStrikeRequest): EncounterStrikeRoll
   };
 }
 function renderStrike() {
-  render(
+  return render(
     <EncounterStrikeControl
       encounterKey="e"
       generation="generation"
@@ -229,16 +231,16 @@ function renderStrike() {
     { wrapper },
   );
 }
-it("damage roll retries an uncertain response with the same intent and rerolls with a fresh ID", async () => {
+it("damage roll makes a fresh attempt after an uncertain response and on reroll", async () => {
   vi.mocked(rollEncounterStrike)
     .mockRejectedValueOnce(new TypeError("Network interrupted"))
     .mockImplementation(async (_key, request) => strikeReceipt(request));
   renderStrike();
   fireEvent.click(screen.getByRole("button", { name: "Roll Jaws damage" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Roll again" }));
   await screen.findByRole("button", { name: "Reroll" });
   const calls = vi.mocked(rollEncounterStrike).mock.calls;
-  expect(calls[1][1]).toEqual(calls[0][1]);
+  expect(calls[1][1].request_id).not.toBe(calls[0][1].request_id);
   fireEvent.click(screen.getByRole("button", { name: "Reroll" }));
   await waitFor(() => expect(rollEncounterStrike).toHaveBeenCalledTimes(3));
   expect(calls[2][1].request_id).not.toBe(calls[0][1].request_id);
@@ -253,12 +255,28 @@ it.each([400, 409])(
     fireEvent.click(screen.getByRole("button", { name: "Roll Jaws damage" }));
     await screen.findByText("Review the current attack.");
     expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Roll" }));
+    fireEvent.click(screen.getByRole("button", { name: "Roll again" }));
     await screen.findByRole("button", { name: "Reroll" });
     const calls = vi.mocked(rollEncounterStrike).mock.calls;
     expect(calls[1][1].request_id).not.toBe(calls[0][1].request_id);
   },
 );
+it("retains the displayed damage after a failed reroll and loses it on unmount", async () => {
+  vi.mocked(rollEncounterStrike)
+    .mockImplementationOnce(async (_key, request) => strikeReceipt(request))
+    .mockRejectedValueOnce(new TypeError("Connection interrupted"));
+  const mounted = renderStrike();
+  fireEvent.click(screen.getByRole("button", { name: "Roll Jaws damage" }));
+  await screen.findByRole("button", { name: "Reroll" });
+  const shown = screen.getByText(`Damage: ${outcome.total}`).textContent;
+  fireEvent.click(screen.getByRole("button", { name: "Reroll" }));
+  await screen.findByRole("button", { name: "Roll again" });
+  expect(screen.getByText(shown!)).toBeInTheDocument();
+  mounted.unmount();
+  renderStrike();
+  expect(screen.queryByText(shown!)).not.toBeInTheDocument();
+});
+
 function renderInitiative(
   onRoll: (request: RollInitiativeRequest) => Promise<InitiativeRollView>,
 ) {
@@ -311,7 +329,7 @@ it("initiative stops resubmission after a typed revision conflict", async () => 
   expect(onRoll).toHaveBeenCalledTimes(1);
 });
 
-it("attack rolls immediately with selected MAP, preserves retry intent, and context opens without rolling", async () => {
+it("attack rolls immediately with selected MAP, makes fresh attempts, and context opens without rolling", async () => {
   const beginContext = vi.fn();
   const renderContext = vi.fn(() => <div>Target questions</div>);
   vi.mocked(rollEncounterStrike)
@@ -340,14 +358,14 @@ it("attack rolls immediately with selected MAP, preserves retry intent, and cont
     }),
   );
   expect(screen.getByRole("button", { name: "Target & checks" })).toBeDisabled();
-  fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Roll again" }));
   await screen.findByRole("button", { name: "Reroll" });
   const calls = vi.mocked(rollEncounterStrike).mock.calls;
   expect(calls[0][1]).toMatchObject({
     attack_number: choice.attack_number,
     roll_kind: "attack",
   });
-  expect(calls[1][1]).toEqual(calls[0][1]);
+  expect(calls[1][1].request_id).not.toBe(calls[0][1].request_id);
   fireEvent.click(screen.getByRole("button", { name: "Target & checks" }));
   expect(beginContext).toHaveBeenCalledWith(
     expect.objectContaining({ rollId: calls[1][1].request_id }),
