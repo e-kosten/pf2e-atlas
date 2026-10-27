@@ -24,7 +24,9 @@ pub(crate) fn prepare_traits(
     for record in records {
         reference_index.insert_source(record.record.key(), record.record.source());
     }
-    let resolve = |target: &str| reference_index.resolve_global_reference(target);
+    let resolve = |kind: &atlas_record::source_content::ContentReferenceKind, target: &str| {
+        reference_index.resolve_global_content_reference(kind, target)
+    };
     for authored in atlas_foundry_model::generated::trait_definitions() {
         let key = TraitKey::new(authored.identifier)
             .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?;

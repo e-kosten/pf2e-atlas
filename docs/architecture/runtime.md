@@ -729,3 +729,36 @@ compatibility, deep validation and queries run through the selected Atlas app
 executable. Explicit normal setup owns subsequent updates. Source/model caches
 remain shared, while compiler targets stay checkout-local. See
 [the contributor baseline workflow](../../CONTRIBUTING.md#reusable-development-baseline).
+
+
+### Authored content reference rolls
+
+App-service resolves a selected source field and interaction ordinal from the
+checked record, verifies its source fingerprint, interpretation version, authored
+command mode and exact formula, then
+validates every supported instance before rolling. Complete bounded damage
+expressions with recognized options receive a roll offer after any supported
+variables resolve from checked source, selected rank or encounter context. Literal
+`/r`, `/gmr` and `/br` commands share the same source-bound endpoint and transient
+local result surface, retaining their original modes without Foundry chat routing. These are authored
+base-formula reference rolls: known traits/domains/roll options stay attributed
+metadata and never trigger actor synthetics. Unknown options or dynamic option
+values receive no roll offer. Mixed types
+retain separate labeled outcomes. This stateless endpoint performs no saved-state
+writes or HP changes. Numeric context is reread and checked before rolling;
+unresolved values receive no executable offer. The reader holds transient
+results, reuses them when reopening the popover, and replaces them only on explicit
+Reroll; there is no persistent roll history. The browser renders supplied previews
+and outcomes using the shared dice surface rather than parsing formulas.
+
+Derived action references back to the containing root action retain their verified
+destination in the app projection and carry a self-action fact. Reader surfaces
+render those labels without navigation, so a source command such as Seek's
+`[[/act seek]]{Perception}` cannot reopen the current action as another reference.
+
+Content-roll heading and unit roles are transient app-service projections over the
+checked literal components. Authored purpose captions remain verbatim; exact
+English time-unit captions supply Duration plus singular/plural unit labels.
+Damage/healing categories come from parsed source tags, not display-string tests.
+The browser renders these facts and binds each dialog name to its visible heading.
+These presentation changes require no artifact re-preparation or locale changes.

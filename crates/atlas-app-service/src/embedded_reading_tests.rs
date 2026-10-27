@@ -304,7 +304,12 @@ fn attributed_content_refuses_more_than_256_fields_and_missing_cache_has_no_pros
         &[],
         &[],
         retrieval.artifact_context().audience,
-        retrieval.source_fingerprint(),
+        &crate::prepared_content::PreparedContentContext::source(
+            retrieval.source_fingerprint(),
+            &detail.source,
+            &[],
+            None,
+        ),
     )
     .unwrap_err();
     assert!(error.to_string().contains("no prepared outcome"));

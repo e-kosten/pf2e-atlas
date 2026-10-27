@@ -1,6 +1,8 @@
 #![deny(unsafe_code)]
 
 mod completions;
+mod content_roll;
+mod content_roll_presentation;
 mod contextual_references;
 mod physical_labels;
 
@@ -58,3 +60,6 @@ mod result_order;
 
 #[cfg(test)]
 mod result_order_tests;
+
+#[cfg(test)]
+mod contextual_content_tests;

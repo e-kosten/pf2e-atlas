@@ -45,6 +45,7 @@ pub(crate) fn content_reference(
         atlas_record::source_content::ContentReferenceKind::Compendium => "compendium",
         atlas_record::source_content::ContentReferenceKind::Embed { .. } => "embed",
         atlas_record::source_content::ContentReferenceKind::HtmlLink => "html_link",
+        atlas_record::source_content::ContentReferenceKind::Action { .. } => "action",
     };
     if edge.kind != expected_kind {
         return Err(IndexError::Invalid(

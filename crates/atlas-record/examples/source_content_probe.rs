@@ -40,6 +40,7 @@ impl ContentReferenceResolver for Context {
     fn resolve_reference(
         &self,
         _source: &SourceContentLocator,
+        _kind: &atlas_record::source_content::ContentReferenceKind,
         target: &str,
     ) -> Option<ResolvedContentReference> {
         let rest = target.strip_prefix("Compendium.pf2e.")?;
@@ -139,6 +140,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             ContentVisibilityRule::All,
             Some(&context),
             Some(&context),
+            &atlas_record::source_content::FormulaContext::default(),
         )?;
         fields += 1;
         references += prepared.references.len();

@@ -253,7 +253,12 @@ impl AtlasAppService {
                         &content.content.fields,
                         &content.bounded,
                         r.artifact_context().audience,
-                        r.source_fingerprint(),
+                        &crate::prepared_content::PreparedContentContext::source(
+                            r.source_fingerprint(),
+                            &detail.source,
+                            &navigation.owners,
+                            None,
+                        ),
                     )?,
                     relationships: relationship_views(
                         content

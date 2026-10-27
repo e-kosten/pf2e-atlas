@@ -99,6 +99,11 @@ pub struct RecordRelationshipView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub contextual_target: Option<RecordNavigationView>,
+    /// Derived action command targets its containing root action; readers retain
+    /// the label without offering redundant navigation. Target evidence remains.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub self_action_reference: Option<bool>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EffectReferenceLabelView {

@@ -1518,3 +1518,12 @@ export async function previewEncounterDifficulty(
     { method: "POST", body: jsonBody(request) },
   );
 }
+
+export function rollContent(
+  request: import("../generated/atlas").RollContentRequest,
+): Promise<import("../generated/atlas").ContentRollResultView> {
+  return atlasFetch("/api/rolls/content", {
+    method: "POST",
+    body: jsonBody(request),
+  });
+}

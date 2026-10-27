@@ -341,6 +341,7 @@ name = "atlas-record"
 version = "0.1.0"
 dependencies = [
  "ammonia",
+ "atlas-dice",
  "atlas-domain",
  "atlas-foundry-model",
  "ego-tree",

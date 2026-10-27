@@ -1497,21 +1497,28 @@ describe("encounter views", () => {
     );
   });
 
-  it("opens condition reference previews from canonical condition rows", async () => {
+  it("opens condition references with their current participant and condition identity", async () => {
+    apiMocks.getEncounterReference.mockResolvedValue(
+      detailFixture("conditionitems:TBSHQspnbcqxsmjL", "Frightened Condition"),
+    );
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-
     fireEvent.click(await screen.findByRole("link", { name: "Frightened" }));
-
     await waitFor(() =>
-      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
-        "conditionitems:TBSHQspnbcqxsmjL",
-        undefined,
+      expect(apiMocks.getEncounterReference).toHaveBeenCalledWith(
+        expect.any(String),
+        "participant_a",
+        expect.objectContaining({
+          condition_id: expect.any(BigInt),
+          selection: expect.objectContaining({
+            record_key: "conditionitems:TBSHQspnbcqxsmjL",
+          }),
+        }),
         expect.any(AbortSignal),
       ),
     );
-    expect(await screen.findByLabelText("Reference content")).toBeInTheDocument();
+    expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
     expect(await screen.findByText("Frightened Condition")).toBeInTheDocument();
   });
 
