@@ -331,6 +331,7 @@ mod tests {
     #[test]
     fn rejects_missing_duplicate_out_of_range_and_wrong_kind_markers() {
         let interactions = vec![ContentInteraction {
+            label: crate::source_content::ContentInteractionLabel::Authored,
             ordinal: 0,
             path: "/0".into(),
             kind: ContentInteractionKind::Damage {
@@ -371,7 +372,8 @@ mod tests {
             owners: vec![],
             field: "/system/description/value".into(),
         };
-        let prepared=super::super::prepare_source_content(locator,"<p>Before<img src='systems/pf2e/local.webp' alt='Portrait'><img src='file:///private/image.png'><img src='https://example.com/chart.png' alt='Chart'>After</p>",super::super::ContentAudience {include_gm:true,include_owner:true,implicit_check_dc:super::super::ContentVisibilityRule::Gm},super::super::ContentVisibilityRule::All,None,None).unwrap();
+        let prepared=super::super::prepare_source_content(locator,"<p>Before<img src='systems/pf2e/local.webp' alt='Portrait'><img src='file:///private/image.png'><img src='https://example.com/chart.png' alt='Chart'>After</p>",super::super::ContentAudience {include_gm:true,include_owner:true,implicit_check_dc:super::super::ContentVisibilityRule::Gm},super::super::ContentVisibilityRule::All,None,None,
+&crate::source_content::FormulaContext::default(),).unwrap();
         assert!(prepared.html.contains("[image unavailable: Portrait]"));
         assert!(!prepared.html.contains("systems/pf2e"));
         assert!(!prepared.html.contains("file:"));

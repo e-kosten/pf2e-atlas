@@ -86,3 +86,10 @@ tree. Gameplay execution requires separate, explicitly scoped runtime behavior.
 
 See [shared content interpretation](../../architecture/decisions/0044-shared-source-content-interpretation.md)
 and [Foundry-inspired product actions](foundry-inspired-product-actions.md).
+
+
+Contextual reading resolves the bounded arithmetic subset from selected spell rank,
+checked item/owning-actor levels and addressed encounter context. Missing values
+render symbolic prose; generic badge defaults remain unknown. Other actor data,
+kingdom state, unsupported formulas, flavored command rolls and runtime template
+geometry remain outside this subset. See ADR0044 and the artifact contract.

@@ -1,4 +1,4 @@
-//! Readable checks and areas. Runtime expressions remain authored text.
+//! Readable checks and areas from retained authored parameters.
 use std::collections::BTreeMap;
 
 /// A noun immediately outside a macro belongs to its authored sentence. Move it
@@ -26,11 +26,65 @@ pub(super) fn check_noun(text: &str) -> Option<(&str, &str)> {
     None
 }
 
+pub(super) fn damage_noun(text: &str) -> Option<&str> {
+    let trimmed = text.trim_start();
+    let tail = trimmed.get(6..)?;
+    (trimmed.len() != text.len()
+        && trimmed[..6].eq_ignore_ascii_case("damage")
+        && !tail.starts_with(char::is_alphanumeric))
+    .then_some(tail)
+}
+
+/// Absorb only a source clause that exactly repeats the generated symbolic DC.
+pub(super) fn redundant_dc_clause<'a>(
+    text: &'a str,
+    dc: &str,
+    context: &super::FormulaContext,
+) -> Option<&'a str> {
+    let super::contextual_formula::DcText::Rule(rule) =
+        super::contextual_formula::contextual_dc(dc, "0", context)?
+    else {
+        return None;
+    };
+    let tail = text.strip_prefix(&format!(" {rule}"))?;
+    (!tail.starts_with(char::is_alphanumeric)).then_some(tail)
+}
+
+/// The surrounding authored unit already names untyped healing. Mixed or
+/// typed pools keep their labels so this never discards mechanical information.
+pub(super) fn authored_healing_points(formula: &str, text: &str) -> bool {
+    let text = text.trim_start();
+    if !text
+        .get(..10)
+        .is_some_and(|word| word.eq_ignore_ascii_case("hit points"))
+        || text
+            .get(10..)
+            .is_some_and(|tail| tail.starts_with(char::is_alphanumeric))
+    {
+        return false;
+    }
+    let Some(parts) = super::literal_damage::damage_instances(formula) else {
+        return false;
+    };
+    let [part] = parts.as_slice() else {
+        return false;
+    };
+    let Some((_, flavor)) = part
+        .strip_suffix(']')
+        .and_then(|part| part.rsplit_once('['))
+    else {
+        return false;
+    };
+    super::literal_damage(&format!("1[{flavor}]"))
+        .is_some_and(|parts| parts.len() == 1 && parts[0].label == "healing")
+}
+
 pub(super) fn check_text(
     statistic: &str,
     options: &BTreeMap<String, String>,
     authored_noun: Option<&str>,
     already_secret: bool,
+    context: &super::FormulaContext,
 ) -> String {
     let adjustments: Vec<_> = options
         .get("adjustment")
@@ -68,14 +122,12 @@ pub(super) fn check_text(
                 .filter(|dc| !dc.is_empty())
             {
                 let adjustment = adjustments.get(index).copied().unwrap_or("0");
-                text = match (dc.parse::<i64>(), adjustment.parse::<i64>()) {
-                    (Ok(dc), Ok(adjustment)) if dc.checked_add(adjustment).is_some() => {
-                        format!("DC {} {text}", dc + adjustment)
+                text = match super::contextual_formula::contextual_dc(dc, adjustment, context) {
+                    Some(super::contextual_formula::DcText::Number(dc)) => {
+                        format!("DC {dc} {text}")
                     }
-                    _ if adjustment != "0" => {
-                        format!("DC {dc} {text} (DC adjustment {adjustment})")
-                    }
-                    _ => format!("DC {dc} {text}"),
+                    Some(super::contextual_formula::DcText::Rule(rule)) => format!("{text} {rule}"),
+                    None => format!("DC {dc} {text}"),
                 };
             }
             if let Some(defense) = options.get("against").or_else(|| options.get("defense")) {

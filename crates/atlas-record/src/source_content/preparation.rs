@@ -15,7 +15,8 @@ use super::{
 /// upstream format metadata when choosing fields (for example HTML journal
 /// pages). Markdown/plain-text document formats are not inferred from strings.
 /// Context inputs are explicit; no database,
-/// UI routes, document preparation, formula evaluation or embedding is involved.
+/// UI routes, Foundry document preparation or embedding is involved. Canonical
+/// callers supply source-kind labels without runtime numeric values.
 pub fn prepare_source_content(
     locator: SourceContentLocator,
     markup: &str,
@@ -23,6 +24,7 @@ pub fn prepare_source_content(
     visibility: ContentVisibilityRule,
     localization: Option<&dyn LocalizationResolver>,
     references: Option<&dyn ContentReferenceResolver>,
+    formula_context: &super::FormulaContext,
 ) -> Result<PreparedSourceContent, html2text::Error> {
     let authored_hash = format!(
         "{:x}",
@@ -42,6 +44,7 @@ pub fn prepare_source_content(
         interactions: Vec::new(),
         diagnostics: Vec::new(),
         block: String::new(),
+        formula_context,
     };
     let audiences = match visibility {
         ContentVisibilityRule::All => Vec::new(),
@@ -84,6 +87,7 @@ pub fn prepare_trait_definition(
         <sha2::Sha256 as sha2::Digest>::digest(markup.as_bytes())
     );
     let parsed = parse_foundry_content_with_localization(markup, localization);
+    let formula_context = &super::FormulaContext::default();
     let mut projection = Projection {
         origin: PreparationOrigin::Trait(&key),
         authored_hash: &authored_hash,
@@ -94,6 +98,7 @@ pub fn prepare_trait_definition(
         interactions: Vec::new(),
         diagnostics: Vec::new(),
         block: String::new(),
+        formula_context,
     };
     let html = projection.nodes(&parsed.document.nodes, "", &[], true, false);
     let html = sanitizer().clean(&html).to_string();
@@ -147,11 +152,21 @@ struct Projection<'a> {
     interactions: Vec<ContentInteraction>,
     diagnostics: Vec<ContentInterpretationDiagnostic>,
     block: String,
+    formula_context: &'a super::FormulaContext,
 }
 
 struct InlineContext<'a> {
     previous: Option<&'a ParsedNode>,
     following: Option<&'a ParsedNode>,
+}
+
+fn short_damage_label(
+    formula: &str,
+    options: &std::collections::BTreeMap<String, String>,
+    following: Option<&ParsedNode>,
+) -> bool {
+    options.contains_key("shortLabel")
+        || matches!(following,Some(ParsedNode::Text{text}) if super::read_only_text::authored_healing_points(formula,text))
 }
 
 enum PreparationOrigin<'a> {
@@ -196,15 +211,60 @@ impl Projection<'_> {
             .enumerate()
             .map(|(index, node)| {
                 let normalized;
-                let node = if let ParsedNode::Text { text } = node
-                    && matches!(
-                        index.checked_sub(1).and_then(|index| nodes.get(index)),
+                let previous = index.checked_sub(1).and_then(|index| nodes.get(index));
+                let tail = match (node, previous) {
+                    (
+                        ParsedNode::Text { text },
                         Some(ParsedNode::Foundry {
-                            node: ParsedMacro::Check { label: None, .. }
-                        })
-                    )
-                    && let Some((_, tail)) = super::read_only_text::check_noun(text)
-                {
+                            node:
+                                ParsedMacro::Damage {
+                                    label: None,
+                                    formula,
+                                    options,
+                                    ..
+                                },
+                        }),
+                    ) if !options.contains_key("shortLabel")
+                        && super::contextual_damage_text(formula, self.formula_context, false)
+                            .is_some() =>
+                    {
+                        super::read_only_text::damage_noun(text)
+                    }
+                    (
+                        ParsedNode::Text { text },
+                        Some(ParsedNode::Foundry {
+                            node:
+                                ParsedMacro::Check {
+                                    label: None,
+                                    options,
+                                    ..
+                                },
+                        }),
+                    ) => super::read_only_text::check_noun(text)
+                        .map(|(_, tail)| tail)
+                        .or_else(|| {
+                            options
+                                .get("dc")
+                                .filter(|_| {
+                                    options.get("showDC").map_or_else(
+                                        || self.audience.permits(self.audience.implicit_check_dc),
+                                        |rule| {
+                                            ContentVisibilityRule::from_source(rule)
+                                                .is_some_and(|rule| self.audience.permits(rule))
+                                        },
+                                    )
+                                })
+                                .and_then(|dc| {
+                                    super::read_only_text::redundant_dc_clause(
+                                        text,
+                                        dc,
+                                        self.formula_context,
+                                    )
+                                })
+                        }),
+                    _ => None,
+                };
+                let node = if let Some(tail) = tail {
                     normalized = ParsedNode::Text { text: tail.into() };
                     &normalized
                 } else {
@@ -644,6 +704,7 @@ impl Projection<'_> {
                     &options,
                     noun,
                     already_secret,
+                    self.formula_context,
                 );
                 self.dynamic(path, options.values().map(String::as_str));
                 interaction = Some(ContentInteractionKind::Check { statistic, options });
@@ -657,26 +718,16 @@ impl Projection<'_> {
                     formula: formula.clone(),
                     options: options.clone(),
                 });
-                super::literal_damage(formula).map_or_else(
+                super::contextual_damage_text(
+                    formula,
+                    self.formula_context,
+                    short_damage_label(formula, options, context.following),
+                )
+                .map_or_else(
                     || formula.clone(),
-                    |parts| {
-                        let fragments: Vec<_> = parts
-                            .iter()
-                            .map(|p| if options.contains_key("shortLabel") { p.formula.clone() } else { format!("{} {}", p.formula, p.label) })
-                            .collect();
-                        let text = fragments.join(" + ");
-                        // The macro supplies its type; preserve an immediately authored
-                        // damage noun rather than producing "fire damage damage".
-                        let noun_follows = matches!(context.following, Some(ParsedNode::Text { text }) if text.starts_with(char::is_whitespace) && text.trim_start().strip_prefix("damage").is_some_and(|tail| tail.is_empty() || !tail.starts_with(char::is_alphanumeric)));
-                        let text = if noun_follows && !options.contains_key("shortLabel") {
-                            text.strip_suffix(" damage").unwrap_or(&text).to_owned()
-                        } else { text };
-                        if let Some(index) = parts.iter().position(|p| p.has_dice) {
-                            let start = fragments[..index].iter().map(String::len).sum::<usize>() + 3 * index;
-                            let end = start + parts[index].formula.len();
-                            derived_html = Some(format!("{}<span data-atlas-roll-formula=\"\">{}</span>{}", escape(&text[..start]), escape(&text[start..end]), escape(&text[end..])));
-                        }
-                        text
+                    |rendered| {
+                        derived_html = Some(rendered.html());
+                        rendered.text
                     },
                 )
             }
@@ -717,7 +768,9 @@ impl Projection<'_> {
                     } else {
                         format!("/{command} {arguments}")
                     }
-                } else if let Some(roll) = super::literal_content_roll(command, arguments) {
+                } else if let Some(roll) =
+                    super::resolved_contextual_roll(command, arguments, self.formula_context)
+                {
                     // Plain authored labels often repeat the literal formula with a
                     // unit. Mark its exact prefix without parsing label mechanics.
                     if let Some([ParsedNode::Text { text }]) = label
@@ -741,6 +794,11 @@ impl Projection<'_> {
                         escape(&caption)
                     ));
                     format!("{}{caption}", roll.formula)
+                } else if let Some(rendered) =
+                    super::contextual_roll_text(command, arguments, self.formula_context)
+                {
+                    derived_html = Some(rendered.html());
+                    rendered.text
                 } else {
                     format!("/{command} {arguments}")
                 }
@@ -789,6 +847,24 @@ impl Projection<'_> {
             self.interactions.push(ContentInteraction {
                 ordinal,
                 path: path.to_string(),
+                label: if label.is_some() {
+                    super::ContentInteractionLabel::Authored
+                } else {
+                    match &kind {
+                        ContentInteractionKind::Damage { formula,options } if !options.contains_key("shortLabel") && short_damage_label(formula,options,context.following) => super::ContentInteractionLabel::HealingPoints,
+                        ContentInteractionKind::Damage { .. } => super::ContentInteractionLabel::Damage,
+                        ContentInteractionKind::Check { .. } => {
+                            let noun = match context.following {
+                                Some(ParsedNode::Text { text }) => super::read_only_text::check_noun(text).map(|(noun, _)| noun.to_owned()),
+                                _ => None,
+                            };
+                            let secret_in_prose = matches!(context.previous, Some(ParsedNode::Text {text}) if text.split_whitespace().next_back().is_some_and(|word|word.eq_ignore_ascii_case("secret")));
+                            super::ContentInteractionLabel::Check { noun, secret_in_prose }
+                        }
+                        ContentInteractionKind::Command { command, .. } if matches!(command.as_str(), "r" | "gmr" | "br") => super::ContentInteractionLabel::Roll,
+                        _ => super::ContentInteractionLabel::Authored,
+                    }
+                },
                 kind,
             });
             format!(

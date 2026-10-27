@@ -5,7 +5,7 @@ use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 
 /// Interpretation identity, independent of source DTO or artifact versions.
-pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v19";
+pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v21";
 
 /// A source field, never an output hash, display label or HTML node ordinal.
 /// Callers establish identity from their admitted source and retain this locator
@@ -176,6 +176,23 @@ pub struct ContentInteraction {
     pub ordinal: usize,
     pub path: String,
     pub kind: ContentInteractionKind,
+    #[serde(default)]
+    pub label: ContentInteractionLabel,
+}
+
+/// Source label provenance and the small prose facts needed for contextual reading.
+/// Old prepared rows cannot establish a generated label; policy upgrades re-prepare them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum ContentInteractionLabel {
+    #[default]
+    Authored,
+    Damage,
+    HealingPoints,
+    Check {
+        noun: Option<String>,
+        secret_in_prose: bool,
+    },
+    Roll,
 }
 
 /// Authored parameters for concrete controls; expressions are not evaluated.

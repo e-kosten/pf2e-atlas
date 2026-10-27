@@ -11,7 +11,7 @@ pub(crate) mod mechanics;
 mod outgoing_turns;
 mod projection;
 mod record_addition;
-mod reference;
+pub(crate) mod reference;
 #[cfg(test)]
 mod reference_tests;
 mod rules;

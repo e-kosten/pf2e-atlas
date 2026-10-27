@@ -19,6 +19,13 @@ pub enum LiteralDamageKind {
 }
 
 pub fn literal_damage(formula: &str) -> Option<Vec<LiteralDamageComponent>> {
+    damage_instances(formula)?
+        .into_iter()
+        .map(component)
+        .collect()
+}
+
+pub(super) fn damage_instances(formula: &str) -> Option<Vec<&str>> {
     let formula = formula.trim();
     if formula.len() > 4096 || formula.is_empty() {
         return None;
@@ -38,7 +45,7 @@ pub fn literal_damage(formula: &str) -> Option<Vec<LiteralDamageComponent>> {
             ']' if square => square = false,
             '[' | ']' | '{' | '}' => return None,
             ',' if !square && round == 0 => {
-                parts.push(component(&formula[start..index])?);
+                parts.push(formula[start..index].trim());
                 if parts.len() >= 8 {
                     return None;
                 }
@@ -50,7 +57,7 @@ pub fn literal_damage(formula: &str) -> Option<Vec<LiteralDamageComponent>> {
     if square || round != 0 {
         return None;
     }
-    parts.push(component(&formula[start..])?);
+    parts.push(formula[start..].trim());
     Some(parts)
 }
 
@@ -161,7 +168,7 @@ fn component(value: &str) -> Option<LiteralDamageComponent> {
             .filter(|t| materials.contains(t))
             .map(|t| t.replace('-', " ")),
     );
-    if damage_type != "untyped" || tags.contains(&"untyped") {
+    if damage_type != "untyped" {
         label.push(damage_type.into());
     }
     label.push(

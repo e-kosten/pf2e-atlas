@@ -432,6 +432,8 @@ fn setup_reprepares_known_old_content_policy_but_readers_remain_blocked_until_pu
         "foundry-content/v16",
         "foundry-content/v17",
         "foundry-content/v18",
+        "foundry-content/v19",
+        "foundry-content/v20",
     ] {
         let directory = tempfile::tempdir().unwrap();
         let paths = paths(directory.path());

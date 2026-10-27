@@ -158,9 +158,9 @@ pub use list::{
 };
 pub use prepared_content::{
     ContentControlKindView, ContentControlView, ContentRollComponentResultView,
-    ContentRollComponentView, ContentRollPresentationView, ContentRollResultView,
-    PreparedContentFieldView, PreparedFieldBodyView, PreparedInclusionView, PreparedReferenceView,
-    RollContentRequest, RollUnitView,
+    ContentRollComponentView, ContentRollEncounterContext, ContentRollPresentationView,
+    ContentRollResultView, PreparedContentFieldView, PreparedFieldBodyView, PreparedInclusionView,
+    PreparedReferenceView, RollContentRequest, RollUnitView,
 };
 pub use presentation::{
     ActionCostView, ActionGlyphView, ActivityEffectReferenceView, ActivityFrequencyView,

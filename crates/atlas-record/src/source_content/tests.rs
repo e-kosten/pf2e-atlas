@@ -60,6 +60,7 @@ fn prepare(markup: &str) -> PreparedSourceContent {
         ContentVisibilityRule::All,
         None,
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     validate_prepared_reference_bindings(
@@ -97,7 +98,8 @@ fn unavailable_reference_labels_preserve_authored_names_and_diagnostic_identity(
 
 #[test]
 fn reference_bindings_check_all_visible_facts_without_inventing_hidden_markers() {
-    let content=prepare_source_content(locator(),"<p data-visibility='gm'>@UUID[secret]</p><p>@UUID[public]{Public} <a href='javascript:alert(1)'>Blocked</a> <a href='https://example.com'>External</a></p>",ContentAudience {include_gm:false,include_owner:false,implicit_check_dc:ContentVisibilityRule::None},ContentVisibilityRule::All,None,None).unwrap();
+    let content=prepare_source_content(locator(),"<p data-visibility='gm'>@UUID[secret]</p><p>@UUID[public]{Public} <a href='javascript:alert(1)'>Blocked</a> <a href='https://example.com'>External</a></p>",ContentAudience {include_gm:false,include_owner:false,implicit_check_dc:ContentVisibilityRule::None},ContentVisibilityRule::All,None,None,
+&crate::source_content::FormulaContext::default(),).unwrap();
     assert!(!content.references[0].visible);
     assert!(content.references[1].visible);
     let check = |html: &str,
@@ -316,6 +318,7 @@ fn localization_uses_the_localized_body_and_retains_ignored_label_references() {
         ContentVisibilityRule::All,
         Some(&context),
         Some(&context),
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     assert_eq!(content.text, "Heals you. Heal");
@@ -346,6 +349,7 @@ fn missing_recursive_localization_remains_literal_and_diagnosed() {
         ContentVisibilityRule::All,
         Some(&context),
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     assert_eq!(content.text, "@Localize[Loop] @Localize[Missing]");
@@ -374,6 +378,7 @@ fn occurrences_are_complete_before_visibility_and_interactions_are_projected() {
         ContentVisibilityRule::All,
         None,
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     assert_eq!(content.references.len(), 4);
@@ -399,6 +404,7 @@ fn occurrences_are_complete_before_visibility_and_interactions_are_projected() {
         ContentVisibilityRule::All,
         None,
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     assert_eq!(
@@ -521,7 +527,10 @@ fn unknown_and_dynamic_content_survives_without_runtime_evaluation() {
         "@Mystery[odd]{Label} @Damage[(@actor.level+2)d6[fire]] @Check[type:reflex|dc:resolve(@actor.level)] <span class='action-glyph'>unknown</span> @Template[cone|distance:resolve(@actor.level)] <span class='pf2-icon'>R</span>",
     );
     assert!(content.text.contains("@Mystery[odd]{Label}"));
-    assert!(content.text.contains("(@actor.level+2)d6[fire]"));
+    assert!(content.text.contains("the creature’s level"));
+    assert!(
+        matches!(&content.interactions[0].kind,ContentInteractionKind::Damage{formula,..} if formula=="(@actor.level+2)d6[fire]")
+    );
     assert!(content.text.contains("resolve(@actor.level)"));
     assert!(content.text.contains("[action glyph: unknown]"));
     assert!(content.text.contains("reaction"));
@@ -552,6 +561,7 @@ fn stable_locator_is_independent_of_display_output_and_snapshot_local_identity_i
         ContentVisibilityRule::All,
         None,
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     let second = prepare_source_content(
@@ -561,6 +571,7 @@ fn stable_locator_is_independent_of_display_output_and_snapshot_local_identity_i
         ContentVisibilityRule::All,
         None,
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     assert_eq!(first.locator, second.locator);
@@ -619,6 +630,7 @@ fn typed_partial_source_and_owned_item_are_callable_without_ingest() {
         ContentVisibilityRule::All,
         None,
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     assert_eq!(content.text, "DC 21 basic Reflex save");
@@ -852,7 +864,10 @@ fn literal_damage_reading_keeps_authored_evidence_and_custom_labels() {
         matches!(&content.interactions[1].kind, ContentInteractionKind::Damage { formula, .. } if formula == "(4d8+10)[bludgeoning]")
     );
     let contextual = prepare("@Damage[(2d6+@actor.level)[fire]]");
-    assert!(contextual.text.contains("@actor.level"));
+    assert!(contextual.text.contains("the creature’s level"));
+    assert!(
+        matches!(&contextual.interactions[0].kind,ContentInteractionKind::Damage{formula,..} if formula=="(2d6+@actor.level)[fire]")
+    );
     assert!(
         contextual
             .diagnostics
@@ -927,7 +942,8 @@ fn action_commands_use_registry_labels_glyphs_variants_and_checked_references() 
     }
     let content = prepare_source_content(locator(),
         "<p>uses [[/act seek]]; [[/act seek dc=20]]{Perception}; [[/act administer-first-aid variant=stop-bleeding]]; [[/act seek variant=made-up]]; [[/act unknown]]. [[/br 1d4 #rounds]] [[/r @actor.level+1d6]]</p>",
-        audience(), ContentVisibilityRule::All, Some(&English), Some(&References)).unwrap();
+        audience(), ContentVisibilityRule::All, Some(&English), Some(&References),
+&crate::source_content::FormulaContext::default(),).unwrap();
     let html = scraper::Html::parse_fragment(&content.html);
     let selector = scraper::Selector::parse("[data-atlas-reference]").unwrap();
     let references: Vec<_> = html.select(&selector).collect();
@@ -953,7 +969,7 @@ fn action_commands_use_registry_labels_glyphs_variants_and_checked_references() 
     assert!(content.text.contains("/act seek variant=made-up"));
     assert!(content.text.contains("/act unknown"));
     assert!(content.text.contains("1d4 rounds"));
-    assert!(content.text.contains("/r @actor.level+1d6"));
+    assert!(content.text.contains("the creature’s level + 1d6"));
     assert!(matches!(
         content.references[0].resolution,
         ContentReferenceResolution::Resolved(_)
@@ -1041,11 +1057,11 @@ fn checks_read_as_complete_sentences_with_choices_and_defenses() {
         ),
         (
             "@Check[flat|dc:resolve(5+@item.badge.value)]",
-            "DC resolve(5+@item.badge.value) flat check",
+            "flat check with a DC equal to 5 + the effect’s counter value",
         ),
         (
             "@Check[crafting|dc:@self.level|adjustment:2] check",
-            "DC @self.level Crafting check (DC adjustment 2)",
+            "Crafting check against a level-based DC + 2",
         ),
         (
             "@Check[fortitude|dc:21]{Resist the poison} check",

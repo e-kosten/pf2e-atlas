@@ -4,4 +4,4 @@ import type { RecordDetailRequest } from "./RecordDetailRequest";
 /**
  * A complete selected reference in one current participant's runtime context.
  */
-export type EncounterReferenceRequest = { artifact_generation: string, selection: RecordDetailRequest, };
+export type EncounterReferenceRequest = { condition_id?: bigint, artifact_generation: string, selection: RecordDetailRequest, };

@@ -152,6 +152,8 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     identity: selected?.participant_key ?? "",
     generation: encounter.data?.artifact_generation ?? null,
     parentRecordKey: selected?.record_key,
+    conditions: selected?.conditions,
+    revision: selected?.revision,
     presentation: selected?.presentation,
     reloadEncounter: () => encounter.refetch({ throwOnError: true }),
   });

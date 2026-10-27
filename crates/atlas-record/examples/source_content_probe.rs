@@ -140,6 +140,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             ContentVisibilityRule::All,
             Some(&context),
             Some(&context),
+            &atlas_record::source_content::FormulaContext::default(),
         )?;
         fields += 1;
         references += prepared.references.len();
