@@ -362,8 +362,11 @@ that seed-aware default; explicit options and valid browser preferences retain
 their meaning. CLI content flags without a method explicitly select Passage matches.
 Configurable Similar carries typed method/decay/part/candidate-role options for
 record or trait seeds. The same app workflow projects an exact part inventory and
-paired match evidence for CLI and web; the browser does not infer correspondence
-roles or calculate scores. Inventory can report missing vectors without requiring
+paired match evidence for CLI and web. Configured responses acknowledge both the
+scoring and role-mapping recipes. Browser result caches are ephemeral within the
+build contract, which includes the domain recipe constants; recipe changes require
+a matching frontend before requests are admitted. The browser does not infer
+correspondence roles or calculate scores. Inventory can report missing vectors without requiring
 model weights. The index-owned section/role projection is backfilled from retained
 checked data by workspace migration 17 and refreshed during publication. Existing
 record and trait algorithms remain explicit `baseline` methods, labeled Name and

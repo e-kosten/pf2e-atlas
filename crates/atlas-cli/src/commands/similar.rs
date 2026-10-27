@@ -16,9 +16,13 @@ use atlas_domain::{
 };
 use std::process::ExitCode;
 pub(crate) mod args;
+mod recovery;
 use args::{CliCandidateParts, CliSimilarityMethod, SimilarOptions};
 
 pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
+    if let Some(error) = recovery::missing_generation(&o) {
+        return report_app_error(error, o.json);
+    }
     let options = match comparison_options(&o) {
         Ok(options) => options,
         Err(error) => return report_app_error(error, o.json),
@@ -35,7 +39,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
     let service = match connect(ClientOptions {
         search_profile: o.search_profile.clone(),
         path_mode: o.path_mode.into(),
-        index: o.index,
+        index: o.index.clone(),
         embedding_cache: None,
         retrieval_mode: if o.list_parts {
             atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings
@@ -65,6 +69,8 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
             Err(error) => return report_app_error(error, o.json),
         }
     };
+    let rediscovery = recovery::command(&o, Some(&seed));
+    let explicit_parts = !o.parts.is_empty();
     let options = options.unwrap_or_else(|| SimilarityOptions::default_for_seed(&seed));
     if let Err(error) = options.validate(&seed) {
         return report_app_error(invalid(error), o.json);
@@ -127,20 +133,24 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
         },
     };
     let result = match app_result(
-        service.search_page(
-            SearchResultsRequest {
-                sort,
-                ranking: None,
-                search_profile: o.search_profile,
-                criteria,
-                page: SearchPageRequest {
-                    number: o.page,
-                    size: o.limit,
+        service
+            .search_page(
+                SearchResultsRequest {
+                    sort,
+                    ranking: None,
+                    search_profile: o.search_profile,
+                    criteria,
+                    page: SearchPageRequest {
+                        number: o.page,
+                        size: o.limit,
+                    },
+                    expected_artifact_generation: o.artifact_generation,
                 },
-                expected_artifact_generation: o.artifact_generation,
-            },
-            &atlas_app_service::ReadExecutionContext::uncancellable(),
-        ),
+                &atlas_app_service::ReadExecutionContext::uncancellable(),
+            )
+            .map_err(|error| {
+                recovery::enrich(error.into_app_error(), &rediscovery, explicit_parts).into()
+            }),
         o.json,
     )? {
         std::ops::ControlFlow::Continue(value) => value,
@@ -399,8 +409,13 @@ mod tests {
 
     #[test]
     fn explicit_parts_require_the_discovery_generation() {
+        let unguarded = parse(&["atlas", "similar", "Brown Mold", "--part", "part-123"]);
+        let error = recovery::missing_generation(&unguarded).unwrap();
+        assert_eq!(error.code, AppErrorCode::InvalidRequest);
         assert!(
-            Cli::try_parse_from(["atlas", "similar", "Brown Mold", "--part", "part-123"]).is_err()
+            error
+                .message
+                .contains("atlas similar 'Brown Mold' --list-parts")
         );
         let options = parse(&[
             "atlas",

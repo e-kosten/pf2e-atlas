@@ -10,6 +10,7 @@ export function similarityConfigurationFixture(
   return {
     options,
     recipe: "roles/v1",
+    role_recipe: "typed-content-correspondence/v1",
     diagnostics: {
       seed_units: 1,
       knn_queries: 1,
