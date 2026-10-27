@@ -3,6 +3,7 @@ import type {
   ContentLocationView,
   SimilarityPartsView,
   SimilaritySeed,
+  RecordNavigationView,
 } from "../../generated/atlas";
 
 export type SourceSectionSelection = {
@@ -21,6 +22,42 @@ export const SourceSectionSelectionContext = createContext<SourceSectionScope | 
 );
 
 export type SourceContentLocation = ContentLocationView | { trait_key: string };
+
+/** Compact embedded links represent an owner, even when its prose is not inline. */
+export function useSourceOwnerSelection() {
+  const scope = useContext(SourceSectionSelectionContext);
+  const selection = scope?.selection;
+  const inventory = selection?.inventory;
+  const owners = new Set<string>();
+  if (
+    scope?.seed.kind === "record" &&
+    selection &&
+    inventory?.artifact_generation === scope.generation &&
+    JSON.stringify(inventory.seed) === JSON.stringify(scope.seed)
+  ) {
+    for (const part of inventory.parts) {
+      if (
+        part.has_vectors &&
+        (selection.selected === null || selection.selected.includes(part.selector))
+      )
+        owners.add(
+          JSON.stringify([
+            scope.seed.record_key,
+            part.owners,
+            part.navigation?.source_fingerprint ?? null,
+          ]),
+        );
+    }
+  }
+  return (navigation: RecordNavigationView) =>
+    owners.has(
+      JSON.stringify([
+        navigation.record_key,
+        navigation.embedded_path,
+        navigation.source_fingerprint ?? null,
+      ]),
+    );
+}
 
 /** Selection is presentation state only; canonical section ownership comes from Rust. */
 export function useSourceSectionSelection(
