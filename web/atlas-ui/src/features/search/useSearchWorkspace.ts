@@ -41,6 +41,7 @@ import {
   rootNavigation,
   useReferenceReading,
   type ReferenceReading,
+  type ReadingRequest,
 } from "../../shared/records/useReferenceReading";
 import {
   useBrowsePositions,
@@ -59,6 +60,25 @@ import {
   retireImmutableReferenceQueries,
 } from "../../shared/queries/immutableReferenceQueries";
 import { readingNavigationForUrl } from "../../shared/records/readingUrlNavigation";
+import { recordNavigationIdentity } from "../../shared/records/recordNavigationIdentity";
+function readingRequestIdentity(request: ReadingRequest | null) {
+  return JSON.stringify([
+    recordNavigationIdentity(
+      request?.navigation.record_key ?? null,
+      request?.navigation,
+    ),
+    recordNavigationIdentity(request?.match?.record_key ?? null, request?.match),
+    recordNavigationIdentity(request?.landing?.record_key ?? null, request?.landing),
+  ]);
+}
+
+function urlReadingIdentity(route: ReturnType<typeof currentSearchLocation>) {
+  return JSON.stringify([
+    recordNavigationIdentity(route?.selectedRecordKey ?? null, route?.selection),
+    recordNavigationIdentity(route?.landing?.record_key ?? null, route?.landing),
+  ]);
+}
+
 const SEARCH_REQUEST_DEBOUNCE_MS = 300;
 export type SearchWorkspaceState = {
   search: SearchFormState;
@@ -165,13 +185,8 @@ export function useSearchWorkspace({
   const previousReset = useRef(atlasRouter.latestLocation.state.atlasSearchReset);
   const resetPending =
     previousReset.current !== atlasRouter.latestLocation.state.atlasSearchReset;
-  const previousUrlReading = useRef(
-    JSON.stringify([
-      initialRoute?.selectedRecordKey,
-      initialRoute?.selection,
-      initialRoute?.landing,
-    ]),
-  );
+  const previousUrlReading = useRef(urlReadingIdentity(initialRoute));
+  const pendingUrlReading = useRef<{ incoming: string; previous: string } | null>(null);
   const reading = useReferenceReading(
     initialRoute?.selectedRecordKey
       ? {
@@ -255,25 +270,37 @@ export function useSearchWorkspace({
           landing: route.landing,
         }
       : null;
-    const incomingReading = JSON.stringify([
-      route.selectedRecordKey,
-      route.selection,
-      route.landing,
-    ]);
+    const incomingReading = urlReadingIdentity(route);
     const readingChanged = previousUrlReading.current !== incomingReading;
     previousUrlReading.current = incomingReading;
+    const currentSelection = reading.detail
+      ? readingNavigationForUrl(reading.detail.selected, reading.request)
+      : (reading.request?.match ?? reading.request?.navigation);
+    const currentLanding = reading.landing ?? reading.request?.landing;
     if (
       readingChanged &&
-      (JSON.stringify(
-        reading.detail?.selected ??
-          reading.request?.match ??
-          reading.request?.navigation ??
-          null,
-      ) !== JSON.stringify(request?.navigation ?? null) ||
-        JSON.stringify(reading.landing ?? reading.request?.landing) !==
-          JSON.stringify(request?.landing))
-    )
+      (recordNavigationIdentity(
+        currentSelection?.record_key ?? null,
+        currentSelection,
+      ) !==
+        recordNavigationIdentity(
+          request?.navigation.record_key ?? null,
+          request?.navigation,
+        ) ||
+        recordNavigationIdentity(currentLanding?.record_key ?? null, currentLanding) !==
+          recordNavigationIdentity(
+            request?.landing?.record_key ?? null,
+            request?.landing,
+          ))
+    ) {
+      pendingUrlReading.current = {
+        incoming: readingRequestIdentity(request),
+        previous: readingRequestIdentity(reading.request),
+      };
       inspectReading(request);
+    } else if (readingChanged) {
+      pendingUrlReading.current = null;
+    }
   });
   useLayoutEffect(() => {
     restoreLocation();
@@ -423,6 +450,12 @@ export function useSearchWorkspace({
     }));
   }
   useEffect(() => {
+    const pending = pendingUrlReading.current;
+    if (pending) {
+      const current = readingRequestIdentity(reading.request);
+      if (current !== pending.incoming && current === pending.previous) return;
+      pendingUrlReading.current = null;
+    }
     const view = currentSearchLocation();
     if (
       !enabled ||
@@ -443,9 +476,9 @@ export function useSearchWorkspace({
         : undefined;
     const destination = searchDestination({
       selectedRecordKey: reading.detail.record.record_key,
-      query: searchStateQueryString(search, urlProfile),
+      query: view.query,
       selection,
-      landing: reading.landing,
+      landing: reading.landing ?? reading.request?.landing,
       view: view.view,
       tab: view.tab,
       page: urlSearchPage(atlasRouter.latestLocation.search),

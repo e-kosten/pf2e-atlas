@@ -1523,28 +1523,18 @@ test("list-index query and included/excluded tags survive reload and copied link
       created.push(list.list_key);
     }
     await page.goto(`/lists?q=${prefix}&tag=review&exclude_tag=retired`);
-    await expect(
-      page.getByRole("link", { name: `${prefix} keep`, exact: true }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: `${prefix} hide`, exact: true }),
-    ).toHaveCount(0);
+    await expect(page.locator(`a[href="/lists/${prefix}-keep"]`)).toBeVisible();
+    await expect(page.locator(`a[href="/lists/${prefix}-hide"]`)).toHaveCount(0);
     await expect(page.getByRole("textbox", { name: "Search saved lists" })).toHaveValue(
       prefix,
     );
     const copied = page.url();
     await page.reload();
-    await expect(
-      page.getByRole("link", { name: `${prefix} keep`, exact: true }),
-    ).toBeVisible();
+    await expect(page.locator(`a[href="/lists/${prefix}-keep"]`)).toBeVisible();
     const other = await context.newPage();
     await other.goto(copied);
-    await expect(
-      other.getByRole("link", { name: `${prefix} keep`, exact: true }),
-    ).toBeVisible();
-    await expect(
-      other.getByRole("link", { name: `${prefix} hide`, exact: true }),
-    ).toHaveCount(0);
+    await expect(other.locator(`a[href="/lists/${prefix}-keep"]`)).toBeVisible();
+    await expect(other.locator(`a[href="/lists/${prefix}-hide"]`)).toHaveCount(0);
     await other.close();
   } finally {
     for (const key of created) await page.request.delete(`/api/lists/${key}`);

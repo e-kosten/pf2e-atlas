@@ -70,13 +70,13 @@ beforeEach(() => {
     coverage: null,
   }));
 });
-function setup() {
+function setup(query?: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
       <SearchProfileProvider id="embeddinggemma">
         <RouterTestContext>
-          <TraitView route={{ traitKey: "trait:agile" }} />
+          <TraitView route={{ traitKey: "trait:agile", query }} />
         </RouterTestContext>
       </SearchProfileProvider>
     </QueryClientProvider>,
@@ -256,6 +256,33 @@ it("requests stored Similar with the selected profile and no text fallback", asy
     ),
   ).toBe(true);
 });
+
+it.each([undefined, "embeddinggemma", "bge-base"])(
+  "retains explicit profile %s and random ordering across trait tab updates without promoting defaults",
+  async (profile) => {
+    const query =
+      "?tab=similar&sort=random&seed=42" +
+      (profile ? `&search_profile=${profile}` : "");
+    history.replaceState(null, "", "/traits/trait:agile" + query);
+    setup(query);
+    await screen.findByRole("tab", { name: "Similar", selected: true });
+    fireEvent.click(screen.getByRole("tab", { name: "References" }));
+    await waitFor(() => {
+      const params = new URLSearchParams(location.search);
+      expect(params.get("tab")).toBe("references");
+      expect(params.get("search_profile")).toBe(profile ?? null);
+      expect(params.get("sort")).toBe("random");
+      expect(params.get("seed")).toBe("42");
+    });
+    fireEvent.click(screen.getByRole("tab", { name: "Similar" }));
+    await waitFor(() => {
+      const params = new URLSearchParams(location.search);
+      expect(params.get("tab")).toBe("similar");
+      expect(params.get("search_profile")).toBe(profile ?? null);
+      expect(params.get("seed")).toBe("42");
+    });
+  },
+);
 
 it("restores Similar order from its URL and carries it into primary Search", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

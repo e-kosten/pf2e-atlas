@@ -44,15 +44,15 @@ test("hazard ability reads inline and returns to its exact parent reading positi
   await page.goto(path);
   await expect(page.getByRole("heading", { name: "Waking Nightmare" })).toBeVisible();
   const ability = page
-    .locator(".owned-ability-reading__entry")
+    .locator(".embedded-ability-reading__entry")
     .filter({ has: page.getByRole("heading", { name: /^Seize\b/ }) });
   const content = ability.locator(".prepared-content");
   await expect(content).toContainText("Trigger");
   await expect(content).toContainText("Effect");
   expect(new URL(page.url()).pathname).toBe("/records/" + hazardKey);
   await expect(ability.locator("[data-atlas-action-glyph]")).toHaveCount(1);
-  const fullPage = page.getByRole("link", {
-    name: "Open Seize full reference",
+  const fullPage = ability.getByRole("link", {
+    name: "Seize",
     exact: true,
   });
   const target = new URL((await fullPage.getAttribute("href"))!, page.url());
@@ -63,6 +63,17 @@ test("hazard ability reads inline and returns to its exact parent reading positi
     { collection: "/items", identity: { Stable: "9awhcUUChblK5dxi" } },
   ]);
   await fullPage.click();
+  const preview = page.getByRole("dialog", { name: "Seize reaction", exact: true });
+  await expect(preview).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe(path);
+  const openPage = preview.getByRole("link", {
+    name: "Open reference full page",
+    exact: true,
+  });
+  expect(readUrl(new URL((await openPage.getAttribute("href"))!, page.url()))).toEqual(
+    selection,
+  );
+  await openPage.click();
   await expect(page.getByRole("heading", { name: /^Seize\b/ })).toBeVisible();
   await expect(page).toHaveURL(target.href);
   const owner = page.getByRole("link", { name: "Return to Waking Nightmare" });
@@ -110,11 +121,17 @@ test("owned reference return retains Similar, canonical filters, selected result
   });
   await page.goto("/search/records/" + hazardKey + "?" + params.toString());
   const permalink = page.getByRole("link", {
-    name: "Open Seize full reference",
+    name: "Seize",
+    exact: true,
   });
   await expect(permalink).toBeVisible();
   const selectedHref = await permalink.getAttribute("href");
   await permalink.click();
+  const preview = page.getByRole("dialog", { name: "Seize reaction", exact: true });
+  await expect(preview).toBeVisible();
+  await preview
+    .getByRole("link", { name: "Open reference full page", exact: true })
+    .click();
   await expect(page.getByRole("heading", { name: /^Seize\b/ })).toBeVisible();
   const owner = page.getByRole("link", { name: "Return to Waking Nightmare" });
   const href = (await owner.getAttribute("href"))!;
@@ -134,8 +151,20 @@ test("owned reference return retains Similar, canonical filters, selected result
   const other = await context.newPage();
   await other.goto(target.href);
   await expect(other.getByRole("heading", { name: /^Seize\b/ })).toBeFocused();
+  await expect(other.getByRole("heading", { name: /^Seize\b/ })).toHaveClass(
+    /reference-landing-highlight/,
+  );
   await other.close();
   await owner.click();
-  await expect(page.getByRole("heading", { name: /^Seize\b/ })).toBeFocused();
-  await expect(page.getByText("Similar to Ghoul", { exact: true })).toBeVisible();
+  const restoredTarget = page.getByRole("heading", { name: /^Seize\b/ });
+  await expect(restoredTarget).toBeInViewport();
+  await expect(restoredTarget).toHaveClass(/reference-landing-highlight/);
+  await expect
+    .poll(() =>
+      restoredTarget.evaluate((heading) => heading.contains(document.activeElement)),
+    )
+    .toBe(true);
+  await expect(
+    page.getByRole("searchbox", { name: "Similar search", exact: true }),
+  ).toHaveValue("Ghoul");
 });

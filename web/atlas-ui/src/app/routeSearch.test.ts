@@ -53,6 +53,24 @@ it("accepts only lexical list criteria and applicable ordering", () => {
   expect(search).toEqual({ q: "fire", filter, sort: "saved_order" });
 });
 
+it("preserves only explicit trait profiles with singleton validation and canonical trimming", () => {
+  expect(
+    canonicalRouteSearch("trait", {
+      search_profile: [" embeddinggemma ", " embeddinggemma "],
+      tab: "similar",
+    }),
+  ).toEqual({ search_profile: "embeddinggemma", tab: "similar" });
+  expect(canonicalRouteSearch("trait", { search_profile: "  " })).toEqual({});
+  expect(canonicalRouteSearch("trait", {})).toEqual({});
+  expect(() =>
+    canonicalRouteSearch("trait", { search_profile: ["bge-base", "embeddinggemma"] }),
+  ).toThrow("conflicting search_profile");
+  for (const kind of ["record", "list", "list_record"] as const)
+    expect(canonicalRouteSearch(kind, { search_profile: "embeddinggemma" })).toEqual(
+      {},
+    );
+});
+
 it("uses existing tag normalization and ordinary index parameters", () => {
   const search = listsDestination({
     query: " castle ",

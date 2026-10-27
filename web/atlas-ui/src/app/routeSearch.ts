@@ -133,9 +133,11 @@ export function canonicalRouteSearch(
   const reading =
     kind === "record" || kind === "search_record" || kind === "list_record";
   const exact = reading ? readingSearch(search) : {};
-  if (isSearch) {
+  if (isSearch || kind === "trait") {
     const profile = singleton(search, "search_profile")?.trim();
     if (profile) result.search_profile = profile;
+  }
+  if (isSearch) {
     const ranking = singleton(search, "ranking");
     if (ranking !== undefined && ranking !== "score") result.ranking = ranking;
   }

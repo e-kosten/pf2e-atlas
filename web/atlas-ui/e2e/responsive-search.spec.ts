@@ -1,6 +1,6 @@
 import { readUrl } from "./readingUrl";
 import { expect, test } from "@playwright/test";
-import { encodeFilterUrl } from "../src/shared/filters/filterUrl";
+import { decodeFilterUrl, encodeFilterUrl } from "../src/shared/filters/filterUrl";
 
 test("Sort rules and seeded Random remain usable at 390px", async ({
   page,
@@ -446,7 +446,7 @@ test("relationship scope stays tappable within a phone viewport and preserves ex
   const page = await context.newPage();
   try {
     const constraint = {
-      direction: "incoming",
+      direction: "incoming" as const,
       selection: {
         record_key: "conditionitems:dfCMdR4wnpbYNTix",
         embedded_path: [],
@@ -457,8 +457,10 @@ test("relationship scope stays tappable within a phone viewport and preserves ex
       include_contents: true,
     };
     await page.goto(
-      "/search?relationships=" +
-        encodeURIComponent("1." + JSON.stringify([constraint])),
+      "/search?filter=" +
+        encodeURIComponent(
+          encodeFilterUrl({ kind: "relationship", relationship: constraint }),
+        ),
     );
     const criterion = page.getByRole("group", { name: "Relationship filter" });
     await expect(criterion).toContainText("Stunned");
@@ -482,10 +484,11 @@ test("relationship scope stays tappable within a phone viewport and preserves ex
     await main.tap();
     await expect(trigger).toHaveText("Links to Stunned");
     await expect(trigger).toBeFocused();
-    const restored = JSON.parse(
-      new URL(page.url()).searchParams.get("relationships")!.slice(2),
-    );
-    expect(restored).toEqual([{ ...constraint, include_contents: false }]);
+    const restored = decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!);
+    expect(restored.kind).toBe("relationship");
+    if (restored.kind !== "relationship")
+      throw new Error("Expected a relationship filter");
+    expect(restored.relationship).toEqual({ ...constraint, include_contents: false });
     await trigger.tap();
     await expect(main).toBeChecked();
     await page.keyboard.press("Escape");

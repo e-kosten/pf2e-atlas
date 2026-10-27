@@ -33,7 +33,9 @@ in the pathname is the sole reading identity. Optional casting rank uses `rank`;
 exact selection and independent parent landing use the bounded, versioned compact
 `at` and `focus` address codecs. Those addresses omit the repeated record key and
 empty trailing values while retaining embedded owner identities, source
-fingerprints and passage hashes. The browser checks transport shape and bounds;
+fingerprints and passage hashes. Address identity uses canonical tuple values,
+independent of object property order; retained document identity omits rank while
+requested navigation retains its explicit rank intent. The browser checks transport shape and bounds;
 backend policy remains authoritative for source availability and meaning. The
 retired JSON `selection`/`landing` parameters are rejected without a legacy
 decoder. URL projection retains requested casting ranks without promoting a
@@ -60,7 +62,9 @@ replaces history without resetting scroll or unfinished editor drafts. A bare
 
 Explicit pagination, encounter tabs and page destinations push history. Continuous
 edits, rank changes, normalization and automatic page correction replace entries.
-List slugs are created once and remain stable through ordinary display-name edits.
+Trait Similar links retain an explicit search profile across tab and order changes;
+source-default profiles remain implicit. List slugs are created once and remain
+stable through ordinary display-name edits.
 
 Router restores page scrolling. Existing bounded list/reader positions and Drawer
 history/focus remain with shared reading owners. URL updates restore only changed
