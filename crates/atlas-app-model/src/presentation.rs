@@ -51,6 +51,23 @@ pub struct RecordPresentationView {
     #[serde(rename = "embedded")]
     pub owned: Vec<EmbeddedRecordLinkView>,
     pub body: RecordBodyView,
+    /// Declared recipient destinations not already presented in this document.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub grants: Option<RecordGrantsView>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RecordGrantsView {
+    pub entries: Vec<RecordGrantLinkView>,
+    pub unavailable_count: usize,
+    pub truncated: bool,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RecordGrantLinkView {
+    pub title: String,
+    /// Root summaries are absent for exact embedded destinations.
+    pub record: Option<RecordSummaryView>,
+    pub navigation: RecordNavigationView,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]

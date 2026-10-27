@@ -89,24 +89,44 @@ impl AtlasAppService {
             .map(|saved| super::outgoing_turns::frozen_participant(saved, participant))
             .transpose()?;
         let active = active_damage_subject(frozen.as_ref().unwrap_or(participant), participant);
-        let record = participant.record_key.clone().and_then(|key| {
-            self.with_workspace(
+        let record_key = participant.record_key.clone();
+        let (record, source_conditions, generation) = self
+            .with_workspace(
                 &crate::ReadExecutionContext::uncancellable(),
                 move |session| {
-                    super::hydration::resolve_record_ref(session.retrieval_mut(), &key)
-                        .map(|record| record.source)
+                    let record = record_key
+                        .as_deref()
+                        .map(|key| {
+                            super::hydration::resolve_record_ref(session.retrieval_mut(), key)
+                        })
+                        .transpose()?;
+                    let sources = match &record {
+                        Some(record) => super::hydration::source_baseline(
+                            &record.source,
+                            session.retrieval_mut(),
+                            None,
+                        )?
+                        .map(|baseline| baseline.source_conditions)
+                        .unwrap_or_else(
+                            super::rules::source_conditions::SourceConditions::unavailable,
+                        ),
+                        None => Default::default(),
+                    };
+                    let generation = session.retrieval_mut().artifact_generation()?;
+                    Ok((
+                        record.map(|record| record.source),
+                        sources,
+                        Some(generation),
+                    ))
                 },
             )
-            .ok()
-        });
-        let generation = self
-            .with_workspace(&crate::ReadExecutionContext::uncancellable(), |session| {
-                session
-                    .retrieval_mut()
-                    .artifact_generation()
-                    .map_err(Into::into)
-            })
-            .ok();
+            .unwrap_or_else(|_| {
+                (
+                    None,
+                    super::rules::source_conditions::SourceConditions::unavailable(),
+                    None,
+                )
+            });
         let preparation_context = atlas_local_state::PersistentPreparationContext {
             participant_key: participant.participant_key.clone(),
             record_key: participant.record_key.clone(),
@@ -183,6 +203,7 @@ impl AtlasAppService {
                 let damage_resolution = match super::rules::damage::persistent_protection(
                     record.as_ref(),
                     participant,
+                    &source_conditions,
                     group.damage_type,
                 ) {
                     Ok(p) => atlas_app_model::PersistentDamageResolutionView::Known {
@@ -215,7 +236,7 @@ impl AtlasAppService {
             .collect();
         Ok(atlas_app_model::PersistentReviewView {
             encounter_revision: snapshot.encounter.revision,
-            damage_groups: group_views(&active, record.as_ref()),
+            damage_groups: group_views(&active, participant, record.as_ref(), &source_conditions),
             round_number: round,
             damage_applied: claims.contains(&boundary_claim(
                 recorded,
@@ -406,14 +427,17 @@ pub(super) fn active_damage_subject(
 
 pub(super) fn group_views(
     participant: &atlas_local_state::EncounterParticipant,
+    protection_subject: &atlas_local_state::EncounterParticipant,
     record: Option<&atlas_record::source_record::SourceBackedRecord>,
+    sources: &super::rules::source_conditions::SourceConditions,
 ) -> Vec<PersistentDamageGroupView> {
     super::rules::persistent_damage::participant_groups(participant)
         .into_iter()
         .map(|group| PersistentDamageGroupView {
             immunity_note: super::rules::damage::persistent_protection(
                 record,
-                participant,
+                protection_subject,
+                sources,
                 group.damage_type,
             )
             .is_ok_and(|protection| protection.immune)

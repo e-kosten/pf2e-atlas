@@ -37,7 +37,8 @@ pub enum EncounterActionIssueKindView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EncounterActionIssueView {
     pub subject: Option<crate::ConditionSubjectView>,
-    pub source_condition_id: i64,
+    pub source_key: String,
+    pub source_condition_id: Option<i64>,
     pub condition_name: String,
     pub controller_key: Option<String>,
     pub instructions: Option<String>,
@@ -47,7 +48,8 @@ pub struct EncounterActionIssueView {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EncounterActionCheckSourceView {
-    pub condition_id: i64,
+    pub source_key: String,
+    pub condition_id: Option<i64>,
     pub name: String,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

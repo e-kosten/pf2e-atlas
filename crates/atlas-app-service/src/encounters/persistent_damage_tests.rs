@@ -239,29 +239,68 @@ fn typed_protections_preserve_missing_hardness_and_source_exceptions() {
         "npc",
         serde_json::json!({"weaknesses":[{"type":"fire","value":5}],"resistances":[{"type":"fire","value":3}]}),
     );
-    let protections =
-        super::rules::damage::persistent_protection(Some(&npc), participant, "fire").unwrap();
+    let protections = super::rules::damage::persistent_protection(
+        Some(&npc),
+        participant,
+        super::rules::source_conditions::SourceConditions::empty(),
+        "fire",
+    )
+    .unwrap();
     assert_eq!(protections.apply(10), 12);
     let sleep = record(
         "npc",
         serde_json::json!({"immunities":[{"type":"sleep"}],"weaknesses":[],"resistances":[]}),
     );
     assert_eq!(
-        super::rules::damage::persistent_protection(Some(&sleep), participant, "fire")
-            .unwrap()
-            .apply(10),
+        super::rules::damage::persistent_protection(
+            Some(&sleep),
+            participant,
+            super::rules::source_conditions::SourceConditions::empty(),
+            "fire"
+        )
+        .unwrap()
+        .apply(10),
         10
     );
     let construct=atlas_search::test_support::record("actors","Actor",serde_json::json!({"_id":"constructImmune1","type":"npc","name":"Construct","system":{"traits":{"value":["construct","mindless"]},"attributes":{"immunities":[],"weaknesses":[],"resistances":[]}}})).record;
     assert!(
-        super::rules::damage::persistent_protection(Some(&construct), participant, "bleed")
-            .unwrap()
-            .immune
+        super::rules::damage::persistent_protection(
+            Some(&construct),
+            participant,
+            super::rules::source_conditions::SourceConditions::empty(),
+            "bleed"
+        )
+        .unwrap()
+        .immune
+    );
+    assert!(
+        super::rules::damage::persistent_protection(
+            Some(&construct),
+            participant,
+            &super::rules::source_conditions::SourceConditions::unavailable(),
+            "bleed",
+        )
+        .unwrap()
+        .immune
+    );
+    assert!(
+        super::rules::damage::persistent_protection(
+            Some(&construct),
+            participant,
+            &super::rules::source_conditions::SourceConditions::unavailable(),
+            "fire",
+        )
+        .is_err()
     );
     assert_eq!(
-        super::rules::damage::persistent_protection(Some(&construct), participant, "fire")
-            .unwrap()
-            .apply(10),
+        super::rules::damage::persistent_protection(
+            Some(&construct),
+            participant,
+            super::rules::source_conditions::SourceConditions::empty(),
+            "fire"
+        )
+        .unwrap()
+        .apply(10),
         10
     );
 
@@ -271,7 +310,12 @@ fn typed_protections_preserve_missing_hardness_and_source_exceptions() {
     {
         *damage_type = "bleed".into();
     }
-    let groups = super::persistent_damage::group_views(&bleeding, Some(&construct));
+    let groups = super::persistent_damage::group_views(
+        &bleeding,
+        &bleeding,
+        Some(&construct),
+        super::rules::source_conditions::SourceConditions::empty(),
+    );
     assert_eq!(
         groups
             .iter()
@@ -288,22 +332,38 @@ fn typed_protections_preserve_missing_hardness_and_source_exceptions() {
             .all(|group| group.immunity_note.is_none())
     );
     assert!(
-        super::persistent_damage::group_views(&bleeding, None)
-            .iter()
-            .all(|group| group.immunity_note.is_none())
+        super::persistent_damage::group_views(
+            &bleeding,
+            &bleeding,
+            None,
+            super::rules::source_conditions::SourceConditions::empty()
+        )
+        .iter()
+        .all(|group| group.immunity_note.is_none())
     );
 
     let hazard = record("hazard", serde_json::json!({}));
     assert!(
-        super::rules::damage::persistent_protection(Some(&hazard), participant, "fire").is_err()
+        super::rules::damage::persistent_protection(
+            Some(&hazard),
+            participant,
+            super::rules::source_conditions::SourceConditions::empty(),
+            "fire"
+        )
+        .is_err()
     );
     let conditional = record(
         "npc",
         serde_json::json!({"resistances":[{"type":"fire","value":3,"exceptions":["magical"]}]}),
     );
     assert!(
-        super::rules::damage::persistent_protection(Some(&conditional), participant, "fire")
-            .is_err()
+        super::rules::damage::persistent_protection(
+            Some(&conditional),
+            participant,
+            super::rules::source_conditions::SourceConditions::empty(),
+            "fire"
+        )
+        .is_err()
     );
 }
 
@@ -407,6 +467,373 @@ fn petrified_hardness_reduces_the_simultaneous_event_once() {
             .current_hp,
         Some(48)
     );
+}
+
+fn source_petrified_fixture(
+    active: Option<bool>,
+) -> (
+    FixtureWorker,
+    atlas_search::test_support::FixtureArtifact,
+    String,
+    String,
+) {
+    use atlas_search::test_support::{open_source_fixture, record};
+    use serde_json::json;
+    let petrified = super::conditions::ConditionRule::Petrified.definition();
+    let id = petrified.record_key.split_once(':').unwrap().1;
+    let predicate = if active.is_some() {
+        json!(["self-petrify"])
+    } else {
+        json!(["self:environment:unknown"])
+    };
+    let (retrieval, artifact) = open_source_fixture(vec![
+        record("actors", "Actor", json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Source statue",
+            "system":{"details":{"level":{"value":5}},"traits":{"value":[]},"attributes":{"adjustment":null,"hp":{"max":60},"immunities":[],"weaknesses":[],"resistances":[]}},
+            "items":[{"_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Self-Petrify","system":{"actionType":{"value":"passive"},"rules":[
+                {"key":"RollOption","option":"self-petrify","toggleable":true,"value":active.unwrap_or(false)},
+                {"key":"GrantItem","inMemoryOnly":true,"predicate":predicate,"uuid":format!("Compendium.pf2e.conditionitems.Item.{id}")}
+            ]}}]})),
+        record("conditionitems", "Item", json!({"_id":id,"type":"condition","name":"Petrified","system":{"slug":"petrified","value":{"isValued":false,"value":null}}})),
+    ], false).unwrap();
+    drop(retrieval);
+    let f = FixtureWorker {
+        worker: crate::AtlasAppService::start(crate::AtlasAppServiceOptions {
+            default_search_profile: None,
+            path_mode: atlas_runtime::AtlasPathMode::Repo,
+            source_root: None,
+            embedding_cache_root: None,
+            index_path: Some(artifact.path()),
+            retrieval_mode: crate::AppServiceRetrievalMode::OnDemandNoEmbeddings,
+        })
+        .unwrap(),
+    };
+    let key = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Source Petrified".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter
+        .encounter_key;
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: key.clone(),
+            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+            quantity: 1,
+            participant_variant: None,
+            initiative: Some(10),
+        })
+        .unwrap();
+    let participant = snapshot(&f, &key).participants[0].participant_key.clone();
+    f.worker
+        .with_write(|session| {
+            for damage_type in ["fire", "acid", "bleed"] {
+                session.local_state().encounters().add_condition(
+                    AddEncounterParticipantCondition {
+                        participant_key: participant.clone(),
+                        condition_key: Some("conditionitems:lDVqvLKA6eF3Df60".into()),
+                        name: "Persistent Damage".into(),
+                        value: None,
+                        source_participant_key: None,
+                        scope: Default::default(),
+                        extra_action: Default::default(),
+                        immunity_override: false,
+                        parameters: ConditionParameters::PersistentDamage {
+                            formula: "10".into(),
+                            damage_type: damage_type.into(),
+                            multiplier: DamageMultiplier::Normal,
+                            recovery: PersistentRecovery::Standard,
+                            episode_id: format!("statue-{damage_type}"),
+                        },
+                        origin: None,
+                        duration: None,
+                        note: None,
+                    },
+                )?;
+            }
+            Ok(())
+        })
+        .unwrap();
+    (f, artifact, key, participant)
+}
+
+fn source_statue_damage(
+    f: &FixtureWorker,
+    key: &str,
+    participant: &str,
+) -> ApplyPersistentDamageRequest {
+    ApplyPersistentDamageRequest {
+        request_id: "source-statue-damage".into(),
+        expected_encounter_revision: snapshot(f, key).encounter.revision,
+        participant_key: participant.into(),
+        boundary_key: None,
+        artifact_generation: f.worker.encounter(key).unwrap().artifact_generation,
+        groups: ["fire", "acid", "bleed"]
+            .into_iter()
+            .map(|damage_type| PersistentDamageGroupInput {
+                episode_id: format!("statue-{damage_type}"),
+                damage: PersistentDamageInput::Roll,
+            })
+            .collect(),
+        recoveries: vec![],
+        context: Default::default(),
+    }
+}
+
+fn switch_source_petrified_off(f: &FixtureWorker, key: &str) {
+    let detail = f.worker.encounter(key).unwrap();
+    let participant = &detail.participants[0];
+    let ability = participant
+        .ability_states
+        .as_ref()
+        .unwrap()
+        .first()
+        .unwrap();
+    f.worker
+        .update_encounter_ability_state(
+            key,
+            UpdateEncounterAbilityStateRequest {
+                request_id: "switch-petrified-off".into(),
+                expected_encounter_revision: detail.revision,
+                expected_participant_revision: participant.revision,
+                participant_key: participant.participant_key.clone(),
+                navigation: ability.navigation.clone(),
+                rule_ordinal: ability.rule_ordinal,
+                action: EncounterAbilityStateAction::SetOption {
+                    active: false,
+                    selection: None,
+                },
+            },
+        )
+        .unwrap();
+}
+
+#[test]
+fn source_petrified_protects_prepared_damage_and_the_final_packet_once() {
+    let (f, _artifact, key, participant) = source_petrified_fixture(Some(true));
+    let before = snapshot(&f, &key);
+    let detail = f.worker.encounter(&key).unwrap();
+    assert_eq!(
+        detail.participants[0]
+            .persistent_damage_groups
+            .iter()
+            .find(|group| group.damage_type == "bleed")
+            .unwrap()
+            .immunity_note
+            .as_deref(),
+        Some("Immune to bleed")
+    );
+    let review = f
+        .worker
+        .persistent_damage_review(&key, &participant, None)
+        .unwrap();
+    assert!(review.episodes.iter().any(|episode| episode.episode_id == "statue-bleed" && matches!(&episode.damage_resolution, PersistentDamageResolutionView::Known { protection } if protection.immune)));
+    let mut request = source_statue_damage(&f, &key, &participant);
+    let prepared = f
+        .worker
+        .prepare_persistent_damage(
+            &key,
+            PreparePersistentDamageRequest {
+                request_id: "prepare-source-statue-fire".into(),
+                expected_encounter_revision: before.encounter.revision,
+                participant_key: participant.clone(),
+                boundary_key: None,
+                artifact_generation: request.artifact_generation.clone(),
+                groups: vec![request.groups[0].clone()],
+                recovery: None,
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        (prepared.damage.total, prepared.damage.hardness_absorbed),
+        (2, 8)
+    );
+    assert_eq!(snapshot(&f, &key), before);
+    request.groups[0].damage = PersistentDamageInput::Prepared {
+        request_id: "prepare-source-statue-fire".into(),
+    };
+    let result = f
+        .worker
+        .apply_persistent_damage(&key, request.clone())
+        .unwrap();
+    assert_eq!((result.total, result.hardness_absorbed), (12, 8));
+    assert_eq!(
+        result
+            .groups
+            .iter()
+            .find(|group| group.damage_type == "bleed")
+            .unwrap()
+            .amount,
+        0
+    );
+    assert_eq!(snapshot(&f, &key).participants[0].current_hp, Some(48));
+    assert_eq!(
+        f.worker.apply_persistent_damage(&key, request).unwrap(),
+        result
+    );
+    assert_eq!(snapshot(&f, &key).participants[0].current_hp, Some(48));
+}
+
+#[test]
+fn source_petrified_off_preserves_damage_and_temporary_petrified_has_the_same_protections() {
+    for (temporary, expected_total, expected_hardness) in [(false, 30, 0), (true, 12, 8)] {
+        let (f, _artifact, key, participant) = source_petrified_fixture(Some(false));
+        if temporary {
+            f.worker
+                .with_write(|session| {
+                    session.local_state().encounters().add_condition(
+                        AddEncounterParticipantCondition {
+                            participant_key: participant.clone(),
+                            condition_key: Some(
+                                super::conditions::ConditionRule::Petrified
+                                    .definition()
+                                    .record_key
+                                    .into(),
+                            ),
+                            name: "Petrified".into(),
+                            value: None,
+                            source_participant_key: None,
+                            scope: Default::default(),
+                            extra_action: Default::default(),
+                            immunity_override: false,
+                            parameters: ConditionParameters::None,
+                            origin: None,
+                            duration: None,
+                            note: None,
+                        },
+                    )?;
+                    Ok(())
+                })
+                .unwrap();
+        }
+        let result = f
+            .worker
+            .apply_persistent_damage(&key, source_statue_damage(&f, &key, &participant))
+            .unwrap();
+        assert_eq!(
+            (result.total, result.hardness_absorbed),
+            (expected_total, expected_hardness)
+        );
+    }
+}
+
+#[test]
+fn prepared_persistent_damage_revalues_source_petrified_after_switching_off() {
+    let (f, _artifact, key, participant) = source_petrified_fixture(Some(true));
+    let mut request = source_statue_damage(&f, &key, &participant);
+    f.worker
+        .prepare_persistent_damage(
+            &key,
+            PreparePersistentDamageRequest {
+                request_id: "prepare-before-switching-off".into(),
+                expected_encounter_revision: request.expected_encounter_revision,
+                participant_key: participant.clone(),
+                boundary_key: None,
+                artifact_generation: request.artifact_generation.clone(),
+                groups: vec![request.groups[0].clone()],
+                recovery: None,
+            },
+        )
+        .unwrap();
+    switch_source_petrified_off(&f, &key);
+    request.expected_encounter_revision = snapshot(&f, &key).encounter.revision;
+    request.groups[0].damage = PersistentDamageInput::Prepared {
+        request_id: "prepare-before-switching-off".into(),
+    };
+    let result = f.worker.apply_persistent_damage(&key, request).unwrap();
+    assert_eq!((result.total, result.hardness_absorbed), (30, 0));
+}
+
+#[test]
+fn outgoing_damage_keeps_frozen_episodes_and_uses_current_source_protections() {
+    let (f, _artifact, key, participant) = source_petrified_fixture(Some(true));
+    let boundary = outgoing_boundary(&f, &key, &participant);
+    switch_source_petrified_off(&f, &key);
+    f.worker
+        .with_write(|session| {
+            session
+                .local_state()
+                .encounters()
+                .add_condition(AddEncounterParticipantCondition {
+                    participant_key: participant.clone(),
+                    condition_key: Some("conditionitems:lDVqvLKA6eF3Df60".into()),
+                    name: "New persistent cold".into(),
+                    value: None,
+                    source_participant_key: None,
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    parameters: ConditionParameters::PersistentDamage {
+                        formula: "10".into(),
+                        damage_type: "cold".into(),
+                        multiplier: DamageMultiplier::Normal,
+                        recovery: PersistentRecovery::Standard,
+                        episode_id: "late-cold".into(),
+                    },
+                    origin: None,
+                    duration: None,
+                    note: None,
+                })?;
+            Ok(())
+        })
+        .unwrap();
+    let review = f
+        .worker
+        .persistent_damage_review(&key, &participant, Some(&boundary))
+        .unwrap();
+    assert_eq!(review.damage_groups.len(), 3);
+    assert!(
+        review
+            .damage_groups
+            .iter()
+            .all(|group| group.episode_id != "late-cold")
+    );
+    assert_eq!(
+        review
+            .damage_groups
+            .iter()
+            .find(|group| group.damage_type == "bleed")
+            .unwrap()
+            .immunity_note,
+        None
+    );
+    assert!(review.episodes.iter().any(|episode| episode.episode_id == "statue-bleed" && matches!(&episode.damage_resolution, PersistentDamageResolutionView::Known { protection } if !protection.immune)));
+    let mut request = source_statue_damage(&f, &key, &participant);
+    request.boundary_key = Some(boundary);
+    let result = f.worker.apply_persistent_damage(&key, request).unwrap();
+    assert_eq!((result.total, result.hardness_absorbed), (30, 0));
+    assert_eq!(snapshot(&f, &key).participants[0].current_hp, Some(30));
+    assert!(snapshot(&f, &key).participants[0].conditions.iter().any(|condition| matches!(&condition.parameters, ConditionParameters::PersistentDamage { episode_id, .. } if episode_id == "late-cold")));
+}
+
+#[test]
+fn uncertain_source_petrified_requires_table_results_without_reapplying_protections() {
+    let (f, _artifact, key, participant) = source_petrified_fixture(None);
+    let before = snapshot(&f, &key);
+    let review = f
+        .worker
+        .persistent_damage_review(&key, &participant, None)
+        .unwrap();
+    assert!(review.episodes.iter().all(|episode| matches!(
+        episode.damage_resolution,
+        PersistentDamageResolutionView::Table { .. }
+    )));
+    let mut request = source_statue_damage(&f, &key, &participant);
+    assert!(
+        f.worker
+            .apply_persistent_damage(&key, request.clone())
+            .is_err()
+    );
+    assert_eq!(snapshot(&f, &key), before);
+    for group in &mut request.groups {
+        group.damage = PersistentDamageInput::TableResult { amount: 1 };
+    }
+    request.artifact_generation = None;
+    let result = f.worker.apply_persistent_damage(&key, request).unwrap();
+    assert_eq!((result.total, result.hardness_absorbed), (3, 0));
+    assert!(result.groups.iter().all(|group| group.protection.is_none()));
 }
 
 #[test]

@@ -410,11 +410,19 @@ it("retries unavailable reminders without disabling direct Cast and renders only
   client.clear();
 });
 
-it("retains exact-spell reminders through revision refresh and shows errors without losing the previous reminder", async () => {
+it("retains exact-spell reminders through use-count refresh and shows errors without losing the previous reminder", async () => {
   const detail = detailFixture("actors:caster");
   detail.presentation.body = { kind: "spell", value: spellFixture() };
   detail.selected.spell_rank = 3;
   const participant = resourceParticipant();
+  participant.ability_states = [
+    {
+      label: "Daily ability",
+      navigation: detail.selected,
+      rule_ordinal: null,
+      state: { kind: "uses", remaining: 2n, maximum: 3n, interval: "day" },
+    },
+  ];
   participant.spellcasting!.spells = [
     {
       navigation: detail.selected,
@@ -463,7 +471,18 @@ it("retains exact-spell reminders through revision refresh and shows errors with
   const { rerender } = render(view(participant));
   const label = "Stupefied · DC 6 flat check or the spell is disrupted";
   const reminder = await screen.findByText(label);
-  rerender(view({ ...participant, revision: participant.revision + 1n }));
+  rerender(
+    view({
+      ...participant,
+      revision: participant.revision + 1n,
+      ability_states: [
+        {
+          ...participant.ability_states[0],
+          state: { kind: "uses", remaining: 1n, maximum: 3n, interval: "day" },
+        },
+      ],
+    }),
+  );
   await waitFor(() => expect(encounterCastingReminders).toHaveBeenCalledTimes(2));
   expect(screen.getByText(label)).toBe(reminder);
   await act(async () => reject(new Error("Unavailable")));
@@ -471,6 +490,103 @@ it("retains exact-spell reminders through revision refresh and shows errors with
   expect(screen.getByText(label)).toBe(reminder);
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   await waitFor(() => expect(screen.queryByText(label)).toBeNull());
+  client.clear();
+});
+
+it("retires a stale casting DC after a source option changes even when replacement advice fails", async () => {
+  const detail = detailFixture("actors:caster");
+  detail.presentation.body = { kind: "spell", value: spellFixture() };
+  detail.selected.spell_rank = 3;
+  const participant = resourceParticipant();
+  participant.spellcasting!.spells = [
+    {
+      navigation: detail.selected,
+      entry_id: "entry",
+      title: "Fireball",
+      expended: null,
+      ranks: [{ rank: 3, resource_key: "rank3", unavailable_reason: null }],
+    },
+  ];
+  const option = {
+    label: "Incurable Curse",
+    navigation: {
+      ...detail.selected,
+      embedded_path: [
+        { collection: "/items", identity: { Stable: "curse00000000001" } },
+      ],
+      source_fingerprint: "source",
+    },
+    rule_ordinal: 0,
+    state: {
+      kind: "option",
+      always_active: true,
+      active: true,
+      selection: "Stupefied",
+      choices: [
+        { value: "Stupefied", label: "Stupefied", consequence: null },
+        { value: "Clumsy", label: "Clumsy", consequence: null },
+      ],
+    },
+  } satisfies NonNullable<EncounterParticipantView["ability_states"]>[number];
+  participant.ability_states = [option];
+  let rejectRefresh: (reason: Error) => void = () => {};
+  vi.mocked(encounterCastingReminders)
+    .mockReset()
+    .mockResolvedValueOnce({
+      advisories: [
+        {
+          source: "source-condition:curse",
+          label: "Stupefied",
+          reason: "DC 6 flat check or the spell is disrupted",
+        },
+      ],
+    })
+    .mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectRefresh = reject;
+        }),
+    );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const view = (current: typeof participant) => (
+    <QueryClientProvider client={client}>
+      <App>
+        <EncounterSpellControls
+          encounterRevision={current.revision}
+          encounterRef="encounter"
+          participant={current}
+          detail={detail}
+          disabled={false}
+          pending={false}
+          onAction={vi.fn()}
+        />
+      </App>
+    </QueryClientProvider>
+  );
+  const { rerender, unmount } = render(view(participant));
+  const oldText = "Stupefied · DC 6 flat check or the spell is disrupted";
+  await screen.findByText(oldText);
+  const cast = screen.getByRole("button", { name: "Cast" });
+  rerender(
+    view({
+      ...participant,
+      revision: participant.revision + 1n,
+      ability_states: [
+        {
+          ...option,
+          state: { ...option.state, kind: "option", selection: "Clumsy" },
+        },
+      ],
+    }),
+  );
+  expect(screen.queryByText(oldText)).toBeNull();
+  await waitFor(() => expect(encounterCastingReminders).toHaveBeenCalledTimes(2));
+  await act(async () => rejectRefresh(new Error("Unavailable")));
+  expect(await screen.findByText("Reminders unavailable")).toBeVisible();
+  expect(screen.queryByText(oldText)).toBeNull();
+  expect(screen.getByRole("button", { name: "Cast" })).toBe(cast);
+  expect(cast).toBeEnabled();
+  unmount();
   client.clear();
 });
 

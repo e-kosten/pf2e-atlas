@@ -200,13 +200,18 @@ impl AtlasAppService {
     ) -> AppServiceResult<EncounterMutationView> {
         let encounter_ref = request.encounter_ref.clone();
         let record_ref = request.record_ref.clone();
-        let (receipt, record, revision) = self.with_workspace(
+        let (receipt, record, baseline, revision) = self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
             move |session| {
                 let receipt =
                     encounter_receipt(&session.local_state().encounters(), &encounter_ref)?;
                 let record = resolve_record_ref(session.retrieval_mut(), &record_ref)?;
-                Ok((receipt, record, session.reference_revision()?))
+                let baseline = super::hydration::source_baseline(
+                    &record.source,
+                    session.retrieval_mut(),
+                    None,
+                )?;
+                Ok((receipt, record, baseline, session.reference_revision()?))
             },
         )?;
         super::record_addition::validate_quantity(request.quantity)?;
@@ -223,10 +228,44 @@ impl AtlasAppService {
             .collect();
         self.with_write(move |session| {
             session.require_reference_revision(revision)?;
-            session
+            let added = session
                 .local_state()
                 .encounters()
                 .add_participants(&receipt.encounter_key, participants)?;
+            if let Some(baseline) = &baseline {
+                let adjustment_applicable = !matches!(
+                    atlas_record::source_record::SourceQueryView::new(
+                        record.source.source(),
+                        record.summary.key.pack().as_str(),
+                        ""
+                    )
+                    .actor()
+                    .authored_adjustment(),
+                    atlas_record::source_record::SourceFieldView::NotApplicable
+                );
+                for participant in added.iter().filter(|participant| {
+                    participant.hp_origin == atlas_local_state::ParticipantHpOrigin::DerivedPristine
+                }) {
+                    let level = super::rules::effective_participant_level(
+                        participant,
+                        baseline.level.as_ref(),
+                        adjustment_applicable,
+                    )
+                    .as_ref()
+                    .and_then(serde_json::Number::as_i64);
+                    let capacity = super::rules::effective_hp_maximum(
+                        participant,
+                        &baseline.source_conditions,
+                        level,
+                    );
+                    if capacity != participant.current_hp {
+                        session
+                            .local_state()
+                            .encounters()
+                            .initialize_participant_hp(&participant.participant_key, capacity)?;
+                    }
+                }
+            }
             Ok(receipt)
         })
     }
@@ -353,19 +392,42 @@ impl AtlasAppService {
                 },
             )?;
             reference_revision = Some(revision);
-            let derived = existing
+            let record = existing
                 .record_key
                 .as_ref()
-                .and_then(|k| records.get(k))
-                .and_then(|r| effective_max(&r.detail.source, Some(new_variant)));
+                .and_then(|key| records.get(key));
+            let derived = record.and_then(|r| effective_max(&r.detail.source, Some(new_variant)));
+            let sources = super::hydration::participant_source_conditions(&existing, &records);
+            let capacity = |participant: &atlas_local_state::EncounterParticipant| {
+                let level = record
+                    .and_then(|record| {
+                        let baseline = record.arithmetic_baseline.as_ref()?;
+                        super::rules::effective_participant_level(
+                            participant,
+                            baseline.level.as_ref(),
+                            record.adjustment_applicable,
+                        )
+                    })
+                    .as_ref()
+                    .and_then(serde_json::Number::as_i64);
+                super::rules::effective_hp_maximum(participant, &sources, level)
+            };
+            let old_capacity = capacity(&existing);
+            let mut adjusted = existing.clone();
+            adjusted.max_hp = derived;
+            adjusted.participant_variant = new_variant;
+            if variant_changed {
+                adjusted.variant_origin = atlas_local_state::ParticipantVariantOrigin::Explicit;
+            }
+            let new_capacity = capacity(&adjusted);
             max_hp = derived;
             current_hp = if detail.encounter.status == EncounterStatus::Draft
                 && hp_origin == atlas_local_state::ParticipantHpOrigin::DerivedPristine
                 && !current_edited
             {
-                derived
+                new_capacity
             } else if !current_edited {
-                match (existing.max_hp, existing.current_hp, derived) {
+                match (old_capacity, existing.current_hp, new_capacity) {
                     (Some(old), Some(current), Some(new))
                         if old >= 0 && current >= 0 && current <= old =>
                     {
@@ -613,15 +675,15 @@ impl AtlasAppService {
             super::event_execution::snapshot(self, encounter_ref, request.expected_revision)?;
         let encounter_key = snapshot.encounter.encounter_key.clone();
         let next = super::turns::next_turn(&snapshot);
-        let (source_actions, reference_revision) = if let Some(participant) = snapshot
-            .participants
-            .iter()
-            .find(|p| Some(&p.participant_key) == next.participant_key.as_ref())
-        {
-            super::turn_resources::source_action_context(self, participant)?
-        } else {
-            (Default::default(), None)
-        };
+        let super::ability_state::PreparedTurnSources {
+            conditions: source_conditions,
+            ability_refresh,
+            reference_revision,
+        } = super::ability_state::prepare_turn_sources(
+            self,
+            &snapshot,
+            next.participant_key.as_deref(),
+        )?;
         self.with_write(move |session| {
             // A concurrent matching request still recovers before the source guard.
             if let Some(encounter) = session.local_state().encounters().advance_turn_receipt(
@@ -654,7 +716,7 @@ impl AtlasAppService {
                                 update.turn.round_number,
                                 &request.request_id,
                                 false,
-                                &source_actions,
+                                &source_conditions,
                             )
                             .map_err(|error| {
                                 atlas_local_state::LocalStateError::InvalidConditionEvent(
@@ -663,6 +725,13 @@ impl AtlasAppService {
                             })?;
                             update.start_event = start;
                             update.start_claims = claims;
+                        }
+                        if !ability_refresh.is_empty() {
+                            update
+                                .start_event
+                                .get_or_insert_with(Default::default)
+                                .ability_states
+                                .extend(ability_refresh.clone());
                         }
                         if snapshot.encounter.current_turn_participant_key
                             != update.turn.participant_key
@@ -893,7 +962,7 @@ pub(super) fn condition_extra_action_input(
 }
 
 pub(super) struct ConditionSubjectContext {
-    pub(super) source_actions: super::rules::source_action_conditions::SourceActionConditions,
+    pub(super) source_conditions: super::rules::source_conditions::SourceConditions,
     pub(super) participant: atlas_local_state::EncounterParticipant,
     pub(super) facts: super::rules::ConditionApplicabilityFacts,
     pub(super) reference_revision: Option<u64>,
@@ -905,7 +974,7 @@ impl ConditionSubjectContext {
     /// Facts available from saved encounter state, without a reference read or guard.
     pub(super) fn from_saved(participant: &atlas_local_state::EncounterParticipant) -> Self {
         Self {
-            source_actions: Default::default(),
+            source_conditions: Default::default(),
             participant: participant.clone(),
             facts: Default::default(),
             reference_revision: None,
@@ -991,16 +1060,15 @@ pub(super) fn condition_subject_context(
                 .and_then(|number| number.as_i64());
             let reference_revision = Some(session.reference_revision()?);
             Ok(ConditionSubjectContext {
-                source_actions: baseline
-                    .map(|baseline| baseline.source_actions)
-                    .unwrap_or_else(|| {
-                        super::rules::source_action_conditions::SourceActionConditions {
-                            entries: vec![],
-                            unavailable_reason: Some(
-                                "This creature's source conditions are unavailable.".into(),
-                            ),
-                            source_fingerprint: None,
-                        }
+                source_conditions: baseline
+                    .map(|baseline| baseline.source_conditions)
+                    .unwrap_or_else(|| super::rules::source_conditions::SourceConditions {
+                        entries: vec![],
+                        unavailable_reason: Some(
+                            "This creature's source conditions are unavailable.".into(),
+                        ),
+                        source_fingerprint: None,
+                        ..Default::default()
                     }),
                 participant,
                 facts,
@@ -1129,7 +1197,7 @@ mod immunity_override_tests {
             })
             .unwrap();
         let context = ConditionSubjectContext {
-            source_actions: Default::default(),
+            source_conditions: Default::default(),
             participant: snapshot.participants[0].clone(),
             reference_revision: None,
             level: None,

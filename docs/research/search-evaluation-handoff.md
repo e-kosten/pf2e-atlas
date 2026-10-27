@@ -4,7 +4,7 @@ The local research is expensive evidence, not disposable build output. Keep its
 original bytes, versioned judgments, input bindings, and reproduction tools.
 The dated conclusions are in [source-backed evaluation notes](source-backed-search-evaluation.md);
 The [synthesis](search-evaluation-synthesis.md) connects the experiments;
-current product policy is in ADRs 0050 and 0053. Historical findings describe the
+current product policy is in ADRs 0050, 0053 and 0059. Historical findings describe the
 implementation tested at the time, not necessarily today's defaults.
 
 Paths below are relative to the repository root, not an individual worktree.
@@ -19,6 +19,7 @@ Paths below are relative to the repository root, not an individual worktree.
 | Earlier ownership, reranking and input experiments | `scratch/full-corpus-search/{hierarchy,role-evaluation,evidence-evaluation,reranking,embedding-design,retrieval-synthesis}/` |
 | Pinned source and original reference artifact | `scratch/full-corpus-search/source/` and `reference.sqlite` |
 | Ingest performance measurements | `scratch/ingest-performance/README.md`, logs and digest receipts |
+| Configurable Similar matrix, source packets and runtime probes | `scratch/similarity-evaluation/RUN-STATE.json`, `quality-v1/`, `blind-packets/`, `grades-v1/`, `adjudications-v1/`, `performance-v1/` and `product-probes/` under that experiment root |
 
 Keep the whole experiment trees, not only final reports. Rank captures, model
 vectors, blind pools, raw reviewer outputs, adjudications, uncertainty analysis,
@@ -39,6 +40,14 @@ The [configurable Similar protocol](evaluations/2026-10-similarity/README.md)
 separately freezes the stored-vector method experiment's scenarios, exact section
 bindings, controlled candidate universe and judging/performance rules. It does
 not reuse the older archive's exposed holdouts or judgments.
+
+The Similar study also needs its original `.atlas/workspace.sqlite` at generation
+`a9474928b73e8cf89e84c5ed6990a838:6` and the measured executables retained under
+`scratch/similarity-evaluation/runtime/`. Keep this schema-16 research workspace
+separate from a newer preview workspace; run setup against the preview copy, not
+the frozen study. Preserve live SQLite data through a consistent backup, including
+pending WAL state. When relocating an archive, retain bound file bytes and record
+a separate path map rather than rewriting hashed packets.
 
 ## Reanalysis rules
 

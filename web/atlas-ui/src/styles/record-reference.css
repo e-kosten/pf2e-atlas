@@ -498,6 +498,15 @@
   color: var(--muted);
   font-size: 13px;
 }
+.actor-activity__activation {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-control);
+  vertical-align: middle;
+}
+.actor-activity__activation > .action-cost {
+  flex-shrink: 0;
+}
 .actor-reference__activities--strike,
 .actor-reference__activities--gear {
   container: activity-list / inline-size;
@@ -724,6 +733,26 @@
 }
 .comparison-source .record-reference .record-trait-badge a {
   color: var(--comparison-badge-link);
+}
+/* Grants are reference links, not indexed sections of the source document. */
+.comparison-source .record-grants {
+  --rarity-common-text: var(--comparison-reference-badge-text);
+  --rarity-uncommon-text: var(--comparison-reference-badge-text);
+  --rarity-rare-text: var(--comparison-reference-badge-text);
+  --rarity-unique-text: var(--comparison-reference-badge-text);
+  --rarity-common-bg: var(--panel-subtle);
+  --rarity-uncommon-bg: var(--panel-subtle);
+  --rarity-rare-bg: var(--panel-subtle);
+  --rarity-unique-bg: var(--panel-subtle);
+  --rarity-common-border: var(--line);
+  --rarity-uncommon-border: var(--line);
+  --rarity-rare-border: var(--line);
+  --rarity-unique-border: var(--line);
+}
+.comparison-source .record-grants .reference-result__traits > span {
+  color: var(--comparison-reference-badge-text);
+  background: var(--panel-subtle);
+  border-color: var(--line);
 }
 .comparison-source .record-reference a:hover {
   text-decoration: underline;

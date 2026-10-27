@@ -142,7 +142,7 @@ pub(in crate::encounters) fn authored_stat_baseline(
     super::super::mechanics::record_baseline();
     let actor = query.actor();
     let mut block = StatBlockView {
-        source_actions: Default::default(),
+        source_conditions: Default::default(),
         record_key: record.key().to_string(),
         title: query.source.name().value().cloned().unwrap_or_default(),
         level: actor.level().value().cloned(),

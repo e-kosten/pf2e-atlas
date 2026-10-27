@@ -1,4 +1,4 @@
-//! Resource allocation and explicit manual spending share one authoritative turn.
+//! Turn allocation and explicit reaction grants share authoritative resource stock.
 use super::{
     conditions::{ConditionRule, condition_rule_for_key},
     event_execution, rules,
@@ -15,7 +15,7 @@ pub(super) fn prepare_start(
     round: i64,
     id: &str,
     dying_completed: bool,
-    sources: &rules::source_action_conditions::SourceActionConditions,
+    sources: &rules::source_conditions::SourceConditions,
 ) -> AppServiceResult<(Option<PreparedConditionEvent>, Vec<EncounterBoundaryClaim>)> {
     if participant.participant_kind == ParticipantKind::Hazard {
         return Ok((None, vec![]));
@@ -104,6 +104,7 @@ pub(super) fn prepare_start(
             .unwrap_or((None, None))
     };
     changes.turn_resources.push(TurnResources {
+        before_first_turn: false,
         allocation: pending_reason
             .is_none()
             .then(|| rules::capabilities::action_allocation(participant, sources))
@@ -126,8 +127,8 @@ pub(super) fn prepare_start(
             .map(|c| c.extra_action.clone())
             .chain(
                 sources
-                    .entries
-                    .iter()
+                    .active_entries(participant)
+                    .into_iter()
                     .filter(|c| c.rule == ConditionRule::Quickened)
                     .map(|_| atlas_local_state::ConditionExtraAction::Unspecified),
             )
@@ -142,14 +143,14 @@ pub(super) fn prepare_start(
 pub(super) fn view(
     participant: &EncounterParticipant,
     current: Option<&str>,
-    sources: &rules::source_action_conditions::SourceActionConditions,
+    sources: &rules::source_conditions::SourceConditions,
 ) -> Option<TurnResourcesView> {
     if participant.participant_kind == ParticipantKind::Hazard {
         return None;
     }
     let budget = rules::capabilities::action_budget(participant, sources);
     let saved = participant.turn_resources.as_ref();
-    let ready = saved.filter(|r| r.pending_reason.is_none());
+    let ready = saved.filter(|r| !r.before_first_turn && r.pending_reason.is_none());
     let mut action_permission = budget.can_act.clone();
     if current != Some(participant.participant_key.as_str()) {
         action_permission.available = false;
@@ -185,9 +186,23 @@ pub(super) fn view(
             InherentActionConditionsView {
                 unavailable_reason: sources.unavailable_reason.clone(),
                 entries: sources
-                    .entries
-                    .iter()
+                    .active_entries(participant)
+                    .into_iter()
+                    .chain(sources.unresolved_entries(participant))
                     .map(|condition| InherentActionConditionView {
+                        unavailable_reason: condition.activation_unavailable.clone().or_else(
+                            || {
+                                if sources.unresolved_entries(participant).contains(&condition) {
+                                    Some("Activation needs context; check the source rule.".into())
+                                } else if condition.rule.definition().has_value
+                                    && condition.value.is_none()
+                                {
+                                    Some("Source condition value is unavailable.".into())
+                                } else {
+                                    None
+                                }
+                            },
+                        ),
                         name: condition.rule.definition().name.into(),
                         has_value: condition.rule.definition().has_value,
                         value: condition.value,
@@ -222,6 +237,7 @@ pub(super) fn view(
             .unwrap_or_default(),
         reactions_total: saved.and_then(|r| r.reactions_total),
         reactions_remaining: saved.and_then(|r| r.reactions_remaining),
+        can_grant_reaction: saved.is_none(),
         start_results: saved
             .map(|r| {
                 r.effects
@@ -293,13 +309,40 @@ impl AtlasAppService {
             ));
         }
         let mut claims = vec![];
-        let (source_actions, reference_revision) =
+        let (source_conditions, reference_revision) =
             if matches!(request.action, TurnResourceAction::Regain) {
                 source_action_context(self, participant)?
             } else {
                 (Default::default(), None)
             };
         let changes = match request.action {
+            TurnResourceAction::GrantReaction => {
+                if participant.turn_resources.is_some() {
+                    return Err(AppServiceError::invalid_request(
+                        "A reaction has already been granted or this creature's first turn has started.",
+                    ));
+                }
+                PreparedConditionEvent {
+                    turn_resources: vec![TurnResources {
+                        before_first_turn: true,
+                        allocation: None,
+                        actions_open: false,
+                        pending_reason: None,
+                        participant_key: participant.participant_key.clone(),
+                        turn_key: format!("before-first-turn:{}", request.request_id),
+                        round_number: snapshot.encounter.round_number,
+                        regular_total: 0,
+                        regular_remaining: 0,
+                        extra_total: 0,
+                        extra_remaining: 0,
+                        extra_uses: vec![],
+                        reactions_total: Some(1),
+                        reactions_remaining: Some(1),
+                        effects: vec![],
+                    }],
+                    ..Default::default()
+                }
+            }
             TurnResourceAction::Regain => {
                 if snapshot.encounter.current_turn_participant_key.as_deref()
                     != Some(&participant.participant_key)
@@ -311,7 +354,7 @@ impl AtlasAppService {
                 if participant
                     .turn_resources
                     .as_ref()
-                    .is_some_and(|r| r.pending_reason.is_none())
+                    .is_some_and(|r| !r.before_first_turn && r.pending_reason.is_none())
                 {
                     return Err(AppServiceError::invalid_request(
                         "This turn's resources were already regained.",
@@ -333,7 +376,7 @@ impl AtlasAppService {
                     snapshot.encounter.round_number,
                     &request.request_id,
                     dying_completed,
-                    &source_actions,
+                    &source_conditions,
                 )?;
                 claims = start_claims;
                 if let Some(reason) = changes
@@ -357,7 +400,7 @@ impl AtlasAppService {
                 let projection = view(
                     participant,
                     snapshot.encounter.current_turn_participant_key.as_deref(),
-                    &source_actions,
+                    &source_conditions,
                 )
                 .ok_or_else(|| AppServiceError::invalid_request("Resources unavailable."))?;
                 let permission = if resource == TurnResourceKind::Reaction {
@@ -433,15 +476,12 @@ impl AtlasAppService {
 pub(super) fn source_action_context(
     service: &AtlasAppService,
     participant: &EncounterParticipant,
-) -> AppServiceResult<(
-    rules::source_action_conditions::SourceActionConditions,
-    Option<u64>,
-)> {
+) -> AppServiceResult<(rules::source_conditions::SourceConditions, Option<u64>)> {
     if participant.record_key.is_none() || participant.participant_kind == ParticipantKind::Hazard {
         return Ok((Default::default(), None));
     }
     match super::workflow::condition_subject_context(service, participant) {
-        Ok(subject) => Ok((subject.source_actions, subject.reference_revision)),
+        Ok(subject) => Ok((subject.source_conditions, subject.reference_revision)),
         Err(error) => {
             let error = error.into_app_error();
             if matches!(
@@ -453,7 +493,7 @@ pub(super) fn source_action_context(
                     | AppErrorCode::ArtifactNotReady
             ) {
                 Ok((
-                    rules::source_action_conditions::SourceActionConditions::unavailable(),
+                    rules::source_conditions::SourceConditions::unavailable(),
                     None,
                 ))
             } else {

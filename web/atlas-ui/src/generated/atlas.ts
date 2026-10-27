@@ -1,5 +1,12 @@
+export type { EncounterAbilityStateView } from "../../../../crates/atlas-app-model/bindings/EncounterAbilityStateView";
+export type { EncounterAbilityStateKindView } from "../../../../crates/atlas-app-model/bindings/EncounterAbilityStateKindView";
+export type { EncounterAbilityChoiceView } from "../../../../crates/atlas-app-model/bindings/EncounterAbilityChoiceView";
+export type { EncounterAbilityStateAction } from "../../../../crates/atlas-app-model/bindings/EncounterAbilityStateAction";
+export type { UpdateEncounterAbilityStateRequest } from "../../../../crates/atlas-app-model/bindings/UpdateEncounterAbilityStateRequest";
 export type { SearchMatchSectionView } from "../../../../crates/atlas-app-model/bindings/SearchMatchSectionView";
 export type { EncounterDifficultyAddition } from "../../../../crates/atlas-app-model/bindings/EncounterDifficultyAddition";
+export type { RecordGrantsView } from "../../../../crates/atlas-app-model/bindings/RecordGrantsView";
+export type { RecordGrantLinkView } from "../../../../crates/atlas-app-model/bindings/RecordGrantLinkView";
 export type { PreviewEncounterDifficultyRequest } from "../../../../crates/atlas-app-model/bindings/PreviewEncounterDifficultyRequest";
 export type { TurnResourceResultView } from "../../../../crates/atlas-app-model/bindings/TurnResourceResultView";
 export type { TurnResourceAction } from "../../../../crates/atlas-app-model/bindings/TurnResourceAction";

@@ -108,13 +108,13 @@ impl AtlasAppService {
             workflow::ConditionSubjectContext::from_saved(&participant)
         };
         let selected_pending = pending_for_action(&pending, &request.action);
-        validate_action(&participant, &request.action)?;
+        validate_action(&participant, &request.action, &subject.source_conditions)?;
         let offer = rules::lifecycle::available_actions(
             &participant,
             subject.fortitude,
             &pending,
             &[],
-            &subject.source_actions,
+            &subject.source_conditions,
         )
         .into_iter()
         .find(|offer| rules::lifecycle::matches_action(&offer.action, &request.action))
@@ -128,7 +128,7 @@ impl AtlasAppService {
             &request.action,
             selected_pending,
             &request.request_id,
-            &subject.source_actions,
+            &subject.source_conditions,
         )?;
         let claims = if matches!(
             request.action,
@@ -282,7 +282,7 @@ impl AtlasAppService {
                 source.fortitude,
                 &pending,
                 &effective_claims,
-                &source.source_actions,
+                &source.source_conditions,
             );
             for option in &mut options {
                 if matches!(
@@ -303,6 +303,7 @@ impl AtlasAppService {
             }
             options
         };
+        let mut action_sources = rules::source_conditions::SourceConditions::default();
         let mut actions = options(&workflow::ConditionSubjectContext::from_saved(participant));
         let needs_source = actions.iter().any(|option| {
             offer_needs_source(&option.action)
@@ -316,7 +317,10 @@ impl AtlasAppService {
         });
         if boundary.is_none() && needs_source {
             match workflow::condition_subject_context(self, participant) {
-                Ok(source) => actions = options(&source),
+                Ok(source) => {
+                    actions = options(&source);
+                    action_sources = source.source_conditions;
+                }
                 Err(error) => {
                     let error = error.into_app_error();
                     if !matches!(
@@ -361,10 +365,12 @@ impl AtlasAppService {
         }
         for option in &mut view.actions {
             if let ConditionRecoveryOfferView::Retch { issues, .. } = &mut option.action {
-                *issues = super::retch::evaluate(participant)
+                *issues = super::retch::evaluate(participant, &action_sources)
                     .issues
                     .into_iter()
-                    .map(|issue| super::action_projection::issue_view(issue, participant))
+                    .map(|issue| {
+                        super::action_projection::issue_view(issue, participant, &action_sources)
+                    })
                     .collect();
             }
         }
@@ -644,6 +650,7 @@ fn receipt_view(receipt: EncounterEventReceipt) -> ConditionLifecycleResultView 
 fn validate_action(
     participant: &EncounterParticipant,
     action: &ConditionLifecycleActionView,
+    sources: &rules::source_conditions::SourceConditions,
 ) -> AppServiceResult<()> {
     let ConditionLifecycleActionView::Retch {
         check: LifecycleCheckInputView::Roll,
@@ -654,7 +661,7 @@ fn validate_action(
         // Atlas to authorize or replay the action that produced it.
         return Ok(());
     };
-    let evaluation = super::retch::evaluate(participant);
+    let evaluation = super::retch::evaluate(participant, sources);
     if !evaluation.issues.is_empty() || evaluation.disruption.is_some() {
         return Err(AppServiceError::invalid_request(
             "Resolve the Retch restrictions at the table, then record its outcome",
