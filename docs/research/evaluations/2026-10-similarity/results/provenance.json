@@ -1,5 +1,18 @@
 {
   "app_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+  "clean_rebuild_proof": {
+    "build_log": {
+      "bytes": 1613,
+      "path": "build-proofs/clean-03b-build.log",
+      "sha256": "8f6b538817dc2c17fb193e4e1a53097b5cba77cd06ca41552c6ef850331d3276"
+    },
+    "receipt": {
+      "bytes": 562,
+      "path": "build-proofs/clean-03b-rebuild-proof.json",
+      "sha256": "8cc7216dbdeffb5ebbf5cb00621757304d73d55aaa22c3c908e44dd9366fcded"
+    },
+    "resolution": "Later clean Git checkout of the measured 03b revision, same workspace and pinned 1.95.0 toolchain reproduced the measured atlas-dev executable byte for byte. This resolves the original partial pre-commit source census uncertainty. The original developer_build_receipt remains unchanged; this is not a timing measurement of a later integrated revision."
+  },
   "developer_build_receipt": {
     "build_command": "CARGO_BUILD_JOBS=2 cargo build -p atlas-dev --release --offline --locked",
     "build_log": "/tmp/similarity-dev-release-final.log",
@@ -39,6 +52,17 @@
     "toolchain": "1.95.0-aarch64-apple-darwin",
     "tracked_diff_sha256": "429cfab5dd0da4709d32afa5c5b7d88b9f3ddeb3e1a5841e51626a5202ae342f",
     "version": 1
+  },
+  "displayed_text_audit": {
+    "active_freeze_sha256": "3e243d288ac125f1746a01458c4de6af5ce3f1c7f80ee68fa94b604e42f1543a",
+    "directory": "displayed-text-audit",
+    "original_opinions_sha256": "2e035df042dc6136997322bcbbcebf3322f3be832b62b06441806d9b2198ba01",
+    "scope": "Separate after-study audit, not frozen holdout evidence or default tuning. Retained source addresses/text hashes do not permit offline re-verification of omitted source/excerpt bodies. Numerical causal contribution was not graded."
+  },
+  "historical_artifact": {
+    "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+    "scope": "Frozen study artifact retained unchanged, separate from the later latest-main integration and preview refresh.",
+    "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
   },
   "input_freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
   "judge_run_allocation": {

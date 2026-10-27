@@ -22,6 +22,31 @@ Cells above and in the appendix show **pool-relative nDCG@10 / useful results am
 - Section-focused tasks are a separate advanced-use stratum. Baseline cannot honor selected sections and is context-only for those tasks; it is excluded from matched-selection primary comparisons. Exact trait membership is separate from semantic usefulness.
 - Evidence-support opinions ask whether the checked source supports the candidate connection. They do not independently grade every method-specific displayed excerpt. Canonical source-address/navigation correctness and semantic excerpt support are different claims.
 
+## Displayed-text support: exploratory follow-up
+
+A separately declared, purposive audit examined the actual displayed explanation text for the first two product results in six declared cells: 12 candidate explanations and 21 displayed items. Cells were declared before capture; rubric and packet packaging were specified after capture but before an independent fresh model reviewer saw them. Candidate identity was visible; method, profile, rank, scores, weights and method-specific notices were hidden. Passage counts and shapes remained visible, so blinding was imperfect. This follow-up uses the historical `03b674c6` product CLI (`0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0`) and generation 6. It does not amend the frozen holdout, contribute to its metrics, tune defaults or establish corpus-wide semantic fidelity.
+
+The reviewer assessed whether the text actually shown supported the declared task and selected scope, using canonical source context to distinguish intrinsic properties, owned capabilities and equipment associations. Context was explicitly separate from displayed evidence. Eleven candidate explanations were supported overall and one was partial; among individual items, 15 were supported, four partial and two unsupported. None was unknown. An overall supported result can contain distracting or unsupported items; the overall assessment was not a vote over items.
+
+| Declared cell | Selection and configuration | Two candidate outcomes after unblinding |
+| --- | --- | --- |
+| cell-01 / Brown Mold | Whole record; BGE, Passage Any, decay 0.5 | Enhanced Brown Mold and Mutated Brown Mold: both supported, all six items supported |
+| cell-02 / Brown Mold | Reset only; Gemma, Content average Corresponding | Mutated Brown Mold and Enhanced Brown Mold: both supported, both items supported |
+| cell-03 / Lich | Whole record; BGE, Passage Corresponding, decay 0.25 | Mythic Lich and Lich Legion: both supported overall; two items supported, three partial, one unsupported |
+| cell-04 / Lich | Description and Rejuvenation; Gemma, Content average Any | (Lich) Rejuvenation and Lich Soul Cage: both supported, both items supported |
+| cell-05 / Fire trait | Trait definition; BGE, Baseline | Burning Spell: supported overall, one supported and one unsupported item. Effect: Kindling: partial overall and partial item |
+| cell-06 / Hydraulic Push | Whole record; Gemma, Passage Any, decay 0.5 | Water Elemental Vessel and Undine Hydromancer: both supported through owned spell capabilities, both items supported |
+
+The limits are substantive despite the successful citation checks:
+
+- Mythic Lich's Siphon Life supplied a salient intrinsic connection. Its Howling Blizzard excerpt only partly supported the requested undead identity and powers; the carried teleport scroll's generic activation instructions were unsupported for that purpose. Lich Legion's two vampiric spell excerpts partly supported shared owned powers, while Void Healing supplied the intrinsic connection. None of those displayed excerpts established immortality or soul anchoring.
+- Burning Spell's effect described fire behavior, but its separate philosophy prerequisite supplied only an association and was unsupported as an explanation of that behavior. Effect: Kindling was the single partial candidate: it modified damage from fire-classified spells without displaying the actual burning, creation or manipulation mechanism or stating that the added damage was fire damage.
+- The water-blast matches showed actual owned damage-and-push spells; the reviewer did not infer those capabilities merely from a water-themed name. Selected reset and soul-anchor comparisons stayed within the explicitly selected seed scope.
+
+Separately, the preparer recorded 39 exact source-navigation/text checks: all navigation requests were accepted and all diagnostic text prefixes were present, with zero misses or identity-only entries. These are address/fidelity checks, not semantic grades. The two unsupported items are semantic relevance limits, not demonstrated citation or codec bugs. Neither this reviewer nor the original full-source opinion panels graded whether excerpts causally explain numeric vector scores or contribution weights; the original panels instead assessed candidate connections using fuller checked source material.
+
+[The retained audit metadata](results/displayed-text-audit/summary.json) preserves every original paraphrased item/candidate opinion, including bad items, original instructions, index, active v2 freeze, predeclaration, capture/command receipts and source-address/hash bindings. Before any judging, v2 corrected a prose-only note that had miscalled a baseline prerequisite excerpt identity-only; the actual DTO packets, instruction and index were unchanged, and v1 remains retained. Packet/source bodies remain ignored. Offline replay verifies their recorded hashes, opinion/item identities, grade enums, bindings and counts; it cannot re-judge or re-verify the omitted text. This small one-reviewer audit is exploratory, not human gold or a comparative method-performance estimate.
+
 ## Candidate recall
 
 The controlled oracle directly scored all 278 declared roots for each method/profile, excluding a record seed from its own eligible set (277 eligible roots for record tasks; 278 for traits). This mixed, source-nominated universe is not representative of all 29,813 product roots. Both oracle and bounded arms disable remaster preference; production captures retain it.
@@ -76,7 +101,9 @@ Memory scopes stay separate: the mixed HTTP probe server peaked at 156.64 MiB; t
 
 ## Reproduction and provenance
 
-The experiment reports declare and observe runtime revision `03b674c6167a4da99d7618372b1c48c53fc39175`, artifact generation `a9474928b73e8cf89e84c5ed6990a838:6` and source revision `28d9d156f252d084371d994dc359509b49eadf18`. The instrumented binary SHA256 is `3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c`. The build receipt records its pre-commit dirty tree and 26 owned developer-source hashes, which match the later commit; its tracked modified-file diff also matches. These receipts do not claim a fully reproducible compiler-input graph. Later default/documentation amendments are not relabeled as the timed binary.
+The experiment reports declare and observe runtime revision `03b674c6167a4da99d7618372b1c48c53fc39175`, artifact generation `a9474928b73e8cf89e84c5ed6990a838:6` and source revision `28d9d156f252d084371d994dc359509b49eadf18`. The instrumented binary SHA256 is `3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c`. The original build receipt records its pre-commit dirty tree and partial source census. A later [clean rebuild receipt](results/build-proofs/clean-03b-rebuild-proof.json), with its [build log](results/build-proofs/clean-03b-build.log), records a clean Git checkout of that exact revision in the same workspace, using pinned toolchain `1.95.0-aarch64-apple-darwin` and the same release command. The rebuilt executable is byte-identical to the measured binary, resolving the earlier source-census uncertainty. Both receipts are retained and hash-bound; recorded-data replay checks their identities and bindings without rebuilding the executable.
+
+The historical study remains on the original generation-6 artifact. Later integration with main `153ae618` at feature revision `0ed3dd72` preserves main migrations 1–16 and assigns the similarity migration 17, with graph policy v6. Selector rediscovery, native-vector equivalence and representative parity checks for that integrated artifact are separate evidence and are pending at this addendum; these timings and quality judgments are not relabeled as measurements of the integrated head. Raw research packets, reports, source bindings and the original study database remain protected from cleanup until their retained-evidence handoff is reviewed.
 
 [The compact result manifest](results/manifest.json) binds retained metadata, original prompt/opinion/adjudication bytes, cited source addresses/hashes, raw timing samples and score censuses. Dense generated tables use lossless `.jsonl.gz`; no game-source bodies are included. All 11,040 production top-twenty score values join to the exact fixed-pool matrix; all 4,320 actual capture values match that join exactly. Production order is preserved. Canonical remaster suppression only removes rows and does not transfer keys or scores.
 
@@ -86,7 +113,7 @@ Run the offline research gate:
 node --experimental-strip-types docs/research/evaluations/2026-10-similarity/verify.ts
 ```
 
-This runs the unchanged frozen-input verifier, canonical analysis regression tests and recorded-result replay. Replay checks byte/digest bindings, 1832 original opinions, 119 adjudications, score/rank joins, 552 controlled oracle cells, 672 full-search samples and 210 inventory samples. It replays recorded data; omitted source bodies and vector math require the pinned source/artifact and are not re-verified. See [RUN.md](RUN.md) for fresh execution.
+This runs the unchanged frozen-input verifier, canonical analysis and synthetic audit regression tests, and recorded-result replay. Replay checks byte/digest bindings, 1832 original opinions, 119 adjudications, score/rank joins, 552 controlled oracle cells, 672 full-search samples and 210 inventory samples, plus the separate 12-explanation/21-item displayed-text audit. It replays recorded data; omitted source bodies and vector math require the pinned source/artifact and are not re-verified. See [RUN.md](RUN.md) for fresh execution.
 
 ## Complete variant grids
 

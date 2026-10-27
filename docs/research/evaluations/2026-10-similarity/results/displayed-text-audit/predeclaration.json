@@ -1,0 +1,307 @@
+{
+  "version": 1,
+  "kind": "predeclared_exploratory_displayed_excerpt_audit",
+  "declared_before_capture_at_utc": "2026-10-27T08:23:47.150475+00:00",
+  "not_amendment_to_frozen_quality_protocol": true,
+  "selection_rule": "Six explicitly declared cells; actual first2product results percell; no replacement or cherry-picking if displayed evidence absent. This follow-up checks displayed textual evidence support, separately from numeric quality or citation exactness.",
+  "expected_candidate_explanations": 12,
+  "display_surface": "SimilarityExplanation pairs (seed_text and candidate.snippet plus labels/navigation) when row.similarity exists and detailsenabled; otherwise SearchMatchContext matching_sections baseline candidate snippet/navigation. Do not substitute fullsource text as displayed evidence.",
+  "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+  "source_revision": "28d9d156f252d084371d994dc359509b49eadf18",
+  "manifest_path": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/docs/research/evaluations/2026-10-similarity/manifest.json",
+  "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+  "freeze_path": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/docs/research/evaluations/2026-10-similarity/freeze.json",
+  "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+  "binary": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-03b674c6",
+  "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+  "declared_binary_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+  "index": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+  "timing_scope": "diagnostic freshCLI samples, not primary performance; overlapsotherbuildwork",
+  "cases": [
+    {
+      "audit_cell_id": "cell-01",
+      "scenario_id": "dev-h01",
+      "profile": "bge-base",
+      "method": "passages",
+      "candidate_parts": "any",
+      "decay": 0.5,
+      "seed": {
+        "kind": "record",
+        "record_key": "hazards:Q8bXKgDm8eguqThB"
+      },
+      "seed_title": "Brown Mold",
+      "intent": "Find hazards or other records that share the seed\u2019s heat-draining fungal danger, including its behavior and counterplay; incidental cold wording alone is weak evidence.",
+      "selection": {
+        "kind": "all"
+      },
+      "selection_labels": [],
+      "candidate_filter": null,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-03b674c6",
+        "similar",
+        "hazards:Q8bXKgDm8eguqThB",
+        "--method",
+        "passages",
+        "--search-profile",
+        "bge-base",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "2",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:6",
+        "--candidate-parts",
+        "any",
+        "--decay",
+        "0.5"
+      ],
+      "capture_output": "captures/cell-01.json",
+      "capture_stderr": "captures/cell-01.stderr.log"
+    },
+    {
+      "audit_cell_id": "cell-02",
+      "scenario_id": "dev-h02",
+      "profile": "embeddinggemma",
+      "method": "content-average",
+      "candidate_parts": "corresponding",
+      "decay": null,
+      "seed": {
+        "kind": "record",
+        "record_key": "hazards:Q8bXKgDm8eguqThB"
+      },
+      "seed_title": "Brown Mold",
+      "intent": "Find comparable recovery or reset behavior after a hazard has activated or expanded. Judge the selected reset text, not general fungus or cold similarity.",
+      "selection": {
+        "kind": "explicit",
+        "selectors": [
+          "part:43ae599956b6366a12eb5f29c32e52805ff2d3a4e1693ba4fbaddbecdc613499"
+        ],
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6"
+      },
+      "selection_labels": [
+        {
+          "owner": "Brown Mold",
+          "label": "Reset"
+        }
+      ],
+      "candidate_filter": null,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-03b674c6",
+        "similar",
+        "hazards:Q8bXKgDm8eguqThB",
+        "--method",
+        "content-average",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "2",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:6",
+        "--candidate-parts",
+        "corresponding",
+        "--part",
+        "part:43ae599956b6366a12eb5f29c32e52805ff2d3a4e1693ba4fbaddbecdc613499"
+      ],
+      "capture_output": "captures/cell-02.json",
+      "capture_stderr": "captures/cell-02.stderr.log"
+    },
+    {
+      "audit_cell_id": "cell-03",
+      "scenario_id": "dev-c02",
+      "profile": "bge-base",
+      "method": "passages",
+      "candidate_parts": "corresponding",
+      "decay": 0.25,
+      "seed": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL"
+      },
+      "seed_title": "Lich",
+      "intent": "Find records portraying an immortal arcane undead entity and its characteristic powers. Distinguish intrinsic identity and mechanics from overlap caused only by copied spells or carried equipment.",
+      "selection": {
+        "kind": "all"
+      },
+      "selection_labels": [],
+      "candidate_filter": null,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-03b674c6",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--method",
+        "passages",
+        "--search-profile",
+        "bge-base",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "2",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:6",
+        "--candidate-parts",
+        "corresponding",
+        "--decay",
+        "0.25"
+      ],
+      "capture_output": "captures/cell-03.json",
+      "capture_stderr": "captures/cell-03.stderr.log"
+    },
+    {
+      "audit_cell_id": "cell-04",
+      "scenario_id": "dev-c03",
+      "profile": "embeddinggemma",
+      "method": "content-average",
+      "candidate_parts": "any",
+      "decay": null,
+      "seed": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL"
+      },
+      "seed_title": "Lich",
+      "intent": "Find records sharing the lich\u2019s undead transformation and persistence through a soul-containing anchor. Ignore unselected spell and equipment descriptions when judging usefulness.",
+      "selection": {
+        "kind": "explicit",
+        "selectors": [
+          "part:8cfc70b937eac40f5517f41aa1f18d842c71ae4e1e9bda7bba23855fb6fb7435",
+          "part:1c0a2ef604280e5e803b9eef24af4651cc8762a6c33f95799392f8972b51774c"
+        ],
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6"
+      },
+      "selection_labels": [
+        {
+          "owner": "Lich",
+          "label": "Description"
+        },
+        {
+          "owner": "Rejuvenation",
+          "label": "Ability"
+        }
+      ],
+      "candidate_filter": null,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-03b674c6",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--method",
+        "content-average",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "2",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:6",
+        "--candidate-parts",
+        "any",
+        "--part",
+        "part:8cfc70b937eac40f5517f41aa1f18d842c71ae4e1e9bda7bba23855fb6fb7435",
+        "--part",
+        "part:1c0a2ef604280e5e803b9eef24af4651cc8762a6c33f95799392f8972b51774c"
+      ],
+      "capture_output": "captures/cell-04.json",
+      "capture_stderr": "captures/cell-04.stderr.log"
+    },
+    {
+      "audit_cell_id": "cell-05",
+      "scenario_id": "dev-t01",
+      "profile": "bge-base",
+      "method": "baseline",
+      "candidate_parts": null,
+      "decay": null,
+      "seed": {
+        "kind": "trait",
+        "trait_key": "trait:fire"
+      },
+      "seed_title": "Fire",
+      "intent": "Find records whose explanatory content meaningfully embodies the catalog fire concept. Grade described fire behavior, not exact trait membership by itself.",
+      "selection": {
+        "kind": "all"
+      },
+      "selection_labels": [],
+      "candidate_filter": null,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-03b674c6",
+        "similar",
+        "trait:fire",
+        "--method",
+        "baseline",
+        "--search-profile",
+        "bge-base",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "2",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:6"
+      ],
+      "capture_output": "captures/cell-05.json",
+      "capture_stderr": "captures/cell-05.stderr.log"
+    },
+    {
+      "audit_cell_id": "cell-06",
+      "scenario_id": "hold-s01",
+      "profile": "embeddinggemma",
+      "method": "passages",
+      "candidate_parts": "any",
+      "decay": 0.5,
+      "seed": {
+        "kind": "record",
+        "record_key": "spells-srd:jfVCuOpzC6mUrf6f"
+      },
+      "seed_title": "Hydraulic Push",
+      "intent": "Find records whose described mechanism uses pressurized water or an analogous forceful blast to damage and push a target. Water association alone is weak evidence.",
+      "selection": {
+        "kind": "all"
+      },
+      "selection_labels": [],
+      "candidate_filter": null,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-03b674c6",
+        "similar",
+        "spells-srd:jfVCuOpzC6mUrf6f",
+        "--method",
+        "passages",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "2",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:6",
+        "--candidate-parts",
+        "any",
+        "--decay",
+        "0.5"
+      ],
+      "capture_output": "captures/cell-06.json",
+      "capture_stderr": "captures/cell-06.stderr.log"
+    }
+  ]
+}
