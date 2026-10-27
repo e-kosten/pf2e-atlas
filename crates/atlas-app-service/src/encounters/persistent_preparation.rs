@@ -104,6 +104,7 @@ pub(super) fn revalue(
     group: &super::rules::persistent_damage::PersistentGroup<'_>,
     record: Option<&atlas_record::source_record::SourceBackedRecord>,
     participant: &atlas_local_state::EncounterParticipant,
+    sources: &super::rules::source_conditions::SourceConditions,
 ) -> AppServiceResult<(PersistentDamageOutcome, i64)> {
     let atlas_local_state::ConditionParameters::PersistentDamage {
         formula,
@@ -129,9 +130,13 @@ pub(super) fn revalue(
             "Active damage source changed; use a table result for this type",
         ));
     }
-    let protection =
-        super::rules::damage::persistent_protection(record, participant, group.damage_type)
-            .map_err(AppServiceError::invalid_request)?;
+    let protection = super::rules::damage::persistent_protection(
+        record,
+        participant,
+        sources,
+        group.damage_type,
+    )
+    .map_err(AppServiceError::invalid_request)?;
     outcome.amount = protection.apply(super::rules::persistent_damage::scaled(
         i64::from(roll.total),
         *multiplier,
@@ -225,7 +230,7 @@ impl AtlasAppService {
             .groups
             .iter()
             .any(|g| !matches!(g.damage, PersistentDamageInput::TableResult { .. }));
-        let (record, reference_revision) = if needs_source {
+        let (record, source_conditions, reference_revision) = if needs_source {
             let expected_generation = request.artifact_generation.clone();
             let record_key = participant.record_key.clone();
             self.with_workspace(
@@ -245,11 +250,22 @@ impl AtlasAppService {
                     })?;
                     let record =
                         super::hydration::resolve_record_ref(session.retrieval_mut(), key)?;
-                    Ok((Some(record.source), Some(session.reference_revision()?)))
+                    let sources = super::hydration::source_baseline(
+                        &record.source,
+                        session.retrieval_mut(),
+                        None,
+                    )?
+                    .map(|baseline| baseline.source_conditions)
+                    .unwrap_or_else(super::rules::source_conditions::SourceConditions::unavailable);
+                    Ok((
+                        Some(record.source),
+                        sources,
+                        Some(session.reference_revision()?),
+                    ))
                 },
             )?
         } else {
-            (None, None)
+            (None, Default::default(), None)
         };
         let mut resolved = Vec::new();
         let mut hardness = 0;
@@ -301,7 +317,13 @@ impl AtlasAppService {
                         .ok_or_else(|| {
                             AppServiceError::invalid_request("Prepared damage source changed")
                         })?;
-                    let (outcome, shared) = revalue(outcome, group, record.as_ref(), participant)?;
+                    let (outcome, shared) = revalue(
+                        outcome,
+                        group,
+                        record.as_ref(),
+                        participant,
+                        &source_conditions,
+                    )?;
                     hardness = hardness.max(shared);
                     resolved.push(outcome);
                 }
@@ -328,8 +350,13 @@ impl AtlasAppService {
                                     "Prepared damage unavailable; use Table results",
                                 )
                             })?;
-                        let (outcome, shared) =
-                            revalue(outcome, group, record.as_ref(), participant)?;
+                        let (outcome, shared) = revalue(
+                            outcome,
+                            group,
+                            record.as_ref(),
+                            participant,
+                            &source_conditions,
+                        )?;
                         resolved.push(outcome);
                         hardness = hardness.max(shared);
                         recovered_id = Some(id);
@@ -348,6 +375,7 @@ impl AtlasAppService {
                     let protection = super::rules::damage::persistent_protection(
                         record.as_ref(),
                         participant,
+                        &source_conditions,
                         group.damage_type,
                     )
                     .map_err(AppServiceError::invalid_request)?;

@@ -9,6 +9,12 @@ fn fixture() -> (AtlasAppService, FixtureArtifact, String) {
     fixture_with_drained(false)
 }
 fn fixture_with_drained(initial_drained: bool) -> (AtlasAppService, FixtureArtifact, String) {
+    fixture_with_items(initial_drained, vec![])
+}
+fn fixture_with_items(
+    initial_drained: bool,
+    items: Vec<serde_json::Value>,
+) -> (AtlasAppService, FixtureArtifact, String) {
     let mut actor = json!({
         "_id":"aaaaaaaaaaaaaaaa","name":"State test creature","type":"npc",
         "system":{"traits":{"value":[]},"details":{"level":{"value":5}},
@@ -32,11 +38,13 @@ fn fixture_with_drained(initial_drained: bool) -> (AtlasAppService, FixtureArtif
     if initial_drained {
         actor["items"].as_array_mut().unwrap().push(json!({"_id":"ffffffffffffffff","type":"condition","name":"Drained","system":{"slug":"drained","value":{"isValued":true,"value":2}}}));
     }
+    actor["items"].as_array_mut().unwrap().extend(items);
     let mut records = vec![record("actors", "Actor", actor)];
     for rule in [
         ConditionId::Slowed,
         ConditionId::Clumsy,
         ConditionId::Drained,
+        ConditionId::Prone,
     ] {
         let definition = rule.definition();
         records.push(record("conditionitems","Item",json!({"_id":definition.record_key.split_once(':').unwrap().1,"name":definition.name,"type":"condition",
@@ -395,4 +403,274 @@ fn source_drained_initializes_current_hp_at_effective_capacity_without_charging_
         );
         assert!(participant.conditions.is_empty());
     }
+}
+
+fn participant_update(participant: &EncounterParticipantView) -> UpdateEncounterParticipantRequest {
+    UpdateEncounterParticipantRequest {
+        expected_revision: participant.revision,
+        hp_edit: false,
+        max_hp_edit: false,
+        variant_edit: false,
+        use_derived_max: false,
+        participant_key: participant.participant_key.clone(),
+        display_name: participant.display_name.clone(),
+        side: participant.side,
+        participant_variant: participant.participant_variant,
+        initiative: participant.initiative,
+        max_hp: participant.max_hp,
+        current_hp: participant.current_hp,
+        temporary_hp: participant.temporary_hp,
+        defeated: participant.defeated,
+        hazard_disabled: participant.hazard_disabled,
+        hidden: participant.hidden,
+        note: participant.note.clone(),
+    }
+}
+
+#[test]
+fn derived_maximum_reset_preserves_pristine_source_drained_capacity() {
+    let (service, _artifact, key) = fixture_with_drained(true);
+    let initial = service.encounter(&key).unwrap();
+    let mut update = participant_update(&initial.participants[0]);
+    update.use_derived_max = true;
+    service.update_encounter_participant(&key, update).unwrap();
+    let after = service.encounter(&key).unwrap();
+    assert_eq!(
+        (
+            after.participants[0].max_hp,
+            after.participants[0].current_hp
+        ),
+        (Some(50), Some(40))
+    );
+}
+
+#[test]
+fn pristine_variant_edit_uses_conditioned_capacity_at_the_new_level() {
+    let (service, _artifact, key) = fixture_with_drained(true);
+    let initial = service.encounter(&key).unwrap();
+    let mut update = participant_update(&initial.participants[0]);
+    update.participant_variant = EncounterParticipantVariantView::Elite;
+    update.variant_edit = true;
+    service.update_encounter_participant(&key, update).unwrap();
+    let after = service.encounter(&key).unwrap();
+    assert_eq!(
+        (
+            after.participants[0].max_hp,
+            after.participants[0].current_hp
+        ),
+        (Some(70), Some(58))
+    );
+}
+
+#[test]
+fn running_variant_edit_preserves_damage_below_conditioned_capacity() {
+    let (service, _artifact, key) = fixture_with_drained(true);
+    let initial = service.encounter(&key).unwrap();
+    service
+        .update_encounter(UpdateEncounterRequest {
+            encounter_key: key.clone(),
+            slug: initial.encounter.slug.clone(),
+            name: initial.encounter.name.clone(),
+            description: None,
+            note: None,
+            status: EncounterStatusView::Running,
+        })
+        .unwrap();
+    let mut damage = participant_update(&initial.participants[0]);
+    damage.current_hp = Some(35);
+    damage.hp_edit = true;
+    service.update_encounter_participant(&key, damage).unwrap();
+    let damaged = service.encounter(&key).unwrap();
+    let mut update = participant_update(&damaged.participants[0]);
+    update.participant_variant = EncounterParticipantVariantView::Elite;
+    update.variant_edit = true;
+    service.update_encounter_participant(&key, update).unwrap();
+    let after = service.encounter(&key).unwrap();
+    assert_eq!(
+        (
+            after.participants[0].max_hp,
+            after.participants[0].current_hp
+        ),
+        (Some(70), Some(53))
+    );
+}
+
+fn predicate_drained_fixture(negated: bool) -> (AtlasAppService, FixtureArtifact, String) {
+    let predicate = if negated {
+        json!([{"not":"self:condition:prone"}])
+    } else {
+        json!(["self:condition:prone"])
+    };
+    fixture_with_items(
+        false,
+        vec![
+            json!({"_id":"iiiiiiiiiiiiiiii","name":"Conditional drain","type":"action","system":{"actionType":{"value":"passive"},"rules":[
+                {"key":"GrantItem","inMemoryOnly":true,"predicate":predicate,"uuid":"Compendium.pf2e.conditionitems.Item.Drained"}
+            ]}}),
+        ],
+    )
+}
+
+fn prone_request(
+    detail: &EncounterDetailView,
+    id: &str,
+) -> AddEncounterParticipantConditionRequest {
+    serde_json::from_value(json!({
+        "request_id": id,
+        "expected_encounter_revision":detail.revision,
+        "participant_key":detail.participants[0].participant_key,
+        "condition_ref":ConditionId::Prone.definition().record_key
+    }))
+    .unwrap()
+}
+
+#[test]
+fn predicate_activation_charges_drained_once_and_deactivation_never_heals() {
+    let (service, _artifact, key) = predicate_drained_fixture(false);
+    let initial = service.encounter(&key).unwrap();
+    assert_eq!(initial.participants[0].current_hp, Some(50));
+    let add = prone_request(&initial, "prone-activates-drained");
+    service
+        .add_encounter_participant_condition(&key, add.clone())
+        .unwrap();
+    service
+        .add_encounter_participant_condition(&key, add)
+        .unwrap();
+    let active = service.encounter(&key).unwrap();
+    assert_eq!(active.participants[0].current_hp, Some(45));
+    assert_eq!(
+        active.participants[0]
+            .effective_max_hp
+            .value
+            .as_ref()
+            .and_then(serde_json::Number::as_i64),
+        Some(45)
+    );
+    service
+        .remove_encounter_participant_condition(
+            &key,
+            &active.participants[0].participant_key,
+            active.participants[0].conditions[0].condition_id,
+            RemoveEncounterParticipantConditionRequest {
+                request_id: "end-prone".into(),
+                expected_encounter_revision: active.revision,
+                intent: ConditionRemovalIntentView::RemoveEffect,
+            },
+        )
+        .unwrap();
+    let inactive = service.encounter(&key).unwrap();
+    assert_eq!(inactive.participants[0].current_hp, Some(45));
+    assert_eq!(
+        inactive.participants[0]
+            .effective_max_hp
+            .value
+            .as_ref()
+            .and_then(serde_json::Number::as_i64),
+        Some(50)
+    );
+}
+
+#[test]
+fn removing_a_predicate_condition_charges_new_drained_once_with_known_level() {
+    let (service, _artifact, key) = predicate_drained_fixture(true);
+    let initial = service.encounter(&key).unwrap();
+    assert_eq!(initial.participants[0].current_hp, Some(45));
+    service
+        .add_encounter_participant_condition(&key, prone_request(&initial, "disable-drained"))
+        .unwrap();
+    let inactive = service.encounter(&key).unwrap();
+    assert_eq!(inactive.participants[0].current_hp, Some(45));
+    let remove = RemoveEncounterParticipantConditionRequest {
+        request_id: "reactivate-drained".into(),
+        expected_encounter_revision: inactive.revision,
+        intent: ConditionRemovalIntentView::RemoveEffect,
+    };
+    let condition_id = inactive.participants[0].conditions[0].condition_id;
+    let participant_key = &inactive.participants[0].participant_key;
+    service
+        .remove_encounter_participant_condition(&key, participant_key, condition_id, remove.clone())
+        .unwrap();
+    service
+        .remove_encounter_participant_condition(&key, participant_key, condition_id, remove)
+        .unwrap();
+    let active = service.encounter(&key).unwrap();
+    assert_eq!(active.participants[0].current_hp, Some(40));
+}
+
+#[test]
+fn corrected_predicate_activation_changes_capacity_without_charging_hp() {
+    let (service, _artifact, key) = predicate_drained_fixture(false);
+    let initial = service.encounter(&key).unwrap();
+    let mut correction = prone_request(&initial, "correct-prone");
+    correction.event_intent = ConditionEventIntentView::Correction;
+    service
+        .add_encounter_participant_condition(&key, correction)
+        .unwrap();
+    let active = service.encounter(&key).unwrap();
+    assert_eq!(active.participants[0].current_hp, Some(50));
+    assert_eq!(
+        active.participants[0]
+            .effective_max_hp
+            .value
+            .as_ref()
+            .and_then(serde_json::Number::as_i64),
+        Some(45)
+    );
+}
+
+#[test]
+fn unknown_source_condition_cannot_roll_an_authored_strike_subtotal() {
+    let (service, _artifact, key) = fixture_with_items(
+        false,
+        vec![
+            json!({"_id":"iiiiiiiiiiiiiiii","name":"Contextual form","type":"action","system":{"actionType":{"value":"passive"},"rules":[
+                {"key":"GrantItem","inMemoryOnly":true,"predicate":["form:battle"],"uuid":"Compendium.pf2e.conditionitems.Item.Clumsy","alterations":[{"property":"badge-value","mode":"override","value":2}]}
+            ]}}),
+            json!({"_id":"jjjjjjjjjjjjjjjj","name":"Finesse claw","type":"melee","system":{"range":null,"bonus":{"value":14},"traits":{"value":["finesse"]},"damageRolls":{"first":{"damage":"1d6+4","damageType":"slashing","category":null}}}}),
+        ],
+    );
+    let initial = service.encounter(&key).unwrap();
+    let participant = &initial.participants[0];
+    let error = service
+        .roll_encounter_strike(
+            &key,
+            RollEncounterStrikeRequest {
+                request_id: "unknown-clumsy-strike".into(),
+                expected_revision: initial.revision,
+                participant_key: participant.participant_key.clone(),
+                expected_participant_revision: participant.revision,
+                reference: EncounterReferenceRequest {
+                    artifact_generation: initial.artifact_generation.clone().unwrap(),
+                    selection: RecordDetailRequest {
+                        spell_rank: None,
+                        record_key: participant.record_key.clone().unwrap(),
+                        owners: vec![atlas_domain::OwnedContentLocator {
+                            collection: "/items".into(),
+                            identity: atlas_domain::OwnedContentIdentity::Stable(
+                                "jjjjjjjjjjjjjjjj".into(),
+                            ),
+                        }],
+                        fields: vec![],
+                        passage: None,
+                        source_fingerprint: None,
+                    },
+                },
+                attack_number: 1,
+                mode: RollMode::Normal,
+                modifier_override: None,
+                roll_kind: StrikeRollKind::Attack,
+            },
+        )
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(error.code, AppErrorCode::InvalidRequest);
+    assert!(
+        error.message.contains("activation needs context"),
+        "{}",
+        error.message
+    );
+    let after = service.encounter(&key).unwrap();
+    assert_eq!(after.revision, initial.revision);
+    assert_eq!(after.participants[0].revision, participant.revision);
+    assert_eq!(after.participants[0].current_hp, participant.current_hp);
 }

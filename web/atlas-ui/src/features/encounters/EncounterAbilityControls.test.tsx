@@ -81,6 +81,7 @@ it("changes the authored switch without losing its selected option", async () =>
     <EncounterAbilityControls ability={option} disabled={false} onChange={onChange} />,
   );
   const control = screen.getByRole("switch", { name: "Mounted active" });
+  expect(screen.queryByText("Mounted")).toBeNull();
   control.focus();
   fireEvent.click(control);
   await waitFor(() => expect(control).toHaveFocus());
@@ -123,6 +124,7 @@ it("selects an authored choice directly from Off in one update", async () => {
   );
   expect(screen.queryByRole("switch")).toBeNull();
   const trigger = screen.getByRole("button", { name: "Go Dark effect: Off" });
+  expect(screen.queryByText("Go Dark")).toBeNull();
   trigger.focus();
   fireEvent.click(trigger);
   fireEvent.click(await screen.findByRole("menuitem", { name: "Hidden" }));
@@ -169,6 +171,50 @@ it("selects an authored choice directly from Off in one update", async () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("identifies each inline switch and sends its exact authored ordinal", async () => {
+  const onChange = vi.fn().mockResolvedValue(true);
+  const stars: EncounterAbilityStateView[] = ["Black", "Gold", "Green", "White"].map(
+    (color, ordinal) => ({
+      ...ability,
+      label: `${color} Aeon Star used`,
+      rule_ordinal: ordinal,
+      state: {
+        kind: "option",
+        active: false,
+        always_active: false,
+        selection: null,
+        choices: [],
+      },
+    }),
+  );
+  render(
+    <section aria-label="Inline abilities">
+      {stars.map((star) => (
+        <EncounterAbilityControls
+          key={star.rule_ordinal}
+          ability={star}
+          showLabel
+          disabled={false}
+          onChange={onChange}
+        />
+      ))}
+    </section>,
+  );
+  const inline = within(screen.getByRole("region", { name: "Inline abilities" }));
+  for (const star of stars) {
+    expect(inline.getByText(star.label)).toBeVisible();
+    fireEvent.click(inline.getByRole("switch", { name: `${star.label} active` }));
+    await waitFor(() =>
+      expect(onChange).toHaveBeenCalledWith(star, {
+        kind: "set_option",
+        active: true,
+        selection: null,
+      }),
+    );
+  }
+  expect(onChange).toHaveBeenCalledTimes(4);
 });
 
 it("omits the ability states section when no configurable ability is supplied", () => {

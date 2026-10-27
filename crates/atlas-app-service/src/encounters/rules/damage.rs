@@ -29,15 +29,12 @@ impl DamageProtection {
 pub(in crate::encounters) fn persistent_protection(
     record: Option<&SourceBackedRecord>,
     participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
     damage_type: &str,
 ) -> Result<DamageProtection, String> {
-    let petrified = super::causes::condition_causes(
-        participant,
-        None,
-        crate::encounters::rules::source_conditions::SourceConditions::empty(),
-    )
-    .iter()
-    .any(|cause| cause.rule == ConditionRule::Petrified);
+    let petrified = super::causes::condition_causes(participant, None, sources)
+        .iter()
+        .any(|cause| cause.rule == ConditionRule::Petrified);
     if petrified && object_damage_immunity(damage_type) {
         return Ok(DamageProtection {
             immune: true,
@@ -47,22 +44,7 @@ pub(in crate::encounters) fn persistent_protection(
     let record = record
         .ok_or_else(|| "Damage protections are unavailable; enter the table result.".to_owned())?;
     let actor = SourceQueryView::new(record.source(), record.key().pack().as_str(), "").actor();
-    let hardness = if petrified {
-        8
-    } else {
-        match actor.hazard_hardness() {
-            SourceFieldView::NotApplicable => 0,
-            SourceFieldView::Value(value) => value
-                .as_i64()
-                .filter(|value| *value >= 0)
-                .ok_or_else(|| "Hardness is unavailable; enter the table result.".to_owned())?,
-            _ => return Err("Hardness is unavailable; enter the table result.".into()),
-        }
-    };
-    let mut result = DamageProtection {
-        hardness,
-        ..Default::default()
-    };
+    let mut result = DamageProtection::default();
     let immunities = super::effective_immunities::effective_immunities(record);
     let mut unresolved = (!immunities.authored_complete)
         .then(|| "Damage immunities are unavailable; enter the table result.".to_owned());
@@ -90,6 +72,27 @@ pub(in crate::encounters) fn persistent_protection(
     if let Some(reason) = unresolved {
         return Err(reason);
     }
+    if !petrified
+        && (sources.unavailable_reason.is_some()
+            || sources
+                .unresolved_entries(participant)
+                .iter()
+                .any(|source| source.rule == ConditionRule::Petrified))
+    {
+        return Err("Petrified protections are unavailable; enter the table result.".into());
+    }
+    result.hardness = if petrified {
+        8
+    } else {
+        match actor.hazard_hardness() {
+            SourceFieldView::NotApplicable => 0,
+            SourceFieldView::Value(value) => value
+                .as_i64()
+                .filter(|value| *value >= 0)
+                .ok_or_else(|| "Hardness is unavailable; enter the table result.".to_owned())?,
+            _ => return Err("Hardness is unavailable; enter the table result.".into()),
+        }
+    };
     for (kind, weakness) in [
         (ActorIwrKind::Weakness, true),
         (ActorIwrKind::Resistance, false),
