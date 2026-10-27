@@ -535,8 +535,12 @@ describe("useSearchWorkspace", () => {
     fireEvent.click(screen.getByText("Sections to compare"));
     fireEvent.click(await screen.findByRole("button", { name: "Reload sections" }));
     await screen.findByRole("checkbox", { name: "Description" });
-    fireEvent.click(screen.getByRole("checkbox", { name: "All sections" }));
+    const selectAll = screen.getByRole("checkbox", { name: "Select all" });
+    expect(selectAll).toBeChecked();
+    fireEvent.click(selectAll);
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
     fireEvent.click(screen.getByRole("checkbox", { name: "Description" }));
+    expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() =>
       expect(screen.getByLabelText("Result collection")).toHaveTextContent(
