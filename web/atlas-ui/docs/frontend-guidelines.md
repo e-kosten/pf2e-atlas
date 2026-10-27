@@ -1198,6 +1198,16 @@ do not preserve an editable inactive row just to make its rules reachable. The
 server supplies the rule identity separately from the outcome text.
 Do not move the condition lane, HP controls or reading position when a count changes.
 
+Show source-supplied switches and finite choices in Ability states below Conditions
+when present, using the same controls and canonical state as the ability text.
+Keep the state available whether its resulting condition is active or absent:
+Raised Cavalry's Mounted switch stays available after mounting removes Slowed.
+Do not attach that switch to the disappearing Slowed row, treat Mounted as a
+condition, or make source-granted condition values editable. Keep states inline
+beside the ability's activation information as well. Usage counters belong after
+their complete ability text; do not repeat them in Ability states. Link the
+ability name to its exact source selection for reading the governing rule.
+
 Use explicit, compact action spending and correction controls; attacks and spell-use
 buttons never spend actions implicitly. In Turn, available action/reaction chips spend
 on activation and spent chips restore; retain the clicked chip's position and focus.
@@ -1243,6 +1253,16 @@ content still needs local status and a useful recovery/destination link. This ru
 does not suppress essential actions or change existing owned-ability permalinks.
 Verify the body-only, named-heading, prose-link and unavailable cases when changing
 shared inclusion presentation.
+
+Recipient grants use the bottom **Grants** section and the shared reference rows,
+with exact native destinations and the usual Drawer behavior. App-service omits
+entries already linked in prose, included content or feature lists; the renderer
+shows every remaining entry without a search shortcut, five-row cap or nested
+card. For example, Sisterhood Orphan needs a link to Inflict Punishment, whereas
+Adaptive Anadi already links Adopted Ancestry in its prose. Keep restrictions in
+the authored rules. Actor roots and actor-owned abilities describe internal
+composition and do not get this recipient section; retain their Explore links.
+Do not infer or apply encounter effects from the presence of a grant link.
 
 A selected ability's metadata and prepared prose form one document. The metadata
 renderer contributes no separate boundary before its own prose; when the identity
@@ -1583,6 +1603,11 @@ Creature Lore rows use the authored title and signed modifier once. Actor spell
 lists display known authored casting rank, preserving an unavailable casting
 rank explicitly; base rank and authored heightening remain in the opened detail.
 The browser does not calculate selected-rank spell effects.
+Casting-advice retention includes saved conditions and source option identity/state.
+Changing Incurable Curse from Stupefied to Clumsy immediately retires the previous
+flat-check advice, even if its replacement fails. Spending a use or spell slot keeps
+still-valid advice and the Cast control mounted; do not invalidate it for every
+participant revision or retain it merely because the spell is unchanged.
 
 Participant settings uses one labeled Save/Cancel form and the complete guarded
 participant update. Edit HP shows Current, Maximum and Temporary fields; Save

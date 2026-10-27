@@ -4,6 +4,113 @@ use atlas_search::test_support::{input, open_input_fixture, open_source_fixture,
 use serde_json::json;
 
 #[test]
+fn addressed_condition_formula_includes_the_creatures_authored_condition_value() {
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({
+                            "_id":"inherentActor001","name":"Inherent stupefied","type":"npc",
+                            "system":{"details":{"level":{"value":5}},"attributes":{"adjustment":null,"hp":{"max":50}},"traits":{"value":[]}},
+                            "items":[{"_id":"inherentStup0001","name":"Stupefied","type":"condition","system":{"slug":"stupefied","value":{"isValued":true,"value":4}}}]
+                        }),
+                    ),
+                    record(
+                        "conditionitems",
+                        "Item",
+                        json!({
+                            "_id":"e1XGnhKNSQIm5IXg","name":"Stupefied","type":"condition",
+                            "system":{"slug":"stupefied","value":{"isValued":true,"value":1},"description":{"value":"<p>@Check[flat|showDC:all|dc:resolve(5+@item.badge.value)]</p>"}}
+                        }),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Authored condition formula".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.slug.clone(),
+            record_ref: "actors:inherentActor001".into(),
+            quantity: 1,
+            participant_variant: None,
+            initiative: None,
+        })
+        .unwrap();
+    let current = f.worker.encounter(&encounter.slug).unwrap();
+    let participant_key = current.participants[0].participant_key.clone();
+    f.worker
+        .add_encounter_participant_condition(
+            &encounter.slug,
+            AddEncounterParticipantConditionRequest {
+                request_id: "temporary-stupefied".into(),
+                event_intent: Default::default(),
+                decisions: Default::default(),
+                expected_encounter_revision: current.revision,
+                participant_key: participant_key.clone(),
+                condition_ref: Some("conditionitems:e1XGnhKNSQIm5IXg".into()),
+                name: None,
+                value: Some(2),
+                source_participant_key: None,
+                duration: None,
+                note: None,
+                scope: Default::default(),
+                extra_action: Default::default(),
+                immunity_override: false,
+                parameters: Default::default(),
+                origin: None,
+            },
+        )
+        .unwrap();
+    let current = f.worker.encounter(&encounter.slug).unwrap();
+    let saved = &current.participants[0].conditions[0];
+    assert_eq!(saved.value, Some(2));
+    let view = f
+        .worker
+        .encounter_reference(
+            &encounter.slug,
+            &participant_key,
+            EncounterReferenceRequest {
+                artifact_generation: current.artifact_generation.unwrap(),
+                condition_id: Some(saved.condition_id),
+                selection: RecordDetailRequest {
+                    record_key: "conditionitems:e1XGnhKNSQIm5IXg".into(),
+                    owners: vec![],
+                    fields: vec![],
+                    passage: None,
+                    spell_rank: None,
+                    source_fingerprint: None,
+                },
+            },
+        )
+        .unwrap();
+    let html = view
+        .presentation
+        .content
+        .iter()
+        .find_map(|field| match &field.body {
+            PreparedFieldBodyView::Html { html, .. } => Some(html.as_str()),
+            _ => None,
+        })
+        .unwrap();
+    assert!(html.contains("DC 9 flat check"), "{html}");
+}
+
+#[test]
 fn selected_reference_preserves_local_documents_and_composes_current_participant_facts() {
     let source = json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Local caster","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":null,"ac":{"value":22},"hp":{"max":60}}},"items":[
         {"_id":"eeeeeeeeeeeeeeee","name":"Staff casting","type":"spellcastingEntry","system":{"description":{"value":""},"spelldc":{"dc":33,"value":23},"prepared":{"value":"spontaneous"},"tradition":{"value":"arcane"}}},

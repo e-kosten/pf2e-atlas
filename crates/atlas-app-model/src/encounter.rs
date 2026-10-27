@@ -458,6 +458,9 @@ pub struct EncounterMutationView {
 pub struct EncounterParticipantView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub ability_states: Option<Vec<crate::EncounterAbilityStateView>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub turn_resources: Option<crate::TurnResourcesView>,
     pub knockout_options: Vec<crate::KnockoutOptionView>,
     #[serde(skip_serializing_if = "Option::is_none")]

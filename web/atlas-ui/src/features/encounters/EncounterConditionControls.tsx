@@ -586,7 +586,9 @@ export function EncounterConditionControls({
                 {condition.has_value ? ` ${condition.value ?? "—"}` : ""}
               </Button>
               <span className="encounter-condition-meta">
-                Inherent{" · "}
+                {condition.unavailable_reason
+                  ? `${condition.unavailable_reason} · `
+                  : "Inherent · "}
                 <Button
                   type="link"
                   styles={{ root: { padding: 0, height: "auto", fontSize: "inherit" } }}

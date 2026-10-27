@@ -6,6 +6,7 @@ use serde_json::json;
 
 pub(super) fn participant() -> EncounterParticipant {
     EncounterParticipant {
+        ability_states: vec![],
         turn_resources: None,
         level_override: None,
         base_death_threshold: 4,
@@ -194,7 +195,7 @@ fn petrified_replacement_does_not_require_or_invent_authored_defenses() {
             .iter()
             .any(|value| value.target == StatisticTarget::ArmorClass)
     );
-    assert_eq!(projected.replacements[0].condition_id, 7);
+    assert_eq!(projected.replacements[0].source, "condition:7");
 }
 #[test]
 fn scoped_restrained_suppresses_only_the_overlapping_grabbed_cause() {
@@ -204,19 +205,27 @@ fn scoped_restrained_suppresses_only_the_overlapping_grabbed_cause() {
         participant_keys: vec!["a".into()],
     };
     participant.conditions = vec![condition(1, ConditionRule::Grabbed, None), restrained];
-    let general = super::causes::condition_causes(&participant, None);
-    assert!(
-        general
-            .iter()
-            .any(|cause| cause.source.condition_id == 1 && cause.rule == ConditionRule::OffGuard)
+    let general = super::causes::condition_causes(
+        &participant,
+        None,
+        crate::encounters::rules::source_conditions::SourceConditions::empty(),
     );
-    let targeted = super::causes::condition_causes(&participant, Some("a"));
-    assert!(!targeted.iter().any(|cause| cause.source.condition_id == 1));
-    assert!(
-        targeted
-            .iter()
-            .any(|cause| cause.source.condition_id == 2 && cause.rule == ConditionRule::OffGuard)
+    assert!(general.iter().any(
+        |cause| cause.source.condition_id() == Some(1) && cause.rule == ConditionRule::OffGuard
+    ));
+    let targeted = super::causes::condition_causes(
+        &participant,
+        Some("a"),
+        crate::encounters::rules::source_conditions::SourceConditions::empty(),
     );
+    assert!(
+        !targeted
+            .iter()
+            .any(|cause| cause.source.condition_id() == Some(1))
+    );
+    assert!(targeted.iter().any(
+        |cause| cause.source.condition_id() == Some(2) && cause.rule == ConditionRule::OffGuard
+    ));
 }
 
 #[test]
@@ -239,7 +248,14 @@ fn explicit_effective_level_controls_drained_without_second_variant_adjustment()
             .and_then(serde_json::Number::as_i64),
         Some(46)
     );
-    assert_eq!(effective_hp_maximum(&participant, Some(4)), Some(46));
+    assert_eq!(
+        effective_hp_maximum(
+            &participant,
+            crate::encounters::rules::source_conditions::SourceConditions::empty(),
+            Some(4)
+        ),
+        Some(46)
+    );
 }
 
 #[test]
@@ -359,12 +375,24 @@ fn dazzled_targeting_uses_usable_precision_and_blinded_suppresses_it() {
 #[test]
 fn confused_keeps_action_guidance_without_a_target_selection_workflow() {
     let mut actor = participant();
-    assert!(!super::action_context::is_confused(&actor));
+    assert!(!super::action_context::is_confused(
+        &actor,
+        crate::encounters::rules::source_conditions::SourceConditions::empty()
+    ));
     actor.conditions = vec![condition(1, ConditionRule::Confused, None)];
-    assert!(super::action_context::is_confused(&actor));
+    assert!(super::action_context::is_confused(
+        &actor,
+        crate::encounters::rules::source_conditions::SourceConditions::empty()
+    ));
     assert!(matches!(
-        &super::super::retch::evaluate(&actor).issues[..],
-        [super::action_context::ActionIssue::NeedsConfusion { source_id: 1 }]
+        &super::super::retch::evaluate(
+            &actor,
+            crate::encounters::rules::source_conditions::SourceConditions::empty()
+        )
+        .issues[..],
+        [super::action_context::ActionIssue::NeedsConfusion {
+            source_id: super::causes::ConditionSourceKey::Saved(1)
+        }]
     ));
 }
 
@@ -384,6 +412,7 @@ fn fascination_requires_its_subject() {
     let evaluate = |participant: &EncounterParticipant| {
         evaluate_action(
             participant,
+            crate::encounters::rules::source_conditions::SourceConditions::empty(),
             &ActionContext {
                 kind: ActionKind::Retch,
                 reaction: Some(false),
@@ -427,6 +456,7 @@ fn fleeing_requires_its_explicit_subject() {
     let evaluate = |participant: &EncounterParticipant, kind| {
         evaluate_action(
             participant,
+            crate::encounters::rules::source_conditions::SourceConditions::empty(),
             &ActionContext {
                 kind,
                 reaction: Some(false),
@@ -449,10 +479,11 @@ fn fleeing_requires_its_explicit_subject() {
     assert!(evaluate(&actor, ActionKind::Retch).issues.is_empty());
     let issue = crate::encounters::action_projection::issue_view(
         ActionIssue::NeedsFact {
-            source_id: 1,
+            source_id: super::causes::ConditionSourceKey::Saved(1),
             fact: ActionFact::FurthersEscape,
         },
         &actor,
+        crate::encounters::rules::source_conditions::SourceConditions::empty(),
     );
     assert!(
         matches!(issue.subject, Some(atlas_app_model::ConditionSubjectView::Other { description }) if description == "the spreading fire")
@@ -622,19 +653,51 @@ fn controller_instructions_derive_from_active_sources_and_conflicts_stay_unknown
     controlled.note = Some("Defend the door".into());
     actor.conditions.push(controlled.clone());
     assert_eq!(
-        control_direction(&actor, &controlled),
+        control_direction(
+            &actor,
+            &controlled,
+            crate::encounters::rules::source_conditions::SourceConditions::empty()
+        ),
         Some(("controller".into(), Some("Defend the door".into())))
     );
     let mut competing = controlled.clone();
     competing.condition_id = 2;
     actor.conditions.push(competing);
-    assert!(control_direction(&actor, &controlled).is_some());
+    assert!(
+        control_direction(
+            &actor,
+            &controlled,
+            crate::encounters::rules::source_conditions::SourceConditions::empty()
+        )
+        .is_some()
+    );
     actor.conditions[1].note = Some("Leave the door".into());
-    assert!(control_direction(&actor, &controlled).is_none());
+    assert!(
+        control_direction(
+            &actor,
+            &controlled,
+            crate::encounters::rules::source_conditions::SourceConditions::empty()
+        )
+        .is_none()
+    );
     actor.conditions[1].source_participant_key = None;
-    assert!(control_direction(&actor, &controlled).is_none());
+    assert!(
+        control_direction(
+            &actor,
+            &controlled,
+            crate::encounters::rules::source_conditions::SourceConditions::empty()
+        )
+        .is_none()
+    );
     actor.conditions.pop();
-    assert!(control_direction(&actor, &controlled).is_some());
+    assert!(
+        control_direction(
+            &actor,
+            &controlled,
+            crate::encounters::rules::source_conditions::SourceConditions::empty()
+        )
+        .is_some()
+    );
 }
 
 #[test]
@@ -645,7 +708,10 @@ fn retch_exposes_independent_source_restrictions_without_collecting_answers() {
         condition(2, ConditionRule::Fleeing, None),
         condition(3, ConditionRule::Controlled, None),
     ];
-    let result = super::super::retch::evaluate(&actor);
+    let result = super::super::retch::evaluate(
+        &actor,
+        crate::encounters::rules::source_conditions::SourceConditions::empty(),
+    );
     assert_eq!(result.issues.len(), 3);
 }
 
@@ -809,5 +875,227 @@ fn fascination_hint_resolves_current_named_subject_and_other_description() {
     assert_eq!(
         render(&actor, &[]),
         "Concentrate actions must relate to the glowing mirror."
+    );
+}
+
+fn uncertain_source(
+    rule: ConditionRule,
+    value: Option<i64>,
+) -> source_conditions::SourceConditions {
+    let record = atlas_search::test_support::record(
+        "actors",
+        "Actor",
+        json!({
+            "_id":"uncertainActor01", "type":"npc", "system":{"attributes":{"immunities":[]},"traits":{"value":[]}},
+            "items":[{"_id":"uncertainItem001","type":"action","name":"Uncertain source", "system":{
+                "actionType":{"value":"passive"},"rules":[{"key":"GrantItem","inMemoryOnly":true,"uuid":"fixture:condition","predicate":["unresolved-context"]}]
+            }}]
+        }),
+    );
+    let mut sources =
+        source_conditions::source_conditions(&record.record, |_| Ok(Some(rule))).unwrap();
+    sources.entries[0].value = value;
+    sources.source_fingerprint = Some("fixture".into());
+    sources
+}
+
+#[test]
+fn uncertain_source_penalty_marks_only_affected_values_and_retains_known_calculation() {
+    let mut baseline = source_baseline();
+    baseline.source_conditions = uncertain_source(ConditionRule::Clumsy, Some(1));
+    let mut p = participant();
+    p.participant_variant = ParticipantVariant::Elite;
+    let projected = project_participant(&p, &baseline, true, &[]);
+    assert!(
+        projected
+            .effective_stat(&StatisticTarget::ArmorClass)
+            .is_none()
+    );
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::Perception)
+            .and_then(serde_json::Number::as_i64),
+        Some(13)
+    );
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::HitPointMaximum)
+            .and_then(serde_json::Number::as_i64),
+        Some(60)
+    );
+    let presentation = crate::presentation::actor::compose_participant(
+        crate::presentation::actor::manual_presentation(&p, &projected),
+        &projected,
+    );
+    let atlas_app_model::RecordBodyView::Creature(actor) = presentation.body else {
+        panic!("creature");
+    };
+    assert_eq!(
+        actor.armor_class.state,
+        atlas_domain::QueryFieldState::Missing
+    );
+    assert_eq!(actor.armor_class.value, None);
+    let explanation = actor.armor_class.adjustment.unwrap();
+    assert_eq!(explanation.authored.as_i64(), Some(20));
+    assert_eq!(explanation.applied[0].value, 2);
+    assert!(
+        explanation
+            .notes
+            .iter()
+            .any(|note| note.reason.contains("activation"))
+    );
+    let strike = projected
+        .activities
+        .iter()
+        .find(|activity| activity.label == "Finesse claw")
+        .unwrap();
+    assert!(strike.calculation_unavailable.is_some());
+    let spell = projected
+        .activities
+        .iter()
+        .find(|activity| activity.label == "Bolt")
+        .unwrap();
+    assert!(spell.calculation_unavailable.is_none());
+}
+
+#[test]
+fn known_stronger_penalty_keeps_values_known_despite_uncertain_source_activation() {
+    use super::super::stat_block::{Ability, StatValueView, StatisticSave};
+    let mut baseline = source_baseline();
+    baseline.source_conditions = uncertain_source(ConditionRule::Clumsy, Some(1));
+    baseline.values.push(StatValueView {
+        target: StatisticTarget::Save(StatisticSave::Reflex),
+        label: "Reflex".into(),
+        ability: Some(Ability::Dexterity),
+        base_value: 12.into(),
+        adjusted_value: 12.into(),
+        modifiers: vec![],
+        suppressed_modifiers: vec![],
+        notes: vec![],
+    });
+    let mut p = participant();
+    p.conditions = vec![condition(10, ConditionRule::Frightened, Some(2))];
+    let projected = project_participant(&p, &baseline, true, &[]);
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::ArmorClass)
+            .and_then(serde_json::Number::as_i64),
+        Some(18)
+    );
+    assert!(
+        projected
+            .activities
+            .iter()
+            .all(|activity| activity.calculation_unavailable.is_none())
+    );
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::Save(StatisticSave::Reflex))
+            .and_then(serde_json::Number::as_i64),
+        Some(10)
+    );
+    assert_eq!(
+        projected.unresolved_stats,
+        vec![StatisticTarget::Ability(Ability::Dexterity)]
+    );
+}
+
+#[test]
+fn uncertain_source_includes_maintained_grants_even_when_its_status_penalty_is_dominated() {
+    let mut baseline = source_baseline();
+    baseline.source_conditions = uncertain_source(ConditionRule::Unconscious, None);
+    let mut p = participant();
+    p.conditions = vec![condition(10, ConditionRule::Frightened, Some(5))];
+    let projected = project_participant(&p, &baseline, true, &[]);
+    assert!(
+        projected
+            .effective_stat(&StatisticTarget::ArmorClass)
+            .is_none(),
+        "uncertain Off-Guard still changes AC despite the dominated Unconscious status penalty"
+    );
+}
+
+#[test]
+fn uncertain_drained_keeps_known_hp_adjustments_without_exposing_a_healing_cap() {
+    let mut baseline = source_baseline();
+    baseline.source_conditions = uncertain_source(ConditionRule::Drained, Some(2));
+    let mut p = participant();
+    p.conditions = vec![condition(10, ConditionRule::Drained, Some(1))];
+    let projected = project_participant(&p, &baseline, true, &[]);
+    assert_eq!(
+        effective_hp_maximum(&p, &baseline.source_conditions, Some(4)),
+        None
+    );
+    assert!(
+        projected
+            .effective_stat(&StatisticTarget::HitPointMaximum)
+            .is_none()
+    );
+    let stat = projected
+        .values
+        .iter()
+        .find(|stat| stat.target == StatisticTarget::HitPointMaximum)
+        .unwrap();
+    let fact = crate::presentation::actor::number_with_uncertainty(stat, true);
+    let explanation = fact.adjustment.unwrap();
+    assert_eq!(explanation.authored.as_i64(), Some(60));
+    assert_eq!(explanation.applied[0].value, -4);
+    assert_eq!(fact.value, None);
+    baseline.source_conditions.entries[0].value = Some(1);
+    assert_eq!(
+        effective_hp_maximum(&p, &baseline.source_conditions, Some(4)),
+        Some(56)
+    );
+}
+
+#[test]
+fn known_stat_replacement_survives_uncertain_source_penalties() {
+    let mut baseline = source_baseline();
+    baseline.source_conditions = uncertain_source(ConditionRule::Clumsy, Some(1));
+    let mut p = participant();
+    p.conditions = vec![condition(10, ConditionRule::Petrified, None)];
+    let projected = project_participant(&p, &baseline, true, &[]);
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::ArmorClass)
+            .and_then(serde_json::Number::as_i64),
+        Some(9)
+    );
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::Hardness)
+            .and_then(serde_json::Number::as_i64),
+        Some(8)
+    );
+}
+
+#[test]
+fn uncertain_blinded_preserves_conditional_perception_with_an_alternative_precise_sense() {
+    let mut baseline = source_baseline();
+    baseline.source_conditions = uncertain_source(ConditionRule::Blinded, None);
+    baseline.sense_facts.push(super::senses::SenseFacts {
+        visual: false,
+        auditory: false,
+        precision: Some(super::senses::Precision::Precise),
+        range_feet: Some(30.0),
+        available: Some(true),
+    });
+    let projected = project_participant(&participant(), &baseline, true, &[]);
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::Perception)
+            .and_then(serde_json::Number::as_i64),
+        Some(11)
+    );
+    let perception = projected
+        .values
+        .iter()
+        .find(|stat| stat.target == StatisticTarget::Perception)
+        .unwrap();
+    assert!(
+        perception
+            .notes
+            .iter()
+            .any(|note| note.reason.contains("only precise sense"))
     );
 }

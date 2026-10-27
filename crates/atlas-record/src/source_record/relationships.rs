@@ -12,6 +12,8 @@ pub enum SourceRelationshipKind {
     CompendiumProvenance,
     GrantedBy,
     ItemGrant,
+    /// A rule or feature list names a grant target; no grant has been executed.
+    DeclaredGrant,
     SpellcastingEntry,
     PreparedSpell,
     TableResult,
@@ -183,6 +185,9 @@ pub(super) fn collect_relationships(
         item.self_effect().and_then(|e| (&e.uuid).into()),
         false,
     );
+    collect_declared_grants(item, key, |field, target| {
+        add(field, SourceRelationshipKind::DeclaredGrant, target, false);
+    });
     let granted_by = item_fields!(
         item,
         s,
@@ -284,5 +289,88 @@ pub(super) fn collect_relationships(
                 true,
             );
         }
+    }
+}
+
+fn collect_declared_grants(
+    item: ItemSourceView<'_>,
+    key: &RecordKey,
+    mut add: impl FnMut(&str, SourceFieldView<'_, &String>),
+) {
+    use atlas_foundry_model::{RuleSource, SourceContext, SourcePresence};
+
+    if let Some(rules) = item.rules().value() {
+        for (index, rule) in rules.iter().enumerate() {
+            if rule.key.as_value().map(String::as_str) != Some("GrantItem") {
+                continue;
+            }
+            let field = format!("/system/rules/{index}/uuid");
+            let Ok(RuleSource::GrantItem(grant)) = rule.interpret(SourceContext::new(
+                key.to_string(),
+                "checked source",
+                format!("$.system.rules[{index}]"),
+            )) else {
+                continue;
+            };
+            if grant.ignored.as_value() == Some(&true) {
+                continue;
+            }
+            if let SourcePresence::Value(uuid) = &grant.uuid
+                && literal_compendium_target(uuid)
+            {
+                // Predicates/alterations do not change this reference's identity.
+                // It is not evidence of eligibility or an actually applied grant.
+                add(&field, SourceFieldView::Value(uuid));
+            }
+        }
+    }
+
+    match item {
+        ItemSourceView::AncestrySource(source) => {
+            if let Some(items) = SourceFieldView::from(&source.system)
+                .and_then(|s| (&s.items).into())
+                .value()
+            {
+                for (name, entry) in &items.entries {
+                    add_feature(name, (&entry.uuid).into(), &mut add);
+                }
+            }
+        }
+        ItemSourceView::ClassSource(source) => {
+            if let Some(items) = SourceFieldView::from(&source.system)
+                .and_then(|s| (&s.items).into())
+                .value()
+            {
+                for (name, entry) in &items.entries {
+                    add_feature(name, (&entry.uuid).into(), &mut add);
+                }
+            }
+        }
+        ItemSourceView::BackgroundSource(source) => {
+            if let Some(items) = SourceFieldView::from(&source.system)
+                .and_then(|s| (&s.items).into())
+                .value()
+            {
+                for (name, entry) in &items.entries {
+                    add_feature(name, (&entry.uuid).into(), &mut add);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn literal_compendium_target(target: &str) -> bool {
+    target.starts_with("Compendium.") && !target.contains(['{', '}'])
+}
+
+fn add_feature(
+    name: &str,
+    target: SourceFieldView<'_, &String>,
+    add: &mut impl FnMut(&str, SourceFieldView<'_, &String>),
+) {
+    if target.value().is_some_and(|t| literal_compendium_target(t)) {
+        let name = name.replace('~', "~0").replace('/', "~1");
+        add(&format!("/system/items/{name}/uuid"), target);
     }
 }

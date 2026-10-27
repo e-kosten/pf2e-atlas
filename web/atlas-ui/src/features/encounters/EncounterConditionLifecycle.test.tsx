@@ -197,6 +197,7 @@ it("shows unresolved restrictions as hints rather than action questions", async 
         {
           kind: "needs_fact",
           source_condition_id: 2n,
+          source_key: "condition:2",
           fact: "relates_to_fascination",
           reason: "Check whether this relates to the fascination.",
           subject: null,
